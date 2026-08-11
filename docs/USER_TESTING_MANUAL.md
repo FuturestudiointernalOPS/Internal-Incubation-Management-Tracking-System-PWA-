@@ -1,666 +1,632 @@
-# Future Studio Staff Onboarding — User Testing Manual
-
-**Who this is for:** Someone testing this feature for the first time. No prior knowledge needed.
-
-**What you are testing:** The complete journey of a person applying to join Future Studio — from opening a form to logging into the platform as an approved staff member.
+# Internal Operations — Beginner User Testing Manual
 
 ---
 
-## BEFORE YOU START — What You Need
+## Quick Reference Table
 
-Get these from your team before you begin:
-
-1. **The Form link** — a URL like `https://...your-staging-url.../s/abc123`
-2. **An email inbox** you can check — you will use this as the test person's email
-3. **Super Admin login** — email and password
-
-Open **two browser windows:**
-
-- **Window A (Incognito / Private mode):** You will use this as the "Public User" — the person filling the form.
-- **Window B (Normal mode):** You will use this as the "Super Admin" — the person reviewing and approving.
-
----
-
-## QUICK REFERENCE — Who Does What
-
-Use this table to know which role to use for each step, which browser window, and which sidebar to look at.
-
-| Step | Who | Window | Sidebar to use | What to click |
-|------|-----|--------|----------------|---------------|
-| 1 | Public User | A | None (just open the link) | Open the Form URL |
-| 2 | Public User | A | None | Fill every field |
-| 3 | Public User | A | None | "Submit Final Response" button |
-| 4 | Super Admin | B | Main sidebar (dark, left edge, has logo) | Login with admin credentials |
-| 5 | Super Admin | B | Main sidebar → **CRM** (expand it) | **FORMS** (under CRM) |
-| 6 | Super Admin | B | Forms sidebar (has orange icon, says "Forms") | **Runs** |
-| 7 | Super Admin | B | Forms sidebar → Runs page | Click the active run name |
-| 8 | Super Admin | B | Forms sidebar → Runs page | **Review** button on the submission row |
-| 9 | Super Admin | B | Review panel (overlay) | Select "✓ Approve" → "Submit Review" |
-| 10 | Public User | A | None (check email inbox) | Open activation email |
-| 11 | Public User | A | None | Click the activation link/button |
-| 12 | Public User | A | None | Type password → "Set Password & Activate Account" |
-| 13 | Public User | A | None | Login with new credentials |
-| 14 | Super Admin | B | Main sidebar → **CRM** (expand) → **PEOPLE** | Search for user, open profile |
-| 15 | Super Admin | B | Main sidebar → **CRM** → **FORMS** → Forms sidebar → **Runs** | Open run, find submission, click **Full** |
-| 16 | Public User | A | None | Try to login with unapproved email |
+| Test | User | Where | What We Are Testing | Expected Result |
+|---|---|---|---|---|
+| 1 | Super Admin | CRM → PEOPLE | Create test users | Users appear in list |
+| 2 | Staff | Dashboard | View operations section | "Staff Operations" visible with standup/tasks |
+| 3 | Staff | Stand-Up | Create weekly Stand-Up | Stand-Up submitted |
+| 4 | Staff | Operations | Create personal tasks | Tasks appear below Stand-Up |
+| 5 | Staff | Operations | Mark task complete | Task moves to completed, progress bar updates |
+| 6 | Staff | Tasks | Assign task to same-group user | Assignment created, appears for assignee |
+| 7 | Staff | Tasks | Try assign to different-group user | Assignment blocked with error |
+| 8 | Staff | Stand-Up | Leave tasks incomplete | They carry forward to next week |
+| 9 | Staff | Operations | Create blocker on task | Task shows "blocked", blocker visible |
+| 10 | Supervisor | Operations | View supervisee tasks | Supervised tasks visible |
+| 11 | Staff | Retro | Submit end-of-week Retro | Retro saved |
+| 12 | Participant | Dashboard | View own operational area | Own tasks visible |
+| 13 | Venture | Ventures | Test venture operations | Venture tasks/standup work correctly |
+| 14 | All roles | Permissions | Try to see another user's data | Access denied (403) |
+| 15 | Super Admin | Operations | View staff operations | Staff ops visible |
+| 16 | Super Admin | Ventures | Try view unrelated venture | Venture data not automatically exposed |
 
 ---
 
-## THE SCENARIO
+## PART 1 — How to Log In and Switch Users
 
-You are pretending to be a new person who wants to join Future Studio as a staff member. You fill out a form. A Super Admin reviews your application and approves it. You then receive an email to set up your account, create a password, and log in.
+The staging environment includes a **Developer Tools** panel on the login page.
 
----
+### Steps to Switch Between Test Users
 
-## Step 1 — Open the Form
+1. Go to the **Login page**.
+2. Scroll to the bottom of the page.
+3. Look for the **Wrench icon** and click **"Developer Tools"**.
+4. A panel expands. You will see a dropdown that says **"Select Role"**.
+5. Pick the role you want (Super Admin, Staff, Participant, etc).
+6. A second dropdown appears — select the specific user.
+7. Click **"Impersonate"**.
 
-**Use:** Window A (Incognito)
+> **IMPORTANT:** Always log out before switching users. Click your profile icon at the bottom-left of the sidebar → **Log Out**. Then return to the login page.
 
-**Who:** Public User
+### If Developer Tools Is Not Visible
 
-**What to do:**
+The staging environment must have `NEXT_PUBLIC_ALLOW_IMPERSONATION=true` enabled. If you don't see the Developer Tools panel, ask your developer to enable it.
 
-Take the Form link your team gave you. Paste it into the address bar and press Enter.
+### If Users Don't Exist Yet
 
-**How to know you're in the right place:**
-
-You should see a dark page with a form on it. At the top is a form title — something like a person's name or a program name. Below the title it says: *"Please complete the required details below."*
-
-If the form has a yellow-bordered box at the top asking for your name and email, that's normal — it means you opened the form as a public visitor without a tracking link.
-
-**What to check:**
-- The page loaded completely (no spinning loader forever).
-- You can see input fields to type into.
-
-**Result:** PASS / FAIL
+Create them first (Part 2). If a role dropdown is empty, there are no users with that role. Create them from the Super Admin account first.
 
 ---
 
-## Step 2 — Fill in the Form
+## PART 2 — Create Test Users (Super Admin)
 
-**Use:** Window A (Incognito)
+### Step 1: Log In as Super Admin
 
-**Who:** Public User
+1. Go to **Login** → Developer Tools → **Super Admin** → pick a user → **Impersonate**.
+2. You are now on the Super Admin Dashboard.
 
-**What to do:**
+### Step 2: Navigate to People Management
 
-Fill in every field. Use this test information so you can recognise it later:
+1. In the left sidebar, find the **CRM** section.
+2. Click **PEOPLE** to open the contacts list.
+3. You should see existing users. Look for a **"Create Contact"** or **"+"** button to add a new user.
 
-- **Full Name:** `Samuel Adebayo`
-- **Email:** Use a real email address you can check. Example: `samuel.test@example.com`
-- **Phone:** `+229 90 84 78 20`
-- Fill every other field you see. Required fields are marked with a red star (*).
+### Step 3: Create the Staff User
 
-**What to check:**
-- Every field lets you type.
-- Required fields show a red asterisk.
-- No error messages appear while typing.
+Create a user with these details:
 
-**Result:** PASS / FAIL
+- **Full Name:** John Staff
+- **Email:** `test.staff@example.com`
+- **Role:** Staff
+- **Group / Team:** Future Studio Staff (or create a new group named `FUTURE STUDIO STAFF`)
 
----
+> **NOTE ABOUT GROUPS:** Group membership controls who can assign tasks to whom. Put test users who should work together in the SAME group. Put users who should NOT collaborate in DIFFERENT groups. Write down which group each user is in.
 
-## Step 3 — Submit the Form
+### Step 4: Create the Program Participant
 
-**Use:** Window A (Incognito)
+- **Full Name:** Jane Participant
+- **Email:** `test.participant@example.com`
+- **Role:** Participant
+- **Group:** Future Studio Cohort
 
-**Who:** Public User
+### Step 5: Create the Venture User (as Founder)
 
-**What to do:**
+- **Full Name:** David Venture
+- **Email:** `test.venture@example.com`
+- **Role:** Founder (or Participant)
+- **Group:** GreenTech Ventures
 
-Scroll to the bottom of the form. Click the button labelled **"Submit Final Response."**
+### Step 6: Create a Second Staff User (for assignment test)
 
-**What to check — Success Screen:**
-
-The page changes. You should now see:
-
-- A green checkmark icon in a circle.
-- The heading **"Submission Received."**
-- A message below it.
-
-Now look at the message carefully. You need to check three things:
-
-> **Check A:** Is your test name shown correctly? If you entered `Samuel Adebayo`, the message should show that name — NOT `{{submitter_name}}` or `{{name}}` or anything inside curly braces.
-
-> **Check B:** Are there any curly-brace placeholders visible at all? Like `{{something}}`? There should be **NONE.** If you see anything like `{{form_name}}` or `{{group_name}}` in curly braces, that is a bug — report it.
-
-> **Check C:** Does the message read like a real sentence? It should be a message thanking you and telling you what to expect next. If the message is the default fallback, it will say: *"Thank you! Your response has been recorded."*
-
-**Result:** PASS / FAIL
+- **Full Name:** Sarah Staff
+- **Email:** `test.staff2@example.com`
+- **Role:** Staff
+- **Group:** Future Studio Staff (SAME group as John Staff)
 
 ---
 
-## Step 4 — Switch to Super Admin and Log In
+## PART 3 — Staff Complete Workflow (John Staff)
 
-**Use:** Window B (Normal)
+Log in as **John Staff**.
 
-**Who:** Super Admin
+### Step 1: Open the Staff Dashboard
 
-**What to do:**
+1. After login, you should land on the **Staff Dashboard**.
+2. If not, click **DASHBOARD** in the left sidebar.
+3. Scroll down. Look for the section titled **"Future Studio — Staff Operations"**.
 
-1. Go to the login page. (The URL is usually your staging URL with `/login` at the end.)
-2. Type the Super Admin email.
-3. Type the Super Admin password.
-4. Click the login button.
+> **If you cannot see this section:** The Unified Operations View may not be loaded. Refresh the page. If still missing, record this as a bug.
 
-**What you should see:**
+### Step 2: Understand What You See
 
-- The page changes. You are now on a dashboard.
-- At the very top-left, you see the **Future Studio logo** (or an orange icon if the sidebar is collapsed).
-- On the left side of the screen is a **dark vertical sidebar** — this is your main navigation.
+The Operations section shows:
 
-**How to understand the sidebar:**
+| Element | What It Is |
+|---|---|
+| **Week header** | Shows Week X, Year Y, active tasks count, blocked count, progress % |
+| **Progress bar** | Orange/Green bar — fills as you complete tasks |
+| **Stat cards** | Completed / Active / Blocked counts |
+| **Task list** | Every task with status dot, title, expand arrow |
+| **New Task button** | Orange "+ New Task" at top-right |
 
-The sidebar is the dark column on the left edge of the screen. It has a logo at the top. Below the logo, there is a small grey label that says **"MAIN OPERATIONS."** Under that label, there are several menu items in ALL CAPS. Each one has an icon next to it. Some have a small arrow (chevron) on the right side — these can be clicked to expand and show more options underneath.
+### Step 3: Create the Week's Stand-Up
 
-**Result:** PASS / FAIL
+1. In the left sidebar, click **STANDUP**.
+2. You should see the Stand-Up page (`/staff/op-report`).
+3. Set the week to the **current week** if not already selected.
+4. Fill in:
+   - **Top Priorities:** `Complete weekly reporting, Update records, Prepare presentation`
+   - **Expected Deliverables:** `Weekly report, Updated participant list, Presentation deck`
+   - **Projects / Tasks:** Leave this — tasks will be added separately below.
+5. Click **Submit**.
 
----
+**Expected:** A success message. The standup is saved.
 
-## Step 5 — Navigate to the Forms Section
+### Step 4: Return to Dashboard and Create Tasks
 
-**Use:** Window B (Normal)
+1. Click **DASHBOARD** in the sidebar.
+2. Scroll to the Operations section.
+3. Click the orange **"+ New Task"** button.
+4. Type a task title: `Prepare weekly report` and press **Enter** or click **Create**.
+5. Repeat for these tasks:
+   - `Update participant records`
+   - `Prepare Friday presentation`
+   - `Review pending applications`
+   - `Check team availability for next sprint`
+   - `Update knowledge base articles`
+   - `Respond to partner emails`
+   - `Review budget spreadsheet`
 
-**Who:** Super Admin
+**Expected:** Each task appears in the list below with an orange status dot. The active count increases.
 
-**Where to look:**
+### Step 5: Verify Task Visibility
 
-Look at the left sidebar. Find the menu item labelled **"CRM."** It has a people/users icon next to it and a small downward arrow (chevron) on the right.
+- All 8 tasks should be visible in the Operations section.
+- Each task has a status indicator (orange = active).
+- The **Active** stat card shows 8.
+- The progress bar is at 0%.
 
-**What to do:**
+### Step 6: Complete Some Tasks
 
-1. **Click on the word "CRM"** in the sidebar. This expands a list of sub-items below it.
+1. Click the **arrow (>) ** next to `Prepare weekly report`.
+2. The task expands — you see description, blockers, and action buttons.
+3. Click the green **"Complete"** button.
+4. Repeat for `Update participant records` and `Prepare Friday presentation`.
 
-   The sub-items appear indented underneath CRM. You should see:
-   - DASHBOARD
-   - PEOPLE
-   - TIMELINE
-   - DUPLICATES
-   - PENDING APPROVALS
-   - BULK IMPORT
-   - **FORMS**
-   - MESSAGES
-   - ANNOUNCEMENTS
+**Expected:**
+- Completed tasks get a green dot and strikethrough text.
+- They dim slightly (lower opacity).
+- The **Completed** stat card now shows **3**.
+- The **Active** stat card shows **5**.
+- The progress bar moves to about 37%.
 
-2. **Click on FORMS** (the one inside the CRM menu, not anywhere else).
+### Step 7: Leave Some Incomplete
 
-**What happens:**
+Do NOT complete these tasks:
+- `Review pending applications`
+- `Check team availability`
+- `Update knowledge base articles`
+- `Respond to partner emails`
+- `Review budget spreadsheet`
 
-The entire page changes. You are now in the **Forms section.** This section has its own sidebar — it's similar to the main one but narrower and only shows Forms-related items.
+These 5 tasks remain active. They will be tested for carry-over in Part 6.
 
-**How to recognise the Forms sidebar:**
+### Step 8: Create a Blocker
 
-- At the top-left of this new sidebar, you see a small orange square icon and the word **"Forms."**
-- Below that, there are three items: **Dashboard**, **Forms**, and **Runs.**
-- At the very top of the main content area (not the sidebar), there's a thin dark bar with a small link that says **"← Back to CRM"** — this confirms you are inside the Forms section.
+1. Find the task `Review pending applications`.
+2. Expand it (click the arrow).
+3. **Note:** If the current UI does not have a blocker creation button in this view, navigate to **MY TASKS** in the sidebar and find the task there. Use whatever method creates a blocker.
+4. Create a blocker with:
+   - **Title:** `Waiting for HR to send applicant list`
+   - **Severity:** Medium
+5. Save/Submit the blocker.
 
-**Result:** PASS / FAIL
+**Expected:**
+- The task status changes from "in progress" to **"blocked"**.
+- The task dot turns **red**.
+- The **Blocked** stat card increases to 1.
+- The blocker is listed under the task when expanded.
 
----
+### Step 9: Verify in Stand-Up
 
-## Step 6 — Open the Runs Page
-
-**Use:** Window B (Normal)
-
-**Who:** Super Admin
-
-**Where to look:**
-
-Look at the left sidebar (the Forms sidebar — the narrower one). You see three items: Dashboard, Forms, and Runs.
-
-**What to do:**
-
-**Click on "Runs"** in this sidebar.
-
-**What you should see:**
-
-The main area now shows a list of form runs. Each run is a row or card showing:
-- A name
-- A status badge (Draft, Active, or Closed)
-- Some numbers (submissions count, etc.)
-
-**What to do next:**
-
-Find the run that matches the form the test user submitted in Step 3. The status should say **"Active"** (shown in green).
-
-**Click on the run's name** to open it.
-
-**What happens:**
-
-The page changes to show details for that specific run — submission counts, a table of responses, and filter tabs.
-
-**Result:** PASS / FAIL
-
----
-
-## Step 7 — Find the Test User's Submission
-
-**Use:** Window B (Normal)
-
-**Who:** Super Admin
-
-**Where to look:**
-
-You are now on the run detail page. Below the run name, you should see a row of small stat boxes:
-
-| Total | Submitted | Approved | Rejected | Revision | Drafts |
-
-Below the stat boxes is a **table** listing all the submissions people have sent.
-
-**What to do:**
-
-Look through the table rows. Each row shows:
-- The submitter's name
-- Their status (Submitted / Approved / Rejected / Revision / Draft)
-- The date they submitted
-- Some action buttons on the right
-
-Find the row with the name **"Samuel Adebayo"** (or the name you entered in Step 2).
-
-If there are many submissions, look at the **Submitted** stat box — click it to filter and show only submitted (not yet reviewed) responses. This makes it easier to find your test submission.
-
-**What to check:**
-- The name and email you entered in Step 2 appear in the table.
-- The status shows **"Submitted"** (blue).
-
-**If you cannot find the submission**, something went wrong in Step 3 — the form may not have saved. Report this as a bug.
-
-**Result:** PASS / FAIL
+1. Go back to **STANDUP** in the sidebar.
+2. Look at the current week.
+3. Verify that:
+   - Completed tasks show correctly.
+   - The blocked task shows with its blocker.
+   - Incomplete tasks are visible.
 
 ---
 
-## Step 8 — Open the Review Panel
+## PART 4 — Task Assignment Test
 
-**Use:** Window B (Normal)
+### First, Assign a Task to Someone in the Same Group
 
-**Who:** Super Admin
+John Staff and Sarah Staff are both in the "Future Studio Staff" group.
 
-**Where to look:**
+1. Log in as **John Staff**.
+2. Navigate to **MY TASKS** or the Dashboard Operations section.
+3. Find or create a task: `Prepare participant report`.
+4. Assign this task to **Sarah Staff**.
+   - Look for an **"Assign"** button, **assignee dropdown**, or **collaborator field**.
+   - Select Sarah Staff from the list.
+   - Save/Submit.
+5. If the system uses a pending-accept workflow, the task shows as **"pending assignment"** until Sarah accepts.
 
-In the table row for Samuel Adebayo, look at the right side. You should see small buttons. One of them says **"Review."** It is orange-coloured.
+**Expected:** The assignment is created successfully. No error message.
 
-**What to do:**
+### Now, Log in as Sarah Staff
 
-**Click the "Review" button.**
+1. **Log out** (sidebar bottom-left → Log Out).
+2. **Log in** as Sarah Staff via Developer Tools.
+3. Go to the Dashboard and scroll to Operations.
 
-**What happens:**
+**Expected:**
+- The task `Prepare participant report` should appear in Sarah's task list.
+- Sarah should be able to expand it.
+- Sarah should be able to mark it as **in progress** or **complete**.
 
-A panel slides open (or appears as an overlay) — this is the **Review panel.** It shows:
+### Sarah Completes the Task
 
-- The submitter's name at the top: **"Samuel Adebayo"**
-- A section showing all the answers the person submitted — each field label and the value they entered
-- If scoring is enabled, a score breakdown
-- An activity timeline (may be empty if this is the first review)
-- At the bottom: controls for making a decision
+1. Expand `Prepare participant report`.
+2. Click **"Complete"**.
+3. The task moves to completed.
 
-**What to check — The Submitted Answers:**
+### Back to John Staff
 
-Scroll through the answers section. Verify that **every piece of information you typed in Step 2 appears here:**
+1. **Log out** and **log back in** as John Staff.
+2. Go to Dashboard Operations.
 
-- Full Name: `Samuel Adebayo`
-- Email: the email you used
-- Phone: the phone number you entered
-- Any other fields you filled
+**Expected:** The task `Prepare participant report` now shows as **completed** in John's view (or shows Sarah as the assignee with completed status).
 
-If any answer is missing, incorrect, or cut off, report it as a bug.
+### Now Test: Assign to Someone in a DIFFERENT Group
 
-**Result:** PASS / FAIL
+1. As John Staff, try to assign a task to **Jane Participant** (who is in "Future Studio Cohort", NOT "Future Studio Staff").
+2. Attempt the assignment.
 
----
+**Expected:** The system should **block** this. You should see an error message like:
+> `Cannot assign task outside your Contact Group.`
 
-## Step 9 — Approve the Person
+Or the user should not appear in the assignee dropdown at all.
 
-**Use:** Window B (Normal)
-
-**Who:** Super Admin
-
-**Where to look:**
-
-Inside the Review panel, scroll to the bottom. You should see:
-
-- A dropdown menu (decision selector)
-- A text box labelled **"Public Comment"** (with a note saying "visible to submitter")
-- A text box labelled **"Internal Note"** (with a note saying "private")
-- Two buttons: **Cancel** and **Submit Review**
-
-**What to do:**
-
-1. Click the dropdown at the top of the decision area. You should see these options:
-   - ✓ Approve
-   - ✗ Reject
-   - ↻ Request Revision
-   - ↑ Escalate
-   - → Reassign
-
-2. **Select "✓ Approve."**
-
-3. In the **Public Comment** box, type: `Welcome to the team!`
-
-4. Leave the **Internal Note** box empty.
-
-5. Click the **"Submit Review"** button (the orange one on the right).
-
-**What you should see:**
-
-- A small notification appears briefly at the bottom of the screen saying **"Review submitted."**
-- The Review panel closes.
-- Back in the submission table, the row for Samuel Adebayo now shows the status **"Approved"** (in green) instead of "Submitted."
-
-**What to check:**
-- No error message appeared.
-- The status visibly changed to Approved.
-- The row is still there — it was not deleted.
-
-**Result:** PASS / FAIL
+> **Record this result carefully.** If the assignment is blocked, that is the CORRECT behavior. If it is allowed, that is a BUG.
 
 ---
 
-## Step 10 — Check the Activation Email
+## PART 5 — Task Carry-Over Test
 
-**Use:** Window A (Incognito) — or open your email inbox
+This test spans multiple weeks. Use the tasks from Part 3.
 
-**Who:** Public User
+### Setup (Week 1)
 
-**What to do:**
+From Part 3, you should have:
 
-Open the inbox for the email address you used in Step 2 (for example: `samuel.test@example.com`). Check both the inbox and the spam/junk folder.
+- 3 completed tasks
+- 5 incomplete tasks
 
-**What you should look for:**
+### Move to Week 2
 
-You should receive **one or two emails** from the system:
+1. Stay logged in as John Staff.
+2. In the Operations section, look for a **week selector** or navigation to change the week.
+3. Move to **Week X+1** (next week after current).
 
-1. **A decision notification** — this tells you that your application was approved. The subject might say: *"Your application has been approved"* or something similar.
+**Expected:**
+- The 5 incomplete tasks from Week 1 should **still appear**.
+- They should have a **purple badge** showing their original week (e.g., `W32`).
+- The 3 completed tasks should **NOT appear** as active tasks.
+- You should be able to add new Week 2 tasks alongside the carried-over ones.
 
-2. **An activation email** — this contains a link or button to set up your password. The subject might say: *"Welcome to ImpactOS — Set Your Password"* or *"You're invited to ImpactOS."*
+### Complete One Carried-Over Task in Week 2
 
-**What to check:**
-- At least the activation email arrived.
-- The activation email contains a clickable button or link (usually orange).
+1. Find `Check team availability for next sprint` (one of the carried-over tasks).
+2. Mark it as **Complete**.
 
-**Note for staging environments:** If your staging server does not actually send emails, ask your developer to confirm the email was queued or to provide the activation link directly.
+**Expected:** The task moves to completed. It should not reappear when you move to Week 3.
 
-**Result:** PASS / FAIL
+### Leave One Still Incomplete
 
----
+1. Keep `Review budget spreadsheet` incomplete.
+2. Move to **Week 3**.
 
-## Step 11 — Open the Activation Link
+**Expected:** `Review budget spreadsheet` still appears with its carryover badge updated.
 
-**Use:** Window A (Incognito)
+### Finally Complete It
 
-**Who:** Public User
+1. Mark `Review budget spreadsheet` as **Complete** in Week 3.
 
-**What to do:**
+**Expected:** The task stops appearing in future weeks. No duplicate copies of the same task were created.
 
-In the activation email, click the orange button (or click the link below it).
-
-**What happens:**
-
-A new page opens. This is the **password setup page.**
-
-**How to recognise the password setup page:**
-
-- At the top, you should see the **Future Studio logo** or the **ImpactOS logo** (orange text: "Impact" in orange + "OS" in white).
-- Below the logo, an orange shield icon inside a rounded box.
-- The heading says: **"Set Your Password"** or **"Activate Account."**
-- Your name is displayed: **"Welcome, Samuel Adebayo"** (or whatever name you used).
-- Your email is shown below your name.
-- Two password fields: **"Create Password"** and **"Confirm Password."**
-- A button: **"Set Password & Activate Account"** or **"Activate Account."**
-
-**What to check:**
-- The name shown is correct (matches what you entered in Step 2).
-- The email shown is correct.
-
-**Result:** PASS / FAIL
+> **📋 RECORD:** Did any duplicate tasks appear? Did any completed tasks falsely reappear? Did the carryover badge track the correct original week?
 
 ---
 
-## Step 12 — Create the Password
+## PART 6 — Blocker Test
 
-**Use:** Window A (Incognito)
+### Single Blocker
 
-**Who:** Public User
+Already tested in Part 3 Step 8. Verify again:
 
-**What to do:**
+1. Create a task: `Prepare monthly report`.
+2. Add a blocker: `Waiting for financial information.`
+3. Confirm:
+   - [ ] Blocker is attached to the correct task.
+   - [ ] Task status changes to **"blocked"**.
+   - [ ] The task dot turns red in the task list.
+   - [ ] The blocker is visible when the task is expanded.
 
-1. In the **"Create Password"** field, type a password. Make it at least 6 characters. Use something you will remember. Example: `TestPass123`
+### Multiple Blockers
 
-2. In the **"Confirm Password"** field, type the exact same password again.
+1. Add a **second blocker** to the same task: `Need sign-off from manager.`
+2. Confirm both blockers appear under the task.
+3. Resolve only the first blocker.
+4. Confirm the task stays **"blocked"** (because the second blocker is still active).
+5. Resolve the second blocker.
+6. Confirm the task returns to **"in progress"** (assuming no other blockers).
 
-3. Click the button: **"Set Password & Activate Account"** (or "Activate Account").
+### Supervisor Visibility of Blockers
 
-**What you should see:**
+1. Log in as **Super Admin** (or the person set as supervisor for the intent/task).
+2. Navigate to Operations or Tasks.
+3. Try to view the blockers on John's tasks.
 
-- The page changes to a success screen.
-- A green checkmark icon appears.
-- The heading says: **"Account Activated"** or **"Password Set Successfully."**
-- A message says your account is active and you can log in.
-- There may be a button: **"Go to Login"** — or you may be automatically redirected.
+**Expected:** Super Admin should be able to see the blockers on staff tasks within the Internal Organization context.
 
-**What to check:**
-- No error message appeared (especially no "Passwords do not match" or "Password must be at least X characters").
-- The success message is clear.
-
-**Result:** PASS / FAIL
-
----
-
-## Step 13 — Log In as the New User
-
-**Use:** Window A (Incognito)
-
-**Who:** Public User (now a real user)
-
-**What to do:**
-
-1. Go to the login page. If you were redirected automatically, you are already there. If not, go to the login URL.
-2. Enter the email you used in Step 2 (for example: `samuel.test@example.com`).
-3. Enter the password you just created in Step 12 (for example: `TestPass123`).
-4. Click the login button.
-
-**What you should see:**
-
-- The page changes — you are now logged in.
-- You arrive at a dashboard page.
-- You do NOT see the Super Admin sidebar (no Settings, Security, Audit Logs, etc.).
-- Instead, you see a simpler sidebar with staff-appropriate sections.
-
-**What to check:**
-- You successfully logged in. No error like "Access Denied" or "Invalid credentials."
-- The dashboard looks different from the Super Admin dashboard — you have fewer menu options.
-
-**Result:** PASS / FAIL
+> **📋 RECORD:** Can Super Admin see the blocker? Can Super Admin resolve it? (Only the blocker creator should be able to resolve it — Super Admin should NOT be able to resolve blockers they didn't create.)
 
 ---
 
-## Step 14 — Confirm Future Studio Group Membership
+## PART 7 — Retro Test
 
-**Use:** Window B (Normal)
+### Submit a Retro
 
-**Who:** Super Admin
+1. Log in as **John Staff**.
+2. In the sidebar, click **RETRO**.
+3. You should see the Retro page (`/staff/op-report?tab=retro`).
+4. Set the week to the **current week**.
+5. Fill in:
 
-**Where to look:**
+   **What went well?**
+   > Completed most planned tasks for the week. Presentation was well received.
 
-You are on the main Super Admin dashboard. Look at the left sidebar (the wide one with the logo). Find **"CRM"** and click it to expand. Then click **"PEOPLE"** (the second item under CRM).
+   **What did not go well?**
+   > One report was delayed because of missing financial data.
 
-**What to do:**
+   **What should improve?**
+   > Earlier communication with the finance team. Set deadlines 2 days before Friday.
 
-1. You are now on the PEOPLE page — a list of contacts.
-2. At the top of the page, there should be a **search bar.** Click inside it.
-3. Type the test user's name: `Samuel Adebayo` (or the email you used).
-4. Press Enter or wait for results to filter.
+   **Week Status:** (select Good / Okay / Needs Improvement)
 
-The list should now show only one person: Samuel Adebayo.
+   **Carryover Items:**
+   > Review budget spreadsheet (carried to next week)
 
-5. **Click on the person's name or row** to open their contact profile.
+6. Click **Submit** / **Save Retro**.
 
-**What to check — In the profile:**
+**Expected:** The retro is saved. A success message appears.
 
-- The person's name, email, and phone match what you entered in Step 2.
-- The **Group** (or group name) field shows **"Future Studio"** (or the actual group name your form is assigned to).
-- The **Status** field shows **"active"** or **"approved."**
+### Verify Retro Visibility
 
-**Result:** PASS / FAIL
+1. Log in as a **different staff user** (Sarah Staff).
+2. Try to view John's retro.
 
----
+**Expected:** Sarah should NOT be able to see John's private retro information. She should only see her own.
 
-## Step 15 — Return to Forms and Verify the Original Response
+3. Log in as **Super Admin**.
+4. Navigate to the retro/reports section.
+5. Try to view John's retro.
 
-**Use:** Window B (Normal)
+**Expected:** Super Admin should be able to see staff retros (internal org oversight).
 
-**Who:** Super Admin
-
-**Where to look:**
-
-You are on the PEOPLE page. Look at the left sidebar.
-
-**What to do:**
-
-1. Click **"CRM"** to expand the menu (if it is not already open).
-2. Click **"FORMS"** (inside the CRM menu).
-
-**What happens:**
-
-You are back in the Forms section. The sidebar on the left now shows the Forms sub-sidebar (with Dashboard, Forms, Runs).
-
-3. In the Forms sidebar, click **"Runs."**
-4. Find the same run from Step 6 and click its name.
-5. The table of submissions appears. Find Samuel Adebayo's row — it should now show **"Approved"** in green.
-6. Click the **"Full"** button (purple) or the **"History"** button next to the row to open the submission detail.
-
-**What to check:**
-- The submission still exists — it was not deleted.
-- All the original answers from Step 2 are still visible: name, email, phone, and any other fields.
-- The status shows **"Approved."**
-- Nothing was lost, changed, or overwritten during the approval process.
-
-**Result:** PASS / FAIL
+> **📋 RECORD:** Who can see the retro? Who cannot? Is the correct week associated with the retro?
 
 ---
 
-## Step 16 — Test That Unapproved Users Are Blocked
+## PART 8 — Venture Test
 
-**Use:** A new incognito window (or fully log out of Window A first)
+### Log in as David Venture (Founder)
 
-**Who:** Public User (trying to sneak in)
+1. **Log out** and use Developer Tools to log in as David Venture.
+2. You should land on a Founder/Participant dashboard.
+3. In the sidebar, click **MY VENTURES**.
 
-**What to do:**
+**Expected:** You see a list of ventures. If there are none, you may need to create one (look for a **"Create Venture"** / **"+"** button).
 
-1. Fill and submit a **second** test form using a **different email** that you will NOT approve.
-2. Do NOT go through activation. Go straight to the login page.
-3. Enter that unapproved email and any password.
-4. Click login.
+### Create or Open a Venture
 
-**What you should see:**
+1. Either select an existing venture or create one:
+   - **Name:** GreenTech
+   - **Industry:** Clean Energy
+   - **Stage:** MVP
 
-- Login is blocked.
-- An error message appears, saying something like: **"Access Denied: Your account is currently pending verification."**
-- You stay on the login page.
+2. After opening/creating, look for operational tabs or sections like:
+   - **Standups**
+   - **Tasks**
+   - **Retros**
+   - **Blockers**
 
-**Result:** PASS / FAIL
+> **NOTE:** The Venture detail page has its own tabs. Look for **"Standups"**, **"Tasks"**, **"Retros"**, and **"Blockers"** tabs near the top of the venture page.
 
----
+### Test Venture Standup
 
-## COMPLETE CHECKLIST
+1. Click the **Standups** tab.
+2. If there's a "Submit Now" or "Add Standup" button, click it.
+3. Fill in:
+   - **Top Priorities:** Launch MVP landing page
+   - **Expected Deliverables:** Landing page, investor pitch deck
+4. Submit.
 
-| Step | Description | PASS / FAIL |
-|------|-------------|-------------|
-| 1 | Open the Form — page loads with title and fields | |
-| 2 | Fill all fields — no errors while typing | |
-| 3 | Click "Submit Final Response" — success screen appears | |
-| 3a | Success message shows the correct name (no {{curly braces}}) | |
-| 3b | Success message reads as a normal sentence | |
-| 4 | Log in as Super Admin — see main sidebar with CRM menu | |
-| 5 | Expand CRM → click FORMS — arrive in Forms section | |
-| 6 | Forms sidebar → click Runs — see list of runs | |
-| 7 | Click active run → find "Samuel Adebayo" in the table | |
-| 8 | Click "Review" button → review panel opens with all answers | |
-| 9 | Select "✓ Approve" → click "Submit Review" → status changes to Approved | |
-| 10 | Check email inbox → activation email arrived | |
-| 11 | Click activation link → password setup page opens | |
-| 12 | Create password → "Account Activated" success screen | |
-| 13 | Log in with new credentials → login succeeds, staff dashboard shown | |
-| 14 | CRM → PEOPLE → search for user → group = "Future Studio" | |
-| 15 | FORMS → Runs → open submission → all original answers still there | |
-| 16 | Unapproved email cannot log in → "pending verification" error | |
+**Expected:** The standup is saved for the venture.
 
----
+### Test Venture Tasks
 
-## HOW TO REPORT A BUG
+1. Click the **Tasks** tab.
+2. Look for an **"Add Task"** button.
+3. Create a task: `Prepare landing page copy`.
+4. Assign it to a venture team member if available.
 
-If any test step does not work as described, fill out this form:
+**Expected:** Task appears in the venture's task list.
 
----
+### Test Venture Visibility
 
-**BUG TITLE:**
-(One sentence — what went wrong?)
+1. Log out and log in as a **different user** who is NOT a member of GreenTech.
+2. Try to navigate to GreenTech's venture page.
 
-**WHO WAS LOGGED IN:**
-(Public User / Super Admin / Staff)
-
-**WHERE:**
-Which dashboard? Which sidebar menu did you click? Which page?
-
-Example:
-> "Super Admin Dashboard → Left sidebar: CRM → FORMS → Left sidebar: Runs → Clicked on the run name to open it."
-
-**WHAT I CLICKED:**
-The exact button, link, or action.
-
-Example:
-> "Clicked the orange 'Review' button in the submissions table."
-
-**WHAT I DID:**
-
-1. ...
-2. ...
-3. ...
-
-**WHAT I EXPECTED:**
-What should have happened.
-
-**WHAT ACTUALLY HAPPENED:**
-What happened instead.
-
-**SCREENSHOT / VIDEO:**
-Attach a screenshot or recording.
+**Expected:** You should NOT be able to see GreenTech's standups, tasks, or retros unless you are a member of that venture.
 
 ---
 
-### Example Bug Report
+## PART 9 — Program / Participant Test
 
-**BUG TITLE:**
-Approve button clicked — status did not change to Approved.
+### Log in as Jane Participant
 
-**WHO WAS LOGGED IN:**
-Super Admin
+1. Log out. Use Developer Tools to log in as Jane Participant.
+2. You land on the Participant Dashboard.
 
-**WHERE:**
-Super Admin Dashboard → Left sidebar: CRM → FORMS → Left sidebar: Runs → Clicked active run → Table of submissions → Review panel.
+### Explore the Participant Dashboard
 
-**WHAT I CLICKED:**
-"Submit Review" button after selecting "✓ Approve."
+1. In the sidebar, click **MY PROGRAMS**.
+2. You should see programs you're enrolled in.
+3. Click into a program.
 
-**WHAT I DID:**
+**Expected:** You see program details, progress, assignments, or rituals.
 
-1. Opened the run and found Samuel Adebayo's submission.
-2. Clicked the orange "Review" button.
-3. In the Review panel, selected "✓ Approve" from the dropdown.
-4. Clicked "Submit Review."
+### Test Participant Rituals
 
-**WHAT I EXPECTED:**
-The review panel to close and the status to change to "Approved" in green.
+1. Look for a **Rituals** section or tab.
+2. Try to submit a **Standup** or **Check-in**.
+3. Fill in the form and submit.
 
-**WHAT ACTUALLY HAPPENED:**
-Nothing happened. The review panel stayed open and the status did not change.
+**Expected:** The ritual is submitted and appears in your history.
 
-**SCREENSHOT / VIDEO:**
-[Attached.]
+### Test Participant Visibility
+
+1. Try to access the Staff Dashboard (`/staff`).
+2. Try to access admin pages (`/admin`).
+
+**Expected:** You should NOT be able to see staff data or admin pages. You may be redirected or see an error.
+
+> **📋 RECORD:** Can the Participant see staff dashboards? Can they see other participants' data? Can they access admin areas?
 
 ---
 
-## END OF TEST
+## PART 10 — Visibility & Permissions Test
 
-Once you finish all 16 steps, fill out the checklist above. For any step that failed, attach a separate bug report.
+For each user role, test these scenarios. Record YES or NO in the table.
 
-Thank you!
+### Visibility Test Table
+
+| # | User Role | What to Test | Expected | Actual (YES/NO) |
+|---|---|---|---|---|
+| V1 | Staff (John) | View own tasks in Operations | YES | |
+| V2 | Staff (John) | View Sarah's personal tasks | NO | |
+| V3 | Staff (John) | View task assigned TO John | YES | |
+| V4 | Staff (Sarah) | View task assigned BY John | YES (the task itself) | |
+| V5 | Staff (Sarah) | View John's full task list | NO | |
+| V6 | Participant (Jane) | View own program work | YES | |
+| V7 | Participant (Jane) | View staff dashboard (`/staff`) | NO | |
+| V8 | Participant (Jane) | View admin pages (`/admin`) | NO | |
+| V9 | Venture (David) | View own venture tasks | YES | |
+| V10 | Venture (David) | View another venture's tasks | NO | |
+| V11 | Super Admin | View staff operations | YES | |
+| V12 | Super Admin | View all tasks in internal org | YES | |
+| V13 | Super Admin | Auto-see unrelated venture data | NO (should NOT auto-see) | |
+| V14 | Unauthenticated | Access `/staff` directly (while logged out) | NO (redirect to login) | |
+
+### How to Test Each
+
+1. **Log in** as the specified user.
+2. **Navigate** to the page or section being tested.
+3. Try to view data that belongs to another user.
+4. Record whether access is **granted** or **denied**.
+
+> **HOW TO TRY VIEWING ANOTHER USER'S DATA:** Look at the URL. If you see `?user_id=SOMEONE` or a task number in the URL, try changing it. If the system is secure, you should get an error or empty result — not the other user's data.
+
+---
+
+## PART 11 — Super Admin Oversight
+
+### Log in as Super Admin
+
+### 1. Internal Organization Operations
+
+1. In the sidebar, go to **OPERATIONS** → **TASKS**.
+2. You should see all internal staff tasks.
+3. Go to **OPERATIONS** → **BLOCKERS**.
+4. You should see all blockers across internal staff.
+
+**Expected:** Super Admin can manage/oversee internal organization operations.
+
+### 2. Venture Separation
+
+1. Try to view venture-specific tasks from a venture you are NOT a member of.
+2. Navigate to **VENTURES** in the sidebar.
+3. Click into a venture you did NOT create or join.
+
+**Expected:** Super Admin may see venture metadata (name, status) but should NOT automatically see venture operational data (standups, tasks, retros) unless explicitly added as a venture member.
+
+> **📋 RECORD:** Document what Super Admin CAN and CANNOT see. Does the system properly separate Internal Organization from Venture operations?
+
+---
+
+## PART 12 — Bug Reporting Format
+
+Whenever something fails, write it down like this:
+
+---
+
+### BUG TITLE
+Short, clear description of the problem.
+
+### USER / ROLE
+Example: Staff — John Staff
+
+### WHERE I WAS
+Example: Sidebar → DASHBOARD → scrolled to Operations
+
+### WHAT I WAS TRYING TO DO
+Example: I was trying to create the new week's Stand-Up and expected 3 tasks from last week to appear.
+
+### WHAT I DID (Step by Step)
+1. Clicked DASHBOARD.
+2. Scrolled to Operations section.
+3. Changed week to next week.
+4. Looked at the task list.
+
+### EXPECTED RESULT
+The 3 incomplete tasks from last week should appear with a carryover badge.
+
+### ACTUAL RESULT
+No previous tasks appeared. Only the new week's empty state.
+
+### RESULT
+FAIL
+
+### SCREENSHOT
+Attach if possible.
+
+---
+
+## PART 13 — Final Test Report
+
+After completing all tests, fill in this summary:
+
+| Area | PASS | FAIL | Notes |
+|---|---|---|---|
+| User creation / login | | | |
+| Staff Stand-Up | | | |
+| Task creation | | | |
+| Task assignment (same group) | | | |
+| Task assignment (blocked cross-group) | | | |
+| Task assigned appears in assignee standup | | | |
+| Task carry-over | | | |
+| Task complete stops carry-over | | | |
+| Blockers create/resolve | | | |
+| Multiple blockers | | | |
+| Retro submit | | | |
+| Retro visibility | | | |
+| Participant operations | | | |
+| Venture operations | | | |
+| Venture context isolation | | | |
+| Super Admin oversight | | | |
+| Super Admin venture separation | | | |
+| Permission: staff can't see other staff | | | |
+| Permission: participant can't see staff | | | |
+| Permission: venture can't see other venture | | | |
+
+### Summary
+
+| Metric | Count |
+|---|---|
+| Total Tests | |
+| Passed | |
+| Failed | |
+| Critical Bugs | |
+| Minor Bugs | |
+
+### Overall Result: PASS / FAIL / BLOCKED
+
+---
+
+## ⚠️ NOT CURRENTLY AVAILABLE
+
+The following features are mentioned in the specification but may not be fully available in the current UI. If you cannot find them, mark the test as **"NOT AVAILABLE"** and move on:
+
+- **Intent creation / management** — The Intent API exists but a front-end Intent management page may not be available yet. If you cannot find "Intents" in the sidebar or dashboard, it is not yet built.
+- **Direct blocker creation from the Operations view** — You may need to use the **MY TASKS** page or the **Staff Op-Report** page to create blockers. The Operations view shows blockers but may not have a create button yet.
+- **Supervisor-specific dashboard** — If there is no separate supervisor view, use the Super Admin account for oversight testing.
+
+---
+
+**Begin testing from the login page. Good luck!**
