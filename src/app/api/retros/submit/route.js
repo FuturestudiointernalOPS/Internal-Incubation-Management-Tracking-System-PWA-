@@ -21,6 +21,14 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const body = await req.json();
     const {
       user_id,
@@ -40,6 +48,8 @@ export async function POST(req) {
       blocker_desc,
       major_achievement,
       reconciliation,
+      context_type,
+      context_id,
     } = body;
 
     if (!user_id || !week_number || !year) {
@@ -49,6 +59,14 @@ export async function POST(req) {
           error: "user_id, week_number, and year are required",
         },
         { status: 400 },
+      );
+    }
+
+    // SECURITY (Phase 0): Non-SA users can only submit their own retro.
+    if (session.role !== "super_admin" && String(user_id) !== String(session.cid)) {
+      return NextResponse.json(
+        { success: false, error: "You can only submit your own retro." },
+        { status: 403 },
       );
     }
 
@@ -80,6 +98,7 @@ export async function POST(req) {
           completed_work = ?, unfinished_tasks = ?, challenges = ?, wins = ?,
           carryover_items = ?, week_status = ?, retro_notes = ?,
           had_blockers = ?, blocker_type = ?, blocker_desc = ?, major_achievement = ?,
+          context_type = ?, context_id = ?,
           status = 'submitted', updated_at = CURRENT_TIMESTAMP
           WHERE id = ?`,
         args: [
@@ -94,6 +113,8 @@ export async function POST(req) {
           reportData.blocker_type,
           reportData.blocker_desc,
           reportData.major_achievement,
+          context_type || "staff",
+          context_id || null,
           reportId,
         ],
       });
@@ -103,11 +124,13 @@ export async function POST(req) {
           (user_id, user_name, user_role, report_type, week_number, year, status,
            completed_work, unfinished_tasks, challenges, wins,
            carryover_items, week_status, retro_notes,
-           had_blockers, blocker_type, blocker_desc, major_achievement)
+           had_blockers, blocker_type, blocker_desc, major_achievement,
+           context_type, context_id)
           VALUES (?, ?, ?, 'retro', ?, ?, 'submitted',
            ?, ?, ?, ?,
            ?, ?, ?,
-           ?, ?, ?, ?) RETURNING id`,
+           ?, ?, ?, ?,
+           ?, ?) RETURNING id`,
         args: [
           user_id,
           user_name || "",
@@ -125,6 +148,8 @@ export async function POST(req) {
           reportData.blocker_type,
           reportData.blocker_desc,
           reportData.major_achievement,
+          context_type || "staff",
+          context_id || null,
         ],
       });
       reportId = Number(result.rows[0]?.id ?? result.lastInsertRowid);

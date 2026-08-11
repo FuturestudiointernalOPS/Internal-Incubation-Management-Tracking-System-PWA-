@@ -173,6 +173,31 @@ export async function POST(req) {
     if (action === "reassign") {
       // Permission already checked above — only assigner/super_admin reaches here
 
+      // PHASE 2: Contact Group enforcement
+      if (session.role !== "super_admin") {
+        const { validateTaskAssignment } = await import("@/lib/contactGroups");
+        // Fetch task context for venture check
+        const taskCtx = await db.execute({
+          sql: "SELECT context_type, context_id FROM tasks WHERE id = ?",
+          args: [a.task_id],
+        });
+        const ctx = taskCtx.rows[0] || {};
+        const groupCheck = await validateTaskAssignment(
+          userCid,
+          new_assignee_id,
+          { context_type: ctx.context_type || "staff", context_id: ctx.context_id || null },
+        );
+        if (!groupCheck.allowed) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Cannot reassign outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+            },
+            { status: 403 },
+          );
+        }
+      }
+
       // If old assignment was pending, mark it declined so it drops from old assignee's list
       if (a.status === "pending") {
         await db.execute({

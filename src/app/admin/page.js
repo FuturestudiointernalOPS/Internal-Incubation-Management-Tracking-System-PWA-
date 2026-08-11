@@ -399,7 +399,9 @@ export default function AdminDashboard() {
           isSA
             ? fetch("/api/tasks?brief=true")
             : fetch(`/api/tasks?user_id=${userId}&brief=true`),
-          fetch("/api/blockers?status=active"),
+          isSA
+            ? fetch("/api/blockers?status=active")
+            : fetch(`/api/blockers?user_id=${userId}&status=active`),
         ]);
         const taskData = await taskRes.json();
         const blockerData = await blockerRes.json();

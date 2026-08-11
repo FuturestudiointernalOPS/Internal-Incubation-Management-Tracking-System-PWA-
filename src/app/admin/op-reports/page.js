@@ -120,10 +120,18 @@ export default function AdminOpReports() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const isSA = user.role === "super_admin";
+      const userId = user.cid || user.id;
+
+      const blockerUrl = isSA
+        ? "/api/blockers"
+        : `/api/blockers?user_id=${userId}`;
+
       const [rRes, pRes, bRes] = await Promise.all([
         fetch(`/api/op-reports?workspace=${filterWorkspace}`),
         fetch("/api/projects"),
-        fetch("/api/blockers"),
+        fetch(blockerUrl),
       ]);
       const data = await rRes.json();
       const pData = await pRes.json();
@@ -159,7 +167,15 @@ export default function AdminOpReports() {
   const fetchTasks = useCallback(async () => {
     setTasksLoading(true);
     try {
-      const res = await fetch("/api/tasks?brief=true&limit=200");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const isSA = user.role === "super_admin";
+      const userId = user.cid || user.id;
+
+      const taskUrl = isSA
+        ? "/api/tasks?brief=true&limit=200"
+        : `/api/tasks?user_id=${userId}&brief=true&limit=200`;
+
+      const res = await fetch(taskUrl);
       const data = await res.json();
       if (data.success) setAllTasks(data.tasks || []);
     } catch (e) {

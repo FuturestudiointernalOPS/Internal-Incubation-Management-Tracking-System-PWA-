@@ -25,12 +25,12 @@ export const GET = createHandler(async (req) => {
   `;
   const baseArgs = [];
 
-  // Wrap with user/week/year filters
+  // Wrap with user/assigned_to/supervisor filters
   const filterClauses = [];
   const filterArgs = [];
   if (user_id) {
-    filterClauses.push("user_id = ?");
-    filterArgs.push(user_id);
+    filterClauses.push("(user_id = ? OR assigned_to = ? OR supervisor_id = ?)");
+    filterArgs.push(user_id, user_id, user_id);
   }
   if (week_number) {
     filterClauses.push("created_week <= ?");
@@ -107,13 +107,15 @@ export const POST = createHandler(async (req) => {
 
   const sourceId = sourceTask.id;
 
-  // 3. Clone the LATEST task in the chain — preserve ALL fields
+  // 3. Clone the LATEST task in the chain — preserve ALL fields including context
   const cloneRes = await db.execute({
     sql: `INSERT INTO tasks
       (user_id, user_name, title, description, status, project_id, category,
        created_week, created_year, carried_over_from_task_id,
-       parent_task_id, start_date, end_date, assigned_to, link, priority)
-      VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)
+       parent_task_id, start_date, end_date, assigned_to, link, priority,
+       context_type, context_id, supervisor_id, intent_id)
+      VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?,
+              ?, ?, ?, ?)
       RETURNING id`,
     args: [
       user_id || sourceTask.user_id,
@@ -124,12 +126,16 @@ export const POST = createHandler(async (req) => {
       sourceTask.category,
       target_week,
       target_year,
-      sourceId,  // Link to the LATEST task in chain, not the original
+      sourceId,
       sourceTask.start_date,
       sourceTask.end_date,
       sourceTask.assigned_to || null,
       sourceTask.link || null,
       sourceTask.priority || null,
+      sourceTask.context_type || "staff",
+      sourceTask.context_id || null,
+      sourceTask.supervisor_id || null,
+      sourceTask.intent_id || null,
     ],
   });
   const newId = Number(cloneRes.rows[0]?.id ?? cloneRes.lastInsertRowid);

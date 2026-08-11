@@ -54,16 +54,19 @@ export async function GET(req) {
     const assigned_to = searchParams.get("assigned_to");
     const project_id_filter = searchParams.get("project_id");
 
-    // SECURITY: Users can only see their own tasks unless super_admin
+    // SECURITY (Phase 0): Users see their own tasks + tasks assigned to them.
+    // Super admin can see all but only within their authorized contexts.
     const sessionCid = session.cid;
-    if (session.role !== "super_admin") {
-      // If requesting another user's tasks, block it
-      if (user_id && user_id !== sessionCid) {
-        return NextResponse.json(
-          { success: false, error: "You can only access your own tasks." },
-          { status: 403 },
-        );
-      }
+
+    // SECURITY: When a non-SA explicitly requests another user's tasks,
+    // block unless the requester is that user's supervisor or has context access.
+    if (session.role !== "super_admin" && user_id && user_id !== sessionCid) {
+      // Allow if the requester has a task assigned to the target user
+      // (supervisor check will be added in Phase 4 when intents exist)
+      return NextResponse.json(
+        { success: false, error: "You can only access your own tasks." },
+        { status: 403 },
+      );
     }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
@@ -81,7 +84,6 @@ export async function GET(req) {
     if (id) {
       sql += " AND id = ?";
       args.push(parseInt(id));
-      // When fetching by ID, skip user scope (detail view is read-only)
       const result = await db.execute({ sql, args });
       if (result.rows.length === 0) {
         return NextResponse.json(
@@ -90,6 +92,21 @@ export async function GET(req) {
         );
       }
       const task = result.rows[0];
+
+      // SECURITY (Phase 0/6): ID lookup must still enforce authorization.
+      // Only the task owner, assignee, supervisor, or super_admin can view a task by ID.
+      if (
+        session.role !== "super_admin" &&
+        String(task.user_id) !== String(sessionCid) &&
+        String(task.assigned_to || "") !== String(sessionCid) &&
+        String(task.supervisor_id || "") !== String(sessionCid)
+      ) {
+        return NextResponse.json(
+          { success: false, error: "You do not have access to this task." },
+          { status: 403 },
+        );
+      }
+
       // Fetch blockers + subtasks for this single task
       const blockerRes = await db.execute({
         sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ?",
@@ -111,21 +128,42 @@ export async function GET(req) {
       });
     }
 
-    // SECURITY: Force scope to own tasks if not super_admin and no explicit filter
-    const effectiveUserId =
-      user_id ||
-      (session.role !== "super_admin" && !assigned_to && !project_id_filter
-        ? sessionCid
-        : null);
-
-    if (effectiveUserId) {
-      sql += " AND user_id = ?";
-      args.push(effectiveUserId);
-    }
-
-    if (assigned_to) {
-      sql += " AND assigned_to = ?";
-      args.push(assigned_to);
+    // SECURITY (Phase 0/6): For non-SA users, scope to: owned tasks, assigned tasks, or supervised tasks.
+    // When an explicit assigned_to filter is given, use that. Otherwise scope by session user.
+    if (session.role !== "super_admin") {
+      if (!user_id && !assigned_to) {
+        // No user/assignee filter given (with or without project_id): force scope to session user
+        sql += " AND (user_id = ? OR assigned_to = ? OR supervisor_id = ?)";
+        args.push(sessionCid, sessionCid, sessionCid);
+      } else if (user_id) {
+        // Explicit user_id filter (pre-authorized above): scope to that user
+        sql += " AND user_id = ?";
+        args.push(user_id);
+        if (assigned_to) {
+          sql += " AND assigned_to = ?";
+          args.push(assigned_to);
+        }
+      } else if (assigned_to) {
+        // Non-SA requesting by assigned_to: only allow viewing own assignments
+        if (assigned_to !== sessionCid) {
+          return NextResponse.json(
+            { success: false, error: "You can only view tasks assigned to yourself." },
+            { status: 403 },
+          );
+        }
+        sql += " AND assigned_to = ?";
+        args.push(assigned_to);
+      }
+    } else {
+      // Super admin: apply filters as requested
+      if (user_id) {
+        sql += " AND user_id = ?";
+        args.push(user_id);
+      }
+      if (assigned_to) {
+        sql += " AND assigned_to = ?";
+        args.push(assigned_to);
+      }
     }
 
     if (project_id_filter) {
@@ -315,6 +353,10 @@ export async function POST(req) {
       assigned_to,
       link,
       priority,
+      context_type,
+      context_id,
+      supervisor_id,
+      intent_id,
     } = body;
 
     if (!user_id || !title || !created_week || !created_year) {
@@ -418,6 +460,25 @@ export async function POST(req) {
     const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
     const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
 
+    // PHASE 2: Contact Group enforcement — assigner and assignee must share a group.
+    if (needsAssignment && session.role !== "super_admin") {
+      const { validateTaskAssignment } = await import("@/lib/contactGroups");
+      const groupCheck = await validateTaskAssignment(
+        user_id,
+        finalAssignedTo,
+        { context_type: context_type || "staff", context_id: context_id || null },
+      );
+      if (!groupCheck.allowed) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const finalPriority = ["critical", "high", "medium", "low"].includes(
       priority,
     )
@@ -428,8 +489,10 @@ export async function POST(req) {
       sql: `INSERT INTO tasks
         (user_id, user_name, title, description, status, project_id, category,
          created_week, created_year, carried_over_from_task_id,
-          parent_task_id, start_date, end_date, assigned_to, link, priority)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         parent_task_id, start_date, end_date, assigned_to, link, priority,
+         context_type, context_id, supervisor_id, intent_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                 ?, ?, ?, ?)
          RETURNING id`,
       args: [
         user_id,
@@ -448,6 +511,10 @@ export async function POST(req) {
         effectiveAssignedTo,
         link || null,
         finalPriority,
+        context_type || "staff",
+        context_id || null,
+        supervisor_id || null,
+        intent_id || null,
       ],
     });
 
@@ -631,6 +698,10 @@ export async function PUT(req) {
       link,
       priority,
       force_complete,
+      context_type,
+      context_id,
+      supervisor_id,
+      intent_id,
     } = body;
 
     if (!id) {
@@ -647,6 +718,20 @@ export async function PUT(req) {
       return NextResponse.json(
         { success: false, error: "Task not found" },
         { status: 404 },
+      );
+    }
+
+    // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can update.
+    const sessionCid = String(session.cid);
+    if (
+      session.role !== "super_admin" &&
+      String(task.user_id) !== sessionCid &&
+      String(task.assigned_to || "") !== sessionCid &&
+      String(task.supervisor_id || "") !== sessionCid
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You do not have permission to update this task." },
+        { status: 403 },
       );
     }
 
@@ -675,12 +760,13 @@ export async function PUT(req) {
       const effectiveUserId = user_id || session.cid;
       if (
         session.role !== "super_admin" &&
-        String(effectiveUserId) !== String(task.user_id)
+        String(effectiveUserId) !== String(task.user_id) &&
+        String(effectiveUserId) !== String(task.assigned_to || "")
       ) {
         return NextResponse.json(
           {
             success: false,
-            error: "Only the task creator can change its status.",
+            error: "Only the task creator or assignee can change its status.",
           },
           { status: 403 },
         );
@@ -822,6 +908,42 @@ export async function PUT(req) {
       }
     }
 
+    // ── PHASE 1: Context fields ──
+    if (context_type !== undefined && context_type !== (task.context_type || null)) {
+      updateFields.push("context_type = ?");
+      updateArgs.push(context_type || null);
+      changes.push(`context_type changed to ${context_type}`);
+    }
+    if (context_id !== undefined && String(context_id) !== String(task.context_id || "")) {
+      updateFields.push("context_id = ?");
+      updateArgs.push(context_id || null);
+      changes.push(`context_id changed`);
+    }
+    if (supervisor_id !== undefined && String(supervisor_id) !== String(task.supervisor_id || "")) {
+      updateFields.push("supervisor_id = ?");
+      updateArgs.push(supervisor_id || null);
+      changes.push(`supervisor updated`);
+    }
+    if (intent_id !== undefined && String(intent_id) !== String(task.intent_id || "")) {
+      updateFields.push("intent_id = ?");
+      updateArgs.push(intent_id || null);
+      changes.push(`intent linked`);
+      // Auto-populate supervisor from intent if not explicitly set
+      if (intent_id && !supervisor_id && !task.supervisor_id) {
+        try {
+          const intentRes = await db.execute({
+            sql: "SELECT responsible_id FROM intents WHERE id = ?",
+            args: [intent_id],
+          });
+          if (intentRes.rows.length > 0 && intentRes.rows[0].responsible_id) {
+            updateFields.push("supervisor_id = ?");
+            updateArgs.push(intentRes.rows[0].responsible_id);
+            changes.push("supervisor inherited from intent");
+          }
+        } catch (_) {}
+      }
+    }
+
     // ─── ASSIGNMENT MANAGEMENT ───
     let pendingAssignmentCreated = false;
     if (assigned_to !== undefined) {
@@ -849,6 +971,28 @@ export async function PUT(req) {
       }
       // Assign to another user: create pending assignment (requires accept/decline)
       else if (assignmentChanged && assigned_to) {
+        // PHASE 2: Contact Group enforcement
+        if (session.role !== "super_admin") {
+          const { validateTaskAssignment } = await import("@/lib/contactGroups");
+          const groupCheck = await validateTaskAssignment(
+            effectiveUserId,
+            assigned_to,
+            {
+              context_type: task.context_type || "staff",
+              context_id: task.context_id || null,
+            },
+          );
+          if (!groupCheck.allowed) {
+            return NextResponse.json(
+              {
+                success: false,
+                error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+              },
+              { status: 403 },
+            );
+          }
+        }
+
         // Do NOT push assigned_to to updateFields — task stays unassigned until acceptance
         pendingAssignmentCreated = true;
         changes.push(`pending assignment to user ${assigned_to}`);
@@ -1246,19 +1390,21 @@ export async function DELETE(req) {
       );
     }
 
-    // SECURITY: Only the task owner or super_admin can delete
+    // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can delete
     const taskCheck = await db.execute({
-      sql: "SELECT user_id, title, status FROM tasks WHERE id = ?",
+      sql: "SELECT user_id, assigned_to, supervisor_id, title, status FROM tasks WHERE id = ?",
       args: [parseInt(id)],
     });
     if (taskCheck.rows.length > 0) {
-      const taskOwner = taskCheck.rows[0].user_id;
+      const taskRow = taskCheck.rows[0];
       if (
         session.role !== "super_admin" &&
-        String(taskOwner) !== String(session.cid)
+        String(taskRow.user_id) !== String(session.cid) &&
+        String(taskRow.assigned_to || "") !== String(session.cid) &&
+        String(taskRow.supervisor_id || "") !== String(session.cid)
       ) {
         return NextResponse.json(
-          { success: false, error: "You can only delete your own tasks." },
+          { success: false, error: "You can only delete your own tasks, assigned tasks, or supervised tasks." },
           { status: 403 },
         );
       }

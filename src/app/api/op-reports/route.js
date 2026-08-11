@@ -18,6 +18,14 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const report_type = searchParams.get("type");
@@ -25,22 +33,37 @@ export async function GET(req) {
     const year = searchParams.get("year");
     const role = searchParams.get("role");
     const workspace = searchParams.get("workspace");
+    const context_type = searchParams.get("context_type");
+    const context_id = searchParams.get("context_id");
 
     let sql = "SELECT * FROM v2_op_reports WHERE 1=1";
     const args = [];
 
-    // Super admin overview defaults to main workspace unless specified
-    if (!user_id && !workspace) {
-      sql += " AND workspace = 'main'";
-    } else if (workspace) {
-      sql += " AND workspace = ?";
-      args.push(workspace);
-    }
-
-    // Staff can only see their own; SA can see all (when no user_id filter)
-    if (user_id) {
+    // SECURITY (Phase 0): Non-SA users can only view their own reports.
+    // SA can view all reports with optional filters.
+    if (session.role !== "super_admin") {
+      if (user_id && String(user_id) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "You can only view your own operational reports." },
+          { status: 403 },
+        );
+      }
       sql += " AND user_id = ?";
-      args.push(user_id);
+      args.push(String(session.cid));
+    } else {
+      // Super admin overview defaults to main workspace unless specified
+      if (!user_id && !workspace) {
+        sql += " AND workspace = 'main'";
+      } else if (workspace) {
+        sql += " AND workspace = ?";
+        args.push(workspace);
+      }
+
+      // SA can filter by specific user
+      if (user_id) {
+        sql += " AND user_id = ?";
+        args.push(user_id);
+      }
     }
 
     if (report_type) {
@@ -56,6 +79,16 @@ export async function GET(req) {
     if (year) {
       sql += " AND year = ?";
       args.push(parseInt(year));
+    }
+
+    if (context_type) {
+      sql += " AND context_type = ?";
+      args.push(context_type);
+    }
+
+    if (context_id) {
+      sql += " AND context_id = ?";
+      args.push(context_id);
     }
 
     sql += " ORDER BY year DESC, week_number DESC, created_at DESC";
@@ -107,6 +140,9 @@ export async function POST(req) {
       wins,
       carryover_items,
       retro_notes,
+      // Context fields
+      context_type,
+      context_id,
     } = body;
 
     if (!user_id || !report_type || !week_number || !year) {
@@ -150,6 +186,8 @@ export async function POST(req) {
         "wins",
         "carryover_items",
         "retro_notes",
+        "context_type",
+        "context_id",
       ];
 
       const fieldValues = {
@@ -172,6 +210,8 @@ export async function POST(req) {
         wins,
         carryover_items,
         retro_notes,
+        context_type,
+        context_id,
       };
 
       for (const field of allFields) {
@@ -220,13 +260,15 @@ export async function POST(req) {
          top_priorities, expected_deliverables, projects_tasks,
          has_dependencies, dependency_note, has_blockers, blocker_description,
          needs_support, support_note,
-         completed_work, unfinished_tasks, challenges, wins, carryover_items, retro_notes)
+         completed_work, unfinished_tasks, challenges, wins, carryover_items, retro_notes,
+         context_type, context_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?,
          ?, ?, ?, ?,
          ?, ?, ?,
          ?, ?, ?, ?,
          ?, ?,
-         ?, ?, ?, ?, ?, ?) RETURNING id`,
+         ?, ?, ?, ?, ?, ?,
+         ?, ?) RETURNING id`,
       args: [
         user_id,
         user_name || "",
@@ -255,6 +297,8 @@ export async function POST(req) {
         wins || null,
         carryover_items || null,
         retro_notes || null,
+        context_type || "staff",
+        context_id || null,
       ],
     });
 

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import UnifiedOperationsView from "@/components/dashboard/UnifiedOperationsView";
 import { useI18n } from "@/lib/i18n";
 
 export default function StaffDashboard() {
@@ -217,6 +218,15 @@ export default function StaffDashboard() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* ── UNIFIED OPERATIONS VIEW (Phase 5) ── */}
+        <div className="pt-6 border-t" style={{ borderColor: "rgb(255 255 255 / 0.06)" }}>
+          <UnifiedOperationsView
+            user={user}
+            context={{ context_type: "staff", context_id: null }}
+            contextLabel="Future Studio — Staff Operations"
+          />
         </div>
       </div>
     </DashboardLayout>

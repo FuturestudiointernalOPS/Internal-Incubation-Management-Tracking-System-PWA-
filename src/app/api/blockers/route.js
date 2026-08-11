@@ -25,12 +25,58 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const { searchParams } = new URL(req.url);
     const task_id = searchParams.get("task_id");
     const user_id = searchParams.get("user_id");
     const status = searchParams.get("status");
     const id = searchParams.get("id");
 
+    // SECURITY (Phase 0): Non-SA users can only see blockers on their own tasks
+    // or tasks assigned to them.
+    if (session.role !== "super_admin") {
+      if (user_id && String(user_id) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "You can only view your own blockers." },
+          { status: 403 },
+        );
+      }
+      // Scope to blockers where the task belongs to, assigned to, or supervised by the user
+      let sql = `SELECT b.* FROM blockers b
+        JOIN tasks t ON b.task_id = t.id
+        WHERE (t.user_id = ? OR t.assigned_to = ? OR t.supervisor_id = ?)`;
+      const args = [String(session.cid), String(session.cid), String(session.cid)];
+
+      if (id) {
+        sql += " AND b.id = ?";
+        args.push(parseInt(id));
+      }
+      if (task_id) {
+        sql += " AND b.task_id = ?";
+        args.push(parseInt(task_id));
+      }
+      if (user_id) {
+        sql += " AND b.user_id = ?";
+        args.push(user_id);
+      }
+      if (status) {
+        sql += " AND b.status = ?";
+        args.push(status);
+      }
+      sql += " ORDER BY b.created_at DESC";
+
+      const result = await db.execute({ sql, args });
+      return NextResponse.json({ success: true, blockers: result.rows });
+    }
+
+    // SA: unrestricted access with optional filters
     let sql = "SELECT * FROM blockers WHERE 1=1";
     const args = [];
 
@@ -96,7 +142,7 @@ export async function POST(req) {
 
     // Verify the task exists and is not closed
     const taskCheck = await db.execute({
-      sql: "SELECT id, status FROM tasks WHERE id = ?",
+      sql: "SELECT id, status, user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
       args: [parseInt(task_id)],
     });
 
@@ -108,6 +154,21 @@ export async function POST(req) {
     }
 
     const task = taskCheck.rows[0];
+
+    // SECURITY: Only task owner, assignee, supervisor, or SA can add a blocker
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (
+      session.role !== "super_admin" &&
+      String(task.user_id) !== String(session.cid) &&
+      String(task.assigned_to || "") !== String(session.cid) &&
+      String(task.supervisor_id || "") !== String(session.cid)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You do not have permission to add a blocker to this task." },
+        { status: 403 },
+      );
+    }
     const closedStatuses = ["completed", "archived", "carried_over"];
     if (closedStatuses.includes(task.status)) {
       return NextResponse.json(
@@ -194,9 +255,16 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const body = await req.json();
-    const { id, user_id, title, description, severity, status, resolved_by } =
-      body;
+    const { id, title, description, severity, status } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -220,9 +288,9 @@ export async function PUT(req) {
 
     const blocker = blockerCheck.rows[0];
 
-    // Resolving a blocker: only the blocker creator may resolve (Rule 22 + 23)
+    // Resolving a blocker: only the blocker creator may resolve
     if (status === "resolved") {
-      if (!resolved_by || resolved_by !== blocker.user_id) {
+      if (String(blocker.user_id) !== String(session.cid)) {
         return NextResponse.json(
           {
             success: false,
@@ -234,7 +302,7 @@ export async function PUT(req) {
 
       await db.execute({
         sql: "UPDATE blockers SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = ? WHERE id = ?",
-        args: [resolved_by || blocker.user_id, parseInt(id)],
+        args: [session.cid, parseInt(id)],
       });
 
       // Check if the task has any other active blockers
@@ -255,7 +323,7 @@ export async function PUT(req) {
       await logAuditEvent({
         entity_type: "blocker",
         entity_id: parseInt(id),
-        user_id: resolved_by || blocker.user_id,
+        user_id: session.cid,
         user_name: blocker.user_name || "",
         action: "resolved",
         details: `Blocker "${blocker.title}" resolved`,
@@ -268,8 +336,8 @@ export async function PUT(req) {
       });
     }
 
-    // Non-resolve updates: only creator can edit
-    if (user_id && user_id !== blocker.user_id) {
+    // Non-resolve updates: only creator can edit (using session identity)
+    if (String(blocker.user_id) !== String(session.cid)) {
       return NextResponse.json(
         { success: false, error: "Only the blocker creator can edit it" },
         { status: 403 },
@@ -318,9 +386,16 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const user_id = searchParams.get("user_id");
 
     if (!id) {
       return NextResponse.json(
@@ -338,8 +413,11 @@ export async function DELETE(req) {
     if (blockerCheck.rows.length > 0) {
       const blocker = blockerCheck.rows[0];
 
-      // Only creator can delete
-      if (user_id && user_id !== blocker.user_id) {
+      // SECURITY: Only creator or SA can delete (using session identity)
+      if (
+        session.role !== "super_admin" &&
+        String(blocker.user_id) !== String(session.cid)
+      ) {
         return NextResponse.json(
           { success: false, error: "Only the blocker creator can delete it" },
           { status: 403 },

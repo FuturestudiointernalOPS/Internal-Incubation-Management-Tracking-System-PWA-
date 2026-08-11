@@ -35,6 +35,8 @@ export async function standupUpsert({
   week_number,
   year,
   taskContext = {},
+  context_type = "staff",
+  context_id = null,
 }) {
   // Check if standup already exists
   const existing = await db.execute({
@@ -76,8 +78,8 @@ export async function standupUpsert({
   const result = await db.execute({
     sql: `INSERT INTO v2_op_reports
           (user_id, user_name, user_role, report_type, week_number, year,
-           status, projects_tasks, top_priorities)
-          VALUES (?, ?, ?, 'standup', ?, ?, 'submitted', ?, ?)`,
+           status, projects_tasks, top_priorities, context_type, context_id)
+          VALUES (?, ?, ?, 'standup', ?, ?, 'submitted', ?, ?, ?, ?)`,
     args: [
       user_id,
       user_name || "Unknown",
@@ -86,6 +88,8 @@ export async function standupUpsert({
       year,
       taskLine,
       "Auto-generated from task creation",
+      context_type,
+      context_id || null,
     ],
   });
 
@@ -103,7 +107,7 @@ export async function standupUpsert({
  */
 export async function rebuildStandupTasks(user_id, week_number, year) {
   const standup = await db.execute({
-    sql: `SELECT id FROM v2_op_reports
+    sql: `SELECT id, context_type, context_id FROM v2_op_reports
           WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'standup'
           LIMIT 1`,
     args: [user_id, week_number, year],
@@ -111,12 +115,28 @@ export async function rebuildStandupTasks(user_id, week_number, year) {
 
   if (standup.rows.length === 0) return { action: "skipped" };
 
+  const ctx = standup.rows[0];
+
+  // Filter tasks by the standup's context to prevent cross-context leakage
+  let taskSql = `SELECT title, status FROM tasks
+        WHERE user_id = ? AND created_week = ? AND created_year = ?
+        AND status != 'completed'`;
+  const taskArgs = [user_id, week_number, year];
+
+  if (ctx.context_type) {
+    taskSql += " AND context_type = ?";
+    taskArgs.push(ctx.context_type);
+    if (ctx.context_id) {
+      taskSql += " AND context_id = ?";
+      taskArgs.push(ctx.context_id);
+    }
+  }
+
+  taskSql += " ORDER BY created_at ASC";
+
   const tasks = await db.execute({
-    sql: `SELECT title, status FROM tasks
-          WHERE user_id = ? AND created_week = ? AND created_year = ?
-          AND status != 'completed'
-          ORDER BY created_at ASC`,
-    args: [user_id, week_number, year],
+    sql: taskSql,
+    args: taskArgs,
   });
 
   const lines = tasks.rows.map(
