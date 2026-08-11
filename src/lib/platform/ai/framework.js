@@ -60,7 +60,7 @@ Rules:
 export async function generateFramework(documentText) {
   try {
     const prompt = `${FRAMEWORK_PROMPT}\n\nRUBRIC DOCUMENT:\n${documentText.substring(0, 10000)}`;
-    const raw = await deepseekIntelligence.chat(prompt);
+    const raw = await deepseekIntelligence.chat(prompt, undefined, 8192);
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return null;

@@ -41,7 +41,7 @@ Rules: First section = profile info. Rating questions MUST include options: [{"l
 DOCUMENT:
 ${text.substring(0, 12000)}`;
 
-    const raw = await deepseekIntelligence.chat(prompt);
+    const raw = await deepseekIntelligence.chat(prompt, undefined, 8192);
     console.log(`[AI GenerateAll] Response: ${raw.length} chars`);
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
