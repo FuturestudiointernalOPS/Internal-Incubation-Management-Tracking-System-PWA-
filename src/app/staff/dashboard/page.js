@@ -88,6 +88,13 @@ export default function StaffDashboard() {
           </p>
         </header>
 
+        {/* ── STAND-UP & RETRO (Phase 7 Redesign) ── */}
+        <StandupRetroView
+          user={user}
+          context={{ context_type: "staff", context_id: null }}
+          contextLabel="Future Studio — Staff Operations"
+        />
+
         {/* UPCOMING TASKS */}
         <div className="card">
           <div className="flex items-center gap-2 mb-4">
@@ -218,15 +225,6 @@ export default function StaffDashboard() {
               )}
             </div>
           </div>
-        </div>
-
-        {/* ── STAND-UP & RETRO (Phase 7 Redesign) ── */}
-        <div className="pt-6 border-t" style={{ borderColor: "rgb(255 255 255 / 0.06)" }}>
-          <StandupRetroView
-            user={user}
-            context={{ context_type: "staff", context_id: null }}
-            contextLabel="Future Studio — Staff Operations"
-          />
         </div>
       </div>
     </DashboardLayout>
