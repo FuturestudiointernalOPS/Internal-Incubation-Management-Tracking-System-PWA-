@@ -1,16 +1,18 @@
 {
-  "requiredFields": "Veuillez remplir tous les champs obligatoires",
-  "fieldRequired": "Ce champ est obligatoire",
-  "selectOption": "Selectionner...",
-  "noPrefix": "Sans prefixe",
-  "selectRating": "Choisissez une note :",
-  "submissionReceived": "Soumission recue !",
-  "submissionReceivedTitle": "Soumission Recue",
-  "thankYou": "Merci ! Votre reponse a ete enregistree.",
-  "thankYouDetail": "Votre candidature a bien ete recue. Notre equipe examinera votre dossier et vous recevrez un email de confirmation prochainement.",
-  "checkEmail": "Veuillez verifier votre boite de reception (y compris les spams) pour le suivi de votre candidature.",
-  "submitFailed": "Echec de la soumission",
-  "submit": "Envoyer",
-  "submitting": "Envoi en cours...",
-  "closes": "Ferme le"
+  "forms": {
+    "requiredFields": "Veuillez remplir tous les champs obligatoires",
+    "fieldRequired": "Ce champ est obligatoire",
+    "selectOption": "Selectionner...",
+    "noPrefix": "Sans prefixe",
+    "selectRating": "Choisissez une note :",
+    "submissionReceived": "Soumission recue !",
+    "submissionReceivedTitle": "Soumission Recue",
+    "thankYou": "Merci pour votre soumission.",
+    "thankYouDetail": "Votre candidature a bien ete recue. Notre equipe examinera votre dossier et vous recevrez un email de confirmation prochainement. Si vous ne recevez pas d'email dans les 24 heures, veuillez verifier vos spams.",
+    "checkEmail": "Veuillez verifier votre boite de reception (y compris les spams) pour le suivi de votre candidature.",
+    "submitFailed": "Echec de la soumission",
+    "submit": "Envoyer",
+    "submitting": "Envoi en cours...",
+    "closes": "Ferme le"
+  }
 }

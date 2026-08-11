@@ -1,16 +1,18 @@
 {
-  "requiredFields": "Please fill all required fields",
-  "fieldRequired": "This field is required",
-  "selectOption": "Select...",
-  "noPrefix": "No prefix",
-  "selectRating": "Select a rating:",
-  "submissionReceived": "Submission received!",
-  "submissionReceivedTitle": "Submission Received",
-  "thankYou": "Thank you! Your response has been recorded.",
-  "thankYouDetail": "Your application has been received successfully. Our team will review your submission and you will receive a confirmation email shortly.",
-  "checkEmail": "Please check your email (including spam/junk folder) for updates on your application.",
-  "submitFailed": "Submission failed",
-  "submit": "Submit",
-  "submitting": "Submitting...",
-  "closes": "Closes"
+  "forms": {
+    "requiredFields": "Please fill all required fields",
+    "fieldRequired": "This field is required",
+    "selectOption": "Select...",
+    "noPrefix": "No prefix",
+    "selectRating": "Select a rating:",
+    "submissionReceived": "Submission received!",
+    "submissionReceivedTitle": "Submission Received",
+    "thankYou": "Thank you for your submission.",
+    "thankYouDetail": "Your application has been received successfully. Our team will review your information and you will receive a confirmation email shortly. If you do not receive an email within 24 hours, please check your spam folder.",
+    "checkEmail": "Please check your email (including spam/junk folder) for updates on your application.",
+    "submitFailed": "Submission failed",
+    "submit": "Submit",
+    "submitting": "Submitting...",
+    "closes": "Closes"
+  }
 }
