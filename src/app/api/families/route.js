@@ -112,7 +112,6 @@ export async function PUT(req) {
     if (body.type !== undefined) { updates.push("type = ?"); args.push(body.type); }
     if (body.description !== undefined) { updates.push("description = ?"); args.push(body.description); }
     if (body.default_role !== undefined) { updates.push("default_role = ?"); args.push(body.default_role || null); }
-    if (body.form_id !== undefined) { updates.push("form_id = ?"); args.push(body.form_id || null); }
 
     if (updates.length === 0)
       return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
