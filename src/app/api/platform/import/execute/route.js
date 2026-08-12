@@ -2,15 +2,20 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 
 /**
  * POST /api/platform/import/execute
  * Accepts form_id + run_id + mapping + csv_rows.
- * For each row: resolves CRM contact via existing_crm_id → email → phone →
- * fuzzy name (split, sort tokens, join). Creates contact with
- * ON CONFLICT(email) DO UPDATE. Inserts into platform_form_submissions
- * with data as {field_id: value}.
- * Returns imported/skipped/errors counts.
+ *
+ * PHASE 1 SAFETY MODEL:
+ *  - Submissions created with status 'submitted' (visible to review + AI eval)
+ *  - Contacts created as role 'participant', status 'pending' (never approved)
+ *  - No automation, no emails, no credentials, no group assignment
+ *  - Lookup-first contact matching (email, phone, name); name-only matches
+ *    are flagged needs_review and never silently merged
+ *  - Duplicate protection: skips rows where submitter already has a submission
+ *    in this run; records import batch with file hash for idempotency detection
  */
 
 function sortNameTokens(name) {
@@ -24,37 +29,45 @@ function sortNameTokens(name) {
     .join(" ");
 }
 
+function fileHash(csvRows) {
+  try {
+    return crypto.createHash("sha256").update(JSON.stringify(csvRows)).digest("hex").substring(0, 24);
+  } catch (_) {
+    return "hash-" + Date.now().toString(36);
+  }
+}
+
 async function resolveContact(dbClient, row, mapping) {
-  // 1. Try existing_crm_id
-  const crmIdField = Object.keys(mapping).find(
-    (k) => mapping[k] === "_crm_id"
-  );
+  // 1. CRM ID (degrade gracefully if column missing)
+  const crmIdField = Object.keys(mapping).find((k) => mapping[k] === "_crm_id");
   if (crmIdField && row[crmIdField]) {
-    const res = await dbClient.execute({
-      sql: "SELECT * FROM contacts WHERE crm_id = ? OR custom_fields->>'crm_id' = ? LIMIT 1",
-      args: [row[crmIdField], row[crmIdField]],
-    });
-    if (res.rows.length > 0) return res.rows[0];
+    try {
+      const res = await dbClient.execute({
+        sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1",
+        args: [String(row[crmIdField])],
+      });
+      if (res.rows.length > 0) return { contact: res.rows[0], method: "crm_id", uncertain: false };
+    } catch (_) {}
   }
 
-  // 2. Try email
+  // 2. Email (exact, lowercase)
   const emailField = Object.keys(mapping).find(
     (k) =>
       mapping[k] === "_email" ||
       (typeof mapping[k] === "string" && mapping[k].toLowerCase().includes("email"))
   );
   if (emailField && row[emailField]) {
-    const email = row[emailField].toLowerCase().trim();
+    const email = String(row[emailField]).toLowerCase().trim();
     if (email.includes("@")) {
       const res = await dbClient.execute({
         sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
         args: [email],
       });
-      if (res.rows.length > 0) return res.rows[0];
+      if (res.rows.length > 0) return { contact: res.rows[0], method: "email", uncertain: false };
     }
   }
 
-  // 3. Try phone
+  // 3. Phone (normalized)
   const phoneField = Object.keys(mapping).find(
     (k) =>
       mapping[k] === "_phone" ||
@@ -63,17 +76,17 @@ async function resolveContact(dbClient, row, mapping) {
           mapping[k].toLowerCase().includes("telephone")))
   );
   if (phoneField && row[phoneField]) {
-    const phone = row[phoneField].replace(/[^\d+]/g, "");
+    const phone = String(row[phoneField]).replace(/[^\d+]/g, "");
     if (phone.length >= 7) {
       const res = await dbClient.execute({
         sql: "SELECT * FROM contacts WHERE phone = ? LIMIT 1",
         args: [phone],
       });
-      if (res.rows.length > 0) return res.rows[0];
+      if (res.rows.length > 0) return { contact: res.rows[0], method: "phone", uncertain: false };
     }
   }
 
-  // 4. Fuzzy name match
+  // 4. Name matching — ALWAYS uncertain (never silently merge by name alone)
   const nameField = Object.keys(mapping).find(
     (k) =>
       mapping[k] === "_name" ||
@@ -84,21 +97,25 @@ async function resolveContact(dbClient, row, mapping) {
   if (nameField && row[nameField]) {
     const sorted = sortNameTokens(row[nameField]);
     if (sorted) {
-      const allContacts = await dbClient.execute({
-        sql: "SELECT * FROM contacts",
-        args: [],
-      });
-      for (const c of allContacts.rows) {
-        const cSorted = sortNameTokens(c.name);
-        if (cSorted === sorted) return c;
+      let allContacts;
+      try {
+        allContacts = await dbClient.execute({ sql: "SELECT * FROM contacts", args: [] });
+      } catch (_) {
+        allContacts = { rows: [] };
       }
-      // Try partial match: at least 2 tokens overlap
+      for (const c of allContacts.rows) {
+        if (sortNameTokens(c.name) === sorted) {
+          return { contact: c, method: "name", uncertain: true };
+        }
+      }
       const tokens = sorted.split(" ");
       if (tokens.length >= 2) {
         for (const c of allContacts.rows) {
           const cTokens = sortNameTokens(c.name).split(" ");
           const overlap = tokens.filter((t) => cTokens.includes(t)).length;
-          if (overlap >= 2) return c;
+          if (overlap >= 2) {
+            return { contact: c, method: "name_partial", uncertain: true };
+          }
         }
       }
     }
@@ -116,22 +133,53 @@ export async function POST(req) {
     const { form_id, run_id, mapping, csv_rows } = await req.json();
     if (!form_id || !run_id || !mapping || !csv_rows) {
       return NextResponse.json(
-        {
-          success: false,
-          error: "form_id, run_id, mapping, and csv_rows are required",
-        },
+        { success: false, error: "form_id, run_id, mapping, and csv_rows are required" },
         { status: 400 }
       );
     }
 
+    // Self-heal: ensure import batch table exists (additive, idempotent)
+    try {
+      await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_batches (
+        id SERIAL PRIMARY KEY,
+        form_id INTEGER NOT NULL,
+        run_id INTEGER NOT NULL,
+        file_hash TEXT NOT NULL,
+        total_rows INTEGER DEFAULT 0,
+        imported INTEGER DEFAULT 0,
+        skipped INTEGER DEFAULT 0,
+        needs_review INTEGER DEFAULT 0,
+        created_by TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`);
+    } catch (e) {
+      console.warn("[Import] Could not ensure batch table:", e.message);
+    }
+
+    const hash = fileHash(csv_rows);
+
+    let duplicateBatch = false;
+    let previousBatch = null;
+    try {
+      const prev = await db.execute({
+        sql: "SELECT id, created_at, imported, needs_review FROM platform_import_batches WHERE run_id = ? AND file_hash = ? ORDER BY id DESC LIMIT 1",
+        args: [parseInt(run_id), hash],
+      });
+      if (prev.rows.length > 0) {
+        duplicateBatch = true;
+        previousBatch = prev.rows[0];
+      }
+    } catch (_) {}
+
     let imported = 0;
     let skipped = 0;
+    let needsReview = 0;
     const errors = [];
+    const reviewRows = [];
 
     for (let i = 0; i < csv_rows.length; i++) {
       const row = csv_rows[i];
       try {
-        // Skip empty rows
         const hasData = Object.values(row).some(
           (v) => v !== undefined && v !== null && String(v).trim() !== ""
         );
@@ -140,22 +188,22 @@ export async function POST(req) {
           continue;
         }
 
-        // Resolve contact
-        let contact = await resolveContact(db, row, mapping);
+        const resolved = await resolveContact(db, row, mapping);
+        let contact = resolved?.contact || null;
+        const uncertain = resolved?.uncertain || false;
+        const matchMethod = resolved?.method || null;
 
-        // Extract email for upsert
         let email = null;
         const emailKey = Object.keys(mapping).find(
           (k) =>
             mapping[k] === "_email" ||
-            (typeof mapping[k] === "string" &&
-              mapping[k].toLowerCase().includes("email"))
+            (typeof mapping[k] === "string" && mapping[k].toLowerCase().includes("email"))
         );
         if (emailKey && row[emailKey]) {
-          email = row[emailKey].toLowerCase().trim();
+          email = String(row[emailKey]).toLowerCase().trim();
+          if (!email.includes("@")) email = null;
         }
 
-        // Extract name
         let name = "Unknown";
         const nameKey = Object.keys(mapping).find(
           (k) =>
@@ -164,11 +212,8 @@ export async function POST(req) {
               (mapping[k].toLowerCase().includes("name") ||
                 mapping[k].toLowerCase().includes("full")))
         );
-        if (nameKey && row[nameKey]) {
-          name = row[nameKey].trim();
-        }
+        if (nameKey && row[nameKey]) name = String(row[nameKey]).trim();
 
-        // Extract phone
         let phone = null;
         const phoneKey = Object.keys(mapping).find(
           (k) =>
@@ -178,69 +223,72 @@ export async function POST(req) {
                 mapping[k].toLowerCase().includes("telephone")))
         );
         if (phoneKey && row[phoneKey]) {
-          phone = row[phoneKey].replace(/[^\d+]/g, "");
+          phone = String(row[phoneKey]).replace(/[^\d+]/g, "");
         }
 
-        if (!contact && email && email.includes("@")) {
-          // Create or update contact
+        if (!contact) {
           const cid =
             "USER_" +
             uuidv4().split("-")[0].toUpperCase() +
             Math.floor(Math.random() * 10000);
 
-          const upsertRes = await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, phone, role, status)
-                  VALUES (?, ?, ?, ?, 'participant', 'approved')
-                  ON CONFLICT (email) WHERE email IS NOT NULL AND email != ''
-                  DO UPDATE SET name = EXCLUDED.name, phone = COALESCE(EXCLUDED.phone, contacts.phone)
-                  RETURNING *`,
-            args: [cid, name, email, phone],
-          });
-          contact = upsertRes.rows[0];
-        } else if (!contact) {
-          // No email to key off — create with generated cid anyway
-          const cid =
-            "USER_" +
-            uuidv4().split("-")[0].toUpperCase() +
-            Math.floor(Math.random() * 10000);
+          const contactEmail = email || `import-${cid.toLowerCase()}@placeholder.impactos.local`;
 
           const insertRes = await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, phone, role, status)
-                  VALUES (?, ?, ?, ?, 'participant', 'approved')
-                  ON CONFLICT DO NOTHING
+            sql: `INSERT INTO contacts (cid, name, email, phone, role, status, password, deleted)
+                  VALUES (?, ?, ?, ?, 'participant', 'pending', '', 0)
+                  ON CONFLICT (email) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    phone = COALESCE(EXCLUDED.phone, contacts.phone)
                   RETURNING *`,
-            args: [cid, name, email, phone],
+            args: [cid, name, contactEmail, phone || null],
           });
-          if (insertRes.rows.length > 0) {
-            contact = insertRes.rows[0];
-          }
+          if (insertRes.rows.length > 0) contact = insertRes.rows[0];
         }
 
         if (!contact) {
           errors.push({ row: i + 1, error: "Could not resolve or create contact" });
+          skipped++;
           continue;
         }
 
-        // Build submission data: map csv columns to field IDs
+        const existingSub = await db.execute({
+          sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? LIMIT 1",
+          args: [parseInt(run_id), contact.cid],
+        });
+        if (existingSub.rows.length > 0) {
+          skipped++;
+          continue;
+        }
+
         const submissionData = {};
         for (const csvCol of Object.keys(row)) {
           const fieldId = mapping[csvCol];
-          if (fieldId && !fieldId.startsWith("_")) {
+          if (fieldId && !String(fieldId).startsWith("_")) {
             submissionData[fieldId] = row[csvCol];
           }
         }
 
-        // Insert submission
         await db.execute({
-          sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, data, status)
-                VALUES (?, ?, ?, ?, 'imported')`,
-          args: [
-            run_id,
-            contact.cid,
-            contact.name,
-            JSON.stringify(submissionData),
-          ],
+          sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, data, status, submitted_at)
+                VALUES (?, ?, ?, ?, 'submitted', NOW())`,
+          args: [parseInt(run_id), contact.cid, contact.name, JSON.stringify(submissionData)],
         });
+
+        if (uncertain) {
+          needsReview++;
+          reviewRows.push({
+            row: i + 1,
+            name,
+            email: email || null,
+            matched_cid: contact.cid,
+            matched_name: contact.name,
+            method: matchMethod,
+            reason: matchMethod === "name_partial"
+              ? "Partial name match — possible duplicate, verify identity"
+              : "Name-only match with different email/phone — verify identity",
+          });
+        }
 
         imported++;
       } catch (rowErr) {
@@ -249,17 +297,31 @@ export async function POST(req) {
       }
     }
 
+    let batchId = null;
+    try {
+      const batchRes = await db.execute({
+        sql: `INSERT INTO platform_import_batches (form_id, run_id, file_hash, total_rows, imported, skipped, needs_review, created_by)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        args: [parseInt(form_id), parseInt(run_id), hash, csv_rows.length, imported, skipped, needsReview, "system"],
+      });
+      batchId = batchRes.rows[0]?.id || null;
+    } catch (e) {
+      console.warn("[Import] Batch record failed:", e.message);
+    }
+
     return NextResponse.json({
       success: true,
       imported,
       skipped,
+      needs_review: needsReview,
+      review_rows: reviewRows,
       errors,
       total: csv_rows.length,
+      duplicate_batch: duplicateBatch,
+      previous_batch: previousBatch,
+      batch: { id: batchId, file_hash: hash },
     });
   } catch (error) {
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

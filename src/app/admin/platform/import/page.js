@@ -116,6 +116,46 @@ export default function ImportPage() {
     }
   };
 
+  const parseFullCSV = () => {
+    const lines = csvText.trim().split(/\r?\n/);
+    if (lines.length === 0) return [];
+    const parseLine = (line) => {
+      const result = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    };
+    const headers = parseLine(lines[0]);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseLine(lines[i]);
+      if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
+      const row = {};
+      headers.forEach((h, idx) => {
+        row[h] = cells[idx] !== undefined ? cells[idx] : "";
+      });
+      rows.push(row);
+    }
+    return rows;
+  };
+
   const handleExecute = async () => {
     if (!selectedRunId) {
       setError("Please select a run.");
@@ -126,6 +166,7 @@ export default function ImportPage() {
     setError("");
 
     try {
+      const allRows = parseFullCSV();
       const res = await fetch("/api/platform/import/execute", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,7 +174,7 @@ export default function ImportPage() {
           form_id: selectedFormId,
           run_id: selectedRunId,
           mapping,
-          csv_rows: previewData.preview_rows,
+          csv_rows: allRows,
         }),
       });
       const data = await res.json();
@@ -531,7 +572,18 @@ export default function ImportPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            {importResult.duplicate_batch && importResult.previous_batch && (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
+                <p className="text-[10px] font-bold text-amber-500 uppercase">
+                  ⚠ This file appears to have been imported before (batch #{importResult.previous_batch.id}, {new Date(importResult.previous_batch.created_at).toLocaleDateString()}).
+                </p>
+                <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                  Duplicates were skipped automatically — no applicant or response was created twice.
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="card p-4 text-center border-l-4 border-emerald-500">
                 <p className="text-2xl font-black text-emerald-500">
                   {importResult.imported}
@@ -548,6 +600,14 @@ export default function ImportPage() {
                   Skipped
                 </p>
               </div>
+              <div className="card p-4 text-center border-l-4 border-blue-500">
+                <p className="text-2xl font-black text-blue-500">
+                  {importResult.needs_review || 0}
+                </p>
+                <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                  Needs Review
+                </p>
+              </div>
               <div className="card p-4 text-center border-l-4 border-rose-500">
                 <p className="text-2xl font-black text-rose-500">
                   {importResult.errors?.length || 0}
@@ -557,6 +617,29 @@ export default function ImportPage() {
                 </p>
               </div>
             </div>
+
+            {importResult.needs_review > 0 && importResult.review_rows?.length > 0 && (
+              <div className="card p-4 border-l-4 border-blue-500">
+                <p className="text-[10px] font-bold text-blue-500 uppercase mb-2">
+                  Identity Review Required
+                </p>
+                <p className="text-[9px] text-[var(--text-secondary)] mb-3">
+                  These rows matched an existing contact by name only. Verify each one in the CRM duplicate tool before evaluation.
+                </p>
+                <div className="max-h-40 overflow-y-auto space-y-1">
+                  {importResult.review_rows.slice(0, 20).map((r, i) => (
+                    <p key={i} className="text-[10px] text-[var(--text-secondary)]">
+                      Row {r.row}: {r.name} {r.email ? `(${r.email})` : ""} — {r.reason}
+                    </p>
+                  ))}
+                  {importResult.review_rows.length > 20 && (
+                    <p className="text-[9px] text-[var(--text-secondary)] italic">
+                      +{importResult.review_rows.length - 20} more rows…
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {importResult.errors?.length > 0 && (
               <div className="card p-4">

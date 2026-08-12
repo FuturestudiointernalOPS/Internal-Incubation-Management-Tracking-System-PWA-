@@ -44,6 +44,30 @@ const REGISTERED_MODULES = [
     order: 2,
     future: false,
   },
+  {
+    id: "platform-import",
+    name: "Historical Import",
+    description: "Import past submissions from CSV with field mapping and CRM resolution",
+    icon: "Upload",
+    href: "/admin/platform/import",
+    enabled: true,
+    visible: true,
+    permissions: ["super_admin"],
+    order: 3,
+    future: false,
+  },
+  {
+    id: "platform-scores",
+    name: "Scores",
+    description: "Filter evaluated applicants by AI score threshold",
+    icon: "BarChart3",
+    href: "/admin/platform/scores",
+    enabled: true,
+    visible: true,
+    permissions: ["super_admin"],
+    order: 4,
+    future: false,
+  },
 ];
 
 /**
