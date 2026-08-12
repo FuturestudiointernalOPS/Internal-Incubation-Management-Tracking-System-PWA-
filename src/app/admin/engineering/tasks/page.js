@@ -15,8 +15,10 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function EngineeringTasks() {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -126,10 +128,10 @@ export default function EngineeringTasks() {
         setFormDueDate("");
         fetchTasks();
       } else {
-        setFormError(data.error || "Failed to create task");
+        setFormError(data.error || t("engineering.tasks.createFailed"));
       }
     } catch (e) {
-      setFormError("Network error");
+      setFormError(t("engineering.tasks.networkError"));
     } finally {
       setFormCreating(false);
     }
@@ -154,14 +156,14 @@ export default function EngineeringTasks() {
             <div className="flex items-center gap-2">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Engineering Operations
+                {t("engineering.tasks.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Development Tasks
+              {t("engineering.tasks.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {tasks.length} active tasks — Assign and manage developer work
+              {t("engineering.tasks.subtitle", { count: tasks.length })}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -169,13 +171,13 @@ export default function EngineeringTasks() {
               onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
             >
-              <Wrench className="w-3.5 h-3.5" /> New Task
+              <Wrench className="w-3.5 h-3.5" /> {t("engineering.tasks.newTask")}
             </button>
             <button
               onClick={fetchTasks}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              <RefreshCw className="w-3.5 h-3.5" /> {t("engineering.tasks.refresh")}
             </button>
           </div>
         </header>
@@ -187,7 +189,7 @@ export default function EngineeringTasks() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search tasks..."
+              placeholder={t("engineering.tasks.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
             />
           </div>
@@ -196,22 +198,22 @@ export default function EngineeringTasks() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="in_progress">In Progress</option>
-            <option value="blocked">Blocked</option>
-            <option value="completed">Completed</option>
+            <option value="all">{t("engineering.tasks.allStatus")}</option>
+            <option value="pending">{t("engineering.tasks.statusPending")}</option>
+            <option value="in_progress">{t("engineering.tasks.statusInProgress")}</option>
+            <option value="blocked">{t("engineering.tasks.statusBlocked")}</option>
+            <option value="completed">{t("engineering.tasks.statusCompleted")}</option>
           </select>
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">All Priority</option>
-            <option value="critical">Critical</option>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="all">{t("engineering.tasks.allPriority")}</option>
+            <option value="critical">{t("engineering.tasks.priorityCritical")}</option>
+            <option value="high">{t("engineering.tasks.priorityHigh")}</option>
+            <option value="medium">{t("engineering.tasks.priorityMedium")}</option>
+            <option value="low">{t("engineering.tasks.priorityLow")}</option>
           </select>
         </div>
 
@@ -231,13 +233,13 @@ export default function EngineeringTasks() {
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
               {search || statusFilter !== "all" || priorityFilter !== "all"
-                ? "No matches"
-                : "No active development tasks"}
+                ? t("engineering.tasks.noMatches")
+                : t("engineering.tasks.noTasks")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
               {search || statusFilter !== "all" || priorityFilter !== "all"
-                ? "Try different filters"
-                : "Create a task or convert an error log to a task"}
+                ? t("engineering.tasks.tryDifferentFilters")
+                : t("engineering.tasks.emptyHint")}
             </p>
           </div>
         ) : (
@@ -270,7 +272,7 @@ export default function EngineeringTasks() {
                         new Date(task.end_date) < new Date() &&
                         task.status !== "completed" && (
                           <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider flex items-center gap-1">
-                            <AlertTriangle className="w-2.5 h-2.5" /> Overdue
+                            <AlertTriangle className="w-2.5 h-2.5" /> {t("engineering.tasks.overdue")}
                           </span>
                         )}
                     </div>
@@ -305,7 +307,7 @@ export default function EngineeringTasks() {
                 <div className="flex items-center gap-3">
                   <Wrench className="w-5 h-5 text-[var(--brand-orange)]" />
                   <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                    Create Development Task
+                    {t("engineering.tasks.createModalTitle")}
                   </h2>
                 </div>
                 <button
@@ -319,26 +321,26 @@ export default function EngineeringTasks() {
               <form onSubmit={handleCreateTask} className="space-y-4">
                 <div>
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">
-                    Title
+                    {t("engineering.tasks.formTitle")}
                   </label>
                   <input
                     value={formTitle}
                     onChange={(e) => setFormTitle(e.target.value)}
                     required
-                    placeholder="What needs to be done?"
+                    placeholder={t("engineering.tasks.titlePlaceholder")}
                     className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   />
                 </div>
 
                 <div>
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">
-                    Description
+                    {t("engineering.tasks.formDescription")}
                   </label>
                   <textarea
                     value={formDesc}
                     onChange={(e) => setFormDesc(e.target.value)}
                     rows={3}
-                    placeholder="Details about the task..."
+                    placeholder={t("engineering.tasks.descriptionPlaceholder")}
                     className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
                   />
                 </div>
@@ -346,29 +348,29 @@ export default function EngineeringTasks() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">
-                      Priority
+                      {t("engineering.tasks.formPriority")}
                     </label>
                     <select
                       value={formPriority}
                       onChange={(e) => setFormPriority(e.target.value)}
                       className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none"
                     >
-                      <option value="critical">Critical</option>
-                      <option value="high">High</option>
-                      <option value="medium">Medium</option>
-                      <option value="low">Low</option>
+                      <option value="critical">{t("engineering.tasks.priorityCritical")}</option>
+                      <option value="high">{t("engineering.tasks.priorityHigh")}</option>
+                      <option value="medium">{t("engineering.tasks.priorityMedium")}</option>
+                      <option value="low">{t("engineering.tasks.priorityLow")}</option>
                     </select>
                   </div>
                   <div>
                     <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">
-                      Assignee
+                      {t("engineering.tasks.formAssignee")}
                     </label>
                     <select
                       value={formAssignee}
                       onChange={(e) => setFormAssignee(e.target.value)}
                       className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none"
                     >
-                      <option value="">Unassigned</option>
+                      <option value="">{t("engineering.tasks.unassigned")}</option>
                       {developers.map((dev) => (
                         <option key={dev.cid} value={dev.cid}>
                           {dev.name} ({dev.role})
@@ -380,7 +382,7 @@ export default function EngineeringTasks() {
 
                 <div>
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5">
-                    Due Date
+                    {t("engineering.tasks.formDueDate")}
                   </label>
                   <input
                     type="date"
@@ -407,11 +409,11 @@ export default function EngineeringTasks() {
                     {formCreating ? (
                       <>
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
-                        Creating...
+                        {t("engineering.tasks.creating")}
                       </>
                     ) : (
                       <>
-                        <Wrench className="w-3.5 h-3.5" /> Create Task
+                        <Wrench className="w-3.5 h-3.5" /> {t("engineering.tasks.createTask")}
                       </>
                     )}
                   </button>
@@ -420,7 +422,7 @@ export default function EngineeringTasks() {
                     onClick={() => setShowCreateModal(false)}
                     className="px-4 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:bg-tertiary transition-all"
                   >
-                    Cancel
+                    {t("engineering.tasks.cancel")}
                   </button>
                 </div>
               </form>

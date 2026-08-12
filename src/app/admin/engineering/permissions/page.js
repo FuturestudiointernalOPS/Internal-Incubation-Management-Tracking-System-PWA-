@@ -25,6 +25,7 @@ import {
   SwitchCamera,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -34,13 +35,13 @@ const ACCESS_LEVELS = {
   DELETE: 4,
   FULL: 5,
 };
-const ACCESS_LABELS = {
-  0: "None",
-  1: "View",
-  2: "Create",
-  3: "Edit",
-  4: "Delete",
-  5: "Full",
+const ACCESS_LEVEL_KEYS = {
+  0: "engineering.permissions.accessLevelNone",
+  1: "engineering.permissions.accessLevelView",
+  2: "engineering.permissions.accessLevelCreate",
+  3: "engineering.permissions.accessLevelEdit",
+  4: "engineering.permissions.accessLevelDelete",
+  5: "engineering.permissions.accessLevelFull",
 };
 const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
 
@@ -58,20 +59,21 @@ const ACCESS_COLORS = {
 // Module grouping
 const MODULE_CATEGORIES = [
   {
-    label: "Content",
+    label: "engineering.permissions.categoryContent",
     modules: ["projects", "programs", "reports", "contacts"],
   },
   {
-    label: "People",
+    label: "engineering.permissions.categoryPeople",
     modules: ["users", "messaging", "internal_comms"],
   },
   {
-    label: "System",
+    label: "engineering.permissions.categorySystem",
     modules: ["permissions", "engineering", "finance", "settings"],
   },
 ];
 
 export default function PermissionManager() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [allUsers, setAllUsers] = useState([]);
@@ -263,7 +265,7 @@ export default function PermissionManager() {
 
     // Apply optimistic update immediately
     setUserPerms(newPerms);
-    setActionMsg(`${action} — updating...`);
+    setActionMsg(t("engineering.permissions.actionUpdating", { action }));
 
     // Fire API in background
     try {
@@ -280,17 +282,17 @@ export default function PermissionManager() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(`${action} successful`);
+        setActionMsg(t("engineering.permissions.actionSuccess", { action }));
         // Quietly refresh in background
         refreshUserPerms();
       } else {
         // Revert on failure
         setUserPerms(prevPerms);
-        setActionError(data.error || "Action failed");
+        setActionError(data.error || t("engineering.permissions.actionFailed"));
       }
     } catch (e) {
       setUserPerms(prevPerms);
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -313,14 +315,14 @@ export default function PermissionManager() {
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Authorization
+                {t("engineering.permissions.authorization")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Permission Manager
+              {t("engineering.permissions.pageTitle")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Manage roles, groups, capabilities, and individual permissions
+              {t("engineering.permissions.pageSubtitle")}
             </p>
           </div>
         </header>
@@ -331,31 +333,31 @@ export default function PermissionManager() {
             onClick={() => setActiveTab("search")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            User Search
+            {t("engineering.permissions.tabUserSearch")}
           </button>
           <button
             onClick={() => setActiveTab("roles")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Role Defaults
+            {t("engineering.permissions.tabRoleDefaults")}
           </button>
           <button
             onClick={() => setActiveTab("seed")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "seed" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Initialize
+            {t("engineering.permissions.tabInitialize")}
           </button>
           <button
             onClick={() => setActiveTab("profiles")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "profiles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Access Profiles
+            {t("engineering.permissions.tabAccessProfiles")}
           </button>
           <button
             onClick={() => setActiveTab("responsibilities")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            Responsibilities
+            {t("engineering.permissions.tabResponsibilities")}
           </button>
         </div>
 
@@ -368,7 +370,7 @@ export default function PermissionManager() {
                 <input
                   value={searchQuery}
                   onChange={(e) => searchUsers(e.target.value)}
-                  placeholder="Search by name, email, or CID..."
+                  placeholder={t("engineering.permissions.searchPlaceholder")}
                   className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
                 />
               </div>
@@ -379,7 +381,7 @@ export default function PermissionManager() {
                 }}
                 className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Clear
+                {t("engineering.permissions.clear")}
               </button>
             </div>
 
@@ -448,9 +450,9 @@ export default function PermissionManager() {
                                   ? "bg-teal-500/10 text-teal-400"
                                   : "bg-slate-500/10 text-slate-400"
                             }`}
-                            title={`Source: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : " — legacy role_capabilities"}`}
+                            title={`${t("engineering.permissions.sourceLabel")}: ${userPerms.effectiveProfile.source}${userPerms.effectiveProfile.profileName ? ` — ${userPerms.effectiveProfile.profileName}` : ` — ${t("engineering.permissions.legacyRoleCapabilities")}`}`}
                           >
-                            {userPerms.effectiveProfile.profileName || "Legacy"}
+                            {userPerms.effectiveProfile.profileName || t("engineering.permissions.legacy")}
                           </span>
                         )}
                       </div>
@@ -476,17 +478,17 @@ export default function PermissionManager() {
                             );
                             const data = await res.json();
                             if (data.success) {
-                              setActionMsg("Promoted to Super Admin");
+                              setActionMsg(t("engineering.permissions.promotedToSuperAdmin"));
                               selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
+                            } else setActionError(data.error || t("engineering.permissions.failed"));
                           } catch (e) {
-                            setActionError("Network error");
+                            setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
                         className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
                       >
                         <Shield className="w-3 h-3 inline mr-1" />
-                        Make Super Admin
+                        {t("engineering.permissions.makeSuperAdmin")}
                       </button>
                     ) : (
                       <button
@@ -507,17 +509,17 @@ export default function PermissionManager() {
                             );
                             const data = await res.json();
                             if (data.success) {
-                              setActionMsg("Super Admin status removed");
+                              setActionMsg(t("engineering.permissions.superAdminRemoved"));
                               selectUser(selectedUser);
-                            } else setActionError(data.error || "Failed");
+                            } else setActionError(data.error || t("engineering.permissions.failed"));
                           } catch (e) {
-                            setActionError("Network error");
+                            setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
                         className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
                       >
                         <Shield className="w-3 h-3 inline mr-1" />
-                        Remove Super Admin
+                        {t("engineering.permissions.removeSuperAdmin")}
                       </button>
                     )}
                     <button
@@ -552,15 +554,15 @@ export default function PermissionManager() {
                 <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-slate-400" />{" "}
-                    Inherited
+                    {t("engineering.permissions.legendInherited")}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
-                    Individual Grant
+                    {t("engineering.permissions.legendIndividualGrant")}
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-red-400" />{" "}
-                    Restricted
+                    {t("engineering.permissions.restricted")}
                   </span>
                 </div>
 
@@ -580,7 +582,7 @@ export default function PermissionManager() {
                     {MODULE_CATEGORIES.map((category) => (
                       <div key={category.label} className="space-y-3">
                         <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-50 pl-1">
-                          {category.label}
+                          {t(category.label)}
                         </h3>
                         {category.modules.map((modKey) => {
                           const mod = modules[modKey];
@@ -614,7 +616,7 @@ export default function PermissionManager() {
                                   </span>
                                 </div>
                                 <span className="text-[8px] font-bold text-slate-500">
-                                  {caps.length} capabilities
+                                  {t("engineering.permissions.capabilitiesCount", { count: caps.length })}
                                 </span>
                               </button>
 
@@ -624,7 +626,7 @@ export default function PermissionManager() {
                                     <thead>
                                       <tr className="border-b border-[var(--border-primary)]">
                                         <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-40">
-                                          Capability
+                                          {t("engineering.permissions.capability")}
                                         </th>
                                         {LEVELS_ORDER.map((level) => (
                                           <th
@@ -637,11 +639,11 @@ export default function PermissionManager() {
                                                   : ACCESS_COLORS[level],
                                             }}
                                           >
-                                            {ACCESS_LABELS[level]}
+                                            {t(ACCESS_LEVEL_KEYS[level])}
                                           </th>
                                         ))}
                                         <th className="px-3 py-3 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-24">
-                                          Actions
+                                          {t("engineering.permissions.actions")}
                                         </th>
                                       </tr>
                                     </thead>
@@ -662,19 +664,19 @@ export default function PermissionManager() {
                                                 {origin === "granted" && (
                                                   <span
                                                     className="w-2 h-2 rounded-full bg-emerald-400 shrink-0"
-                                                    title="Individual grant"
+                                                    title={t("engineering.permissions.titleIndividualGrant")}
                                                   />
                                                 )}
                                                 {origin === "restricted" && (
                                                   <span
                                                     className="w-2 h-2 rounded-full bg-red-400 shrink-0"
-                                                    title="Restricted"
+                                                    title={t("engineering.permissions.restricted")}
                                                   />
                                                 )}
                                                 {origin === "inherited" && (
                                                   <span
                                                     className="w-2 h-2 rounded-full bg-slate-400 shrink-0"
-                                                    title="Inherited from role/group"
+                                                    title={t("engineering.permissions.titleInherited")}
                                                   />
                                                 )}
                                                 <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
@@ -726,7 +728,7 @@ export default function PermissionManager() {
                                                   level === 0 ? (
                                                     <div
                                                       className="w-6 h-6 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center mx-auto cursor-pointer hover:bg-red-500/30 transition-all"
-                                                      title="Restricted — click to unrestrict"
+                                                      title={t("engineering.permissions.titleRestrictedClick")}
                                                     >
                                                       <X className="w-3 h-3 text-red-400" />
                                                     </div>
@@ -777,7 +779,7 @@ export default function PermissionManager() {
                                                         );
                                                       }}
                                                       className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-red-400/40 hover:bg-red-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
-                                                      title="Restrict"
+                                                      title={t("engineering.permissions.titleRestrict")}
                                                     >
                                                       <X className="w-2.5 h-2.5 text-slate-600" />
                                                     </button>
@@ -793,7 +795,7 @@ export default function PermissionManager() {
                                                         );
                                                       }}
                                                       className="w-6 h-6 rounded-lg border border-dashed border-slate-600/30 flex items-center justify-center mx-auto hover:border-emerald-400/40 hover:bg-emerald-500/5 transition-all opacity-0 group-hover:opacity-100 hover:opacity-100"
-                                                      title={`Set to ${ACCESS_LABELS[level]}`}
+                                                      title={t("engineering.permissions.titleSetTo", { level: t(ACCESS_LEVEL_KEYS[level]) })}
                                                     >
                                                       <Plus className="w-2.5 h-2.5 text-slate-600" />
                                                     </button>
@@ -815,7 +817,7 @@ export default function PermissionManager() {
                                                       )
                                                     }
                                                     className="p-1.5 rounded-lg hover:bg-red-500/10 transition-all"
-                                                    title="Revoke grant"
+                                                    title={t("engineering.permissions.titleRevokeGrant")}
                                                   >
                                                     <Trash2 className="w-3 h-3 text-red-400" />
                                                   </button>
@@ -830,7 +832,7 @@ export default function PermissionManager() {
                                                       )
                                                     }
                                                     className="p-1.5 rounded-lg hover:bg-emerald-500/10 transition-all"
-                                                    title="Remove restriction"
+                                                    title={t("engineering.permissions.titleRemoveRestriction")}
                                                   >
                                                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                                   </button>
@@ -866,6 +868,7 @@ export default function PermissionManager() {
 }
 
 function RoleDefaultsView() {
+  const { t } = useI18n();
   const [roleDefaults, setRoleDefaults] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -906,10 +909,10 @@ function RoleDefaultsView() {
       <div className="py-10 text-center opacity-40">
         <Shield className="w-12 h-12 text-slate-500 mx-auto mb-3" />
         <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-          No defaults seeded
+          {t("engineering.permissions.noDefaultsSeeded")}
         </p>
         <p className="text-[10px] font-bold text-slate-500 mt-1">
-          Go to Initialize tab to seed default role capabilities
+          {t("engineering.permissions.noDefaultsHint")}
         </p>
       </div>
     );
@@ -918,7 +921,7 @@ function RoleDefaultsView() {
   return (
     <div className="space-y-6">
       <p className="text-xs font-bold text-[var(--text-secondary)]">
-        Baseline permissions per role. These apply to every user with that role.
+        {t("engineering.permissions.baselineHint")}
       </p>
       {roles.map((role) => {
         const caps = roleDefaults.filter((r) => r.role === role);
@@ -938,13 +941,13 @@ function RoleDefaultsView() {
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
                     <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Module
+                      {t("engineering.permissions.module")}
                     </th>
                     <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Capability
+                      {t("engineering.permissions.capability")}
                     </th>
                     <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Access Level
+                      {t("engineering.permissions.accessLevel")}
                     </th>
                   </tr>
                 </thead>
@@ -974,7 +977,7 @@ function RoleDefaultsView() {
                             <span
                               className={`text-[9px] font-black ${ACCESS_COLORS[c.access_level] || "text-slate-500"}`}
                             >
-                              {ACCESS_LABELS[c.access_level] || "None"}
+                              {t(ACCESS_LEVEL_KEYS[c.access_level] || "engineering.permissions.accessLevelNone")}
                             </span>
                           </td>
                         </tr>
@@ -991,14 +994,14 @@ function RoleDefaultsView() {
 }
 
 function SeedView() {
+  const { t } = useI18n();
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
 
   return (
     <div className="max-w-md space-y-6">
       <p className="text-xs font-bold text-[var(--text-secondary)]">
-        Seeds default capabilities for core roles (super_admin, staff,
-        participant). Safe to run multiple times.
+        {t("engineering.permissions.seedHint")}
       </p>
       <button
         onClick={async () => {
@@ -1009,15 +1012,15 @@ function SeedView() {
               method: "POST",
             });
             const data = await res.json();
-            if (data.success) setActionMsg("Defaults seeded successfully!");
-            else setActionError(data.error || "Seed failed");
+            if (data.success) setActionMsg(t("engineering.permissions.seedSuccess"));
+            else setActionError(data.error || t("engineering.permissions.seedFailed"));
           } catch (e) {
-            setActionError("Network error");
+            setActionError(t("engineering.permissions.networkError"));
           }
         }}
         className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
       >
-        Seed Default Role Capabilities
+        {t("engineering.permissions.seedButton")}
       </button>
       {actionMsg && (
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
@@ -1034,6 +1037,7 @@ function SeedView() {
 }
 
 function AccessProfilesView() {
+  const { t } = useI18n();
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
   const [allRoles, setAllRoles] = useState([]);
@@ -1108,15 +1112,15 @@ function AccessProfilesView() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(`Profile "${newProfile.name}" created`);
+        setActionMsg(t("engineering.permissions.profileCreated", { name: newProfile.name }));
         setShowCreateForm(false);
         setNewProfile({ name: "", description: "" });
         fetchProfiles();
       } else {
-        setActionError(data.error || "Failed to create");
+        setActionError(data.error || t("engineering.permissions.failedToCreate"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1128,7 +1132,7 @@ function AccessProfilesView() {
       const res = await fetch(`/api/access-profiles?id=${profile.id}`);
       const data = await res.json();
       if (!data.success) {
-        setActionError("Failed to fetch source profile");
+        setActionError(t("engineering.permissions.failedToFetchSourceProfile"));
         return;
       }
 
@@ -1151,13 +1155,13 @@ function AccessProfilesView() {
       });
       const createData = await createRes.json();
       if (createData.success) {
-        setActionMsg(`Profile duplicated as "${profile.name} (copy)"`);
+        setActionMsg(t("engineering.permissions.profileDuplicated", { name: `${profile.name} (copy)` }));
         fetchProfiles();
       } else {
-        setActionError(createData.error || "Failed to duplicate");
+        setActionError(createData.error || t("engineering.permissions.failedToDuplicate"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1174,14 +1178,16 @@ function AccessProfilesView() {
       const data = await res.json();
       if (data.success) {
         setActionMsg(
-          profile.is_active ? "Profile disabled" : "Profile enabled",
+          profile.is_active
+            ? t("engineering.permissions.profileDisabled")
+            : t("engineering.permissions.profileEnabled"),
         );
         fetchProfiles();
       } else {
-        setActionError(data.error || "Failed to toggle");
+        setActionError(data.error || t("engineering.permissions.failedToToggle"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1212,12 +1218,12 @@ function AccessProfilesView() {
         // Refresh caps
         selectProfile(selectedProfile);
         setEditingCap(null);
-        setActionMsg("Capability updated");
+        setActionMsg(t("engineering.permissions.capabilityUpdated"));
       } else {
-        setActionError(data.error || "Failed to update");
+        setActionError(data.error || t("engineering.permissions.failedToUpdate"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1235,10 +1241,10 @@ function AccessProfilesView() {
         setShowAssignForm(false);
         setAssignData({ user_cid: "", profile_id: "" });
       } else {
-        setActionError(data.error || "Failed to assign");
+        setActionError(data.error || t("engineering.permissions.failedToAssign"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1257,10 +1263,10 @@ function AccessProfilesView() {
         setRoleDefaultData({ role_name: "", profile_id: "" });
         fetchProfiles();
       } else {
-        setActionError(data.error || "Failed to set default");
+        setActionError(data.error || t("engineering.permissions.failedToSetDefault"));
       }
     } catch (e) {
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1371,7 +1377,7 @@ function AccessProfilesView() {
               }}
               className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
-              ← Back
+              {t("engineering.permissions.back")}
             </button>
             <div>
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
@@ -1391,7 +1397,9 @@ function AccessProfilesView() {
                 : "bg-red-500/10 text-red-400"
             }`}
           >
-            {selectedProfile.is_active ? "Active" : "Disabled"}
+            {selectedProfile.is_active
+              ? t("engineering.permissions.active")
+              : t("engineering.permissions.disabled")}
           </span>
         </div>
 
@@ -1485,28 +1493,26 @@ function AccessProfilesView() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-xs font-bold text-[var(--text-secondary)]">
-          Access Profiles define what capabilities a user gets. Each role has a
-          default profile; users can be assigned a specific profile to override
-          the role default.
+          {t("engineering.permissions.profilesIntro")}
         </p>
         <div className="flex gap-2">
           <button
             onClick={() => setShowRoleDefaultForm(!showRoleDefaultForm)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <Settings className="w-3 h-3" /> Role Default
+            <Settings className="w-3 h-3" /> {t("engineering.permissions.roleDefault")}
           </button>
           <button
             onClick={() => setShowAssignForm(!showAssignForm)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <UserCheck className="w-3 h-3" /> Assign
+            <UserCheck className="w-3 h-3" /> {t("engineering.permissions.assign")}
           </button>
           <button
             onClick={() => setShowCreateForm(!showCreateForm)}
             className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
           >
-            <Plus className="w-3 h-3" /> New Profile
+            <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
           </button>
         </div>
       </div>
@@ -1526,7 +1532,7 @@ function AccessProfilesView() {
       {showCreateForm && (
         <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
           <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-            New Access Profile
+            {t("engineering.permissions.newAccessProfile")}
           </h4>
           <div className="space-y-3">
             <input
@@ -1534,7 +1540,7 @@ function AccessProfilesView() {
               onChange={(e) =>
                 setNewProfile({ ...newProfile, name: e.target.value })
               }
-              placeholder="Profile name (e.g. QA Engineer)"
+              placeholder={t("engineering.permissions.profileNamePlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             />
             <input
@@ -1542,7 +1548,7 @@ function AccessProfilesView() {
               onChange={(e) =>
                 setNewProfile({ ...newProfile, description: e.target.value })
               }
-              placeholder="Description (optional)"
+              placeholder={t("engineering.permissions.descriptionOptional")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             />
             <div className="flex gap-2">
@@ -1551,7 +1557,7 @@ function AccessProfilesView() {
                 disabled={!newProfile.name.trim()}
                 className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
               >
-                Create
+                {t("engineering.permissions.create")}
               </button>
               <button
                 onClick={() => {
@@ -1560,7 +1566,7 @@ function AccessProfilesView() {
                 }}
                 className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("engineering.permissions.cancel")}
               </button>
             </div>
           </div>
@@ -1571,11 +1577,10 @@ function AccessProfilesView() {
       {showAssignForm && (
         <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
           <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-            Assign Profile to User
+            {t("engineering.permissions.assignProfileTitle")}
           </h4>
           <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-            This overrides the user's role default profile. Set profile to empty
-            to remove the override.
+            {t("engineering.permissions.assignHint")}
           </p>
           <div className="space-y-3">
             <input
@@ -1583,7 +1588,7 @@ function AccessProfilesView() {
               onChange={(e) =>
                 setAssignData({ ...assignData, user_cid: e.target.value })
               }
-              placeholder="User CID"
+              placeholder={t("engineering.permissions.userCid")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             />
             <select
@@ -1594,7 +1599,7 @@ function AccessProfilesView() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             >
               <option value="">
-                -- Select profile (leave empty to remove override) --
+                {t("engineering.permissions.selectProfileRemoveOverride")}
               </option>
               {profiles
                 .filter((p) => p.is_active)
@@ -1603,7 +1608,7 @@ function AccessProfilesView() {
                     {p.name}
                   </option>
                 ))}
-              <option value="">Clear override (revert to role default)</option>
+              <option value="">{t("engineering.permissions.clearOverride")}</option>
             </select>
             <div className="flex gap-2">
               <button
@@ -1611,7 +1616,7 @@ function AccessProfilesView() {
                 disabled={!assignData.user_cid}
                 className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
               >
-                Assign
+                {t("engineering.permissions.assign")}
               </button>
               <button
                 onClick={() => {
@@ -1620,7 +1625,7 @@ function AccessProfilesView() {
                 }}
                 className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("engineering.permissions.cancel")}
               </button>
             </div>
           </div>
@@ -1631,12 +1636,10 @@ function AccessProfilesView() {
       {showRoleDefaultForm && (
         <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
           <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-            Set Role Default Profile
+            {t("engineering.permissions.setRoleDefaultTitle")}
           </h4>
           <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-            Choose which access profile a role uses by default. All users with
-            that role (who don't have an individual override) will use this
-            profile.
+            {t("engineering.permissions.roleDefaultHint")}
           </p>
           <div className="space-y-3">
             <select
@@ -1649,7 +1652,7 @@ function AccessProfilesView() {
               }
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             >
-              <option value="">-- Select role --</option>
+              <option value="">{t("engineering.permissions.selectRole")}</option>
               {[
                 "super_admin",
                 "staff",
@@ -1665,7 +1668,9 @@ function AccessProfilesView() {
                 <option key={r} value={r}>
                   {r.replace(/_/g, " ")}
                   {roleDefaults[r]
-                    ? ` (current: ${roleDefaults[r].profileName})`
+                    ? t("engineering.permissions.currentSuffix", {
+                        name: roleDefaults[r].profileName,
+                      })
                     : ""}
                 </option>
               ))}
@@ -1680,7 +1685,7 @@ function AccessProfilesView() {
               }
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             >
-              <option value="">-- Select profile --</option>
+              <option value="">{t("engineering.permissions.selectProfile")}</option>
               {profiles
                 .filter((p) => p.is_active)
                 .map((p) => (
@@ -1697,7 +1702,7 @@ function AccessProfilesView() {
                 }
                 className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
               >
-                Set Default
+                {t("engineering.permissions.setDefault")}
               </button>
               <button
                 onClick={() => {
@@ -1706,7 +1711,7 @@ function AccessProfilesView() {
                 }}
                 className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("engineering.permissions.cancel")}
               </button>
             </div>
           </div>
@@ -1718,10 +1723,10 @@ function AccessProfilesView() {
         <div className="py-10 text-center opacity-40">
           <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
           <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-            No access profiles
+            {t("engineering.permissions.noAccessProfiles")}
           </p>
           <p className="text-[10px] font-bold text-slate-500 mt-1">
-            Create one or run the Access Profile seed from the Initialize tab
+            {t("engineering.permissions.noAccessProfilesHint")}
           </p>
         </div>
       ) : (
@@ -1751,11 +1756,11 @@ function AccessProfilesView() {
                         </h4>
                         <div className="flex items-center gap-3 mt-0.5">
                           <span className="text-[8px] font-bold text-[var(--text-secondary)]">
-                            {profile.capability_count || 0} capabilities
+                            {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
                           </span>
                           {isDefaultFor.length > 0 && (
                             <span className="text-[8px] font-bold text-blue-400">
-                              Default for: {isDefaultFor.join(", ")}
+                              {t("engineering.permissions.defaultFor", { roles: isDefaultFor.join(", ") })}
                             </span>
                           )}
                           {profile.description && (
@@ -1770,7 +1775,7 @@ function AccessProfilesView() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => duplicateProfile(profile)}
-                      title="Duplicate profile"
+                      title={t("engineering.permissions.duplicateProfileTitle")}
                       className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
                       <Copy className="w-3.5 h-3.5" />
@@ -1778,7 +1783,9 @@ function AccessProfilesView() {
                     <button
                       onClick={() => toggleProfileActive(profile)}
                       title={
-                        profile.is_active ? "Disable profile" : "Enable profile"
+                        profile.is_active
+                          ? t("engineering.permissions.disableProfile")
+                          : t("engineering.permissions.enableProfile")
                       }
                       className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                     >
@@ -1800,6 +1807,7 @@ function AccessProfilesView() {
 }
 
 function ResponsibilitiesView() {
+  const { t } = useI18n();
   const [selectedUser, setSelectedUser] = useState(null);
   const [allUsers, setAllUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1879,7 +1887,7 @@ function ResponsibilitiesView() {
             r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
           ),
         );
-        setActionError(data.error || "Action failed");
+        setActionError(data.error || t("engineering.permissions.actionFailed"));
       }
     } catch (e) {
       setResponsibilities((prev) =>
@@ -1887,7 +1895,7 @@ function ResponsibilitiesView() {
           r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
         ),
       );
-      setActionError("Network error");
+      setActionError(t("engineering.permissions.networkError"));
     }
   };
 
@@ -1911,8 +1919,7 @@ function ResponsibilitiesView() {
   return (
     <div className="space-y-6">
       <p className="text-xs font-bold text-[var(--text-secondary)]">
-        Responsibilities define operational ownership — what dashboards,
-        navigation, and reports a user sees. They are NOT permissions.
+        {t("engineering.permissions.responsibilitiesIntro")}
       </p>
 
       {/* User Search */}
@@ -1921,7 +1928,7 @@ function ResponsibilitiesView() {
         <input
           value={searchQuery}
           onChange={(e) => searchUsers(e.target.value)}
-          placeholder="Search user by name, email, or CID..."
+          placeholder={t("engineering.permissions.responsibilitiesSearchPlaceholder")}
           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
         />
       </div>
@@ -1953,7 +1960,7 @@ function ResponsibilitiesView() {
           ))}
           {searchResults.length === 0 && (
             <p className="text-[10px] font-bold text-slate-500 py-4 text-center">
-              No users found
+              {t("engineering.permissions.noUsersFound")}
             </p>
           )}
         </div>
@@ -1971,7 +1978,7 @@ function ResponsibilitiesView() {
                 }}
                 className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                ← Back
+                {t("engineering.permissions.back")}
               </button>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
