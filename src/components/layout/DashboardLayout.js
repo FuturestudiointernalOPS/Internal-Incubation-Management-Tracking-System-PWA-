@@ -220,10 +220,10 @@ const SidebarContent = ({
               key={item.id || item.href}
               href={item.href}
               onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
+              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? "bg-tertiary text-[var(--brand-orange)] border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
             >
               <item.icon
-                className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : "text-[var(--text-secondary)]"}`}
+                className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
               />
               {!collapsed && (
                 <span className="truncate">
