@@ -96,6 +96,8 @@ export async function GET(req) {
     const respondentsRes = await db.execute({
       sql: `SELECT
               s.submitter_name AS name,
+              s.submitter_id,
+              s.status AS submission_status,
               e.overall_score AS score,
               e.ranking,
               e.recommendation,
@@ -114,11 +116,10 @@ export async function GET(req) {
       respondentsRes.rows.map(async (r) => {
         let email = "";
         try {
-          const nameKey = r.name;
-          if (nameKey) {
+          if (r.submitter_id) {
             const contactRes = await db.execute({
-              sql: "SELECT email FROM contacts WHERE name ILIKE ? LIMIT 1",
-              args: [`%${nameKey}%`],
+              sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1",
+              args: [r.submitter_id],
             });
             if (contactRes.rows.length > 0) {
               email = contactRes.rows[0].email || "";
@@ -133,6 +134,7 @@ export async function GET(req) {
           ranking: r.ranking || "",
           recommendation: r.recommendation || "",
           submission_id: r.submission_id || r.submission_id_ext,
+          status: r.submission_status || "submitted",
         };
       })
     );

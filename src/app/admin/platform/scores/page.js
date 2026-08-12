@@ -11,8 +11,19 @@ import {
   Users,
   Target,
   BarChart3,
+  CheckCircle2,
+  XCircle,
+  ShieldAlert,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+
+const STATUS_CONFIG = {
+  submitted: { label: "Pending Review", color: "text-amber-500", bg: "bg-amber-500/10" },
+  approved: { label: "Approved", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  rejected: { label: "Rejected", color: "text-rose-500", bg: "bg-rose-500/10" },
+  revision_requested: { label: "Revision", color: "text-blue-500", bg: "bg-blue-500/10" },
+  draft: { label: "Draft", color: "text-slate-500", bg: "bg-slate-500/10" },
+};
 
 export default function ScoresPage() {
   const [forms, setForms] = useState([]);
@@ -24,6 +35,18 @@ export default function ScoresPage() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState({});
+
+  // Approval state
+  const [selected, setSelected] = useState({});
+  const [deciding, setDeciding] = useState(null); // { submission_id, decision }
+  const [showBulkConfirm, setShowBulkConfirm] = useState(null); // { decision, count }
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [notification, setNotification] = useState(null);
+
+  const notify = (msg) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(null), 4000);
+  };
 
   useEffect(() => {
     fetchForms();
@@ -59,6 +82,7 @@ export default function ScoresPage() {
       const d = await res.json();
       if (d.success) {
         setData(d);
+        setSelected({});
       } else {
         setError(d.error || "Failed to fetch scores.");
       }
@@ -73,9 +97,13 @@ export default function ScoresPage() {
     setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
+  const toggleSelect = (submissionId) => {
+    setSelected((prev) => ({ ...prev, [submissionId]: !prev[submissionId] }));
+  };
+
   const exportCSV = () => {
     if (!data?.respondents?.length) return;
-    const headers = ["Name", "Email", "Score", "Ranking", "Recommendation"];
+    const headers = ["Name", "Email", "Score", "Ranking", "Recommendation", "Status"];
     const rows = data.respondents.map((r) =>
       [
         `"${(r.name || "").replace(/"/g, '""')}"`,
@@ -83,6 +111,7 @@ export default function ScoresPage() {
         r.score ?? "",
         `"${(r.ranking || "").replace(/"/g, '""')}"`,
         `"${(r.recommendation || "").replace(/"/g, '""')}"`,
+        r.status || "",
       ].join(",")
     );
     const csv = [headers.join(","), ...rows].join("\n");
@@ -95,9 +124,104 @@ export default function ScoresPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Single decision
+  const handleDecision = async (submissionId, decision) => {
+    setDeciding({ submission_id: submissionId, decision });
+    try {
+      const res = await fetch("/api/platform/form-runs?action=review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: submissionId, decision }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(decision === "approved" ? "Applicant approved — group + activation email sent" : "Applicant rejected — history retained");
+        fetchScores();
+      } else {
+        notify(d.error || "Decision failed");
+      }
+    } catch (_) {
+      notify("Network error");
+    }
+    setDeciding(null);
+  };
+
+  // Bulk decision
+  const selectedIds = Object.keys(selected).filter((k) => selected[k]);
+  const pendingSelectedIds = selectedIds.filter(
+    (sid) => data?.respondents?.find((r) => String(r.submission_id) === sid)?.status === "submitted"
+  );
+
+  const handleBulkDecision = async () => {
+    if (!showBulkConfirm) return;
+    const { decision } = showBulkConfirm;
+    setBulkLoading(true);
+    let done = 0;
+    for (const sid of pendingSelectedIds) {
+      try {
+        await fetch("/api/platform/form-runs?action=review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ submission_id: parseInt(sid), decision }),
+        });
+        done++;
+      } catch (_) {}
+    }
+    setBulkLoading(false);
+    setShowBulkConfirm(null);
+    notify(`${done} applicant${done === 1 ? "" : "s"} ${decision === "approved" ? "approved" : "rejected"}`);
+    fetchScores();
+  };
+
   return (
     <DashboardLayout role="super_admin">
       <div className="max-w-5xl mx-auto space-y-8 pb-20">
+        {notification && (
+          <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase animate-in">
+            {notification}
+          </div>
+        )}
+
+        {/* Bulk confirm modal */}
+        {showBulkConfirm && (
+          <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowBulkConfirm(null)}>
+            <div className="card w-full max-w-md p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-3">
+                <ShieldAlert className={`w-6 h-6 ${showBulkConfirm.decision === "approved" ? "text-emerald-500" : "text-rose-500"}`} />
+                <h3 className="text-lg font-black uppercase text-[var(--text-primary)]">
+                  {showBulkConfirm.decision === "approved" ? "Approve" : "Reject"} {pendingSelectedIds.length} applicant{pendingSelectedIds.length === 1 ? "" : "s"}?
+                </h3>
+              </div>
+              {showBulkConfirm.decision === "approved" ? (
+                <div className="space-y-2 text-[10px] font-bold text-[var(--text-secondary)]">
+                  <p>✓ Each applicant's existing CRM Contact will be assigned to the Bootcamp Group linked to the Form Run</p>
+                  <p>✓ Platform credentials will be created (pending password setup)</p>
+                  <p>✓ Activation email will be sent to each applicant</p>
+                  <p>✓ CRM timeline updated for each contact</p>
+                </div>
+              ) : (
+                <div className="space-y-2 text-[10px] font-bold text-[var(--text-secondary)]">
+                  <p>✗ No Group assignment</p>
+                  <p>✗ No activation email</p>
+                  <p>✓ Form response, CRM contact, and evaluation history are retained</p>
+                </div>
+              )}
+              <div className="flex gap-3">
+                <button onClick={() => setShowBulkConfirm(null)} className="flex-1 btn btn-secondary" disabled={bulkLoading}>
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkDecision}
+                  disabled={bulkLoading}
+                  className={`flex-1 btn ${showBulkConfirm.decision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"} text-white`}
+                >
+                  {bulkLoading ? "Processing..." : "Confirm"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -262,9 +386,45 @@ export default function ScoresPage() {
                 </div>
               </div>
 
-              {/* Export button */}
+              {/* Bulk action bar */}
               {data.respondents?.length > 0 && (
-                <div className="flex justify-end">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase">
+                      <input
+                        type="checkbox"
+                        checked={pendingSelectedIds.length === data.respondents.filter((r) => r.status === "submitted").length && data.respondents.some((r) => r.status === "submitted")}
+                        onChange={(e) => {
+                          const next = {};
+                          data.respondents.forEach((r) => {
+                            if (r.status === "submitted") next[r.submission_id] = e.target.checked;
+                          });
+                          setSelected(next);
+                        }}
+                        className="accent-[var(--brand-orange)]"
+                      />
+                      Select all pending ({data.respondents.filter((r) => r.status === "submitted").length})
+                    </label>
+                  </div>
+                  {pendingSelectedIds.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                        {pendingSelectedIds.length} selected
+                      </span>
+                      <button
+                        onClick={() => setShowBulkConfirm({ decision: "approved", count: pendingSelectedIds.length })}
+                        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => setShowBulkConfirm({ decision: "rejected", count: pendingSelectedIds.length })}
+                        className="px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  )}
                   <button
                     onClick={exportCSV}
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all"
@@ -286,10 +446,19 @@ export default function ScoresPage() {
                 ) : (
                   data.respondents.map((r, i) => (
                     <div key={i}>
-                      <button
+                      <div
                         onClick={() => toggleExpand(i)}
-                        className="w-full p-4 flex items-center gap-4 hover:bg-[var(--bg-primary)] transition-colors text-left"
+                        className="w-full p-4 flex items-center gap-4 hover:bg-[var(--bg-primary)] transition-colors text-left cursor-pointer"
                       >
+                        {r.status === "submitted" && (
+                          <input
+                            type="checkbox"
+                            checked={!!selected[r.submission_id]}
+                            onChange={() => toggleSelect(r.submission_id)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex-shrink-0 accent-[var(--brand-orange)]"
+                          />
+                        )}
                         <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center">
                           <span className="text-[10px] font-black text-[var(--brand-orange)]">
                             {i + 1}
@@ -305,6 +474,11 @@ export default function ScoresPage() {
                             </p>
                           )}
                         </div>
+                        {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
+                          <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase flex-shrink-0 ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
+                            {STATUS_CONFIG[r.status].label}
+                          </span>
+                        )}
                         <div className="text-right flex-shrink-0">
                           <p
                             className={`text-sm font-black ${
@@ -326,7 +500,7 @@ export default function ScoresPage() {
                         ) : (
                           <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] flex-shrink-0" />
                         )}
-                      </button>
+                      </div>
 
                       <AnimatePresence>
                         {expanded[i] && (
@@ -361,6 +535,34 @@ export default function ScoresPage() {
                                   <p className="text-xs text-[var(--text-primary)] mt-1 leading-relaxed">
                                     {r.recommendation}
                                   </p>
+                                </div>
+                              )}
+
+                              {/* Decision actions */}
+                              {r.status === "submitted" ? (
+                                <div className="flex items-center gap-2 pt-2">
+                                  <button
+                                    onClick={() => handleDecision(r.submission_id, "approved")}
+                                    disabled={deciding?.submission_id === r.submission_id}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
+                                  >
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "approved" ? "..." : "Approve"}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDecision(r.submission_id, "rejected")}
+                                    disabled={deciding?.submission_id === r.submission_id}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "rejected" ? "..." : "Reject"}
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="pt-2">
+                                  <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${STATUS_CONFIG[r.status]?.bg} ${STATUS_CONFIG[r.status]?.color}`}>
+                                    {STATUS_CONFIG[r.status]?.label || r.status}
+                                  </span>
                                 </div>
                               )}
                             </div>
