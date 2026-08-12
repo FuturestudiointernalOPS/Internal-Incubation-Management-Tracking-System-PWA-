@@ -83,6 +83,18 @@ export async function generateForm(documentText) {
       }
     }
 
+    // Add sequential numbering to field labels across ALL sections
+    let qNumber = 1;
+    for (const section of parsed.sections) {
+      for (const field of section.fields) {
+        // Skip if label already has a number prefix like "1." or "1)"
+        if (!/^\d+[.)]\s/.test(field.label)) {
+          field.label = `${qNumber}. ${field.label}`;
+        }
+        qNumber++;
+      }
+    }
+
     return parsed;
   } catch (e) {
     console.error("[AI Generator] Form generation failed:", e.message);

@@ -71,6 +71,17 @@ ${text.substring(0, 12000)}`;
       }
     }
 
+    // Add sequential numbering to field labels across ALL sections
+    let qNumber = 1;
+    for (const s of parsed.sections) {
+      for (const f of s.fields) {
+        if (!/^\d+[.)]\s/.test(f.label)) {
+          f.label = `${qNumber}. ${f.label}`;
+        }
+        qNumber++;
+      }
+    }
+
     // Normalize evaluation weights
     if (parsed.evaluation?.dimensions) {
       const dims = parsed.evaluation.dimensions;
