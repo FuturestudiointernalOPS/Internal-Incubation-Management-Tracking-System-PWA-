@@ -81,16 +81,14 @@ export default function PublicApplicationRegistration() {
       } else {
         setStatus({
           state: "error",
-          message:
-            t((data.error || "Failed to submit application.") || "") ||
-            (data.error || "Failed to submit application."),
+          message: data.error || t("rootMisc.registerStaff.errorSubmitFailed"),
         });
       }
     } catch (err) {
       console.error(err);
       setStatus({
         state: "error",
-        message: "Connection to ImpactOS Registry failed.",
+        message: t("rootMisc.registerStaff.errorConnectionFailed"),
       });
     }
   };
@@ -114,19 +112,20 @@ export default function PublicApplicationRegistration() {
             className="text-3xl font-black tracking-tight"
             style={{ color: "var(--text-primary)" }}
           >
-            Application Submitted
+            {t("rootMisc.registerStaff.successTitle")}
           </h1>
           <p
             className="text-sm font-medium leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            Your registration has been successfully submitted.
+            {t("rootMisc.registerStaff.successMessage")}
           </p>
           <p
             className="text-sm font-medium leading-relaxed"
             style={{ color: "var(--text-secondary)" }}
           >
-            Our team will review your application. If approved, you&apos;ll receive an email with your login instructions within <strong>24 hours</strong>.
+            {t("rootMisc.registerStaff.successReviewNote")}{" "}
+            <strong>{t("rootMisc.registerStaff.successReviewNoteHours")}</strong>.
           </p>
         </motion.div>
       </div>
@@ -145,20 +144,20 @@ export default function PublicApplicationRegistration() {
           <div className="inline-flex items-center gap-3 bg-indigo-500/10 px-6 py-2 rounded-full border border-indigo-500/20 mb-4">
             <UserPlus className="w-4 h-4 text-[var(--brand-orange)]" />
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-              Registry Enrollment
+              {t("rootMisc.registerStaff.badgeEnrollment")}
             </span>
           </div>
           <h1
             className="text-6xl font-black tracking-tighter"
             style={{ color: "var(--text-primary)" }}
           >
-            ONBOARDING
+            {t("rootMisc.registerStaff.titleOnboarding")}
           </h1>
           <p
             className="text-sm font-bold uppercase tracking-widest opacity-60"
             style={{ color: "var(--text-secondary)" }}
           >
-            Provision your operational identity below.
+            {t("rootMisc.registerStaff.subtitle")}
           </p>
         </header>
 
@@ -170,30 +169,30 @@ export default function PublicApplicationRegistration() {
           <div className="space-y-8">
             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--brand-orange)] flex items-center gap-3">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)] animate-pulse" />
-              Personal Information
+              {t("rootMisc.registerStaff.personalInformation")}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <InputGroup
-                label="Full Name"
+                label={t("rootMisc.registerStaff.fullName")}
                 icon={Users}
-                placeholder="Samuel Adebayo"
+                placeholder={t("rootMisc.registerStaff.fullNamePlaceholder")}
                 value={formData.fullName}
                 onChange={(v) => setFormData({ ...formData, fullName: v })}
                 required
               />
               <InputGroup
-                label="Email"
+                label={t("rootMisc.registerStaff.email")}
                 icon={Mail}
-                placeholder="name@domain.com"
+                placeholder={t("rootMisc.registerStaff.emailPlaceholder")}
                 type="email"
                 value={formData.email}
                 onChange={(v) => setFormData({ ...formData, email: v })}
                 required
               />
               <InputGroup
-                label="Phone Number"
+                label={t("rootMisc.registerStaff.phone")}
                 icon={Phone}
-                placeholder="+234..."
+                placeholder={t("rootMisc.registerStaff.phonePlaceholder")}
                 value={formData.phone}
                 onChange={(v) => setFormData({ ...formData, phone: v })}
                 required
@@ -204,7 +203,7 @@ export default function PublicApplicationRegistration() {
                   className="text-[10px] font-black uppercase tracking-widest ml-1"
                   style={{ color: "var(--text-secondary)" }}
                 >
-                  Gender
+                  {t("rootMisc.registerStaff.gender")}
                 </label>
                 <div className="relative">
                   <UserIcon
@@ -228,13 +227,13 @@ export default function PublicApplicationRegistration() {
                       value="Male"
                       style={{ background: "var(--surface-1)" }}
                     >
-                      MALE
+                      {t("rootMisc.registerStaff.genderMale")}
                     </option>
                     <option
                       value="Female"
                       style={{ background: "var(--surface-1)" }}
                     >
-                      FEMALE
+                      {t("rootMisc.registerStaff.genderFemale")}
                     </option>
                   </select>
                 </div>
@@ -244,20 +243,20 @@ export default function PublicApplicationRegistration() {
 
           <div className="space-y-8">
             <h3 className="text-xs font-black uppercase tracking-[0.4em] text-[var(--brand-orange)] flex items-center gap-3 opacity-60">
-              Additional Information
+              {t("rootMisc.registerStaff.additionalInformation")}
             </h3>
             <div className="space-y-8">
               <InputGroup
-                label="Address"
+                label={t("rootMisc.registerStaff.address")}
                 icon={MapPin}
-                placeholder="Current location..."
+                placeholder={t("rootMisc.registerStaff.addressPlaceholder")}
                 value={formData.homeAddress}
                 onChange={(v) => setFormData({ ...formData, homeAddress: v })}
               />
               <InputGroup
-                label="Job Title"
+                label={t("rootMisc.registerStaff.jobTitle")}
                 icon={Briefcase}
-                placeholder="Operations Lead"
+                placeholder={t("rootMisc.registerStaff.jobTitlePlaceholder")}
                 value={formData.jobTitle}
                 onChange={(v) => setFormData({ ...formData, jobTitle: v })}
               />
@@ -287,11 +286,11 @@ export default function PublicApplicationRegistration() {
             {status.state === "loading" ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>Syncing with Registry...</span>
+                <span>{t("rootMisc.registerStaff.syncing")}</span>
               </>
             ) : (
               <>
-                Complete Enrollment
+                {t("rootMisc.registerStaff.completeEnrollment")}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </>
             )}

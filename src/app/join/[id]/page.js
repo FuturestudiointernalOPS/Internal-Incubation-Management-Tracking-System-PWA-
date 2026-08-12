@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function JoinGroupPage() {
+  const { t } = useI18n();
   const params = useParams();
   const router = useRouter();
   const id = params?.id;
@@ -25,7 +27,7 @@ export default function JoinGroupPage() {
         const res = await fetch(`/api/families?registration_id=${id}`);
         const data = await res.json();
         if (!data.success || !data.families?.length) {
-          setError("Group not found.");
+          setError(t("rootMisc.join.groupNotFound"));
           setLoading(false);
           return;
         }
@@ -41,7 +43,7 @@ export default function JoinGroupPage() {
           }
         }
       } catch (e) {
-        setError("Failed to load. Please try again.");
+        setError(t("rootMisc.join.failedToLoad"));
       }
       setLoading(false);
     }
@@ -88,7 +90,7 @@ export default function JoinGroupPage() {
 
       setSubmitted(true);
     } catch (e) {
-      setError("Submission failed. Please try again.");
+      setError(t("rootMisc.join.submissionFailed"));
     }
     setSubmitting(false);
   }
@@ -105,7 +107,7 @@ export default function JoinGroupPage() {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center p-6">
         <div className="text-center max-w-md">
-          <h1 className="text-xl font-black uppercase mb-3">Group Not Found</h1>
+          <h1 className="text-xl font-black uppercase mb-3">{t("rootMisc.join.groupNotFoundTitle")}</h1>
           <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         </div>
       </div>
@@ -117,9 +119,9 @@ export default function JoinGroupPage() {
       <div className="min-h-screen bg-primary flex items-center justify-center p-6">
         <div className="text-center max-w-md space-y-4">
           <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-500" />
-          <h1 className="text-xl font-black uppercase">Thank You!</h1>
+          <h1 className="text-xl font-black uppercase">{t("rootMisc.join.thankYou")}</h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            Your information has been submitted to <strong>{group?.name}</strong>.
+            {t("rootMisc.join.yourInfoSubmitted")}{" "}<strong>{group?.name}</strong>.
           </p>
         </div>
       </div>
@@ -132,7 +134,7 @@ export default function JoinGroupPage() {
         <div className="text-center mb-8">
           <h1 className="text-xl font-black uppercase tracking-tight">{group?.name}</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-2">
-            {form ? "Please fill in your details below to join this group." : "Registration form for this group."}
+            {form ? t("rootMisc.join.fillDetailsToJoin") : t("rootMisc.join.registrationFormForGroup")}
           </p>
         </div>
 
@@ -173,17 +175,17 @@ export default function JoinGroupPage() {
           ) : (
             <>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Full Name *</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("rootMisc.join.fullName")} *</label>
                 <input required type="text" onChange={e => updateField("name", e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Email Address *</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("rootMisc.join.emailAddress")} *</label>
                 <input required type="email" onChange={e => updateField("email", e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Phone Number</label>
+                <label className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("rootMisc.join.phoneNumber")}</label>
                 <input type="tel" onChange={e => updateField("phone", e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)]" />
               </div>
@@ -196,7 +198,7 @@ export default function JoinGroupPage() {
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[var(--brand-orange)] text-black font-black text-sm uppercase rounded-xl hover:brightness-110 disabled:opacity-50 transition-all"
           >
             {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {submitting ? "Submitting..." : "Submit"}
+            {submitting ? t("rootMisc.join.submitting") : t("rootMisc.join.submit")}
           </button>
         </form>
       </div>

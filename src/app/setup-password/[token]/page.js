@@ -40,7 +40,7 @@ export default function SetupPasswordPage({ params }) {
         }
       } catch (err) {
         setState("expired");
-        setError("Failed to validate your setup link.");
+        setError(t("rootMisc.setupPassword.errorValidateFailed"));
       }
     };
     validateToken();
@@ -51,12 +51,12 @@ export default function SetupPasswordPage({ params }) {
     setError("");
 
     if (password.length < 4) {
-      setError("Password must be at least 4 characters.");
+      setError(t("rootMisc.setupPassword.errorPasswordTooShort"));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError(t("rootMisc.setupPassword.errorPasswordsMismatch"));
       return;
     }
 
@@ -77,14 +77,11 @@ export default function SetupPasswordPage({ params }) {
           router.push("/login");
         }, 2500);
       } else {
-        setError(
-          t((data.error || "Failed to set password.") || "") ||
-            (data.error || "Failed to set password."),
-        );
+        setError(data.error || t("rootMisc.setupPassword.errorSetFailed"));
         setSubmitting(false);
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(t("rootMisc.setupPassword.errorNetwork"));
       setSubmitting(false);
     }
   };
@@ -96,7 +93,7 @@ export default function SetupPasswordPage({ params }) {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-[var(--brand-orange)] animate-spin" />
           <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-            Verifying your setup link...
+            {t("rootMisc.setupPassword.verifying")}
           </p>
         </div>
       </div>
@@ -116,19 +113,19 @@ export default function SetupPasswordPage({ params }) {
             <AlertCircle className="w-8 h-8 text-rose-500" />
           </div>
           <h1 className="text-xl font-bold uppercase tracking-tight">
-            Link Expired or Invalid
+            {t("rootMisc.setupPassword.expiredTitle")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            This password setup link is no longer valid. It may have expired or already been used.
+            {t("rootMisc.setupPassword.expiredMessage")}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">
-            Please contact your administrator to request a new setup link.
+            {t("rootMisc.setupPassword.expiredContactAdmin")}
           </p>
           <button
             onClick={() => router.push("/login")}
             className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs mt-4"
           >
-            Return to Login
+            {t("rootMisc.setupPassword.returnToLogin")}
           </button>
         </motion.div>
       </div>
@@ -148,10 +145,10 @@ export default function SetupPasswordPage({ params }) {
             <CheckCircle className="w-8 h-8 text-emerald-500" />
           </div>
           <h1 className="text-xl font-bold uppercase tracking-tight">
-            Password Set Successfully
+            {t("rootMisc.setupPassword.successTitle")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            Your account is now active. Redirecting you to login...
+            {t("rootMisc.setupPassword.successMessage")}
           </p>
           <Loader2 className="w-5 h-5 text-emerald-500 animate-spin mx-auto" />
         </motion.div>
@@ -178,11 +175,12 @@ export default function SetupPasswordPage({ params }) {
           </div>
           <div>
             <h1 className="text-xl font-bold uppercase tracking-tight">
-              Set Your Password
+              {t("rootMisc.setupPassword.setYourPassword")}
             </h1>
             {userName && (
               <p className="text-sm text-[var(--text-secondary)] mt-1">
-                Welcome, <span className="font-bold text-[var(--text-primary)]">{userName}</span>
+                {t("rootMisc.setupPassword.welcome")}{" "}
+                <span className="font-bold text-[var(--text-primary)]">{userName}</span>
               </p>
             )}
             <p className="text-[10px] text-[var(--text-secondary)] mt-1 uppercase tracking-wider">
@@ -204,7 +202,7 @@ export default function SetupPasswordPage({ params }) {
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Create Password
+                {t("rootMisc.setupPassword.createPasswordLabel")}
               </label>
               <div className="relative">
                 <input
@@ -212,7 +210,7 @@ export default function SetupPasswordPage({ params }) {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 4 characters"
+                  placeholder={t("rootMisc.setupPassword.passwordPlaceholder")}
                   minLength={4}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all pr-12"
                 />
@@ -228,7 +226,7 @@ export default function SetupPasswordPage({ params }) {
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Confirm Password
+                {t("rootMisc.setupPassword.confirmPasswordLabel")}
               </label>
               <div className="relative">
                 <input
@@ -236,7 +234,7 @@ export default function SetupPasswordPage({ params }) {
                   required
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter your password"
+                  placeholder={t("rootMisc.setupPassword.confirmPasswordPlaceholder")}
                   minLength={4}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-md py-3 px-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all pr-12"
                 />
@@ -258,11 +256,11 @@ export default function SetupPasswordPage({ params }) {
               {submitting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Setting Password...
+                  {t("rootMisc.setupPassword.settingPassword")}
                 </>
               ) : (
                 <>
-                  Set Password & Activate Account
+                  {t("rootMisc.setupPassword.submitButton")}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -271,7 +269,7 @@ export default function SetupPasswordPage({ params }) {
         </div>
 
         <p className="text-center text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-40">
-          Secure link · Expires after use
+          {t("rootMisc.setupPassword.secureLinkNote")}
         </p>
       </motion.div>
     </div>

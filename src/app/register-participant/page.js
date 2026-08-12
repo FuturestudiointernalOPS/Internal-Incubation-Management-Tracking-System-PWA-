@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
@@ -28,7 +28,7 @@ export default function RegisterParticipantPage() {
       setError('');
       fetchGroup();
     } else {
-      setError('No group ID provided.');
+      setError(t('rootMisc.registerParticipant.noGroupId'));
       setLoading(false);
     }
   }, [groupId]);
@@ -49,19 +49,19 @@ export default function RegisterParticipantPage() {
             end.setHours(23, 59, 59, 999);
             const now = new Date();
             if (now < start) {
-              setError(`Registration opens on ${parts[0]}. Please come back then.`);
+              setError(t('rootMisc.registerParticipant.registrationOpens', { date: parts[0] }));
               setGroup(null);
             } else if (now > end) {
-              setError('Registration window has closed.');
+              setError(t('rootMisc.registerParticipant.registrationClosed'));
               setGroup(null);
             }
           }
         }
       } else {
-        setError('Group not found.');
+        setError(t('rootMisc.registerParticipant.groupNotFound'));
       }
     } catch (e) {
-      setError('Failed to load group info.');
+      setError(t('rootMisc.registerParticipant.loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -86,13 +86,10 @@ export default function RegisterParticipantPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(
-          t((data.error || 'Registration failed.') || '') ||
-            (data.error || 'Registration failed.'),
-        );
+        setError(data.error || t('rootMisc.registerParticipant.registrationFailed'));
       }
     } catch (e) {
-      setError('Network error during registration.');
+      setError(t('rootMisc.registerParticipant.networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -111,9 +108,9 @@ export default function RegisterParticipantPage() {
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="max-w-md w-full text-center space-y-6">
           <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
-          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">Application Submitted</h1>
-          <p className="text-slate-400 text-sm">Your registration for <strong className="text-white">{group?.name || 'the program'}</strong> has been submitted.</p>
-          <p className="text-slate-500 text-xs">Our team will review your application. If approved, you will receive an email with your login instructions within 24 hours.</p>
+          <h1 className="text-2xl font-black text-white uppercase tracking-tighter">{t('rootMisc.registerParticipant.applicationSubmitted')}</h1>
+          <p className="text-slate-400 text-sm">{t('rootMisc.registerParticipant.registrationIntro')}{" "}<strong className="text-white">{group?.name || t('rootMisc.registerParticipant.theProgram')}</strong>{" "}{t('rootMisc.registerParticipant.submittedEnding')}</p>
+          <p className="text-slate-500 text-xs">{t('rootMisc.registerParticipant.reviewNotice')}</p>
         </motion.div>
       </div>
     );
@@ -124,7 +121,7 @@ export default function RegisterParticipantPage() {
       <div className="min-h-screen bg-black flex items-center justify-center p-4">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-md w-full text-center space-y-6">
           <AlertCircle className="w-16 h-16 text-rose-500 mx-auto" />
-          <h1 className="text-xl font-black text-white uppercase tracking-tighter">Invalid Link</h1>
+          <h1 className="text-xl font-black text-white uppercase tracking-tighter">{t('rootMisc.registerParticipant.invalidLink')}</h1>
           <p className="text-slate-400 text-sm">{error}</p>
         </motion.div>
       </div>
@@ -138,20 +135,20 @@ export default function RegisterParticipantPage() {
           <div className="flex items-center justify-center gap-2">
             <Users className="w-6 h-6 text-[#FF6600]" />
           </div>
-          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">Join {group?.name || 'Program'}</h1>
-          <p className="text-slate-400 text-sm">Complete the form to register as a participant.</p>
+          <h1 className="text-3xl font-black text-white uppercase tracking-tighter">{t('rootMisc.registerParticipant.joinTitle', { name: group?.name || t('rootMisc.registerParticipant.program') })}</h1>
+          <p className="text-slate-400 text-sm">{t('rootMisc.registerParticipant.completeForm')}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <input required type="text" placeholder="Full Name" name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="email" placeholder="Email Address" name="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input type="text" placeholder="Phone (optional)" name="phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
-          <input required type="password" placeholder="Create Password" name="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="text" placeholder={t('rootMisc.registerParticipant.fullNamePlaceholder')} name="name" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="email" placeholder={t('rootMisc.registerParticipant.emailPlaceholder')} name="email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input type="text" placeholder={t('rootMisc.registerParticipant.phonePlaceholder')} name="phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input required type="password" placeholder={t('rootMisc.registerParticipant.createPasswordPlaceholder')} name="password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
 
           {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
 
           <button type="submit" disabled={submitting} className="w-full py-3 bg-[#FF6600] text-black font-black uppercase tracking-widest rounded-xl text-sm hover:bg-white transition-all disabled:opacity-50 flex items-center justify-center gap-2">
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> Complete Registration</>}
+            {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ArrowRight className="w-4 h-4" /> {t('rootMisc.registerParticipant.completeRegistration')}</>}
           </button>
         </form>
       </motion.div>

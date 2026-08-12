@@ -143,6 +143,7 @@ function ProgramWorkspace() {
 
   const [showRequirementModal, setShowRequirementModal] = useState(false);
   const [showKPIModal, setShowKPIModal] = useState(false);
+  const [newKPI, setNewKPI] = useState({ title: "" });
   const [showPMReportModal, setShowPMReportModal] = useState(false);
   const [showAttendanceModal, setShowAttendanceModal] = useState(false);
   const [selectedSessionForAttendance, setSelectedSessionForAttendance] =
