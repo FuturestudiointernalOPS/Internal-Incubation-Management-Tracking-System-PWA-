@@ -599,6 +599,32 @@ export async function POST(req) {
           session,
           formData
         );
+
+        // Auto group assignment: when approved, assign participant to all programs linked to families with matching form_id
+        if (decision === "approved" && runData.rows[0]) {
+          try {
+            const runFormId = runData.rows[0].form_id;
+            const submitterId = result.rows[0].submitter_id;
+            if (submitterId) {
+              const families = await db.execute({
+                sql: "SELECT * FROM families WHERE form_id = ?",
+                args: [runFormId],
+              });
+              for (const fam of families.rows) {
+                if (fam.program_id) {
+                  await db.execute({
+                    sql: `INSERT INTO participant_programs (participant_id, program_id)
+                          VALUES (?, ?)
+                          ON CONFLICT (participant_id, program_id) DO NOTHING`,
+                    args: [submitterId, fam.program_id],
+                  });
+                }
+              }
+            }
+          } catch (groupErr) {
+            console.error("[form-runs] Auto group assignment error:", groupErr.message);
+          }
+        }
       }
 
       return NextResponse.json({ success: true, submission: result.rows[0] });
