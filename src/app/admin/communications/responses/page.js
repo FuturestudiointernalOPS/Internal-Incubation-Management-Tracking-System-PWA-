@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { IMPACT_CACHE } from "@/utils/impactCache";
+import { useI18n } from "@/lib/i18n";
 
 export default function ResponsesPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [data, setData] = useState({
     campaignStats: [],
     detailedResponses: [],
@@ -82,7 +84,7 @@ export default function ResponsesPage() {
       if (data.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Matched" },
+            detail: { type: "success", message: t("crm.responses.matched") },
           }),
         );
         fetchData();
@@ -126,7 +128,7 @@ export default function ResponsesPage() {
     if (targets.length === 0) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "No one to follow up with." },
+          detail: { type: "error", message: t("crm.responses.noOneToFollowUp") },
         }),
       );
       return;
@@ -147,7 +149,7 @@ export default function ResponsesPage() {
       if (json.success) {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Follow-up campaign started." },
+            detail: { type: "success", message: t("crm.responses.followUpCampaignStarted") },
           }),
         );
         setShowRetargetModal(false);
@@ -175,10 +177,10 @@ export default function ResponsesPage() {
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">
-              Responses
+              {t("crm.responses.title")}
             </h2>
             <p className="text-slate-400 font-bold tracking-tight">
-              Track how people are responding to your campaigns.
+              {t("crm.responses.subtitle")}
             </p>
           </div>
           <div className="flex gap-4">
@@ -186,13 +188,13 @@ export default function ResponsesPage() {
               onClick={() => setView("analytics")}
               className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all ${view === "analytics" ? "bg-[#FF6600]/80 text-white shadow-[#FF6600]/20 shadow-lg" : "bg-white/5 text-slate-400 hover:text-white"}`}
             >
-              Charts
+              {t("crm.responses.charts")}
             </button>
             <button
               onClick={() => setView("review")}
               className={`font-black text-[10px] tracking-widest uppercase px-6 py-3 rounded-xl transition-all flex items-center gap-2 ${view === "review" ? "bg-rose-500 text-white shadow-rose-600/20 shadow-lg" : "bg-rose-500/10 text-rose-400 hover:bg-rose-500/20"}`}
             >
-              Fix Matches
+              {t("crm.responses.fixMatches")}
               {data.flaggedResponses?.length > 0 && (
                 <span className="bg-rose-900 border border-rose-500 px-2 rounded-full text-[10px]">
                   {data.flaggedResponses.length}
@@ -212,10 +214,10 @@ export default function ResponsesPage() {
               <div className="p-20 text-center bg-white/5 border border-dashed border-emerald-500/30 rounded-[3rem]">
                 <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.2)] rounded-full" />
                 <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">
-                  All Matches are Correct
+                  {t("crm.responses.allMatchesCorrect")}
                 </h4>
                 <p className="text-slate-400 text-sm font-bold">
-                  No people need matching right now.
+                  {t("crm.responses.noPeopleNeedMatching")}
                 </p>
               </div>
             ) : (
@@ -227,19 +229,19 @@ export default function ResponsesPage() {
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
                       <span className="badge bg-rose-500 text-white uppercase font-black text-[9px]">
-                        Needs Match
+                        {t("crm.responses.needsMatch")}
                       </span>
                       <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">
-                        Similarity: {f.confidence_score}%
+                        {t("crm.responses.similarity", { score: f.confidence_score })}
                       </span>
                     </div>
                     <p className="font-extrabold text-white text-lg">
-                      Input:{" "}
+                      {t("crm.responses.input")}{" "}
                       {(f.answers && (f.answers.name || f.answers.email)) ||
-                        "Unknown"}
+                        t("crm.responses.unknown")}
                     </p>
                     <p className="text-[10px] text-slate-400 uppercase tracking-widest font-black inline-flex items-center gap-2">
-                      Data Found:{" "}
+                      {t("crm.responses.dataFound")}{" "}
                       <span className="text-white border px-1.5 rounded bg-white/5">
                         {JSON.stringify(f.answers)}
                       </span>
@@ -247,7 +249,7 @@ export default function ResponsesPage() {
                   </div>
                   <div className="flex flex-col md:items-end gap-2 w-full md:w-auto">
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                      Match with Person
+                      {t("crm.responses.matchWithPerson")}
                     </label>
                     <select
                       onChange={(e) =>
@@ -257,7 +259,7 @@ export default function ResponsesPage() {
                       className="w-full md:w-[300px] bg-[#0d0d18] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold"
                     >
                       <option value="" disabled>
-                        Choose a person...
+                        {t("crm.responses.choosePerson")}
                       </option>
                       {globalContacts.map((gc) => (
                         <option key={gc.cid} value={gc.cid}>
@@ -274,17 +276,17 @@ export default function ResponsesPage() {
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
             <BarChart3 className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
             <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">
-              No Data Yet
+              {t("crm.responses.noDataYet")}
             </h4>
             <p className="text-slate-400 text-sm font-bold">
-              Start a campaign to see how people respond.
+              {t("crm.responses.startCampaignToSeeResponses")}
             </p>
           </div>
         ) : (
           <div className="flex flex-col lg:flex-row gap-8 text-left">
             <div className="w-full lg:w-1/3 xl:w-1/4 space-y-4">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">
-                Select Campaign
+                {t("crm.responses.selectCampaign")}
               </h3>
               <div className="space-y-2">
                 {data.campaignStats.map((c) => (
@@ -300,7 +302,7 @@ export default function ResponsesPage() {
                       {c.name}
                     </p>
                     <p className="text-[10px] font-bold opacity-70 border-t border-white/10 pt-2 flex items-center justify-between">
-                      <span>Total: {c.total}</span>
+                      <span>{t("crm.responses.totalWithCount", { count: c.total })}</span>
                       {activeCampaign === c.id && (
                         <div className="w-1.5 h-1.5 rounded-full bg-[#FF6600]/80 shadow-[0_0_8px_rgba(99,102,241,1)]" />
                       )}
@@ -319,7 +321,7 @@ export default function ResponsesPage() {
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "all" ? "border-white !bg-white/10 shadow-lg" : "border-transparent"}`}
                     >
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Total
+                        {t("crm.responses.total")}
                       </p>
                       <p className="text-3xl font-black text-white">
                         {activeStats.total}
@@ -330,7 +332,7 @@ export default function ResponsesPage() {
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "yes" ? "border-emerald-500 !bg-emerald-500/10 shadow-lg" : "border-transparent"}`}
                     >
                       <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
-                        Yes / Approved
+                        {t("crm.responses.yesApproved")}
                       </p>
                       <p className="text-3xl font-black text-white">
                         {activeStats.yes_count}
@@ -341,7 +343,7 @@ export default function ResponsesPage() {
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "no" ? "border-rose-500 !bg-rose-500/10 shadow-lg" : "border-transparent"}`}
                     >
                       <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
-                        No / Declined
+                        {t("crm.responses.noDeclined")}
                       </p>
                       <p className="text-3xl font-black text-white">
                         {activeStats.no_count}
@@ -352,7 +354,7 @@ export default function ResponsesPage() {
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "pending_response" ? "border-amber-500 !bg-amber-500/10 shadow-lg" : "border-transparent"}`}
                     >
                       <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
-                        Waiting
+                        {t("crm.responses.waiting")}
                       </p>
                       <p className="text-3xl font-black text-white">
                         {activeStats.pending_response}
@@ -366,7 +368,7 @@ export default function ResponsesPage() {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4" />
                         <input
                           type="text"
-                          placeholder="Search list..."
+                          placeholder={t("crm.responses.searchList")}
                           value={search}
                           onChange={(e) => setSearch(e.target.value)}
                           className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
@@ -376,7 +378,7 @@ export default function ResponsesPage() {
                         onClick={() => setShowRetargetModal(true)}
                         className="flex items-center justify-center gap-2 py-3 px-6 bg-[#FF6600]/80 text-white rounded-xl font-black text-[10px] uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-105 transition-all w-full md:w-auto"
                       >
-                        <Rocket className="w-4 h-4" /> Send Follow-up
+                        <Rocket className="w-4 h-4" /> {t("crm.responses.sendFollowUp")}
                       </button>
                     </div>
                     <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
@@ -384,10 +386,10 @@ export default function ResponsesPage() {
                         <thead className="bg-[#0d0d18]">
                           <tr>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                              Name
+                              {t("crm.responses.name")}
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                              Status
+                              {t("crm.responses.status")}
                             </th>
                           </tr>
                         </thead>
@@ -408,17 +410,17 @@ export default function ResponsesPage() {
                               <td className="px-6 py-5">
                                 {c.status === "yes" && (
                                   <span className="text-[10px] font-black px-2 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase">
-                                    Approved
+                                    {t("crm.responses.approved")}
                                   </span>
                                 )}
                                 {c.status === "no" && (
                                   <span className="text-[10px] font-black px-2 py-1 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 uppercase">
-                                    Declined
+                                    {t("crm.responses.declined")}
                                   </span>
                                 )}
                                 {c.status === "sent" && (
                                   <span className="text-[10px] font-black px-2 py-1 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase">
-                                    Waiting
+                                    {t("crm.responses.waiting")}
                                   </span>
                                 )}
                                 {!["yes", "no", "sent"].includes(c.status) && (
@@ -433,7 +435,7 @@ export default function ResponsesPage() {
                       </table>
                       {filteredList.length === 0 && (
                         <div className="py-20 text-center text-slate-500 font-bold text-sm">
-                          No results found for this filter.
+                          {t("crm.responses.noResultsForFilter")}
                         </div>
                       )}
                     </div>
@@ -459,20 +461,20 @@ export default function ResponsesPage() {
               </button>
               <div className="mb-8">
                 <h3 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">
-                  Follow-up
+                  {t("crm.responses.followUp")}
                 </h3>
                 <p className="text-sm text-slate-400 font-bold">
-                  Start a new campaign for these{" "}
+                  {t("crm.responses.newCampaignForPrefix")}{" "}
                   <span className="text-white font-black">
                     {filteredList.length}
                   </span>{" "}
-                  people.
+                  {t("crm.responses.newCampaignForSuffix")}
                 </p>
               </div>
               <form onSubmit={executeRetarget} className="space-y-4">
                 <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Campaign Name
+                    {t("crm.responses.campaignName")}
                   </label>
                   <input
                     required
@@ -480,7 +482,7 @@ export default function ResponsesPage() {
                     type="text"
                     value={newCampaignName}
                     onChange={(e) => setNewCampaignName(e.target.value)}
-                    placeholder="e.g. Second Outreach"
+                    placeholder={t("crm.responses.campaignNamePlaceholder")}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold"
                   />
                 </div>
@@ -495,7 +497,7 @@ export default function ResponsesPage() {
                     ) : (
                       <div className="flex items-center justify-center gap-2">
                         <Rocket className="w-4 h-4" />
-                        <span>Start Follow-up List</span>
+                        <span>{t("crm.responses.startFollowUpList")}</span>
                       </div>
                     )}
                   </button>
