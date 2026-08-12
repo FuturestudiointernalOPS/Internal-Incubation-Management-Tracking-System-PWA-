@@ -45,6 +45,10 @@
     "searchPrograms": "Search programs...",
     "noProgramsFound": "No programs found",
     "typeYourMessage": "Type your message...",
-    "messagePlaceholder": "Write your message..."
+    "messagePlaceholder": "Write your message...",
+    "typeDiscussion": "Share an update or question...",
+    "postDiscussion": "Post",
+    "loadingDiscussions": "Loading discussions...",
+    "noDiscussions": "No discussions yet. Start the conversation."
   }
 }

@@ -1,5 +1,4 @@
 {
-  "dashboard": "Tableau de bord investisseur",
   "discover": "Découvrir",
   "pipeline": "Pipeline",
   "watchlist": "Watchlist",
@@ -139,7 +138,6 @@
   "remove": "Retirer",
   "all": "Tout",
   "venturesFound": "ventures trouvées",
-  "venture": "venture",
   "ventures": "ventures",
   "match": "correspondance",
   "of": "sur",

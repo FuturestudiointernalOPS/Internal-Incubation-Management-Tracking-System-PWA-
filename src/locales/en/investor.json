@@ -1,5 +1,4 @@
 {
-  "dashboard": "Investor Dashboard",
   "discover": "Discover",
   "pipeline": "Pipeline",
   "watchlist": "Watchlist",
@@ -139,7 +138,6 @@
   "remove": "Remove",
   "all": "All",
   "venturesFound": "ventures found",
-  "venture": "venture",
   "ventures": "ventures",
   "match": "match",
   "of": "of",

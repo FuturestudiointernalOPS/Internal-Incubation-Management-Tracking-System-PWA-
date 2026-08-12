@@ -90,6 +90,7 @@
       "anythingElseNote": "Anything else to note?",
       "noBlockersDeclared": "No blockers declared yet.",
       "resolve": "Resolve",
+      "resolved": "Resolved",
       "describeBlocker": "Describe blocker...",
       "tasksCreated": "Created {count} task(s)",
       "tasksCompleted": "Completed {count} task(s)",

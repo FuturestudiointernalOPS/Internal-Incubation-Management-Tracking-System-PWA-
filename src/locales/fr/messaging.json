@@ -45,6 +45,10 @@
     "searchPrograms": "Rechercher des programmes...",
     "noProgramsFound": "Aucun programme trouvé",
     "typeYourMessage": "Écrivez votre message...",
-    "messagePlaceholder": "Écrivez votre message..."
+    "messagePlaceholder": "Écrivez votre message...",
+    "typeDiscussion": "Partagez une mise à jour ou une question...",
+    "postDiscussion": "Publier",
+    "loadingDiscussions": "Chargement des discussions...",
+    "noDiscussions": "Aucune discussion pour l'instant. Lancez la conversation."
   }
 }

@@ -90,6 +90,7 @@
       "anythingElseNote": "Quelque chose d'autre à noter ?",
       "noBlockersDeclared": "Aucun blocage déclaré pour le moment.",
       "resolve": "Résoudre",
+      "resolved": "Résolu",
       "describeBlocker": "Décrire le blocage...",
       "tasksCreated": "{count} tâche(s) créée(s)",
       "tasksCompleted": "{count} tâche(s) terminée(s)",
