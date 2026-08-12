@@ -54,7 +54,7 @@ export async function POST(req) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { program_id, name, type, description, default_role, form_id } = body;
+    const { program_id, name, type, description, default_role } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -64,9 +64,9 @@ export async function POST(req) {
     }
 
     const result = await db.execute({
-      sql: `INSERT INTO families (program_id, name, type, description, default_role, form_id)
-             VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [program_id || null, name, type || "individual", description || null, body.default_role || null, body.form_id || null],
+      sql: `INSERT INTO families (program_id, name, type, description, default_role)
+             VALUES (?, ?, ?, ?, ?) RETURNING id`,
+      args: [program_id || null, name, type || "individual", description || null, body.default_role || null],
     });
 
     const id = result.rows?.[0]?.id ?? result.lastInsertRowid;
@@ -89,7 +89,7 @@ export async function PUT(req) {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const { id, name, type, description, is_archived, default_role, form_id } = await req.json();
+    const { id, name, type, description, is_archived, default_role } = await req.json();
 
     if (!id) {
       return NextResponse.json(
@@ -106,7 +106,6 @@ export async function PUT(req) {
     if (description !== undefined) { updates.push("description = ?"); args.push(description); }
     if (is_archived !== undefined) { updates.push("is_archived = ?"); args.push(is_archived ? 1 : 0); }
     if (default_role !== undefined) { updates.push("default_role = ?"); args.push(default_role || null); }
-    if (form_id !== undefined) { updates.push("form_id = ?"); args.push(form_id || null); }
 
     if (updates.length === 0) {
       return NextResponse.json(

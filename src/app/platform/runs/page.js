@@ -39,7 +39,7 @@ const TARGET_LABELS = {
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 // ─── Optimized Runs Table (memoized for performance) ───
-const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, onSort, onPage, openRun }) {
+const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, onSort, onPage, openRun, groups }) {
   const filtered = useMemo(() => {
     return runs.filter((r) => {
       if (search && !r.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -75,6 +75,7 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
             {[
               { key: "name", label: "Name", w: "" },
               { key: "form_name", label: "Form", w: "w-40" },
+              { key: "group_target_id", label: "Group", w: "w-32" },
               { key: "status", label: "Status", w: "w-28" },
               { key: "opens_at", label: "Opens", w: "w-28" },
               { key: "closes_at", label: "Closes", w: "w-28" },
@@ -106,6 +107,16 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                   </div>
                 </td>
                 <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[160px]">{r.form_name || "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-bold truncate max-w-[120px]">
+                  {(() => {
+                    const g = groups.find((x) => (x.registration_id || x.id) === r.group_target_id);
+                    return g ? (
+                      <span className="text-[var(--brand-orange)]">{g.name}</span>
+                    ) : (
+                      <span className="text-[var(--text-secondary)]">—</span>
+                    );
+                  })()}
+                </td>
                 <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase whitespace-nowrap", cfg.color, cfg.bg)}>{cfg.label}</span></td>
                 <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.opens_at ? new Date(r.opens_at).toLocaleDateString() : "—"}</td>
                 <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.closes_at ? new Date(r.closes_at).toLocaleDateString() : "—"}</td>
@@ -646,6 +657,12 @@ export default function FormRunsPage() {
           <Play className="w-4 h-4 text-[var(--brand-orange)]" />
           <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{selectedRun.name}</h2>
           <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.color, cfg.bg)}>{cfg.label}</span>
+          {(() => {
+            const g = groups.find((x) => (x.registration_id || x.id) === selectedRun.group_target_id);
+            return g ? (
+              <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">Assigned Group: {g.name}</span>
+            ) : null;
+          })()}
           {/* Status action buttons */}
           {selectedRun.status === "draft" && (
             <button onClick={() => handleLaunch(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">Launch</button>
@@ -1319,7 +1336,7 @@ export default function FormRunsPage() {
         </select>
       </div>
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} onSort={(f, d) => { setSortField(f); setSortDir(d); setPage(1); }} onPage={setPage} openRun={openRun} />
+        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} onSort={(f, d) => { setSortField(f); setSortDir(d); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} />
       )}
 
       {/* Create modal */}
