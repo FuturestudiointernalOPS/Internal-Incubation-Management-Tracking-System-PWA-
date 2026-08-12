@@ -5,13 +5,18 @@ import { google } from "googleapis";
 /**
  * TEMPORARY DIAGNOSTIC — Gmail V1 Integration Test
  *
- * GET /api/gmail-v1-test
+ * GET /api/gmail-v1-test   (super_admin only)
  *
  * Uses the EXISTING GMAIL_* environment variables (Vercel Production) to
  * test whether the legacy Gmail API integration is still functional.
  *
- * Sends exactly ONE email to a fixed recipient. Never logs or returns
- * secret values (client secret / refresh token).
+ * Sends exactly ONE email to a fixed recipient.
+ *
+ * SECURITY:
+ *  - Never returns or logs secret values (client secret / refresh token)
+ *  - Never echoes raw provider error messages in the response — only
+ *    safe error categories (raw details go to server logs only)
+ *  - Super-admin only
  *
  * ⚠️ DELETE THIS ROUTE after the diagnostic is complete.
  */
@@ -27,6 +32,20 @@ This is a test email from the Future Studio platform using our existing Gmail AP
 We are testing whether the previous Gmail sending infrastructure is still active and usable.
 
 Future Studio`;
+
+/** Map provider errors to safe, non-sensitive categories for the response. */
+function classifyError(err) {
+  const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
+  if (msg.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
+  if (msg.includes("invalid_client")) return "client_id_or_secret_invalid";
+  if (msg.includes("access_denied") || msg.includes("insufficient") || msg.includes("forbidden"))
+    return "permission_or_scope_denied";
+  if (msg.includes("quota") || msg.includes("rate")) return "quota_or_rate_limit";
+  if (msg.includes("daily limit")) return "daily_send_limit_reached";
+  if (msg.includes("delegation") || msg.includes("send-as")) return "sender_identity_not_authorized";
+  if (msg.includes("enabled") || msg.includes("not found") || msg.includes("404")) return "gmail_api_not_enabled";
+  return "unknown_error";
+}
 
 export async function GET() {
   try {
@@ -49,7 +68,7 @@ export async function GET() {
     };
 
     if (!report.credentials_available) {
-      report.error = "One or more GMAIL_* environment variables are missing";
+      report.error = "credentials_missing";
       return NextResponse.json({ success: false, report });
     }
 
@@ -67,25 +86,26 @@ export async function GET() {
       accessToken = tokenRes.token;
       report.authentication = "SUCCESS";
     } catch (e) {
+      console.error("[gmail-v1-test] Token refresh failed:", classifyError(e));
       report.authentication = "FAILED";
-      report.error = `Token refresh failed: ${e.message}`;
+      report.error = classifyError(e);
       return NextResponse.json({ success: false, report });
     }
 
     if (!accessToken) {
       report.authentication = "FAILED";
-      report.error = "Access token was empty after refresh";
+      report.error = "empty_access_token";
       return NextResponse.json({ success: false, report });
     }
 
-    // Step 2 — identify the authenticated sender (does not expose secrets)
+    // Step 2 — identify the authenticated sender (email only, not a secret)
     try {
       const gmailProfile = google.gmail({ version: "v1", auth });
       const profile = await gmailProfile.users.getProfile({ userId: "me" });
       report.authenticated_sender = profile.data.emailAddress || null;
     } catch (e) {
-      // Profile read needs a wider scope — not fatal; the send test below is decisive
-      report.authenticated_sender = `(profile read unavailable — ${e.message})`;
+      console.error("[gmail-v1-test] Profile read failed:", classifyError(e));
+      report.authenticated_sender = null;
     }
 
     // Step 3 — send exactly ONE test email
@@ -115,12 +135,14 @@ export async function GET() {
       report.message_id = sendRes.data.id || null;
       return NextResponse.json({ success: true, report });
     } catch (e) {
+      console.error("[gmail-v1-test] Send failed:", classifyError(e));
       report.gmail_api = "FAILED";
       report.test_email = "FAILED";
-      report.error = e.message;
+      report.error = classifyError(e);
       return NextResponse.json({ success: false, report });
     }
   } catch (error) {
+    console.error("[gmail-v1-test] Unexpected error");
     return NextResponse.json(
       {
         success: false,
@@ -131,7 +153,7 @@ export async function GET() {
           gmail_api: null,
           authenticated_sender: null,
           test_email: null,
-          error: error.message,
+          error: "unexpected_error",
         },
       },
       { status: 500 }
