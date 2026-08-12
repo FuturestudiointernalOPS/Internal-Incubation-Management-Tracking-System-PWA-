@@ -15,6 +15,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 // ─── RITUAL TYPES ──────────────────────────────────────────────────
 // NOTE: Retrospective ('retro') is intentionally suspended for participants.
@@ -51,6 +52,7 @@ const RITUAL_TYPES = [
 ];
 
 function RitualForm({ type, programs, onSubmit, onClose }) {
+  const { t } = useI18n();
   const config = RITUAL_TYPES.find((r) => r.id === type);
   const [programId, setProgramId] = useState(programs[0]?.id || "");
   const [weekNumber, setWeekNumber] = useState(1);
@@ -60,28 +62,32 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
     standup: [
       {
         key: "what_done",
-        label: "What did you do?",
-        placeholder: "Completed tasks, progress made...",
+        label: t("participantMisc.rituals.fieldWhatDone"),
+        placeholder: t("participantMisc.rituals.placeholderWhatDone"),
       },
       {
         key: "what_today",
-        label: "What will you do today?",
-        placeholder: "Next steps, priorities...",
+        label: t("participantMisc.rituals.fieldWhatToday"),
+        placeholder: t("participantMisc.rituals.placeholderWhatToday"),
       },
       {
         key: "blockers",
-        label: "Any blockers?",
-        placeholder: "Challenges, roadblocks...",
+        label: t("participantMisc.rituals.fieldBlockers"),
+        placeholder: t("participantMisc.rituals.placeholderBlockers"),
       },
     ],
     checkin: [
       {
         key: "status",
-        label: "Status",
+        label: t("participantMisc.rituals.fieldStatus"),
         type: "select",
         options: ["checked_in", "absent", "excused"],
       },
-      { key: "notes", label: "Notes", placeholder: "Additional notes..." },
+      {
+        key: "notes",
+        label: t("participantMisc.rituals.fieldNotes"),
+        placeholder: t("participantMisc.rituals.placeholderNotes"),
+      },
     ],
     // retro — intentionally SUSPENDED (see RITUAL_TYPES note at top of file)
     // retro: [
@@ -92,18 +98,18 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
     reflect: [
       {
         key: "learnings",
-        label: "Key learnings",
-        placeholder: "What did you learn?",
+        label: t("participantMisc.rituals.fieldLearnings"),
+        placeholder: t("participantMisc.rituals.placeholderLearnings"),
       },
       {
         key: "challenges",
-        label: "Challenges",
-        placeholder: "Difficulties encountered...",
+        label: t("participantMisc.rituals.fieldChallenges"),
+        placeholder: t("participantMisc.rituals.placeholderChallenges"),
       },
       {
         key: "suggestions",
-        label: "Suggestions",
-        placeholder: "Ideas for the program...",
+        label: t("participantMisc.rituals.fieldSuggestions"),
+        placeholder: t("participantMisc.rituals.placeholderSuggestions"),
       },
     ],
   };
@@ -132,7 +138,9 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
             {config && <config.icon className={`w-5 h-5 ${config.color}`} />}
           </div>
           <span className="text-[12px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-            New {type}
+            {t("participantMisc.rituals.newForm", {
+              type: t("participantMisc.rituals." + type),
+            })}
           </span>
         </div>
       </div>
@@ -155,7 +163,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
           value={weekNumber}
           onChange={(e) => setWeekNumber(parseInt(e.target.value) || 1)}
           className="px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold outline-none"
-          placeholder="Week"
+          placeholder={t("participantMisc.rituals.week")}
         />
       </div>
 
@@ -199,13 +207,13 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
           onClick={onClose}
           className="flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-[var(--text-secondary)] hover:bg-white/5 transition-all"
         >
-          Cancel
+          {t("participantMisc.rituals.cancel")}
         </button>
         <button
           onClick={handleSubmit}
           className="flex-1 py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center justify-center gap-2"
         >
-          <Send className="w-3 h-3" /> Submit
+          <Send className="w-3 h-3" /> {t("participantMisc.rituals.submit")}
         </button>
       </div>
     </motion.div>
@@ -213,6 +221,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
 }
 
 export default function RitualsView() {
+  const { t } = useI18n();
   const [programs, setPrograms] = useState([]);
   const [activeForm, setActiveForm] = useState(null);
   const [history, setHistory] = useState({});
@@ -287,10 +296,10 @@ export default function RitualsView() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-          Rituals
+          {t("participantMisc.rituals.title")}
         </h1>
         <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-          Standups · Check-ins · Retros · Reflections
+          {t("participantMisc.rituals.subtitle")}
         </p>
       </div>
 
@@ -312,10 +321,12 @@ export default function RitualsView() {
               <rt.icon className={`w-5 h-5 ${rt.color}`} />
             </div>
             <p className="text-[11px] font-black text-[var(--text-primary)]">
-              {rt.label}
+              {t("participantMisc.rituals." + rt.id)}
             </p>
             <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">
-              {history[rt.id]?.length || 0} submitted
+              {t("participantMisc.rituals.submittedCount", {
+                count: history[rt.id]?.length || 0,
+              })}
             </p>
           </button>
         ))}
@@ -334,7 +345,7 @@ export default function RitualsView() {
       {/* History */}
       <div>
         <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-          Recent Activity
+          {t("participantMisc.rituals.recentActivity")}
         </h2>
         {loading ? (
           <div className="space-y-2 animate-pulse">
@@ -349,10 +360,10 @@ export default function RitualsView() {
           <div className="flex flex-col items-center justify-center py-12">
             <Zap className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
             <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-              No ritual submissions yet
+              {t("participantMisc.rituals.noSubmissions")}
             </p>
             <p className="text-[9px] text-[var(--text-tertiary)] mt-1">
-              Select a ritual type above to submit your first one
+              {t("participantMisc.rituals.noSubmissionsHint")}
             </p>
           </div>
         ) : (
@@ -373,7 +384,8 @@ export default function RitualsView() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize">
-                      {item.ritualType} · Week {item.week_number || "?"}
+                      {t("participantMisc.rituals." + item.ritualType)} ·{" "}
+                      {t("participantMisc.rituals.week")} {item.week_number || "?"}
                     </p>
                     <p className="text-[8px] text-[var(--text-secondary)] truncate">
                       {item.what_done ||
@@ -381,7 +393,7 @@ export default function RitualsView() {
                         item.went_well ||
                         item.notes ||
                         item.status ||
-                        "Submitted"}
+                        t("participantMisc.rituals.submitted")}
                     </p>
                   </div>
                   <span className="text-[7px] text-[var(--text-tertiary)] shrink-0">

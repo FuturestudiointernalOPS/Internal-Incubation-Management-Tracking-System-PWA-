@@ -16,10 +16,17 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
 function StatusBadge({ status }) {
+  const { t } = useI18n();
   const config = {
     approved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+  };
+  const statusLabels = {
+    approved: t("participantMisc.assignments.statusApproved"),
+    pending: t("participantMisc.assignments.statusPending"),
+    rejected: t("participantMisc.assignments.statusRejected"),
+    draft: t("participantMisc.assignments.statusDraft"),
   };
   const c =
     config[status?.toLowerCase()] ||
@@ -28,7 +35,7 @@ function StatusBadge({ status }) {
     <span
       className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
     >
-      {status || "draft"}
+      {statusLabels[status?.toLowerCase()] || status || statusLabels.draft}
     </span>
   );
 }
@@ -155,7 +162,7 @@ export default function AssignmentsView() {
           onClick={fetchAssignments}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
         >
-          <RefreshCw className="w-3 h-3" /> Retry
+          <RefreshCw className="w-3 h-3" /> {t("participantMisc.assignments.retry")}
         </button>
       </div>
     );
@@ -170,11 +177,13 @@ export default function AssignmentsView() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-          Assignments
+          {t("participantMisc.assignments.title")}
         </h1>
         <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-          {assignments.length} total ·{" "}
-          {assignments.filter((a) => !a.submission).length} pending
+          {t("participantMisc.assignments.summary", {
+            total: assignments.length,
+            pending: assignments.filter((a) => !a.submission).length,
+          })}
         </p>
       </div>
 
@@ -185,7 +194,7 @@ export default function AssignmentsView() {
           onChange={(e) => setFilterProgram(e.target.value)}
           className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
         >
-          <option value="all">All Programs</option>
+          <option value="all">{t("participantMisc.assignments.filterAllPrograms")}</option>
           {programs.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -197,12 +206,12 @@ export default function AssignmentsView() {
           onChange={(e) => setFilterStatus(e.target.value)}
           className="px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
         >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="overdue">Overdue</option>
-          <option value="submitted">Submitted</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
+          <option value="all">{t("participantMisc.assignments.filterAllStatus")}</option>
+          <option value="pending">{t("participantMisc.assignments.filterPending")}</option>
+          <option value="overdue">{t("participantMisc.assignments.filterOverdue")}</option>
+          <option value="submitted">{t("participantMisc.assignments.filterSubmitted")}</option>
+          <option value="approved">{t("participantMisc.assignments.filterApproved")}</option>
+          <option value="rejected">{t("participantMisc.assignments.filterRejected")}</option>
         </select>
       </div>
 
@@ -211,7 +220,7 @@ export default function AssignmentsView() {
         <div className="flex flex-col items-center justify-center py-16">
           <FileText className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
           <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-            No assignments match your filters
+            {t("participantMisc.assignments.noMatches")}
           </p>
         </div>
       ) : (
@@ -256,17 +265,21 @@ export default function AssignmentsView() {
                     )}
                     {isOverdue && (
                       <span className="text-[8px] font-black text-rose-400 uppercase tracking-wider">
-                        Overdue
+                        {t("participantMisc.assignments.overdue")}
                       </span>
                     )}
                   </div>
                   <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
                     {a.programName}{" "}
                     {a.dueDate
-                      ? `· Due ${new Date(a.dueDate).toLocaleDateString()}`
+                      ? t("participantMisc.assignments.due", {
+                          date: new Date(a.dueDate).toLocaleDateString(),
+                        })
                       : ""}
                     {a.submission?.score > 0
-                      ? `· Score: ${a.submission.score}`
+                      ? t("participantMisc.assignments.score", {
+                          score: a.submission.score,
+                        })
                       : ""}
                   </p>
                 </div>
@@ -285,7 +298,7 @@ export default function AssignmentsView() {
                       onClick={() => setShowSubmitModal(a)}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
                     >
-                      Submit
+                      {t("participantMisc.assignments.submit")}
                     </button>
                   )}
                 </div>
@@ -311,7 +324,7 @@ export default function AssignmentsView() {
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                  Submit Assignment
+                  {t("participantMisc.assignments.submitTitle")}
                 </h3>
                 <button onClick={() => setShowSubmitModal(null)}>
                   <X className="w-5 h-5 text-[var(--text-secondary)]" />
@@ -322,17 +335,21 @@ export default function AssignmentsView() {
               </p>
               {showSubmitModal.allowedFormat && (
                 <p className="text-[9px] text-[var(--text-secondary)]">
-                  Format: {showSubmitModal.allowedFormat}
+                  {t("participantMisc.assignments.format", {
+                    format: showSubmitModal.allowedFormat,
+                  })}
                 </p>
               )}
               <input
                 type="text"
-                placeholder="Paste your submission URL or file link..."
+                placeholder={t("participantMisc.assignments.urlPlaceholder")}
                 value={submitUrl}
                 onChange={(e) => setSubmitUrl(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
               />
-              <div className="text-[9px] font-bold text-[var(--text-secondary)] text-center">— OR —</div>
+              <div className="text-[9px] font-bold text-[var(--text-secondary)] text-center">
+                {t("participantMisc.assignments.orDivider")}
+              </div>
               <input
                 type="file"
                 onChange={(e) => { setSubmitFile(e.target.files[0] || null); setSubmitUrl(""); }}
@@ -340,7 +357,10 @@ export default function AssignmentsView() {
               />
               {submitFile && (
                 <p className="text-[9px] text-emerald-400 font-bold">
-                  Selected: {submitFile.name} ({(submitFile.size / 1024).toFixed(1)} KB)
+                  {t("participantMisc.assignments.selectedFile", {
+                    name: submitFile.name,
+                    size: (submitFile.size / 1024).toFixed(1),
+                  })}
                 </p>
               )}
               <button
@@ -353,7 +373,7 @@ export default function AssignmentsView() {
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                Submit
+                {t("participantMisc.assignments.submit")}
               </button>
             </motion.div>
           </div>
