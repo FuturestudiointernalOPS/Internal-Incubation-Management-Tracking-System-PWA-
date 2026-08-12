@@ -38,6 +38,7 @@ import enCrm from "@/locales/en/crm.json";
 import enVadmin from "@/locales/en/vadmin.json";
 import enEngineering from "@/locales/en/engineering.json";
 import enInvestorAdmin from "@/locales/en/investorAdmin.json";
+import enAdminMisc from "@/locales/en/adminMisc.json";
 
 import frCommon from "@/locales/fr/common.json";
 import frAuth from "@/locales/fr/auth.json";
@@ -61,6 +62,7 @@ import frCrm from "@/locales/fr/crm.json";
 import frVadmin from "@/locales/fr/vadmin.json";
 import frEngineering from "@/locales/fr/engineering.json";
 import frInvestorAdmin from "@/locales/fr/investorAdmin.json";
+import frAdminMisc from "@/locales/fr/adminMisc.json";
 
 // ─── Deep merge: recursively merges objects ───
 function deepMerge(target, source) {
@@ -99,6 +101,7 @@ const EN = [
   enVadmin,
   enEngineering,
   enInvestorAdmin,
+  enAdminMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 const FR = [
@@ -124,6 +127,7 @@ const FR = [
   frVadmin,
   frEngineering,
   frInvestorAdmin,
+  frAdminMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 export const LOCALE_REGISTRY = {

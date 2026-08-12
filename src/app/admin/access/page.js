@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Search,
   User,
@@ -17,13 +18,13 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
-const ACCESS_LABELS = {
-  0: "None",
-  1: "View",
-  2: "Create",
-  3: "Edit",
-  4: "Delete",
-  5: "Full",
+const ACCESS_LEVEL_KEYS = {
+  0: "adminMisc.access.accessLevelNone",
+  1: "adminMisc.access.accessLevelView",
+  2: "adminMisc.access.accessLevelCreate",
+  3: "adminMisc.access.accessLevelEdit",
+  4: "adminMisc.access.accessLevelDelete",
+  5: "adminMisc.access.accessLevelFull",
 };
 
 const ACCESS_SHORT = { 0: "—", 1: "V", 2: "C", 3: "E", 4: "D", 5: "All" };
@@ -38,12 +39,13 @@ const ACCESS_COLORS = {
 };
 
 const MODULE_CATEGORIES = [
-  { label: "Content", modules: ["projects", "programs", "reports", "contacts"] },
-  { label: "People", modules: ["users", "messaging", "internal_comms"] },
-  { label: "System", modules: ["permissions", "engineering", "finance", "settings"] },
+  { label: "adminMisc.access.categoryContent", modules: ["projects", "programs", "reports", "contacts"] },
+  { label: "adminMisc.access.categoryPeople", modules: ["users", "messaging", "internal_comms"] },
+  { label: "adminMisc.access.categorySystem", modules: ["permissions", "engineering", "finance", "settings"] },
 ];
 
 export default function UserAccessSummary() {
+  const { t } = useI18n();
   const [searchQuery, setSearchQuery] = useState("");
   const [allUsers, setAllUsers] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
@@ -152,21 +154,21 @@ export default function UserAccessSummary() {
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Administration
+                {t("adminMisc.access.administration")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              User Access Summary
+              {t("adminMisc.access.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              View a user's complete access configuration in one place
+              {t("adminMisc.access.subtitle")}
             </p>
           </div>
           <button
             onClick={() => { setSelectedUser(null); setUserData(null); fetchUsers(); }}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.access.refresh")}
           </button>
         </header>
 
@@ -178,7 +180,7 @@ export default function UserAccessSummary() {
               <input
                 value={searchQuery}
                 onChange={(e) => searchUsers(e.target.value)}
-                placeholder="Search by name, email, or CID..."
+                placeholder={t("adminMisc.access.searchPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
               />
             </div>
@@ -250,7 +252,7 @@ export default function UserAccessSummary() {
                     )}
                     {!userData.profile.assigned && userData.profile.roleDefault && (
                       <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 uppercase tracking-wider">
-                        {userData.profile.roleDefault.name} (role default)
+                        {userData.profile.roleDefault.name} {t("adminMisc.access.roleDefaultSuffix")}
                       </span>
                     )}
                   </div>
@@ -278,27 +280,27 @@ export default function UserAccessSummary() {
                     <div className="flex items-center gap-2 mb-4">
                       <Layers className="w-4 h-4 text-[var(--brand-orange)]" />
                       <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-                        Access Profile
+                        {t("adminMisc.access.accessProfile")}
                       </h3>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">Effective Profile</span>
+                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.effectiveProfile")}</span>
                         <span className={`text-[9px] font-black ${userData.profile.effectiveSource === "user" ? "text-purple-400" : userData.profile.effectiveSource === "role" ? "text-teal-400" : "text-slate-400"}`}>
-                          {userData.profile.assigned?.name || userData.profile.roleDefault?.name || "Legacy (role_capabilities)"}
+                          {userData.profile.assigned?.name || userData.profile.roleDefault?.name || t("adminMisc.access.legacyRoleCapabilities")}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">Source</span>
+                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.source")}</span>
                         <span className="text-[9px] font-bold text-[var(--text-secondary)]">
-                          {userData.profile.effectiveSource === "user" ? "User override" : userData.profile.effectiveSource === "role" ? "Role default" : "Legacy"}
+                          {userData.profile.effectiveSource === "user" ? t("adminMisc.access.sourceUserOverride") : userData.profile.effectiveSource === "role" ? t("adminMisc.access.sourceRoleDefault") : t("adminMisc.access.sourceLegacy")}
                         </span>
                       </div>
                       {userData.profile.assigned && (
                         <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-bold text-[var(--text-secondary)]">Role Default</span>
+                          <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.roleDefault")}</span>
                           <span className="text-[9px] font-bold text-[var(--text-secondary)]">
-                            {userData.profile.roleDefault?.name || "None"}
+                            {userData.profile.roleDefault?.name || t("adminMisc.access.none")}
                           </span>
                         </div>
                       )}
@@ -310,14 +312,14 @@ export default function UserAccessSummary() {
                     <div className="flex items-center gap-2 mb-4">
                       <Award className="w-4 h-4 text-[var(--brand-orange)]" />
                       <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-                        Responsibilities
+                        {t("adminMisc.access.responsibilities")}
                       </h3>
                       <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                         {(userData.responsibilities || []).length}
                       </span>
                     </div>
                     {userData.responsibilities.length === 0 ? (
-                      <p className="text-[9px] font-bold text-slate-500">No responsibilities assigned</p>
+                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noResponsibilities")}</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {userData.responsibilities.map((r) => (
@@ -334,22 +336,22 @@ export default function UserAccessSummary() {
                     <div className="flex items-center gap-2 mb-4">
                       <AlertTriangle className="w-4 h-4 text-[var(--brand-orange)]" />
                       <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-                        Permission Overrides
+                        {t("adminMisc.access.permissionOverrides")}
                       </h3>
                     </div>
                     {(userData.individualGrants || []).length === 0 && (userData.individualRestrictions || []).length === 0 ? (
-                      <p className="text-[9px] font-bold text-slate-500">No individual overrides</p>
+                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noOverrides")}</p>
                     ) : (
                       <div className="space-y-3">
                         {(userData.individualGrants || []).length > 0 && (
                           <div>
-                            <p className="text-[8px] font-bold text-emerald-400 mb-1.5 uppercase tracking-wider">Grants</p>
+                            <p className="text-[8px] font-bold text-emerald-400 mb-1.5 uppercase tracking-wider">{t("adminMisc.access.grants")}</p>
                             <div className="space-y-1">
                               {userData.individualGrants.map((g, i) => (
                                 <div key={i} className="flex items-center gap-2 text-[8px] font-bold">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                   <span className="text-[var(--text-primary)]">{g.module}.{g.capability.replace(/_/g, " ")}</span>
-                                  <span className={ACCESS_COLORS[g.access_level] || "text-slate-500"}>({ACCESS_LABELS[g.access_level]})</span>
+                                  <span className={ACCESS_COLORS[g.access_level] || "text-slate-500"}>({t(ACCESS_LEVEL_KEYS[g.access_level] || "adminMisc.access.accessLevelNone")})</span>
                                   {g.expires_at && (
                                     <span className="text-slate-500 flex items-center gap-1">
                                       <Clock className="w-2.5 h-2.5" />
@@ -363,7 +365,7 @@ export default function UserAccessSummary() {
                         )}
                         {(userData.individualRestrictions || []).length > 0 && (
                           <div>
-                            <p className="text-[8px] font-bold text-red-400 mb-1.5 uppercase tracking-wider">Restrictions</p>
+                            <p className="text-[8px] font-bold text-red-400 mb-1.5 uppercase tracking-wider">{t("adminMisc.access.restrictions")}</p>
                             <div className="space-y-1">
                               {userData.individualRestrictions.map((r, i) => (
                                 <div key={i} className="flex items-center gap-2 text-[8px] font-bold">
@@ -390,7 +392,7 @@ export default function UserAccessSummary() {
                   <div className="flex items-center gap-2 mb-4">
                     <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
                     <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-                      Accessible Modules
+                      {t("adminMisc.access.accessibleModules")}
                     </h3>
                   </div>
                   <div className="space-y-4">
@@ -402,7 +404,7 @@ export default function UserAccessSummary() {
                       return (
                         <div key={category.label}>
                           <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-2 opacity-50">
-                            {category.label}
+                            {t(category.label)}
                           </p>
                           {category.modules.map((modKey) => {
                             const modData = modules[modKey];

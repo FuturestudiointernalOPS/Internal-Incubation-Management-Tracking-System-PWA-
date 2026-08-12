@@ -14,8 +14,10 @@ import {
   X,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function BulkUploadPage() {
+  const { t } = useI18n();
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState(null);
@@ -26,7 +28,7 @@ export default function BulkUploadPage() {
     const selected = e.target.files[0];
     if (selected) {
       if (!selected.name.endsWith(".csv")) {
-        setError("Only CSV files are accepted.");
+        setError(t("adminMisc.bulkUpload.onlyCsvAccepted"));
         return;
       }
       setFile(selected);
@@ -55,10 +57,10 @@ export default function BulkUploadPage() {
       if (data.success) {
         setResult(data.results);
       } else {
-        setError(data.error || "Upload failed.");
+        setError(data.error || t("adminMisc.bulkUpload.uploadFailed"));
       }
     } catch (err) {
-      setError("Network error during upload.");
+      setError(t("adminMisc.bulkUpload.networkError"));
     } finally {
       setUploading(false);
     }
@@ -84,15 +86,16 @@ export default function BulkUploadPage() {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-              Administration
+              {t("adminMisc.bulkUpload.administration")}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-            Bulk User Upload
+            {t("adminMisc.bulkUpload.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Upload a CSV file to create multiple user accounts at once. All
-            users will be created in <strong>Pending</strong> status.
+            {t("adminMisc.bulkUpload.description")}{" "}
+            <strong>{t("adminMisc.bulkUpload.pending")}</strong>{" "}
+            {t("adminMisc.bulkUpload.statusSuffix")}
           </p>
         </div>
 
@@ -104,10 +107,10 @@ export default function BulkUploadPage() {
             </div>
             <div>
               <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                CSV Template
+                {t("adminMisc.bulkUpload.csvTemplate")}
               </p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                Download the template to see the required columns.
+                {t("adminMisc.bulkUpload.templateHint")}
               </p>
             </div>
           </div>
@@ -115,7 +118,7 @@ export default function BulkUploadPage() {
             onClick={downloadTemplate}
             className="btn btn-primary text-[10px] px-4 py-2"
           >
-            Download Template
+            {t("adminMisc.bulkUpload.downloadTemplate")}
           </button>
         </div>
 
@@ -150,17 +153,20 @@ export default function BulkUploadPage() {
                   }}
                   className="text-[10px] text-rose-500 font-bold uppercase hover:underline"
                 >
-                  Remove
+                  {t("adminMisc.bulkUpload.remove")}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <UploadCloud className="w-12 h-12 text-[var(--text-secondary)] mx-auto" />
                 <p className="text-sm font-bold text-[var(--text-primary)]">
-                  Click to select CSV file
+                  {t("adminMisc.bulkUpload.clickToSelect")}
                 </p>
                 <p className="text-[10px] text-[var(--text-secondary)]">
-                  Columns: name, email, phone (optional), group_name (optional), role (optional)
+                  {t("adminMisc.bulkUpload.columns")} name, email, phone{" "}
+                  {t("adminMisc.bulkUpload.optional")}, group_name{" "}
+                  {t("adminMisc.bulkUpload.optional")}, role{" "}
+                  {t("adminMisc.bulkUpload.optional")}
                 </p>
               </div>
             )}
@@ -190,12 +196,12 @@ export default function BulkUploadPage() {
               {uploading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Uploading & Processing...
+                  {t("adminMisc.bulkUpload.uploading")}
                 </>
               ) : (
                 <>
                   <UploadCloud className="w-4 h-4" />
-                  Upload & Import Users
+                  {t("adminMisc.bulkUpload.uploadAndImport")}
                 </>
               )}
             </button>
@@ -212,7 +218,7 @@ export default function BulkUploadPage() {
                 <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
                   <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
                   <p className="text-[11px] font-bold text-emerald-500 uppercase">
-                    Import Complete
+                    {t("adminMisc.bulkUpload.importComplete")}
                   </p>
                 </div>
 
@@ -222,7 +228,7 @@ export default function BulkUploadPage() {
                       {result.created}
                     </p>
                     <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                      Created
+                      {t("adminMisc.bulkUpload.created")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-blue-500">
@@ -230,7 +236,7 @@ export default function BulkUploadPage() {
                       {result.updated}
                     </p>
                     <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                      Updated
+                      {t("adminMisc.bulkUpload.updated")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-amber-500">
@@ -238,7 +244,7 @@ export default function BulkUploadPage() {
                       {result.skipped}
                     </p>
                     <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                      Skipped
+                      {t("adminMisc.bulkUpload.skipped")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-rose-500">
@@ -246,7 +252,7 @@ export default function BulkUploadPage() {
                       {result.errors?.length || 0}
                     </p>
                     <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                      Errors
+                      {t("adminMisc.bulkUpload.errors")}
                     </p>
                   </div>
                 </div>
@@ -254,14 +260,14 @@ export default function BulkUploadPage() {
                 {result.errors?.length > 0 && (
                   <div className="card p-4">
                     <p className="text-[10px] font-bold text-rose-500 uppercase mb-2">
-                      Row Errors
+                      {t("adminMisc.bulkUpload.rowErrors")}
                     </p>
                     {result.errors.slice(0, 10).map((err, i) => (
                       <p
                         key={i}
                         className="text-[10px] text-[var(--text-secondary)] font-mono"
                       >
-                        Row {err.row}: {err.error}
+                        {t("adminMisc.bulkUpload.rowPrefix")} {err.row}: {err.error}
                       </p>
                     ))}
                   </div>
@@ -275,7 +281,7 @@ export default function BulkUploadPage() {
                   }}
                   className="btn w-full py-3 uppercase tracking-widest text-xs"
                 >
-                  Upload Another File
+                  {t("adminMisc.bulkUpload.uploadAnother")}
                 </button>
               </motion.div>
             )}
@@ -285,40 +291,40 @@ export default function BulkUploadPage() {
         {/* Info card */}
         <div className="card p-6 border-indigo-500/20">
           <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-3">
-            What happens after upload?
+            {t("adminMisc.bulkUpload.whatHappensAfter")}
           </h3>
           <ul className="space-y-2 text-[11px] text-[var(--text-secondary)]">
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">1.</span>
-              All uploaded users are created with{" "}
+              {t("adminMisc.bulkUpload.bullet1Before")}{" "}
               <strong className="text-[var(--text-primary)]">
-                Pending
+                {t("adminMisc.bulkUpload.pending")}
               </strong>{" "}
-              status.
+              {t("adminMisc.bulkUpload.statusSuffix")}
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">2.</span>
-              You can review and approve them from the{" "}
+              {t("adminMisc.bulkUpload.bullet2Before")}{" "}
               <strong className="text-[var(--text-primary)]">
-                Pending Users
+                {t("adminMisc.bulkUpload.pendingUsers")}
               </strong>{" "}
-              section.
+              {t("adminMisc.bulkUpload.sectionSuffix")}
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">3.</span>
-              On approval, each user receives a{" "}
+              {t("adminMisc.bulkUpload.bullet3Before")}{" "}
               <strong className="text-[var(--text-primary)]">
-                password setup email
+                {t("adminMisc.bulkUpload.passwordSetupEmail")}
               </strong>
               .
             </li>
             <li className="flex items-start gap-2">
               <span className="text-emerald-500 mt-0.5">4.</span>
-              Duplicate emails are{" "}
+              {t("adminMisc.bulkUpload.bullet4Before")}{" "}
               <strong className="text-[var(--text-primary)]">
-                updated
+                {t("adminMisc.bulkUpload.updated")}
               </strong>{" "}
-              (not duplicated).
+              {t("adminMisc.bulkUpload.bullet4After")}
             </li>
           </ul>
         </div>
