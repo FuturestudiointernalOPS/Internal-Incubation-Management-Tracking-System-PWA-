@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Users, Building2, Calendar, Loader2, Plus, CheckCircle2,
   Clock, ArrowRight, History, MessageSquare, UserPlus, X, Edit3,
@@ -11,13 +12,13 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
 const MEETING_TYPES = [
-  { value: "introductory", label: "Introductory" },
-  { value: "follow_up", label: "Follow-up" },
-  { value: "product_demo", label: "Product Demo" },
-  { value: "financial_review", label: "Financial Review" },
-  { value: "dd_session", label: "Due Diligence Session" },
-  { value: "committee", label: "Investment Committee" },
-  { value: "closing", label: "Closing" },
+  { value: "introductory", label: "investorAdmin.relationships.meetingIntroductory" },
+  { value: "follow_up", label: "investorAdmin.relationships.meetingFollowUp" },
+  { value: "product_demo", label: "investorAdmin.relationships.meetingProductDemo" },
+  { value: "financial_review", label: "investorAdmin.relationships.meetingFinancialReview" },
+  { value: "dd_session", label: "investorAdmin.relationships.meetingDdSession" },
+  { value: "committee", label: "investorAdmin.relationships.meetingCommittee" },
+  { value: "closing", label: "investorAdmin.relationships.meetingClosing" },
 ];
 
 const MEETING_ICONS = {
@@ -31,6 +32,7 @@ const MEETING_ICONS = {
 };
 
 export default function AdminRelationshipsPage() {
+  const { t } = useI18n();
   const [workspaces, setWorkspaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -103,7 +105,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: `${field === "relationship_manager" ? "RM" : "IM"} assigned` });
+        setToast({ type: "success", message: field === "relationship_manager" ? t("investorAdmin.relationships.rmAssigned") : t("investorAdmin.relationships.imAssigned") });
         setAssignField(null);
         setAssignSearch("");
         selectWorkspace(selected);
@@ -131,7 +133,7 @@ export default function AdminRelationshipsPage() {
 
   const handleCreateMeeting = async () => {
     if (!meetingForm.scheduled_date) {
-      setToast({ type: "error", message: "Date is required" });
+      setToast({ type: "error", message: t("investorAdmin.relationships.dateRequired") });
       return;
     }
     try {
@@ -142,7 +144,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Meeting scheduled" });
+        setToast({ type: "success", message: t("investorAdmin.relationships.meetingScheduled") });
         setShowCreateMeeting(false);
         setMeetingForm({ meeting_type: "introductory", scheduled_date: "", scheduled_time: "", duration_minutes: 60, location: "", notes: "" });
         selectWorkspace(selected);
@@ -167,7 +169,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Meeting completed" });
+        setToast({ type: "success", message: t("investorAdmin.relationships.meetingCompleted") });
         setShowCompleteMeeting(null);
         setCompleteForm({ outcome: "", notes: "", action_items: "" });
         selectWorkspace(selected);
@@ -186,7 +188,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Relationship workspace created" });
+        setToast({ type: "success", message: t("investorAdmin.relationships.workspaceCreated") });
         fetchWorkspaces();
       } else {
         setToast({ type: "error", message: data.error });
@@ -203,7 +205,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "create_workspace" }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: "DD workspace created" }); selectWorkspace(selected); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); selectWorkspace(selected); }
       else { setToast({ type: "error", message: data.error }); }
     } catch (_) {}
   };
@@ -218,7 +220,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "DD request added" });
+        setToast({ type: "success", message: t("investorAdmin.relationships.ddRequestAdded") });
         setShowAddRequest(false);
         setRequestForm({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
         selectWorkspace(selected);
@@ -234,7 +236,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "update_request", request_id: requestId, status: newStatus }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: `Request: ${newStatus}` }); selectWorkspace(selected); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); selectWorkspace(selected); }
       else { setToast({ type: "error", message: data.error }); }
     } catch (_) {}
   };
@@ -254,7 +256,7 @@ export default function AdminRelationshipsPage() {
         });
         const data = await res.json();
         if (data.success) {
-          setToast({ type: "success", message: `"${file.name}" uploaded` });
+          setToast({ type: "success", message: t("investorAdmin.relationships.fileUploadedToast", { fileName: file.name }) });
           setUploadReqId(null);
           selectWorkspace(selected);
           // Fetch docs for this request
@@ -313,10 +315,10 @@ export default function AdminRelationshipsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Investment Relationships
+              {t("investorAdmin.relationships.title")}
             </h1>
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Manage meetings, timelines, and relationship workspaces
+              {t("investorAdmin.relationships.subtitle")}
             </p>
           </div>
         </div>
@@ -326,15 +328,15 @@ export default function AdminRelationshipsPage() {
           <div className="space-y-4">
             <button onClick={() => setSelected(null)}
               className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:underline">
-              <ChevronLeft className="w-3.5 h-3.5" /> Back to list
+              <ChevronLeft className="w-3.5 h-3.5" /> {t("investorAdmin.relationships.backToList")}
             </button>
 
             {/* Workspace header */}
             <AppCard padding="lg">
               <div className="flex items-start justify-between">
                 <div>
-                  <h2 className="text-lg font-black text-[var(--text-primary)]">{selected.venture_name || "Venture"}</h2>
-                  <p className="text-sm text-[var(--text-secondary)]">{selected.investor_name || "Investor"} · {selected.organization_name || "Individual"}</p>
+                  <h2 className="text-lg font-black text-[var(--text-primary)]">{selected.venture_name || t("investorAdmin.relationships.venture")}</h2>
+                  <p className="text-sm text-[var(--text-secondary)]">{selected.investor_name || t("investorAdmin.relationships.investor")} · {selected.organization_name || t("investorAdmin.relationships.individual")}</p>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${selected.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
                   {selected.status}
@@ -342,23 +344,23 @@ export default function AdminRelationshipsPage() {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
                 {[
-                  ["Relationship Manager", selected.relationship_manager_name || "Unassigned", "rm"],
-                  ["Investment Manager", selected.investment_manager_name || "Unassigned", "im"],
-                  ["Pipeline Stage", selected.pipeline_stage || "—", null],
-                  ["Next Action", selected.next_action || "—", null],
+                  ["relationshipManager", selected.relationship_manager_name || "Unassigned", "rm"],
+                  ["investmentManager", selected.investment_manager_name || "Unassigned", "im"],
+                  ["pipelineStage", selected.pipeline_stage || "—", null],
+                  ["nextAction", selected.next_action || "—", null],
                 ].map(([l, v, field], i) => (
                   <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                    <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{l}</p>
+                    <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{t(`investorAdmin.relationships.${l}`)}</p>
                     <div className="flex items-center gap-1 mt-1">
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{v}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">{v === "Unassigned" ? t("investorAdmin.relationships.unassigned") : v}</p>
                       {field && v === "Unassigned" && (
                         <div className="relative">
                           <button onClick={() => { setAssignField(field === "rm" ? "relationship_manager" : "investment_manager"); setAssignSearch(""); }}
-                            className="text-[8px] font-black text-[var(--brand-orange)] hover:underline">+ Assign</button>
+                            className="text-[8px] font-black text-[var(--brand-orange)] hover:underline">{t("investorAdmin.relationships.assign")}</button>
                           {assignField === (field === "rm" ? "relationship_manager" : "investment_manager") && (
                             <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl shadow-2xl z-50">
                               <input value={assignSearch} onChange={e => setAssignSearch(e.target.value)}
-                                placeholder="Search staff..." autoFocus
+                                placeholder={t("investorAdmin.relationships.searchStaffPlaceholder")} autoFocus
                                 className="w-full px-3 py-2 bg-transparent border-b border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
                               <div className="max-h-36 overflow-y-auto">
                                 {staffList.filter(s => !assignSearch || s.name?.toLowerCase().includes(assignSearch.toLowerCase()) || s.email?.toLowerCase().includes(assignSearch.toLowerCase())).slice(0, 10).map(s => (
@@ -368,11 +370,11 @@ export default function AdminRelationshipsPage() {
                                   </button>
                                 ))}
                                 {staffList.filter(s => !assignSearch || s.name?.toLowerCase().includes(assignSearch.toLowerCase())).length === 0 && (
-                                  <p className="px-3 py-4 text-[10px] text-[var(--text-tertiary)] text-center">No staff found</p>
+                                  <p className="px-3 py-4 text-[10px] text-[var(--text-tertiary)] text-center">{t("investorAdmin.relationships.noStaffFound")}</p>
                                 )}
                               </div>
                               <button onClick={() => setAssignField(null)}
-                                className="w-full px-3 py-2 border-t border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Cancel</button>
+                                className="w-full px-3 py-2 border-t border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
                             </div>
                           )}
                         </div>
@@ -386,8 +388,8 @@ export default function AdminRelationshipsPage() {
             {/* Tabs: Meetings | Due Diligence */}
             <div className="flex gap-1 border-b border-[var(--border-primary)]">
               {[
-                { id: "meetings", label: "Meetings", icon: Calendar, count: meetings.length },
-                { id: "diligence", label: "Due Diligence", icon: Shield, count: ddData?.requests?.length || 0 },
+                { id: "meetings", label: t("investorAdmin.relationships.meetings"), icon: Calendar, count: meetings.length },
+                { id: "diligence", label: t("investorAdmin.relationships.dueDiligence"), icon: Shield, count: ddData?.requests?.length || 0 },
               ].map(tab => (
                 <button key={tab.id} onClick={() => setDetailTab(tab.id)}
                   className={`flex items-center gap-2 px-4 py-3 text-[10px] font-black uppercase tracking-wider transition-colors relative ${
@@ -405,13 +407,13 @@ export default function AdminRelationshipsPage() {
               {/* Meetings */}
               <div className="lg:col-span-2 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Meetings ({meetings.length})</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.relationships.meetings")} ({meetings.length})</h3>
                   <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowCreateMeeting(true)}>
-                    Schedule Meeting
+                    {t("investorAdmin.relationships.scheduleMeeting")}
                   </AppButton>
                 </div>
                 {meetings.length === 0 ? (
-                  <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">No meetings scheduled yet</p>
+                  <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">{t("investorAdmin.relationships.noMeetingsScheduled")}</p>
                 ) : (
                   <div className="space-y-2">
                     {meetings.map(m => {
@@ -425,12 +427,12 @@ export default function AdminRelationshipsPage() {
                               </div>
                               <div>
                                 <p className="text-xs font-black text-[var(--text-primary)]">
-                                  {MEETING_TYPES.find(t => t.value === m.meeting_type)?.label || m.meeting_type}
+                                  {t(MEETING_TYPES.find(mt => mt.value === m.meeting_type)?.label) || m.meeting_type}
                                 </p>
                                 <p className="text-[10px] text-[var(--text-secondary)]">
-                                  {m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString() : "TBD"}
-                                  {m.scheduled_time ? ` at ${m.scheduled_time}` : ""}
-                                  {m.duration_minutes ? ` · ${m.duration_minutes}min` : ""}
+                                  {m.scheduled_date ? new Date(m.scheduled_date).toLocaleDateString() : t("investorAdmin.relationships.tbd")}
+                                  {m.scheduled_time ? t("investorAdmin.relationships.atTime", { time: m.scheduled_time }) : ""}
+                                  {m.duration_minutes ? t("investorAdmin.relationships.durationSuffix", { minutes: m.duration_minutes }) : ""}
                                 </p>
                                 {m.location && (
                                   <p className="text-[9px] text-[var(--text-tertiary)] flex items-center gap-1 mt-0.5">
@@ -440,7 +442,7 @@ export default function AdminRelationshipsPage() {
                                 {m.notes && <p className="text-[10px] text-[var(--text-secondary)] mt-1 italic">{m.notes}</p>}
                                 {m.outcome && (
                                   <div className="mt-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Outcome</p>
+                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</p>
                                     <p className="text-[10px] text-[var(--text-primary)] mt-0.5">{m.outcome}</p>
                                   </div>
                                 )}
@@ -450,7 +452,7 @@ export default function AdminRelationshipsPage() {
                                     if (!Array.isArray(items) || items.length === 0) return null;
                                     return (
                                       <div className="mt-2 space-y-1">
-                                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Action Items</p>
+                                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItems")}</p>
                                         {items.map((item, i) => (
                                           <p key={i} className="text-[10px] text-[var(--text-primary)] flex items-center gap-1">
                                             <span className="w-1 h-1 rounded-full bg-[var(--brand-orange)]" /> {item}
@@ -471,7 +473,7 @@ export default function AdminRelationshipsPage() {
                               {m.status === "scheduled" && (
                                 <AppButton variant="secondary" size="sm" icon={CheckCircle2}
                                   onClick={() => { setShowCompleteMeeting(m); setCompleteForm({ outcome: "", notes: "", action_items: "" }); }}>
-                                  Complete
+                                  {t("investorAdmin.relationships.complete")}
                                 </AppButton>
                               )}
                             </div>
@@ -485,17 +487,17 @@ export default function AdminRelationshipsPage() {
 
               {/* Timeline */}
               <div className="space-y-3">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Timeline</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.relationships.timeline")}</h3>
                 {timeline.length === 0 ? (
-                  <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">No activity yet</p>
+                  <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">{t("investorAdmin.relationships.noActivityYet")}</p>
                 ) : (
                   <div className="space-y-1 relative before:absolute before:left-3 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--border-primary)]">
-                    {timeline.map(t => (
-                      <div key={t.id} className="relative pl-8 py-2">
+                    {timeline.map(ev => (
+                      <div key={ev.id} className="relative pl-8 py-2">
                         <div className="absolute left-2 top-3 w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{t.description}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">{ev.description}</p>
                         <p className="text-[8px] text-[var(--text-tertiary)] mt-0.5">
-                          {new Date(t.created_at).toLocaleString()}
+                          {new Date(ev.created_at).toLocaleString()}
                         </p>
                       </div>
                     ))}
@@ -510,20 +512,20 @@ export default function AdminRelationshipsPage() {
               {!ddData?.workspace ? (
                 <div className="text-center py-12">
                   <Shield className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-                  <p className="text-sm font-bold text-[var(--text-secondary)]">No Due Diligence workspace</p>
-                  <p className="text-xs text-[var(--text-tertiary)] mt-1 mb-4">Create a DD workspace to start the due diligence process</p>
+                  <p className="text-sm font-bold text-[var(--text-secondary)]">{t("investorAdmin.relationships.noDdWorkspace")}</p>
+                  <p className="text-xs text-[var(--text-tertiary)] mt-1 mb-4">{t("investorAdmin.relationships.createDdWorkspaceHint")}</p>
                   <AppButton variant="primary" size="sm" icon={Shield} onClick={handleDdCreateWorkspace}>
-                    Create DD Workspace
+                    {t("investorAdmin.relationships.createDdWorkspace")}
                   </AppButton>
                 </div>
               ) : (
                 <>
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
-                      DD Requests ({(ddData?.requests || []).length})
+                      {t("investorAdmin.relationships.ddRequests")} ({(ddData?.requests || []).length})
                     </h3>
                     <AppButton variant="primary" size="sm" icon={Plus} onClick={() => setShowAddRequest(true)}>
-                      Add Request
+                      {t("investorAdmin.relationships.addRequest")}
                     </AppButton>
                   </div>
 
@@ -533,7 +535,7 @@ export default function AdminRelationshipsPage() {
                       {ddData.workspace.status}
                     </span>
                     <span className="text-[10px] text-[var(--text-tertiary)]">
-                      Created {new Date(ddData.workspace.created_at).toLocaleDateString()}
+                      {t("investorAdmin.relationships.createdOn", { date: new Date(ddData.workspace.created_at).toLocaleDateString() })}
                     </span>
                   </div>
 
@@ -561,7 +563,7 @@ export default function AdminRelationshipsPage() {
                                 {r.description && <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{r.description}</p>}
                                 <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--text-tertiary)]">
                                   {r.due_date && <span>{new Date(r.due_date).toLocaleDateString()}</span>}
-                                  {r.response_text && <span className="text-emerald-400">Response: {r.response_text}</span>}
+                                  {r.response_text && <span className="text-emerald-400">{t("investorAdmin.relationships.responseLabel", { response: r.response_text })}</span>}
                                 </div>
                                 {/* Version history */}
                                 {r.version_history && (() => {
@@ -570,7 +572,7 @@ export default function AdminRelationshipsPage() {
                                     if (!Array.isArray(hist) || hist.length === 0) return null;
                                     return (
                                       <details className="mt-2">
-                                        <summary className="text-[8px] font-black text-[var(--text-tertiary)] uppercase cursor-pointer">Version History ({hist.length})</summary>
+                                        <summary className="text-[8px] font-black text-[var(--text-tertiary)] uppercase cursor-pointer">{t("investorAdmin.relationships.versionHistory")} ({hist.length})</summary>
                                         <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
                                           {hist.map((h, i) => (
                                             <div key={i} className="text-[8px] text-[var(--text-tertiary)] flex items-center gap-1">
@@ -594,22 +596,22 @@ export default function AdminRelationshipsPage() {
                                 {/* Workflow buttons with role attribution */}
                                 {r.status === "pending" && (currentUserCid === selected.relationship_manager_id || !selected.relationship_manager_id) && (
                                   <AppButton variant="secondary" size="sm" onClick={() => handleUpdateDdRequest(r.id, "under_review")}>
-                                    RM Review
+                                    {t("investorAdmin.relationships.rmReview")}
                                   </AppButton>
                                 )}
                                 {r.status === "under_review" && (currentUserCid === selected.relationship_manager_id || !selected.relationship_manager_id) && (
                                   <AppButton variant="secondary" size="sm" onClick={() => handleUpdateDdRequest(r.id, "documents_uploaded")}>
-                                    Founder Uploaded
+                                    {t("investorAdmin.relationships.founderUploaded")}
                                   </AppButton>
                                 )}
                                 {r.status === "documents_uploaded" && (currentUserCid === selected.investment_manager_id || !selected.investment_manager_id) && (
                                   <AppButton variant="secondary" size="sm" onClick={() => handleUpdateDdRequest(r.id, "verified")}>
-                                    IM Verify
+                                    {t("investorAdmin.relationships.imVerify")}
                                   </AppButton>
                                 )}
                                 {r.status === "verified" && (currentUserCid === selected.investment_manager_id || !selected.investment_manager_id) && (
                                   <AppButton variant="primary" size="sm" icon={CheckCircle2} onClick={() => handleUpdateDdRequest(r.id, "completed")}>
-                                    Complete
+                                    {t("investorAdmin.relationships.complete")}
                                   </AppButton>
                                 )}
                               </div>
@@ -626,7 +628,7 @@ export default function AdminRelationshipsPage() {
                                         <span className="text-[8px] text-[var(--text-tertiary)]">{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)}KB` : ""}</span>
                                       </div>
                                       <button onClick={() => handleDownload(doc.id)}
-                                        className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline">Download</button>
+                                        className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline">{t("investorAdmin.relationships.download")}</button>
                                     </div>
                                   ))}
                                 </div>
@@ -639,15 +641,15 @@ export default function AdminRelationshipsPage() {
                                       className="hidden" />
                                     <label htmlFor={`dd-upload-${r.id}`}
                                       className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[9px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
-                                      Choose file...
+                                      {t("investorAdmin.relationships.chooseFile")}
                                     </label>
                                     <button onClick={() => setUploadReqId(null)}
-                                      className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">Cancel</button>
+                                      className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
                                   </div>
                                 ) : (
                                   <button onClick={() => { setUploadReqId(r.id); fetchDdDocs(r.id); }}
                                     className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
-                                    <Upload className="w-3 h-3" /> Upload Document
+                                    <Upload className="w-3 h-3" /> {t("investorAdmin.relationships.uploadDocument")}
                                   </button>
                                 )
                               )}
@@ -659,7 +661,7 @@ export default function AdminRelationshipsPage() {
                   })}
 
                   {(ddData?.requests || []).length === 0 && (
-                    <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">No DD requests yet. Add one to start the due diligence process.</p>
+                    <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">{t("investorAdmin.relationships.noDdRequests")}</p>
                   )}
                 </>
               )}
@@ -673,7 +675,7 @@ export default function AdminRelationshipsPage() {
             {pendingIntros.length > 0 && (
               <div className="space-y-3">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase flex items-center gap-2">
-                  <UserPlus className="w-4 h-4 text-amber-400" /> Pending Introductions ({pendingIntros.length})
+                  <UserPlus className="w-4 h-4 text-amber-400" /> {t("investorAdmin.relationships.pendingIntroductions")} ({pendingIntros.length})
                 </h3>
                 {pendingIntros.map(p => {
                   const alreadyHas = workspaces.some(w => w.venture_id === p.venture_id && w.investor_id === p.investor_id);
@@ -682,33 +684,33 @@ export default function AdminRelationshipsPage() {
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-sm font-bold text-[var(--text-primary)]">{p.venture_name || "Venture"}</p>
+                            <p className="text-sm font-bold text-[var(--text-primary)]">{p.venture_name || t("investorAdmin.relationships.venture")}</p>
                             <p className="text-[10px] text-[var(--text-secondary)]">
-                              {p.investor_name || "Investor"}{p.organization_name ? ` · ${p.organization_name}` : ""} · Meeting requested
+                              {p.investor_name || t("investorAdmin.relationships.investor")}{p.organization_name ? ` · ${p.organization_name}` : ""} · {t("investorAdmin.relationships.meetingRequested")}
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => setExpandedIntros(prev => ({...prev, [p.id]: !prev[p.id]}))}
                               className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
-                              {expandedIntros[p.id] ? "Hide Profile" : "View Investor Profile"}
+                              {expandedIntros[p.id] ? t("investorAdmin.relationships.hideProfile") : t("investorAdmin.relationships.viewInvestorProfile")}
                             </button>
                             {!alreadyHas ? (
                               <AppButton variant="primary" size="sm" icon={CheckCircle2}
                                 onClick={() => handleCreateWorkspace(p.id)}>
-                                Approve & Create Workspace
+                                {t("investorAdmin.relationships.approveCreateWorkspace")}
                               </AppButton>
                             ) : (
-                              <span className="text-[10px] text-emerald-400 font-bold">Workspace exists</span>
+                              <span className="text-[10px] text-emerald-400 font-bold">{t("investorAdmin.relationships.workspaceExists")}</span>
                             )}
                           </div>
                         </div>
                         {expandedIntros[p.id] && (
                           <div className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {p.industries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Industries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.industries||[]).join(", ")}</p></div>}
-                            {p.countries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Countries</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.countries||[]).join(", ")}</p></div>}
-                            {p.startup_stages?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Stages</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.startup_stages||[]).join(", ")}</p></div>}
-                            {(p.ticket_size_min || p.ticket_size_max) && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Ticket</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${p.ticket_size_min||"0"}–${p.ticket_size_max||"∞"}</p></div>}
-                            {p.email && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">Email</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{p.email}</p></div>}
+                            {p.industries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.industries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.industries||[]).join(", ")}</p></div>}
+                            {p.countries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.countries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.countries||[]).join(", ")}</p></div>}
+                            {p.startup_stages?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.stages")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.startup_stages||[]).join(", ")}</p></div>}
+                            {(p.ticket_size_min || p.ticket_size_max) && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.ticket")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${p.ticket_size_min||"0"}–${p.ticket_size_max||"∞"}</p></div>}
+                            {p.email && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.email")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{p.email}</p></div>}
                           </div>
                         )}
                       </div>
@@ -721,12 +723,12 @@ export default function AdminRelationshipsPage() {
             {/* Active workspaces */}
             <div className="space-y-3">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
-                Active Workspaces ({workspaces.filter(w => w.status === "active").length})
+                {t("investorAdmin.relationships.activeWorkspaces")} ({workspaces.filter(w => w.status === "active").length})
               </h3>
               {loading ? (
                 <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
               ) : workspaces.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">No relationship workspaces yet</p>
+                <p className="text-xs text-[var(--text-tertiary)] py-8 text-center">{t("investorAdmin.relationships.noWorkspacesYet")}</p>
               ) : (
                 <div className="space-y-2">
                   {workspaces.map(w => (
@@ -735,7 +737,7 @@ export default function AdminRelationshipsPage() {
                         <div className="flex items-center gap-3">
                           <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                           <div>
-                            <p className="text-sm font-bold text-[var(--text-primary)]">{w.venture_name || "Venture"}</p>
+                            <p className="text-sm font-bold text-[var(--text-primary)]">{w.venture_name || t("investorAdmin.relationships.venture")}</p>
                             <p className="text-[10px] text-[var(--text-secondary)]">
                               {w.investor_name}{w.organization_name ? ` · ${w.organization_name}` : ""}
                             </p>
@@ -749,7 +751,7 @@ export default function AdminRelationshipsPage() {
                           )}
                           {w.upcoming_meetings > 0 && (
                             <span className="px-2 py-0.5 rounded text-[8px] font-black bg-amber-500/10 text-amber-400">
-                              {w.upcoming_meetings} upcoming
+                              {t("investorAdmin.relationships.upcomingMeetings", { count: w.upcoming_meetings })}
                             </span>
                           )}
                           <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${w.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
@@ -772,50 +774,50 @@ export default function AdminRelationshipsPage() {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreateMeeting(false)} />
             <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Schedule Meeting</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.relationships.scheduleMeeting")}</h3>
                 <button onClick={() => setShowCreateMeeting(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Meeting Type</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingType")}</label>
                   <select value={meetingForm.meeting_type} onChange={e => setMeetingForm({...meetingForm, meeting_type: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
-                    {MEETING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    {MEETING_TYPES.map(mt => <option key={mt.value} value={mt.value}>{t(mt.label)}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Date *</label>
+                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dateLabel")}</label>
                     <input type="date" value={meetingForm.scheduled_date} onChange={e => setMeetingForm({...meetingForm, scheduled_date: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Time</label>
+                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.time")}</label>
                     <input type="time" value={meetingForm.scheduled_time} onChange={e => setMeetingForm({...meetingForm, scheduled_time: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Duration (min)</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.durationLabel")}</label>
                   <input type="number" value={meetingForm.duration_minutes} onChange={e => setMeetingForm({...meetingForm, duration_minutes: parseInt(e.target.value) || 60})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Location</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.location")}</label>
                   <input value={meetingForm.location} onChange={e => setMeetingForm({...meetingForm, location: e.target.value})}
-                    placeholder="Google Meet link, office, phone..."
+                    placeholder={t("investorAdmin.relationships.locationPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Notes</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.notes")}</label>
                   <textarea value={meetingForm.notes} onChange={e => setMeetingForm({...meetingForm, notes: e.target.value})}
-                    rows={2} placeholder="Agenda, preparation notes..."
+                    rows={2} placeholder={t("investorAdmin.relationships.notesPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
-                <AppButton variant="secondary" size="sm" onClick={() => setShowCreateMeeting(false)}>Cancel</AppButton>
-                <AppButton variant="primary" size="sm" icon={Calendar} onClick={handleCreateMeeting}>Schedule</AppButton>
+                <AppButton variant="secondary" size="sm" onClick={() => setShowCreateMeeting(false)}>{t("investorAdmin.relationships.cancel")}</AppButton>
+                <AppButton variant="primary" size="sm" icon={Calendar} onClick={handleCreateMeeting}>{t("investorAdmin.relationships.schedule")}</AppButton>
               </div>
             </div>
           </div>
@@ -827,37 +829,37 @@ export default function AdminRelationshipsPage() {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCompleteMeeting(null)} />
             <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Complete Meeting</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.relationships.completeMeeting")}</h3>
                 <button onClick={() => setShowCompleteMeeting(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Outcome</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</label>
                   <select value={completeForm.outcome} onChange={e => setCompleteForm({...completeForm, outcome: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
-                    <option value="">Select outcome...</option>
-                    <option value="Positive">Positive</option>
-                    <option value="Neutral">Neutral</option>
-                    <option value="Needs follow-up">Needs follow-up</option>
-                    <option value="Not a fit">Not a fit</option>
+                    <option value="">{t("investorAdmin.relationships.selectOutcome")}</option>
+                    <option value="Positive">{t("investorAdmin.relationships.outcomePositive")}</option>
+                    <option value="Neutral">{t("investorAdmin.relationships.outcomeNeutral")}</option>
+                    <option value="Needs follow-up">{t("investorAdmin.relationships.outcomeFollowUp")}</option>
+                    <option value="Not a fit">{t("investorAdmin.relationships.outcomeNotFit")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Meeting Notes</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingNotes")}</label>
                   <textarea value={completeForm.notes} onChange={e => setCompleteForm({...completeForm, notes: e.target.value})}
-                    rows={3} placeholder="Key discussion points, investor feedback..."
+                    rows={3} placeholder={t("investorAdmin.relationships.meetingNotesPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Action Items (one per line)</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItemsPerLine")}</label>
                   <textarea value={completeForm.action_items} onChange={e => setCompleteForm({...completeForm, action_items: e.target.value})}
-                    rows={3} placeholder="Founder to upload revised financial model...&#10;Investor to review customer traction...&#10;Schedule follow-up in two weeks..."
+                    rows={3} placeholder={t("investorAdmin.relationships.actionItemsPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
-                <AppButton variant="secondary" size="sm" onClick={() => setShowCompleteMeeting(null)}>Cancel</AppButton>
-                <AppButton variant="primary" size="sm" icon={CheckCircle2} onClick={handleCompleteMeeting}>Complete Meeting</AppButton>
+                <AppButton variant="secondary" size="sm" onClick={() => setShowCompleteMeeting(null)}>{t("investorAdmin.relationships.cancel")}</AppButton>
+                <AppButton variant="primary" size="sm" icon={CheckCircle2} onClick={handleCompleteMeeting}>{t("investorAdmin.relationships.completeMeeting")}</AppButton>
               </div>
             </div>
           </div>
@@ -869,49 +871,49 @@ export default function AdminRelationshipsPage() {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowAddRequest(false)} />
             <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Add DD Request</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.relationships.addDdRequest")}</h3>
                 <button onClick={() => setShowAddRequest(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Title *</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.titleLabel")}</label>
                   <input value={requestForm.title} onChange={e => setRequestForm({...requestForm, title: e.target.value})}
-                    placeholder="e.g. Financial Statements 2024"
+                    placeholder={t("investorAdmin.relationships.titlePlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Category</label>
+                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.category")}</label>
                     <select value={requestForm.category} onChange={e => setRequestForm({...requestForm, category: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                       {["corporate","financial","commercial","technical","legal"].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Priority</label>
+                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.priority")}</label>
                     <select value={requestForm.priority} onChange={e => setRequestForm({...requestForm, priority: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
+                      <option value="low">{t("investorAdmin.relationships.priorityLow")}</option>
+                      <option value="medium">{t("investorAdmin.relationships.priorityMedium")}</option>
+                      <option value="high">{t("investorAdmin.relationships.priorityHigh")}</option>
                     </select>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Due Date</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dueDate")}</label>
                   <input type="date" value={requestForm.due_date} onChange={e => setRequestForm({...requestForm, due_date: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Description</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.description")}</label>
                   <textarea value={requestForm.description} onChange={e => setRequestForm({...requestForm, description: e.target.value})}
-                    rows={2} placeholder="Additional details..."
+                    rows={2} placeholder={t("investorAdmin.relationships.descriptionPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
                 </div>
               </div>
               <div className="flex justify-end gap-2 px-6 pb-5">
-                <AppButton variant="secondary" size="sm" onClick={() => setShowAddRequest(false)}>Cancel</AppButton>
-                <AppButton variant="primary" size="sm" icon={Shield} onClick={handleAddDdRequest}>Add Request</AppButton>
+                <AppButton variant="secondary" size="sm" onClick={() => setShowAddRequest(false)}>{t("investorAdmin.relationships.cancel")}</AppButton>
+                <AppButton variant="primary" size="sm" icon={Shield} onClick={handleAddDdRequest}>{t("investorAdmin.relationships.addRequest")}</AppButton>
               </div>
             </div>
           </div>

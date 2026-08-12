@@ -6,6 +6,7 @@ import {
   Search, Loader2, Shield, Clock, Ban, UserCheck, Copy, Check, Link,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -18,10 +19,16 @@ const STATUS_ICONS = {
 };
 
 const STATUS_LABELS = {
-  pending_review: "Pending Review",
-  approved: "Approved",
-  rejected: "Rejected",
-  suspended: "Suspended",
+  pending_review: "investorAdmin.list.statusPendingReview",
+  approved: "investorAdmin.list.statusApproved",
+  rejected: "investorAdmin.list.statusRejected",
+  suspended: "investorAdmin.list.statusSuspended",
+};
+
+const ACTION_LABELS = {
+  approve: "investorAdmin.list.actionApproved",
+  reject: "investorAdmin.list.actionRejected",
+  suspend: "investorAdmin.list.actionSuspended",
 };
 
 export default function AdminInvestorsPage() {
@@ -33,6 +40,7 @@ export default function AdminInvestorsPage() {
   const [detail, setDetail] = useState(null);
   const [toast, setToast] = useState(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => { fetchInvestors(); }, [statusFilter]);
 
@@ -57,7 +65,7 @@ export default function AdminInvestorsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: `Investor ${action}d` });
+        setToast({ type: "success", message: t("investorAdmin.list.actionDone", { action: t(ACTION_LABELS[action]) }) });
         fetchInvestors();
       } else {
         setToast({ type: "error", message: data.error });
@@ -76,10 +84,10 @@ export default function AdminInvestorsPage() {
     const link = `${window.location.origin}/investor/wizard`;
     navigator.clipboard.writeText(link).then(() => {
       setCopied(true);
-      setToast({ type: "success", message: "Registration link copied!" });
+      setToast({ type: "success", message: t("investorAdmin.list.registrationLinkCopied") });
       setTimeout(() => setCopied(false), 3000);
     }).catch(() => {
-      setToast({ type: "error", message: "Failed to copy" });
+      setToast({ type: "error", message: t("investorAdmin.list.failedToCopy") });
     });
   };
 
@@ -90,15 +98,15 @@ export default function AdminInvestorsPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Investor Management
+              {t("investorAdmin.list.title")}
             </h1>
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              Approve, reject, and manage investor access to Investor OS
+              {t("investorAdmin.list.subtitle")}
             </p>
           </div>
           <AppButton variant="secondary" size="sm" icon={copied ? Check : Link}
             onClick={copyRegistrationLink}>
-            {copied ? "Link Copied" : "Copy Registration Link"}
+            {copied ? t("investorAdmin.list.linkCopied") : t("investorAdmin.list.copyRegistrationLink")}
           </AppButton>
         </div>
 
@@ -115,7 +123,7 @@ export default function AdminInvestorsPage() {
                     : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {s === "all" ? "All" : STATUS_LABELS[s]}
+                {s === "all" ? t("investorAdmin.list.all") : t(STATUS_LABELS[s])}
                 <span className="ml-2 opacity-60">{counts[s] || 0}</span>
               </button>
             ))}
@@ -127,7 +135,7 @@ export default function AdminInvestorsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === "Enter" && fetchInvestors()}
-              placeholder="Search investors..."
+              placeholder={t("investorAdmin.list.searchPlaceholder")}
               className="w-full pl-10 pr-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60"
             />
           </div>
@@ -141,7 +149,7 @@ export default function AdminInvestorsPage() {
         ) : investors.length === 0 ? (
           <div className="text-center py-16">
             <Building2 className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-            <p className="text-sm font-bold text-[var(--text-secondary)]">No investors found</p>
+            <p className="text-sm font-bold text-[var(--text-secondary)]">{t("investorAdmin.list.noInvestors")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -159,11 +167,11 @@ export default function AdminInvestorsPage() {
                         <p className="text-sm font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] cursor-pointer" onClick={() => setDetail(inv)}>
                           {inv.organization_name || inv.name}
                         </p>
-                        <p className="text-xs text-[var(--text-secondary)]">{inv.email}{inv.review_notes ? " · Has review notes" : ""}</p>
+                        <p className="text-xs text-[var(--text-secondary)]">{inv.email}{inv.review_notes ? t("investorAdmin.list.hasReviewNotes") : ""}</p>
                       </div>
                       <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusColor} bg-opacity-10`}>
                         <StatusIcon className="w-3 h-3" />
-                        {STATUS_LABELS[inv.approval_status]}
+                        {t(STATUS_LABELS[inv.approval_status])}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
@@ -176,7 +184,7 @@ export default function AdminInvestorsPage() {
                             onClick={() => handleAction(inv.id, "approve")}
                             disabled={acting === inv.id}
                           >
-                            Approve
+                            {t("investorAdmin.list.approve")}
                           </AppButton>
                           <AppButton
                             variant="secondary"
@@ -186,7 +194,7 @@ export default function AdminInvestorsPage() {
                             disabled={acting === inv.id}
                             style={{ color: "var(--chart-danger)" }}
                           >
-                            Reject
+                            {t("investorAdmin.list.reject")}
                           </AppButton>
                         </>
                       )}
@@ -198,7 +206,7 @@ export default function AdminInvestorsPage() {
                           onClick={() => handleAction(inv.id, "suspend")}
                           disabled={acting === inv.id}
                         >
-                          Suspend
+                          {t("investorAdmin.list.suspend")}
                         </AppButton>
                       )}
                       {inv.approval_status === "suspended" && (
@@ -209,7 +217,7 @@ export default function AdminInvestorsPage() {
                           onClick={() => handleAction(inv.id, "approve")}
                           disabled={acting === inv.id}
                         >
-                          Re-activate
+                          {t("investorAdmin.list.reactivate")}
                         </AppButton>
                       )}
                     </div>
@@ -232,10 +240,10 @@ export default function AdminInvestorsPage() {
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   {[
-                    ["Name", detail.name], ["Email", detail.email],
-                    ["Status", detail.approval_status], ["Qualification", detail.qualification_status || "—"],
-                    ["Website", detail.website || "—"], ["LinkedIn", detail.linkedin || "—"],
-                    ["Completion", `${detail.profile_completion || 0}%`],
+                    [t("investorAdmin.list.name"), detail.name], [t("investorAdmin.list.email"), detail.email],
+                    [t("investorAdmin.list.status"), detail.approval_status], [t("investorAdmin.list.qualification"), detail.qualification_status || "—"],
+                    [t("investorAdmin.list.website"), detail.website || "—"], [t("investorAdmin.list.linkedIn"), detail.linkedin || "—"],
+                    [t("investorAdmin.list.completion"), `${detail.profile_completion || 0}%`],
                   ].map(([l, v], i) => (
                     <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
                       <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
@@ -243,16 +251,16 @@ export default function AdminInvestorsPage() {
                     </div>
                   ))}
                 </div>
-                {detail.biography && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Biography</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
-                {detail.investment_experience && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">Experience</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
+                {detail.biography && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">{t("investorAdmin.list.biography")}</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
+                {detail.investment_experience && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">{t("investorAdmin.list.experience")}</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
                 {detail.review_notes ? (
                   <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">Review Notes</p>
+                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">{t("investorAdmin.list.reviewNotes")}</p>
                     <p className="text-xs text-[var(--text-primary)]">{detail.review_notes}</p>
-                    {detail.reviewed_by && <p className="text-[10px] text-[var(--text-tertiary)] mt-1">Reviewed by: {detail.reviewed_by}</p>}
+                    {detail.reviewed_by && <p className="text-[10px] text-[var(--text-tertiary)] mt-1">{t("investorAdmin.list.reviewedBy")} {detail.reviewed_by}</p>}
                   </div>
                 ) : (
-                  <p className="text-xs text-[var(--text-tertiary)] text-center py-4">No review notes yet</p>
+                  <p className="text-xs text-[var(--text-tertiary)] text-center py-4">{t("investorAdmin.list.noReviewNotes")}</p>
                 )}
               </div>
             </div>
