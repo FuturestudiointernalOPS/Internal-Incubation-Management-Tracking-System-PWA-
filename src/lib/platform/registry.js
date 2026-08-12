@@ -57,6 +57,18 @@ const REGISTERED_MODULES = [
     future: false,
   },
   {
+    id: "platform-import-review",
+    name: "Identity Review",
+    description: "Verify identity flags raised during historical import",
+    icon: "User",
+    href: "/admin/platform/import/review",
+    enabled: true,
+    visible: true,
+    permissions: ["super_admin"],
+    order: 4,
+    future: false,
+  },
+  {
     id: "platform-scores",
     name: "Scores",
     description: "Filter evaluated applicants by AI score threshold",
@@ -65,7 +77,7 @@ const REGISTERED_MODULES = [
     enabled: true,
     visible: true,
     permissions: ["super_admin"],
-    order: 4,
+    order: 5,
     future: false,
   },
 ];

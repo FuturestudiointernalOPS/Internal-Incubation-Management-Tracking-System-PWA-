@@ -7,6 +7,7 @@ import {
   FileText,
   CheckCircle,
   AlertCircle,
+  AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Loader2,
@@ -14,6 +15,7 @@ import {
   RefreshCw,
   Download,
 } from "lucide-react";
+import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const STEPS = [
@@ -657,6 +659,16 @@ export default function ImportPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {importResult.needs_review > 0 && (
+              <Link
+                href="/admin/platform/import/review?status=pending"
+                className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                Review {importResult.needs_review} Flagged Identit{importResult.needs_review === 1 ? "y" : "ies"}
+              </Link>
             )}
 
             <button

@@ -130,7 +130,7 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "admin"]);
     if (authError) return authError;
 
-    const { form_id, run_id, mapping, csv_rows } = await req.json();
+    const { form_id, run_id, mapping, csv_rows, batch_id } = await req.json();
     if (!form_id || !run_id || !mapping || !csv_rows) {
       return NextResponse.json(
         { success: false, error: "form_id, run_id, mapping, and csv_rows are required" },
@@ -138,7 +138,7 @@ export async function POST(req) {
       );
     }
 
-    // Self-heal: ensure import batch table exists (additive, idempotent)
+    // Self-heal: ensure import batch + review flag tables exist (additive, idempotent)
     try {
       await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_batches (
         id SERIAL PRIMARY KEY,
@@ -152,24 +152,58 @@ export async function POST(req) {
         created_by TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_review_flags (
+        id SERIAL PRIMARY KEY,
+        batch_id INTEGER,
+        form_id INTEGER NOT NULL,
+        run_id INTEGER NOT NULL,
+        row_number INTEGER,
+        applicant_name TEXT,
+        applicant_email TEXT,
+        matched_cid TEXT,
+        matched_name TEXT,
+        method TEXT,
+        reason TEXT,
+        status TEXT DEFAULT 'pending',
+        created_at TIMESTAMP DEFAULT NOW()
+      )`);
     } catch (e) {
-      console.warn("[Import] Could not ensure batch table:", e.message);
+      console.warn("[Import] Could not ensure batch tables:", e.message);
     }
 
     const hash = fileHash(csv_rows);
 
     let duplicateBatch = false;
     let previousBatch = null;
-    try {
-      const prev = await db.execute({
-        sql: "SELECT id, created_at, imported, needs_review FROM platform_import_batches WHERE run_id = ? AND file_hash = ? ORDER BY id DESC LIMIT 1",
-        args: [parseInt(run_id), hash],
-      });
-      if (prev.rows.length > 0) {
-        duplicateBatch = true;
-        previousBatch = prev.rows[0];
+    let activeBatchId = batch_id ? parseInt(batch_id) : null;
+
+    // Detect previous import of the same file (only when starting a fresh batch)
+    if (!activeBatchId) {
+      try {
+        const prev = await db.execute({
+          sql: "SELECT id, created_at, imported, needs_review FROM platform_import_batches WHERE run_id = ? AND file_hash = ? ORDER BY id DESC LIMIT 1",
+          args: [parseInt(run_id), hash],
+        });
+        if (prev.rows.length > 0) {
+          duplicateBatch = true;
+          previousBatch = prev.rows[0];
+        }
+      } catch (_) {}
+    }
+
+    // Create the batch row upfront so review flags can reference it
+    if (!activeBatchId) {
+      try {
+        const batchRes = await db.execute({
+          sql: `INSERT INTO platform_import_batches (form_id, run_id, file_hash, total_rows, imported, skipped, needs_review, created_by)
+                VALUES (?, ?, ?, 0, 0, 0, 0, ?) RETURNING id`,
+          args: [parseInt(form_id), parseInt(run_id), hash, "system"],
+        });
+        activeBatchId = batchRes.rows[0]?.id || null;
+      } catch (e) {
+        console.warn("[Import] Batch row creation failed:", e.message);
       }
-    } catch (_) {}
+    }
 
     let imported = 0;
     let skipped = 0;
@@ -277,6 +311,9 @@ export async function POST(req) {
 
         if (uncertain) {
           needsReview++;
+          const reason = matchMethod === "name_partial"
+            ? "Partial name match — possible duplicate, verify identity"
+            : "Name-only match with different email/phone — verify identity";
           reviewRows.push({
             row: i + 1,
             name,
@@ -284,10 +321,27 @@ export async function POST(req) {
             matched_cid: contact.cid,
             matched_name: contact.name,
             method: matchMethod,
-            reason: matchMethod === "name_partial"
-              ? "Partial name match — possible duplicate, verify identity"
-              : "Name-only match with different email/phone — verify identity",
+            reason,
           });
+          // Persist flag for the review screen (non-blocking)
+          try {
+            await db.execute({
+              sql: `INSERT INTO platform_import_review_flags (batch_id, form_id, run_id, row_number, applicant_name, applicant_email, matched_cid, matched_name, method, reason)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              args: [
+                activeBatchId,
+                parseInt(form_id),
+                parseInt(run_id),
+                i + 1,
+                name,
+                email || null,
+                contact.cid,
+                contact.name,
+                matchMethod,
+                reason,
+              ],
+            });
+          } catch (_) {}
         }
 
         imported++;
@@ -297,14 +351,18 @@ export async function POST(req) {
       }
     }
 
-    let batchId = null;
+    // Accumulate counts into the batch row
+    let batchId = activeBatchId;
     try {
-      const batchRes = await db.execute({
-        sql: `INSERT INTO platform_import_batches (form_id, run_id, file_hash, total_rows, imported, skipped, needs_review, created_by)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [parseInt(form_id), parseInt(run_id), hash, csv_rows.length, imported, skipped, needsReview, "system"],
+      await db.execute({
+        sql: `UPDATE platform_import_batches
+              SET total_rows = total_rows + ?,
+                  imported = imported + ?,
+                  skipped = skipped + ?,
+                  needs_review = needs_review + ?
+              WHERE id = ?`,
+        args: [csv_rows.length, imported, skipped, needsReview, batchId],
       });
-      batchId = batchRes.rows[0]?.id || null;
     } catch (e) {
       console.warn("[Import] Batch record failed:", e.message);
     }
