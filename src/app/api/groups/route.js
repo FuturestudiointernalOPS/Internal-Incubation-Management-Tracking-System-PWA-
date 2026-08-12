@@ -63,24 +63,28 @@ export async function POST(req) {
       );
     }
 
-    // Self-healing: ensure required columns exist (additive, idempotent)
-    try {
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
-    } catch (e) {}
-
     // Generate a unique registration_id (matches families route pattern: GRP-XXXX123)
     const registration_id =
       "GRP-" +
       Math.random().toString(36).slice(2, 6).toUpperCase() +
       Math.floor(Math.random() * 1000);
 
-    const result = await db.execute({
-      sql: `INSERT INTO families (program_id, name, type, description, default_role, registration_id)
-             VALUES (?, ?, ?, ?, ?, ?) RETURNING id, registration_id`,
-      args: [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id],
-    });
+    const INSERT_SQL = `INSERT INTO families (program_id, name, type, description, default_role, registration_id)
+             VALUES (?, ?, ?, ?, ?, ?) RETURNING id, registration_id`;
+    const INSERT_ARGS = [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id];
+
+    let result;
+    try {
+      // Fast path: no extra queries when schema is healthy
+      result = await db.execute({ sql: INSERT_SQL, args: INSERT_ARGS });
+    } catch (insertErr) {
+      // Self-heal only on failure: add missing columns once, then retry once
+      if (!/does not exist/i.test(insertErr.message || "")) throw insertErr;
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+      result = await db.execute({ sql: INSERT_SQL, args: INSERT_ARGS });
+    }
 
     const row = result.rows?.[0];
     const id = row?.id ?? result.lastInsertRowid;
@@ -113,13 +117,6 @@ export async function PUT(req) {
       );
     }
 
-    // Self-healing: ensure required columns exist (additive, idempotent)
-    try {
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
-    } catch (e) {}
-
     const updates = [];
     const args = [];
 
@@ -137,10 +134,19 @@ export async function PUT(req) {
     }
 
     args.push(id);
-    await db.execute({
-      sql: `UPDATE families SET ${updates.join(", ")} WHERE id = ?`,
-      args,
-    });
+    const UPDATE_SQL = `UPDATE families SET ${updates.join(", ")} WHERE id = ?`;
+
+    try {
+      // Fast path: no extra queries when schema is healthy
+      await db.execute({ sql: UPDATE_SQL, args });
+    } catch (updateErr) {
+      // Self-heal only on failure: add missing columns once, then retry once
+      if (!/does not exist/i.test(updateErr.message || "")) throw updateErr;
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+      await db.execute({ sql: UPDATE_SQL, args });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
