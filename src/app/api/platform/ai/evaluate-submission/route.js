@@ -102,7 +102,11 @@ async function processSubmission(db, subId) {
         args: [subId],
       });
     } catch (_) {}
-    return { ok: true };
+
+    // ── AUTO-APPROVE BY CUTOFF (optional, configurable per form) ──
+    await maybeAutoApprove(db, subId, result);
+
+    return { ok: true, score: result.overall_score };
   } catch (e) {
     const msg = e?.message || "Unknown error";
     try {
@@ -114,6 +118,75 @@ async function processSubmission(db, subId) {
       });
     } catch (_) {}
     return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Auto-approve a submission when its score meets the form's configured
+ * cutoff. Reuses the existing review automation (group assignment,
+ * approval email, activation) — no parallel system.
+ */
+async function maybeAutoApprove(db, submissionId, evaluation) {
+  try {
+    const sub = await db.execute({
+      sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
+      args: [submissionId],
+    });
+    if (sub.rows.length === 0) return;
+    const submission = sub.rows[0];
+    if (submission.status !== "submitted") return; // never override existing decision
+
+    const run = await db.execute({
+      sql: "SELECT * FROM platform_form_runs WHERE id = ?",
+      args: [submission.run_id],
+    });
+    if (run.rows.length === 0) return;
+
+    const form = await db.execute({
+      sql: "SELECT * FROM platform_forms WHERE id = ?",
+      args: [run.rows[0].form_id],
+    });
+    if (form.rows.length === 0) return;
+
+    const auto = (form.rows[0].settings || {}).automation;
+    const cutoff = auto?.auto_approve_cutoff;
+    const autoApproveEnabled = auto?.auto_approve === true;
+    if (!autoApproveEnabled || cutoff == null || isNaN(parseFloat(cutoff))) return;
+
+    const score = parseFloat(evaluation?.overall_score);
+    if (isNaN(score) || score < parseFloat(cutoff)) return;
+
+    // Approve through the same path a human reviewer uses
+    const { onReview } = await import("@/lib/platform/automation");
+    const comment = `Auto-approved: AI score ${score} meets cutoff ${cutoff}`;
+
+    // Record review row (system reviewer)
+    await db.execute({
+      sql: `INSERT INTO platform_submission_reviews (submission_id, reviewer_id, reviewer_name, decision, comment) VALUES (?, 'system', 'System Auto-Approval', 'approved', ?)`,
+      args: [submissionId, comment],
+    });
+
+    // Update submission status
+    const updated = await db.execute({
+      sql: "UPDATE platform_form_submissions SET status = 'approved', updated_at = NOW() WHERE id = ? AND status = 'submitted' RETURNING *",
+      args: [submissionId],
+    });
+    if (updated.rows.length === 0) return; // raced with another decision
+
+    // Fire the same REVIEW_COMPLETED automation (group + emails)
+    try {
+      await onReview(
+        { id: null, submission_id: submissionId, decision: "approved", comment, reviewer_name: "System Auto-Approval" },
+        updated.rows[0],
+        run.rows[0],
+        { cid: "system", role: "system" },
+        form.rows[0]
+      );
+    } catch (e) {
+      console.error("[Auto-Approve] Automation error:", e.message);
+    }
+  } catch (e) {
+    console.error("[Auto-Approve] Error:", e.message);
   }
 }
 
@@ -186,7 +259,28 @@ export async function POST(req) {
     // ── PROGRESS ONLY ──
     if (body.action === "progress" && body.form_id) {
       const progress = await getProgress(db, body.form_id);
-      return NextResponse.json({ success: true, progress });
+      // Approval + email stats for the dashboard panel
+      let approvals = { approved: 0, rejected: 0 };
+      let emailStats = { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 };
+      try {
+        const appRes = await db.execute({
+          sql: `SELECT ps.status, COUNT(*)::int AS cnt
+                FROM platform_form_submissions ps
+                JOIN platform_form_runs r ON ps.run_id = r.id
+                WHERE r.form_id = ? AND ps.status IN ('approved','rejected')
+                GROUP BY ps.status`,
+          args: [parseInt(body.form_id)],
+        });
+        for (const row of appRes.rows) {
+          if (row.status === "approved") approvals.approved = row.cnt;
+          if (row.status === "rejected") approvals.rejected = row.cnt;
+        }
+      } catch (_) {}
+      try {
+        const { getEmailStatsForForm } = await import("@/lib/email");
+        emailStats = await getEmailStatsForForm(body.form_id);
+      } catch (_) {}
+      return NextResponse.json({ success: true, progress, approvals, emails: emailStats });
     }
 
     // ── BATCH / RETRY ──
@@ -212,9 +306,23 @@ export async function POST(req) {
     }
 
     // ── SINGLE EVALUATION ──
-    const { submission_id } = body;
+    const { submission_id, force } = body;
     if (!submission_id) {
       return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
+    }
+
+    // Manual Re-evaluate: delete prior evaluations so exactly one current row remains
+    if (force) {
+      try {
+        await db.execute({
+          sql: "DELETE FROM platform_submission_evaluations WHERE submission_id = ?",
+          args: [parseInt(submission_id)],
+        });
+        await db.execute({
+          sql: "DELETE FROM platform_evaluation_failures WHERE submission_id = ?",
+          args: [parseInt(submission_id)],
+        });
+      } catch (_) {}
     }
 
     const evaluation = await evaluateSubmission(submission_id);
@@ -222,7 +330,10 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Evaluation failed or no framework configured" }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, evaluation });
+    // Auto-approve by cutoff applies to manual single evaluation too
+    await maybeAutoApprove(db, parseInt(submission_id), evaluation);
+
+    return NextResponse.json({ success: true, evaluation, re_evaluated: !!force });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
