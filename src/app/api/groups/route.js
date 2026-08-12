@@ -70,17 +70,25 @@ export async function POST(req) {
       await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
     } catch (e) {}
 
+    // Generate a unique registration_id (matches families route pattern: GRP-XXXX123)
+    const registration_id =
+      "GRP-" +
+      Math.random().toString(36).slice(2, 6).toUpperCase() +
+      Math.floor(Math.random() * 1000);
+
     const result = await db.execute({
-      sql: `INSERT INTO families (program_id, name, type, description, default_role)
-             VALUES (?, ?, ?, ?, ?) RETURNING id`,
-      args: [program_id || null, name, type || "individual", description || null, body.default_role || null],
+      sql: `INSERT INTO families (program_id, name, type, description, default_role, registration_id)
+             VALUES (?, ?, ?, ?, ?, ?) RETURNING id, registration_id`,
+      args: [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id],
     });
 
-    const id = result.rows?.[0]?.id ?? result.lastInsertRowid;
+    const row = result.rows?.[0];
+    const id = row?.id ?? result.lastInsertRowid;
+    const regId = row?.registration_id ?? registration_id;
 
     return NextResponse.json({
       success: true,
-      group: { id, program_id, name, type, description },
+      group: { id, registration_id: regId, program_id, name, type, description },
     });
   } catch (error) {
     return NextResponse.json(
