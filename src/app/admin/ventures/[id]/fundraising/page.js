@@ -7,6 +7,7 @@ import {
   TrendingUp, MessageCircle, Phone, Mail, Users,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const STAGES = [
   { key: "prospect", label: "Prospect", color: "bg-slate-500/10 text-slate-400" },
@@ -25,6 +26,18 @@ const ACTIVITY_ICONS = { email: Mail, call: Phone, meeting: Users, demo: Target,
 export default function VentureFundraisingPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
+  const stageLabels = {
+    prospect: t("vadmin.fundraising.stageProspect"),
+    contacted: t("vadmin.fundraising.stageContacted"),
+    meeting_scheduled: t("vadmin.fundraising.meeting"),
+    pitch_delivered: t("vadmin.fundraising.stagePitched"),
+    due_diligence: t("vadmin.fundraising.stageDueDiligence"),
+    negotiation: t("vadmin.fundraising.stageNegotiation"),
+    term_sheet: t("vadmin.fundraising.stageTermSheet"),
+    closed_won: t("vadmin.fundraising.won"),
+    closed_lost: t("vadmin.fundraising.lost"),
+  };
   const [venture, setVenture] = useState(null);
   const [opportunities, setOpportunities] = useState([]);
   const [analytics, setAnalytics] = useState(null);
@@ -124,15 +137,15 @@ export default function VentureFundraisingPage() {
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.fundraising.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> Fundraising Pipeline
+              <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.fundraising.title")}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name||""} · {opportunities.length} opportunities · ${totalValue.toLocaleString()} total</p>
+            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name||""} · {t("vadmin.fundraising.opportunitiesSummary", { count: opportunities.length })} · {t("vadmin.fundraising.totalSummary", { amount: `$${totalValue.toLocaleString()}` })}</p>
           </div>
           <button onClick={() => setShowCreateModal(true)} className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
-            <Plus className="w-3.5 h-3.5" /> Add Opportunity
+            <Plus className="w-3.5 h-3.5" /> {t("vadmin.fundraising.addOpportunity")}
           </button>
         </div>
 
@@ -140,23 +153,23 @@ export default function VentureFundraisingPage() {
         {analytics && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[7px] font-black text-slate-500 uppercase">Pipeline</p>
+              <p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.pipeline")}</p>
               <p className="text-lg font-black">${(analytics.total_pipeline_value||0).toLocaleString()}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[7px] font-black text-slate-500 uppercase">Opps</p>
+              <p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.opps")}</p>
               <p className="text-lg font-black">{analytics.total_opportunities||0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[7px] font-black text-slate-500 uppercase">Won</p>
+              <p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.won")}</p>
               <p className="text-lg font-black text-emerald-400">{analytics.won||0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[7px] font-black text-slate-500 uppercase">Lost</p>
+              <p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.lost")}</p>
               <p className="text-lg font-black text-rose-400">{analytics.lost||0}</p>
             </div>
             <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[7px] font-black text-slate-500 uppercase">Win Rate</p>
+              <p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.winRate")}</p>
               <p className="text-lg font-black">{analytics.win_rate||0}%</p>
             </div>
           </div>
@@ -180,23 +193,23 @@ export default function VentureFundraisingPage() {
                   <div className="rounded-2xl border border-[var(--border-primary)] bg-tertiary">
                     <div className="flex items-center justify-between p-3 border-b border-[var(--border-primary)]">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[8px] font-black uppercase tracking-wider ${stage.color}`}>{stage.label}</span>
+                        <span className={`text-[8px] font-black uppercase tracking-wider ${stage.color}`}>{stageLabels[stage.key]}</span>
                       </div>
                       <span className="text-[8px] font-bold text-slate-500 bg-primary px-1.5 py-0.5 rounded">{items.length}</span>
                     </div>
                     <div className="p-2 space-y-2 min-h-[120px]">
-                      {items.length === 0 && <p className="text-[8px] text-slate-600 text-center py-4">Empty</p>}
+                      {items.length === 0 && <p className="text-[8px] text-slate-600 text-center py-4">{t("vadmin.fundraising.empty")}</p>}
                       {items.map((opp) => (
                         <div key={opp.id} onClick={() => loadDetail(opp.id)}
                           className="p-3 rounded-xl bg-primary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
-                          <p className="text-[10px] font-bold text-[var(--text-primary)]">{opp.investor_name || "Unknown"}</p>
+                          <p className="text-[10px] font-bold text-[var(--text-primary)]">{opp.investor_name || t("vadmin.fundraising.unknown")}</p>
                           {opp.expected_amount && <p className="text-[9px] font-black text-[var(--brand-orange)] mt-1">${parseFloat(opp.expected_amount).toLocaleString()}</p>}
                           <div className="flex items-center gap-2 mt-1.5 text-[7px] text-slate-500">
                             <span>{opp.probability||0}%</span>
-                            {opp.expected_close_date && <span>Due {new Date(opp.expected_close_date).toLocaleDateString()}</span>}
+                            {opp.expected_close_date && <span>{t("vadmin.fundraising.dueDate", { date: new Date(opp.expected_close_date).toLocaleDateString() })}</span>}
                           </div>
                           {progressBar(opp.probability||0)}
-                          {opp.next_action && <p className="text-[7px] text-amber-400 mt-1">Next: {opp.next_action}</p>}
+                          {opp.next_action && <p className="text-[7px] text-amber-400 mt-1">{t("vadmin.fundraising.nextActionSummary", { action: opp.next_action })}</p>}
                         </div>
                       ))}
                       {/* Quick stage move */}
@@ -216,7 +229,7 @@ export default function VentureFundraisingPage() {
         {activeView === "list" && (
           <div className="space-y-1">
             {opportunities.length === 0 ? (
-              <div className="text-center py-16"><TrendingUp className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No opportunities</p></div>
+              <div className="text-center py-16"><TrendingUp className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.fundraising.noOpportunities")}</p></div>
             ) : (
               opportunities.map((opp) => {
                 const sc = STAGES.find((s) => s.key === opp.stage) || STAGES[0];
@@ -225,9 +238,9 @@ export default function VentureFundraisingPage() {
                     className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer hover:border-[var(--brand-orange)]/30 transition-all">
                     <span className={`w-2 h-2 rounded-full ${sc.color.split(" ")[0].replace("text-", "bg-")} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-[var(--text-primary)]">{opp.investor_name || "Unknown"}</p>
+                      <p className="text-xs font-bold text-[var(--text-primary)]">{opp.investor_name || t("vadmin.fundraising.unknown")}</p>
                       <div className="flex items-center gap-3 text-[8px] text-slate-500 mt-0.5">
-                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{sc.label}</span>
+                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{stageLabels[sc.key]}</span>
                         {opp.expected_amount && <span>${parseFloat(opp.expected_amount).toLocaleString()}</span>}
                         <span>{opp.probability||0}%</span>
                       </div>
@@ -235,7 +248,7 @@ export default function VentureFundraisingPage() {
                     <div className="flex gap-2 shrink-0">
                       <select value={opp.stage} onChange={(e) => updateStage(opp.id, e.target.value)} onClick={(e) => e.stopPropagation()}
                         className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none">
-                        {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                        {STAGES.map((s) => <option key={s.key} value={s.key}>{stageLabels[s.key]}</option>)}
                       </select>
                     </div>
                   </div>
@@ -251,47 +264,47 @@ export default function VentureFundraisingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">New Opportunity</h2>
+              <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.fundraising.newOpportunity")}</h2>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Investor Name *</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.investorNameLabel")}</label>
                   <input value={oForm.investor_name} onChange={(e) => setOForm((p) => ({ ...p, investor_name: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Stage</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.stage")}</label>
                   <select value={oForm.stage} onChange={(e) => setOForm((p) => ({ ...p, stage: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    {STAGES.map((s) => <option key={s.key} value={s.key}>{stageLabels[s.key]}</option>)}
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Expected Amount ($)</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.expectedAmountLabel")}</label>
                   <input type="number" value={oForm.expected_amount} onChange={(e) => setOForm((p) => ({ ...p, expected_amount: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Probability (%)</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.probabilityLabel")}</label>
                   <input type="number" min={0} max={100} value={oForm.probability} onChange={(e) => setOForm((p) => ({ ...p, probability: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Expected Close</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.expectedCloseLabel")}</label>
                   <input type="date" value={oForm.expected_close_date} onChange={(e) => setOForm((p) => ({ ...p, expected_close_date: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Next Action</label>
-                  <input value={oForm.next_action} onChange={(e) => setOForm((p) => ({ ...p, next_action: e.target.value }))} placeholder="e.g., Send follow-up" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.fundraising.nextAction")}</label>
+                  <input value={oForm.next_action} onChange={(e) => setOForm((p) => ({ ...p, next_action: e.target.value }))} placeholder={t("vadmin.fundraising.nextActionPlaceholder")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.fundraising.cancel")}</button>
               <button onClick={createOpp} disabled={saving} className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Create
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {t("vadmin.fundraising.create")}
               </button>
             </div>
           </div>
@@ -306,7 +319,7 @@ export default function VentureFundraisingPage() {
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedOpp.investor_name || "Unknown"}</h2>
+                  <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedOpp.investor_name || t("vadmin.fundraising.unknown")}</h2>
                   <p className="text-[9px] text-slate-500">{selectedOpp.investor_email}</p>
                 </div>
                 <button onClick={() => setShowDetail(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
@@ -315,24 +328,24 @@ export default function VentureFundraisingPage() {
               {/* Stage selector */}
               <select value={selectedOpp.stage} onChange={(e) => { updateStage(selectedOpp.id, e.target.value); setSelectedOpp((p) => ({ ...p, stage: e.target.value })); }}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                {STAGES.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+                {STAGES.map((s) => <option key={s.key} value={s.key}>{stageLabels[s.key]}</option>)}
               </select>
 
               <div className="grid grid-cols-2 gap-3 text-[10px]">
-                {selectedOpp.expected_amount && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Amount</p><p className="font-bold mt-0.5 text-[var(--brand-orange)]">${parseFloat(selectedOpp.expected_amount).toLocaleString()}</p></div>}
-                <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Probability</p><p className="font-bold mt-0.5">{selectedOpp.probability||0}%</p></div>
-                {selectedOpp.expected_close_date && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Close Date</p><p className="font-bold mt-0.5">{new Date(selectedOpp.expected_close_date).toLocaleDateString()}</p></div>}
-                {selectedOpp.next_action && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">Next Action</p><p className="font-bold mt-0.5 text-amber-400">{selectedOpp.next_action}</p></div>}
+                {selectedOpp.expected_amount && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.amount")}</p><p className="font-bold mt-0.5 text-[var(--brand-orange)]">${parseFloat(selectedOpp.expected_amount).toLocaleString()}</p></div>}
+                <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.probability")}</p><p className="font-bold mt-0.5">{selectedOpp.probability||0}%</p></div>
+                {selectedOpp.expected_close_date && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.closeDate")}</p><p className="font-bold mt-0.5">{new Date(selectedOpp.expected_close_date).toLocaleDateString()}</p></div>}
+                {selectedOpp.next_action && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.fundraising.nextAction")}</p><p className="font-bold mt-0.5 text-amber-400">{selectedOpp.next_action}</p></div>}
               </div>
 
               {/* Stage History */}
               {(selectedOpp.stage_history||[]).length > 0 && (
                 <div>
-                  <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Stage History</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase mb-2">{t("vadmin.fundraising.stageHistory")}</p>
                   <div className="space-y-1">
                     {selectedOpp.stage_history.map((h) => (
                       <div key={h.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg text-[8px]">
-                        <span className="font-bold">{h.previous_stage||"Start"}</span>
+                        <span className="font-bold">{h.previous_stage||t("vadmin.fundraising.start")}</span>
                         <span>→</span>
                         <span className="font-bold text-[var(--brand-orange)]">{h.new_stage}</span>
                         <span className="text-slate-500 ml-auto">{new Date(h.created_at).toLocaleDateString()}</span>
@@ -344,17 +357,17 @@ export default function VentureFundraisingPage() {
 
               {/* Activities */}
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Activities</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase mb-2">{t("vadmin.fundraising.activities")}</p>
                 <div className="flex gap-2 mb-2">
                   <select value={activityForm.activity_type} onChange={(e) => setActivityForm((p) => ({ ...p, activity_type: e.target.value }))}
                     className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[8px] font-bold outline-none">
-                    <option value="email">Email</option><option value="call">Call</option><option value="meeting">Meeting</option>
-                    <option value="demo">Demo</option><option value="reminder">Reminder</option><option value="follow_up">Follow-up</option><option value="task">Task</option>
+                    <option value="email">{t("vadmin.fundraising.activityEmail")}</option><option value="call">{t("vadmin.fundraising.activityCall")}</option><option value="meeting">{t("vadmin.fundraising.meeting")}</option>
+                    <option value="demo">{t("vadmin.fundraising.activityDemo")}</option><option value="reminder">{t("vadmin.fundraising.activityReminder")}</option><option value="follow_up">{t("vadmin.fundraising.activityFollowUp")}</option><option value="task">{t("vadmin.fundraising.activityTask")}</option>
                   </select>
-                  <input value={activityForm.title} onChange={(e) => setActivityForm((p) => ({ ...p, title: e.target.value }))} placeholder="Activity..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none" />
+                  <input value={activityForm.title} onChange={(e) => setActivityForm((p) => ({ ...p, title: e.target.value }))} placeholder={t("vadmin.fundraising.activityPlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none" />
                   <button onClick={addActivity} disabled={!activityForm.title.trim()} className="px-2 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[7px] font-black uppercase disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                 </div>
-                {(selectedOpp.activities||[]).length === 0 && <p className="text-[9px] text-slate-500 italic">No activities</p>}
+                {(selectedOpp.activities||[]).length === 0 && <p className="text-[9px] text-slate-500 italic">{t("vadmin.fundraising.noActivities")}</p>}
                 {(selectedOpp.activities||[]).map((a) => {
                   const Icon = ACTIVITY_ICONS[a.activity_type] || MessageCircle;
                   return (
@@ -370,7 +383,7 @@ export default function VentureFundraisingPage() {
 
               {/* Notes */}
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-2">Notes</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase mb-2">{t("vadmin.fundraising.notes")}</p>
                 {(selectedOpp.notes||[]).map((n) => (
                   <div key={n.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
                     <p className="text-[9px] text-[var(--text-secondary)]">{n.content}</p>
@@ -378,8 +391,8 @@ export default function VentureFundraisingPage() {
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">
-                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder="Add a note..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
-                  <button onClick={addNote} disabled={!noteText.trim()} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase disabled:opacity-30">Add</button>
+                  <input value={noteText} onChange={(e) => setNoteText(e.target.value)} placeholder={t("vadmin.fundraising.addNotePlaceholder")} className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none" />
+                  <button onClick={addNote} disabled={!noteText.trim()} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase disabled:opacity-30">{t("vadmin.fundraising.add")}</button>
                 </div>
               </div>
             </div>

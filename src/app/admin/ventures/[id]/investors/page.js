@@ -7,10 +7,12 @@ import {
   Building2, Globe, Linkedin, DollarSign, Target, TrendingUp, Users, Star,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [matches, setMatches] = useState([]);
   const [allInvestors, setAllInvestors] = useState([]);
@@ -98,20 +100,20 @@ export default function VentureInvestorsPage() {
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.investors.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <Target className="w-6 h-6 text-[var(--brand-orange)]" /> Investor Matching
+              <Target className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.investors.title")}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""} · {matches.length} matches</p>
+            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""} · {t("vadmin.investors.matches", { count: matches.length })}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={handleGenerate} disabled={generating}
               className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
-              {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} Generate Matches
+              {generating ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />} {t("vadmin.investors.generateMatches")}
             </button>
             <button onClick={() => setShowCreateModal(true)} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5">
-              <Plus className="w-3 h-3" /> Add Investor
+              <Plus className="w-3 h-3" /> {t("vadmin.investors.addInvestor")}
             </button>
           </div>
         </div>
@@ -119,8 +121,8 @@ export default function VentureInvestorsPage() {
         {/* View Tabs */}
         <div className="flex gap-1 border-b border-[var(--border-primary)]">
           {[
-            { id: "matches", label: `Matches (${matches.length})`, icon: Target },
-            { id: "directory", label: `Directory (${allInvestors.length})`, icon: Building2 },
+            { id: "matches", label: t("vadmin.investors.tabMatches", { count: matches.length }), icon: Target },
+            { id: "directory", label: t("vadmin.investors.tabDirectory", { count: allInvestors.length }), icon: Building2 },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -135,7 +137,7 @@ export default function VentureInvestorsPage() {
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search investors..."
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("vadmin.investors.searchPlaceholder")}
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
         </div>
 
@@ -143,7 +145,7 @@ export default function VentureInvestorsPage() {
         {activeView === "matches" && (
           <div className="space-y-3">
             {filteredMatches.length === 0 ? (
-              <div className="text-center py-16"><Target className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No matches yet. Click "Generate Matches" to find investors.</p></div>
+              <div className="text-center py-16"><Target className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.investors.noMatchesYet")}</p></div>
             ) : (
               filteredMatches.map((m) => (
                 <div key={m.id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
@@ -161,7 +163,7 @@ export default function VentureInvestorsPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-2xl font-black">{m.match_score}</span>
-                          <span className="text-[9px] text-slate-500">/100 match</span>
+                          <span className="text-[9px] text-slate-500">{t("vadmin.investors.matchScore")}</span>
                         </div>
                         {progressBar(m.match_score)}
                         {/* Match reasons */}
@@ -172,19 +174,19 @@ export default function VentureInvestorsPage() {
                         )}
                         {/* Ticket range */}
                         {m.min_ticket && m.max_ticket && (
-                          <p className="text-[8px] text-slate-500 mt-1">Ticket: ${parseInt(m.min_ticket).toLocaleString()} — ${parseInt(m.max_ticket).toLocaleString()}</p>
+                          <p className="text-[8px] text-slate-500 mt-1">{t("vadmin.investors.ticket")}: ${parseInt(m.min_ticket).toLocaleString()} — ${parseInt(m.max_ticket).toLocaleString()}</p>
                         )}
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
                       {m.status === "pending" && (
                         <>
-                          <button onClick={() => handleUpdateMatch(m.id, "contacted")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[7px] font-black uppercase hover:brightness-110">Contact</button>
-                          <button onClick={() => handleUpdateMatch(m.id, "rejected")} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[7px] font-black uppercase hover:brightness-110">Pass</button>
+                          <button onClick={() => handleUpdateMatch(m.id, "contacted")} className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 rounded-lg text-[7px] font-black uppercase hover:brightness-110">{t("vadmin.investors.contact")}</button>
+                          <button onClick={() => handleUpdateMatch(m.id, "rejected")} className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[7px] font-black uppercase hover:brightness-110">{t("vadmin.investors.pass")}</button>
                         </>
                       )}
-                      {m.status === "contacted" && <span className="text-[8px] font-bold text-amber-400">Contacted</span>}
-                      {m.status === "accepted" && <span className="text-[8px] font-bold text-emerald-400">Accepted</span>}
+                      {m.status === "contacted" && <span className="text-[8px] font-bold text-amber-400">{t("vadmin.investors.contacted")}</span>}
+                      {m.status === "accepted" && <span className="text-[8px] font-bold text-emerald-400">{t("vadmin.investors.accepted")}</span>}
                     </div>
                   </div>
                 </div>
@@ -197,7 +199,7 @@ export default function VentureInvestorsPage() {
         {activeView === "directory" && (
           <div className="space-y-2">
             {allInvestors.length === 0 ? (
-              <div className="text-center py-16"><Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No investors in directory</p></div>
+              <div className="text-center py-16"><Building2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.investors.noInvestorsDirectory")}</p></div>
             ) : (
               allInvestors.map((inv) => (
                 <div key={inv.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
@@ -228,43 +230,43 @@ export default function VentureInvestorsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">Add Investor</h2>
+              <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.investors.addInvestor")}</h2>
               <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Name *</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.investors.name")}</label>
                   <input value={invForm.name} onChange={(e) => setInvForm((p) => ({ ...p, name: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Email *</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.investors.email")}</label>
                   <input type="email" value={invForm.email} onChange={(e) => setInvForm((p) => ({ ...p, email: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Organization</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.investors.organization")}</label>
                 <input value={invForm.organization} onChange={(e) => setInvForm((p) => ({ ...p, organization: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Industries (comma-separated)</label>
-                  <input value={invForm.industries} onChange={(e) => setInvForm((p) => ({ ...p, industries: e.target.value }))} placeholder="fintech, saas" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.investors.industriesLabel")}</label>
+                  <input value={invForm.industries} onChange={(e) => setInvForm((p) => ({ ...p, industries: e.target.value }))} placeholder={t("vadmin.investors.industriesPlaceholder")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Preferred Stage</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.investors.preferredStage")}</label>
                   <select value={invForm.preferred_stage} onChange={(e) => setInvForm((p) => ({ ...p, preferred_stage: e.target.value }))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    <option value="">Any</option><option value="idea">Idea</option><option value="validation">Validation</option>
-                    <option value="early_traction">Early Traction</option><option value="growth">Growth</option><option value="scaling">Scaling</option>
+                    <option value="">{t("vadmin.investors.stageAny")}</option><option value="idea">{t("vadmin.investors.stageIdea")}</option><option value="validation">{t("vadmin.investors.stageValidation")}</option>
+                    <option value="early_traction">{t("vadmin.investors.stageEarlyTraction")}</option><option value="growth">{t("vadmin.investors.stageGrowth")}</option><option value="scaling">{t("vadmin.investors.stageScaling")}</option>
                   </select>
                 </div>
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.investors.cancel")}</button>
               <button onClick={handleCreateInvestor} disabled={saving}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} Add
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {t("vadmin.investors.add")}
               </button>
             </div>
           </div>
