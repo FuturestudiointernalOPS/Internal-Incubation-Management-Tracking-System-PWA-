@@ -639,24 +639,96 @@ export default function FormRunsPage() {
     setSaving(false);
   };
 
-  const handleBatchEvaluate = async () => {
-    if (!selectedRun?.form_id) return notify("No form linked");
-    setSaving(true);
+  // AI Evaluation progress state (Phase 4 client-driven batching)
+  const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
+
+  const fetchEvalProgress = async (formId) => {
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_id: selectedRun.form_id, action: "batch" }),
+        body: JSON.stringify({ form_id: formId, action: "progress" }),
       });
       const data = await res.json();
-      if (data.success) {
-        notify(`Evaluated ${data.evaluated} submissions` + (data.failed > 0 ? ` (${data.failed} failed)` : ""));
-        if (selectedRun) openRun(selectedRun);
-      } else {
-        notify(data.error || "Batch evaluation failed");
+      if (data.success) return data.progress;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const handleBatchEvaluate = async (retryOnly = false) => {
+    if (!selectedRun?.form_id) return notify("No form linked");
+    const formId = selectedRun.form_id;
+
+    // Initial progress snapshot
+    const initial = await fetchEvalProgress(formId);
+    if (initial) {
+      setEvalProgress({ ...initial, running: true, batch: 0, stopped: false });
+      if (initial.remaining === 0) {
+        notify(initial.failed > 0 ? `Evaluation complete — ${initial.failed} failed, use Retry Failed` : "All submissions already evaluated");
+        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        return;
       }
-    } catch (_) {}
-    setSaving(false);
+    } else {
+      notify("Could not read evaluation progress");
+      return;
+    }
+
+    // Client-driven loop: one request per batch of 20
+    let batchNo = 0;
+    let stopped = false;
+    while (true) {
+      batchNo++;
+      setEvalProgress((p) => p && { ...p, batch: batchNo });
+      let data;
+      try {
+        const res = await fetch("/api/platform/ai/evaluate-submission", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            form_id: formId,
+            action: retryOnly ? "retry_failed" : "batch",
+            batch_size: 20,
+          }),
+        });
+        data = await res.json();
+      } catch (_) {
+        stopped = true;
+        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        notify("Network error — evaluation paused. Click Continue to resume.");
+        break;
+      }
+
+      if (!data.success) {
+        stopped = true;
+        setEvalProgress((p) => p && { ...p, running: false, stopped: true });
+        notify(data.error || "Evaluation stopped");
+        break;
+      }
+
+      const prog = data.progress;
+      setEvalProgress({ ...prog, running: true, batch: batchNo, stopped: false });
+
+      if (prog.remaining === 0) {
+        setEvalProgress({ ...prog, running: false, batch: batchNo, stopped: true });
+        notify(
+          `Evaluation complete — ${prog.evaluated}/${prog.total}` +
+            (prog.failed > 0 ? ` (${prog.failed} failed)` : "")
+        );
+        break;
+      }
+
+      if (data.processed === 0 && data.evaluated === 0) {
+        // Nothing processed this round (all claimed/failed) — avoid infinite loop
+        setEvalProgress({ ...prog, running: false, batch: batchNo, stopped: true });
+        notify("No progress this batch — evaluation paused. Use Retry Failed or Continue.");
+        break;
+      }
+    }
+
+    if (selectedRun) openRun(selectedRun);
+    return { stopped };
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -715,9 +787,86 @@ export default function FormRunsPage() {
             <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> Reactivate</button>
           )}
           {selectedRun.status === "active" && (
-            <button onClick={handleBatchEvaluate} disabled={saving} className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 flex items-center gap-1 ml-auto"><Sparkles className="w-3 h-3" /> {saving ? "Evaluating..." : "Evaluate All"}</button>
+            <div className="ml-auto flex items-center gap-2">
+              {evalProgress?.running ? (
+                <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase flex items-center gap-2">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {evalProgress.evaluated}/{evalProgress.total} — {evalProgress.percent}%
+                </span>
+              ) : (
+                <>
+                  {evalProgress && evalProgress.failed > 0 && (
+                    <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[9px] font-black uppercase hover:bg-rose-500/20 flex items-center gap-1">
+                      <RotateCcw className="w-3 h-3" /> Retry {evalProgress.failed} Failed
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleBatchEvaluate(false)}
+                    className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    {evalProgress && evalProgress.remaining > 0 && !evalProgress.stopped
+                      ? "Continue Evaluation"
+                      : evalProgress && evalProgress.remaining > 0
+                      ? "Continue Evaluation"
+                      : "Evaluate All"}
+                  </button>
+                </>
+              )}
+            </div>
           )}
         </div>
+
+        {/* ─── AI EVALUATION PROGRESS PANEL ─── */}
+        {evalProgress && (evalProgress.running || evalProgress.stopped) && (
+          <div className="px-6 py-3 border-b border-purple-500/20 bg-purple-500/5 shrink-0">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2">
+                {evalProgress.running ? (
+                  <Loader2 className="w-4 h-4 text-purple-400 animate-spin" />
+                ) : (
+                  <PauseCircle className="w-4 h-4 text-purple-400" />
+                )}
+                <span className="text-[10px] font-black uppercase text-purple-300">
+                  {evalProgress.running ? "AI Evaluation in Progress" : "AI Evaluation Paused"}
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {evalProgress.evaluated} / {evalProgress.total} evaluated
+              </span>
+              <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                {evalProgress.percent}% complete
+              </span>
+              {evalProgress.batch > 0 && (
+                <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  Batch {evalProgress.batch}
+                </span>
+              )}
+              {evalProgress.failed > 0 && (
+                <span className="text-[10px] font-bold text-rose-500">
+                  {evalProgress.failed} failed
+                </span>
+              )}
+              {evalProgress.remaining > 0 && (
+                <span className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  {evalProgress.remaining} remaining
+                </span>
+              )}
+            </div>
+            {/* Progress bar */}
+            <div className="mt-2 w-full bg-[var(--border-primary)] rounded-full h-1.5 overflow-hidden">
+              <div
+                className="h-full bg-purple-500 rounded-full transition-all duration-300"
+                style={{ width: `${evalProgress.percent}%` }}
+              />
+            </div>
+            <p className="mt-2 text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+              {evalProgress.running
+                ? "Keep this page open. Completed evaluations are saved after each batch."
+                : "Process paused. Click Continue Evaluation to resume — already-completed evaluations are preserved."}
+            </p>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
