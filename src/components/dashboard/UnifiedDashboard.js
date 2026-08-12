@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
@@ -171,7 +172,7 @@ function hasMinRole(userRole, minRole) {
 
 export default function UnifiedDashboard({ role: propRole }) {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   // ── Auth / User ──
   const [user, setUser] = useState(null);
@@ -1221,10 +1222,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                                 : "text-slate-500",
                             )}
                           >
-                            {new Date(t.end_date).toLocaleDateString("en", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {formatLocaleDate(t.end_date, { month: "short", day: "numeric" }, lang)}
                           </span>
                         )}
                         <span
@@ -1480,11 +1478,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             {ev.title}
                           </p>
                           <p className="text-[7px] text-slate-500">
-                            {new Date(ev.date).toLocaleDateString("en", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {formatLocaleDate(ev.date, { weekday: "short", month: "short", day: "numeric" }, lang)}
                           </p>
                         </div>
                       </button>

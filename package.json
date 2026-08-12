@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "i18n:parity": "node scripts/i18n-parity.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"
   },
   "dependencies": {

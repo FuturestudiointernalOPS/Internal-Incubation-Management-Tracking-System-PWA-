@@ -30,6 +30,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
+import { formatLocaleDate } from "@/lib/constants";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -113,7 +114,7 @@ const statusLabelKey = (status) => {
 
 export default function StaffOpReport() {
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [user, setUser] = useState(null);
   const [reportType, setReportType] = useState("standup"); // "standup" | "retro" | "summary"
   const [weekInfo, setWeekInfo] = useState(getCurrentWeek());
@@ -2447,7 +2448,7 @@ export default function StaffOpReport() {
                       );
                       const friday = new Date(monday);
                       friday.setDate(monday.getDate() + 4);
-                      const dateRange = `${monday.toLocaleDateString("en", { month: "short", day: "numeric" })} - ${friday.toLocaleDateString("en", { month: "short", day: "numeric" })}`;
+                      const dateRange = `${formatLocaleDate(monday, { month: "short", day: "numeric" }, lang)} - ${formatLocaleDate(friday, { month: "short", day: "numeric" }, lang)}`;
 
                       return (
                         <div className="card p-5 space-y-4 border-[var(--brand-orange)]/20">
@@ -3330,13 +3331,11 @@ export default function StaffOpReport() {
                                     count: d.blockerResolved,
                                   }),
                                 );
-                              const dayLabel = new Date(
+                              const dayLabel = formatLocaleDate(
                                 day + "T00:00:00",
-                              ).toLocaleDateString("en", {
-                                weekday: "long",
-                                month: "long",
-                                day: "numeric",
-                              });
+                                { weekday: "long", month: "long", day: "numeric" },
+                                lang,
+                              );
                               return (
                                 <div key={day} className="flex gap-3">
                                   <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)] mt-1.5 shrink-0" />

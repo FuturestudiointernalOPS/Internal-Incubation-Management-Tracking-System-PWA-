@@ -170,11 +170,11 @@ export function getCurrentWeek() {
  * @param {boolean} [options.short=false] - Use short month format
  * @returns {string}
  */
-export function formatDate(date, options = {}) {
+export function formatDate(date, options = {}, lang = "en") {
   if (!date) return "—";
   try {
     const d = new Date(date);
-    return d.toLocaleDateString("en", {
+    return d.toLocaleDateString(lang, {
       month: options.short ? "short" : "long",
       day: "numeric",
       year:
@@ -188,15 +188,28 @@ export function formatDate(date, options = {}) {
 /**
  * Format a date with time
  */
-export function formatDateTime(date) {
+export function formatDateTime(date, lang = "en") {
   if (!date) return "—";
   try {
-    return new Date(date).toLocaleDateString("en", {
+    return new Date(date).toLocaleDateString(lang, {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
     });
+  } catch {
+    return String(date);
+  }
+}
+
+/**
+ * Locale-aware date formatter for arbitrary Intl options.
+ * e.g. formatLocaleDate(d, { weekday: "long", month: "long", day: "numeric" }, "fr")
+ */
+export function formatLocaleDate(date, options = {}, lang = "en") {
+  if (!date) return "";
+  try {
+    return new Date(date).toLocaleDateString(lang, options);
   } catch {
     return String(date);
   }

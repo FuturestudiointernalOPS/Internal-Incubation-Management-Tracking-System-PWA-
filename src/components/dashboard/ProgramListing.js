@@ -18,6 +18,8 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -60,6 +62,7 @@ function MiniMetric({ icon: Icon, label, value, color }) {
 
 // ─── Program Card ───────────────────────────────────────────────────
 function ProgramCard({ program, onSelect }) {
+  const { lang } = useI18n();
   const { metrics } = program;
   const progressColor =
     metrics.percentComplete >= 80
@@ -182,17 +185,11 @@ function ProgramCard({ program, onSelect }) {
           <Calendar className="w-3 h-3 text-[var(--text-tertiary)]" />
           <span className="text-[8px] text-[var(--text-tertiary)]">
             {program.startDate
-              ? new Date(program.startDate).toLocaleDateString("en", {
-                  month: "short",
-                  day: "numeric",
-                })
+              ? formatLocaleDate(program.startDate, { month: "short", day: "numeric" }, lang)
               : "N/A"}{" "}
             –{" "}
             {program.endDate
-              ? new Date(program.endDate).toLocaleDateString("en", {
-                  month: "short",
-                  day: "numeric",
-                })
+              ? formatLocaleDate(program.endDate, { month: "short", day: "numeric" }, lang)
               : "N/A"}
           </span>
         </div>

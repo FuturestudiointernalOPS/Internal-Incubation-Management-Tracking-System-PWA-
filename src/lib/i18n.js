@@ -79,11 +79,22 @@ const I18nContext = createContext({
 export function I18nProvider({ children }) {
   const [lang, setLang] = useState(DEFAULT_LANGUAGE);
 
-  // Load from localStorage on mount
+  // Load from localStorage on mount; fall back to browser language on first visit
   useEffect(() => {
     const saved = localStorage.getItem("impactos_lang");
     if (saved && LANGUAGES[saved]) {
       setLang(saved);
+      return;
+    }
+    const detected =
+      typeof navigator !== "undefined"
+        ? (navigator.language || navigator.languages?.[0] || "en")
+            .toLowerCase()
+            .slice(0, 2)
+        : "en";
+    if (LANGUAGES[detected]) {
+      setLang(detected);
+      localStorage.setItem("impactos_lang", detected);
     }
   }, []);
 
