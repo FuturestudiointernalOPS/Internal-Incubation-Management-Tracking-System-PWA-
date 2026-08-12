@@ -12,6 +12,7 @@ import {
   Save,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const INDUSTRIES = [
   "Fintech",
@@ -40,6 +41,7 @@ const BUSINESS_STAGES = [
 export default function EditVenturePage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
+  const { t } = useI18n();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -56,7 +58,7 @@ export default function EditVenturePage({ params }) {
       const res = await fetch(`/api/ventures/${id}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Venture not found");
+        setError(data.error || t("vadmin.edit.ventureNotFoundError"));
         return;
       }
       setForm({
@@ -69,7 +71,7 @@ export default function EditVenturePage({ params }) {
         logo_url: data.venture.logo_url || "",
       });
     } catch (e) {
-      setError("Failed to load venture");
+      setError(t("vadmin.edit.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -94,18 +96,18 @@ export default function EditVenturePage({ params }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Failed to save changes");
+        setError(data.error || t("vadmin.edit.saveFailed"));
         return;
       }
 
-      setSuccess("Changes saved successfully");
+      setSuccess(t("vadmin.edit.saveSuccess"));
 
       // Redirect back to venture detail after 1.5s
       setTimeout(() => {
         router.push(`/admin/ventures/${id}`);
       }, 1500);
     } catch (e) {
-      setError("Network error. Please try again.");
+      setError(t("vadmin.edit.networkError"));
     } finally {
       setSaving(false);
     }
@@ -126,10 +128,10 @@ export default function EditVenturePage({ params }) {
       <DashboardLayout role="super_admin">
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Venture Not Found</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.edit.ventureNotFound")}</h2>
           <p className="text-slate-500 mb-6">{error}</p>
           <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">
-            Back to Ventures
+            {t("vadmin.edit.backToVentures")}
           </button>
         </div>
       </DashboardLayout>
@@ -148,11 +150,11 @@ export default function EditVenturePage({ params }) {
             <div className="flex items-center gap-2">
               <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-                Venture OS
+                {t("vadmin.edit.ventureOs")}
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              Edit Venture
+              {t("vadmin.edit.title")}
             </h1>
           </div>
         </div>
@@ -182,16 +184,16 @@ export default function EditVenturePage({ params }) {
               </div>
               <div>
                 <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Company Information
+                  {t("vadmin.edit.companyInformation")}
                 </h2>
-                <p className="text-[9px] text-slate-500">Venture ID: {id}</p>
+                <p className="text-[9px] text-slate-500">{t("vadmin.edit.ventureId", { id })}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Company Name
+                  {t("vadmin.edit.companyName")}
                 </label>
                 <input
                   type="text"
@@ -203,7 +205,7 @@ export default function EditVenturePage({ params }) {
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Registration Number
+                  {t("vadmin.edit.registrationNumber")}
                 </label>
                 <input
                   type="text"
@@ -215,7 +217,7 @@ export default function EditVenturePage({ params }) {
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Website
+                  {t("vadmin.edit.website")}
                 </label>
                 <input
                   type="url"
@@ -227,7 +229,7 @@ export default function EditVenturePage({ params }) {
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Industry
+                  {t("vadmin.edit.industry")}
                 </label>
                 <select
                   value={form.industry}
@@ -242,7 +244,7 @@ export default function EditVenturePage({ params }) {
 
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Business Stage
+                  {t("vadmin.edit.businessStage")}
                 </label>
                 <select
                   value={form.business_stage}
@@ -250,14 +252,14 @@ export default function EditVenturePage({ params }) {
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 >
                   {BUSINESS_STAGES.map((stage) => (
-                    <option key={stage.value} value={stage.value}>{stage.label}</option>
+                    <option key={stage.value} value={stage.value}>{t(`vadmin.edit.stageOptions.${stage.value}`)}</option>
                   ))}
                 </select>
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Description
+                  {t("vadmin.edit.description")}
                 </label>
                 <textarea
                   value={form.description}
@@ -274,7 +276,7 @@ export default function EditVenturePage({ params }) {
                 onClick={() => router.back()}
                 className="px-6 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("vadmin.edit.cancel")}
               </button>
               <button
                 onClick={handleSave}
@@ -284,12 +286,12 @@ export default function EditVenturePage({ params }) {
                 {saving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
+                    {t("vadmin.edit.saving")}
                   </>
                 ) : (
                   <>
                     <Save className="w-4 h-4" />
-                    Save Changes
+                    {t("vadmin.edit.saveChanges")}
                   </>
                 )}
               </button>
