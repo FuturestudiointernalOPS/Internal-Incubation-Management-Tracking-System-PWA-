@@ -49,6 +49,9 @@ export default function PlatformForms() {
   const router = useRouter();
   const [forms, setForms] = useState([]);
   const [collections, setCollections] = useState([]);
+  const [families, setFamilies] = useState([]);
+  const [linkedGroups, setLinkedGroups] = useState({});
+  const [linkingFormId, setLinkingFormId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("published");
@@ -127,7 +130,31 @@ export default function PlatformForms() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { fetchForms(); fetchCollections(); }, [fetchForms, fetchCollections]);
+  useEffect(() => { fetchForms(); fetchCollections(); fetchFamilies(); }, [fetchForms, fetchCollections]);
+
+  const fetchFamilies = async () => {
+    try {
+      const res = await fetch("/api/groups");
+      const data = await res.json();
+      if (data.success) {
+        setFamilies(data.groups || []);
+        const map = {};
+        (data.groups || []).forEach((g) => { if (g.form_id) map[g.form_id] = { id: g.id, name: g.name }; });
+        setLinkedGroups(map);
+      }
+    } catch (_) {}
+  };
+
+  const linkFormToGroup = async (formId, groupId) => {
+    try {
+      setLinkingFormId(formId);
+      const res = await fetch("/api/groups", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: groupId, form_id: formId }) });
+      const data = await res.json();
+      if (data.success) { notify("Form linked to group"); fetchFamilies(); }
+      else notify(data.error || "Failed to link");
+    } catch (_) {}
+    setLinkingFormId(null);
+  };
 
   const genTempId = () => `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -738,6 +765,31 @@ export default function PlatformForms() {
                   <div className="flex items-center gap-2 mt-3">
                     <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${f.status === "published" ? "text-emerald-500 bg-emerald-500/10" : f.status === "draft" ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10"}`}>{f.status}</span>
                     <span className="text-[9px] text-[var(--text-secondary)]">v{f.version || 1}</span>
+                  </div>
+                  {/* Linked Group */}
+                  <div className="mt-3 pt-3 border-t border-[var(--border-primary)]">
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5">Linked Group</p>
+                    {linkedGroups[f.id] ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-[var(--brand-orange)]">{linkedGroups[f.id].name}</span>
+                        <button type="button" onClick={() => {
+                          if (confirm(`Unlink from ${linkedGroups[f.id].name}?`)) {
+                            fetch("/api/groups", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: linkedGroups[f.id].id, form_id: null }) }).then(r => r.json()).then(d => { if (d.success) { notify("Form unlinked"); fetchFamilies(); } });
+                          }
+                        }} className="text-[9px] text-rose-500 hover:underline font-bold">Unlink</button>
+                      </div>
+                    ) : (
+                      <select
+                        value=""
+                        onChange={(e) => { if (e.target.value) linkFormToGroup(f.id, e.target.value); }}
+                        className="w-full px-2 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                      >
+                        <option value="">Select group...</option>
+                        {families.filter((g) => !g.form_id || g.form_id === f.id).map((g) => (
+                          <option key={g.id} value={g.id}>{g.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 </div>
               );
