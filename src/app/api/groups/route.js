@@ -63,6 +63,13 @@ export async function POST(req) {
       );
     }
 
+    // Self-healing: ensure required columns exist (additive, idempotent)
+    try {
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+    } catch (e) {}
+
     const result = await db.execute({
       sql: `INSERT INTO families (program_id, name, type, description, default_role)
              VALUES (?, ?, ?, ?, ?) RETURNING id`,
@@ -97,6 +104,13 @@ export async function PUT(req) {
         { status: 400 }
       );
     }
+
+    // Self-healing: ensure required columns exist (additive, idempotent)
+    try {
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
+      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
+    } catch (e) {}
 
     const updates = [];
     const args = [];
