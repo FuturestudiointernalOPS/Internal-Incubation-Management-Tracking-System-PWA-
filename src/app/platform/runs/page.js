@@ -566,20 +566,23 @@ export default function FormRunsPage() {
     }
   };
 
-  const handleAssign = async () => {
-    if (!assignUserId || !selectedRun) return;
+  const handleAssign = async (targetOverride) => {
+    const targetId = targetOverride || assignUserId;
+    if (!targetId || !selectedRun) return;
     setSaving(true);
     try {
       const res = await fetch("/api/platform/form-runs?action=assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, target_type: assignTarget, target_id: assignUserId }),
+        body: JSON.stringify({ run_id: selectedRun.id, target_type: assignTarget, target_id: targetId }),
       });
       const data = await res.json();
       if (data.success) {
         setAssignments(data.assignments || []);
         notify("Assignment added");
         setShowAssign(false);
+        setShowInlineGroup(false);
+        setInlineGroupName("");
       }
     } catch (_) {}
     setSaving(false);
@@ -1027,17 +1030,17 @@ export default function FormRunsPage() {
                                 autoFocus
                                 value={inlineGroupName}
                                 onChange={(e) => setInlineGroupName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => setAssignUserId(grp.registration_id || grp.id)); }}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => handleAssign(grp.registration_id || grp.id)); }}
                                 placeholder="Group name..."
                                 className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
                               />
                               <button
                                 type="button"
-                                onClick={() => handleCreateGroupInline((grp) => setAssignUserId(grp.registration_id || grp.id))}
+                                onClick={() => handleCreateGroupInline((grp) => handleAssign(grp.registration_id || grp.id))}
                                 disabled={creatingGroup || !inlineGroupName.trim()}
                                 className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
                               >
-                                {creatingGroup ? "..." : "Create"}
+                                {creatingGroup ? "..." : "Create & Assign"}
                               </button>
                               <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
                             </div>
