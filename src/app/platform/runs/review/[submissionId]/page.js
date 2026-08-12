@@ -7,6 +7,8 @@ import {
   AlertTriangle, Sparkles, ChevronDown,
   ChevronUp, RefreshCw, History, Lock
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -23,6 +25,7 @@ export default function ReviewPage() {
   const params = useParams();
   const router = useRouter();
   const submissionId = params.submissionId;
+  const { lang } = useI18n();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -241,7 +244,7 @@ export default function ReviewPage() {
                 })()}
               </h2>
               <p className="text-[10px] text-[var(--text-secondary)]">
-                {submission?.submitted_at ? `Submitted ${new Date(submission.submitted_at).toLocaleDateString("en", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}` : "Submission"}
+                {submission?.submitted_at ? `Submitted ${formatLocaleDate(submission.submitted_at, { weekday: "short", month: "short", day: "numeric", year: "numeric" }, lang)}` : "Submission"}
                 {run?.name ? ` · ${run.name}` : ""}
               </p>
             </div>

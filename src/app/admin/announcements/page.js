@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 import {
   Megaphone,
   Plus,
@@ -28,7 +29,7 @@ const TARGET_TYPES = [
 ];
 
 export default function AnnouncementsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [user, setUser] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -356,12 +357,7 @@ export default function AnnouncementsPage() {
                       </span>
                       <span>{t("announcements.on")}</span>
                       <span>
-                        {new Date(ann.created_at).toLocaleDateString("en", {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {formatLocaleDate(ann.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                       </span>
                     </div>
                   </div>

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 import {
   CheckCircle2,
   Clock,
@@ -145,12 +146,7 @@ function AnnouncementItem({ announcement }) {
         )}
         <p className="text-[9px] text-[var(--text-tertiary)] mt-1.5">
           {announcement.createdAt
-            ? new Date(announcement.createdAt).toLocaleDateString("en", {
-                month: "short",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-              })
+            ? formatLocaleDate(announcement.createdAt, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)
             : ""}
         </p>
       </div>
@@ -215,7 +211,7 @@ export default function ParticipantDashboardHome() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const fetchDashboard = useCallback(async () => {
     try {

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 import {
   BarChart3,
   Search,
@@ -115,7 +116,7 @@ export default function AdminOpReports() {
   // Tasks tab state
   const [allTasks, setAllTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -859,13 +860,13 @@ export default function AdminOpReports() {
               const formatDateTime = (d) => {
                 if (!d) return "—";
                 try {
-                  return new Date(d).toLocaleDateString("en", {
+                  return formatLocaleDate(d, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",
                     hour: "2-digit",
                     minute: "2-digit",
-                  });
+                  }, lang);
                 } catch {
                   return d;
                 }
@@ -1668,7 +1669,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
 }
 
 function ReportDetailModal({ report, onClose }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [weekTasks, setWeekTasks] = useState([]);
   const [weekTasksLoading, setWeekTasksLoading] = useState(false);
   const [projects, setProjects] = useState([]);
@@ -1753,10 +1754,7 @@ function ReportDetailModal({ report, onClose }) {
   const formatDate = (d) => {
     if (!d) return "—";
     try {
-      return new Date(d).toLocaleDateString("en", {
-        month: "short",
-        day: "numeric",
-      });
+      return formatLocaleDate(d, { month: "short", day: "numeric" }, lang);
     } catch {
       return d;
     }
@@ -2184,12 +2182,7 @@ function ReportDetailModal({ report, onClose }) {
                                             </span>
                                             <span className="text-slate-600">
                                               {log.created_at
-                                                ? new Date(
-                                                    log.created_at,
-                                                  ).toLocaleDateString("en", {
-                                                    month: "short",
-                                                    day: "numeric",
-                                                  })
+                                                ? formatLocaleDate(log.created_at, { month: "short", day: "numeric" }, lang)
                                                 : ""}
                                             </span>
                                           </div>
@@ -2351,12 +2344,7 @@ function ReportDetailModal({ report, onClose }) {
                       </div>
                       <span className="text-gray-600">
                         {log.created_at
-                          ? new Date(log.created_at).toLocaleDateString("en", {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                          ? formatLocaleDate(log.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)
                           : ""}
                       </span>
                     </div>
