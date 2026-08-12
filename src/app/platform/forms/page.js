@@ -101,6 +101,8 @@ export default function PlatformForms() {
     on_submit: { send_acknowledgement: true },
     on_approve: { send_approval_email: true, create_platform_user: true, send_activation_email: true, enroll_in_program: true, assign_to_group: true },
     on_reject: { send_rejection_email: true },
+    auto_approve: false,
+    auto_approve_cutoff: 80,
     redirect_after_submit: "",
     success_message: "",
   };
@@ -1261,6 +1263,21 @@ export default function PlatformForms() {
                       <Toggle path="on_approve.enroll_in_program" label="Enroll in program" desc="Add to linked program" />
                       <Toggle path="on_approve.assign_to_group" label="Assign to group" desc="Add to form run group" />
                       <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">Tip: The group defines the member's role. Configure this in the group settings.</p>
+                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-2">Auto-Approval</p>
+                      <Toggle path="auto_approve" label="Auto-approve by score" desc="Approve applicants whose AI score meets the cutoff" />
+                      <div className="flex items-center gap-3 pt-1">
+                        <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase">Cutoff Score</label>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={autoCfg.auto_approve_cutoff ?? 80}
+                          onChange={(e) => update("auto_approve_cutoff", e.target.value === "" ? null : parseFloat(e.target.value))}
+                          className="w-24 px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-emerald-500"
+                        />
+                        <span className="text-[10px] font-black text-[var(--text-secondary)]">%</span>
+                      </div>
+                      <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">Applicants scoring ≥ cutoff are automatically approved and sent through group assignment + activation. Below-cutoff applicants remain for manual review.</p>
                       <p className="text-[8px] font-black text-rose-400 uppercase pt-1">On Rejection</p>
                       <Toggle path="on_reject.send_rejection_email" label="Send rejection email" desc="Notify applicant of decision" />
                     </div>

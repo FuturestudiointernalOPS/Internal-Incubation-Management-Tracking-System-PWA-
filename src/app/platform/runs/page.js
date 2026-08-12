@@ -527,12 +527,38 @@ export default function FormRunsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Review submitted");
+        notify(data.already_approved ? "Already approved — no duplicate actions" : "Review submitted");
         setShowReview(false);
         setReviewTimeline([]);
         if (selectedRun) openRun(selectedRun);
+      } else {
+        notify(data.error || "Review failed");
       }
     } catch (_) {}
+    setSaving(false);
+  };
+
+  // Manual Re-evaluate: the ONE deliberate exception to skip-already-evaluated
+  const handleReevaluate = async () => {
+    if (!reviewing) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/platform/ai/evaluate-submission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: reviewing.id, force: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("Re-evaluation complete");
+        setEvaluation(data.evaluation);
+        if (selectedRun) openRun(selectedRun);
+      } else {
+        notify(data.error || "Re-evaluation failed");
+      }
+    } catch (_) {
+      notify("Network error");
+    }
     setSaving(false);
   };
 
@@ -641,6 +667,7 @@ export default function FormRunsPage() {
 
   // AI Evaluation progress state (Phase 4 client-driven batching)
   const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
+  const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -650,7 +677,10 @@ export default function FormRunsPage() {
         body: JSON.stringify({ form_id: formId, action: "progress" }),
       });
       const data = await res.json();
-      if (data.success) return data.progress;
+      if (data.success) {
+        setEvalStats({ approvals: data.approvals || { approved: 0, rejected: 0 }, emails: data.emails || { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 } });
+        return data.progress;
+      }
       return null;
     } catch (_) {
       return null;
@@ -716,6 +746,7 @@ export default function FormRunsPage() {
           `Evaluation complete — ${prog.evaluated}/${prog.total}` +
             (prog.failed > 0 ? ` (${prog.failed} failed)` : "")
         );
+        await fetchEvalProgress(formId); // refresh approval + email stats
         break;
       }
 
@@ -865,6 +896,36 @@ export default function FormRunsPage() {
                 ? "Keep this page open. Completed evaluations are saved after each batch."
                 : "Process paused. Click Continue Evaluation to resume — already-completed evaluations are preserved."}
             </p>
+
+            {/* Approval + email dashboard */}
+            {evalStats && (
+              <div className="mt-3 pt-3 border-t border-purple-500/20 grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div className="text-center">
+                  <p className="text-sm font-black text-emerald-500">{evalStats.approvals?.approved ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Approved</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-rose-500">{evalStats.approvals?.rejected ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Rejected</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-blue-500">{evalStats.emails?.sent ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Emails Sent</p>
+                </div>
+                <div className="text-center">
+                  <p className={`text-sm font-black ${(evalStats.emails?.failed ?? 0) > 0 ? "text-rose-500" : "text-[var(--text-secondary)]"}`}>{evalStats.emails?.failed ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Emails Failed</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-[var(--brand-orange)]">{evalStats.emails?.activation_sent ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Activation Sent</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-black text-emerald-500">{evalStats.emails?.approval_sent ?? 0}</p>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Approval Emails</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1499,6 +1560,14 @@ export default function FormRunsPage() {
               {/* Sticky Footer */}
               <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
                 <button onClick={() => setShowReview(false)} className="flex-1 btn btn-secondary">Cancel</button>
+                <button
+                  onClick={handleReevaluate}
+                  disabled={saving}
+                  title="Delete the previous evaluation and evaluate this response again with AI"
+                  className="flex-1 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 disabled:opacity-40 flex items-center justify-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> Re-evaluate
+                </button>
                 <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? "Saving..." : "Submit Review"}</button>
               </div>
             </div>

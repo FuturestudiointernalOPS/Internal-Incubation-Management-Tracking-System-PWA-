@@ -485,8 +485,27 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
       if (authError) return authError;
 
-      const { submission_id, decision, comment, internal_note, dimension_overrides } = body;
+      const { submission_id, decision, comment, internal_note, dimension_overrides, force } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
+
+      // ── IDEMPOTENCY GUARD: never re-approve an already-approved submission ──
+      // Manual override requires explicit force: true
+      const existingSub = await db.execute({
+        sql: "SELECT id, status FROM platform_form_submissions WHERE id = ?",
+        args: [parseInt(submission_id)],
+      });
+      if (existingSub.rows.length === 0) {
+        return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
+      }
+      const prevStatus = existingSub.rows[0].status;
+      if (prevStatus === "approved" && decision === "approved" && !force) {
+        return NextResponse.json({
+          success: true,
+          already_approved: true,
+          submission: existingSub.rows[0],
+          message: "Submission already approved — no duplicate actions performed",
+        });
+      }
 
       let reviewerName = session.cid;
       try {
@@ -535,15 +554,13 @@ export async function POST(req) {
 
       logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
 
-      // Send decision email to applicant
+      // Send decision email to applicant — TRACKED (never sent twice)
       try {
         const subData = result.rows[0].data || {};
         const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
         const applicantName = result.rows[0].submitter_name || "";
 
         if (applicantEmail) {
-          // Send a simple decision notification for all outcomes.
-          // The automation engine handles activation emails separately.
           let shouldSend = true;
           if (decision !== "approved") {
             try {
@@ -555,8 +572,11 @@ export async function POST(req) {
             } catch (_) {}
           }
           if (shouldSend) {
+            // Gather template + score for variables
             let decisionTemplate = null;
             let templateVars = null;
+            let contactCid = result.rows[0].submitter_id || null;
+            let score = null;
             try {
               const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
               if (runInfo2.rows[0]) {
@@ -566,17 +586,34 @@ export async function POST(req) {
                 else if (decision === "rejected") decisionTemplate = tmpl?.rejection;
                 templateVars = { form_name: formName };
               }
+              const evalRes = await db.execute({
+                sql: "SELECT overall_score FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
+                args: [parseInt(submission_id)],
+              });
+              if (evalRes.rows.length > 0) score = evalRes.rows[0].overall_score;
             } catch (_) {}
-            await sendDecisionEmail({
-              to: applicantEmail,
-              applicantName,
-              formName: templateVars?.form_name || "application",
-              decision,
-              comment: comment || "",
-              template: decisionTemplate,
-              templateVars,
+
+            const { sendTrackedEmail } = await import("@/lib/email");
+            const emailType = decision === "approved" ? "approval" : "rejection";
+            const tracked = await sendTrackedEmail({
+              submission_id: parseInt(submission_id),
+              contact_cid: contactCid,
+              email_type: emailType,
+              sendFn: () => sendDecisionEmail({
+                to: applicantEmail,
+                applicantName,
+                formName: templateVars?.form_name || "application",
+                decision,
+                comment: comment || "",
+                template: decisionTemplate,
+                templateVars: { ...(templateVars || {}), score: score != null ? String(score) : "" },
+              }),
             });
-            logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
+            if (tracked.success) {
+              logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
+            } else if (!tracked.skipped) {
+              logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, decision, email_type: emailType });
+            }
           }
         }
       } catch (emailErr) {

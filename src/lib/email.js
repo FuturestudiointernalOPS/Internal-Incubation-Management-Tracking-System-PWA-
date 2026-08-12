@@ -331,6 +331,133 @@ async function sendEmail({ to, subject, html }) {
   }
 }
 
+// ─── EMAIL DELIVERY LOG (idempotency layer) ─────────────────────────
+// Every workflow email is tracked in platform_email_log so the system
+// never sends the same email type twice for the same submission, and
+// failed sends are distinguishable from successful ones.
+
+async function ensureEmailLogTable() {
+  try {
+    const { default: db, initDb } = await import("@/lib/db");
+    await initDb();
+    await db.execute(`CREATE TABLE IF NOT EXISTS platform_email_log (
+      id SERIAL PRIMARY KEY,
+      submission_id INTEGER,
+      contact_cid TEXT,
+      email_type TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      error TEXT,
+      sent_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
+      ON platform_email_log (submission_id, email_type)
+      WHERE status = 'sent'`);
+    return true;
+  } catch (e) {
+    console.warn("[EmailLog] Could not ensure table:", e.message);
+    return false;
+  }
+}
+
+export async function getEmailLogRow(submissionId, emailType) {
+  if (!submissionId) return null;
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const res = await db.execute({
+      sql: "SELECT * FROM platform_email_log WHERE submission_id = ? AND email_type = ? ORDER BY id DESC LIMIT 1",
+      args: [parseInt(submissionId), emailType],
+    });
+    return res.rows[0] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    if (success) {
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, sent_at)
+              VALUES (?, ?, ?, 'sent', NOW())
+              ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type],
+      });
+    } else {
+      await db.execute({
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, error)
+              VALUES (?, ?, ?, 'failed', ?)`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, (error || "Unknown error").substring(0, 500)],
+      });
+    }
+  } catch (e) {
+    console.warn("[EmailLog] Could not record:", e.message);
+  }
+}
+
+/**
+ * Send a workflow email exactly once per (submission_id, email_type).
+ * - Already sent → returns { skipped: true } without sending
+ * - Send succeeds → records 'sent' and returns { success: true }
+ * - Send fails → records 'failed' and returns { success: false } (retryable)
+ */
+export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn }) {
+  const existing = await getEmailLogRow(submission_id, email_type);
+  if (existing && existing.status === "sent") {
+    return { skipped: true, already_sent: true, log: existing };
+  }
+
+  let result;
+  try {
+    result = await sendFn();
+  } catch (e) {
+    result = { success: false, error: e?.message || "Send failed" };
+  }
+
+  await recordEmailResult({
+    submission_id,
+    contact_cid,
+    email_type,
+    success: !!result.success,
+    error: result.error ? (typeof result.error === "string" ? result.error : JSON.stringify(result.error)) : undefined,
+  });
+
+  return { ...result, skipped: false };
+}
+
+/**
+ * Email delivery stats for a form (dashboard visibility).
+ */
+export async function getEmailStatsForForm(formId) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const res = await db.execute({
+      sql: `SELECT el.email_type, el.status, COUNT(*)::int AS cnt
+            FROM platform_email_log el
+            JOIN platform_form_submissions s ON el.submission_id = s.id
+            JOIN platform_form_runs r ON s.run_id = r.id
+            WHERE r.form_id = ?
+            GROUP BY el.email_type, el.status`,
+      args: [parseInt(formId)],
+    });
+    const stats = { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 };
+    for (const row of res.rows) {
+      if (row.status === "sent") stats.sent += row.cnt;
+      if (row.status === "failed") stats.failed += row.cnt;
+      if (row.status === "pending") stats.pending += row.cnt;
+      if (row.status === "sent" && row.email_type === "activation") stats.activation_sent += row.cnt;
+      if (row.status === "sent" && row.email_type === "approval") stats.approval_sent += row.cnt;
+    }
+    return stats;
+  } catch (_) {
+    return { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 };
+  }
+}
+
 /**
  * Send a decision notification email to an applicant
  */

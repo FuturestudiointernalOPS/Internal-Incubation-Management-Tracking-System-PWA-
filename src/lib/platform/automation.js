@@ -250,13 +250,28 @@ const RULES = [
               args: [a.target_id, a.target_id],
             });
             if (group.rows.length > 0) {
-              // Update the contact's group_name
-              await db.execute({
-                sql: "UPDATE contacts SET group_name = COALESCE(NULLIF(group_name, ''), ?) WHERE cid = ? AND (group_name IS NULL OR group_name = '' OR group_name = 'unassigned')",
-                args: [group.rows[0].name, ctx.submission.submitter_id],
+              // Idempotent: only assign + log timeline if the contact has no group yet
+              const existingGroup = await db.execute({
+                sql: "SELECT group_name FROM contacts WHERE cid = ?",
+                args: [ctx.submission.submitter_id],
               });
-              await writeCrmTimeline(ctx.submission.submitter_id, "assigned_to_group",
-                `Assigned to group "${group.rows[0].name}"`, "groups", group.rows[0].id, "system", { group_id: a.target_id });
+              const currentGroup =
+                existingGroup.rows.length > 0 ? existingGroup.rows[0].group_name : "";
+              const needsAssignment =
+                !currentGroup ||
+                currentGroup.trim() === "" ||
+                currentGroup.toLowerCase() === "unassigned";
+
+              if (needsAssignment) {
+                // Update the contact's group_name
+                await db.execute({
+                  sql: "UPDATE contacts SET group_name = ? WHERE cid = ?",
+                  args: [group.rows[0].name, ctx.submission.submitter_id],
+                });
+                // Timeline event only on actual assignment (not on re-runs)
+                await writeCrmTimeline(ctx.submission.submitter_id, "assigned_to_group",
+                  `Assigned to group "${group.rows[0].name}"`, "groups", group.rows[0].id, "system", { group_id: a.target_id });
+              }
             }
           }
         } catch (e) {}
@@ -350,35 +365,61 @@ const RULES = [
             contact = { cid, name: contactName, email: contactEmail };
           }
           
-          // Generate password setup token using the existing password_setup_tokens table
-          const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-          const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
-          await db.execute({
-            sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
-            args: [contact.cid, token, expiresAt],
-          });
-          console.log("[Automation] Token stored for", contactEmail, "token:", token.substring(0, 16) + "...");
-          
-          // Send activation email using existing email infrastructure
-          const { sendInviteEmail, getTemplate } = await import("@/lib/email");
+          // ── Activation email — TRACKED so it is never sent twice ──
+          // Check whether an activation email was already successfully sent for
+          // this submission BEFORE generating a new token.
+          const { sendInviteEmail, getTemplate, sendTrackedEmail, getEmailLogRow } = await import("@/lib/email");
           const activationTemplate = getTemplate(ctx.form?.settings, "activation");
-          await sendInviteEmail({
-            to: contactEmail,
-            name: contactName,
-            role: targetRole,
-            token,
-            template: activationTemplate,
-            templateVars: {
-              organization: "ImpactOS",
-              form_name: ctx.run?.name || "",
-              group_name: groupName || "",
-              name: contactName,
+          const priorSend = ctx.submission?.id
+            ? await getEmailLogRow(ctx.submission.id, "activation")
+            : null;
+          if (priorSend && priorSend.status === "sent") {
+            console.log("[Automation] Activation email already sent — skipped", contactEmail);
+            return;
+          }
+
+          let activationToken = null;
+          const tracked = await sendTrackedEmail({
+            submission_id: ctx.submission?.id || null,
+            contact_cid: contact.cid,
+            email_type: "activation",
+            sendFn: async () => {
+              // Generate the token INSIDE the send function so a skipped
+              // send never produces an orphaned token
+              const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+              const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
+              await db.execute({
+                sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
+                args: [contact.cid, token, expiresAt],
+              });
+              activationToken = token;
+              console.log("[Automation] Token stored for", contactEmail);
+              return sendInviteEmail({
+                to: contactEmail,
+                name: contactName,
+                role: targetRole,
+                token,
+                template: activationTemplate,
+                templateVars: {
+                  organization: "ImpactOS",
+                  form_name: ctx.run?.name || "",
+                  group_name: groupName || "",
+                  name: contactName,
+                },
+              });
             },
           });
-          console.log("[Automation] Activation email sent to", contactEmail);
-          
-          await writeCrmTimeline(contact.cid, "activation_sent",
-            "Activation email sent with password setup link", "forms", ctx.submission.id, "system", {});
+          if (tracked.success) {
+            console.log("[Automation] Activation email sent to", contactEmail);
+            await writeCrmTimeline(contact.cid, "activation_sent",
+              "Activation email sent with password setup link", "forms", ctx.submission.id, "system", {});
+          } else if (tracked.skipped) {
+            console.log("[Automation] Activation email already sent — skipped", contactEmail);
+          } else {
+            console.error("[Automation] Activation email FAILED for", contactEmail);
+            await writeCrmTimeline(contact.cid, "activation_email_failed",
+              "Activation email failed to send", "forms", ctx.submission.id, "system", {});
+          }
         } catch (e) {
           console.error("[Automation] Activation email failed:", e.message);
         }
