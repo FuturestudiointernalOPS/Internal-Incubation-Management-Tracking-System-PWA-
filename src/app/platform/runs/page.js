@@ -313,6 +313,11 @@ export default function FormRunsPage() {
   const [showOpensCal, setShowOpensCal] = useState(false);
   const [showClosesCal, setShowClosesCal] = useState(false);
 
+  // Inline group creation (from run create modal + assign modal)
+  const [showInlineGroup, setShowInlineGroup] = useState(false);
+  const [inlineGroupName, setInlineGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+
   // Review modal
   const [showReview, setShowReview] = useState(false);
   const [reviewing, setReviewing] = useState(null);
@@ -375,6 +380,33 @@ export default function FormRunsPage() {
       if (data.success) setGroups(data.groups || []);
     } catch (_) {}
   }, []);
+
+  const handleCreateGroupInline = async (onDone) => {
+    const name = inlineGroupName.trim();
+    if (!name) return;
+    setCreatingGroup(true);
+    try {
+      const res = await fetch("/api/groups", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.success && data.group) {
+        notify("Group created");
+        setShowInlineGroup(false);
+        setInlineGroupName("");
+        await fetchGroups();
+        if (onDone) onDone(data.group);
+      } else {
+        notify(data.error || "Failed to create group");
+      }
+    } catch (_) {
+      notify("Failed to create group");
+    } finally {
+      setCreatingGroup(false);
+    }
+  };
 
   const fetchDashboardStats = useCallback(async () => {
     try {
@@ -981,6 +1013,35 @@ export default function FormRunsPage() {
                             <option value="">Select group...</option>
                             {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
                           </select>
+                          {!showInlineGroup ? (
+                            <button
+                              type="button"
+                              onClick={() => setShowInlineGroup(true)}
+                              className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
+                            >
+                              <Plus className="w-3 h-3" /> New Group
+                            </button>
+                          ) : (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                autoFocus
+                                value={inlineGroupName}
+                                onChange={(e) => setInlineGroupName(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => setAssignUserId(grp.registration_id || grp.id)); }}
+                                placeholder="Group name..."
+                                className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleCreateGroupInline((grp) => setAssignUserId(grp.registration_id || grp.id))}
+                                disabled={creatingGroup || !inlineGroupName.trim()}
+                                className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                              >
+                                {creatingGroup ? "..." : "Create"}
+                              </button>
+                              <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Target ID</label><input value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder="e.g. program_id or group_id" /></div>
@@ -1405,6 +1466,35 @@ export default function FormRunsPage() {
                     </option>
                   ))}
                 </select>
+                {!showInlineGroup ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowInlineGroup(true)}
+                    className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> New Group
+                  </button>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      autoFocus
+                      value={inlineGroupName}
+                      onChange={(e) => setInlineGroupName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id })); }}
+                      placeholder="Group name..."
+                      className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id }))}
+                      disabled={creatingGroup || !inlineGroupName.trim()}
+                      className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                    >
+                      {creatingGroup ? "..." : "Create"}
+                    </button>
+                    <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreate} disabled={saving || !createData.form_id || !createData.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create Run"}</button></div>
