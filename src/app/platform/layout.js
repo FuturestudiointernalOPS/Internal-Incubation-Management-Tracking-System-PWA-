@@ -36,6 +36,7 @@ const ICON_MAP = {
   GitBranch,
   Settings,
   Upload,
+  User,
 };
 
 export const dynamic = "force-dynamic";
