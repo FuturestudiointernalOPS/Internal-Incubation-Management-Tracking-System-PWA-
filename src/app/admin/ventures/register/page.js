@@ -17,6 +17,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const INDUSTRIES = [
   "Fintech",
@@ -58,6 +59,7 @@ const INITIAL_FORM = {
 
 export default function RegisterVenturePage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [form, setForm] = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState([]);
@@ -95,7 +97,7 @@ export default function RegisterVenturePage() {
         if (data.error) {
           errorList.push(data.error);
         }
-        setErrors(errorList.length > 0 ? errorList : ["Registration failed. Please try again."]);
+        setErrors(errorList.length > 0 ? errorList : [t("vadmin.register.registrationFailed")]);
         return;
       }
 
@@ -106,7 +108,7 @@ export default function RegisterVenturePage() {
         router.push(`/admin/ventures/${data.venture.venture_id}`);
       }, 2000);
     } catch (e) {
-      setErrors(["Network error. Please check your connection and try again."]);
+      setErrors([t("vadmin.register.networkError")]);
     } finally {
       setLoading(false);
     }
@@ -121,35 +123,35 @@ export default function RegisterVenturePage() {
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
           <h2 className="text-2xl font-black text-[var(--text-primary)] mb-2">
-            Startup Registered Successfully!
+            {t("vadmin.register.successTitle")}
           </h2>
           <p className="text-slate-400 mb-6">
-            {success.venture.company_name} has been added to Venture OS.
+            {t("vadmin.register.successMessage", { company: success.venture.company_name })}
           </p>
 
           <div className="card max-w-md mx-auto text-left mb-8 space-y-3">
             <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Venture ID</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">{t("vadmin.register.ventureId")}</span>
               <span className="text-sm font-black text-[var(--brand-orange)]">{success.venture.venture_id}</span>
             </div>
             <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Company</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">{t("vadmin.register.company")}</span>
               <span className="text-sm font-bold text-[var(--text-primary)]">{success.venture.company_name}</span>
             </div>
             <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Founder</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">{t("vadmin.register.founder")}</span>
               <span className="text-sm font-bold text-[var(--text-primary)]">{success.founder.name}</span>
             </div>
             <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
-              <span className="text-[10px] font-bold text-slate-500 uppercase">Invitation</span>
+              <span className="text-[10px] font-bold text-slate-500 uppercase">{t("vadmin.register.invitation")}</span>
               <span className={`text-sm font-bold ${success.invitation.email_sent ? "text-emerald-500" : "text-amber-500"}`}>
-                {success.invitation.email_sent ? "Sent ✓" : "Pending (email not configured)"}
+                {success.invitation.email_sent ? t("vadmin.register.invitationSent") : t("vadmin.register.invitationPending")}
               </span>
             </div>
           </div>
 
           <p className="text-[10px] text-slate-500">
-            Redirecting to Venture Dashboard...
+            {t("vadmin.register.redirecting")}
           </p>
         </div>
       </DashboardLayout>
@@ -175,7 +177,7 @@ export default function RegisterVenturePage() {
               </span>
             </div>
             <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">
-              Register Startup
+              {t("vadmin.register.title")}
             </h1>
           </div>
         </div>
@@ -186,7 +188,7 @@ export default function RegisterVenturePage() {
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-rose-500" />
               <span className="text-[10px] font-black text-rose-500 uppercase tracking-wider">
-                Registration Errors
+                {t("vadmin.register.errorsTitle")}
               </span>
             </div>
             {errors.map((err, i) => (
@@ -206,9 +208,9 @@ export default function RegisterVenturePage() {
               </div>
               <div>
                 <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Company Information
+                  {t("vadmin.register.companyInfoTitle")}
                 </h2>
-                <p className="text-[9px] text-slate-500">Step 1 of 2</p>
+                <p className="text-[9px] text-slate-500">{t("vadmin.register.stepOf", { current: 1, total: 2 })}</p>
               </div>
             </div>
 
@@ -216,13 +218,13 @@ export default function RegisterVenturePage() {
               {/* Company Name */}
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Company Name <span className="text-rose-500">*</span>
+                  {t("vadmin.register.companyName")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.company_name}
                   onChange={(e) => handleChange("company_name", e.target.value)}
-                  placeholder="e.g., TechFlow Inc."
+                  placeholder={t("vadmin.register.companyNamePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 />
@@ -231,13 +233,13 @@ export default function RegisterVenturePage() {
               {/* Registration Number */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Registration Number
+                  {t("vadmin.register.registrationNumber")}
                 </label>
                 <input
                   type="text"
                   value={form.registration_number}
                   onChange={(e) => handleChange("registration_number", e.target.value)}
-                  placeholder="e.g., RC-2024-12345"
+                  placeholder={t("vadmin.register.registrationNumberPlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
               </div>
@@ -245,7 +247,7 @@ export default function RegisterVenturePage() {
               {/* Website */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Website
+                  {t("vadmin.register.website")}
                 </label>
                 <input
                   type="url"
@@ -259,7 +261,7 @@ export default function RegisterVenturePage() {
               {/* Industry */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Industry <span className="text-rose-500">*</span>
+                  {t("vadmin.register.industry")} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={form.industry}
@@ -267,7 +269,7 @@ export default function RegisterVenturePage() {
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 >
-                  <option value="">Select industry...</option>
+                  <option value="">{t("vadmin.register.selectIndustry")}</option>
                   {INDUSTRIES.map((ind) => (
                     <option key={ind} value={ind.toLowerCase()}>{ind}</option>
                   ))}
@@ -277,7 +279,7 @@ export default function RegisterVenturePage() {
               {/* Business Stage */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Business Stage <span className="text-rose-500">*</span>
+                  {t("vadmin.register.businessStage")} <span className="text-rose-500">*</span>
                 </label>
                 <select
                   value={form.business_stage}
@@ -285,10 +287,10 @@ export default function RegisterVenturePage() {
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 >
-                  <option value="">Select stage...</option>
+                  <option value="">{t("vadmin.register.selectStage")}</option>
                   {BUSINESS_STAGES.map((stage) => (
                     <option key={stage.value} value={stage.value}>
-                      {stage.label} — {stage.description}
+                      {t(`vadmin.register.stageOptions.${stage.value}`)}
                     </option>
                   ))}
                 </select>
@@ -297,12 +299,12 @@ export default function RegisterVenturePage() {
               {/* Description */}
               <div className="md:col-span-2">
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Description / Concept Note
+                  {t("vadmin.register.descriptionLabel")}
                 </label>
                 <textarea
                   value={form.description}
                   onChange={(e) => handleChange("description", e.target.value)}
-                  placeholder="Brief description of the startup..."
+                  placeholder={t("vadmin.register.descriptionPlaceholder")}
                   rows={3}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all resize-none"
                 />
@@ -318,9 +320,9 @@ export default function RegisterVenturePage() {
               </div>
               <div>
                 <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Founder Information
+                  {t("vadmin.register.founderInfoTitle")}
                 </h2>
-                <p className="text-[9px] text-slate-500">Step 2 of 2</p>
+                <p className="text-[9px] text-slate-500">{t("vadmin.register.stepOf", { current: 2, total: 2 })}</p>
               </div>
             </div>
 
@@ -328,13 +330,13 @@ export default function RegisterVenturePage() {
               {/* Founder Name */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Full Name <span className="text-rose-500">*</span>
+                  {t("vadmin.register.fullName")} <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={form.founder_name}
                   onChange={(e) => handleChange("founder_name", e.target.value)}
-                  placeholder="e.g., John Doe"
+                  placeholder={t("vadmin.register.founderNamePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                   required
                 />
@@ -343,7 +345,7 @@ export default function RegisterVenturePage() {
               {/* Founder Email */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Email <span className="text-rose-500">*</span>
+                  {t("vadmin.register.email")} <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -361,7 +363,7 @@ export default function RegisterVenturePage() {
               {/* Founder Phone */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Phone
+                  {t("vadmin.register.phone")}
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
@@ -378,13 +380,13 @@ export default function RegisterVenturePage() {
               {/* Founder Title */}
               <div>
                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                  Title / Role
+                  {t("vadmin.register.founderTitle")}
                 </label>
                 <input
                   type="text"
                   value={form.founder_title}
                   onChange={(e) => handleChange("founder_title", e.target.value)}
-                  placeholder="e.g., CEO, CTO"
+                  placeholder={t("vadmin.register.founderTitlePlaceholder")}
                   className="w-full px-4 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-600 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
                 />
               </div>
@@ -398,7 +400,7 @@ export default function RegisterVenturePage() {
               onClick={() => router.back()}
               className="px-6 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
-              Cancel
+              {t("vadmin.register.cancel")}
             </button>
             <button
               type="submit"
@@ -408,12 +410,12 @@ export default function RegisterVenturePage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Registering...
+                  {t("vadmin.register.registering")}
                 </>
               ) : (
                 <>
                   <Rocket className="w-4 h-4" />
-                  Register Startup
+                  {t("vadmin.register.title")}
                 </>
               )}
             </button>

@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const STAGE_CONFIG = {
   idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -115,6 +116,7 @@ const ACTIVITY_COLORS = {
 
 export default function VentureDetailPage({ params }) {
   const router = useRouter();
+  const { t } = useI18n();
   const { id } = React.use(params);
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -163,14 +165,14 @@ export default function VentureDetailPage({ params }) {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            Venture Not Found
+            {t("vadmin.detail.ventureNotFound")}
           </h2>
-          <p className="text-slate-500 mb-6">{error || "The venture could not be loaded."}</p>
+          <p className="text-slate-500 mb-6">{error || t("vadmin.detail.ventureLoadError")}</p>
           <button
             onClick={() => router.push("/admin/ventures")}
             className="btn btn-primary"
           >
-            Back to Ventures
+            {t("vadmin.detail.backToVentures")}
           </button>
         </div>
       </DashboardLayout>
@@ -180,22 +182,22 @@ export default function VentureDetailPage({ params }) {
   const stage = getStageConfig(venture.business_stage);
 
   const TABS = [
-    { id: "dashboard", label: "Dashboard", icon: Rocket },
-    { id: "investment", label: "Investment", icon: TrendingUp },
-    { id: "timeline", label: "Timeline", icon: BarChart3 },
-    { id: "reports", label: "Reports", icon: TrendingUp },
-    { id: "feedback", label: "Feedback", icon: Star },
-    { id: "sessions", label: "Sessions", icon: Calendar },
-    { id: "coaches", label: "Coaches", icon: BookOpen },
-    { id: "knowledge", label: "Knowledge", icon: BookOpen },
-    { id: "milestones", label: "Milestones", icon: Flag },
-    { id: "tasks", label: "Tasks", icon: CheckCircle2 },
-    { id: "overview", label: "Overview", icon: Building2 },
-    { id: "founders", label: "Founders", icon: User },
-    { id: "verification", label: "Verification", icon: Shield },
-    { id: "activity", label: "Activity", icon: Activity },
-    { id: "wizard", label: "Profile Wizard", icon: Layers },
-    { id: "management", label: "Team Management", icon: Shield },
+    { id: "dashboard", label: t("vadmin.detail.dashboard"), icon: Rocket },
+    { id: "investment", label: t("vadmin.detail.investment"), icon: TrendingUp },
+    { id: "timeline", label: t("vadmin.detail.timeline"), icon: BarChart3 },
+    { id: "reports", label: t("vadmin.detail.reports"), icon: TrendingUp },
+    { id: "feedback", label: t("vadmin.detail.feedback"), icon: Star },
+    { id: "sessions", label: t("vadmin.detail.sessions"), icon: Calendar },
+    { id: "coaches", label: t("vadmin.detail.coaches"), icon: BookOpen },
+    { id: "knowledge", label: t("vadmin.detail.knowledge"), icon: BookOpen },
+    { id: "milestones", label: t("vadmin.detail.milestones"), icon: Flag },
+    { id: "tasks", label: t("vadmin.detail.tasks"), icon: CheckCircle2 },
+    { id: "overview", label: t("vadmin.detail.overview"), icon: Building2 },
+    { id: "founders", label: t("vadmin.detail.founders"), icon: User },
+    { id: "verification", label: t("vadmin.detail.verification"), icon: Shield },
+    { id: "activity", label: t("vadmin.detail.activity"), icon: Activity },
+    { id: "wizard", label: t("vadmin.detail.profileWizard"), icon: Layers },
+    { id: "management", label: t("vadmin.detail.teamManagement"), icon: Shield },
   ];
 
   return (
@@ -206,7 +208,7 @@ export default function VentureDetailPage({ params }) {
           onClick={() => router.push("/admin/ventures")}
           className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
         >
-          <ArrowLeft className="w-3 h-3" /> Back to Ventures
+          <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
         </button>
 
         {/* Venture Header */}
@@ -229,7 +231,7 @@ export default function VentureDetailPage({ params }) {
                   <span className="font-mono">{venture.venture_id}</span>
                   <span className="flex items-center gap-1">
                     <Calendar className="w-3 h-3" />
-                    Registered {new Date(venture.created_at).toLocaleDateString()}
+                    {t("vadmin.detail.registered", { date: new Date(venture.created_at).toLocaleDateString() })}
                   </span>
                 </div>
               </div>
@@ -240,7 +242,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/edit`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
-                <Edit3 className="w-3 h-3" /> Edit
+                <Edit3 className="w-3 h-3" /> {t("vadmin.detail.edit")}
               </button>
             </div>
           </div>
@@ -277,9 +279,9 @@ export default function VentureDetailPage({ params }) {
                   <Rocket className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Dashboard</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.startupDashboard")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Complete operational overview with widgets, progress, and quick actions
+                    {t("vadmin.detail.startupDashboardDesc")}
                   </p>
                 </div>
               </div>
@@ -287,26 +289,26 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Rocket className="w-3.5 h-3.5" /> Open Full Dashboard
+                <Rocket className="w-3.5 h-3.5" /> {t("vadmin.detail.openFullDashboard")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Founders</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.founders")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Members</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.members")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.members || []).length}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Wizard</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.wizard")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
                   {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/6
                 </p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Activity</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.activity")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.activity || []).length}</p>
               </div>
             </div>
@@ -321,9 +323,9 @@ export default function VentureDetailPage({ params }) {
                   <TrendingUp className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Investment Readiness</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.investmentReadiness")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Score, recommendations, and category breakdown
+                    {t("vadmin.detail.investmentReadinessDesc")}
                   </p>
                 </div>
               </div>
@@ -331,7 +333,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/investment`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <TrendingUp className="w-3.5 h-3.5" /> Open Assessment
+                <TrendingUp className="w-3.5 h-3.5" /> {t("vadmin.detail.openAssessment")}
               </button>
             </div>
           </div>
@@ -345,9 +347,9 @@ export default function VentureDetailPage({ params }) {
                   <BarChart3 className="w-6 h-6 text-indigo-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Project Timeline & Progress</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.projectTimeline")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Gantt chart, progress tracking, and delay detection
+                    {t("vadmin.detail.projectTimelineDesc")}
                   </p>
                 </div>
               </div>
@@ -355,7 +357,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/timeline`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <BarChart3 className="w-3.5 h-3.5" /> Open Timeline
+                <BarChart3 className="w-3.5 h-3.5" /> {t("vadmin.detail.openTimeline")}
               </button>
             </div>
           </div>
@@ -369,9 +371,9 @@ export default function VentureDetailPage({ params }) {
                   <TrendingUp className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Reports & Analytics</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.reportsAnalytics")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    KPIs, project health, team productivity, and export
+                    {t("vadmin.detail.reportsAnalyticsDesc")}
                   </p>
                 </div>
               </div>
@@ -379,7 +381,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/reports`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <TrendingUp className="w-3.5 h-3.5" /> Open Reports
+                <TrendingUp className="w-3.5 h-3.5" /> {t("vadmin.detail.openReports")}
               </button>
             </div>
           </div>
@@ -393,9 +395,9 @@ export default function VentureDetailPage({ params }) {
                   <Calendar className="w-6 h-6 text-blue-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentoring Sessions</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.mentoringSessions")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Schedule and manage coaching, mentoring, and advisory sessions
+                    {t("vadmin.detail.mentoringSessionsDesc")}
                   </p>
                 </div>
               </div>
@@ -403,7 +405,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/sessions`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Calendar className="w-3.5 h-3.5" /> Open Sessions
+                <Calendar className="w-3.5 h-3.5" /> {t("vadmin.detail.openSessions")}
               </button>
             </div>
           </div>
@@ -417,9 +419,9 @@ export default function VentureDetailPage({ params }) {
                   <Star className="w-6 h-6 text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Mentor Feedback & Analytics</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.mentorFeedback")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Session ratings, coach performance, and mentoring KPIs
+                    {t("vadmin.detail.mentorFeedbackDesc")}
                   </p>
                 </div>
               </div>
@@ -427,7 +429,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/feedback`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Star className="w-3.5 h-3.5" /> Open Analytics
+                <Star className="w-3.5 h-3.5" /> {t("vadmin.detail.openAnalytics")}
               </button>
             </div>
           </div>
@@ -441,9 +443,9 @@ export default function VentureDetailPage({ params }) {
                   <BookOpen className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Knowledge Hub</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.knowledgeHub")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Learning resources, guides, templates, and best practices
+                    {t("vadmin.detail.knowledgeHubDesc")}
                   </p>
                 </div>
               </div>
@@ -451,7 +453,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/knowledge`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <BookOpen className="w-3.5 h-3.5" /> Open Knowledge Hub
+                <BookOpen className="w-3.5 h-3.5" /> {t("vadmin.detail.openKnowledgeHub")}
               </button>
             </div>
           </div>
@@ -465,9 +467,9 @@ export default function VentureDetailPage({ params }) {
                   <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Coaches & Advisors</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.coachesAdvisors")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Assign and manage coaches and advisors for this venture
+                    {t("vadmin.detail.coachesAdvisorsDesc")}
                   </p>
                 </div>
               </div>
@@ -475,7 +477,7 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/coaches`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <BookOpen className="w-3.5 h-3.5" /> Open Coaches
+                <BookOpen className="w-3.5 h-3.5" /> {t("vadmin.detail.openCoaches")}
               </button>
             </div>
           </div>
@@ -489,9 +491,9 @@ export default function VentureDetailPage({ params }) {
                   <Flag className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Milestones & Deliverables</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.milestonesDeliverables")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Track execution progress with milestones and deliverables
+                    {t("vadmin.detail.milestonesDeliverablesDesc")}
                   </p>
                 </div>
               </div>
@@ -499,24 +501,24 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/milestones`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Flag className="w-3.5 h-3.5" /> Open Milestones
+                <Flag className="w-3.5 h-3.5" /> {t("vadmin.detail.openMilestones")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Milestones</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.milestones")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.inProgress")}</p>
                 <p className="text-2xl font-black text-blue-400 mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Completed</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.completed")}</p>
                 <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Delayed</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.delayed")}</p>
                 <p className="text-2xl font-black text-rose-400 mt-1">0</p>
               </div>
             </div>
@@ -531,9 +533,9 @@ export default function VentureDetailPage({ params }) {
                   <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Task Management & Kanban</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.taskManagement")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Kanban board, list view, and task tracking
+                    {t("vadmin.detail.taskManagementDesc")}
                   </p>
                 </div>
               </div>
@@ -541,24 +543,24 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/tasks`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Columns className="w-3.5 h-3.5" /> Open Kanban
+                <Columns className="w-3.5 h-3.5" /> {t("vadmin.detail.openKanban")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Backlog</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.backlog")}</p>
                 <p className="text-2xl font-black text-slate-400 mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">In Progress</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.inProgress")}</p>
                 <p className="text-2xl font-black text-amber-400 mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Review</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.review")}</p>
                 <p className="text-2xl font-black text-purple-400 mt-1">0</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Done</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.done")}</p>
                 <p className="text-2xl font-black text-emerald-400 mt-1">0</p>
               </div>
             </div>
@@ -573,26 +575,26 @@ export default function VentureDetailPage({ params }) {
               <div className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                  Company Details
+                  {t("vadmin.detail.companyDetails")}
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Industry</p>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.industry")}</p>
                     <p className="text-sm font-bold text-[var(--text-primary)]">{venture.industry}</p>
                   </div>
                   <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Business Stage</p>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.businessStage")}</p>
                     <p className={`text-sm font-bold ${stage.color}`}>{stage.label}</p>
                   </div>
                   {venture.registration_number && (
                     <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Registration #</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.registrationNumber")}</p>
                       <p className="text-sm font-bold text-[var(--text-primary)]">{venture.registration_number}</p>
                     </div>
                   )}
                   {venture.website && (
                     <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Website</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.website")}</p>
                       <a
                         href={venture.website}
                         target="_blank"
@@ -606,7 +608,7 @@ export default function VentureDetailPage({ params }) {
                   )}
                   {venture.description && (
                     <div className="col-span-2 p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">Description</p>
+                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.description")}</p>
                       <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
                     </div>
                   )}
@@ -617,7 +619,7 @@ export default function VentureDetailPage({ params }) {
               <div className="card">
                 <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <Layers className="w-3.5 h-3.5 text-purple-500" />
-                  Startup Profile Wizard
+                  {t("vadmin.detail.startupProfileWizard")}
                 </h3>
                 <div className="space-y-3">
                   {WIZARD_STEPS.map((ws) => {
@@ -645,11 +647,11 @@ export default function VentureDetailPage({ params }) {
                           <p className={`text-[11px] font-bold ${
                             completed ? "text-emerald-500" : "text-slate-500"
                           }`}>
-                            Step {ws.step}: {ws.name}
+                            {t("vadmin.detail.step", { n: ws.step })}: {ws.name}
                           </p>
                         </div>
                         {completed && (
-                          <span className="text-[8px] font-black text-emerald-500 uppercase">Completed</span>
+                          <span className="text-[8px] font-black text-emerald-500 uppercase">{t("vadmin.detail.completed")}</span>
                         )}
                       </div>
                     );
@@ -662,33 +664,33 @@ export default function VentureDetailPage({ params }) {
             <div className="space-y-6">
               {/* Quick Stats */}
               <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Quick Stats</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.detail.quickStats")}</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Users className="w-3.5 h-3.5 text-blue-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Founders</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.founders")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.founders || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Users className="w-3.5 h-3.5 text-emerald-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Members</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.members")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.members || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Activity className="w-3.5 h-3.5 text-amber-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Activity Events</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.activityEvents")}</span>
                     </div>
                     <span className="text-sm font-black">{(venture.activity || []).length}</span>
                   </div>
                   <div className="flex items-center justify-between p-3 bg-tertiary rounded-xl">
                     <div className="flex items-center gap-2">
                       <Layers className="w-3.5 h-3.5 text-purple-500" />
-                      <span className="text-[10px] font-bold text-slate-500">Wizard Progress</span>
+                      <span className="text-[10px] font-bold text-slate-500">{t("vadmin.detail.wizardProgress")}</span>
                     </div>
                     <span className="text-sm font-black">
                       {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/{WIZARD_STEPS.length}
@@ -699,7 +701,7 @@ export default function VentureDetailPage({ params }) {
 
               {/* Recent Activity (sidebar) */}
               <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Recent Activity</h3>
+                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.detail.recentActivity")}</h3>
                 <div className="space-y-2">
                   {(venture.activity || []).slice(0, 5).map((act, i) => {
                     const Icon = getActivityIcon(act.action);
@@ -719,7 +721,7 @@ export default function VentureDetailPage({ params }) {
                     );
                   })}
                   {(venture.activity || []).length === 0 && (
-                    <p className="text-[10px] text-slate-500 italic py-3 text-center">No activity yet</p>
+                    <p className="text-[10px] text-slate-500 italic py-3 text-center">{t("vadmin.detail.noActivityYet")}</p>
                   )}
                 </div>
               </div>
@@ -732,17 +734,17 @@ export default function VentureDetailPage({ params }) {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                 <User className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                Founders
+                {t("vadmin.detail.founders")}
               </h3>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/founders`)}
                 className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-1.5"
               >
-                <Shield className="w-3 h-3" /> Manage
+                <Shield className="w-3 h-3" /> {t("vadmin.detail.manage")}
               </button>
             </div>
             {(venture.founders || []).length === 0 ? (
-              <p className="text-[10px] text-slate-500 italic py-6 text-center">No founders registered</p>
+              <p className="text-[10px] text-slate-500 italic py-6 text-center">{t("vadmin.detail.noFounders")}</p>
             ) : (
               <div className="space-y-3">
                 {(venture.founders || []).map((founder, i) => (
@@ -780,7 +782,7 @@ export default function VentureDetailPage({ params }) {
                       </span>
                       {founder.invitation_sent_at && (
                         <span className="text-[8px] text-slate-500">
-                          Invited {new Date(founder.invitation_sent_at).toLocaleDateString()}
+                          {t("vadmin.detail.invited", { date: new Date(founder.invitation_sent_at).toLocaleDateString() })}
                         </span>
                       )}
                     </div>
@@ -795,10 +797,10 @@ export default function VentureDetailPage({ params }) {
           <div className="card">
             <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Activity className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-              Activity Log
+              {t("vadmin.detail.activityLog")}
             </h3>
             {(venture.activity || []).length === 0 ? (
-              <p className="text-[10px] text-slate-500 italic py-6 text-center">No activity recorded</p>
+              <p className="text-[10px] text-slate-500 italic py-6 text-center">{t("vadmin.detail.noActivityRecorded")}</p>
             ) : (
               <div className="space-y-1">
                 {(venture.activity || []).map((act, i) => {
@@ -813,7 +815,7 @@ export default function VentureDetailPage({ params }) {
                         <div className="flex items-center gap-2">
                           <p className="text-[11px] font-bold text-[var(--text-primary)]">{act.action}</p>
                           <span className="text-[8px] text-slate-500">
-                            by {act.actor_name || "System"}
+                            {t("vadmin.detail.byActor", { name: act.actor_name || t("vadmin.detail.system") })}
                           </span>
                         </div>
                         <p className="text-[9px] text-slate-500 mt-0.5">
@@ -843,9 +845,9 @@ export default function VentureDetailPage({ params }) {
                     <Layers className="w-6 h-6 text-purple-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Profile Wizard</h3>
+                    <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.startupProfileWizard")}</h3>
                     <p className="text-[10px] text-slate-500 mt-0.5">
-                      Complete or continue your startup onboarding profile
+                      {t("vadmin.detail.wizardDescription")}
                     </p>
                   </div>
                 </div>
@@ -853,7 +855,7 @@ export default function VentureDetailPage({ params }) {
                   onClick={() => router.push(`/ventures/${id}/wizard`)}
                   className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
                 >
-                  <Layers className="w-3.5 h-3.5" /> Open Wizard
+                  <Layers className="w-3.5 h-3.5" /> {t("vadmin.detail.openWizard")}
                 </button>
               </div>
             </div>
@@ -862,7 +864,7 @@ export default function VentureDetailPage({ params }) {
             <div className="card">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <Layers className="w-3.5 h-3.5 text-purple-500" />
-                Progress Overview
+                {t("vadmin.detail.progressOverview")}
               </h3>
               <div className="space-y-3">
                 {WIZARD_STEPS.map((ws) => {
@@ -890,11 +892,11 @@ export default function VentureDetailPage({ params }) {
                         <p className={`text-[11px] font-bold ${
                           completed ? "text-emerald-500" : "text-slate-500"
                         }`}>
-                          Step {ws.step}: {ws.name}
+                          {t("vadmin.detail.step", { n: ws.step })}: {ws.name}
                         </p>
                       </div>
                       {completed && (
-                        <span className="text-[8px] font-black text-emerald-500 uppercase">Completed</span>
+                        <span className="text-[8px] font-black text-emerald-500 uppercase">{t("vadmin.detail.completed")}</span>
                       )}
                     </div>
                   );
@@ -906,10 +908,10 @@ export default function VentureDetailPage({ params }) {
             <div className="card">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5 text-purple-500" />
-                Startup Profile Wizard History
+                {t("vadmin.detail.wizardHistory")}
               </h3>
               {(venture.history || []).length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic py-6 text-center">No wizard history yet</p>
+                <p className="text-[10px] text-slate-500 italic py-6 text-center">{t("vadmin.detail.noWizardHistory")}</p>
               ) : (
                 <div className="space-y-2">
                   {(venture.history || []).map((entry, i) => (
@@ -926,7 +928,7 @@ export default function VentureDetailPage({ params }) {
                           </span>
                           {entry.metadata?.step && (
                             <span className="text-[8px] font-bold text-purple-500">
-                              Step {entry.metadata.step}/{entry.metadata.total_steps}
+                              {t("vadmin.detail.step", { n: entry.metadata.step })}/{entry.metadata.total_steps}
                             </span>
                           )}
                         </div>
@@ -947,9 +949,9 @@ export default function VentureDetailPage({ params }) {
                   <Shield className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Verification</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.startupVerification")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Verify company legitimacy, founder identity, and documentation
+                    {t("vadmin.detail.startupVerificationDesc")}
                   </p>
                 </div>
               </div>
@@ -957,24 +959,24 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/verification`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Shield className="w-3.5 h-3.5" /> Open Verification
+                <Shield className="w-3.5 h-3.5" /> {t("vadmin.detail.openVerification")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Status</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1 capitalize">{(venture.profile_progress?.is_completed ? "Verified" : "Pending")}</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.status")}</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1 capitalize">{venture.profile_progress?.is_completed ? t("vadmin.detail.verified") : t("vadmin.detail.pending")}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Categories</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1">6 required</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.categories")}</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1">{t("vadmin.detail.requiredCount", { count: 6 })}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Documents</p>
-                <p className="text-sm font-black text-[var(--text-primary)] mt-1">0 uploaded</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.documents")}</p>
+                <p className="text-sm font-black text-[var(--text-primary)] mt-1">{t("vadmin.detail.uploadedCount", { count: 0 })}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Last Review</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.lastReview")}</p>
                 <p className="text-sm font-black text-slate-500 mt-1">—</p>
               </div>
             </div>
@@ -989,9 +991,9 @@ export default function VentureDetailPage({ params }) {
                   <Shield className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Team Management</h3>
+                  <h3 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.detail.teamManagement")}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">
-                    Manage founders, co-founders, roles, and ownership
+                    {t("vadmin.detail.teamManagementDesc")}
                   </p>
                 </div>
               </div>
@@ -999,28 +1001,28 @@ export default function VentureDetailPage({ params }) {
                 onClick={() => router.push(`/admin/ventures/${id}/founders`)}
                 className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
               >
-                <Shield className="w-3.5 h-3.5" /> Open Founder Management
+                <Shield className="w-3.5 h-3.5" /> {t("vadmin.detail.openFounderManagement")}
               </button>
             </div>
             <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Total Members</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.totalMembers")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Roles</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.roles")}</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
                   {new Set((venture.founders || []).map((f) => f.role || f.title)).size}
                 </p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Pending</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.pending")}</p>
                 <p className="text-2xl font-black text-amber-400 mt-1">
                   {(venture.founders || []).filter((f) => f.status === "pending").length}
                 </p>
               </div>
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Active</p>
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.detail.active")}</p>
                 <p className="text-2xl font-black text-emerald-400 mt-1">
                   {(venture.founders || []).filter((f) => f.status === "accepted").length}
                 </p>

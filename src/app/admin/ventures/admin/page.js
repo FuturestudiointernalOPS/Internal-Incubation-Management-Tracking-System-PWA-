@@ -7,8 +7,10 @@ import {
   Activity, Server, Search,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function VentureAdminPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [settings, setSettings] = useState(null);
   const [features, setFeatures] = useState([]);
@@ -50,7 +52,7 @@ export default function VentureAdminPage() {
       body: JSON.stringify({ action: "update_setting", setting_key: key, setting_value: value }),
     });
     setSaving((p) => ({ ...p, [key]: false }));
-    notify("Setting updated");
+    notify(t("vadmin.admin.settingUpdated"));
   };
 
   const toggleFeature = async (flagKey, isEnabled) => {
@@ -61,7 +63,7 @@ export default function VentureAdminPage() {
     });
     setFeatures((prev) => prev.map((f) => f.flag_key === flagKey ? { ...f, is_enabled: !isEnabled } : f));
     setSaving((p) => ({ ...p, [flagKey]: false }));
-    notify(`Feature ${!isEnabled ? "enabled" : "disabled"}`);
+    notify(!isEnabled ? t("vadmin.admin.featureEnabled") : t("vadmin.admin.featureDisabled"));
   };
 
   const renderInput = (key, cfg) => {
@@ -69,7 +71,7 @@ export default function VentureAdminPage() {
       return (
         <button onClick={() => updateSetting(key, cfg.value ? "false" : "true")}
           className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${cfg.value ? "bg-emerald-500/20 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>
-          {cfg.value ? "Enabled" : "Disabled"}
+          {cfg.value ? t("vadmin.admin.enabled") : t("vadmin.admin.disabled")}
         </button>
       );
     }
@@ -97,7 +99,14 @@ export default function VentureAdminPage() {
     <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
   );
 
-  const categoryLabels = { general: "General", branding: "Branding", organization: "Organization", localization: "Localization", storage: "Storage", authentication: "Authentication" };
+  const categoryLabels = {
+    general: t("vadmin.admin.categoryGeneral"),
+    branding: t("vadmin.admin.categoryBranding"),
+    organization: t("vadmin.admin.categoryOrganization"),
+    localization: t("vadmin.admin.categoryLocalization"),
+    storage: t("vadmin.admin.categoryStorage"),
+    authentication: t("vadmin.admin.categoryAuthentication"),
+  };
 
   return (
     <DashboardLayout role="super_admin">
@@ -112,19 +121,19 @@ export default function VentureAdminPage() {
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Settings className="w-6 h-6 text-[var(--brand-orange)]" /></div>
           <div>
-            <h1 className="text-2xl font-black text-[var(--text-primary)]">Venture OS Administration</h1>
-            <p className="text-xs text-slate-500">System configuration, feature flags, and role management</p>
+            <h1 className="text-2xl font-black text-[var(--text-primary)]">{t("vadmin.admin.title")}</h1>
+            <p className="text-xs text-slate-500">{t("vadmin.admin.subtitle")}</p>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
           {[
-            { id: "settings", label: "Settings", icon: Settings },
-            { id: "features", label: "Features", icon: ToggleLeft },
-            { id: "roles", label: "Roles", icon: Shield },
-            { id: "system", label: "System", icon: Server },
-            { id: "logs", label: "Activity Logs", icon: Activity },
+            { id: "settings", label: t("vadmin.admin.tabSettings"), icon: Settings },
+            { id: "features", label: t("vadmin.admin.tabFeatures"), icon: ToggleLeft },
+            { id: "roles", label: t("vadmin.admin.tabRoles"), icon: Shield },
+            { id: "system", label: t("vadmin.admin.tabSystem"), icon: Server },
+            { id: "logs", label: t("vadmin.admin.tabActivityLogs"), icon: Activity },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -161,7 +170,7 @@ export default function VentureAdminPage() {
         {/* Feature Flags */}
         {activeTab === "features" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Feature Flags</h3>
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.admin.featureFlagsTitle")}</h3>
             <div className="space-y-2">
               {features.map((f) => (
                 <div key={f.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
@@ -170,7 +179,7 @@ export default function VentureAdminPage() {
                     <p className="text-[8px] text-slate-500">{f.description}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${f.is_enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>{f.is_enabled ? "ON" : "OFF"}</span>
+                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${f.is_enabled ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-500"}`}>{f.is_enabled ? t("vadmin.admin.on") : t("vadmin.admin.off")}</span>
                     <button onClick={() => toggleFeature(f.flag_key, f.is_enabled)} disabled={saving[f.flag_key]}
                       className={`w-10 h-5 rounded-full transition-all relative ${f.is_enabled ? "bg-emerald-500" : "bg-slate-600"}`}>
                       <div className={`w-4 h-4 rounded-full bg-white absolute top-0.5 transition-all ${f.is_enabled ? "left-5" : "left-0.5"}`} />
@@ -185,7 +194,7 @@ export default function VentureAdminPage() {
         {/* Roles */}
         {activeTab === "roles" && (
           <div className="space-y-4">
-            {roles.length === 0 && <p className="text-sm text-slate-500 text-center py-8">No custom roles defined</p>}
+            {roles.length === 0 && <p className="text-sm text-slate-500 text-center py-8">{t("vadmin.admin.noCustomRoles")}</p>}
             {roles.map((role) => (
               <div key={role.id} className="card">
                 <div className="flex items-center justify-between mb-3">
@@ -194,7 +203,7 @@ export default function VentureAdminPage() {
                     <p className="text-[9px] text-slate-500">{role.description || "—"}</p>
                   </div>
                   <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${role.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-500"} ${role.is_system_role ? "bg-blue-500/10 text-blue-400" : ""}`}>
-                    {role.is_system_role ? "System" : role.is_active ? "Active" : "Disabled"}
+                    {role.is_system_role ? t("vadmin.admin.roleSystem") : role.is_active ? t("vadmin.admin.roleActive") : t("vadmin.admin.disabled")}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -213,13 +222,13 @@ export default function VentureAdminPage() {
         {activeTab === "system" && systemInfo && (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {[
-              { label: "Database", value: systemInfo.database_version?.split(",")[0] },
-              { label: "Platform Version", value: systemInfo.platform_version },
-              { label: "Environment", value: systemInfo.node_env },
-              { label: "Total Users", value: systemInfo.total_users },
-              { label: "Total Ventures", value: systemInfo.total_ventures },
-              { label: "Active Sessions", value: systemInfo.active_sessions },
-              { label: "Admin Actions (24h)", value: systemInfo.admin_actions_24h },
+              { label: t("vadmin.admin.sysDatabase"), value: systemInfo.database_version?.split(",")[0] },
+              { label: t("vadmin.admin.sysPlatformVersion"), value: systemInfo.platform_version },
+              { label: t("vadmin.admin.sysEnvironment"), value: systemInfo.node_env },
+              { label: t("vadmin.admin.sysTotalUsers"), value: systemInfo.total_users },
+              { label: t("vadmin.admin.sysTotalVentures"), value: systemInfo.total_ventures },
+              { label: t("vadmin.admin.sysActiveSessions"), value: systemInfo.active_sessions },
+              { label: t("vadmin.admin.sysAdminActions24h"), value: systemInfo.admin_actions_24h },
             ].map((item) => (
               <div key={item.label} className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{item.label}</p>
@@ -232,8 +241,8 @@ export default function VentureAdminPage() {
         {/* Activity Logs */}
         {activeTab === "logs" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Recent Admin Activity</h3>
-            {logs.length === 0 ? <p className="text-sm text-slate-500 text-center py-8">No activity yet</p> : (
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.admin.recentActivity")}</h3>
+            {logs.length === 0 ? <p className="text-sm text-slate-500 text-center py-8">{t("vadmin.admin.noActivity")}</p> : (
               <div className="space-y-1">
                 {logs.map((log) => (
                   <div key={log.id} className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
