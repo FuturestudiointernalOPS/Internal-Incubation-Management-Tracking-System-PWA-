@@ -60,9 +60,8 @@ const FIELD_TYPES = {
 export default function SubmitFormPage() {
   const params = useParams();
   const router = useRouter();
-  const runId = params.runId;
-
   const { t } = useI18n();
+  const runId = params.runId;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,7 +94,7 @@ export default function SubmitFormPage() {
       // Load run detail + user's submission (participant endpoint)
       const runRes = await fetch(`/api/platform/form-runs?id=${runId}&participant=true`);
       const runData = await runRes.json();
-      if (!runData.success) throw new Error(t((runData.error || "Run not found") || "") || (runData.error || "Run not found"));
+      if (!runData.success) throw new Error(runData.error || t("platformMisc.runSubmitDetail.runNotFound"));
       setRun(runData.run);
 
       // Set existing submission if any
@@ -109,7 +108,7 @@ export default function SubmitFormPage() {
       // Load form definition (participant can access single form)
       const formRes = await fetch(`/api/platform/forms?id=${runData.run.form_id}`);
       const formData = await formRes.json();
-      if (!formData.success) throw new Error("Form not found");
+      if (!formData.success) throw new Error(t("platformMisc.runSubmitDetail.formNotFound"));
       setForm(formData.form);
       setSections(formData.sections || []);
       setFields(formData.fields || []);
@@ -120,7 +119,7 @@ export default function SubmitFormPage() {
       setExpandedSections(expanded);
 
     } catch (err) {
-      setError(t(err.message || "") || err.message);
+      setError(err.message);
     }
     setLoading(false);
   };
@@ -139,28 +138,28 @@ export default function SubmitFormPage() {
     const newErrors = {};
     fields.forEach((f) => {
       if (f.required && (!formData[f.id] || (typeof formData[f.id] === "string" && !formData[f.id].trim()))) {
-        newErrors[f.id] = `${f.label} is required`;
+        newErrors[f.id] = t("platformMisc.runSubmitDetail.fieldRequired", { label: f.label });
       }
       // Validate based on field type and validation rules
       if (formData[f.id] && f.validation) {
         const v = f.validation;
         if (f.field_type === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData[f.id])) {
-          newErrors[f.id] = "Please enter a valid email";
+          newErrors[f.id] = t("platformMisc.runSubmitDetail.invalidEmail");
         }
         if (v.minLength && String(formData[f.id]).length < v.minLength) {
-          newErrors[f.id] = `Minimum ${v.minLength} characters`;
+          newErrors[f.id] = t("platformMisc.runSubmitDetail.minLength", { count: v.minLength });
         }
         if (v.maxLength && String(formData[f.id]).length > v.maxLength) {
-          newErrors[f.id] = `Maximum ${v.maxLength} characters`;
+          newErrors[f.id] = t("platformMisc.runSubmitDetail.maxLength", { count: v.maxLength });
         }
         if (v.min !== undefined && Number(formData[f.id]) < v.min) {
-          newErrors[f.id] = `Minimum value is ${v.min}`;
+          newErrors[f.id] = t("platformMisc.runSubmitDetail.minValue", { value: v.min });
         }
         if (v.max !== undefined && Number(formData[f.id]) > v.max) {
-          newErrors[f.id] = `Maximum value is ${v.max}`;
+          newErrors[f.id] = t("platformMisc.runSubmitDetail.maxValue", { value: v.max });
         }
         if (v.pattern && !new RegExp(v.pattern).test(formData[f.id])) {
-          newErrors[f.id] = v.message || "Invalid format";
+          newErrors[f.id] = v.message || t("platformMisc.runSubmitDetail.invalidFormat");
         }
       }
     });
@@ -179,9 +178,9 @@ export default function SubmitFormPage() {
       const data = await res.json();
       if (data.success) {
         setExistingSubmission(data.submission);
-        notify("Draft saved");
+        notify(t("platformMisc.runSubmitDetail.draftSaved"));
       } else {
-        notify(t((data.error || "Failed to save draft") || "") || (data.error || "Failed to save draft"));
+        notify(data.error || t("platformMisc.runSubmitDetail.saveDraftFailed"));
       }
     } catch (_) {}
     setSaving(false);
@@ -200,9 +199,9 @@ export default function SubmitFormPage() {
       if (data.success) {
         setExistingSubmission(data.submission);
         setSuccess(true);
-        notify("Submission received!");
+        notify(t("platformMisc.runSubmitDetail.submissionReceived"));
       } else {
-        notify(t((data.error || "Failed to submit") || "") || (data.error || "Failed to submit"));
+        notify(data.error || t("platformMisc.runSubmitDetail.submitFailed"));
       }
     } catch (_) {}
     setSaving(false);
@@ -258,7 +257,7 @@ export default function SubmitFormPage() {
             type="email"
             value={value}
             onChange={(e) => updateField(field.id, e.target.value)}
-            placeholder={field.placeholder || "email@example.com"}
+            placeholder={field.placeholder || t("platformMisc.runSubmitDetail.emailExample")}
             disabled={isDisabled}
             className={inputClass}
           />
@@ -291,7 +290,7 @@ export default function SubmitFormPage() {
               disabled={isDisabled}
               className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
             >
-              <option value="">No prefix</option>
+              <option value="">{t("platformMisc.runSubmitDetail.noPrefix")}</option>
               {COUNTRY_CODES.map((c) => (
                 <option key={c.code + c.name} value={c.code}>{c.flag} {c.name} ({c.code})</option>
               ))}
@@ -303,7 +302,7 @@ export default function SubmitFormPage() {
                 const num = e.target.value.replace(/[^0-9\s\-()]/g, "");
                 updatePhone({ number: num });
               }}
-              placeholder={field.placeholder || "90 84 78 20"}
+              placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
               disabled={isDisabled}
               className={inputClass + " flex-1"}
             />
@@ -354,7 +353,7 @@ export default function SubmitFormPage() {
             disabled={isDisabled}
             className={inputClass}
           >
-            <option value="">{field.placeholder || "Select..."}</option>
+            <option value="">{field.placeholder || t("platformMisc.runSubmitDetail.select")}</option>
             {options.map((opt, i) => (
               <option key={i} value={opt.value || opt}>{opt.label || opt}</option>
             ))}
@@ -458,7 +457,7 @@ export default function SubmitFormPage() {
               disabled={isDisabled}
               className="text-[10px] text-[var(--text-secondary)]"
             />
-            {value && <p className="text-[10px] font-bold text-[var(--text-primary)] mt-1">{typeof value === "string" ? value : "File selected"}</p>}
+            {value && <p className="text-[10px] font-bold text-[var(--text-primary)] mt-1">{typeof value === "string" ? value : t("platformMisc.runSubmitDetail.fileSelected")}</p>}
           </div>
         );
 
@@ -488,20 +487,20 @@ export default function SubmitFormPage() {
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
           </div>
           <div>
-            <h1 className="text-lg font-black uppercase text-[var(--text-primary)]">Submission Received</h1>
+            <h1 className="text-lg font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.successTitle")}</h1>
             <p className="text-[11px] text-[var(--text-secondary)] mt-2">
-              {run?.settings?.confirmation_message || "Thank you for your submission! We will review it shortly."}
+              {run?.settings?.confirmation_message || t("platformMisc.runSubmitDetail.confirmationMessage")}
             </p>
           </div>
           {existingSubmission && (
             <div className="p-4 rounded-xl bg-secondary border border-[var(--border-primary)] text-left space-y-1">
-              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Submission Details</p>
-              <p className="text-[11px] font-bold text-[var(--text-primary)]">Status: <span className="text-[var(--brand-orange)]">{existingSubmission.status?.toUpperCase()}</span></p>
-              <p className="text-[10px] text-[var(--text-secondary)]">Submitted: {new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString()}</p>
+              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submissionDetails")}</p>
+              <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.status")}: <span className="text-[var(--brand-orange)]">{existingSubmission.status?.toUpperCase()}</span></p>
+              <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}</p>
             </div>
           )}
           <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110">
-            Back to My Submissions
+            {t("platformMisc.runSubmitDetail.backToSubmissions")}
           </button>
         </div>
       </div>
@@ -523,9 +522,9 @@ export default function SubmitFormPage() {
       <div className="min-h-screen flex items-center justify-center p-6">
         <div className="text-center space-y-4">
           <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
-          <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">Error</h1>
+          <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.errorTitle")}</h1>
           <p className="text-[11px] text-[var(--text-secondary)]">{error}</p>
-          <button onClick={() => router.back()} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase">Go Back</button>
+          <button onClick={() => router.back()} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase">{t("platformMisc.runSubmitDetail.goBack")}</button>
         </div>
       </div>
     );
@@ -545,18 +544,18 @@ export default function SubmitFormPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button onClick={() => router.back()} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
-              <ArrowLeft className="w-3 h-3" /> Back
+              <ArrowLeft className="w-3 h-3" /> {t("platformMisc.runSubmitDetail.back")}
             </button>
             <span className="text-[var(--text-secondary)] opacity-30">|</span>
             <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
-            <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{form?.name || "Form"}</h1>
+            <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{form?.name || t("platformMisc.runSubmitDetail.formTitle")}</h1>
           </div>
           <div className="flex items-center gap-2">
-            {isDraft && <span className="px-2 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[8px] font-black uppercase">DRAFT</span>}
-            {isSubmitted && <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase">SUBMITTED</span>}
-            {isApproved && <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase">APPROVED</span>}
-            {isRejected && <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase">REJECTED</span>}
-            {needsRevision && <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase">REVISION REQUESTED</span>}
+            {isDraft && <span className="px-2 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeDraft")}</span>}
+            {isSubmitted && <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeSubmitted")}</span>}
+            {isApproved && <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeApproved")}</span>}
+            {isRejected && <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeRejected")}</span>}
+            {needsRevision && <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeRevision")}</span>}
           </div>
         </div>
       </div>
@@ -576,8 +575,8 @@ export default function SubmitFormPage() {
             {(run.opens_at || run.closes_at) && (
               <div className="flex items-center gap-2 text-[9px] text-[var(--text-secondary)]">
                 <Clock className="w-3 h-3" />
-                {run.opens_at && <span>Opens: {new Date(run.opens_at).toLocaleString()}</span>}
-                {run.closes_at && <span>• Closes: {new Date(run.closes_at).toLocaleString()}</span>}
+                {run.opens_at && <span>{t("platformMisc.runSubmitDetail.opensAt", { date: new Date(run.opens_at).toLocaleString() })}</span>}
+                {run.closes_at && <span>{t("platformMisc.runSubmitDetail.closesAt", { date: new Date(run.closes_at).toLocaleString() })}</span>}
               </div>
             )}
           </div>
@@ -588,11 +587,11 @@ export default function SubmitFormPage() {
           <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-black uppercase text-blue-500">Already Submitted</p>
+              <p className="text-[11px] font-black uppercase text-blue-500">{t("platformMisc.runSubmitDetail.alreadySubmitted")}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                You submitted this form on {new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString()}.
-                {isApproved && " It has been approved."}
-                {isRejected && " It has been rejected. Contact your program manager for more information."}
+                {t("platformMisc.runSubmitDetail.submittedNotice", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}
+                {isApproved && ` ${t("platformMisc.runSubmitDetail.approvedNotice")}`}
+                {isRejected && ` ${t("platformMisc.runSubmitDetail.rejectedNotice")}`}
               </p>
             </div>
           </div>
@@ -602,9 +601,9 @@ export default function SubmitFormPage() {
           <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-black uppercase text-amber-500">Revision Requested</p>
+              <p className="text-[11px] font-black uppercase text-amber-500">{t("platformMisc.runSubmitDetail.revisionTitle")}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                A reviewer has requested changes. Please update your submission and resubmit.
+                {t("platformMisc.runSubmitDetail.revisionNotice")}
               </p>
             </div>
           </div>
@@ -679,7 +678,7 @@ export default function SubmitFormPage() {
         {fields.length === 0 && (
           <div className="py-16 text-center">
             <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-            <p className="text-[12px] font-bold text-[var(--text-secondary)] mt-3">This form has no fields yet.</p>
+            <p className="text-[12px] font-bold text-[var(--text-secondary)] mt-3">{t("platformMisc.runSubmitDetail.noFields")}</p>
           </div>
         )}
 
@@ -693,7 +692,7 @@ export default function SubmitFormPage() {
                 className="flex items-center gap-2 px-4 py-3 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase hover:bg-tertiary/80 disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5" />
-                {saving ? "Saving..." : "Save Draft"}
+                {saving ? t("platformMisc.runSubmitDetail.saving") : t("platformMisc.runSubmitDetail.saveDraft")}
               </button>
               <button
                 onClick={handleSubmit}
@@ -701,7 +700,7 @@ export default function SubmitFormPage() {
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
-                {saving ? "Submitting..." : needsRevision ? "Resubmit" : "Submit"}
+                {saving ? t("platformMisc.runSubmitDetail.submitting") : needsRevision ? t("platformMisc.runSubmitDetail.resubmit") : t("platformMisc.runSubmitDetail.submit")}
               </button>
             </div>
           </div>
