@@ -936,14 +936,19 @@ export default function FormRunsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {assignments.map((a) => (
-                        <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
-                          <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase">{TARGET_LABELS[a.target_type] || a.target_type}</span></td>
-                          <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{a.target_id}</td>
-                          <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{new Date(a.assigned_at).toLocaleDateString()}</td>
-                          <td className="px-4 py-3"><button onClick={() => handleUnassign(a.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
-                        </tr>
-                      ))}
+                      {assignments.map((a) => {
+                        const g = a.target_type === "group" ? groups.find((x) => (x.registration_id || x.id) === a.target_id) : null;
+                        const c = a.target_type === "user" ? contacts.find((x) => x.cid === a.target_id) : null;
+                        const targetName = g ? g.name : c ? (c.name || c.email) : a.target_id;
+                        return (
+                          <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase">{TARGET_LABELS[a.target_type] || a.target_type}</span></td>
+                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{targetName}</td>
+                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{new Date(a.assigned_at).toLocaleDateString()}</td>
+                            <td className="px-4 py-3"><button onClick={() => handleUnassign(a.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
