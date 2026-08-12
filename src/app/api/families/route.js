@@ -54,8 +54,8 @@ export async function POST(req) {
     let formId = null;
     try {
       const formRes = await db.execute({
-        sql: "INSERT INTO platform_forms (name, description, target_group) VALUES (?, 'Auto-created for group: ' || ?, ?) RETURNING id",
-        args: [name, name, registration_id],
+        sql: "INSERT INTO platform_forms (name, description, owner_id, owner_name, created_by) VALUES (?, 'Auto-created for group: ' || ?, 'system', 'AI', 'system') RETURNING id",
+        args: [name, name],
       });
       formId = formRes.rows[0]?.id;
       if (formId) {
@@ -81,7 +81,7 @@ export async function POST(req) {
     } catch (e) { console.warn("Auto-create form failed:", e.message); }
 
     const res = await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id, default_role) VALUES (?, ?, ?::uuid, ?, ?, ?::uuid, ?) RETURNING id",
+      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id, default_role) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
       args: [name, registration_id, program_id || null, type || "individual", description || null, formId, default_role || null],
     });
 
@@ -112,6 +112,7 @@ export async function PUT(req) {
     if (body.type !== undefined) { updates.push("type = ?"); args.push(body.type); }
     if (body.description !== undefined) { updates.push("description = ?"); args.push(body.description); }
     if (body.default_role !== undefined) { updates.push("default_role = ?"); args.push(body.default_role || null); }
+    if (body.form_id !== undefined) { updates.push("form_id = ?"); args.push(body.form_id || null); }
 
     if (updates.length === 0)
       return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });

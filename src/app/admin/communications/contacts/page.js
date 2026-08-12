@@ -80,6 +80,8 @@ function ContactsPageContent() {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupType, setNewGroupType] = useState("individual");
   const [newGroupProgramId, setNewGroupProgramId] = useState("");
+  const [newGroupFormId, setNewGroupFormId] = useState("");
+  const [platformForms, setPlatformForms] = useState([]);
 
   // Group Keys
   const [showGroupKeysModal, setShowGroupKeysModal] = useState(null);
@@ -149,6 +151,14 @@ function ContactsPageContent() {
     fetchData();
   }, [fetchData]);
 
+  const fetchPlatformForms = async () => {
+    try {
+      const res = await fetch("/api/platform/forms?status=all");
+      const data = await res.json();
+      if (data.success) setPlatformForms(data.forms || []);
+    } catch (_) {}
+  };
+
   const generatePassword = () => {
     const chars =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%";
@@ -215,6 +225,7 @@ function ContactsPageContent() {
           name: newGroupName.trim(),
           type: newGroupType,
           program_id: newGroupProgramId || null,
+          form_id: newGroupFormId || null,
         }),
       });
       if ((await res.json()).success) {
@@ -712,7 +723,7 @@ function ContactsPageContent() {
                     Segments
                   </p>
                   <button
-                    onClick={() => setShowGroupModal(true)}
+                    onClick={() => { setShowGroupModal(true); setNewGroupFormId(""); fetchPlatformForms(); }}
                     className="text-[10px] font-bold text-[var(--brand-orange)] hover:opacity-80 uppercase tracking-widest flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> New
@@ -737,6 +748,8 @@ function ContactsPageContent() {
                               setNewGroupType(f.type);
                               setNewGroupProgramId(f.program_id);
                               setShowGroupModal(f);
+                              fetchPlatformForms();
+                              setNewGroupFormId(f.form_id || "");
                             }}
                             title="Edit Segment"
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-[var(--brand-orange)]"
@@ -1161,6 +1174,16 @@ function ContactsPageContent() {
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
+                ))}
+              </select>
+              <select
+                value={newGroupFormId}
+                onChange={(e) => setNewGroupFormId(e.target.value)}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="">Link Form (optional)...</option>
+                {platformForms.filter((pf) => pf.status !== "archived").map((pf) => (
+                  <option key={pf.id} value={pf.id}>{pf.name}</option>
                 ))}
               </select>
               <button
