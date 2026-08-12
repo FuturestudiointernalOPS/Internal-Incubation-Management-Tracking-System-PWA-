@@ -7,6 +7,7 @@ import {
   Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const ROW_COLORS = {
   milestone: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
@@ -25,6 +26,7 @@ const STATUS_COLORS = {
 export default function VentureTimelinePage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [data, setData] = useState(null);
   const [progress, setProgress] = useState(null);
@@ -110,10 +112,10 @@ export default function VentureTimelinePage() {
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.timeline.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" /> Project Timeline
+              <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.timeline.projectTimeline")}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""}</p>
           </div>
@@ -122,7 +124,7 @@ export default function VentureTimelinePage() {
               {["gantt", "progress", "delay"].map((v) => (
                 <button key={v} onClick={() => setView(v)}
                   className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all ${view === v ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "text-slate-500 hover:text-[var(--text-primary)]"}`}>
-                  {v === "gantt" ? "Gantt" : v === "progress" ? "Progress" : "Delays"}
+                  {v === "gantt" ? t("vadmin.timeline.gantt") : v === "progress" ? t("vadmin.timeline.progress") : t("vadmin.timeline.delays")}
                 </button>
               ))}
             </div>
@@ -133,11 +135,11 @@ export default function VentureTimelinePage() {
         {/* Progress Overview Cards */}
         {progress && (
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {overview("Overall", `${progress.overall}%`, progress.overall >= 80 ? "text-emerald-400" : progress.overall >= 40 ? "text-amber-400" : "text-[var(--brand-orange)]")}
-            {overview("Milestones", `${progress.milestones?.done || 0}/${progress.milestones?.total || 0}`)}
-            {overview("Tasks", `${progress.tasks?.done || 0}/${progress.tasks?.total || 0}`)}
-            {overview("Deliverables", `${progress.deliverables?.done || 0}/${progress.deliverables?.total || 0}`)}
-            {overview("Delayed", progress.delayed || 0, progress.delayed > 0 ? "text-rose-400" : "text-emerald-400")}
+            {overview(t("vadmin.timeline.overall"), `${progress.overall}%`, progress.overall >= 80 ? "text-emerald-400" : progress.overall >= 40 ? "text-amber-400" : "text-[var(--brand-orange)]")}
+            {overview(t("vadmin.timeline.milestones"), `${progress.milestones?.done || 0}/${progress.milestones?.total || 0}`)}
+            {overview(t("vadmin.timeline.tasks"), `${progress.tasks?.done || 0}/${progress.tasks?.total || 0}`)}
+            {overview(t("vadmin.timeline.deliverables"), `${progress.deliverables?.done || 0}/${progress.deliverables?.total || 0}`)}
+            {overview(t("vadmin.timeline.delayed"), progress.delayed || 0, progress.delayed > 0 ? "text-rose-400" : "text-emerald-400")}
           </div>
         )}
 
@@ -145,21 +147,21 @@ export default function VentureTimelinePage() {
         {progress && (
           <div className="card">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Overall Project Progress</span>
+              <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.timeline.overallProgress")}</span>
               <span className="text-xs font-black text-[var(--text-primary)]">{progress.overall}%</span>
             </div>
             {progressBar(progress.overall)}
             <div className="grid grid-cols-3 gap-4 mt-4">
               <div>
-                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>Milestones</span><span>{progress.milestones?.done || 0}/{progress.milestones?.total || 0}</span></div>
+                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>{t("vadmin.timeline.milestones")}</span><span>{progress.milestones?.done || 0}/{progress.milestones?.total || 0}</span></div>
                 {progressBar(progress.milestones?.total > 0 ? (progress.milestones.done / progress.milestones.total) * 100 : 0)}
               </div>
               <div>
-                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>Tasks</span><span>{progress.tasks?.done || 0}/{progress.tasks?.total || 0}</span></div>
+                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>{t("vadmin.timeline.tasks")}</span><span>{progress.tasks?.done || 0}/{progress.tasks?.total || 0}</span></div>
                 {progressBar(progress.tasks?.total > 0 ? (progress.tasks.done / progress.tasks.total) * 100 : 0)}
               </div>
               <div>
-                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>Deliverables</span><span>{progress.deliverables?.done || 0}/{progress.deliverables?.total || 0}</span></div>
+                <div className="flex items-center justify-between text-[8px] text-slate-500 mb-1"><span>{t("vadmin.timeline.deliverables")}</span><span>{progress.deliverables?.done || 0}/{progress.deliverables?.total || 0}</span></div>
                 {progressBar(progress.deliverables?.total > 0 ? (progress.deliverables.done / progress.deliverables.total) * 100 : 0)}
               </div>
             </div>
@@ -170,7 +172,7 @@ export default function VentureTimelinePage() {
         {view === "gantt" && (
           <div className="card overflow-hidden">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Gantt Chart</h3>
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.timeline.ganttChart")}</h3>
               <div className="flex gap-1 bg-tertiary rounded-lg p-0.5">
                 {["day", "week", "month"].map((z) => (
                   <button key={z} onClick={() => setZoom(z)}
@@ -180,7 +182,7 @@ export default function VentureTimelinePage() {
             </div>
 
             {rows.length === 0 ? (
-              <div className="text-center py-12"><BarChart3 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No timeline data yet. Create milestones and tasks first.</p></div>
+              <div className="text-center py-12"><BarChart3 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.timeline.noDataYet")}</p></div>
             ) : (
               <div className="overflow-x-auto">
                 <div style={{ minWidth: "600px" }}>
@@ -236,9 +238,9 @@ export default function VentureTimelinePage() {
         {/* Progress View */}
         {view === "progress" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">All Timeline Items</h3>
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">{t("vadmin.timeline.allTimelineItems")}</h3>
             {rows.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-8">No items tracked</p>
+              <p className="text-sm text-slate-500 text-center py-8">{t("vadmin.timeline.noItemsTracked")}</p>
             ) : (
               <div className="space-y-3">
                 {rows.map((row) => {
@@ -260,8 +262,8 @@ export default function VentureTimelinePage() {
                       </div>
                       {progressBar(row.progress)}
                       <div className="flex items-center gap-3 mt-2 text-[8px] text-slate-500">
-                        {row.start_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Start: {new Date(row.start_date).toLocaleDateString()}</span>}
-                        {row.end_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />Due: {new Date(row.end_date).toLocaleDateString()}</span>}
+                        {row.start_date && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{t("vadmin.timeline.start", { date: new Date(row.start_date).toLocaleDateString() })}</span>}
+                        {row.end_date && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{t("vadmin.timeline.due", { date: new Date(row.end_date).toLocaleDateString() })}</span>}
                       </div>
                     </div>
                   );
@@ -277,16 +279,16 @@ export default function VentureTimelinePage() {
             {/* Overdue Tasks */}
             <div className="card">
               <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <AlertCircle className="w-3.5 h-3.5" /> Overdue Tasks ({delays?.overdue_tasks?.length || 0})
+                <AlertCircle className="w-3.5 h-3.5" /> {t("vadmin.timeline.overdueTasks", { count: delays?.overdue_tasks?.length || 0 })}
               </h3>
               {(delays?.overdue_tasks || []).length === 0 ? (
-                <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> No overdue tasks</p>
+                <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {t("vadmin.timeline.noOverdueTasks")}</p>
               ) : (
                 <div className="space-y-2">
-                  {delays.overdue_tasks.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
-                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{t.title}</span>
-                      <span className="text-[8px] text-rose-400">Due: {new Date(t.due_date).toLocaleDateString()}</span>
+                  {delays.overdue_tasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">{task.title}</span>
+                      <span className="text-[8px] text-rose-400">{t("vadmin.timeline.due", { date: new Date(task.due_date).toLocaleDateString() })}</span>
                     </div>
                   ))}
                 </div>
@@ -296,16 +298,16 @@ export default function VentureTimelinePage() {
             {/* Delayed Milestones */}
             <div className="card">
               <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Flag className="w-3.5 h-3.5" /> Delayed Milestones ({delays?.delayed_milestones?.length || 0})
+                <Flag className="w-3.5 h-3.5" /> {t("vadmin.timeline.delayedMilestones", { count: delays?.delayed_milestones?.length || 0 })}
               </h3>
               {(delays?.delayed_milestones || []).length === 0 ? (
-                <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> All milestones on track</p>
+                <p className="text-[10px] text-emerald-400 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {t("vadmin.timeline.allMilestonesOnTrack")}</p>
               ) : (
                 <div className="space-y-2">
                   {delays.delayed_milestones.map((m) => (
                     <div key={m.id} className="flex items-center justify-between p-3 bg-rose-500/5 rounded-xl border border-rose-500/20">
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">{m.title}</span>
-                      <span className="text-[8px] text-rose-400">Due: {new Date(m.due_date).toLocaleDateString()}</span>
+                      <span className="text-[8px] text-rose-400">{t("vadmin.timeline.due", { date: new Date(m.due_date).toLocaleDateString() })}</span>
                     </div>
                   ))}
                 </div>
@@ -315,10 +317,10 @@ export default function VentureTimelinePage() {
             {/* Upcoming Deadlines (7 days) */}
             <div className="card">
               <h3 className="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5" /> Upcoming Deadlines (next 7 days) ({delays?.upcoming_deadlines?.length || 0})
+                <Clock className="w-3.5 h-3.5" /> {t("vadmin.timeline.upcomingDeadlines", { count: delays?.upcoming_deadlines?.length || 0 })}
               </h3>
               {(delays?.upcoming_deadlines || []).length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic">No upcoming deadlines this week</p>
+                <p className="text-[10px] text-slate-500 italic">{t("vadmin.timeline.noUpcomingDeadlines")}</p>
               ) : (
                 <div className="space-y-2">
                   {delays.upcoming_deadlines.map((item, i) => (
@@ -339,9 +341,9 @@ export default function VentureTimelinePage() {
             {progress?.blocked > 0 && (
               <div className="card">
                 <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                  <Target className="w-3.5 h-3.5" /> Blocked Items ({progress.blocked})
+                  <Target className="w-3.5 h-3.5" /> {t("vadmin.timeline.blockedItems", { count: progress.blocked })}
                 </h3>
-                <p className="text-[10px] text-slate-500">{progress.blocked} task(s) currently blocked</p>
+                <p className="text-[10px] text-slate-500">{t("vadmin.timeline.blockedTasksCount", { count: progress.blocked })}</p>
               </div>
             )}
           </div>

@@ -8,24 +8,27 @@ import {
   List, Columns, LayoutGrid, Circle, Square,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
-
-const STATUS_CFG = {
-  backlog: { label: "Backlog", color: "bg-slate-500/10 text-slate-400", dot: "bg-slate-400" },
-  todo: { label: "To Do", color: "bg-blue-500/10 text-blue-400", dot: "bg-blue-400" },
-  in_progress: { label: "In Progress", color: "bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
-  review: { label: "Review", color: "bg-purple-500/10 text-purple-400", dot: "bg-purple-400" },
-  done: { label: "Done", color: "bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
-  blocked: { label: "Blocked", color: "bg-rose-500/10 text-rose-400", dot: "bg-rose-400" },
-  cancelled: { label: "Cancelled", color: "bg-slate-500/5 text-slate-500", dot: "bg-slate-500" },
-};
 
 const PRIORITY_CFG = { low: "text-slate-500", medium: "text-blue-400", high: "text-amber-400", critical: "text-rose-400" };
 
 export default function VentureTasksPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
+
+  const STATUS_CFG = {
+    backlog: { label: t("vadmin.tasks.statusBacklog"), color: "bg-slate-500/10 text-slate-400", dot: "bg-slate-400" },
+    todo: { label: t("vadmin.tasks.statusTodo"), color: "bg-blue-500/10 text-blue-400", dot: "bg-blue-400" },
+    in_progress: { label: t("vadmin.tasks.statusInProgress"), color: "bg-amber-500/10 text-amber-400", dot: "bg-amber-400" },
+    review: { label: t("vadmin.tasks.statusReview"), color: "bg-purple-500/10 text-purple-400", dot: "bg-purple-400" },
+    done: { label: t("vadmin.tasks.statusDone"), color: "bg-emerald-500/10 text-emerald-400", dot: "bg-emerald-400" },
+    blocked: { label: t("vadmin.tasks.statusBlocked"), color: "bg-rose-500/10 text-rose-400", dot: "bg-rose-400" },
+    cancelled: { label: t("vadmin.tasks.statusCancelled"), color: "bg-slate-500/5 text-slate-500", dot: "bg-slate-500" },
+  };
+
   const [venture, setVenture] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [byStatus, setByStatus] = useState({});
@@ -114,25 +117,25 @@ export default function VentureTasksPage() {
   const handleDragLeave = () => setDragOver(null);
 
   const createOrUpdateTask = async () => {
-    if (!tForm.title.trim()) { notify("Title required", "error"); return; }
+    if (!tForm.title.trim()) { notify(t("vadmin.tasks.titleRequired"), "error"); return; }
     setSaving(true);
     try {
       if (editTask) {
         await fetch(`/api/ventures/${id}/tasks?id=${editTask.id}`, {
           method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(tForm),
         });
-        notify("Task updated");
+        notify(t("vadmin.tasks.taskUpdated"));
       } else {
         await fetch(`/api/ventures/${id}/tasks`, {
           method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...tForm, milestone_id: tForm.milestone_id || null }),
         });
-        notify("Task created");
+        notify(t("vadmin.tasks.taskCreated"));
       }
       setShowTaskModal(false);
       setEditTask(null);
       setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
       fetchData();
-    } catch { notify("Error saving task", "error"); }
+    } catch { notify(t("vadmin.tasks.saveError"), "error"); }
     setSaving(false);
   };
 
@@ -146,7 +149,7 @@ export default function VentureTasksPage() {
       const res = await fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}&action=get_comments`, { method: "PATCH" });
       const d = await res.json();
       if (d.success) setComments(d.comments || []);
-    } catch { notify("Failed to add comment", "error"); }
+    } catch { notify(t("vadmin.tasks.commentFailed"), "error"); }
   };
 
   const filteredTasks = tasks.filter((t) => {
@@ -185,12 +188,12 @@ export default function VentureTasksPage() {
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.tasks.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" /> Tasks
+              <CheckCircle2 className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.tasks.title")}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""} · {totalTasks} tasks · {doneTasks} done</p>
+            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""} · {t("vadmin.tasks.tasksCount", { count: totalTasks })} · {t("vadmin.tasks.doneCount", { count: doneTasks })}</p>
           </div>
           <div className="flex items-center gap-3">
             {/* View toggle */}
@@ -203,11 +206,11 @@ export default function VentureTasksPage() {
               </button>
             </div>
             <div className="relative">
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search tasks..." className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("vadmin.tasks.searchPlaceholder")} className="w-40 bg-tertiary border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] placeholder:text-slate-600" />
             </div>
             <button onClick={() => { setEditTask(null); setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" }); setShowTaskModal(true); }}
               className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5" /> Add Task
+              <Plus className="w-3.5 h-3.5" /> {t("vadmin.tasks.addTask")}
             </button>
           </div>
         </div>
@@ -234,7 +237,7 @@ export default function VentureTasksPage() {
                     <div className="p-2 space-y-2 min-h-[200px]">
                       {items.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-8 text-slate-600">
-                          <p className="text-[8px] font-bold">No tasks</p>
+                          <p className="text-[8px] font-bold">{t("vadmin.tasks.noTasks")}</p>
                         </div>
                       )}
                       {items.map((task) => (
@@ -273,7 +276,7 @@ export default function VentureTasksPage() {
         {view === "list" && (
           <div className="space-y-1">
             {filteredTasks.length === 0 ? (
-              <div className="text-center py-16"><CheckCircle2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No tasks found</p></div>
+              <div className="text-center py-16"><CheckCircle2 className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.tasks.noTasksFound")}</p></div>
             ) : (
               filteredTasks.map((task) => {
                 const sc = STATUS_CFG[task.status];
@@ -286,7 +289,7 @@ export default function VentureTasksPage() {
                       <div className="flex items-center gap-3 mt-1 text-[8px] text-slate-500">
                         <span className={`${PRIORITY_CFG[task.priority]} font-bold uppercase`}>{task.priority}</span>
                         {task.assigned_name && <span>{task.assigned_name}</span>}
-                        {task.milestone_id && <span>Milestone #{task.milestone_id}</span>}
+                        {task.milestone_id && <span>{t("vadmin.tasks.milestoneWithId", { id: task.milestone_id })}</span>}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -320,34 +323,34 @@ export default function VentureTasksPage() {
                 </select>
                 <select value={selectedTask.priority} onChange={(e) => { setSelectedTask((p) => ({ ...p, priority: e.target.value })); fetch(`/api/ventures/${id}/tasks?id=${selectedTask.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ priority: e.target.value }) }); }}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none">
-                  {["low", "medium", "high", "critical"].map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+                  {["low", "medium", "high", "critical"].map((p) => <option key={p} value={p}>{t(`vadmin.tasks.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}</option>)}
                 </select>
               </div>
 
               {/* Description */}
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Description</p>
-                <p className="text-xs text-[var(--text-secondary)]">{selectedTask.description || "No description"}</p>
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("vadmin.tasks.description")}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{selectedTask.description || t("vadmin.tasks.noDescription")}</p>
               </div>
 
               {/* Details */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Assignee</p>
-                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.assigned_name || "Unassigned"}</p>
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.tasks.assignee")}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.assigned_name || t("vadmin.tasks.unassigned")}</p>
                 </div>
                 <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Due Date</p>
-                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : "No date"}</p>
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.tasks.dueDate")}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.due_date ? new Date(selectedTask.due_date).toLocaleDateString() : t("vadmin.tasks.noDate")}</p>
                 </div>
                 {selectedTask.estimated_hours && (
                   <div className="p-3 bg-primary rounded-xl">
-                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Est. Hours</p>
+                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.tasks.estHours")}</p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{selectedTask.estimated_hours}h</p>
                   </div>
                 )}
                 <div className="p-3 bg-primary rounded-xl">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">Labels</p>
+                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider">{t("vadmin.tasks.labels")}</p>
                   <div className="flex gap-1 mt-0.5 flex-wrap">
                     {(selectedTask.labels || []).length === 0 ? <span className="text-[9px] text-slate-500">—</span> :
                       selectedTask.labels.map((l, i) => <span key={i} className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">{l}</span>)
@@ -360,7 +363,7 @@ export default function VentureTasksPage() {
               {(selectedTask.checklist || []).length > 0 && (
                 <div>
                   <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Checklist ({selectedTask.checklist.filter((c) => c.done).length}/{selectedTask.checklist.length})
+                    {t("vadmin.tasks.checklistCount", { done: selectedTask.checklist.filter((c) => c.done).length, total: selectedTask.checklist.length })}
                   </p>
                   <div className="space-y-1">
                     {selectedTask.checklist.map((item, i) => (
@@ -381,14 +384,14 @@ export default function VentureTasksPage() {
               {/* Comments */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Comments ({comments.length})</p>
+                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.tasks.commentsCount", { count: comments.length })}</p>
                   <button onClick={() => setShowComments(!showComments)} className="text-[8px] font-bold text-[var(--brand-orange)] hover:underline">
-                    {showComments ? "Hide" : "Show"}
+                    {showComments ? t("vadmin.tasks.hide") : t("vadmin.tasks.show")}
                   </button>
                 </div>
                 {showComments && (
                   <div className="space-y-3">
-                    {comments.length === 0 && <p className="text-[10px] text-slate-500 italic">No comments</p>}
+                    {comments.length === 0 && <p className="text-[10px] text-slate-500 italic">{t("vadmin.tasks.noComments")}</p>}
                     {comments.map((c) => (
                       <div key={c.id} className="p-3 bg-primary rounded-xl border border-[var(--border-primary)]">
                         <div className="flex items-center gap-2 mb-1">
@@ -399,10 +402,10 @@ export default function VentureTasksPage() {
                       </div>
                     ))}
                     <div className="flex gap-2">
-                      <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add a comment..."
+                      <input value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder={t("vadmin.tasks.commentPlaceholder")}
                         className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
                       <button onClick={addComment} disabled={!commentText.trim()}
-                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 disabled:opacity-30">Send</button>
+                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 disabled:opacity-30">{t("vadmin.tasks.send")}</button>
                     </div>
                   </div>
                 )}
@@ -410,7 +413,7 @@ export default function VentureTasksPage() {
 
               {/* Activity log link */}
               <div className="text-center pt-4 border-t border-[var(--border-primary)]">
-                <button onClick={() => setShowDrawer(false)} className="text-[8px] font-bold text-slate-500 hover:text-[var(--text-primary)]">Close</button>
+                <button onClick={() => setShowDrawer(false)} className="text-[8px] font-bold text-slate-500 hover:text-[var(--text-primary)]">{t("vadmin.tasks.close")}</button>
               </div>
             </div>
           </div>
@@ -422,59 +425,59 @@ export default function VentureTasksPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">{editTask ? "Edit Task" : "New Task"}</h2>
+              <h2 className="text-sm font-black text-[var(--text-primary)]">{editTask ? t("vadmin.tasks.editTask") : t("vadmin.tasks.newTask")}</h2>
               <button onClick={() => setShowTaskModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Title *</label>
-                <input value={tForm.title} onChange={(e) => setTForm((p) => ({ ...p, title: e.target.value }))} placeholder="What needs to be done?"
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.titleLabel")}</label>
+                <input value={tForm.title} onChange={(e) => setTForm((p) => ({ ...p, title: e.target.value }))} placeholder={t("vadmin.tasks.titlePlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Description</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.description")}</label>
                 <textarea value={tForm.description} onChange={(e) => setTForm((p) => ({ ...p, description: e.target.value }))} rows={2}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Status</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.status")}</label>
                   <select value={tForm.status} onChange={(e) => setTForm((p) => ({ ...p, status: e.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
                     {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_CFG[s]?.label || s}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Priority</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.priority")}</label>
                   <select value={tForm.priority} onChange={(e) => setTForm((p) => ({ ...p, priority: e.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    <option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="critical">Critical</option>
+                    <option value="low">{t("vadmin.tasks.priorityLow")}</option><option value="medium">{t("vadmin.tasks.priorityMedium")}</option><option value="high">{t("vadmin.tasks.priorityHigh")}</option><option value="critical">{t("vadmin.tasks.priorityCritical")}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Due Date</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.dueDate")}</label>
                   <input type="date" value={tForm.due_date} onChange={(e) => setTForm((p) => ({ ...p, due_date: e.target.value }))}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Est. Hours</label>
-                  <input type="number" value={tForm.estimated_hours} onChange={(e) => setTForm((p) => ({ ...p, estimated_hours: e.target.value }))} placeholder="e.g., 4"
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.estHours")}</label>
+                  <input type="number" value={tForm.estimated_hours} onChange={(e) => setTForm((p) => ({ ...p, estimated_hours: e.target.value }))} placeholder={t("vadmin.tasks.hoursPlaceholder")}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Assignee</label>
-                <input value={tForm.assigned_name} onChange={(e) => setTForm((p) => ({ ...p, assigned_name: e.target.value, assigned_cid: e.target.value }))} placeholder="Team member name"
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.tasks.assignee")}</label>
+                <input value={tForm.assigned_name} onChange={(e) => setTForm((p) => ({ ...p, assigned_name: e.target.value, assigned_cid: e.target.value }))} placeholder={t("vadmin.tasks.assigneePlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowTaskModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={() => setShowTaskModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.tasks.cancel")}</button>
               <button onClick={createOrUpdateTask} disabled={saving}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {editTask ? "Update" : "Create"}
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />} {editTask ? t("vadmin.tasks.update") : t("vadmin.tasks.create")}
               </button>
             </div>
           </div>
