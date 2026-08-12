@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X } from "lucide-react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -19,6 +20,7 @@ const MODULE_COLORS = {
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
   const router = useRouter();
+  const { t } = useI18n();
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
@@ -156,7 +158,7 @@ export default function CrmDetailPage({ params }) {
   if (loading) {
     return (
       <DashboardLayout role="super_admin" activeTab="crm">
-        <div className="p-8 text-center text-sm text-[var(--text-secondary)]">Loading...</div>
+        <div className="p-8 text-center text-sm text-[var(--text-secondary)]">{t("crm.people.loading")}</div>
       </DashboardLayout>
     );
   }
@@ -164,7 +166,7 @@ export default function CrmDetailPage({ params }) {
   if (!contact) {
     return (
       <DashboardLayout role="super_admin" activeTab="crm">
-        <div className="p-8 text-center text-sm text-[var(--text-secondary)]">Contact not found.</div>
+        <div className="p-8 text-center text-sm text-[var(--text-secondary)]">{t("crm.people.contactNotFound")}</div>
       </DashboardLayout>
     );
   }
@@ -174,7 +176,7 @@ export default function CrmDetailPage({ params }) {
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
         {/* Back link */}
         <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">
-          ← CRM Dashboard
+          {t("crm.people.backToCrmDashboard")}
         </Link>
 
         {/* Identity Header */}
@@ -196,7 +198,7 @@ export default function CrmDetailPage({ params }) {
                 ))}
                 {pastRoles.length > 0 && (
                   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)]">
-                    +{pastRoles.length} previous
+                    {t("crm.people.previousCount", { count: pastRoles.length })}
                   </span>
                 )}
               </div>
@@ -207,22 +209,22 @@ export default function CrmDetailPage({ params }) {
         {/* Tabs */}
         <div className="flex gap-1 border-b border-[var(--border-primary)] pb-0">
           {[
-            { key: "timeline", label: "Timeline", icon: Clock },
-            { key: "notes", label: "Notes", icon: FileText },
-            { key: "meetings", label: "Meetings", icon: Briefcase },
-            { key: "documents", label: "Documents", icon: Upload },
-          ].map(t => (
+            { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
+            { key: "notes", label: t("crm.people.tabNotes"), icon: FileText },
+            { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase },
+            { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload },
+          ].map(item => (
             <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
+              key={item.key}
+              onClick={() => setTab(item.key)}
               className={`flex items-center gap-2 px-4 py-2.5 text-[11px] font-black uppercase tracking-wider border-b-2 transition-colors ${
-                tab === t.key
+                tab === item.key
                   ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <t.icon className="w-3.5 h-3.5" />
-              {t.label}
+              <item.icon className="w-3.5 h-3.5" />
+              {item.label}
             </button>
           ))}
         </div>
@@ -233,11 +235,11 @@ export default function CrmDetailPage({ params }) {
             {/* Quick panels */}
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
-                { key: "forms", label: "Forms", count: panelCounts.forms, color: "border-purple-500/30" },
-                { key: "programs", label: "Programs", count: panelCounts.programs, color: "border-blue-500/30" },
-                { key: "ventures", label: "Ventures", count: panelCounts.ventures, color: "border-emerald-500/30" },
-                { key: "investors", label: "Investors", count: panelCounts.investors, color: "border-amber-500/30" },
-                { key: "communications", label: "Comms", count: panelCounts.comms, color: "border-cyan-500/30" },
+                { key: "forms", label: t("crm.people.panelForms"), count: panelCounts.forms, color: "border-purple-500/30" },
+                { key: "programs", label: t("crm.people.panelPrograms"), count: panelCounts.programs, color: "border-blue-500/30" },
+                { key: "ventures", label: t("crm.people.panelVentures"), count: panelCounts.ventures, color: "border-emerald-500/30" },
+                { key: "investors", label: t("crm.people.panelInvestors"), count: panelCounts.investors, color: "border-amber-500/30" },
+                { key: "communications", label: t("crm.people.panelComms"), count: panelCounts.comms, color: "border-cyan-500/30" },
               ].map(p => (
                 <button
                   key={p.key}
@@ -264,7 +266,7 @@ export default function CrmDetailPage({ params }) {
                     moduleFilter === f ? "bg-[var(--brand-orange)] text-black border-orange-600" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
                   }`}
                 >
-                  {f || "All"}
+                  {f || t("crm.people.all")}
                 </button>
               ))}
             </div>
@@ -273,9 +275,9 @@ export default function CrmDetailPage({ params }) {
             {events.length === 0 ? (
               <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
                 <Clock className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
-                <p className="text-sm font-bold">No events yet</p>
+                <p className="text-sm font-bold">{t("crm.people.noEvents")}</p>
                 <p className="text-xs text-[var(--text-secondary)] mt-1">
-                  Events will appear as {contact.name} interacts with the platform.
+                  {t("crm.people.noEventsHint", { name: contact.name })}
                 </p>
               </div>
             ) : (
@@ -319,7 +321,7 @@ export default function CrmDetailPage({ params }) {
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Add a note..."
+                placeholder={t("crm.people.notePlaceholder")}
                 value={noteText}
                 onChange={e => setNoteText(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAddNote()}
@@ -330,7 +332,7 @@ export default function CrmDetailPage({ params }) {
                 disabled={savingNote || !noteText.trim()}
                 className="px-4 py-2.5 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl disabled:opacity-50"
               >
-                {savingNote ? "..." : "Add"}
+                {savingNote ? "..." : t("crm.people.add")}
               </button>
             </div>
             <div className="space-y-2">
@@ -343,7 +345,7 @@ export default function CrmDetailPage({ params }) {
                 </div>
               ))}
               {events.filter(e => e.event_type === "note_added").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">No notes yet.</p>
+                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noNotes")}</p>
               )}
             </div>
           </div>
@@ -357,7 +359,7 @@ export default function CrmDetailPage({ params }) {
                 onClick={() => setShowMeeting(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl"
               >
-                <Plus className="w-3.5 h-3.5" /> Record Meeting
+                <Plus className="w-3.5 h-3.5" /> {t("crm.people.recordMeeting")}
               </button>
             ) : (
               <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5 space-y-3">
@@ -369,20 +371,20 @@ export default function CrmDetailPage({ params }) {
                 />
                 <input
                   type="text"
-                  placeholder="Meeting summary (required)"
+                  placeholder={t("crm.people.meetingSummaryPlaceholder")}
                   value={meetingSummary}
                   onChange={e => setMeetingSummary(e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
                 <input
                   type="text"
-                  placeholder="Attendees"
+                  placeholder={t("crm.people.meetingAttendeesPlaceholder")}
                   value={meetingAttendees}
                   onChange={e => setMeetingAttendees(e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-sm outline-none focus:border-[var(--brand-orange)]"
                 />
                 <textarea
-                  placeholder="Outcome / notes"
+                  placeholder={t("crm.people.meetingOutcomePlaceholder")}
                   value={meetingOutcome}
                   onChange={e => setMeetingOutcome(e.target.value)}
                   rows={2}
@@ -394,10 +396,10 @@ export default function CrmDetailPage({ params }) {
                     disabled={savingMeeting || !meetingSummary.trim()}
                     className="px-4 py-2 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl disabled:opacity-50"
                   >
-                    {savingMeeting ? "Saving..." : "Save Meeting"}
+                    {savingMeeting ? t("crm.people.saving") : t("crm.people.saveMeeting")}
                   </button>
                   <button onClick={() => setShowMeeting(false)} className="px-4 py-2 bg-tertiary font-bold text-sm uppercase rounded-xl">
-                    Cancel
+                    {t("crm.people.cancel")}
                   </button>
                 </div>
               </div>
@@ -409,9 +411,9 @@ export default function CrmDetailPage({ params }) {
                   <p className="text-sm font-bold">{ev.description}</p>
                   {ev.metadata && (
                     <div className="text-[10px] text-[var(--text-secondary)] mt-1 space-y-0.5">
-                      {ev.metadata.date && <p>Date: {ev.metadata.date}</p>}
-                      {ev.metadata.attendees && <p>Attendees: {ev.metadata.attendees}</p>}
-                      {ev.metadata.outcome && <p>Outcome: {ev.metadata.outcome}</p>}
+                      {ev.metadata.date && <p>{t("crm.people.metaDate")} {ev.metadata.date}</p>}
+                      {ev.metadata.attendees && <p>{t("crm.people.metaAttendees")} {ev.metadata.attendees}</p>}
+                      {ev.metadata.outcome && <p>{t("crm.people.metaOutcome")} {ev.metadata.outcome}</p>}
                     </div>
                   )}
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
@@ -420,7 +422,7 @@ export default function CrmDetailPage({ params }) {
                 </div>
               ))}
               {events.filter(e => e.event_type === "meeting_held").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">No meetings recorded.</p>
+                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noMeetings")}</p>
               )}
             </div>
           </div>
@@ -431,7 +433,7 @@ export default function CrmDetailPage({ params }) {
           <div className="space-y-4">
             <label className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl cursor-pointer w-fit">
               <Upload className="w-3.5 h-3.5" />
-              {uploading ? "Uploading..." : "Upload File"}
+              {uploading ? t("crm.people.uploading") : t("crm.people.uploadFile")}
               <input type="file" className="hidden" onChange={handleFileUpload} disabled={uploading} />
             </label>
             <div className="space-y-2">
@@ -445,13 +447,13 @@ export default function CrmDetailPage({ params }) {
                   </div>
                   {ev.metadata?.file_url && (
                     <a href={ev.metadata.file_url} target="_blank" className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">
-                      Download
+                      {t("crm.people.download")}
                     </a>
                   )}
                 </div>
               ))}
               {events.filter(e => e.event_type === "document_attached").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">No documents attached.</p>
+                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noDocuments")}</p>
               )}
             </div>
           </div>

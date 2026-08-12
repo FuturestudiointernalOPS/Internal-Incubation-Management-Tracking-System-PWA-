@@ -4,8 +4,10 @@ import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw } from "lucide-react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 export default function DuplicatesPage() {
+  const { t } = useI18n();
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [merging, setMerging] = useState(null);
@@ -28,8 +30,8 @@ export default function DuplicatesPage() {
     try {
       await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
       setFlags(f => f.filter(x => x.id !== flagId));
-      notify("Duplicate flag dismissed.", "success");
-    } catch (_) { notify("Failed to dismiss.", "error"); }
+      notify(t("crm.duplicates.duplicateFlagDismissed"), "success");
+    } catch (_) { notify(t("crm.duplicates.failedToDismiss"), "error"); }
   }
 
   async function handlePreview(aCid, bCid) {
@@ -38,7 +40,7 @@ export default function DuplicatesPage() {
       const res = await fetch(`/api/contacts/merge/preview?a=${aCid}&b=${bCid}`);
       const data = await res.json();
       if (data.success) setPreview(data);
-    } catch (_) { notify("Failed to preview merge.", "error"); }
+    } catch (_) { notify(t("crm.duplicates.failedToPreviewMerge"), "error"); }
   }
 
   async function handleMerge(survivor, duplicate) {
@@ -50,15 +52,15 @@ export default function DuplicatesPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(`Merged successfully. ${data.summary || ""}`, "success");
+        notify(t("crm.duplicates.mergedSuccess", { summary: data.summary || "" }), "success");
         setFlags(f => f.filter(x => x.contact_cid_a !== survivor && x.contact_cid_b !== duplicate));
         setMerging(null);
         setPreview(null);
         fetchFlags();
       } else {
-        notify(data.error || "Merge failed.", "error");
+        notify(data.error || t("crm.duplicates.mergeFailed"), "error");
       }
-    } catch (_) { notify("Merge failed.", "error"); }
+    } catch (_) { notify(t("crm.duplicates.mergeFailed"), "error"); }
   }
 
   function notify(msg, type) {
@@ -77,22 +79,22 @@ export default function DuplicatesPage() {
 
         <div className="flex items-center justify-between">
           <div>
-            <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">← CRM</Link>
-            <h1 className="text-xl font-black uppercase mt-1">Duplicate Review</h1>
+            <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">← {t("crm.duplicates.crm")}</Link>
+            <h1 className="text-xl font-black uppercase mt-1">{t("crm.duplicates.title")}</h1>
           </div>
           <button onClick={fetchFlags} className="flex items-center gap-2 px-4 py-2 bg-tertiary rounded-xl text-xs font-bold uppercase">
-            <RefreshCw className="w-3 h-3" /> Refresh
+            <RefreshCw className="w-3 h-3" /> {t("crm.duplicates.refresh")}
           </button>
         </div>
 
         {loading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Loading...</p>
+          <p className="text-sm text-[var(--text-secondary)]">{t("crm.duplicates.loading")}</p>
         ) : flags.length === 0 ? (
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-10 text-center">
             <Check className="w-10 h-10 mx-auto mb-3 text-emerald-500" />
-            <p className="text-sm font-bold">No duplicates detected</p>
+            <p className="text-sm font-bold">{t("crm.duplicates.noDuplicates")}</p>
             <p className="text-xs text-[var(--text-secondary)] mt-1">
-              The system checks automatically when new contacts are created. Potential duplicates will appear here for review.
+              {t("crm.duplicates.noDuplicatesHint")}
             </p>
           </div>
         ) : (
@@ -104,7 +106,10 @@ export default function DuplicatesPage() {
                     <div className="flex items-center gap-2 mb-2">
                       <AlertTriangle className="w-4 h-4 text-amber-500" />
                       <span className="text-[10px] font-black uppercase bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full">
-                        {flag.match_reason} · {Math.round((flag.confidence || 0) * 100)}% match
+                        {t("crm.duplicates.match", {
+                          reason: flag.match_reason,
+                          confidence: Math.round((flag.confidence || 0) * 100),
+                        })}
                       </span>
                     </div>
                     <div className="flex items-center gap-4 flex-wrap">
@@ -124,13 +129,13 @@ export default function DuplicatesPage() {
                       onClick={() => handlePreview(flag.contact_cid_a, flag.contact_cid_b)}
                       className="px-3 py-1.5 bg-[var(--brand-orange)] text-black font-bold text-[10px] uppercase rounded-lg"
                     >
-                      Review
+                      {t("crm.duplicates.review")}
                     </button>
                     <button
                       onClick={() => handleDismiss(flag.id)}
                       className="px-3 py-1.5 bg-tertiary font-bold text-[10px] uppercase rounded-lg"
                     >
-                      Dismiss
+                      {t("crm.duplicates.dismiss")}
                     </button>
                   </div>
                 </div>
@@ -138,7 +143,7 @@ export default function DuplicatesPage() {
                 {/* Merge preview */}
                 {merging && merging.aCid === flag.contact_cid_a && preview && (
                   <div className="mt-4 border-t border-[var(--border-primary)] pt-4 space-y-3">
-                    <p className="text-xs font-bold uppercase">Merge Preview</p>
+                    <p className="text-xs font-bold uppercase">{t("crm.duplicates.mergePreview")}</p>
                     {preview.summary && (
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
                         {Object.entries(preview.summary).map(([k, v]) => (
@@ -153,16 +158,20 @@ export default function DuplicatesPage() {
                         onClick={() => handleMerge(flag.contact_cid_a, flag.contact_cid_b)}
                         className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[10px] uppercase rounded-lg"
                       >
-                        Keep {flag.contact_a?.name || "Left"} (Merge Right)
+                        {t("crm.duplicates.keepMergeRight", {
+                          name: flag.contact_a?.name || t("crm.duplicates.left"),
+                        })}
                       </button>
                       <button
                         onClick={() => handleMerge(flag.contact_cid_b, flag.contact_cid_a)}
                         className="px-3 py-1.5 bg-emerald-600 text-white font-bold text-[10px] uppercase rounded-lg"
                       >
-                        Keep {flag.contact_b?.name || "Right"} (Merge Left)
+                        {t("crm.duplicates.keepMergeLeft", {
+                          name: flag.contact_b?.name || t("crm.duplicates.right"),
+                        })}
                       </button>
                       <button onClick={() => { setMerging(null); setPreview(null); }} className="px-3 py-1.5 bg-tertiary font-bold text-[10px] uppercase rounded-lg">
-                        Cancel
+                        {t("crm.duplicates.cancel")}
                       </button>
                     </div>
                   </div>

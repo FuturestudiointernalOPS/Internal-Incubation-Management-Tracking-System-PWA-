@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Clock, Filter, User, Search } from "lucide-react";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -20,6 +21,7 @@ function TimelinePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cid = searchParams.get("cid");
+  const { t } = useI18n();
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
@@ -76,16 +78,16 @@ function TimelinePageContent() {
         <div className="p-8 max-w-4xl mx-auto">
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-10 text-center">
             <Clock className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
-            <h2 className="text-lg font-black uppercase mb-2">Select a Contact</h2>
+            <h2 className="text-lg font-black uppercase mb-2">{t("crm.timeline.selectContact")}</h2>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              Search for a person to view their complete timeline.
+              {t("crm.timeline.selectContactHint")}
             </p>
             <div className="max-w-md mx-auto mb-4">
               <div className="relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
                 <input
                   type="text"
-                  placeholder="Search by name or email..."
+                  placeholder={t("crm.timeline.searchPlaceholder")}
                   value={searchQuery}
                   onChange={(e) => handleContactSearch(e.target.value)}
                   className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl py-3 pl-12 pr-4 text-sm outline-none focus:border-[var(--brand-orange)]"
@@ -108,13 +110,13 @@ function TimelinePageContent() {
                   ))}
                 </div>
               )}
-              {searching && <p className="text-[10px] text-[var(--text-secondary)] mt-2">Searching...</p>}
+              {searching && <p className="text-[10px] text-[var(--text-secondary)] mt-2">{t("crm.timeline.searching")}</p>}
             </div>
             <Link
               href="/admin/crm"
               className="inline-flex items-center gap-2 px-5 py-3 bg-[var(--brand-orange)] text-black font-bold text-sm uppercase rounded-xl"
             >
-              Back to CRM
+              {t("crm.timeline.backToCrm")}
             </Link>
           </div>
         </div>
@@ -128,14 +130,14 @@ function TimelinePageContent() {
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">
-              ← CRM
+              ← {t("crm.timeline.breadcrumbCrm")}
             </Link>
             <h1 className="text-xl font-black uppercase tracking-tight mt-1">
-              {contact ? contact.name : "Timeline"}
+              {contact ? contact.name : t("crm.timeline.timelineTitle")}
             </h1>
             {contact && (
               <p className="text-xs text-[var(--text-secondary)]">
-                {contact.email} · {contact.role || "unassigned"}
+                {contact.email} · {contact.role || t("crm.timeline.unassigned")}
               </p>
             )}
           </div>
@@ -143,13 +145,13 @@ function TimelinePageContent() {
 
         <div className="flex flex-wrap gap-2">
           {[
-            { key: "", label: "All" },
-            { key: "forms", label: "Forms" },
-            { key: "programs", label: "Programs" },
-            { key: "ventures", label: "Ventures" },
-            { key: "investors", label: "Investors" },
-            { key: "communications", label: "Comms" },
-            { key: "system", label: "System" },
+            { key: "", label: t("crm.timeline.filterAll") },
+            { key: "forms", label: t("crm.timeline.filterForms") },
+            { key: "programs", label: t("crm.timeline.filterPrograms") },
+            { key: "ventures", label: t("crm.timeline.filterVentures") },
+            { key: "investors", label: t("crm.timeline.filterInvestors") },
+            { key: "communications", label: t("crm.timeline.filterComms") },
+            { key: "system", label: t("crm.timeline.filterSystem") },
           ].map((f) => (
             <button
               key={f.key}
@@ -167,14 +169,14 @@ function TimelinePageContent() {
 
         {loading ? (
           <div className="text-center py-10">
-            <p className="text-sm text-[var(--text-secondary)]">Loading timeline...</p>
+            <p className="text-sm text-[var(--text-secondary)]">{t("crm.timeline.loadingTimeline")}</p>
           </div>
         ) : events.length === 0 ? (
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-10 text-center">
             <Clock className="w-10 h-10 mx-auto mb-3 text-[var(--text-secondary)]" />
-            <p className="text-sm font-bold mb-1">No events yet</p>
+            <p className="text-sm font-bold mb-1">{t("crm.timeline.noEventsYet")}</p>
             <p className="text-xs text-[var(--text-secondary)]">
-              {contact?.name || "This person"}'s timeline will populate as they interact with Future Studio.
+              {t("crm.timeline.emptyStateHint", { name: contact?.name || t("crm.timeline.thisPerson") })}
             </p>
           </div>
         ) : (
@@ -213,7 +215,7 @@ function TimelinePageContent() {
         )}
 
         <p className="text-[10px] text-[var(--text-secondary)] text-center italic">
-          Timeline — Phase 1. Events are backfilled from existing audit data.
+          {t("crm.timeline.phaseNote")}
         </p>
       </div>
     </DashboardLayout>
@@ -221,8 +223,9 @@ function TimelinePageContent() {
 }
 
 export default function TimelinePage() {
+  const { t } = useI18n();
   return (
-    <Suspense fallback={<div className="p-8 text-center text-sm">Loading...</div>}>
+    <Suspense fallback={<div className="p-8 text-center text-sm">{t("crm.timeline.loading")}</div>}>
       <TimelinePageContent />
     </Suspense>
   );
