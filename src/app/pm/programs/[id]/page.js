@@ -1003,7 +1003,7 @@ function ProgramWorkspace() {
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
-            {t("loading")}
+            {t("common.loading")}
           </p>
         </div>
       </DashboardLayout>

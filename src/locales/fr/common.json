@@ -11,6 +11,7 @@
     "close": "Fermer",
     "back": "Retour",
     "next": "Suivant",
+    "previous": "Précédent",
     "submit": "Soumettre",
     "search": "Rechercher",
     "filter": "Filtrer",
@@ -39,6 +40,7 @@
     "clearFilter": "Effacer le filtre",
     "unknown": "Inconnu",
     "noData": "Aucune donnée",
+    "noEvents": "Aucun événement prévu",
     "total": "Total",
     "add": "Ajouter",
     "remove": "Supprimer",
@@ -56,7 +58,6 @@
     "audience": "Audience",
     "allPrograms": "Tous les Programmes",
     "due": "Échéance :",
-    "resolve": "Résoudre",
     "project": "Projet :"
   },
   "dashboard": {
@@ -73,6 +74,7 @@
     "myPrograms": "Mes Programmes",
     "noPrograms": "Aucun programme",
     "progress": "Progression",
+    "kpiProgress": "Progression des KPI",
     "openReport": "Ouvrir le rapport",
     "noActiveTasks": "Aucune tâche active",
     "recentActivity": "Activité Récente",
