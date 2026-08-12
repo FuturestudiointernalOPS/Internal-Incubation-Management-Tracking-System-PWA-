@@ -46,10 +46,10 @@ export default function DeveloperProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || "Failed to respond") || "") || (data.error || "Failed to respond") } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("developerMisc.projects.failedToRespond") } }));
       }
     } catch (e) {
-      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error" } }));
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("developerMisc.projects.networkError") } }));
     } finally {
       setResponding(null);
     }
@@ -99,14 +99,14 @@ export default function DeveloperProjects() {
             <div className="flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Developer Workspace
+                {t("developerMisc.projects.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              My Projects
+              {t("developerMisc.projects.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Projects you are working on
+              {t("developerMisc.projects.subtitle")}
             </p>
           </div>
         </header>
@@ -116,7 +116,7 @@ export default function DeveloperProjects() {
           <div className="space-y-3">
             <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
               <Users className="w-4 h-4 text-amber-400" />
-              Project Invitations ({invitations.length})
+              {t("developerMisc.projects.invitations", { count: invitations.length })}
             </h2>
             <div className="space-y-2">
               {invitations.map((inv) => (
@@ -127,10 +127,10 @@ export default function DeveloperProjects() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                        {inv.project_name || "Project"}
+                        {inv.project_name || t("developerMisc.projects.defaultProject")}
                       </h3>
                       <p className="text-[9px] text-slate-500 mt-1">
-                        Invited you to join this project
+                        {t("developerMisc.projects.invitedYou")}
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -141,7 +141,7 @@ export default function DeveloperProjects() {
                         disabled={responding === inv.id}
                         className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                       >
-                        Decline
+                        {t("developerMisc.projects.decline")}
                       </button>
                       <button
                         onClick={() =>
@@ -150,7 +150,7 @@ export default function DeveloperProjects() {
                         disabled={responding === inv.id}
                         className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                       >
-                        Accept
+                        {t("developerMisc.projects.accept")}
                       </button>
                     </div>
                   </div>
@@ -174,10 +174,10 @@ export default function DeveloperProjects() {
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <Briefcase className="w-16 h-16 text-slate-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              No projects
+              {t("developerMisc.projects.noProjects")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
-              Projects assigned to you will appear here
+              {t("developerMisc.projects.noProjectsHint")}
             </p>
           </div>
         ) : (
@@ -194,7 +194,7 @@ export default function DeveloperProjects() {
                   <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
                 </div>
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight mb-1">
-                  {project.name || "Untitled Project"}
+                  {project.name || t("developerMisc.projects.untitledProject")}
                 </h3>
                 <p className="text-[10px] font-bold text-slate-500">
                   {project.status || "active"}
