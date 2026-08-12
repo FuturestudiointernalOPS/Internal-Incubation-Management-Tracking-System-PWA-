@@ -183,7 +183,7 @@ export async function GET() {
     await initDb();
 
     const result = await db.execute({
-      sql: "SELECT cid, name, email, role, group_name, status FROM contacts WHERE deleted = 0 AND status IN ('active','approved') ORDER BY role, name",
+      sql: "SELECT cid, name, email, role, group_name, status FROM contacts WHERE deleted = 0 ORDER BY role, name",
       args: [],
     });
 
