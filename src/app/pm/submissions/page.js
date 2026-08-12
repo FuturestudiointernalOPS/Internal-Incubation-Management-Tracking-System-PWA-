@@ -21,15 +21,6 @@ import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
-const STATUS_LABELS = {
-  pending: "status.pending",
-  approved: "pm.statusApproved",
-  rejected: "pm.statusRejected",
-  revision_requested: "participant.revisionRequested",
-  reviewed: "pm.submissions.reviewed",
-  draft: "status.draft",
-};
-
 function StatusBadge({ status }) {
   const { t } = useI18n();
   const config = {
@@ -38,6 +29,12 @@ function StatusBadge({ status }) {
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
     revision_requested: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   };
+  const labels = {
+    pending: t("pmMisc.submissions.statusPending"),
+    approved: t("pmMisc.submissions.statusApproved"),
+    rejected: t("pmMisc.submissions.statusRejected"),
+    revision_requested: t("pmMisc.submissions.statusRevisionRequested"),
+  };
   const c =
     config[status?.toLowerCase()] ||
     "bg-slate-500/10 text-slate-400 border-slate-500/20";
@@ -45,16 +42,16 @@ function StatusBadge({ status }) {
     <span
       className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${c}`}
     >
-      {t(STATUS_LABELS[status?.toLowerCase()] || "") ||
-        status?.replace(/_/g, " ") ||
-        t("status.draft")}
+      {status
+        ? labels[status.toLowerCase()] || status.replace(/_/g, " ")
+        : t("pmMisc.submissions.statusDraft")}
     </span>
   );
 }
 
 export default function PMSubmissions() {
-  const { t } = useI18n();
   const router = useRouter();
+  const { t } = useI18n();
   const [user, setUser] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -78,7 +75,10 @@ export default function PMSubmissions() {
   useEffect(() => {
     if (scheduleModal) {
       setEventTitle(
-        `Review: ${scheduleModal.deliverable_title} - ${scheduleModal.participant_name}`,
+        t("pmMisc.submissions.eventTitlePrefill", {
+          deliverable: scheduleModal.deliverable_title,
+          participant: scheduleModal.participant_name,
+        }),
       );
       setStartTime("");
       setEventLocation("");
@@ -155,14 +155,14 @@ export default function PMSubmissions() {
             <div className="flex items-center gap-2">
               <FileText className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                {t("pm.submissions.eyebrow")}
+                {t("pmMisc.submissions.reviewsGrading")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("pm.submissions.title")}
+              {t("pmMisc.submissions.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {t("pm.submissions.totalPending", {
+              {t("pmMisc.submissions.summary", {
                 total: submissions.length,
                 pending: pendingCount,
               })}
@@ -172,7 +172,7 @@ export default function PMSubmissions() {
             onClick={fetchSubmissions}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> {t("common.refresh")}
+            <RefreshCw className="w-3.5 h-3.5" /> {t("pmMisc.submissions.refresh")}
           </button>
         </header>
 
@@ -183,7 +183,7 @@ export default function PMSubmissions() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("pm.submissions.searchPlaceholder")}
+              placeholder={t("pmMisc.submissions.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
             />
           </div>
@@ -192,17 +192,23 @@ export default function PMSubmissions() {
             onChange={(e) => setFilterStatus(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">{t("reports.filter.allStatuses")}</option>
-            <option value="pending">{t("status.pending")}</option>
-            <option value="approved">{t("pm.statusApproved")}</option>
-            <option value="rejected">{t("pm.statusRejected")}</option>
+            <option value="all">{t("pmMisc.submissions.allStatus")}</option>
+            <option value="pending">
+              {t("pmMisc.submissions.statusPending")}
+            </option>
+            <option value="approved">
+              {t("pmMisc.submissions.statusApproved")}
+            </option>
+            <option value="rejected">
+              {t("pmMisc.submissions.statusRejected")}
+            </option>
           </select>
           <select
             value={filterProgram}
             onChange={(e) => setFilterProgram(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">{t("common.allPrograms")}</option>
+            <option value="all">{t("pmMisc.submissions.allPrograms")}</option>
             {programs.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
@@ -227,13 +233,13 @@ export default function PMSubmissions() {
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
               {search || filterStatus !== "all"
-                ? t("common.noResults")
-                : t("participant.noSubmissionsYet")}
+                ? t("pmMisc.submissions.noMatches")
+                : t("pmMisc.submissions.noSubmissionsYet")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
               {search || filterStatus !== "all"
-                ? t("pm.submissions.tryDifferentFilters")
-                : t("pm.submissions.emptyDesc")}
+                ? t("pmMisc.submissions.tryDifferentFilters")
+                : t("pmMisc.submissions.submissionsWillAppear")}
             </p>
           </div>
         ) : (
@@ -263,11 +269,11 @@ export default function PMSubmissions() {
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                             {sub.participant_name ||
                               sub.participant_id ||
-                              t("common.unknown")}
+                              t("pmMisc.submissions.unknown")}
                           </p>
                           <p className="text-[8px] text-slate-500 uppercase tracking-wider">
                             {sub.participant_group || sub.participant_id
-                              ? t("pm.submissions.groupLabel", {
+                              ? t("pmMisc.submissions.groupWithName", {
                                   group: sub.participant_group || "—",
                                 })
                               : ""}
@@ -277,7 +283,7 @@ export default function PMSubmissions() {
                       <StatusBadge status={sub.status} />
                     </div>
                     <p className="text-[8px] text-slate-500 mt-3">
-                      {t("time.submitted")}{" "}
+                      {t("pmMisc.submissions.submitted")}{" "}
                       {sub.created_at
                         ? new Date(sub.created_at).toLocaleDateString()
                         : ""}
@@ -289,22 +295,24 @@ export default function PMSubmissions() {
                     <div>
                       <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
                         {sub.deliverable_title ||
-                          t("pm.submissions.deliverableNumber", {
-                            number: sub.deliverable_id,
+                          t("pmMisc.submissions.deliverableWithId", {
+                            id: sub.deliverable_id,
                           })}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
                         <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />{" "}
                           {sub.program_name ||
-                            t("pm.submissions.programNumber", {
-                              number: sub.program_id,
+                            t("pmMisc.submissions.programWithId", {
+                              id: sub.program_id,
                             })}
                         </span>
                         {sub.deliverable_week && (
                           <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
-                            <Calendar className="w-3 h-3" /> {t("time.week")}{" "}
-                            {sub.deliverable_week}
+                            <Calendar className="w-3 h-3" />{" "}
+                            {t("pmMisc.submissions.week", {
+                              week: sub.deliverable_week,
+                            })}
                           </span>
                         )}
                       </div>
@@ -318,7 +326,7 @@ export default function PMSubmissions() {
                           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all"
                         >
                           <ExternalLink className="w-3 h-3" />{" "}
-                          {t("pm.submissions.viewFile")}
+                          {t("pmMisc.submissions.viewFile")}
                         </a>
                       )}
                       {sub.status === "pending" && (
@@ -329,21 +337,21 @@ export default function PMSubmissions() {
                           >
                             <Shield className="w-3 h-3" />{" "}
                             {sub.grading_mode === "graded"
-                              ? t("pm.submissions.review")
-                              : t("pm.submissions.feedback")}
+                              ? t("pmMisc.submissions.review")
+                              : t("pmMisc.submissions.feedback")}
                           </button>
                           <button
                             onClick={() => setScheduleModal(sub)}
                             className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                           >
                             <Calendar className="w-3 h-3" />{" "}
-                            {t("pm.submissions.scheduleReview")}
+                            {t("pmMisc.submissions.scheduleReview")}
                           </button>
                         </>
                       )}
                       {sub.status !== "pending" && (
                         <span className="text-[8px] text-slate-500 italic ml-auto">
-                          {t("pm.submissions.reviewed")}{" "}
+                          {t("pmMisc.submissions.reviewed")}{" "}
                           {sub.reviewed_at
                             ? new Date(sub.reviewed_at).toLocaleDateString()
                             : ""}
@@ -372,7 +380,7 @@ export default function PMSubmissions() {
               <div className="flex items-center gap-2">
                 <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
                 <h3 className="text-sm font-black uppercase tracking-tight">
-                  {t("pm.submissions.reviewSubmission")}
+                  {t("pmMisc.submissions.reviewSubmission")}
                 </h3>
               </div>
               <button onClick={() => setReviewModal(null)}>
@@ -382,7 +390,7 @@ export default function PMSubmissions() {
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.participant")}
+                  {t("pmMisc.submissions.participant")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
                   {reviewModal.participant_name || reviewModal.participant_id}
@@ -390,12 +398,12 @@ export default function PMSubmissions() {
               </div>
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.deliverable")}
+                  {t("pmMisc.submissions.deliverable")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
                   {reviewModal.deliverable_title ||
-                    t("pm.submissions.deliverableNumber", {
-                      number: reviewModal.deliverable_id,
+                    t("pmMisc.submissions.deliverableWithId", {
+                      id: reviewModal.deliverable_id,
                     })}
                 </p>
               </div>
@@ -408,19 +416,19 @@ export default function PMSubmissions() {
                 >
                   <ExternalLink className="w-4 h-4" />
                   <span className="text-[10px] font-bold">
-                    {t("pm.submissions.viewSubmissionFile")}
+                    {t("pmMisc.submissions.viewSubmissionFile")}
                   </span>
                 </a>
               )}
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.feedback")}
+                  {t("pmMisc.submissions.feedback")}
                 </label>
                 <textarea
                   value={feedback}
                   onChange={(e) => setFeedback(e.target.value)}
                   rows={3}
-                  placeholder={t("pm.submissions.feedbackPlaceholder")}
+                  placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                 />
               </div>
@@ -433,7 +441,8 @@ export default function PMSubmissions() {
                     disabled={actionLoading}
                     className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    <CheckCircle2 className="w-4 h-4" /> {t("participant.approve")}
+                    <CheckCircle2 className="w-4 h-4" />{" "}
+                    {t("pmMisc.submissions.approve")}
                   </button>
                   <button
                     onClick={() =>
@@ -443,14 +452,14 @@ export default function PMSubmissions() {
                     className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <RefreshCw className="w-4 h-4" />{" "}
-                    {t("participant.requestRevision")}
+                    {t("pmMisc.submissions.requestRevision")}
                   </button>
                   <button
                     onClick={() => handleReview(reviewModal.id, "rejected")}
                     disabled={actionLoading}
                     className="flex-1 py-3 bg-rose-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
-                    <X className="w-4 h-4" /> {t("participant.reject")}
+                    <X className="w-4 h-4" /> {t("pmMisc.submissions.reject")}
                   </button>
                 </>
               ) : (
@@ -460,7 +469,7 @@ export default function PMSubmissions() {
                   className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />{" "}
-                  {t("pm.submissions.submitFeedback")}
+                  {t("pmMisc.submissions.submitFeedback")}
                 </button>
               )}
             </div>
@@ -482,7 +491,7 @@ export default function PMSubmissions() {
               <div className="flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-purple-400" />
                 <h3 className="text-sm font-black uppercase tracking-tight">
-                  {t("pm.submissions.scheduleReview")}
+                  {t("pmMisc.submissions.scheduleReview")}
                 </h3>
               </div>
               <button onClick={() => setScheduleModal(null)}>
@@ -492,7 +501,7 @@ export default function PMSubmissions() {
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.participant")}
+                  {t("pmMisc.submissions.participant")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
                   {scheduleModal.participant_name ||
@@ -501,18 +510,18 @@ export default function PMSubmissions() {
               </div>
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.deliverable")}
+                  {t("pmMisc.submissions.deliverable")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
                   {scheduleModal.deliverable_title ||
-                    t("pm.submissions.deliverableNumber", {
-                      number: scheduleModal.deliverable_id,
+                    t("pmMisc.submissions.deliverableWithId", {
+                      id: scheduleModal.deliverable_id,
                     })}
                 </p>
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("pm.submissions.eventTitle")}
+                  {t("pmMisc.submissions.eventTitle")}
                 </label>
                 <input
                   type="text"
@@ -523,7 +532,7 @@ export default function PMSubmissions() {
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  {t("time.start")}
+                  {t("pmMisc.submissions.startTime")}
                 </label>
                 <input
                   type="datetime-local"
@@ -534,13 +543,13 @@ export default function PMSubmissions() {
               </div>
               <div className="space-y-1">
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <MapPin className="w-3 h-3" /> {t("pm.submissions.location")}
+                  <MapPin className="w-3 h-3" /> {t("pmMisc.submissions.location")}
                 </label>
                 <input
                   type="text"
                   value={eventLocation}
                   onChange={(e) => setEventLocation(e.target.value)}
-                  placeholder={t("pm.submissions.locationPlaceholder")}
+                  placeholder={t("pmMisc.submissions.locationPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
@@ -552,7 +561,9 @@ export default function PMSubmissions() {
                     program_id: scheduleModal.program_id,
                     participant_id: scheduleModal.participant_id,
                     title: eventTitle,
-                    description: `Review meeting for ${scheduleModal.deliverable_title}`,
+                    description: t("pmMisc.submissions.reviewMeetingFor", {
+                      deliverable: scheduleModal.deliverable_title,
+                    }),
                     event_type: "meeting",
                     start_time: startTime,
                     end_time: new Date(
@@ -576,7 +587,7 @@ export default function PMSubmissions() {
                 }}
                 className="flex-1 py-3 bg-purple-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
               >
-                <Calendar className="w-4 h-4" /> {t("pm.submissions.schedule")}
+                <Calendar className="w-4 h-4" /> {t("pmMisc.submissions.schedule")}
               </button>
             </div>
           </div>

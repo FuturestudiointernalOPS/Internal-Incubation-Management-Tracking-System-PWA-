@@ -295,11 +295,11 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Saved");
+        notify(t("pmMisc.workspace.saved"));
         fetchProgramData(true);
-      } else notify(t((data.error || "Save failed.") || "") || (data.error || "Save failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.saveFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -347,8 +347,8 @@ function ProgramWorkspace() {
       if (data.success) {
         notify(
           teamAssignmentMode === "new"
-            ? "Student Group initialized."
-            : "Students added to group.",
+            ? t("pmMisc.workspace.teamInitialized")
+            : t("pmMisc.workspace.teamMembersAdded"),
         );
         setShowTeamModal(false);
         setNewTeam({
@@ -364,9 +364,9 @@ function ProgramWorkspace() {
         setSelectedParticipants([]);
         setActiveTab("teams");
         setActiveSubTab("groups");
-      } else notify(t((data.error || "Operation failed.") || "") || (data.error || "Operation failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.operationFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -386,13 +386,13 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Participant moved to new team.");
+        notify(t("pmMisc.workspace.participantMoved"));
         fetchProgramData(true);
       } else {
-        notify(t((data.error || "Failed to move participant.") || "") || (data.error || "Failed to move participant."), "error");
+        notify(data.error || t("pmMisc.workspace.moveParticipantFailed"), "error");
       }
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -404,7 +404,7 @@ function ProgramWorkspace() {
       kpis.length > 0 &&
       (!newSession.kpi_ids || newSession.kpi_ids.length === 0)
     ) {
-      notify("At least one KPI must be assigned.", "error");
+      notify(t("pmMisc.workspace.kpiRequired"), "error");
       return;
     }
     setIsSaving(true);
@@ -431,7 +431,7 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Added");
+        notify(t("pmMisc.workspace.added"));
         setShowSessionModal(false);
         setNewSession({
           title: "",
@@ -451,9 +451,9 @@ function ProgramWorkspace() {
           requirements: [],
         });
         fetchProgramData(true);
-      } else notify(t((data.error || "Add failed.") || "") || (data.error || "Add failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.addFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -462,7 +462,7 @@ function ProgramWorkspace() {
   const addRequirement = async (shouldClose = true) => {
     if (!newRequirement.title.trim()) return;
     if (!newRequirement.kpi_ids || newRequirement.kpi_ids.length === 0) {
-      notify("Please link at least one KPI. Grading parameters are derived from linked KPIs.", "error");
+      notify(t("pmMisc.workspace.kpiLinkRequired"), "error");
       return;
     }
     setIsSaving(true);
@@ -492,7 +492,7 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Added");
+        notify(t("pmMisc.workspace.added"));
         if (shouldClose) setShowRequirementModal(false);
         setNewRequirement({
           title: "",
@@ -504,9 +504,9 @@ function ProgramWorkspace() {
           assignee_id: "",
         });
         fetchProgramData(true);
-      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -532,16 +532,16 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(`Status updated to ${status.toUpperCase()}`);
+        notify(t("pmMisc.workspace.statusUpdatedTo", { status: status.toUpperCase() }));
         // Sync with server just in case
         fetchProgramData(true);
       } else {
         setSessions(previousSessions);
-        notify("Status update failed.", "error");
+        notify(t("pmMisc.workspace.statusUpdateFailed"), "error");
       }
     } catch (e) {
       setSessions(previousSessions);
-      notify("Status update failed.", "error");
+      notify(t("pmMisc.workspace.statusUpdateFailed"), "error");
     }
   };
 
@@ -574,7 +574,7 @@ function ProgramWorkspace() {
       if (data.success) {
         const silentFields = ["title", "description", "notes"];
         if (!silentFields.includes(field)) {
-          notify("Session field synchronized.");
+          notify(t("pmMisc.workspace.sessionFieldSynced"));
         }
         fetchProgramData(true);
 
@@ -606,13 +606,13 @@ function ProgramWorkspace() {
         }
       } else {
         if (res.status === 401) {
-          notify("Session expired. Please save your work and refresh.", "error");
+          notify(t("pmMisc.workspace.sessionExpired"), "error");
         } else {
-          notify(t((data.error || "Field sync failed.") || "") || (data.error || "Field sync failed."), "error");
+          notify(data.error || t("pmMisc.workspace.fieldSyncFailed"), "error");
         }
       }
     } catch (e) {
-      notify("Field sync failed.", "error");
+      notify(t("pmMisc.workspace.fieldSyncFailed"), "error");
     }
   };
 
@@ -624,7 +624,7 @@ function ProgramWorkspace() {
       !newPMReport.main_topic?.trim()
     ) {
       notify(
-        "Please fill in Week Status, Week Rating, and Main Topic (required fields).",
+        t("pmMisc.workspace.reportRequiredFields"),
         "error",
       );
       return;
@@ -675,7 +675,7 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Weekly report transmitted.");
+        notify(t("pmMisc.workspace.reportTransmitted"));
         setShowPMReportModal(false);
         setNewPMReport({
           summary: "",
@@ -705,9 +705,9 @@ function ProgramWorkspace() {
           planned_adjustments: "",
         });
         fetchProgramData(true);
-      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -715,7 +715,7 @@ function ProgramWorkspace() {
 
   const addKPI = async () => {
     if (user.role !== "super_admin") {
-      notify("Only SuperAdmin can define strategic KPIs.", "error");
+      notify(t("pmMisc.workspace.superAdminKpiDefineOnly"), "error");
       return;
     }
     if (!newKPI.title.trim()) return;
@@ -728,13 +728,13 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("KPI defined.");
+        notify(t("pmMisc.workspace.kpiDefined"));
         setShowKPIModal(false);
         setNewKPI({ title: "" });
         fetchProgramData(true);
-      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -742,12 +742,12 @@ function ProgramWorkspace() {
 
   const removeKPI = (kpiId) => {
     if (user.role !== "super_admin") {
-      notify("Only SuperAdmin can decommission KPIs.", "error");
+      notify(t("pmMisc.workspace.superAdminKpiRemoveOnly"), "error");
       return;
     }
     setConfirmTarget({
       id: kpiId,
-      message: "Decommission this KPI?",
+      message: t("pmMisc.workspace.confirmDecommissionKpi"),
       onConfirm: () => performRemoveKPI(kpiId),
     });
   };
@@ -758,7 +758,7 @@ function ProgramWorkspace() {
         method: "DELETE",
         body: JSON.stringify({ id: kpiId }),
       });
-      notify("KPI removed.");
+      notify(t("pmMisc.workspace.kpiRemoved"));
       fetchProgramData(true);
     } catch (e) { }
   };
@@ -774,13 +774,13 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Personnel assigned.");
+        notify(t("pmMisc.workspace.personnelAssigned"));
         setShowStaffModal(false);
         setNewStaff({ staff_id: "", role: "staff" });
         fetchProgramData(true);
-      } else notify(t((data.error || "Assignment failed.") || "") || (data.error || "Assignment failed."), "error");
+      } else notify(data.error || t("pmMisc.workspace.assignmentFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -789,7 +789,7 @@ function ProgramWorkspace() {
   const removeStaff = (staffId) => {
     setConfirmTarget({
       id: staffId,
-      message: "Remove this staff member?",
+      message: t("pmMisc.workspace.confirmRemoveStaff"),
       onConfirm: () => performRemoveStaff(staffId),
     });
   };
@@ -802,7 +802,7 @@ function ProgramWorkspace() {
           method: "DELETE",
           body: JSON.stringify({ id: record.id }),
         });
-        notify("Personnel removed.");
+        notify(t("pmMisc.workspace.personnelRemoved"));
         fetchProgramData(true);
       }
     } catch (e) { }
@@ -811,7 +811,7 @@ function ProgramWorkspace() {
   const deleteTeam = (teamId) => {
     setConfirmTarget({
       id: teamId,
-      message: "Decommission this student group?",
+      message: t("pmMisc.workspace.confirmDecommissionGroup"),
       onConfirm: () => performDeleteTeam(teamId),
     });
   };
@@ -824,11 +824,11 @@ function ProgramWorkspace() {
         body: JSON.stringify({ id: teamId }),
       });
       if ((await res.json()).success) {
-        notify("Student Group decommissioned.");
+        notify(t("pmMisc.workspace.groupDecommissioned"));
         fetchProgramData(true);
       }
     } catch (e) {
-      notify("Failed to remove group.", "error");
+      notify(t("pmMisc.workspace.removeGroupFailed"), "error");
     }
   };
 
@@ -837,7 +837,7 @@ function ProgramWorkspace() {
   const deleteSession = (sessionId) => {
     setConfirmTarget({
       id: sessionId,
-      message: "Archive this session? It can be restored later.",
+      message: t("pmMisc.workspace.confirmArchiveSession"),
       onConfirm: () => performDeleteSession(sessionId),
     });
   };
@@ -854,7 +854,7 @@ function ProgramWorkspace() {
           status: "archived",
         }),
       });
-      notify("Session archived.");
+      notify(t("pmMisc.workspace.sessionArchived"));
       fetchProgramData(true);
     } catch (e) { }
   };
@@ -875,15 +875,15 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Submission graded successfully.");
+        notify(t("pmMisc.workspace.submissionGraded"));
         setShowReviewModal(false);
         setShowFollowupFields(false);
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(t((data.error || "Failed to grade") || "") || (data.error || "Failed to grade"), "error");
+      } else notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -892,7 +892,7 @@ function ProgramWorkspace() {
   const handleScheduleFollowup = async () => {
     if (!selectedSubmission) return;
     if (!followupDate || !followupTime) {
-      notify("Please select a date and time for the follow-up.", "error");
+      notify(t("pmMisc.workspace.followupDateTimeRequired"), "error");
       return;
     }
     setIsSaving(true);
@@ -914,15 +914,15 @@ function ProgramWorkspace() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Follow-up scheduled successfully.");
+        notify(t("pmMisc.workspace.followupScheduled"));
         setShowReviewModal(false);
         setShowFollowupFields(false);
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(t((data.error || "Failed to schedule follow-up") || "") || (data.error || "Failed to schedule follow-up"), "error");
+      } else notify(data.error || t("pmMisc.workspace.followupScheduleFailed"), "error");
     } catch (e) {
-      notify("Network error.", "error");
+      notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -942,11 +942,11 @@ function ProgramWorkspace() {
         }),
       });
       if ((await res.json()).success) {
-        notify(`Synchronized ${score}% marks for participant.`);
+        notify(t("pmMisc.workspace.scoresSynced", { score }));
         fetchProgramData(true);
       }
     } catch (e) {
-      notify("Sync failed.", "error");
+      notify(t("pmMisc.workspace.syncFailed"), "error");
     } finally {
       setIsSaving(false);
     }
@@ -1011,18 +1011,18 @@ function ProgramWorkspace() {
   }
 
   const allTabs = [
-    { id: "overview", name: "Overview", icon: LayoutDashboard },
+    { id: "overview", name: t("pmMisc.workspace.tabOverview"), icon: LayoutDashboard },
     {
       id: "config",
-      name: "Configuration",
+      name: t("pmMisc.workspace.tabConfiguration"),
       icon: Shield,
       roles: ["super_admin", "program_manager"],
     },
-    { id: "curriculum", name: "Curriculum", icon: FileText },
-    { id: "attendance", name: "Attendance", icon: CheckCircle2 },
-    { id: "reports", name: "Reports", icon: BarChart3 },
-    { id: "participants", name: "Participants", icon: Users },
-    { id: "submissions", name: "Submissions", icon: Activity },
+    { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
+    { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
+    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3 },
+    { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
+    { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
   ];
 
   const tabs = allTabs.filter(
@@ -1051,7 +1051,11 @@ function ProgramWorkspace() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="status-badge bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                {program?.status?.toUpperCase() || "ACTIVE"}
+                {{
+                  active: t("pmMisc.workspace.programStatusActive"),
+                  archived: t("pmMisc.workspace.programStatusArchived"),
+                  draft: t("pmMisc.workspace.programStatusDraft"),
+                }[program?.status] || t("pmMisc.workspace.programStatusActive")}
               </span>
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {program?.id}
@@ -1095,16 +1099,15 @@ function ProgramWorkspace() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">
-                    Total Participants
+                    {t("pmMisc.workspace.overviewTotalParticipants")}
                   </p>
                   <p className="text-[10px] text-emerald-500 font-bold mt-1">
-                    {sessions.length} Session{sessions.length !== 1 ? "s" : ""}{" "}
-                    · {program?.duration_weeks || "?"} Week Program
+                    {sessions.length}{" "}
+                    {t(sessions.length !== 1 ? "pmMisc.workspace.sessions" : "pmMisc.workspace.session")}{" "}
+                    · {t("pmMisc.workspace.weekProgram", { weeks: program?.duration_weeks || "?" })}
                   </p>
                   <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
-                    Active learners currently enrolled. This count drives the
-                    institutional footprint and scaling metrics for this
-                    specific program node.
+                    {t("pmMisc.workspace.overviewParticipantsDesc")}
                   </p>
                 </div>
               </div>
@@ -1120,10 +1123,10 @@ function ProgramWorkspace() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">
-                    Operational Submissions
+                    {t("pmMisc.workspace.overviewOperationalSubmissions")}
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    Completion Rate:{" "}
+                    {t("pmMisc.workspace.overviewCompletionRate")}{" "}
                     {participants.length > 0
                       ? Math.round(
                         (submissions.length /
@@ -1134,9 +1137,7 @@ function ProgramWorkspace() {
                     %
                   </p>
                   <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
-                    Total evidence-based artifacts uploaded. Each submission is
-                    a tactical requirement anchored to a curriculum week,
-                    directly influencing graduation scores.
+                    {t("pmMisc.workspace.overviewSubmissionsDesc")}
                   </p>
                 </div>
               </div>
@@ -1150,16 +1151,14 @@ function ProgramWorkspace() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-[var(--text-secondary)] tracking-wider">
-                    Active Student Groups
+                    {t("pmMisc.workspace.overviewActiveStudentGroups")}
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {assignedStaff.length} Staff · {reports.length} Report
-                    {reports.length !== 1 ? "s" : ""}
+                    {assignedStaff.length} {t("pmMisc.workspace.staff")} · {reports.length}{" "}
+                    {t(reports.length !== 1 ? "pmMisc.workspace.reports" : "pmMisc.workspace.report")}
                   </p>
                   <p className="text-[9px] text-[var(--text-secondary)] font-medium mt-2 leading-relaxed">
-                    Total number of student groups currently executing the
-                    curriculum. High group counts require increased personnel
-                    oversight and tactical health monitoring.
+                    {t("pmMisc.workspace.overviewGroupsDesc")}
                   </p>
                 </div>
               </div>
@@ -1171,10 +1170,10 @@ function ProgramWorkspace() {
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1 flex-1">
                     <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
-                      Registration Link
+                      {t("pmMisc.workspace.registrationLink")}
                     </p>
                     <p className="text-[9px] text-emerald-500 font-medium mt-1">
-                      Share this link with participants to register
+                      {t("pmMisc.workspace.registrationLinkHint")}
                     </p>
                     <div className="flex items-center gap-2 mt-3">
                       <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
@@ -1187,10 +1186,10 @@ function ProgramWorkspace() {
                           navigator.clipboard.writeText(
                             `${window.location.origin}/register-participant?group_id=${encodeURIComponent(fid)}`
                           );
-                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("pmMisc.workspace.registrationLinkCopied") } }));
                         }}
                         className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                        title="Copy registration link"
+                        title={t("pmMisc.workspace.copyRegistrationLink")}
                       >
                         <Copy className="w-4 h-4" />
                       </button>
@@ -1210,19 +1209,19 @@ function ProgramWorkspace() {
                   onClick={() => setActiveSubTab("individuals")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "individuals" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  Individuals ({participants.filter(p => p.status !== 'archived').length})
+                  {t("pmMisc.workspace.subTabIndividuals")} ({participants.filter(p => p.status !== 'archived').length})
                 </button>
                 <button
                   onClick={() => setActiveSubTab("groups")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "groups" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  Teams ({teams.length})
+                  {t("pmMisc.workspace.subTabTeams")} ({teams.length})
                 </button>
                 <button
                   onClick={() => setActiveSubTab("staff")}
                   className={`text-[10px] font-black uppercase tracking-widest pb-2 border-b-2 transition-all ${activeSubTab === "staff" ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] opacity-50 hover:opacity-100"}`}
                 >
-                  Program Staff ({assignedStaff.length})
+                  {t("pmMisc.workspace.subTabProgramStaff")} ({assignedStaff.length})
                 </button>
               </div>
 
@@ -1231,10 +1230,10 @@ function ProgramWorkspace() {
                   <div className="flex justify-between items-center bg-tertiary p-4 rounded-xl border border-[var(--border-primary)]">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Selection:
+                        {t("pmMisc.workspace.selection")}:
                       </span>
                       <span className="text-sm font-black text-[var(--brand-orange)]">
-                        {selectedParticipants.length} Selected
+                        {selectedParticipants.length} {t("pmMisc.workspace.selected")}
                       </span>
                     </div>
                     <div className="flex gap-2">
@@ -1244,13 +1243,13 @@ function ProgramWorkspace() {
                         }
                         className="text-[9px] font-black uppercase text-blue-500 hover:underline"
                       >
-                        Select All
+                        {t("pmMisc.workspace.selectAll")}
                       </button>
                       <button
                         onClick={() => setSelectedParticipants([])}
                         className="text-[9px] font-black uppercase text-rose-500 hover:underline"
                       >
-                        Clear
+                        {t("pmMisc.workspace.clear")}
                       </button>
                       {selectedParticipants.length > 0 && canEdit && (
                         <button
@@ -1264,7 +1263,7 @@ function ProgramWorkspace() {
                           }}
                           className="btn btn-primary btn-sm py-1 px-4 gap-2"
                         >
-                          <Target className="w-3 h-3" /> Group Students
+                          <Target className="w-3 h-3" /> {t("pmMisc.workspace.groupStudents")}
                         </button>
                       )}
                     </div>
@@ -1279,11 +1278,11 @@ function ProgramWorkspace() {
                               <CheckSquare className="w-4 h-4 opacity-20" />
                             </div>
                           </th>
-                          <th>Participant</th>
-                          <th>Email</th>
-                          <th>Group</th>
-                          <th>Status</th>
-                          <th className="text-right">Actions</th>
+                          <th>{t("pmMisc.workspace.tableParticipant")}</th>
+                          <th>{t("pmMisc.workspace.tableEmail")}</th>
+                          <th>{t("pmMisc.workspace.tableGroup")}</th>
+                          <th>{t("pmMisc.workspace.tableStatus")}</th>
+                          <th className="text-right">{t("pmMisc.workspace.tableActions")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1331,10 +1330,10 @@ function ProgramWorkspace() {
                                 <div className="flex flex-col">
                                   <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">
                                     {teams.find((t) => t.id === p.v2_team_id)
-                                      ?.name || "Individual"}
+                                      ?.name || t("pmMisc.workspace.individual")}
                                   </span>
                                   <span className="text-[8px] font-bold text-slate-500 uppercase tracking-tighter italic">
-                                    Segment: {p.group_name || "N/A"}
+                                    {t("pmMisc.workspace.segment")}: {p.group_name || t("pmMisc.workspace.na")}
                                   </span>
                                 </div>
                               </td>
@@ -1342,7 +1341,7 @@ function ProgramWorkspace() {
                                 <div className="flex items-center gap-2">
                                   <div className="w-2 h-2 rounded-full bg-emerald-500" />
                                   <span className="text-xs font-medium">
-                                    Operational
+                                    {t("pmMisc.workspace.operational")}
                                   </span>
                                 </div>
                               </td>
@@ -1358,7 +1357,7 @@ function ProgramWorkspace() {
                                       }
                                     }}
                                   >
-                                    <option value="">No Team</option>
+                                    <option value="">{t("pmMisc.workspace.teamNoTeam")}</option>
                                     {teams.map((t) => (
                                       <option key={t.id} value={t.id}>
                                         {t.name}
@@ -1404,7 +1403,7 @@ function ProgramWorkspace() {
                           {team.name}
                         </h3>
                         <p className="text-[9px] font-black text-blue-500 uppercase tracking-widest mt-0.5 italic">
-                          Group: {team.group_name || "N/A"}
+                          {t("pmMisc.workspace.group")}: {team.group_name || t("pmMisc.workspace.na")}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 mb-6">
@@ -1426,20 +1425,20 @@ function ProgramWorkspace() {
                             participants.filter((p) => p.v2_team_id === team.id)
                               .length
                           }{" "}
-                          Members
+                          {t("pmMisc.workspace.members")}
                         </span>
                       </div>
                       <div className="space-y-1 mb-6">
                         <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                          Assigned Staff
+                          {t("pmMisc.workspace.assignedStaffLabel")}
                         </p>
                         <p className="text-xs text-[var(--text-primary)] font-black uppercase tracking-tight">
-                          {team.handler_name || "Unassigned"}
+                          {team.handler_name || t("pmMisc.workspace.unassigned")}
                         </p>
                       </div>
                       <div className="flex justify-between items-center pt-4 border-t border-[var(--border-primary)]">
                         <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">
-                          {team.is_venture_ready ? "Venture Ready" : "In Program"}
+                          {team.is_venture_ready ? t("pmMisc.workspace.ventureReady") : t("pmMisc.workspace.inProgram")}
                         </span>
                         <div className="flex gap-2">
                         <button
@@ -1449,14 +1448,14 @@ function ProgramWorkspace() {
                           }}
                           className="btn btn-secondary btn-sm"
                         >
-                          <ChevronRight className="w-3 h-3" /> View
+                          <ChevronRight className="w-3 h-3" /> {t("pmMisc.workspace.view")}
                         </button>
                         {!team.is_venture_ready && (
                           <button
                             onClick={() => setPromoteTarget({ team, action: "approve" })}
                             className="btn btn-primary btn-sm"
                           >
-                            <CheckCircle2 className="w-3 h-3" /> Approve
+                            <CheckCircle2 className="w-3 h-3" /> {t("pmMisc.workspace.approve")}
                           </button>
                         )}
                         {team.is_venture_ready && !team.venture_id && (
@@ -1464,7 +1463,7 @@ function ProgramWorkspace() {
                             onClick={() => setPromoteTarget({ team, action: "promote" })}
                             className="btn btn-primary btn-sm"
                           >
-                            <Zap className="w-3 h-3" /> Promote
+                            <Zap className="w-3 h-3" /> {t("pmMisc.workspace.promote")}
                           </button>
                         )}
                         </div>
@@ -1475,10 +1474,9 @@ function ProgramWorkspace() {
                     <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[160px] col-span-full py-8 text-center">
                       <Target className="w-8 h-8 text-[var(--text-secondary)]" />
                       <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                        No student groups found.
+                        {t("pmMisc.workspace.noGroupsFound")}
                         <br />
-                        Select participants in the Individuals tab to initialize
-                        a group.
+                        {t("pmMisc.workspace.noGroupsFoundHint")}
                       </span>
                     </div>
                   )}
@@ -1490,11 +1488,10 @@ function ProgramWorkspace() {
                   <div className="flex justify-between items-center">
                     <div>
                       <h3 className="text-xl font-black uppercase tracking-tighter">
-                        Program Staff
+                        {t("pmMisc.workspace.subTabProgramStaff")}
                       </h3>
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                        Assigned mentors, assistants, and evaluators for this
-                        program
+                        {t("pmMisc.workspace.programStaffDesc")}
                       </p>
                     </div>
                     {canEdit && (
@@ -1502,7 +1499,7 @@ function ProgramWorkspace() {
                         onClick={() => setShowStaffModal(true)}
                         className="btn btn-primary btn-sm px-4 gap-2"
                       >
-                        <UserPlus className="w-3 h-3" /> Assign Personnel
+                        <UserPlus className="w-3 h-3" /> {t("pmMisc.workspace.assignPersonnel")}
                       </button>
                     )}
                   </div>
@@ -1540,7 +1537,7 @@ function ProgramWorkspace() {
                       <div className="card border-dashed flex flex-col items-center justify-center gap-3 opacity-40 min-h-[120px] col-span-full py-8 text-center">
                         <Users className="w-8 h-8 text-[var(--text-secondary)]" />
                         <span className="text-xs font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-                          No staff members assigned yet.
+                          {t("pmMisc.workspace.noStaffAssigned")}
                         </span>
                       </div>
                     )}
@@ -1554,7 +1551,7 @@ function ProgramWorkspace() {
             <div className="space-y-6">
               <div className="flex justify-between items-center flex-wrap gap-4 pb-6 border-b border-[var(--border-primary)]">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
-                  Strategic Curriculum
+                  {t("pmMisc.workspace.curriculumTitle")}
                 </h3>
                 <div className="flex items-center gap-2">
                   <button
@@ -1564,7 +1561,7 @@ function ProgramWorkspace() {
                       : "bg-transparent border-white/10 text-slate-600 hover:text-slate-400"
                       }`}
                   >
-                    {showArchivedSessions ? "Showing Archived" : "Archived"}
+                    {showArchivedSessions ? t("pmMisc.workspace.showingArchived") : t("pmMisc.workspace.archived")}
                   </button>
                   {canEdit && (
                     <button
@@ -1592,7 +1589,7 @@ function ProgramWorkspace() {
                       }}
                       className="btn btn-primary btn-sm gap-2"
                     >
-                      <Plus className="w-4 h-4" /> Create
+                      <Plus className="w-4 h-4" /> {t("pmMisc.workspace.create")}
                     </button>
                   )}
                 </div>
@@ -1621,7 +1618,7 @@ function ProgramWorkspace() {
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col items-center justify-center w-12 h-12 rounded-xl bg-primary border border-[var(--border-primary)] shadow-inner">
                             <span className="text-[10px] font-black text-[var(--text-secondary)] opacity-50">
-                              WK
+                              {t("pmMisc.workspace.weekAbbr")}
                             </span>
                             <span className="text-sm font-black text-[var(--brand-orange)] -mt-1">
                               {session.week_number}
@@ -1687,7 +1684,13 @@ function ProgramWorkspace() {
                                       className={`w-2 h-2 rounded-full animate-pulse ${statusColor}`}
                                     />
                                     <span className="text-[9px] font-black uppercase tracking-widest opacity-60">
-                                      State: {displayStatus}
+                                      {t("pmMisc.workspace.state")}: {{
+                                        locked: t("pmMisc.workspace.sessionStatusLocked"),
+                                        completed: t("pmMisc.workspace.sessionStatusCompleted"),
+                                        active: t("pmMisc.workspace.sessionStatusActive"),
+                                        "not started": t("pmMisc.workspace.sessionStatusNotStarted"),
+                                        pending: t("pmMisc.workspace.sessionStatusPending"),
+                                      }[displayStatus] || displayStatus}
                                     </span>
                                   </>
                                 );
@@ -1710,7 +1713,7 @@ function ProgramWorkspace() {
                                   className="text-[9px] font-black text-amber-400 uppercase tracking-widest ml-2"
                                   title={session.notes}
                                 >
-                                  📌 Notes
+                                  📌 {t("pmMisc.workspace.notes")}
                                 </span>
                               )}
                             </div>
@@ -1757,11 +1760,11 @@ function ProgramWorkspace() {
                                   : session.id,
                               );
                             }}
-                            title="View session details, deliverables & resources"
+                            title={t("pmMisc.workspace.sessionDetailsTitle")}
                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[8px] font-black uppercase tracking-widest transition-all ${expandedSessionId === session.id ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]" : "bg-transparent border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]/50 hover:text-[var(--text-primary)]"}`}
                           >
                             <ChevronRight className={`w-3 h-3 transition-transform ${expandedSessionId === session.id ? "rotate-90" : ""}`} />
-                            {expandedSessionId === session.id ? "Hide Details" : "View Details"}
+                            {expandedSessionId === session.id ? t("pmMisc.workspace.hideDetails") : t("pmMisc.workspace.viewDetails")}
                           </button>
                         </div>
 
@@ -1780,7 +1783,7 @@ function ProgramWorkspace() {
                           >
                             <Users className="w-3.5 h-3.5" />
                             <span className="text-[9px] font-black uppercase italic tracking-wider">
-                              Attendance
+                              {t("pmMisc.workspace.attendance")}
                             </span>
                           </button>
                           {canContribute && (
@@ -1794,7 +1797,7 @@ function ProgramWorkspace() {
                             >
                               <Activity className="w-3.5 h-3.5" />
                               <span className="text-[9px] font-black uppercase italic tracking-wider">
-                                Give Weekly Report
+                                {t("pmMisc.workspace.giveWeeklyReport")}
                               </span>
                             </button>
                           )}
@@ -1805,7 +1808,7 @@ function ProgramWorkspace() {
                                 const newStatus = session.status === "locked" ? "not started" : "locked";
                                 updateSessionStatus(session.id, newStatus);
                               }}
-                              title={session.status === "locked" ? "Unlock this week" : "Lock this week"}
+                              title={session.status === "locked" ? t("pmMisc.workspace.unlockWeek") : t("pmMisc.workspace.lockWeek")}
                               className={`btn btn-secondary !py-2 !px-4 flex items-center gap-2 transition-all ${
                                 session.status === "locked"
                                   ? "border-rose-500/20 text-rose-500 hover:bg-rose-500/5"
@@ -1814,7 +1817,7 @@ function ProgramWorkspace() {
                             >
                               <span className="text-sm">{session.status === "locked" ? "🔓" : "🔒"}</span>
                               <span className="text-[9px] font-black uppercase italic tracking-wider">
-                                {session.status === "locked" ? "Unlock" : "Lock"}
+                                {session.status === "locked" ? t("pmMisc.workspace.unlock") : t("pmMisc.workspace.lock")}
                               </span>
                             </button>
                           )}
@@ -1843,7 +1846,7 @@ function ProgramWorkspace() {
                                 1
                               </div>
                               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                                Logistics & Deployment
+                                {t("pmMisc.workspace.curriculumLogistics")}
                               </span>
                             </div>
 
@@ -1851,7 +1854,7 @@ function ProgramWorkspace() {
                               {/* Session Title */}
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Session Title
+                                  {t("pmMisc.workspace.sessionTitle")}
                                 </label>
                                 <input
                                   type="text"
@@ -1871,7 +1874,7 @@ function ProgramWorkspace() {
                               {/* Description */}
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Description
+                                  {t("pmMisc.workspace.description")}
                                 </label>
                                 <textarea
                                   value={session.description || ""}
@@ -1896,7 +1899,7 @@ function ProgramWorkspace() {
                               <div className="grid grid-cols-3 gap-3">
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                    Week
+                                    {t("pmMisc.workspace.week")}
                                   </label>
                                   <input
                                     type="number"
@@ -1914,7 +1917,7 @@ function ProgramWorkspace() {
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Clock className="w-2.5 h-2.5" /> Start Time
+                                    <Clock className="w-2.5 h-2.5" /> {t("pmMisc.workspace.startTime")}
                                   </label>
                                   <input
                                     type="time"
@@ -1931,7 +1934,7 @@ function ProgramWorkspace() {
                                 </div>
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
-                                    <Clock className="w-2.5 h-2.5" /> End Time
+                                    <Clock className="w-2.5 h-2.5" /> {t("pmMisc.workspace.endTime")}
                                   </label>
                                   <input
                                     type="time"
@@ -1951,7 +1954,7 @@ function ProgramWorkspace() {
                               {/* Timezone */}
                               <div className="space-y-1 mt-2">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Timezone
+                                  {t("pmMisc.workspace.timezone")}
                                 </label>
                                 <select
                                   value={session.timezone || (typeof Intl !== 'undefined' ? Intl.DateTimeFormat().resolvedOptions().timeZone : 'UTC')}
@@ -1968,7 +1971,7 @@ function ProgramWorkspace() {
 
                               <div className="space-y-1">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Assign Staff Member(s)
+                                  {t("pmMisc.workspace.assignStaffMembers")}
                                 </label>
                                 <div className="space-y-2 p-3 bg-tertiary border border-[var(--border-primary)] rounded-xl max-h-40 overflow-y-auto custom-scrollbar">
                                   {(programTeamMembers.length > 0
@@ -2057,7 +2060,7 @@ function ProgramWorkspace() {
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
                                     <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                    Start Date
+                                    {t("pmMisc.workspace.startDate")}
                                   </label>
                                   <input
                                     type="date"
@@ -2081,7 +2084,7 @@ function ProgramWorkspace() {
                                 <div className="space-y-1">
                                   <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1 flex items-center gap-1">
                                     <Calendar className="w-2.5 h-2.5 text-white" />{" "}
-                                    Finish Date
+                                    {t("pmMisc.workspace.finishDate")}
                                   </label>
                                   <input
                                     type="date"
@@ -2106,7 +2109,7 @@ function ProgramWorkspace() {
 
                               <div className="pt-2">
                                 <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50 ml-1">
-                                  Operational State
+                                  {t("pmMisc.workspace.operationalState")}
                                 </label>
                                 <select
                                   value={session.status}
@@ -2129,22 +2132,22 @@ function ProgramWorkspace() {
                                             : "bg-amber-500/10 text-amber-500 border-amber-500/30"
                                   }`}
                                 >
-                                  <option value="not started">NOT STARTED</option>
-                                  <option value="pending">PENDING</option>
+                                  <option value="not started">{t("pmMisc.workspace.sessionStatusNotStarted")}</option>
+                                  <option value="pending">{t("pmMisc.workspace.sessionStatusPending")}</option>
                                   <option value="in progress">
-                                    IN PROGRESS
+                                    {t("pmMisc.workspace.sessionStatusInProgress")}
                                   </option>
-                                  <option value="completed">COMPLETED</option>
-                                  <option value="locked">🔒 LOCKED</option>
+                                  <option value="completed">{t("pmMisc.workspace.sessionStatusCompleted")}</option>
+                                  <option value="locked">{t("pmMisc.workspace.sessionStatusLockedOption")}</option>
                                 </select>
                               </div>
                               {session.version > 1 && (
                                 <div className="mt-2 flex items-center gap-2">
                                   <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                    Version: {session.version}
+                                    {t("pmMisc.workspace.version")}: {session.version}
                                   </span>
                                   <span className="text-[7px] text-slate-500">
-                                    ({session.version - 1} revision{session.version > 2 ? 's' : ''})
+                                    ({session.version - 1} {t(session.version > 2 ? "pmMisc.workspace.revisions" : "pmMisc.workspace.revision")})
                                   </span>
                                 </div>
                               )}
@@ -2162,7 +2165,7 @@ function ProgramWorkspace() {
                                   2
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                                  Assessments & Deliverables
+                                  {t("pmMisc.workspace.curriculumAssessments")}
                                 </span>
                               </div>
                               {canEdit && (
@@ -2180,7 +2183,7 @@ function ProgramWorkspace() {
                                   }}
                                   className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline flex items-center gap-1"
                                 >
-                                  <Plus className="w-3 h-3" /> Add Requirement
+                                  <Plus className="w-3 h-3" /> {t("pmMisc.workspace.addRequirement")}
                                 </button>
                               )}
                             </div>
@@ -2202,7 +2205,7 @@ function ProgramWorkspace() {
                                           {req.title}
                                         </p>
                                         <p className="text-[8px] text-[var(--text-secondary)] font-black uppercase tracking-widest mt-0.5 italic flex items-center gap-2">
-                                          <span>Requirement: {req.allowed_format || "PDF"}</span>
+                                          <span>{t("pmMisc.workspace.requirement")}: {req.allowed_format || "PDF"}</span>
                                           {req.due_date && (() => {
                                             const now = new Date();
                                             const due = new Date(req.due_date);
@@ -2213,13 +2216,13 @@ function ProgramWorkspace() {
                                               <>
                                                 <span>•</span>
                                                 <span className={isOverdue ? "text-rose-500" : isDueSoon ? "text-amber-500" : "text-amber-500/60"}>
-                                                  Due: {due.toLocaleDateString()}
+                                                  {t("pmMisc.workspace.due")}: {due.toLocaleDateString()}
                                                 </span>
                                                 {isOverdue && (
-                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">OVERDUE</span>
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-rose-500/20 text-rose-400">{t("pmMisc.workspace.overdue")}</span>
                                                 )}
                                                 {isDueSoon && (
-                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">DUE SOON</span>
+                                                  <span className="px-1.5 py-0.5 rounded text-[7px] font-black bg-amber-500/20 text-amber-400">{t("pmMisc.workspace.dueSoon")}</span>
                                                 )}
                                               </>
                                             );
@@ -2244,21 +2247,21 @@ function ProgramWorkspace() {
                                               const data = await res.json();
                                               if (data.success) {
                                                 const msg = data.sent > 0
-                                                  ? `Reminder sent to ${data.sent} participant(s)`
-                                                  : "Reminder sent";
+                                                  ? t("pmMisc.workspace.reminderSentTo", { count: data.sent })
+                                                  : t("pmMisc.workspace.reminderSent");
                                                 notify(msg);
                                               } else {
-                                                notify("Reminder failed");
+                                                notify(t("pmMisc.workspace.reminderFailed"));
                                               }
                                             } catch (e) {
-                                              notify("Reminder error");
+                                              notify(t("pmMisc.workspace.reminderError"));
                                             }
                                           }}
                                           className="text-[7px] font-black uppercase text-[var(--brand-orange)]/60 hover:text-[var(--brand-orange)] transition-all px-2 py-1 rounded border border-[var(--brand-orange)]/20 hover:border-[var(--brand-orange)]/50"
-                                          title="Send reminder to assigned participants"
+                                          title={t("pmMisc.workspace.sendReminderTitle")}
                                         >
                                           <Bell className="w-3 h-3 inline mr-1" />
-                                          REMIND
+                                          {t("pmMisc.workspace.remind")}
                                         </button>
                                       )}
                                       {canEdit && (
@@ -2275,14 +2278,13 @@ function ProgramWorkspace() {
                                   <div className="py-16 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                                     <Shield className="w-10 h-10 mb-2" />
                                     <p className="text-[10px] font-bold uppercase tracking-widest">
-                                      No Requirements Set
+                                      {t("pmMisc.workspace.noRequirementsSet")}
                                     </p>
                                   </div>
                                 )}
                             </div>
                             <p className="text-[8px] font-bold text-slate-500/50 uppercase tracking-widest italic text-center px-6">
-                              These items are formal evidence submitted by
-                              participants for final graduation scoring.
+                              {t("pmMisc.workspace.curriculumEvidenceNote")}
                             </p>
                           </div>
 
@@ -2297,7 +2299,7 @@ function ProgramWorkspace() {
                                   3
                                 </div>
                                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-500">
-                                  Weekly Resources
+                                  {t("pmMisc.workspace.curriculumWeeklyResources")}
                                 </span>
                               </div>
                             </div>
@@ -2315,11 +2317,11 @@ function ProgramWorkspace() {
             <div className="space-y-6 animate-in">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Attendance Overview
+                  {t("pmMisc.workspace.attendanceOverview")}
                 </h3>
               </div>
               <p className="text-[10px] text-[var(--text-secondary)]">
-                Select a week below to manage attendance for that session.
+                {t("pmMisc.workspace.attendanceSelectWeek")}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {sessions
@@ -2343,7 +2345,7 @@ function ProgramWorkspace() {
                             {session.title}
                           </p>
                           <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                            Week {session.week_number}
+                            {t("pmMisc.workspace.week")} {session.week_number}
                           </p>
                         </div>
                       </div>
@@ -2355,13 +2357,13 @@ function ProgramWorkspace() {
                       <button
                         className="w-full py-2 rounded-lg bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all"
                       >
-                        Open Attendance
+                        {t("pmMisc.workspace.openAttendance")}
                       </button>
                     </div>
                   ))}
                 {sessions.filter((s) => s.type === "session").length === 0 && (
                   <div className="col-span-3 py-12 text-center">
-                    <p className="text-[11px] text-slate-500">No sessions yet. Create weeks in the Curriculum tab first.</p>
+                    <p className="text-[11px] text-slate-500">{t("pmMisc.workspace.noSessionsYet")}</p>
                   </div>
                 )}
               </div>
@@ -2376,11 +2378,11 @@ function ProgramWorkspace() {
                   <div className="space-y-6 mb-8">
                     <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                       <FileText className="w-5 h-5 text-blue-500" />
-                      Assigned Materials
+                      {t("pmMisc.workspace.configAssignedMaterials")}
                     </h3>
                     <div className="card space-y-4">
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                        Assigned Assets & Curriculum PDFs
+                        {t("pmMisc.workspace.configAssignedAssets")}
                       </p>
                       <div className="grid grid-cols-1 gap-3">
                         {(() => {
@@ -2435,7 +2437,7 @@ function ProgramWorkspace() {
                                     item.NAME ||
                                     item.title ||
                                     item.TITLE ||
-                                    "Program Document",
+                                    t("pmMisc.workspace.programDocument"),
                                   url:
                                     item.url ||
                                     item.URL ||
@@ -2472,8 +2474,7 @@ function ProgramWorkspace() {
                           if (allMaterials.length === 0) {
                             return (
                               <p className="text-xs italic text-[var(--text-secondary)] opacity-40 p-4 border border-dashed border-[var(--border-primary)] rounded-xl text-center">
-                                No assigned materials have been anchored to this
-                                program yet.
+                                {t("pmMisc.workspace.noMaterialsAnchored")}
                               </p>
                             );
                           }
@@ -2493,10 +2494,10 @@ function ProgramWorkspace() {
                                 file.TITLE ||
                                 (typeof (file.url || file.URL) === "string"
                                   ? (file.url || file.URL).split("/").pop()
-                                  : "Program Document")
+                                  : t("pmMisc.workspace.programDocument"))
                                 : typeof file === "string"
                                   ? file.split("/").pop()
-                                  : "Program Document";
+                                  : t("pmMisc.workspace.programDocument");
                             const name = rawName
                               .replace(/\.[^.]+$/, "") // strip extension (.pdf, .docx…)
                               .replace(/[_\-]+/g, " ") // underscores/hyphens → spaces
@@ -2527,8 +2528,8 @@ function ProgramWorkspace() {
                                       className={`text-[8px] font-black uppercase tracking-widest ${isKB ? "text-emerald-500" : "text-blue-500"}`}
                                     >
                                       {isKB
-                                        ? "Knowledge Asset"
-                                        : "Program Material"}
+                                        ? t("pmMisc.workspace.knowledgeAsset")
+                                        : t("pmMisc.workspace.programMaterial")}
                                     </span>
                                   </div>
                                 </div>
@@ -2540,7 +2541,7 @@ function ProgramWorkspace() {
                                   }}
                                   className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all cursor-pointer ${isKB ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-black border border-emerald-500/20" : "bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-black border border-blue-500/20"}`}
                                 >
-                                  OPEN
+                                  {t("pmMisc.workspace.open")}
                                 </button>
                               </div>
                             );
@@ -2552,12 +2553,12 @@ function ProgramWorkspace() {
 
                   <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                     <Shield className="w-5 h-5 text-[var(--brand-orange)]" />
-                    Program Identity
+                    {t("pmMisc.workspace.configProgramIdentity")}
                   </h3>
                   <div className="card space-y-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Program Name
+                        {t("pmMisc.workspace.programName")}
                       </label>
                       <input
                         ref={configNameRef}
@@ -2569,7 +2570,7 @@ function ProgramWorkspace() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Concept Note
+                        {t("pmMisc.workspace.conceptNote")}
                       </label>
                       <textarea
                         ref={configDescRef}
@@ -2581,7 +2582,7 @@ function ProgramWorkspace() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Duration (Weeks)
+                          {t("pmMisc.workspace.durationWeeks")}
                         </label>
                         <input
                           ref={configWeeksRef}
@@ -2592,16 +2593,16 @@ function ProgramWorkspace() {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Operational Status
+                          {t("pmMisc.workspace.operationalStatus")}
                         </label>
                         <select
                           ref={configStatusRef}
                           defaultValue={program?.status}
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold"
                         >
-                          <option value="active">ACTIVE</option>
-                          <option value="archived">ARCHIVED</option>
-                          <option value="draft">DRAFT</option>
+                          <option value="active">{t("pmMisc.workspace.programStatusActive")}</option>
+                          <option value="archived">{t("pmMisc.workspace.programStatusArchived")}</option>
+                          <option value="draft">{t("pmMisc.workspace.programStatusDraft")}</option>
                         </select>
                       </div>
                     </div>
@@ -2609,7 +2610,7 @@ function ProgramWorkspace() {
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-purple-500 flex items-center gap-2">
-                          <Shield className="w-3 h-3 text-white" /> Grading Mode
+                          <Shield className="w-3 h-3 text-white" /> {t("pmMisc.workspace.gradingMode")}
                         </label>
                         <select
                           ref={configGradingRef}
@@ -2617,18 +2618,18 @@ function ProgramWorkspace() {
                           className="w-full bg-primary border border-purple-500/30 rounded-lg px-4 py-3 text-sm focus:border-purple-500 outline-none transition-all font-bold"
                         >
                           <option value="graded">
-                            Graded (Score + Review)
+                            {t("pmMisc.workspace.gradingGraded")}
                           </option>
-                          <option value="review">Review Only (Feedback)</option>
+                          <option value="review">{t("pmMisc.workspace.gradingReviewOnly")}</option>
                           <option value="followup">
-                            Follow-up (Schedule Meeting)
+                            {t("pmMisc.workspace.gradingFollowup")}
                           </option>
                         </select>
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" /> Project
-                          Start Date
+                          <Calendar className="w-3 h-3 text-white" />{" "}
+                          {t("pmMisc.workspace.projectStartDate")}
                         </label>
                         <input
                           ref={configStartRef}
@@ -2645,8 +2646,8 @@ function ProgramWorkspace() {
                       </div>
                       <div className="space-y-1">
                         <label className="text-[10px] font-black uppercase tracking-widest text-rose-500 flex items-center gap-2">
-                          <Calendar className="w-3 h-3 text-white" /> Project
-                          Finish Date
+                          <Calendar className="w-3 h-3 text-white" />{" "}
+                          {t("pmMisc.workspace.projectFinishDate")}
                         </label>
                         <input
                           ref={configEndRef}
@@ -2665,13 +2666,13 @@ function ProgramWorkspace() {
 
                     <div className="space-y-1 mt-4">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">
-                        PROGRAM MANAGER
+                        {t("pmMisc.workspace.programManager")}
                       </label>
                       <div className="w-full bg-primary/50 border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--brand-orange)] flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <User className="w-4 h-4" />
                           <span className="uppercase">
-                            {program?.pm_name || "Not Assigned"}
+                            {program?.pm_name || t("pmMisc.workspace.notAssigned")}
                           </span>
                         </div>
                         <Shield className="w-4 h-4 opacity-30" />
@@ -2683,7 +2684,7 @@ function ProgramWorkspace() {
                       className="btn btn-primary w-full py-4 mt-4 gap-2"
                     >
                       <Save className="w-4 h-4" />
-                      {isSaving ? "Saving..." : "Synchronize Global Settings"}
+                      {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.syncGlobalSettings")}
                     </button>
                   </div>
                 </div>
@@ -2691,7 +2692,7 @@ function ProgramWorkspace() {
                 <div className="space-y-6">
                   <h3 className="text-xl font-black uppercase tracking-tighter flex items-center gap-2">
                     <Zap className="w-5 h-5 text-purple-500" />
-                    Strategic KPIs
+                    {t("pmMisc.workspace.configStrategicKpis")}
                     <button
                       onClick={async () => {
                         try {
@@ -2700,16 +2701,16 @@ function ProgramWorkspace() {
                           );
                           const data = await res.json();
                           if (data.success) {
-                            notify("KPI progress recalculated.");
+                            notify(t("pmMisc.workspace.kpiRecalculated"));
                             fetchProgramData(true);
                           }
                         } catch (_) {
-                          notify("Recalculation failed.", "error");
+                          notify(t("pmMisc.workspace.recalculationFailed"), "error");
                         }
                       }}
                       className="ml-auto text-[8px] font-black text-purple-400 uppercase hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-purple-500/10 transition-all"
                     >
-                      <RefreshCw className="w-3 h-3" /> Recalculate
+                      <RefreshCw className="w-3 h-3" /> {t("pmMisc.workspace.recalculate")}
                     </button>
                   </h3>
                   <div className="card space-y-4">
@@ -2756,7 +2757,7 @@ function ProgramWorkspace() {
                           >
                             <div className="flex items-center justify-between mb-3">
                               <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                KPI {kpiIdx + 1}
+                                {t("pmMisc.workspace.kpi")} {kpiIdx + 1}
                               </span>
                               <span className="text-sm font-black text-[var(--brand-orange)]">
                                 {progPct}%
@@ -2773,23 +2774,23 @@ function ProgramWorkspace() {
                             </div>
                             <div className="flex items-center gap-3 mt-2">
                               <span className="text-[7px] font-bold text-slate-500">
-                                Weight: {kpi.weight || 0}%
+                                {t("pmMisc.workspace.weight")}: {kpi.weight || 0}%
                               </span>
                               {kpi.linkedSessions > 0 && (
                                 <span className="text-[7px] font-bold text-slate-500">
                                   {kpi.completedSessions}/{kpi.linkedSessions}{" "}
-                                  sessions
+                                  {t("pmMisc.workspace.sessionsLower")}
                                 </span>
                               )}
                               {kpi.linkedDocs > 0 && (
                                 <span className="text-[7px] font-bold text-slate-500">
-                                  {kpi.completedDocs}/{kpi.linkedDocs} docs
+                                  {kpi.completedDocs}/{kpi.linkedDocs} {t("pmMisc.workspace.docsLower")}
                                 </span>
                               )}
                               {kpi.linkedSessions === 0 &&
                                 kpi.linkedDocs === 0 && (
                                   <span className="text-[7px] font-bold text-slate-600 italic">
-                                    No linked items
+                                    {t("pmMisc.workspace.noLinkedItems")}
                                   </span>
                                 )}
                             </div>
@@ -2799,7 +2800,7 @@ function ProgramWorkspace() {
                       {kpis.length === 0 && (
                         <div className="col-span-full p-8 text-center">
                           <p className="text-[10px] text-[var(--text-secondary)] italic">
-                            No KPIs configured. Contact your Super Admin.
+                            {t("pmMisc.workspace.noKpisConfigured")}
                           </p>
                         </div>
                       )}
@@ -2814,15 +2815,15 @@ function ProgramWorkspace() {
             <div className="space-y-6">
               {/* Export Bar */}
               <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">Export:</span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">{t("pmMisc.workspace.exportLabel")}</span>
                 {[
-                  { label: "Participants CSV", type: "participants", format: "csv" },
-                  { label: "Participants XLSX", type: "participants", format: "xlsx" },
-                  { label: "Attendance CSV", type: "attendance", format: "csv" },
-                  { label: "Submissions CSV", type: "submissions", format: "csv" },
-                  { label: "Teams CSV", type: "teams", format: "csv" },
-                  { label: "Calendar iCal", type: "ical", format: "ical" },
-                  { label: "Participants PDF", type: "participants", format: "pdf" },
+                  { label: t("pmMisc.workspace.exportParticipantsCsv"), type: "participants", format: "csv" },
+                  { label: t("pmMisc.workspace.exportParticipantsXlsx"), type: "participants", format: "xlsx" },
+                  { label: t("pmMisc.workspace.exportAttendanceCsv"), type: "attendance", format: "csv" },
+                  { label: t("pmMisc.workspace.exportSubmissionsCsv"), type: "submissions", format: "csv" },
+                  { label: t("pmMisc.workspace.exportTeamsCsv"), type: "teams", format: "csv" },
+                  { label: t("pmMisc.workspace.exportCalendarIcal"), type: "ical", format: "ical" },
+                  { label: t("pmMisc.workspace.exportParticipantsPdf"), type: "participants", format: "pdf" },
                 ].map(({ label, type, format }) => (
                   <button
                     key={`${type}-${format}`}
@@ -2866,9 +2867,9 @@ function ProgramWorkspace() {
                           a.click();
                           URL.revokeObjectURL(url);
                         }
-                        notify(`Exported ${label}`);
+                        notify(t("pmMisc.workspace.exported", { label }));
                       } catch (e) {
-                        notify("Export failed", "error");
+                        notify(t("pmMisc.workspace.exportFailed"), "error");
                       }
                     }}
                     className={`px-3 py-1.5 text-[8px] font-black uppercase rounded-lg border transition-all ${
@@ -2886,11 +2887,11 @@ function ProgramWorkspace() {
 
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-black uppercase tracking-tighter">
-                  Weekly Intelligence Feed
+                  {t("pmMisc.workspace.reportsWeeklyFeed")}
                 </h3>
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                    Total Signals:
+                    {t("pmMisc.workspace.totalSignals")}
                   </span>
                   <span className="text-sm font-black">{reports.length}</span>
                 </div>
@@ -2908,10 +2909,7 @@ function ProgramWorkspace() {
                           Wk{report.week_number}
                         </div>
                         <span className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                          Submission by{" "}
-                          {report.staff_name ||
-                            report.teacher_name ||
-                            "Staff Member"}
+                          {t("pmMisc.workspace.submissionBy", { name: report.staff_name || report.teacher_name || t("pmMisc.workspace.staffMember") })}
                         </span>
                       </div>
                       <span className="text-[10px] font-medium text-[var(--text-secondary)]">
@@ -2922,34 +2920,34 @@ function ProgramWorkspace() {
                       <div className="space-y-4">
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] mb-1">
-                            Challenges & Blockers
+                            {t("pmMisc.workspace.reportChallenges")}
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.challenges || "No data reported."}
+                            {report.challenges || t("pmMisc.workspace.noDataReported")}
                           </p>
                         </div>
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-1">
-                            Highlights & Successes
+                            {t("pmMisc.workspace.reportHighlights")}
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.highlights || "No data reported."}
+                            {report.highlights || t("pmMisc.workspace.noDataReported")}
                           </p>
                         </div>
                       </div>
                       <div className="space-y-4">
                         <div>
                           <p className="text-[9px] font-black uppercase tracking-widest text-blue-500 mb-1">
-                            Strategic Next Steps
+                            {t("pmMisc.workspace.reportNextSteps")}
                           </p>
                           <p className="text-xs text-[var(--text-primary)] leading-relaxed">
-                            {report.planned_adjustments || report.next_steps || "No data reported."}
+                            {report.planned_adjustments || report.next_steps || t("pmMisc.workspace.noDataReported")}
                           </p>
                         </div>
                         <div className="grid grid-cols-2 gap-4 pt-2">
                           <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
                             <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
-                              Attendance
+                              {t("pmMisc.workspace.attendance")}
                             </p>
                             <p className="text-sm font-black">
                               {report.attendance_count || 0}
@@ -2957,7 +2955,7 @@ function ProgramWorkspace() {
                           </div>
                           <div className="p-3 bg-primary rounded-lg border border-[var(--border-primary)]">
                             <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase">
-                              Sessions
+                              {t("pmMisc.workspace.sessions")}
                             </p>
                             <p className="text-sm font-black">
                               {report.sessions_completed || 0}
@@ -2972,7 +2970,7 @@ function ProgramWorkspace() {
                   <div className="py-20 text-center card border-dashed opacity-40">
                     <BarChart3 className="w-10 h-10 mx-auto mb-4 opacity-20" />
                     <p className="text-xs font-bold uppercase tracking-widest">
-                      Awaiting initial intelligence reports...
+                      {t("pmMisc.workspace.awaitingReports")}
                     </p>
                   </div>
                 )}
@@ -2985,11 +2983,11 @@ function ProgramWorkspace() {
               <table className="data-table">
                 <thead>
                   <tr>
-                    <th>Participant</th>
-                    <th>Deliverable</th>
-                    <th>Date</th>
-                    <th>Status</th>
-                    <th className="text-right">Action</th>
+                    <th>{t("pmMisc.workspace.tableParticipant")}</th>
+                    <th>{t("pmMisc.workspace.tableDeliverable")}</th>
+                    <th>{t("pmMisc.workspace.tableDate")}</th>
+                    <th>{t("pmMisc.workspace.tableStatus")}</th>
+                    <th className="text-right">{t("pmMisc.workspace.tableAction")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2998,10 +2996,10 @@ function ProgramWorkspace() {
                       <td>
                         <div className="flex flex-col">
                           <span className="font-black text-[var(--text-primary)]">
-                            {sub.participant_name || "N/A"}
+                            {sub.participant_name || t("pmMisc.workspace.na")}
                           </span>
                           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">
-                            {sub.group_name || "Individual"}
+                            {sub.group_name || t("pmMisc.workspace.individual")}
                           </span>
                         </div>
                       </td>
@@ -3013,7 +3011,14 @@ function ProgramWorkspace() {
                         <span
                           className={`px-2 py-1 rounded text-[9px] font-black uppercase ${sub.status === "approved" ? "bg-emerald-500/10 text-emerald-500" : "bg-orange-500/10 text-orange-500"}`}
                         >
-                          {sub.status}
+                          {{
+                            approved: t("pmMisc.workspace.submissionStatusApproved"),
+                            pending: t("pmMisc.workspace.submissionStatusPending"),
+                            submitted: t("pmMisc.workspace.submissionStatusSubmitted"),
+                            rejected: t("pmMisc.workspace.submissionStatusRejected"),
+                            revision_requested: t("pmMisc.workspace.submissionStatusRevision"),
+                            pending_followup: t("pmMisc.workspace.submissionStatusFollowup"),
+                          }[sub.status] || sub.status}
                         </span>
                       </td>
                       <td className="text-right">
@@ -3025,7 +3030,7 @@ function ProgramWorkspace() {
                           }}
                           className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic"
                         >
-                          Review
+                          {t("pmMisc.workspace.review")}
                         </button>
                       </td>
                     </tr>
@@ -3036,7 +3041,7 @@ function ProgramWorkspace() {
                         colSpan="5"
                         className="py-20 text-center opacity-30 italic"
                       >
-                        No submissions detected in this sector.
+                        {t("pmMisc.workspace.noSubmissions")}
                       </td>
                     </tr>
                   )}
@@ -3066,7 +3071,7 @@ function ProgramWorkspace() {
                       {activePDF.name}
                     </h3>
                     <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                      Document Preview
+                      {t("pmMisc.workspace.documentPreview")}
                     </p>
                   </div>
                 </div>
@@ -3077,7 +3082,7 @@ function ProgramWorkspace() {
                     rel="noreferrer"
                     className="btn btn-secondary !py-2 text-[10px] gap-2"
                   >
-                    <ExternalLink className="w-4 h-4" /> Open in New Tab
+                    <ExternalLink className="w-4 h-4" /> {t("pmMisc.workspace.openInNewTab")}
                   </a>
                   <button
                     onClick={() => setActivePDF(null)}
@@ -3092,18 +3097,17 @@ function ProgramWorkspace() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 opacity-50">
                     <FileText className="w-16 h-16 mb-4 text-[var(--text-secondary)] opacity-20" />
                     <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      No Document URL Found
+                      {t("pmMisc.workspace.noDocumentUrl")}
                     </h3>
                     <p className="text-[10px] text-[var(--text-secondary)] mt-2 max-w-sm leading-relaxed">
-                      This material was registered without a valid file path or
-                      external link. The document cannot be previewed.
+                      {t("pmMisc.workspace.noDocumentUrlDesc")}
                     </p>
                   </div>
                 ) : (
                   <iframe
                     src={`${activePDF.url}#toolbar=0`}
                     className="w-full h-full"
-                    title="PDF Viewer"
+                    title={t("pmMisc.workspace.pdfViewer")}
                   />
                 )}
               </div>
@@ -3139,11 +3143,10 @@ function ProgramWorkspace() {
                     className="text-base font-black uppercase tracking-tight"
                     style={{ color: "var(--text-primary)" }}
                   >
-                    Initialize Student Group
+                    {t("pmMisc.workspace.teamModalTitle")}
                   </h3>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
-                    Create a collaborative cohort of students for targeted
-                    curriculum execution.
+                    {t("pmMisc.workspace.teamModalDesc")}
                   </p>
                 </div>
                 <button onClick={() => setShowTeamModal(false)}>
@@ -3156,13 +3159,13 @@ function ProgramWorkspace() {
                     onClick={() => setTeamAssignmentMode("new")}
                     className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "new" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
                   >
-                    Create New
+                    {t("pmMisc.workspace.createNew")}
                   </button>
                   <button
                     onClick={() => setTeamAssignmentMode("existing")}
                     className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${teamAssignmentMode === "existing" ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] opacity-50"}`}
                   >
-                    Add to Existing
+                    {t("pmMisc.workspace.addToExisting")}
                   </button>
                 </div>
 
@@ -3172,7 +3175,7 @@ function ProgramWorkspace() {
                       className="text-[10px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Internal Team Name (Sub-group)
+                      {t("pmMisc.workspace.teamInternalName")}
                     </label>
                     <input
                       value={newTeam.name}
@@ -3185,11 +3188,10 @@ function ProgramWorkspace() {
                         border: "1px solid var(--border-primary)",
                         color: "var(--text-primary)",
                       }}
-                      placeholder="e.g. Group Teh"
+                      placeholder={t("pmMisc.workspace.teamNamePlaceholder")}
                     />
                     <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase mt-1">
-                      Note: This will be linked to the parent group
-                      automatically.
+                      {t("pmMisc.workspace.teamNoteAutoLink")}
                     </p>
                   </div>
                 ) : (
@@ -3198,7 +3200,7 @@ function ProgramWorkspace() {
                       className="text-[10px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Select Target Group
+                      {t("pmMisc.workspace.selectTargetGroup")}
                     </label>
                     <select
                       value={selectedExistingTeamId}
@@ -3212,10 +3214,10 @@ function ProgramWorkspace() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="">Select an existing team...</option>
+                      <option value="">{t("pmMisc.workspace.selectExistingTeam")}</option>
                       {teams.map((t) => (
                         <option key={t.id} value={t.id}>
-                          {t.name.toUpperCase()} (Group: {t.group_name})
+                          {t.name.toUpperCase()} ({t("pmMisc.workspace.group")}: {t.group_name})
                         </option>
                       ))}
                     </select>
@@ -3227,7 +3229,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Assign Group Lead (Student)
+                    {t("pmMisc.workspace.assignGroupLead")}
                   </label>
                   <select
                     value={newTeam.leader_id}
@@ -3241,7 +3243,7 @@ function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="">Select Lead...</option>
+                    <option value="">{t("pmMisc.workspace.selectLead")}</option>
                     {participants
                       .filter((p) => newTeam.member_ids.includes(p.id))
                       .map((p) => (
@@ -3257,7 +3259,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Assign Oversight (Staff Member / Instructor)
+                    {t("pmMisc.workspace.assignOversight")}
                   </label>
                   <select
                     value={newTeam.staff_id}
@@ -3278,10 +3280,10 @@ function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="">No Staff Assigned (Optional)</option>
+                    <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
                     {assignedStaff.map((s) => (
                       <option key={s.cid} value={s.cid}>
-                        {s.name} ({s.role === "teacher" ? "Instructor" : s.role}
+                        {s.name} ({s.role === "teacher" ? t("pmMisc.workspace.instructor") : s.role}
                         )
                       </option>
                     ))}
@@ -3293,14 +3295,14 @@ function ProgramWorkspace() {
                   onClick={() => setShowTeamModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                  <button
                   onClick={deployTeam}
                   disabled={isSaving || (teamAssignmentMode === "new" && !newTeam.name.trim()) || (teamAssignmentMode === "existing" && !selectedExistingTeamId)}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Initializing..." : "Initialize Group"}
+                  {isSaving ? t("pmMisc.workspace.initializing") : t("pmMisc.workspace.initializeGroup")}
                 </button>
               </div>
             </div>
@@ -3327,10 +3329,10 @@ function ProgramWorkspace() {
                       className="text-sm font-black uppercase tracking-tight"
                       style={{ color: "var(--text-primary)" }}
                     >
-                      New Session
+                      {t("pmMisc.workspace.newSessionTitle")}
                     </h3>
                     <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
-                      Week {newSession.week_number}
+                      {t("pmMisc.workspace.week")} {newSession.week_number}
                     </p>
                   </div>
                 </div>
@@ -3350,7 +3352,7 @@ function ProgramWorkspace() {
                     className="text-[9px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Session Title
+                    {t("pmMisc.workspace.sessionTitle")}
                   </label>
                   <input
                     value={newSession.title}
@@ -3363,7 +3365,7 @@ function ProgramWorkspace() {
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="e.g. Orientation Week"
+                    placeholder={t("pmMisc.workspace.sessionTitlePlaceholder")}
                   />
                 </div>
 
@@ -3373,7 +3375,7 @@ function ProgramWorkspace() {
                       className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Start Date
+                      {t("pmMisc.workspace.startDate")}
                     </label>
                     <input
                       type="date"
@@ -3397,7 +3399,7 @@ function ProgramWorkspace() {
                       className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Finish Date
+                      {t("pmMisc.workspace.finishDate")}
                     </label>
                     <input
                       type="date"
@@ -3424,7 +3426,7 @@ function ProgramWorkspace() {
                       className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Start Time
+                      {t("pmMisc.workspace.startTime")}
                     </label>
                     <input
                       type="time"
@@ -3448,7 +3450,7 @@ function ProgramWorkspace() {
                       className="text-[9px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      End Time
+                      {t("pmMisc.workspace.endTime")}
                     </label>
                     <input
                       type="time"
@@ -3474,7 +3476,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Assign Teachers (click to toggle)
+                    {t("pmMisc.workspace.assignTeachers")}
                   </label>
                   <div className="grid grid-cols-2 gap-1.5 max-h-[120px] overflow-y-auto p-1 custom-scrollbar">
                     {programTeamMembers.map((staff) => {
@@ -3520,7 +3522,7 @@ function ProgramWorkspace() {
                     })}
                     {programTeamMembers.length === 0 && (
                       <p className="text-[10px] text-slate-600 italic col-span-full px-2">
-                        No staff assigned. Add them in the Participants tab.
+                        {t("pmMisc.workspace.noStaffAssignedHint")}
                       </p>
                     )}
                   </div>
@@ -3531,7 +3533,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Session Notes (shown to participants)
+                    {t("pmMisc.workspace.sessionNotes")}
                   </label>
                   <textarea
                     value={newSession.notes}
@@ -3548,7 +3550,7 @@ function ProgramWorkspace() {
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="e.g. Please review Chapter 3 before class..."
+                    placeholder={t("pmMisc.workspace.sessionNotesPlaceholder")}
                   />
                 </div>
 
@@ -3557,14 +3559,14 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Extra Course Materials
+                    {t("pmMisc.workspace.extraCourseMaterials")}
                   </label>
                   {/* Material type selector */}
                   <div className="flex gap-1 bg-primary rounded-lg p-1 border border-[var(--border-primary)] w-fit">
                     {[
-                      { id: "text", label: "Text", icon: FileText },
-                      { id: "link", label: "Link", icon: Plus },
-                      { id: "upload", label: "File", icon: Paperclip },
+                      { id: "text", label: t("pmMisc.workspace.materialTypeText"), icon: FileText },
+                      { id: "link", label: t("pmMisc.workspace.materialTypeLink"), icon: Plus },
+                      { id: "upload", label: t("pmMisc.workspace.materialTypeFile"), icon: Paperclip },
                     ].map((opt) => (
                       <button
                         key={opt.id}
@@ -3599,7 +3601,7 @@ function ProgramWorkspace() {
                             name: "Text Note",
                           }))
                         }
-                        placeholder="Enter a text note or instruction..."
+                        placeholder={t("pmMisc.workspace.textNotePlaceholder")}
                         className="flex-1 rounded-lg px-4 py-3 text-sm outline-none font-bold"
                         style={{
                           background: "var(--bg-primary)",
@@ -3655,7 +3657,7 @@ function ProgramWorkspace() {
                           }}
                         >
                           <Paperclip className="w-4 h-4" />
-                          {newSessionMaterial.content || "Click to attach"}
+                          {newSessionMaterial.content || t("pmMisc.workspace.clickToAttach")}
                         </div>
                       </div>
                     )}
@@ -3678,7 +3680,7 @@ function ProgramWorkspace() {
                       }}
                       className="px-4 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                     >
-                      Add
+                      {t("pmMisc.workspace.add")}
                     </button>
                   </div>
 
@@ -3730,8 +3732,7 @@ function ProgramWorkspace() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> Link Strategic
-                    KPIs (Required)
+                    <Target className="w-3 h-3 text-[#FF6600]" /> {t("pmMisc.workspace.linkStrategicKpis")}
                   </label>
                   <div className="grid grid-cols-1 gap-2 max-h-[120px] overflow-y-auto p-1 custom-scrollbar text-left">
                     {kpis.map((kpi) => (
@@ -3755,7 +3756,7 @@ function ProgramWorkspace() {
                 </div>
                 <div className="space-y-2 mt-4 pt-4 border-t border-[var(--border-primary)]">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <FileText className="w-3 h-3 text-indigo-400" /> Deliverables / Requirements
+                    <FileText className="w-3 h-3 text-indigo-400" /> {t("pmMisc.workspace.deliverablesRequirements")}
                   </label>
                   
                   {/* List of added requirements */}
@@ -3780,7 +3781,7 @@ function ProgramWorkspace() {
                     <input
                       value={newRequirement.title}
                       onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
-                      placeholder="Requirement Title (e.g. Pitch Deck PDF)"
+                      placeholder={t("pmMisc.workspace.requirementTitlePlaceholder")}
                       className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                     />
@@ -3791,10 +3792,10 @@ function ProgramWorkspace() {
                         className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       >
-                        <option value="pdf">PDF Document</option>
-                        <option value="image">Image File</option>
-                        <option value="link">External Link</option>
-                        <option value="video">Video Upload</option>
+                        <option value="pdf">{t("pmMisc.workspace.formatPdf")}</option>
+                        <option value="image">{t("pmMisc.workspace.formatImage")}</option>
+                        <option value="link">{t("pmMisc.workspace.formatLink")}</option>
+                        <option value="video">{t("pmMisc.workspace.formatVideo")}</option>
                       </select>
                       <input
                         type="date"
@@ -3811,12 +3812,12 @@ function ProgramWorkspace() {
                         className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       >
-                        <option value="all">All Participants</option>
-                        <option value="team">Specific Team</option>
-                        <option value="individual">Specific Individual</option>
+                        <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
+                        <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
+                        <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
                       </select>
                       <div className="flex items-center text-[9px] text-slate-400 italic px-2">
-                        * Evaluated via Session KPIs
+                        * {t("pmMisc.workspace.evaluatedViaSessionKpis")}
                       </div>
                     </div>
                     <button
@@ -3828,7 +3829,7 @@ function ProgramWorkspace() {
                       }}
                       className="w-full py-2 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 disabled:opacity-50 transition-colors"
                     >
-                      <Plus className="w-3 h-3 inline mr-1" /> Add Deliverable
+                      <Plus className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.addDeliverable")}
                     </button>
                   </div>
                 </div>
@@ -3838,14 +3839,14 @@ function ProgramWorkspace() {
                   onClick={() => setShowSessionModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <button
                   onClick={addSession}
                   disabled={isSaving || !newSession.title.trim() || (kpis.length > 0 && (!newSession.kpi_ids || newSession.kpi_ids.length === 0))}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Creating..." : "Create Session"}
+                  {isSaving ? t("pmMisc.workspace.creating") : t("pmMisc.workspace.createSession")}
                 </button>
               </div>
             </div>
@@ -3867,7 +3868,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Grade Submission
+                  {t("pmMisc.workspace.gradeSubmission")}
                 </h3>
                 <button onClick={() => setShowReviewModal(false)}>
                   <X className="w-5 h-5" />
@@ -3876,10 +3877,10 @@ function ProgramWorkspace() {
 
               <div className="p-4 bg-tertiary border border-[var(--border-primary)] rounded-xl space-y-2">
                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
-                  Participant
+                  {t("pmMisc.workspace.tableParticipant")}
                 </p>
                 <p className="text-sm font-black text-[var(--text-primary)]">
-                  {selectedSubmission?.participant_name || "Group Submission"}
+                  {selectedSubmission?.participant_name || t("pmMisc.workspace.groupSubmission")}
                 </p>
                 <a
                   href={selectedSubmission?.file_url || selectedSubmission?.submission_url || selectedSubmission?.submission_link || '#'}
@@ -3887,7 +3888,7 @@ function ProgramWorkspace() {
                   rel="noreferrer"
                   className="text-[10px] font-black text-indigo-400 uppercase italic flex items-center gap-1 mt-2 hover:text-white transition-colors"
                 >
-                  <ExternalLink className="w-3 h-3" /> View Source Material
+                  <ExternalLink className="w-3 h-3" /> {t("pmMisc.workspace.viewSourceMaterial")}
                 </a>
               </div>
 
@@ -3897,7 +3898,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Numerical Grade (Score)
+                    {t("pmMisc.workspace.numericalGrade")}
                   </label>
                   <input
                     type="number"
@@ -3910,11 +3911,10 @@ function ProgramWorkspace() {
                       background: "var(--bg-primary)",
                       border: "2px solid var(--border-primary)",
                     }}
-                    placeholder="e.g. 70"
+                    placeholder={t("pmMisc.workspace.gradeScorePlaceholder")}
                   />
                   <p className="text-[9px] font-bold text-slate-500 text-center uppercase mt-2">
-                    This score will be synchronized to the global graduation
-                    aggregation engine.
+                    {t("pmMisc.workspace.scoreSyncNote")}
                   </p>
                 </div>
               </div>
@@ -3924,32 +3924,32 @@ function ProgramWorkspace() {
                     onClick={() => setShowFollowupFields(true)}
                     className="w-full py-2.5 rounded-xl border border-dashed border-indigo-400/40 text-[9px] font-black uppercase tracking-widest text-indigo-400 hover:bg-indigo-400/10 transition-all flex items-center justify-center gap-2"
                   >
-                    <Calendar className="w-3.5 h-3.5" /> Schedule Follow-up
+                    <Calendar className="w-3.5 h-3.5" /> {t("pmMisc.workspace.scheduleFollowup")}
                   </button>
                   <div className="flex gap-3 pt-2">
                     <button
                       onClick={() => setShowReviewModal(false)}
                       className="flex-1 btn btn-secondary"
                     >
-                      Cancel
+                      {t("pmMisc.workspace.cancel")}
                     </button>
                     <button
                       onClick={handleReviewSubmission}
                       disabled={isSaving || reviewScore === ""}
                       className="flex-1 btn btn-primary"
                     >
-                      {isSaving ? "Grading..." : "Approve & Grade"}
+                      {isSaving ? t("pmMisc.workspace.grading") : t("pmMisc.workspace.approveAndGrade")}
                     </button>
                   </div>
                 </>
               ) : (
                 <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
                   <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400">
-                    <Calendar className="w-3 h-3 inline mr-1" /> Schedule Follow-up Meeting
+                    <Calendar className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.scheduleFollowupMeeting")}
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Date *</label>
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("pmMisc.workspace.dateRequired")}</label>
                       <input type="date" value={followupDate}
                         onChange={(e) => setFollowupDate(e.target.value)}
                         className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
@@ -3957,7 +3957,7 @@ function ProgramWorkspace() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Time *</label>
+                      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("pmMisc.workspace.timeRequired")}</label>
                       <input type="time" value={followupTime}
                         onChange={(e) => setFollowupTime(e.target.value)}
                         className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
@@ -3966,7 +3966,7 @@ function ProgramWorkspace() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Duration (minutes)</label>
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("pmMisc.workspace.durationMinutes")}</label>
                     <select value={followupDuration} onChange={(e) => setFollowupDuration(e.target.value)}
                       className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
@@ -3978,7 +3978,7 @@ function ProgramWorkspace() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Meeting Link (optional)</label>
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("pmMisc.workspace.meetingLinkOptional")}</label>
                     <input type="url" value={followupMeetingLink}
                       onChange={(e) => setFollowupMeetingLink(e.target.value)}
                       placeholder="https://meet.google.com/..."
@@ -3987,10 +3987,10 @@ function ProgramWorkspace() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Notes (optional)</label>
+                    <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("pmMisc.workspace.notesOptional")}</label>
                     <textarea value={followupNotes}
                       onChange={(e) => setFollowupNotes(e.target.value)}
-                      placeholder="Agenda or talking points..." rows={2}
+                      placeholder={t("pmMisc.workspace.followupNotesPlaceholder")} rows={2}
                       className="w-full rounded-lg px-3 py-2.5 text-xs outline-none font-bold resize-none"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                     />
@@ -3999,13 +3999,13 @@ function ProgramWorkspace() {
                     <button onClick={() => { setShowFollowupFields(false); setFollowupDate(""); setFollowupTime(""); }}
                       className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
                     >
-                      Back
+                      {t("pmMisc.workspace.back")}
                     </button>
                     <button onClick={handleScheduleFollowup}
                       disabled={isSaving || !followupDate || !followupTime}
                       className="flex-1 py-2.5 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
                     >
-                      {isSaving ? "Scheduling..." : <><Calendar className="w-3 h-3" /> Confirm Follow-up</>}
+                      {isSaving ? t("pmMisc.workspace.scheduling") : <><Calendar className="w-3 h-3" /> {t("pmMisc.workspace.confirmFollowup")}</>}
                     </button>
                   </div>
                 </div>
@@ -4029,7 +4029,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Assign Personnel
+                  {t("pmMisc.workspace.assignPersonnel")}
                 </h3>
                 <button onClick={() => setShowStaffModal(false)}>
                   <X className="w-5 h-5" />
@@ -4041,7 +4041,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Select Staff Member
+                    {t("pmMisc.workspace.selectStaffMember")}
                   </label>
                   <select
                     value={newStaff.staff_id}
@@ -4055,7 +4055,7 @@ function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="">Select Member...</option>
+                    <option value="">{t("pmMisc.workspace.selectMember")}</option>
                     {staffList
                       .filter((s) => s.role !== "super_admin")
                       .map((s) => (
@@ -4070,7 +4070,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Assigned Role
+                    {t("pmMisc.workspace.assignedRole")}
                   </label>
                   <select
                     value={newStaff.role}
@@ -4084,10 +4084,10 @@ function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="staff">Staff Member</option>
-                    <option value="assistant">Assistant</option>
-                    <option value="evaluator">Evaluator</option>
-                    <option value="handler">Handler</option>
+                    <option value="staff">{t("pmMisc.workspace.roleStaffMember")}</option>
+                    <option value="assistant">{t("pmMisc.workspace.roleAssistant")}</option>
+                    <option value="evaluator">{t("pmMisc.workspace.roleEvaluator")}</option>
+                    <option value="handler">{t("pmMisc.workspace.roleHandler")}</option>
                   </select>
                 </div>
               </div>
@@ -4096,14 +4096,14 @@ function ProgramWorkspace() {
                   onClick={() => setShowStaffModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <button
                   onClick={assignStaff}
                   disabled={isSaving || !newStaff.staff_id}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Assigning..." : "Assign"}
+                  {isSaving ? t("pmMisc.workspace.assigning") : t("pmMisc.workspace.assign")}
                 </button>
               </div>
             </div>
@@ -4125,7 +4125,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Define KPI Target
+                  {t("pmMisc.workspace.defineKpiTarget")}
                 </h3>
                 <button onClick={() => setShowKPIModal(false)}>
                   <X className="w-5 h-5" />
@@ -4137,7 +4137,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    KPI Title
+                    {t("pmMisc.workspace.kpiTitle")}
                   </label>
                   <input
                     value={newKPI.title}
@@ -4150,7 +4150,7 @@ function ProgramWorkspace() {
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="e.g. Weekly Engagement"
+                    placeholder={t("pmMisc.workspace.kpiTitlePlaceholder")}
                   />
                 </div>
               </div>
@@ -4159,14 +4159,14 @@ function ProgramWorkspace() {
                   onClick={() => setShowKPIModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <button
                   onClick={addKPI}
                   disabled={isSaving || !newKPI.title.trim()}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Defining..." : "Define"}
+                  {isSaving ? t("pmMisc.workspace.defining") : t("pmMisc.workspace.define")}
                 </button>
               </div>
             </div>
@@ -4188,7 +4188,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Add Requirement
+                  {t("pmMisc.workspace.addRequirement")}
                 </h3>
                 <button onClick={() => setShowRequirementModal(false)}>
                   <X className="w-5 h-5" />
@@ -4200,7 +4200,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Requirement Title
+                    {t("pmMisc.workspace.requirementTitle")}
                   </label>
                   <input
                     value={newRequirement.title}
@@ -4216,7 +4216,7 @@ function ProgramWorkspace() {
                       border: "1px solid var(--border-primary)",
                       color: "var(--text-primary)",
                     }}
-                    placeholder="e.g. Project Proposal PDF"
+                    placeholder={t("pmMisc.workspace.requirementTitleExample")}
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -4225,7 +4225,7 @@ function ProgramWorkspace() {
                       className="text-[10px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Allowed Format
+                      {t("pmMisc.workspace.allowedFormat")}
                     </label>
                     <select
                       value={newRequirement.allowed_format}
@@ -4242,10 +4242,10 @@ function ProgramWorkspace() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="pdf">PDF Document</option>
-                      <option value="image">Image File</option>
-                      <option value="link">External Link</option>
-                      <option value="video">Video Upload</option>
+                      <option value="pdf">{t("pmMisc.workspace.formatPdf")}</option>
+                      <option value="image">{t("pmMisc.workspace.formatImage")}</option>
+                      <option value="link">{t("pmMisc.workspace.formatLink")}</option>
+                      <option value="video">{t("pmMisc.workspace.formatVideo")}</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -4253,7 +4253,7 @@ function ProgramWorkspace() {
                       className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      <Calendar className="w-3 h-3" /> Due Date
+                      <Calendar className="w-3 h-3" /> {t("pmMisc.workspace.dueDate")}
                     </label>
                     <input
                       type="date"
@@ -4277,17 +4277,17 @@ function ProgramWorkspace() {
                 {/* Grading — derived from linked KPIs */}
                 <div className="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
                   <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest mb-2">
-                    <Target className="w-3 h-3 inline mr-1" /> Grading (from linked KPIs)
+                    <Target className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.gradingFromKpis")}
                   </p>
                   {(() => {
                     const linked = kpis.filter(k => (newRequirement.kpi_ids || []).includes(k.id));
                     if (linked.length === 0) {
-                      return <p className="text-[8px] text-slate-500 italic">Select at least one KPI below to determine grading parameters.</p>;
+                      return <p className="text-[8px] text-slate-500 italic">{t("pmMisc.workspace.gradingKpiHint")}</p>;
                     }
                     const avgWeight = (linked.reduce((s, k) => s + (parseFloat(k.weight) || 0), 0) / linked.length).toFixed(1);
                     return <div className="grid grid-cols-2 gap-2 text-[10px]">
-                      <div><span className="text-slate-500">KPIs linked:</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
-                      <div><span className="text-slate-500">Avg weight:</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
+                      <div><span className="text-slate-500">{t("pmMisc.workspace.kpisLinked")}</span> <span className="font-bold text-purple-400">{linked.length}</span></div>
+                      <div><span className="text-slate-500">{t("pmMisc.workspace.avgWeight")}</span> <span className="font-bold text-purple-400">{avgWeight}%</span></div>
                     </div>;
                   })()}
                 </div>
@@ -4297,7 +4297,7 @@ function ProgramWorkspace() {
                     className="text-[10px] font-black uppercase tracking-widest flex items-center gap-1"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    <Users className="w-3 h-3" /> Assign To
+                    <Users className="w-3 h-3" /> {t("pmMisc.workspace.assignTo")}
                   </label>
                   <select
                     value={newRequirement.assignee_type || "all"}
@@ -4315,9 +4315,9 @@ function ProgramWorkspace() {
                       color: "var(--text-primary)",
                     }}
                   >
-                    <option value="all">All Participants</option>
-                    <option value="team">Specific Team</option>
-                    <option value="individual">Specific Individual</option>
+                    <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
+                    <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
+                    <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
                   </select>
                 </div>
 
@@ -4338,7 +4338,7 @@ function ProgramWorkspace() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="">Select team...</option>
+                      <option value="">{t("pmMisc.workspace.selectTeam")}</option>
                       {teams.map((t) => (
                         <option key={t.id} value={t.id}>
                           {t.name}
@@ -4365,7 +4365,7 @@ function ProgramWorkspace() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="">Select participant...</option>
+                      <option value="">{t("pmMisc.workspace.selectParticipant")}</option>
                       {participants.slice(0, 50).map((p) => (
                         <option key={p.id} value={p.id}>
                           {p.name} ({p.email})
@@ -4377,8 +4377,7 @@ function ProgramWorkspace() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-2">
-                    <Target className="w-3 h-3 text-[#FF6600]" /> Strategic
-                    Impact (KPIs)
+                    <Target className="w-3 h-3 text-[#FF6600]" /> {t("pmMisc.workspace.strategicImpact")}
                   </label>
                   <div className="grid grid-cols-1 gap-2 max-h-[100px] overflow-y-auto p-1 custom-scrollbar text-left">
                     {kpis.map((kpi) => (
@@ -4406,7 +4405,7 @@ function ProgramWorkspace() {
                   onClick={() => setShowRequirementModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <div className="flex-1 flex flex-col gap-2">
                   <button
@@ -4414,14 +4413,14 @@ function ProgramWorkspace() {
                     disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-secondary text-[9px] py-2 border-dashed"
                   >
-                    {isSaving ? "Saving..." : "Save & Add Another"}
+                    {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAndAddAnother")}
                   </button>
                   <button
                     onClick={() => addRequirement(true)}
                     disabled={isSaving || !newRequirement.title.trim() || (newRequirement.kpi_ids || []).length === 0}
                     className="w-full btn btn-primary py-3"
                   >
-                    {isSaving ? "Saving..." : "Save & Close"}
+                    {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAndClose")}
                   </button>
                 </div>
               </div>
@@ -4444,7 +4443,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Attendance — {selectedSessionForAttendance.title}
+                  {t("pmMisc.workspace.attendance")} — {selectedSessionForAttendance.title}
                 </h3>
                 <button onClick={() => setShowAttendanceModal(false)}>
                   <X className="w-5 h-5" />
@@ -4489,17 +4488,17 @@ function ProgramWorkspace() {
                               : "bg-blue-500/10 text-blue-500 border-blue-500/30"
                           }`}
                       >
-                        <option value="present">Present</option>
-                        <option value="absent">Absent</option>
-                        <option value="excused">Excused</option>
-                        <option value="late">Late</option>
+                        <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
+                        <option value="absent">{t("pmMisc.workspace.attendanceAbsent")}</option>
+                        <option value="excused">{t("pmMisc.workspace.attendanceExcused")}</option>
+                        <option value="late">{t("pmMisc.workspace.attendanceLate")}</option>
                       </select>
                     </div>
                   );
                 })}
                 {participants.length === 0 && (
                   <p className="text-center text-[var(--text-secondary)] italic py-8">
-                    No participants enrolled in this program.
+                    {t("pmMisc.workspace.noParticipantsEnrolled")}
                   </p>
                 )}
               </div>
@@ -4509,7 +4508,7 @@ function ProgramWorkspace() {
                   onClick={() => setShowAttendanceModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <button
                   onClick={async () => {
@@ -4533,12 +4532,12 @@ function ProgramWorkspace() {
                         body: JSON.stringify(records),
                       });
                       const data = await res.json();
-                      if (!data.success) throw new Error(t((data.error || "Unknown error") || "") || (data.error || "Unknown error"));
-                      notify(`Attendance recorded — ${data.upserted} participants.`);
+                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                     } catch (e) {
-                      notify("Failed to save attendance.", "error");
+                      notify(t("pmMisc.workspace.attendanceSaveFailed"), "error");
                     } finally {
                       setIsSaving(false);
                     }
@@ -4546,7 +4545,7 @@ function ProgramWorkspace() {
                   disabled={isSaving}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Saving..." : "Save Attendance"}
+                  {isSaving ? t("pmMisc.workspace.saving") : t("pmMisc.workspace.saveAttendance")}
                 </button>
               </div>
             </div>
@@ -4568,7 +4567,7 @@ function ProgramWorkspace() {
                   className="text-base font-black uppercase tracking-tight"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  Weekly Report
+                  {t("pmMisc.workspace.reportWeeklyReport")}
                 </h3>
                 <button onClick={() => setShowPMReportModal(false)}>
                   <X className="w-5 h-5" />
@@ -4583,7 +4582,7 @@ function ProgramWorkspace() {
                       1
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--brand-orange)]">
-                      Weekly Overview
+                      {t("pmMisc.workspace.reportWeeklyOverview")}
                     </span>
                   </div>
 
@@ -4591,7 +4590,7 @@ function ProgramWorkspace() {
                     {/* Week Status — Required */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Week Status <span className="text-rose-500">*</span>
+                        {t("pmMisc.workspace.weekStatus")} <span className="text-rose-500">*</span>
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         {[
@@ -4613,7 +4612,11 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt.replace("_", " ")}
+                            {{
+                              successful: t("pmMisc.workspace.weekStatusSuccessful"),
+                              partially_completed: t("pmMisc.workspace.weekStatusPartiallyCompleted"),
+                              not_completed: t("pmMisc.workspace.weekStatusNotCompleted"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -4622,7 +4625,7 @@ function ProgramWorkspace() {
                     {/* Overall Week Rating — Required */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Overall Week Rating{" "}
+                        {t("pmMisc.workspace.overallWeekRating")}{" "}
                         <span className="text-rose-500">*</span>
                       </label>
                       <div className="flex gap-2 flex-wrap">
@@ -4647,7 +4650,12 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt}
+                            {{
+                              excellent: t("pmMisc.workspace.ratingExcellent"),
+                              good: t("pmMisc.workspace.ratingGood"),
+                              fair: t("pmMisc.workspace.ratingFair"),
+                              poor: t("pmMisc.workspace.ratingPoor"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -4656,7 +4664,7 @@ function ProgramWorkspace() {
                     {/* Main Topic — Required */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Main Topic / Session Covered{" "}
+                        {t("pmMisc.workspace.mainTopic")}{" "}
                         <span className="text-rose-500">*</span>
                       </label>
                       <input
@@ -4668,7 +4676,7 @@ function ProgramWorkspace() {
                             main_topic: e.target.value,
                           }))
                         }
-                        placeholder="e.g. Introduction to JavaScript"
+                        placeholder={t("pmMisc.workspace.mainTopicPlaceholder")}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
                       />
                     </div>
@@ -4682,7 +4690,7 @@ function ProgramWorkspace() {
                       +
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-violet-500">
-                      Assignment Tracking
+                      {t("pmMisc.workspace.assignmentTracking")}
                     </span>
                   </div>
 
@@ -4690,7 +4698,7 @@ function ProgramWorkspace() {
                     {/* Was An Assignment Given? — Required */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Was An Assignment/Task Given?{" "}
+                        {t("pmMisc.workspace.assignmentGiven")}{" "}
                         <span className="text-rose-500">*</span>
                       </label>
                       <div className="flex gap-2">
@@ -4707,7 +4715,7 @@ function ProgramWorkspace() {
                             : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                             }`}
                         >
-                          Yes
+                          {t("pmMisc.workspace.yes")}
                         </button>
                         <button
                           type="button"
@@ -4725,7 +4733,7 @@ function ProgramWorkspace() {
                             : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                             }`}
                         >
-                          No
+                          {t("pmMisc.workspace.no")}
                         </button>
                       </div>
                     </div>
@@ -4735,13 +4743,12 @@ function ProgramWorkspace() {
                         {/* Select Related KPI(s) — Required */}
                         <div className="space-y-2">
                           <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Select Related KPI(s){" "}
+                            {t("pmMisc.workspace.selectRelatedKpis")}{" "}
                             <span className="text-rose-500">*</span>
                           </label>
                           {kpis.length === 0 ? (
                             <p className="text-[10px] text-slate-500 italic px-2">
-                              No KPIs configured for this program. Ask a Super
-                              Admin to define them.
+                              {t("pmMisc.workspace.noKpisForProgram")}
                             </p>
                           ) : (
                             <div className="grid grid-cols-1 gap-1.5 max-h-[160px] overflow-y-auto p-1 custom-scrollbar">
@@ -4787,7 +4794,7 @@ function ProgramWorkspace() {
                         {/* Assignment Objective — Required */}
                         <div className="space-y-1">
                           <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Assignment Objective{" "}
+                            {t("pmMisc.workspace.assignmentObjective")}{" "}
                             <span className="text-rose-500">*</span>
                           </label>
                           <input
@@ -4799,7 +4806,7 @@ function ProgramWorkspace() {
                                 assignment_objective: e.target.value,
                               }))
                             }
-                            placeholder="e.g. Improve collaboration, Encourage product thinking, Test technical understanding"
+                            placeholder={t("pmMisc.workspace.assignmentObjectivePlaceholder")}
                             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all"
                           />
                         </div>
@@ -4807,7 +4814,7 @@ function ProgramWorkspace() {
                         {/* Expected Outcome — Optional */}
                         <div className="space-y-1">
                           <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Expected Outcome
+                            {t("pmMisc.workspace.expectedOutcome")}
                           </label>
                           <textarea
                             value={newPMReport.assignment_outcome}
@@ -4819,7 +4826,7 @@ function ProgramWorkspace() {
                             }
                             rows={2}
                             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-violet-500 transition-all resize-none"
-                            placeholder="What do you expect participants to achieve? (optional)"
+                            placeholder={t("pmMisc.workspace.expectedOutcomePlaceholder")}
                           />
                         </div>
                       </>
@@ -4834,7 +4841,7 @@ function ProgramWorkspace() {
                       2
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-indigo-500">
-                      Participation
+                      {t("pmMisc.workspace.participation")}
                     </span>
                   </div>
 
@@ -4842,7 +4849,7 @@ function ProgramWorkspace() {
                     {/* Attendance Level */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Attendance Level
+                        {t("pmMisc.workspace.attendanceLevel")}
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         {["high", "moderate", "low"].map((opt) => (
@@ -4860,7 +4867,11 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt}
+                            {{
+                              high: t("pmMisc.workspace.levelHigh"),
+                              moderate: t("pmMisc.workspace.levelModerate"),
+                              low: t("pmMisc.workspace.levelLow"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -4869,7 +4880,7 @@ function ProgramWorkspace() {
                     {/* Participation Level */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Participation Level
+                        {t("pmMisc.workspace.participationLevel")}
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         {["very_active", "active", "passive"].map((opt) => (
@@ -4887,7 +4898,11 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt.replace("_", " ")}
+                            {{
+                              very_active: t("pmMisc.workspace.participationVeryActive"),
+                              active: t("pmMisc.workspace.participationActive"),
+                              passive: t("pmMisc.workspace.participationPassive"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -4897,7 +4912,7 @@ function ProgramWorkspace() {
                     <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Participants/Groups Need Attention?
+                          {t("pmMisc.workspace.participantsNeedAttention")}
                         </label>
                         <button
                           type="button"
@@ -4932,7 +4947,7 @@ function ProgramWorkspace() {
                           }
                           rows={2}
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-amber-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
+                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
                         />
                       )}
                     </div>
@@ -4941,7 +4956,7 @@ function ProgramWorkspace() {
                     <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Standout Participants/Groups?
+                          {t("pmMisc.workspace.standoutParticipants")}
                         </label>
                         <button
                           type="button"
@@ -4975,7 +4990,7 @@ function ProgramWorkspace() {
                           }
                           rows={2}
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-emerald-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
+                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
                         />
                       )}
                     </div>
@@ -4989,7 +5004,7 @@ function ProgramWorkspace() {
                       3
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-blue-500">
-                      Delivery Feedback
+                      {t("pmMisc.workspace.deliveryFeedback")}
                     </span>
                   </div>
 
@@ -4997,7 +5012,7 @@ function ProgramWorkspace() {
                     {/* Session Delivery Quality */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Session Delivery Quality
+                        {t("pmMisc.workspace.sessionDeliveryQuality")}
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         {["excellent", "good", "fair", "poor"].map((opt) => (
@@ -5021,7 +5036,12 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt}
+                            {{
+                              excellent: t("pmMisc.workspace.ratingExcellent"),
+                              good: t("pmMisc.workspace.ratingGood"),
+                              fair: t("pmMisc.workspace.ratingFair"),
+                              poor: t("pmMisc.workspace.ratingPoor"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -5030,7 +5050,7 @@ function ProgramWorkspace() {
                     {/* Participant Understanding */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Participant Understanding
+                        {t("pmMisc.workspace.participantUnderstanding")}
                       </label>
                       <div className="flex gap-2 flex-wrap">
                         {["high", "moderate", "low"].map((opt) => (
@@ -5048,7 +5068,11 @@ function ProgramWorkspace() {
                               : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                               }`}
                           >
-                            {opt}
+                            {{
+                              high: t("pmMisc.workspace.levelHigh"),
+                              moderate: t("pmMisc.workspace.levelModerate"),
+                              low: t("pmMisc.workspace.levelLow"),
+                            }[opt] || opt}
                           </button>
                         ))}
                       </div>
@@ -5058,7 +5082,7 @@ function ProgramWorkspace() {
                     <div className="space-y-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Any Delivery Challenges?
+                          {t("pmMisc.workspace.deliveryChallenges")}
                         </label>
                         <button
                           type="button"
@@ -5092,7 +5116,7 @@ function ProgramWorkspace() {
                           }
                           rows={2}
                           className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                          placeholder="Short note (optional)..."
+                          placeholder={t("pmMisc.workspace.shortNotePlaceholder")}
                         />
                       )}
                     </div>
@@ -5106,7 +5130,7 @@ function ProgramWorkspace() {
                       4
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">
-                      Issues & Support
+                      {t("pmMisc.workspace.issuesAndSupport")}
                     </span>
                   </div>
 
@@ -5115,7 +5139,7 @@ function ProgramWorkspace() {
                     <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                       <div className="flex items-center justify-between">
                         <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Were There Any Issues?
+                          {t("pmMisc.workspace.wereThereIssues")}
                         </label>
                         <button
                           type="button"
@@ -5142,7 +5166,7 @@ function ProgramWorkspace() {
                           {/* Issue Types — Multi-select chips */}
                           <div>
                             <label className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-60 mb-1.5 block">
-                              Issue Types
+                              {t("pmMisc.workspace.issueTypes")}
                             </label>
                             <div className="flex gap-1.5 flex-wrap">
                               {[
@@ -5174,7 +5198,14 @@ function ProgramWorkspace() {
                                       : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                                       }`}
                                   >
-                                    {type}
+                                    {{
+                                      technical: t("pmMisc.workspace.issueTechnical"),
+                                      attendance: t("pmMisc.workspace.issueAttendance"),
+                                      participation: t("pmMisc.workspace.issueParticipation"),
+                                      curriculum: t("pmMisc.workspace.issueCurriculum"),
+                                      behavioral: t("pmMisc.workspace.issueBehavioral"),
+                                      other: t("pmMisc.workspace.issueOther"),
+                                    }[type] || type}
                                   </button>
                                 );
                               })}
@@ -5184,7 +5215,7 @@ function ProgramWorkspace() {
                           {/* Requires Super Admin Attention — Toggle */}
                           <div className="flex items-center justify-between">
                             <label className="text-[8px] font-black uppercase tracking-widest text-amber-500">
-                              Requires Super Admin Attention?
+                              {t("pmMisc.workspace.requiresSuperAdmin")}
                             </label>
                             <button
                               type="button"
@@ -5220,7 +5251,7 @@ function ProgramWorkspace() {
                             }
                             rows={2}
                             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-rose-500 transition-all resize-none"
-                            placeholder="Additional note (optional)..."
+                            placeholder={t("pmMisc.workspace.additionalNotePlaceholder")}
                           />
                         </div>
                       )}
@@ -5235,7 +5266,7 @@ function ProgramWorkspace() {
                       5
                     </div>
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-500">
-                      Next Week
+                      {t("pmMisc.workspace.nextWeek")}
                     </span>
                   </div>
 
@@ -5243,7 +5274,7 @@ function ProgramWorkspace() {
                     {/* Program On Track — Required */}
                     <div className="space-y-1.5">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Is Program On Track?{" "}
+                        {t("pmMisc.workspace.programOnTrack")}{" "}
                         <span className="text-rose-500">*</span>
                       </label>
                       <div className="flex gap-2">
@@ -5260,7 +5291,7 @@ function ProgramWorkspace() {
                             : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                             }`}
                         >
-                          Yes
+                          {t("pmMisc.workspace.yes")}
                         </button>
                         <button
                           type="button"
@@ -5275,7 +5306,7 @@ function ProgramWorkspace() {
                             : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
                             }`}
                         >
-                          No
+                          {t("pmMisc.workspace.no")}
                         </button>
                       </div>
                     </div>
@@ -5283,7 +5314,7 @@ function ProgramWorkspace() {
                     {/* Planned Adjustments */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Planned Adjustments for Next Week
+                        {t("pmMisc.workspace.plannedAdjustments")}
                       </label>
                       <textarea
                         value={newPMReport.planned_adjustments}
@@ -5295,7 +5326,7 @@ function ProgramWorkspace() {
                         }
                         rows={2}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                        placeholder="Any changes or adjustments planned?"
+                        placeholder={t("pmMisc.workspace.plannedAdjustmentsPlaceholder")}
                       />
                     </div>
                   </div>
@@ -5305,13 +5336,13 @@ function ProgramWorkspace() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 pb-2 border-b border-slate-500/20">
                     <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-                      Strategic Health & Notes
+                      {t("pmMisc.workspace.strategicHealthNotes")}
                     </span>
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Strategic Health
+                      {t("pmMisc.workspace.strategicHealth")}
                     </label>
                     <select
                       value={newPMReport.status}
@@ -5328,16 +5359,16 @@ function ProgramWorkspace() {
                         color: "var(--text-primary)",
                       }}
                     >
-                      <option value="optimal">OPTIMAL</option>
-                      <option value="stable">STABLE</option>
-                      <option value="at_risk">AT RISK</option>
-                      <option value="critical">CRITICAL</option>
+                      <option value="optimal">{t("pmMisc.workspace.healthOptimal")}</option>
+                      <option value="stable">{t("pmMisc.workspace.healthStable")}</option>
+                      <option value="at_risk">{t("pmMisc.workspace.healthAtRisk")}</option>
+                      <option value="critical">{t("pmMisc.workspace.healthCritical")}</option>
                     </select>
                   </div>
 
                   <div className="space-y-1">
                     <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Additional Notes (Optional)
+                      {t("pmMisc.workspace.additionalNotes")}
                     </label>
                     <textarea
                       value={newPMReport.summary}
@@ -5349,7 +5380,7 @@ function ProgramWorkspace() {
                       }
                       rows={3}
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
-                      placeholder="Any additional context, successes, or blockers..."
+                      placeholder={t("pmMisc.workspace.additionalNotesPlaceholder")}
                     />
                   </div>
                 </div>
@@ -5360,14 +5391,14 @@ function ProgramWorkspace() {
                   onClick={() => setShowPMReportModal(false)}
                   className="flex-1 btn btn-secondary"
                 >
-                  Cancel
+                  {t("pmMisc.workspace.cancel")}
                 </button>
                 <button
                   onClick={submitPMReport}
                   disabled={isSaving}
                   className="flex-1 btn btn-primary"
                 >
-                  {isSaving ? "Submitting..." : "Submit Report"}
+                  {isSaving ? t("pmMisc.workspace.submitting") : t("pmMisc.workspace.submitReport")}
                 </button>
               </div>
             </div>
@@ -5387,10 +5418,10 @@ function ProgramWorkspace() {
                 <div>
                   <h3 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-3">
                     <Target className="w-6 h-6 text-[var(--brand-orange)]" />
-                    {selectedTeam.name} — Team Review
+                    {selectedTeam.name} — {t("pmMisc.workspace.teamReview")}
                   </h3>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-1">
-                    Operational Performance & Records
+                    {t("pmMisc.workspace.teamReviewSubtitle")}
                   </p>
                 </div>
                 <button
@@ -5408,9 +5439,9 @@ function ProgramWorkspace() {
                     <table className="data-table">
                       <thead>
                         <tr>
-                          <th>Team Member</th>
-                          <th>Submissions</th>
-                          <th className="w-48 text-center">Marks Awarded</th>
+                          <th>{t("pmMisc.workspace.teamMember")}</th>
+                          <th>{t("pmMisc.workspace.submissions")}</th>
+                          <th className="w-48 text-center">{t("pmMisc.workspace.marksAwarded")}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -5470,7 +5501,7 @@ function ProgramWorkspace() {
                                         >
                                           <FileText className="w-3.5 h-3.5 text-emerald-500" />
                                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                            Artifact
+                                            {t("pmMisc.workspace.artifact")}
                                           </span>
                                           <span className="text-[10px] font-black text-emerald-500">
                                             [{sub.score || "??"}]
@@ -5480,7 +5511,7 @@ function ProgramWorkspace() {
                                     ))}
                                     {participantSubmissions.length === 0 && (
                                       <span className="text-[9px] font-black uppercase tracking-widest text-rose-500/40 italic">
-                                        No submissions found
+                                        {t("pmMisc.workspace.noSubmissionsFound")}
                                       </span>
                                     )}
                                   </div>
@@ -5502,13 +5533,13 @@ function ProgramWorkspace() {
                                         )
                                       }
                                     >
-                                      <option value="">Audit Marks...</option>
+                                      <option value="">{t("pmMisc.workspace.auditMarks")}</option>
                                       {[
                                         100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
                                         0,
                                       ].map((m) => (
                                         <option key={m} value={m}>
-                                          {m}% Awarded
+                                          {m}% {t("pmMisc.workspace.awarded")}
                                         </option>
                                       ))}
                                     </select>
@@ -5527,7 +5558,7 @@ function ProgramWorkspace() {
                       <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                         <Users className="w-12 h-12 mb-4" />
                         <p className="text-sm font-black uppercase tracking-[0.3em]">
-                          No members found in this team
+                          {t("pmMisc.workspace.noMembersInTeam")}
                         </p>
                       </div>
                     )}
@@ -5539,11 +5570,11 @@ function ProgramWorkspace() {
                   onClick={() => setShowTeamDetails(false)}
                   className="btn btn-secondary px-8"
                 >
-                  Close Audit
+                  {t("pmMisc.workspace.closeAudit")}
                 </button>
                 <button className="btn btn-primary px-8 gap-2">
                   <Save className="w-4 h-4" />
-                  Save Adjustments
+                  {t("pmMisc.workspace.saveAdjustments")}
                 </button>
               </div>
             </div>
@@ -5573,26 +5604,26 @@ function ProgramWorkspace() {
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Program</p>
-                  <p className="font-medium">{program?.name || "N/A"}</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.program")}</p>
+                  <p className="font-medium">{program?.name || t("pmMisc.workspace.na")}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Status</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.tableStatus")}</p>
                   <span className={"text-xs px-2.5 py-1 rounded-full " + (selectedTeam.is_venture_ready ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400")}>
-                    {selectedTeam.is_venture_ready ? "Venture Ready" : "In Program"}
+                    {selectedTeam.is_venture_ready ? t("pmMisc.workspace.ventureReady") : t("pmMisc.workspace.inProgram")}
                   </span>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Team Lead</p>
-                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || "N/A"}</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.teamLead")}</p>
+                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || t("pmMisc.workspace.na")}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-gray-500 mb-1">Handler</p>
-                  <p className="font-medium">{selectedTeam.handler_name || "Unassigned"}</p>
+                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.handler")}</p>
+                  <p className="font-medium">{selectedTeam.handler_name || t("pmMisc.workspace.unassigned")}</p>
                 </div>
                 {selectedTeam.venture_id && (
                   <div className="col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">Venture ID</p>
+                    <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.ventureId")}</p>
                     <p className="font-mono text-sm text-[var(--brand-orange)]">{selectedTeam.venture_id}</p>
                   </div>
                 )}
@@ -5600,7 +5631,7 @@ function ProgramWorkspace() {
 
               <div className="pt-4 border-t border-gray-800">
                 <h3 className="text-sm font-medium mb-3">
-                  Members ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
+                  {t("pmMisc.workspace.members")} ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
                 </h3>
                 <div className="space-y-2">
                   {participants
@@ -5617,7 +5648,7 @@ function ProgramWorkspace() {
                       </div>
                     ))}
                   {participants.filter(p => p.v2_team_id === selectedTeam.id).length === 0 && (
-                    <p className="text-sm text-gray-500">No members assigned to this team.</p>
+                    <p className="text-sm text-gray-500">{t("pmMisc.workspace.noMembersAssigned")}</p>
                   )}
                 </div>
               </div>
@@ -5645,9 +5676,9 @@ function ProgramWorkspace() {
                       <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold">Approve Team</h3>
+                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.approveTeam")}</h3>
                       <p className="text-sm text-gray-400">
-                        Approve "{promoteTarget.team.name}" for Venture OS promotion?
+                        {t("pmMisc.workspace.approveTeamConfirm", { teamName: promoteTarget.team.name })}
                       </p>
                     </div>
                   </div>
@@ -5656,7 +5687,7 @@ function ProgramWorkspace() {
                       onClick={() => setPromoteTarget(null)}
                       className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
                     >
-                      Cancel
+                      {t("pmMisc.workspace.cancel")}
                     </button>
                     <button
                       onClick={async () => {
@@ -5674,18 +5705,18 @@ function ProgramWorkspace() {
                           });
                           const data = await res.json();
                           if (data.success) {
-                            notify("Team approved for Venture OS!");
+                            notify(t("pmMisc.workspace.teamApproved"));
                             fetchProgramData(true);
                           } else {
-                            notify(t((data.error || "Approval failed.") || "") || (data.error || "Approval failed."), "error");
+                            notify(data.error || t("pmMisc.workspace.approvalFailed"), "error");
                           }
                         } catch (e) {
-                          notify("Network error.", "error");
+                          notify(t("pmMisc.workspace.networkError"), "error");
                         }
                       }}
                       className="flex-1 px-4 py-2.5 bg-emerald-500 rounded-lg text-sm font-medium hover:bg-emerald-600"
                     >
-                      Approve
+                      {t("pmMisc.workspace.approve")}
                     </button>
                   </div>
                 </>
@@ -5696,9 +5727,9 @@ function ProgramWorkspace() {
                       <Zap className="w-6 h-6 text-[var(--brand-orange)]" />
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold">Promote to Venture OS</h3>
+                      <h3 className="text-lg font-bold">{t("pmMisc.workspace.promoteToVenture")}</h3>
                       <p className="text-sm text-gray-400">
-                        Promote "{promoteTarget.team.name}" to Venture OS?
+                        {t("pmMisc.workspace.promoteConfirm", { teamName: promoteTarget.team.name })}
                       </p>
                     </div>
                   </div>
@@ -5707,7 +5738,7 @@ function ProgramWorkspace() {
                       onClick={() => setPromoteTarget(null)}
                       className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]"
                     >
-                      Cancel
+                      {t("pmMisc.workspace.cancel")}
                     </button>
                     <button
                       onClick={async () => {
@@ -5721,18 +5752,18 @@ function ProgramWorkspace() {
                           });
                           const data = await res.json();
                           if (data.success) {
-                            notify("Venture promoted!");
+                            notify(t("pmMisc.workspace.venturePromoted"));
                             fetchProgramData(true);
                           } else {
-                            notify(t((data.error || "Promotion failed.") || "") || (data.error || "Promotion failed."), "error");
+                            notify(data.error || t("pmMisc.workspace.promotionFailed"), "error");
                           }
                         } catch (e) {
-                          notify("Network error.", "error");
+                          notify(t("pmMisc.workspace.networkError"), "error");
                         }
                       }}
                       className="flex-1 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold hover:opacity-90"
                     >
-                      Promote
+                      {t("pmMisc.workspace.promote")}
                     </button>
                   </div>
                 </>
@@ -5757,7 +5788,7 @@ function ProgramWorkspace() {
                 <AlertCircle className="w-5 h-5 text-rose-500" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold">Confirm Action</p>
+                <p className="text-sm font-bold">{t("pmMisc.workspace.confirmAction")}</p>
                 <p className="text-xs text-[var(--text-secondary)]">
                   {confirmTarget.message}
                 </p>
@@ -5768,7 +5799,7 @@ function ProgramWorkspace() {
                 onClick={() => setConfirmTarget(null)}
                 className="flex-1 px-4 py-2.5 bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg text-sm font-bold hover:opacity-80"
               >
-                Cancel
+                {t("pmMisc.workspace.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -5777,7 +5808,7 @@ function ProgramWorkspace() {
                 }}
                 className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-lg text-sm font-bold hover:bg-rose-600"
               >
-                Confirm
+                {t("pmMisc.workspace.confirm")}
               </button>
             </div>
           </div>
