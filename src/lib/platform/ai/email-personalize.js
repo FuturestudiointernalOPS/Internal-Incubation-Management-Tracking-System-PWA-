@@ -14,6 +14,31 @@
  * These helpers are unit-tested in scripts/test-email-personalize.mjs.
  */
 
+/**
+ * Convert a template body into a well-formed HTML fragment with proper
+ * paragraph structure. If the body already contains HTML tags it is returned
+ * unchanged; otherwise plain-text paragraphs (blank-line separated) become
+ * <p> tags and single line breaks become <br>, so the email never renders as
+ * one long straight line.
+ */
+export function normalizeToHtml(body) {
+  const text = String(body || "").replace(/\r\n?/g, "\n").trim();
+  if (!text) return "";
+  if (/<[a-zA-Z][^>]*>/.test(text)) return text; // already HTML
+
+  const escape = (s) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return paragraphs
+    .map((p) => `<p>${escape(p).replace(/\n/g, "<br>")}</p>`)
+    .join("\n");
+}
+
 /** Extract lowercased placeholder names from text ({{name}} → "name"). */
 export function placeholdersOf(text) {
   const set = new Set();

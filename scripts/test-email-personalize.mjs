@@ -18,6 +18,7 @@ import {
   validateStructure,
   validateSubject,
   finalizeSubject,
+  normalizeToHtml,
 } from "../src/lib/platform/ai/email-personalize.js";
 
 let passed = 0;
@@ -158,6 +159,21 @@ console.log("\nTEST — Spliced result always matches the original skeleton");
   const out = splicePersonalizedSegments(parts, parts.filter((p) => p.type === "text" && p.value.trim()).map(() => "reworded"));
   check("skeleton identical by construction", tagSkeleton(out) === tagSkeleton(draft));
   check("whitespace gaps preserved", out.includes("</p>\n\n<ul>"));
+}
+
+console.log("\nTEST — normalizeToHtml (plain text → paragraphs)");
+{
+  const html = normalizeToHtml("Hello there,\n\nYou have been selected.\n\nNext steps:\n1. Do this\n2. Do that");
+  check("paragraphs become <p>", (html.match(/<p>/g) || []).length === 3);
+  check("single newline becomes <br>", html.includes("Next steps:<br>1. Do this<br>2. Do that"));
+  check("blank lines split paragraphs", html.includes("</p>\n<p>"));
+}
+{
+  const already = normalizeToHtml("<p>Hi</p><p>There</p>");
+  check("HTML returned unchanged", already === "<p>Hi</p><p>There</p>");
+}
+{
+  check("empty → empty", normalizeToHtml("") === "");
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

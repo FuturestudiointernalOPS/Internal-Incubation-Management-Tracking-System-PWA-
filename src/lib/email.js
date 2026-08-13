@@ -5,6 +5,8 @@
  * Replace with your own sender domain/email in RESEND_FROM_EMAIL.
  */
 
+import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
 const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
@@ -191,10 +193,12 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     : `You're invited to ${org} — Set Your Password`;
 
   // Template body or default
-  const bodyHtml = template?.body
-    ? applyTemplate(template.body, tv)
-    : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hi <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
-       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You've been invited to join ${org} as a <strong style="color: #ff6600;">${roleLabel}</strong>. Click the button below to set your password and activate your account.</p>`;
+  const bodyHtml = normalizeToHtml(
+    template?.body
+      ? applyTemplate(template.body, tv)
+      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hi <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
+       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You've been invited to join ${org} as a <strong style="color: #ff6600;">${roleLabel}</strong>. Click the button below to set your password and activate your account.</p>`
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -261,10 +265,12 @@ export async function sendLoginEmail({ to, name, role, template, templateVars })
     ? applyTemplate(template.subject, tv)
     : `Welcome back to ${org} — Log In`;
 
-  const bodyHtml = template?.body
-    ? applyTemplate(template.body, tv)
-    : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hello <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
-       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You already have an account with us. Use your existing credentials to log in and access the platform.</p>`;
+  const bodyHtml = normalizeToHtml(
+    template?.body
+      ? applyTemplate(template.body, tv)
+      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hello <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
+       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You already have an account with us. Use your existing credentials to log in and access the platform.</p>`
+  );
 
   const html = `
     <!DOCTYPE html>
@@ -834,9 +840,11 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
 
   const commentBlock = comment ? `<p style="margin:16px 0 0;font-size:14px;color:#cbd5e1;font-style:italic;border-left:3px solid #f97316;padding-left:12px;">"${comment}"</p>` : "";
 
-  const bodyHtml = template?.body
-    ? applyTemplate(template.body, tv)
-    : `<p style="margin:0 0 8px;font-size:15px;color:#e2e8f0;">Hello ${tv.name},</p><p style="margin:0 0 8px;font-size:14px;color:#94a3b8;line-height:1.6;">Your ${tv.form_name} has been <strong style="color:#f8fafc;">${decisionLabel}</strong>.</p>${commentBlock}`;
+  const bodyHtml = normalizeToHtml(
+    template?.body
+      ? applyTemplate(template.body, tv)
+      : `<p style="margin:0 0 8px;font-size:15px;color:#e2e8f0;">Hello ${tv.name},</p><p style="margin:0 0 8px;font-size:14px;color:#94a3b8;line-height:1.6;">Your ${tv.form_name} has been <strong style="color:#f8fafc;">${decisionLabel}</strong>.</p>${commentBlock}`
+  );
 
   const html = `
     <!DOCTYPE html>
