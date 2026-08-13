@@ -284,7 +284,36 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
   ) THEN
+    ALTER TABLE password_setup_tokens ALTER COLUMN used DROP DEFAULT;
     ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
+    ALTER TABLE password_setup_tokens ALTER COLUMN used SET DEFAULT 0;
+  END IF;
+END $$;
+
+-- Repair tables created by the LEGACY script (user_cid/user_email NOT NULL,
+-- no contact_cid): the app writes contact_cid and leaves those legacy
+-- columns NULL, which violates their NOT NULL constraints.
+ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS contact_cid TEXT;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'password_setup_tokens' AND column_name = 'user_cid'
+  ) THEN
+    ALTER TABLE password_setup_tokens ALTER COLUMN user_cid DROP NOT NULL;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'password_setup_tokens' AND column_name = 'user_email'
+  ) THEN
+    ALTER TABLE password_setup_tokens ALTER COLUMN user_email DROP NOT NULL;
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'password_setup_tokens' AND column_name = 'contact_cid'
+  ) THEN
+    UPDATE password_setup_tokens SET contact_cid = user_cid
+    WHERE contact_cid IS NULL AND user_cid IS NOT NULL;
   END IF;
 END $$;
 
