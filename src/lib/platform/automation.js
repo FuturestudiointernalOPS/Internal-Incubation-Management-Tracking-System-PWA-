@@ -354,7 +354,7 @@ const RULES = [
             } catch (_) {}
           }
         }
-        contactEmail = resolveRecipientEmail({ contactEmail, submissionData });
+        contactEmail = resolveRecipientEmail({ contactEmail, submissionData, fieldLabels });
 
         if (!contactEmail) {
           console.warn("[Automation] Activation failed: no usable email", ctx.submission?.id);

@@ -655,23 +655,51 @@ export function isPlaceholderEmail(email) {
 }
 
 /**
- * Resolve the recipient for an activation email with a strict priority:
- *   1. a valid existing CRM/contact email
- *   2. a valid email found inside the submission's form answers
- *   otherwise null — activation cannot proceed.
- * Placeholder/import-fallback addresses are never accepted.
+ * Resolve the real applicant email for a submission:
+ *   1. a real email answer from the form response (label-aware: Email,
+ *      E-mail, Courriel, Adresse e-mail… — no hardcoded single label)
+ *   2. any other real email-looking value in the submission data
+ *   3. the CRM/contact email (verified, only when it is not a placeholder)
+ * Internal placeholder addresses (import-…@placeholder…, .local, example.com)
+ * are NEVER returned. Empty string when nothing real exists.
+ * Used by the Run Overview display, CSV export, decision emails and scores —
+ * the UI and the email-sending workflow always agree on the recipient.
  */
-export function resolveRecipientEmail({ contactEmail, submissionData }) {
-  if (!isPlaceholderEmail(contactEmail)) {
-    return String(contactEmail).trim().toLowerCase();
+export function resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail }) {
+  const data = submissionData && typeof submissionData === "object" ? submissionData : {};
+  const labelOf = (k) => {
+    const raw =
+      fieldLabels && fieldLabels[String(k)] != null
+        ? String(fieldLabels[String(k)])
+        : String(k);
+    return raw.toLowerCase().trim();
+  };
+  const isReal = (v) =>
+    typeof v === "string" && v.includes("@") && !isPlaceholderEmail(v);
+  // English + French email question labels (Email, E-mail, Email Address,
+  // Adresse e-mail, Courriel, Mel…). Never matches a bare "Adresse" field.
+  const EMAIL_HINTS = /(e-?mail|courriel|mel|adresse\s*(e-?mail|mail))/i;
+
+  const labeled = [];
+  const anyReal = [];
+  for (const [k, v] of Object.entries(data)) {
+    const val = typeof v === "string" ? v.trim() : "";
+    if (!isReal(val)) continue;
+    if (EMAIL_HINTS.test(labelOf(k))) labeled.push(val);
+    else anyReal.push(val);
   }
-  const values = submissionData && typeof submissionData === "object" ? Object.values(submissionData) : [];
-  for (const v of values) {
-    if (typeof v === "string" && !isPlaceholderEmail(v)) {
-      return v.trim().toLowerCase();
-    }
-  }
-  return null;
+  if (labeled.length > 0) return labeled[0].toLowerCase();
+  if (anyReal.length > 0) return anyReal[0].toLowerCase();
+  if (isReal(contactEmail)) return String(contactEmail).trim().toLowerCase();
+  return "";
+}
+
+/**
+ * Alias kept for the activation flow — the single source of truth is
+ * resolveSubmissionEmail above (label-aware, placeholder-safe, EN/FR).
+ */
+export function resolveRecipientEmail({ contactEmail, submissionData, fieldLabels }) {
+  return resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail });
 }
 
 const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
