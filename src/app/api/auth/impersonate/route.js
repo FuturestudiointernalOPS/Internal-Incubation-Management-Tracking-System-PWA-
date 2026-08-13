@@ -112,11 +112,8 @@ export async function POST(req) {
     } else if (user.role === "participant") {
       finalRole = "participant";
     } else if (
-      user.role === "staff" || user.role === "project_manager" || user.role === "admin" ||
-      (user.group_name || "").toUpperCase().includes("STAFF")
+      user.role === "staff" || user.role === "project_manager" || user.role === "admin"
     ) {
-      finalRole = "staff";
-    } else if ((user.group_name || "").toUpperCase().includes("FUTURE STUDIO")) {
       finalRole = "staff";
     }
 
