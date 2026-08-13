@@ -723,10 +723,12 @@ export default function FormRunsPage() {
   const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
+  const bulkAbortRef = useRef(false); // stops issuing new bulk batches when true
   const [retrySelected, setRetrySelected] = useState([]); // "submissionId:emailType" keys
   const [retryProcessing, setRetryProcessing] = useState(false);
   const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
   const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
+  const retryAbortRef = useRef(false); // stops issuing new retry batches when true
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -1055,11 +1057,13 @@ export default function FormRunsPage() {
     if (!selectedRun || selectedIds.length === 0 || bulkProcessing) return;
     setBulkProcessing(true);
     setBulkConfirmOpen(false);
+    bulkAbortRef.current = false;
     const ids = [...selectedIds];
-    const agg = { approved: 0, already_approved: 0, failed: [] };
+    const agg = { approved: 0, already_approved: 0, failed: [], cancelled: 0 };
     setBulkProgress({ done: 0, total: ids.length });
     let aborted = false;
-    for (let i = 0; i < ids.length && !aborted; i += BULK_BATCH) {
+    let processed = 0;
+    for (let i = 0; i < ids.length && !aborted && !bulkAbortRef.current; i += BULK_BATCH) {
       const chunk = ids.slice(i, i + BULK_BATCH);
       let data;
       try {
@@ -1084,12 +1088,15 @@ export default function FormRunsPage() {
         else if (r.status === "already_approved") agg.already_approved++;
         else agg.failed.push({ name: r.name || `#${r.submission_id}`, error: r.error || "Failed" });
       }
-      setBulkProgress({ done: Math.min(i + BULK_BATCH, ids.length), total: ids.length });
+      processed = Math.min(i + BULK_BATCH, ids.length);
+      setBulkProgress({ done: processed, total: ids.length });
     }
+    // Anything not yet processed when the user cancels (or a batch fails) is
+    // reported as cancelled — nothing was sent for those rows, and they stay
+    // in their previous state so they can be selected again later.
+    agg.cancelled = ids.length - processed;
     setBulkProcessing(false);
     setSelectedIds([]);
-    // Refresh the data FIRST, then show the summary over the updated table —
-    // openRun resets the summary state, so setting it after keeps it visible.
     if (selectedRun) await openRun(selectedRun);
     setBulkSummary(agg);
   };
@@ -1182,14 +1189,16 @@ export default function FormRunsPage() {
   const runRetryEmails = async () => {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
     setRetryProcessing(true);
+    retryAbortRef.current = false;
     const items = retrySelected.map((k) => {
       const [sid, type] = k.split(":");
       return { submission_id: parseInt(sid), email_type: type };
     });
-    const agg = { sent: 0, already_sent: 0, failed: [] };
+    const agg = { sent: 0, already_sent: 0, failed: [], cancelled: 0 };
     setRetryProgress({ done: 0, total: items.length });
     let aborted = false;
-    for (let i = 0; i < items.length && !aborted; i += 10) {
+    let processed = 0;
+    for (let i = 0; i < items.length && !aborted && !retryAbortRef.current; i += 10) {
       const chunk = items.slice(i, i + 10);
       let data;
       try {
@@ -1214,9 +1223,11 @@ export default function FormRunsPage() {
         else if (r.status === "already_sent") agg.already_sent++;
         else agg.failed.push({ name: r.name || `#${r.submission_id} (${r.email_type})`, error: r.error || "Failed" });
       }
-      setRetryProgress({ done: Math.min(i + 10, items.length), total: items.length });
+      processed = Math.min(i + 10, items.length);
+      setRetryProgress({ done: processed, total: items.length });
     }
     agg.retried = items.length;
+    agg.cancelled = items.length - processed;
     setRetryProcessing(false);
     setRetrySelected([]);
     // Refresh with keepTab so we STAY on the Emails tab — the summary modal
@@ -1889,6 +1900,15 @@ export default function FormRunsPage() {
                     <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
                       Approving {bulkProgress.done} of {bulkProgress.total} respondents...
                     </p>
+                    <p className="text-[9px] text-[var(--text-secondary)]">
+                      Already-sent emails are kept. Stopping leaves the remaining rows unchanged — you can select them again later.
+                    </p>
+                    <button
+                      onClick={() => { bulkAbortRef.current = true; }}
+                      className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                    >
+                      Cancel Sending
+                    </button>
                   </div>
                 </div>
               )}
@@ -1901,6 +1921,9 @@ export default function FormRunsPage() {
                     <p className="text-[10px] font-bold text-emerald-500">{bulkSummary.approved} approved successfully</p>
                     {bulkSummary.already_approved > 0 && (
                       <p className="text-[10px] font-bold text-slate-400">{bulkSummary.already_approved} were already approved</p>
+                    )}
+                    {bulkSummary.cancelled > 0 && (
+                      <p className="text-[10px] font-bold text-slate-400">{bulkSummary.cancelled} cancelled / not processed</p>
                     )}
                     {bulkSummary.failed.length > 0 && (
                       <div className="space-y-1">
@@ -2038,6 +2061,15 @@ export default function FormRunsPage() {
                       <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
                         Retrying {retryProgress.done} of {retryProgress.total} emails...
                       </p>
+                      <p className="text-[9px] text-[var(--text-secondary)]">
+                        Already-sent emails are kept. Stopping leaves the remaining rows unchanged — select them again later.
+                      </p>
+                      <button
+                        onClick={() => { retryAbortRef.current = true; }}
+                        className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                      >
+                        Cancel Sending
+                      </button>
                     </div>
                   </div>
                 )}
@@ -2053,6 +2085,9 @@ export default function FormRunsPage() {
                       <p className="text-[10px] font-bold text-emerald-500">{retrySummary.sent} sent successfully</p>
                       {retrySummary.already_sent > 0 && (
                         <p className="text-[10px] font-bold text-slate-400">{retrySummary.already_sent} were already sent</p>
+                      )}
+                      {retrySummary.cancelled > 0 && (
+                        <p className="text-[10px] font-bold text-slate-400">{retrySummary.cancelled} cancelled / not processed</p>
                       )}
                       {retrySummary.failed.length > 0 && (
                         <div className="space-y-1">
