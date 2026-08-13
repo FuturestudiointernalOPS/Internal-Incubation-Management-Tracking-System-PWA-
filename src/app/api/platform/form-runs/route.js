@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail } from "@/lib/email";
+import { sendDecisionEmail, getTemplate } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -604,12 +604,15 @@ export async function POST(req) {
             let contactCid = result.rows[0].submitter_id || null;
             let score = null;
             try {
-              const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
+              const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings, r.settings AS run_settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
               if (runInfo2.rows[0]) {
-                const tmpl = (runInfo2.rows[0].settings || {}).automation?.templates;
                 const formName = runInfo2.rows[0].name || "";
-                if (decision === "approved") decisionTemplate = tmpl?.approval;
-                else if (decision === "rejected") decisionTemplate = tmpl?.rejection;
+                // Run template overrides form template, then platform default
+                decisionTemplate = getTemplate(
+                  runInfo2.rows[0].settings || {},
+                  decision === "approved" ? "approval" : "rejection",
+                  runInfo2.rows[0].run_settings || {}
+                );
                 templateVars = { form_name: formName };
                 // Resolve the group linked to this run so {{group_name}} works
                 // in manual approval/rejection templates (same lookup the

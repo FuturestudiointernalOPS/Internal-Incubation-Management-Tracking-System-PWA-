@@ -149,14 +149,17 @@ export function applyTemplate(text, vars = {}) {
 }
 
 /**
- * Resolve a template from form settings, falling back to defaults.
+ * Resolve a template with a run-level override chain:
+ * run.settings.templates[key] → form.settings.automation.templates[key] → DEFAULT_TEMPLATES.
  */
-export function getTemplate(formSettings, templateKey) {
+export function getTemplate(formSettings, templateKey, runSettings) {
   const custom = formSettings?.automation?.templates?.[templateKey];
+  const runCustom = runSettings?.templates?.[templateKey];
+  const merged = { ...(custom || {}), ...(runCustom || {}) };
   const def = DEFAULT_TEMPLATES[templateKey];
   return {
-    subject: custom?.subject || def?.subject || "",
-    body: custom?.body || def?.body || "",
+    subject: merged.subject || def?.subject || "",
+    body: merged.body || def?.body || "",
   };
 }
 

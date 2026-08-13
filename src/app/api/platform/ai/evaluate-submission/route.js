@@ -216,8 +216,8 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
       const subData = updated.rows[0].data || {};
       const applicantEmail = Object.values(subData).find((v) => typeof v === "string" && v.includes("@"));
       if (applicantEmail) {
-        const { sendDecisionEmail, sendTrackedEmail } = await import("@/lib/email");
-        const tmpl = (form.rows[0].settings || {}).automation?.templates;
+        const { sendDecisionEmail, sendTrackedEmail, getTemplate } = await import("@/lib/email");
+        const decisionTemplate = getTemplate(form.rows[0].settings || {}, "approval", run.rows[0].settings || {});
         const formName = form.rows[0].name || "";
         const groupName = await getRunGroupName(db, run.rows[0].id);
         await sendTrackedEmail({
@@ -232,7 +232,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
               formName,
               decision: "approved",
               comment,
-              template: tmpl?.approval,
+              template: decisionTemplate,
               templateVars: {
                 form_name: formName,
                 score: String(score),
