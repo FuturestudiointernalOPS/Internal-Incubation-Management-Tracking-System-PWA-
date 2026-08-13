@@ -6,6 +6,7 @@ import {
   Loader2, Send, Save, ArrowLeft, CheckCircle2, AlertTriangle,
   FileText, Clock, User, Info, ChevronDown, ChevronUp, Star, X,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const COUNTRY_CODES = [
   { flag: "🇳🇬", name: "Nigeria", code: "+234" },
@@ -61,6 +62,8 @@ export default function SubmitFormPage() {
   const router = useRouter();
   const runId = params.runId;
 
+  const { t } = useI18n();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -92,7 +95,7 @@ export default function SubmitFormPage() {
       // Load run detail + user's submission (participant endpoint)
       const runRes = await fetch(`/api/platform/form-runs?id=${runId}&participant=true`);
       const runData = await runRes.json();
-      if (!runData.success) throw new Error(runData.error || "Run not found");
+      if (!runData.success) throw new Error(t((runData.error || "Run not found") || "") || (runData.error || "Run not found"));
       setRun(runData.run);
 
       // Set existing submission if any
@@ -117,7 +120,7 @@ export default function SubmitFormPage() {
       setExpandedSections(expanded);
 
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };
@@ -178,7 +181,7 @@ export default function SubmitFormPage() {
         setExistingSubmission(data.submission);
         notify("Draft saved");
       } else {
-        notify(data.error || "Failed to save draft");
+        notify(t((data.error || "Failed to save draft") || "") || (data.error || "Failed to save draft"));
       }
     } catch (_) {}
     setSaving(false);
@@ -199,7 +202,7 @@ export default function SubmitFormPage() {
         setSuccess(true);
         notify("Submission received!");
       } else {
-        notify(data.error || "Failed to submit");
+        notify(t((data.error || "Failed to submit") || "") || (data.error || "Failed to submit"));
       }
     } catch (_) {}
     setSaving(false);

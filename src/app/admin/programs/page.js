@@ -221,7 +221,7 @@ export default function ProgramManagement() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: json.error || "Save failed." },
+            detail: { type: "error", message: t((json.error || "Save failed.") || "") || (json.error || "Save failed.") },
           }),
         );
       }
@@ -229,7 +229,7 @@ export default function ProgramManagement() {
       console.error("Update Failure:", e);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Update failed: " + e.message },
+          detail: { type: "error", message: "Update failed: " + (t(e.message || "") || e.message) },
         }),
       );
     } finally {
@@ -392,7 +392,7 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || "Failed to create concept note.",
+              message: t((data.error || "Failed to create concept note.") || "") || (data.error || "Failed to create concept note."),
             },
           }),
         );

@@ -82,7 +82,7 @@ export default function AdminCampaignsPage() {
         setForm({ venture_id: "", name: "", target_raise: "", min_investment: "", max_investment: "", currency: "USD", visibility: "public", opening_date: "", closing_date: "" });
         fetchData();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };
@@ -101,7 +101,7 @@ export default function AdminCampaignsPage() {
         setToast({ type: "success", message: t("investorAdmin.campaigns.campaignStatusToast", { status: newStatus }) });
         fetchData();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };
@@ -125,7 +125,7 @@ export default function AdminCampaignsPage() {
         setToast({ type: "success", message: t("investorAdmin.campaigns.amountUpdated") });
         fetchData();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };

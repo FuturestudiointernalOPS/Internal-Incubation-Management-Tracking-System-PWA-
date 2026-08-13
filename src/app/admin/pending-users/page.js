@@ -89,7 +89,7 @@ export default function PendingUsersPage() {
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || t("adminMisc.pendingUsers.failApprove"),
+          text: t((data.error || t("adminMisc.pendingUsers.failApprove")) || "") || (data.error || t("adminMisc.pendingUsers.failApprove")),
         });
       }
     } catch (err) {
@@ -121,7 +121,7 @@ export default function PendingUsersPage() {
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || t("adminMisc.pendingUsers.failArchive"),
+          text: t((data.error || t("adminMisc.pendingUsers.failArchive")) || "") || (data.error || t("adminMisc.pendingUsers.failArchive")),
         });
       }
     } catch (err) {
@@ -152,7 +152,7 @@ export default function PendingUsersPage() {
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || t("adminMisc.pendingUsers.failResend"),
+          text: t((data.error || t("adminMisc.pendingUsers.failResend")) || "") || (data.error || t("adminMisc.pendingUsers.failResend")),
         });
       }
     } catch (err) {
@@ -184,7 +184,7 @@ export default function PendingUsersPage() {
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || t("adminMisc.pendingUsers.failReject"),
+          text: t((data.error || t("adminMisc.pendingUsers.failReject")) || "") || (data.error || t("adminMisc.pendingUsers.failReject")),
         });
       }
     } catch (err) {

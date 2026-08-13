@@ -93,7 +93,7 @@ export default function ScoresPage() {
         setData(d);
         setSelected({});
       } else {
-        setError(d.error || t("adminMisc.platformScores.fetchFailed"));
+        setError(t((d.error || t("adminMisc.platformScores.fetchFailed")) || "") || (d.error || t("adminMisc.platformScores.fetchFailed")));
       }
     } catch (err) {
       setError(t("adminMisc.platformScores.networkError"));
@@ -234,7 +234,7 @@ export default function ScoresPage() {
         notify(decision === "approved" ? t("adminMisc.platformScores.approvedToast") : t("adminMisc.platformScores.rejectedToast"));
         fetchScores();
       } else {
-        notify(d.error || t("adminMisc.platformScores.decisionFailed"));
+        notify(t((d.error || t("adminMisc.platformScores.decisionFailed")) || "") || (d.error || t("adminMisc.platformScores.decisionFailed")));
       }
     } catch (_) {
       notify(t("adminMisc.platformScores.networkError"));

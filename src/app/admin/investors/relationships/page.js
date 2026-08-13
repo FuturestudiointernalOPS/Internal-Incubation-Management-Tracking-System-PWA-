@@ -149,7 +149,7 @@ export default function AdminRelationshipsPage() {
         setMeetingForm({ meeting_type: "introductory", scheduled_date: "", scheduled_time: "", duration_minutes: 60, location: "", notes: "" });
         selectWorkspace(selected);
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };
@@ -174,7 +174,7 @@ export default function AdminRelationshipsPage() {
         setCompleteForm({ outcome: "", notes: "", action_items: "" });
         selectWorkspace(selected);
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };
@@ -191,7 +191,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.workspaceCreated") });
         fetchWorkspaces();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
   };
@@ -206,7 +206,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); selectWorkspace(selected); }
-      else { setToast({ type: "error", message: data.error }); }
+      else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
 
@@ -224,7 +224,7 @@ export default function AdminRelationshipsPage() {
         setShowAddRequest(false);
         setRequestForm({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
         selectWorkspace(selected);
-      } else { setToast({ type: "error", message: data.error }); }
+      } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
 
@@ -237,7 +237,7 @@ export default function AdminRelationshipsPage() {
       });
       const data = await res.json();
       if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); selectWorkspace(selected); }
-      else { setToast({ type: "error", message: data.error }); }
+      else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
 
@@ -261,7 +261,7 @@ export default function AdminRelationshipsPage() {
           selectWorkspace(selected);
           // Fetch docs for this request
           fetchDdDocs(requestId);
-        } else { setToast({ type: "error", message: data.error }); }
+        } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
       } catch (_) {}
     };
     reader.readAsDataURL(file);

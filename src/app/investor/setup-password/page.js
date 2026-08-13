@@ -3,11 +3,14 @@
 import { useState, Suspense } from "react";
 import { Lock, Loader2, CheckCircle2, ArrowRight } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 function SetupPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token");
+
+  const { t } = useI18n();
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -30,7 +33,7 @@ function SetupPasswordForm() {
       });
       const data = await res.json();
       if (data.success) setSuccess(true);
-      else setError(data.error || "Failed to set password.");
+      else setError(t((data.error || "Failed to set password.") || "") || (data.error || "Failed to set password."));
     } catch (_) { setError("Network error."); }
     setLoading(false);
   };

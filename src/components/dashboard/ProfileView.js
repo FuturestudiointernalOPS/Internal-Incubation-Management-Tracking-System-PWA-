@@ -177,7 +177,12 @@ export default function ProfileView() {
           }),
         );
       } else {
-        setSaveMessage({ type: "error", text: data.error || t("adminMisc.profile.saveFailed") });
+        setSaveMessage({
+          type: "error",
+          text:
+            t((data.error || t("adminMisc.profile.saveFailed")) || "") ||
+            (data.error || t("adminMisc.profile.saveFailed")),
+        });
       }
     } catch (e) {
       setSaveMessage({ type: "error", text: t("adminMisc.profile.networkError") });
@@ -227,7 +232,9 @@ export default function ProfileView() {
       } else {
         setPasswordMessage({
           type: "error",
-          text: data.error || t("adminMisc.profile.passwordUpdateFailed"),
+          text:
+            t((data.error || t("adminMisc.profile.passwordUpdateFailed")) || "") ||
+            (data.error || t("adminMisc.profile.passwordUpdateFailed")),
         });
       }
     } catch (e) {

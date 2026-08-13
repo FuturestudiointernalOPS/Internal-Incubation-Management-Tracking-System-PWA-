@@ -202,7 +202,7 @@ export default function TeamManagementPage({ params }) {
         closeModal();
         fetchData();
       } else {
-        setFormError(data.error || "Operation failed.");
+        setFormError(t((data.error || "Operation failed.") || "") || (data.error || "Operation failed."));
       }
     } catch (e) {
       setFormError("Network error. Please try again.");

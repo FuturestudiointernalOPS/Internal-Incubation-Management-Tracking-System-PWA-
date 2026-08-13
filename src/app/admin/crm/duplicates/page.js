@@ -58,7 +58,7 @@ export default function DuplicatesPage() {
         setPreview(null);
         fetchFlags();
       } else {
-        notify(data.error || t("crm.duplicates.mergeFailed"), "error");
+        notify(t((data.error || t("crm.duplicates.mergeFailed")) || "") || (data.error || t("crm.duplicates.mergeFailed")), "error");
       }
     } catch (_) { notify(t("crm.duplicates.mergeFailed"), "error"); }
   }

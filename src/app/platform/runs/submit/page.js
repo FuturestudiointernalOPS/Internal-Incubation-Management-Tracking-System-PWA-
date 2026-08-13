@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import {
   Loader2, FileText, Send, Clock, CheckCircle2, XCircle,
   RotateCcw, AlertTriangle, ArrowLeft, Play,
@@ -19,6 +20,7 @@ const SUB_STATUS = {
 
 export default function MySubmissionsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -35,10 +37,10 @@ export default function MySubmissionsPage() {
       if (data.success) {
         setSubmissions(data.submissions || []);
       } else {
-        setError(data.error || "Failed to load submissions");
+        setError(t((data.error || "Failed to load submissions") || "") || (data.error || "Failed to load submissions"));
       }
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };

@@ -6,6 +6,7 @@ import {
   Briefcase, Target, DollarSign, MapPin, TrendingUp, ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -19,6 +20,7 @@ const STAGE_OPTIONS = ["Pre-Seed", "Seed", "Series A", "Series B", "Growth"];
 const COUNTRY_OPTIONS = ["CD", "KE", "NG", "ZA", "GH", "RW", "UG", "TZ", "EG", "MA"];
 
 export default function InvestorProfilePage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -77,7 +79,7 @@ export default function InvestorProfilePage() {
         setToast({ type: "success", message: "Profile saved" });
         setProfile(data.profile);
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
     setSaving(false);
@@ -100,7 +102,7 @@ export default function InvestorProfilePage() {
       if (data.success) {
         setToast({ type: "success", message: "Preferences saved" });
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
     setSaving(false);

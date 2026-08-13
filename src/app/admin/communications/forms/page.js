@@ -156,7 +156,7 @@ export default function FormsPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error },
+            detail: { type: "error", message: t(data.error || "") || data.error },
           }),
         );
       }
@@ -187,7 +187,7 @@ export default function FormsPage() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.forms.archiveFailed"),
+              message: t((data.error || t("crm.forms.archiveFailed")) || "") || (data.error || t("crm.forms.archiveFailed")),
             },
           }),
         );

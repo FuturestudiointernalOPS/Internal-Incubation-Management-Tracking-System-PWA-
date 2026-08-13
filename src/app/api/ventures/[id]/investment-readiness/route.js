@@ -41,7 +41,7 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Fetch all approved/shared documents for this venture
     const docs = await db.execute({

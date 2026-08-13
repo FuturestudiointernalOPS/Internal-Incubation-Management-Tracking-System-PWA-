@@ -13,6 +13,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 function StatusBadge({ status }) {
   const config = {
@@ -33,6 +34,7 @@ function StatusBadge({ status }) {
 }
 
 export default function AssignmentsView() {
+  const { t } = useI18n();
   const [assignments, setAssignments] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function AssignmentsView() {
           Object.entries(progMap).map(([id, name]) => ({ id, name })),
         );
       } else {
-        setError(data.error || "Failed to load");
+        setError(t((data.error || "Failed to load") || "") || (data.error || "Failed to load"));
       }
     } catch (e) {
       setError("Network error");

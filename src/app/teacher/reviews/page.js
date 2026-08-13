@@ -102,7 +102,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
       if (data.success) {
         onSubmit(submission.id);
       } else {
-        setError(data.error || "Failed to process review action");
+        setError(t((data.error || "Failed to process review action") || "") || (data.error || "Failed to process review action"));
       }
     } catch (e) {
       setError("Network error. Please try again.");

@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
     const dbId = vRes.rows?.[0]?.id || id;
 

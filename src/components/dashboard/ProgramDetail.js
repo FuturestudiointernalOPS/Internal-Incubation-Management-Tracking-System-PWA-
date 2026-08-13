@@ -335,7 +335,7 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
       if (data.success) {
         onDone?.();
       } else {
-        setSubmitError(data.error || "Failed to submit. Please try again.");
+        setSubmitError(t((data.error || "Failed to submit. Please try again.") || "") || (data.error || "Failed to submit. Please try again."));
       }
     } catch (_) {
       setSubmitError("Network error. Please try again.");
@@ -535,7 +535,7 @@ export default function ProgramDetail({ programId }) {
           setExpandedWeeks({ [result.curriculum.currentWeek]: true });
         }
       } else {
-        setError(result.error || "Failed to load program");
+        setError(t((result.error || "Failed to load program") || "") || (result.error || "Failed to load program"));
       }
     } catch (e) {
       setError("Network error. Please try again.");

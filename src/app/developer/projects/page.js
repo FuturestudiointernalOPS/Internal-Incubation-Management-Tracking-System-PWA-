@@ -10,9 +10,11 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperProjects() {
   const router = useRouter();
+  const { t } = useI18n();
   const [userRole, setUserRole] = useState("developer");
   const [user, setUser] = useState(null);
   const [projects, setProjects] = useState([]);
@@ -44,7 +46,7 @@ export default function DeveloperProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || "Failed to respond" } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || "Failed to respond") || "") || (data.error || "Failed to respond") } }));
       }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: "Network error" } }));

@@ -7,8 +7,10 @@ import {
   Loader2, ArrowLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 export default function ForgotPasswordPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,10 @@ export default function ForgotPasswordPage() {
       if (data.success) {
         setSent(true);
       } else {
-        setError(data.error || "Failed to send reset email.");
+        setError(
+          t((data.error || "Failed to send reset email.") || "") ||
+            (data.error || "Failed to send reset email."),
+        );
       }
     } catch (err) {
       setError("Network error. Please try again.");

@@ -12,8 +12,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperRetro() {
+  const { t } = useI18n();
   const [userRole, setUserRole] = useState("developer");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -104,7 +106,7 @@ export default function DeveloperRetro() {
         setLessonsLearned("");
         setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
-      } else setError(d.error || "Failed");
+      } else setError(t((d.error || "Failed") || "") || (d.error || "Failed"));
     } catch (e) {
       setError("Network error");
     } finally {

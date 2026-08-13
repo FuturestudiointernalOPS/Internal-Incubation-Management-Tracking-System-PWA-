@@ -32,7 +32,7 @@ export async function GET(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -72,7 +72,7 @@ export async function POST(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -101,7 +101,7 @@ export async function PATCH(req, { params }) {
     if (authError) return authError;
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -117,7 +117,7 @@ export async function PATCH(req, { params }) {
             WHERE a.id = ? AND a.venture_id = ?`,
       args: [assignmentId, dbId],
     });
-    if (!check.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!check.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (check.rows[0].auto_calc_source) {
       return NextResponse.json({ success: false, error: "This KPI is auto-calculated and cannot be edited manually." }, { status: 400 });
     }

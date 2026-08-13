@@ -78,10 +78,10 @@ export default function AuditLogsPage() {
       const statsData = await statsRes.json();
 
       if (logsData.success) setLogs(logsData.logs || []);
-      else setError(logsData.error);
+      else setError(t(logsData.error || "") || logsData.error);
       if (statsData.success) setStats(statsData);
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     } finally {
       setLoading(false);
     }

@@ -193,7 +193,7 @@ export default function RegisterVenturePage() {
             </div>
             {errors.map((err, i) => (
               <p key={i} className="text-[11px] text-rose-400 pl-6">
-                • {err}
+                • {t(err || "") || err}
               </p>
             ))}
           </div>

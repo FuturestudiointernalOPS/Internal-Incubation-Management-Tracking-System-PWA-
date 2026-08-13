@@ -57,7 +57,7 @@ export default function BulkUploadPage() {
       if (data.success) {
         setResult(data.results);
       } else {
-        setError(data.error || t("adminMisc.bulkUpload.uploadFailed"));
+        setError(t((data.error || t("adminMisc.bulkUpload.uploadFailed")) || "") || (data.error || t("adminMisc.bulkUpload.uploadFailed")));
       }
     } catch (err) {
       setError(t("adminMisc.bulkUpload.networkError"));
@@ -267,7 +267,7 @@ export default function BulkUploadPage() {
                         key={i}
                         className="text-[10px] text-[var(--text-secondary)] font-mono"
                       >
-                        {t("adminMisc.bulkUpload.rowPrefix")} {err.row}: {err.error}
+                        {t("adminMisc.bulkUpload.rowPrefix")} {err.row}: {t(err.error || "") || err.error}
                       </p>
                     ))}
                   </div>

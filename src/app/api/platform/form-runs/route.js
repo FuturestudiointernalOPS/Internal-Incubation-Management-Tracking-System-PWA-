@@ -181,7 +181,7 @@ export async function GET(req) {
     // ─── PARTICIPANT: Get single run (for filling forms, returns user's own submission) ───
     if (id && searchParams.get("participant") === "true") {
       const run = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
-      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       const { getSession } = await import("@/lib/auth");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
@@ -308,7 +308,7 @@ export async function GET(req) {
     // Single run with submissions
     if (id) {
       const run = await db.execute({ sql: "SELECT r.*, (SELECT a.target_id FROM platform_form_run_assignments a WHERE a.run_id = r.id AND a.target_type = 'group' LIMIT 1) as group_target_id FROM platform_form_runs r WHERE r.id = ?", args: [parseInt(id)] });
-      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
       const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(id)] });
       const submissions = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE run_id = ? ORDER BY updated_at DESC", args: [parseInt(id)] });

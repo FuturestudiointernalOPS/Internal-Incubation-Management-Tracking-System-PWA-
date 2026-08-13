@@ -8,6 +8,7 @@ import {
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -283,6 +284,7 @@ function MiniCalendar({ value, onChange, onClose }) {
 
 
 export default function FormRunsPage() {
+  const { t } = useI18n();
   const [runs, setRuns] = useState([]);
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
@@ -399,7 +401,7 @@ export default function FormRunsPage() {
         await fetchGroups();
         if (onDone) onDone(data.group);
       } else {
-        notify(data.error || "Failed to create group");
+        notify(t((data.error || "Failed to create group") || "") || (data.error || "Failed to create group"));
       }
     } catch (_) {
       notify("Failed to create group");
@@ -535,7 +537,7 @@ export default function FormRunsPage() {
         setReviewTimeline([]);
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || "Review failed");
+        notify(t((data.error || "Review failed") || "") || (data.error || "Review failed"));
       }
     } catch (_) {}
     setSaving(false);
@@ -557,7 +559,7 @@ export default function FormRunsPage() {
         setEvaluation(data.evaluation);
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || "Re-evaluation failed");
+        notify(t((data.error || "Re-evaluation failed") || "") || (data.error || "Re-evaluation failed"));
       }
     } catch (_) {
       notify("Network error");
@@ -646,7 +648,7 @@ export default function FormRunsPage() {
         // Reload run data
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || "Delete failed");
+        notify(t((data.error || "Delete failed") || "") || (data.error || "Delete failed"));
       }
     } catch (_) {}
   };
@@ -744,7 +746,7 @@ export default function FormRunsPage() {
       if (!data.success) {
         stopped = true;
         setEvalProgress((p) => p && { ...p, running: false, stopped: true });
-        notify(data.error || "Evaluation stopped");
+        notify(t((data.error || "Evaluation stopped") || "") || (data.error || "Evaluation stopped"));
         break;
       }
 
@@ -1400,7 +1402,7 @@ export default function FormRunsPage() {
                   setSelectedRun({ ...selectedRun, settings: data.run.settings });
                   notify("Run templates saved");
                 } else {
-                  notify(data.error || "Could not save templates");
+                  notify(t((data.error || "Could not save templates") || "") || (data.error || "Could not save templates"));
                 }
               } catch (_) {
                 notify("Could not save templates — network error");
@@ -1429,7 +1431,7 @@ export default function FormRunsPage() {
                   updateRunTemplate(tKey, "body", data.body);
                   notify(`${label} personalized with AI`);
                 } else {
-                  notify(data.error || "AI personalization failed");
+                  notify(t((data.error || "AI personalization failed") || "") || (data.error || "AI personalization failed"));
                 }
               } catch (_) {
                 notify("AI personalization failed — network error");

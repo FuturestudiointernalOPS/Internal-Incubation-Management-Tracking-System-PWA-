@@ -134,16 +134,16 @@ export default function PromoteToVenture() {
           router.push(data.redirect);
         }, 2000);
       } else {
-        setPromotionError(data.error || "Promotion failed");
+        setPromotionError(t((data.error || "Promotion failed") || "") || (data.error || "Promotion failed"));
         if (data.conflicts) {
           notify(data.conflicts.join(", "), "error");
         } else {
-          notify(data.error || "Promotion failed", "error");
+          notify(t((data.error || "Promotion failed") || "") || (data.error || "Promotion failed"), "error");
         }
       }
     } catch (e) {
       notify("Network error during promotion", "error");
-      setPromotionError(e.message);
+      setPromotionError(t(e.message || "") || e.message);
     } finally {
       setSubmitting(false);
       setShowConfirmModal(false);

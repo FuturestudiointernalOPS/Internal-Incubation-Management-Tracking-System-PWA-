@@ -42,11 +42,13 @@ import AppBadge from "@/components/ui/AppBadge";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
   const { id: teamId } = unwrappedParams;
   const router = useRouter();
+  const { t } = useI18n();
 
   // — State —
   const [activeTab, setActiveTab] = useState("overview");
@@ -267,7 +269,7 @@ export default function TeamDashboardPage({ params }) {
       } else {
         setToast({
           type: "error",
-          message: data.error || "Submission failed.",
+          message: t((data.error || "Submission failed.") || "") || (data.error || "Submission failed."),
         });
       }
     } catch (_) {
@@ -322,10 +324,10 @@ export default function TeamDashboardPage({ params }) {
         setFollowUpDate("");
         fetchTeamData();
       } else {
-        setToast({ type: "error", message: data.error || "Review failed" });
+        setToast({ type: "error", message: t((data.error || "Review failed") || "") || (data.error || "Review failed") });
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setReviewing(false);
   };
@@ -353,7 +355,7 @@ export default function TeamDashboardPage({ params }) {
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setSavingTask(false);
   };
@@ -383,7 +385,7 @@ export default function TeamDashboardPage({ params }) {
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
   };
 

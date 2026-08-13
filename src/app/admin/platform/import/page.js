@@ -111,7 +111,7 @@ export default function ImportPage() {
         setMapping(initialMapping);
         setStep(1);
       } else {
-        setError(data.error || t("adminMisc.platformImport.errorPreviewFailed"));
+        setError(t((data.error || t("adminMisc.platformImport.errorPreviewFailed")) || "") || (data.error || t("adminMisc.platformImport.errorPreviewFailed")));
       }
     } catch (err) {
       setError(t("adminMisc.platformImport.errorNetwork"));
@@ -187,7 +187,7 @@ export default function ImportPage() {
         setImportProgress(100);
         setStep(3);
       } else {
-        setError(data.error || t("adminMisc.platformImport.errorImportFailed"));
+        setError(t((data.error || t("adminMisc.platformImport.errorImportFailed")) || "") || (data.error || t("adminMisc.platformImport.errorImportFailed")));
         setStep(1);
       }
     } catch (err) {
@@ -709,7 +709,7 @@ export default function ImportPage() {
                       key={i}
                       className="text-[10px] text-[var(--text-secondary)] font-mono"
                     >
-                      {t("adminMisc.platformImport.rowPrefix")} {err.row}: {err.error}
+                      {t("adminMisc.platformImport.rowPrefix")} {err.row}: {t(err.error || "") || err.error}
                     </p>
                   ))}
                 </div>

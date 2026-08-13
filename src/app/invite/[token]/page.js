@@ -4,8 +4,10 @@ import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, ArrowRight } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export default function InviteAcceptPage({ params }) {
+  const { t } = useI18n();
   const unwrappedParams = use(params);
   const { token } = unwrappedParams;
   const router = useRouter();
@@ -28,7 +30,10 @@ export default function InviteAcceptPage({ params }) {
       if (data.invite) {
         setInvite(data.invite);
       } else {
-        setError(data.error || 'Invalid or expired invite link.');
+        setError(
+          t((data.error || 'Invalid or expired invite link.') || '') ||
+            (data.error || 'Invalid or expired invite link.'),
+        );
       }
     } catch (e) {
       setError('Failed to validate invite.');
@@ -51,7 +56,10 @@ export default function InviteAcceptPage({ params }) {
       if (data.user) {
         setSuccess(true);
       } else {
-        setError(data.error || 'Registration failed.');
+        setError(
+          t((data.error || 'Registration failed.') || '') ||
+            (data.error || 'Registration failed.'),
+        );
       }
     } catch (e) {
       setError('Network error.');

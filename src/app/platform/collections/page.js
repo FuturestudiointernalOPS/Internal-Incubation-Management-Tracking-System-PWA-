@@ -21,6 +21,7 @@ import {
   FolderTree,
   AlertTriangle,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * PLATFORM COLLECTIONS
@@ -38,6 +39,7 @@ function cn(...classes) {
 }
 
 export default function CollectionsPage() {
+  const { t } = useI18n();
   const [collections, setCollections] = useState([]);
   const [tree, setTree] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +134,7 @@ export default function CollectionsPage() {
         setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
         fetchCollections();
       } else {
-        notify(data.error || "Failed");
+        notify(t((data.error || "Failed") || "") || (data.error || "Failed"));
       }
     } catch (_) {}
     setSaving(false);

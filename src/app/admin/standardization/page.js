@@ -49,7 +49,7 @@ export default function SuperAdminStandardization() {
         setEditingItem(null);
         fetchTypes();
       } else {
-        setError(data.error);
+        setError(t(data.error || "") || data.error);
       }
     } catch (e) { setError('Network Error'); }
     setIsProcessing(false);
@@ -68,7 +68,7 @@ export default function SuperAdminStandardization() {
       if (data.success) {
         fetchTypes();
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
     } catch (e) { window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("adminMisc.standardization.actionFailedNetworkError") } })); }
     setIsProcessing(false);

@@ -309,7 +309,7 @@ export default function AdminProjects() {
       } else {
         setToast({
           type: "error",
-          msg: data.error || "Failed to create project.",
+          msg: t((data.error || "Failed to create project.") || "") || (data.error || "Failed to create project."),
         });
       }
     } catch (e) {

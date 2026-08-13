@@ -7,8 +7,10 @@ import {
   Lock, Shield, Eye, EyeOff, CheckCircle, AlertCircle,
   ArrowRight, Loader2
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function SetupPasswordPage({ params }) {
+  const { t } = useI18n();
   const resolvedParams = React.use(params);
   const token = resolvedParams.token;
 
@@ -75,7 +77,10 @@ export default function SetupPasswordPage({ params }) {
           router.push("/login");
         }, 2500);
       } else {
-        setError(data.error || "Failed to set password.");
+        setError(
+          t((data.error || "Failed to set password.") || "") ||
+            (data.error || "Failed to set password."),
+        );
         setSubmitting(false);
       }
     } catch (err) {

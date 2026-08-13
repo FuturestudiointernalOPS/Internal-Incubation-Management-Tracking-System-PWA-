@@ -10,9 +10,11 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
 
 export default function InvestorOrganizationsPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,7 +73,7 @@ export default function InvestorOrganizationsPage() {
         setNewOrg({ name: "", description: "", website: "" });
         fetchOrgs();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
     setSaving(false);

@@ -91,7 +91,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error },
+            detail: { type: "error", message: t(data.error || "") || data.error },
           }),
         );
       }
@@ -157,7 +157,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: json.error },
+            detail: { type: "error", message: t(json.error || "") || json.error },
           }),
         );
       }

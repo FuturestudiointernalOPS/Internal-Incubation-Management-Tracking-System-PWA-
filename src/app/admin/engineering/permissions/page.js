@@ -288,7 +288,7 @@ export default function PermissionManager() {
       } else {
         // Revert on failure
         setUserPerms(prevPerms);
-        setActionError(data.error || t("engineering.permissions.actionFailed"));
+        setActionError(t((data.error || t("engineering.permissions.actionFailed")) || "") || (data.error || t("engineering.permissions.actionFailed")));
       }
     } catch (e) {
       setUserPerms(prevPerms);
@@ -480,7 +480,7 @@ export default function PermissionManager() {
                             if (data.success) {
                               setActionMsg(t("engineering.permissions.promotedToSuperAdmin"));
                               selectUser(selectedUser);
-                            } else setActionError(data.error || t("engineering.permissions.failed"));
+                            } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
                           } catch (e) {
                             setActionError(t("engineering.permissions.networkError"));
                           }
@@ -511,7 +511,7 @@ export default function PermissionManager() {
                             if (data.success) {
                               setActionMsg(t("engineering.permissions.superAdminRemoved"));
                               selectUser(selectedUser);
-                            } else setActionError(data.error || t("engineering.permissions.failed"));
+                            } else setActionError(t((data.error || t("engineering.permissions.failed")) || "") || (data.error || t("engineering.permissions.failed")));
                           } catch (e) {
                             setActionError(t("engineering.permissions.networkError"));
                           }
@@ -1013,7 +1013,7 @@ function SeedView() {
             });
             const data = await res.json();
             if (data.success) setActionMsg(t("engineering.permissions.seedSuccess"));
-            else setActionError(data.error || t("engineering.permissions.seedFailed"));
+            else setActionError(t((data.error || t("engineering.permissions.seedFailed")) || "") || (data.error || t("engineering.permissions.seedFailed")));
           } catch (e) {
             setActionError(t("engineering.permissions.networkError"));
           }
@@ -1117,7 +1117,7 @@ function AccessProfilesView() {
         setNewProfile({ name: "", description: "" });
         fetchProfiles();
       } else {
-        setActionError(data.error || t("engineering.permissions.failedToCreate"));
+        setActionError(t((data.error || t("engineering.permissions.failedToCreate")) || "") || (data.error || t("engineering.permissions.failedToCreate")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1158,7 +1158,7 @@ function AccessProfilesView() {
         setActionMsg(t("engineering.permissions.profileDuplicated", { name: `${profile.name} (copy)` }));
         fetchProfiles();
       } else {
-        setActionError(createData.error || t("engineering.permissions.failedToDuplicate"));
+        setActionError(t((createData.error || t("engineering.permissions.failedToDuplicate")) || "") || (createData.error || t("engineering.permissions.failedToDuplicate")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1184,7 +1184,7 @@ function AccessProfilesView() {
         );
         fetchProfiles();
       } else {
-        setActionError(data.error || t("engineering.permissions.failedToToggle"));
+        setActionError(t((data.error || t("engineering.permissions.failedToToggle")) || "") || (data.error || t("engineering.permissions.failedToToggle")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1220,7 +1220,7 @@ function AccessProfilesView() {
         setEditingCap(null);
         setActionMsg(t("engineering.permissions.capabilityUpdated"));
       } else {
-        setActionError(data.error || t("engineering.permissions.failedToUpdate"));
+        setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1237,11 +1237,11 @@ function AccessProfilesView() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(data.message);
+        setActionMsg(t(data.message || "") || data.message);
         setShowAssignForm(false);
         setAssignData({ user_cid: "", profile_id: "" });
       } else {
-        setActionError(data.error || t("engineering.permissions.failedToAssign"));
+        setActionError(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1258,12 +1258,12 @@ function AccessProfilesView() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(data.message);
+        setActionMsg(t(data.message || "") || data.message);
         setShowRoleDefaultForm(false);
         setRoleDefaultData({ role_name: "", profile_id: "" });
         fetchProfiles();
       } else {
-        setActionError(data.error || t("engineering.permissions.failedToSetDefault"));
+        setActionError(t((data.error || t("engineering.permissions.failedToSetDefault")) || "") || (data.error || t("engineering.permissions.failedToSetDefault")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
@@ -1879,7 +1879,7 @@ function ResponsibilitiesView() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(data.message);
+        setActionMsg(t(data.message || "") || data.message);
       } else {
         // Revert
         setResponsibilities((prev) =>
@@ -1887,7 +1887,7 @@ function ResponsibilitiesView() {
             r.id === resp.id ? { ...r, assigned: !r.assigned } : r,
           ),
         );
-        setActionError(data.error || t("engineering.permissions.actionFailed"));
+        setActionError(t((data.error || t("engineering.permissions.actionFailed")) || "") || (data.error || t("engineering.permissions.actionFailed")));
       }
     } catch (e) {
       setResponsibilities((prev) =>

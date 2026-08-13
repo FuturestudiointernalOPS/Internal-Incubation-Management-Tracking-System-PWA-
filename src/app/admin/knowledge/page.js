@@ -116,11 +116,11 @@ export default function KnowledgeBank() {
         setShowUploadModal(false);
         setNewNote({ title: '', description: '', stagedFiles: [] });
       } else {
-        throw new Error(data.error || t("adminMisc.knowledge.systemDatabaseException"));
+        throw new Error(t((data.error || t("adminMisc.knowledge.systemDatabaseException")) || "") || (data.error || t("adminMisc.knowledge.systemDatabaseException")));
       }
     } catch (e) {
       console.error("Deployment Error:", e);
-      notify('error', e.message);
+      notify('error', t(e.message || "") || e.message);
     } finally {
       setIsSaving(false);
     }

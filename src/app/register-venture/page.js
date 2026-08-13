@@ -4,8 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
 
 function RegisterVentureContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token") || "";
@@ -35,7 +37,10 @@ function RegisterVentureContent() {
         if (d.success) {
           setTokenValid(true);
         } else {
-          setError(d.error || "Invalid invitation link");
+          setError(
+            t((d.error || "Invalid invitation link") || "") ||
+              (d.error || "Invalid invitation link"),
+          );
         }
       })
       .catch(() => setError("Unable to validate invitation link"))
@@ -73,7 +78,10 @@ function RegisterVentureContent() {
         );
         setTimeout(() => router.push("/login"), 2500);
       } else {
-        setError(d.error || "Failed to create venture");
+        setError(
+          t((d.error || "Failed to create venture") || "") ||
+            (d.error || "Failed to create venture"),
+        );
         setSubmitting(false);
       }
     } catch (err) {

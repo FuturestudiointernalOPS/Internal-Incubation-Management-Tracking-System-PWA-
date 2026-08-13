@@ -435,7 +435,7 @@ export default function ErrorLogsView({
                         )}
                       </div>
                       <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                        {error.message || t("engineering.errorLogs.noMessage")}
+                        {t((error.message || t("engineering.errorLogs.noMessage")) || "") || (error.message || t("engineering.errorLogs.noMessage"))}
                       </p>
                     </div>
                     <div className="hidden lg:flex items-center gap-4 flex-shrink-0">

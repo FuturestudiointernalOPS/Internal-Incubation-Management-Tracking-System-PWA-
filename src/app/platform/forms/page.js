@@ -10,6 +10,7 @@ import {
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
   Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, XCircle,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 export default function PlatformForms() {
   const router = useRouter();
+  const { t } = useI18n();
   const [forms, setForms] = useState([]);
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -429,7 +431,7 @@ export default function PlatformForms() {
             setEditingForm(fresh.form || editingForm);
           }
         } catch (_) {}
-      } else notify(data.error || "Save failed");
+      } else notify(t((data.error || "Save failed") || "") || (data.error || "Save failed"));
     } catch (_) {}
     setSaving(false);
   };
@@ -821,7 +823,7 @@ export default function PlatformForms() {
                               setTimeout(() => openBuilder(data.form), 400);
                             }
                           } else {
-                            notify(data.error || "Generation failed — try a longer document with more detail");
+                            notify(t((data.error || "Generation failed — try a longer document with more detail") || "") || (data.error || "Generation failed — try a longer document with more detail"));
                           }
                         } catch (_) { notify("AI generation failed — check your connection"); }
                         setAiGenLoading(false);
@@ -1388,7 +1390,7 @@ export default function PlatformForms() {
                   update(tKey, "body", data.body);
                   notify(`${label} personalized with AI`);
                 } else {
-                  notify(data.error || "AI personalization failed");
+                  notify(t((data.error || "AI personalization failed") || "") || (data.error || "AI personalization failed"));
                 }
               } catch (_) {
                 notify("AI personalization failed — network error");
@@ -1647,7 +1649,7 @@ export default function PlatformForms() {
                       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
                       const res = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
                       if (res.ok) notify("Framework saved");
-                      else { const err = await res.json(); notify(err.error || "Save failed"); }
+                      else { const err = await res.json(); notify(t((err.error || "Save failed") || "") || (err.error || "Save failed")); }
                     } catch (_) { notify("Save failed"); }
                     setAiEvalLoading(false);
                   }}
@@ -1697,7 +1699,7 @@ export default function PlatformForms() {
                       notify(`Framework generated — ${data.framework.dimensions?.length || 0} dimensions`);
                       setAiEvalText("");
                     } else {
-                      notify(data.error || "Generation failed");
+                      notify(t((data.error || "Generation failed") || "") || (data.error || "Generation failed"));
                     }
                   } catch (_) { notify("AI generation failed"); }
                   setAiEvalLoading(false);

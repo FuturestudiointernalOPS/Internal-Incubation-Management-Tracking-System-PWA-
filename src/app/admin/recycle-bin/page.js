@@ -41,7 +41,7 @@ export default function RecycleBinPage() {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.restoredToast', { name }) });
         fetchArchived();
       } else {
-        setMsg({ type: 'error', text: data.error || t('adminMisc.recycleBin.restoreFailed') });
+        setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.restoreFailed')) || "") || (data.error || t('adminMisc.recycleBin.restoreFailed')) });
       }
     } catch (e) {
       setMsg({ type: 'error', text: t('adminMisc.recycleBin.networkError') });
@@ -59,7 +59,7 @@ export default function RecycleBinPage() {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.permanentlyDeletedToast', { name }) });
         fetchArchived();
       } else {
-        setMsg({ type: 'error', text: data.error || t('adminMisc.recycleBin.deleteFailed') });
+        setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.deleteFailed')) || "") || (data.error || t('adminMisc.recycleBin.deleteFailed')) });
       }
     } catch (e) {
       setMsg({ type: 'error', text: t('adminMisc.recycleBin.networkError') });

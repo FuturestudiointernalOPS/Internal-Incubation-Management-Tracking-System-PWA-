@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
     const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const r = await db.execute({ sql: `SELECT b.*, c.name as creator_name FROM blockers b LEFT JOIN contacts c ON b.user_id = c.cid WHERE b.venture_id = ? ORDER BY b.created_at DESC`, args: [dbId] });
     return NextResponse.json({ success: true, blockers: r.rows || [] });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
@@ -25,7 +25,7 @@ export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const { title, description, venture_retro_id, task_id, supporting_url } = await req.json();
     if (!venture_retro_id) return NextResponse.json({ success: false, error: "venture_retro_id required - blockers must come from a retro" }, { status: 400 });
     if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
@@ -51,11 +51,11 @@ export async function PATCH(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const dbId = await resolveVentureDbId(id); if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const { blocker_id, action } = await req.json();
     if (action === "resolve") {
       const b = await db.execute({ sql: "SELECT user_id FROM blockers WHERE id = ? AND venture_id = ?", args: [blocker_id, dbId] });
-      if (!b.rows?.[0]) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      if (!b.rows?.[0]) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       if (b.rows[0].user_id !== session.cid && !["staff","super_admin","program_manager"].includes(session.role)) {
         return NextResponse.json({ success: false, error: "Only the creator can resolve" }, { status: 403 });
       }

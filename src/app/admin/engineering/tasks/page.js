@@ -128,7 +128,7 @@ export default function EngineeringTasks() {
         setFormDueDate("");
         fetchTasks();
       } else {
-        setFormError(data.error || t("engineering.tasks.createFailed"));
+        setFormError(t((data.error || t("engineering.tasks.createFailed")) || "") || (data.error || t("engineering.tasks.createFailed")));
       }
     } catch (e) {
       setFormError(t("engineering.tasks.networkError"));

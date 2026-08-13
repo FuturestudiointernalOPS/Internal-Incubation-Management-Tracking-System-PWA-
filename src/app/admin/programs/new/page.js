@@ -192,7 +192,7 @@ export default function NewProgram() {
             type: file.type,
           });
         } else {
-          throw new Error(`Upload failed for ${file.name}: ${res.error}`);
+          throw new Error(`Upload failed for ${file.name}: ${t(res.error || "") || res.error}`);
         }
       }
 
@@ -209,7 +209,7 @@ export default function NewProgram() {
       }
       notify("success", "Attached");
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsUploading(false);
     }
@@ -252,7 +252,7 @@ export default function NewProgram() {
         }
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -280,7 +280,7 @@ export default function NewProgram() {
         notify("success", "Created");
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -375,10 +375,10 @@ export default function NewProgram() {
         notify("success", "Created");
         setTimeout(() => router.push("/admin/programs"), 1500);
       } else {
-        throw new Error(data.error || "Failed to save program");
+        throw new Error(t((data.error || "Failed to save program") || "") || (data.error || "Failed to save program"));
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -465,7 +465,7 @@ export default function NewProgram() {
                     if (!selectedTemplate) return;
                     setApplyingTemplate(true);
                     try {
-                      const t = templates.find(
+                      const template = templates.find(
                         (x) => x.id === selectedTemplate,
                       );
                       const res = await fetch(
@@ -475,7 +475,7 @@ export default function NewProgram() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             template_id: selectedTemplate,
-                            name: program.name || t?.name || "New Program",
+                            name: program.name || template?.name || "New Program",
                           }),
                         },
                       );
@@ -484,10 +484,10 @@ export default function NewProgram() {
                         notify("success", "Program created from template!");
                         setTimeout(() => router.push("/admin/programs"), 1500);
                       } else {
-                        notify("error", data.error || "Failed");
+                        notify("error", t((data.error || "Failed") || "") || (data.error || "Failed"));
                       }
                     } catch (e) {
-                      notify("error", e.message);
+                      notify("error", t(e.message || "") || e.message);
                     } finally {
                       setApplyingTemplate(false);
                     }

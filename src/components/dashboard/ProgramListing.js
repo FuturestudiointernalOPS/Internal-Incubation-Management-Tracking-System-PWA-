@@ -278,7 +278,7 @@ export default function ProgramListing() {
         setPrograms(data.programs || []);
         setContact(data.contact);
       } else {
-        setError(data.error || t("participant.failedToLoadPrograms"));
+        setError(t((data.error || t("participant.failedToLoadPrograms")) || "") || (data.error || t("participant.failedToLoadPrograms")));
       }
     } catch (e) {
       setError(t("errors.networkError"));

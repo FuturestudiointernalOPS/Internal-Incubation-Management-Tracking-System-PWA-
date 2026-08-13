@@ -834,7 +834,7 @@ export default function AdminTasks() {
                               assigned_to: val,
                             }));
                           } else {
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Failed to assign' } }));
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || 'Failed to assign') || "") || (data.error || 'Failed to assign') } }));
                           }
                         } catch (_) {} finally {
                           setAssigningUser(false);

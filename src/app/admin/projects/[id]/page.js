@@ -166,7 +166,7 @@ export default function ProjectDetail() {
       if (data.success) {
         setProject(data.project);
       } else {
-        setError(data.error || "Failed to load project");
+        setError(t((data.error || "Failed to load project") || "") || (data.error || "Failed to load project"));
       }
     } catch (e) {
       setError("Network error loading project");
@@ -1007,7 +1007,7 @@ export default function ProjectDetail() {
                       if (data.success) {
                         fetchUpdates();
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Report generated for Week ' + data.week } }));
-                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || 'Failed' } }));
+                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || 'Failed') || "") || (data.error || 'Failed') } }));
                     } catch (_) {}
                   }}
                   className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"

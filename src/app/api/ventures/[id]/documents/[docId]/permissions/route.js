@@ -29,12 +29,12 @@ export async function GET(req, { params }) {
     if (authError) return authError;
     const { id, docId } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, dbId] });
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const r = await db.execute({ sql: "SELECT * FROM venture_document_permissions WHERE document_id = ?", args: [docId] });
     return NextResponse.json({ success: true, permissions: r.rows || [] });
@@ -50,12 +50,12 @@ export async function PATCH(req, { params }) {
     if (authError) return authError;
     const { id, docId } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, dbId] });
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Only founders (or privileged staff roles) may edit permissions.
     if (!PRIVILEGED.includes(session.role)) {

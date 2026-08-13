@@ -13,7 +13,7 @@ export async function POST(req) {
     process.env.ALLOW_IMPERSONATION === "true" ||
     process.env.NEXT_PUBLIC_ALLOW_IMPERSONATION === "true";
   if (!allowed) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ error: "errors.notFound" }, { status: 404 });
   }
 
   try {

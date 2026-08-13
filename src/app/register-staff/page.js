@@ -18,10 +18,12 @@ import {
   Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 // Color constants removed — using CSS variables for theme support.
 
 export default function PublicApplicationRegistration() {
+  const { t } = useI18n();
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -79,7 +81,9 @@ export default function PublicApplicationRegistration() {
       } else {
         setStatus({
           state: "error",
-          message: data.error || "Failed to submit application.",
+          message:
+            t((data.error || "Failed to submit application.") || "") ||
+            (data.error || "Failed to submit application."),
         });
       }
     } catch (err) {

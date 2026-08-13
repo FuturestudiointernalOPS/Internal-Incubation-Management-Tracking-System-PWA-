@@ -92,7 +92,7 @@ export default function InvestorWizardPage() {
       });
       const data = await res.json();
       if (data.success) setSuccess(true);
-      else setError(data.error || "Registration failed.");
+      else setError(t((data.error || "Registration failed.") || "") || (data.error || "Registration failed."));
     } catch (_) { setError("Network error."); }
     setLoading(false);
   };

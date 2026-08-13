@@ -6,12 +6,14 @@ import { motion } from 'framer-motion';
 import { Activity, ShieldCheck, Mail, Phone, Calendar, MapPin, User, ChevronRight, CheckCircle } from 'lucide-react';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 import GlobalToast from '@/components/ui/GlobalToast';
+import { useI18n } from "@/lib/i18n";
 
 /**
  * PUBLIC REGISTRATION FORM (Family-Specific)
  * Located at /register/[family]
  */
 export default function FamilyRegistrationLink() {
+  const { t } = useI18n();
   const params = useParams();
   const rawFamily = params.family;
   const decodedFamilyName = decodeURIComponent(rawFamily);
@@ -51,7 +53,7 @@ export default function FamilyRegistrationLink() {
         } else {
            const errReason = data.errors && data.errors.length > 0 ? data.errors[0].error : "Database error";
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
-               detail: { type: 'error', message: `Registration failed: ${errReason}` } 
+               detail: { type: 'error', message: `Registration failed: ${t(errReason || "") || errReason}` } 
            }));
            setStatus('idle');
         }

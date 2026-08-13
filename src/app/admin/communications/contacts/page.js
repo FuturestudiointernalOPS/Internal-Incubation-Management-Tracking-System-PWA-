@@ -334,7 +334,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.archiveFailed"),
+              message: t((data.error || t("crm.contacts.archiveFailed")) || "") || (data.error || t("crm.contacts.archiveFailed")),
             },
           }),
         );
@@ -375,7 +375,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.restoreFailed"),
+              message: t((data.error || t("crm.contacts.restoreFailed")) || "") || (data.error || t("crm.contacts.restoreFailed")),
             },
           }),
         );
@@ -418,7 +418,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.deleteFailed"),
+              message: t((data.error || t("crm.contacts.deleteFailed")) || "") || (data.error || t("crm.contacts.deleteFailed")),
             },
           }),
         );
@@ -484,7 +484,7 @@ function ContactsPageContent() {
           fetchData();
         }
       } catch (err) {
-        setNotification({ type: "error", message: err.message });
+        setNotification({ type: "error", message: t(err.message || "") || err.message });
       } finally {
         setIsCsvUploading(false);
       }

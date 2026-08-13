@@ -58,7 +58,7 @@ export default function EditVenturePage({ params }) {
       const res = await fetch(`/api/ventures/${id}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || t("vadmin.edit.ventureNotFoundError"));
+        setError(t((data.error || t("vadmin.edit.ventureNotFoundError")) || "") || (data.error || t("vadmin.edit.ventureNotFoundError")));
         return;
       }
       setForm({
@@ -96,7 +96,7 @@ export default function EditVenturePage({ params }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || t("vadmin.edit.saveFailed"));
+        setError(t((data.error || t("vadmin.edit.saveFailed")) || "") || (data.error || t("vadmin.edit.saveFailed")));
         return;
       }
 

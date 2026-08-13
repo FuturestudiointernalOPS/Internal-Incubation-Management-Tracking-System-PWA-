@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function ActivatePage() {
+  const { t } = useI18n();
   const [token, setToken] = useState(null);
   const [mode, setMode] = useState("setup"); // setup or reset
   const [tokenState, setTokenState] = useState("loading"); // loading | valid | expired | invalid
@@ -68,7 +70,10 @@ export default function ActivatePage() {
       if (data.success) {
         setResult("success");
       } else {
-        setError(data.error || "Activation failed");
+        setError(
+          t((data.error || "Activation failed") || "") ||
+            (data.error || "Activation failed"),
+        );
       }
     } catch (e) {
       setError("Network error. Please try again.");

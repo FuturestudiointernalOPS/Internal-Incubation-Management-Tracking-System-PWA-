@@ -110,7 +110,7 @@ export default function VentureKnowledgePage() {
       });
       const d = await res.json();
       if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); fetchAll(); }
-      else notify(d.error || t("vadmin.knowledge.failed"), "error");
+      else notify(t((d.error || t("vadmin.knowledge.failed")) || "") || (d.error || t("vadmin.knowledge.failed")), "error");
     } catch { notify(t("vadmin.knowledge.networkError"), "error"); }
     setSaving(false);
   };

@@ -69,7 +69,7 @@ export default function DevelopersPage() {
         setShowPromoteModal(null);
         fetchDevelopers();
       } else {
-        setActionMsg(data.error || t("engineering.developers.promoteFailed"));
+        setActionMsg(t((data.error || t("engineering.developers.promoteFailed")) || "") || (data.error || t("engineering.developers.promoteFailed")));
       }
     } catch (e) {
       setActionMsg(t("engineering.developers.networkError"));

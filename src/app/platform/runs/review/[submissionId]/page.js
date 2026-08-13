@@ -75,7 +75,7 @@ export default function ReviewPage() {
       const res = await fetch(`/api/platform/form-runs?submission_id=${submissionId}`);
       if (!res.ok) throw new Error(t("adminMisc.platformRuns.loadFailed"));
       const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      if (!data.success) throw new Error(t(data.error || "") || data.error);
       setSubmission(data.submission);
       setRun(data.run);
 
@@ -112,7 +112,7 @@ export default function ReviewPage() {
           }
         } catch (_) {}
       }
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(t(e.message || "") || e.message); }
     setLoading(false);
   }, [submissionId]);
 
@@ -160,7 +160,7 @@ export default function ReviewPage() {
       const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
       const data = await res.json();
       if (data.success) { notify(t("adminMisc.platformRuns.aiEvaluationComplete")); load(); }
-      else notify(data.error || t("adminMisc.platformRuns.evaluationFailed"));
+      else notify(t((data.error || t("adminMisc.platformRuns.evaluationFailed")) || "") || (data.error || t("adminMisc.platformRuns.evaluationFailed")));
     } catch (_) { notify(t("adminMisc.platformRuns.aiEvaluationFailed")); }
     setSaving(false);
   };
@@ -184,7 +184,7 @@ export default function ReviewPage() {
       });
       const data = await res.json();
       if (data.success) { notify(t("adminMisc.platformRuns.reviewSubmitted")); load(); }
-      else notify(data.error || t("adminMisc.platformRuns.failed"));
+      else notify(t((data.error || t("adminMisc.platformRuns.failed")) || "") || (data.error || t("adminMisc.platformRuns.failed")));
     } catch (_) { notify(t("adminMisc.platformRuns.failed")); }
     setSaving(false);
   };

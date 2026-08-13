@@ -89,12 +89,12 @@ export default function VentureVerificationPage() {
       ]);
       const vData = await vRes.json();
       const verData = await verRes.json();
-      if (!vData.success) throw new Error(vData.error || t("vadmin.verification.loadVentureFailed"));
-      if (!verData.success) throw new Error(verData.error || t("vadmin.verification.loadVerificationFailed"));
+      if (!vData.success) throw new Error(t((vData.error || t("vadmin.verification.loadVentureFailed")) || "") || (vData.error || t("vadmin.verification.loadVentureFailed")));
+      if (!verData.success) throw new Error(t((verData.error || t("vadmin.verification.loadVerificationFailed")) || "") || (verData.error || t("vadmin.verification.loadVerificationFailed")));
       setVenture(vData.venture);
       setData(verData);
     } catch (e) {
-      setError(e.message);
+      setError(t(e.message || "") || e.message);
     } finally {
       setLoading(false);
     }
@@ -172,7 +172,7 @@ export default function VentureVerificationPage() {
       });
       const result = await res.json();
       if (result.success) { notify(t("vadmin.verification.submittedForReview")); fetchData(); }
-      else { notify(result.error || t("vadmin.verification.submissionFailed"), "error"); }
+      else { notify(t((result.error || t("vadmin.verification.submissionFailed")) || "") || (result.error || t("vadmin.verification.submissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
   };
 
@@ -184,7 +184,7 @@ export default function VentureVerificationPage() {
       });
       const result = await res.json();
       if (result.success) { notify(t("vadmin.verification.resubmitted")); fetchData(); }
-      else { notify(result.error || t("vadmin.verification.resubmissionFailed"), "error"); }
+      else { notify(t((result.error || t("vadmin.verification.resubmissionFailed")) || "") || (result.error || t("vadmin.verification.resubmissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
   };
 
@@ -201,7 +201,7 @@ export default function VentureVerificationPage() {
         setShowReviewModal(false);
         setReviewNotes("");
         fetchData();
-      } else { notify(result.error || t("vadmin.verification.reviewFailed"), "error"); }
+      } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
     setReviewing(false);
   };

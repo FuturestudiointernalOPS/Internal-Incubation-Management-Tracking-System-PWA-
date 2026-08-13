@@ -5,6 +5,7 @@ import {
   Calendar, Trophy, Send, ChevronLeft, ChevronRight, ChevronDown,
   CheckCircle2, Clock, AlertTriangle, User, Paperclip,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 function getCurrentWeek() {
   const now = new Date();
@@ -207,6 +208,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
 }
 
 export default function StandupRetroView({ user, context, contextLabel }) {
+  const { t } = useI18n();
   const [tab, setTab] = useState("standup");
   const [week, setWeek] = useState(getCurrentWeek());
   const [report, setReport] = useState(null);
@@ -261,7 +263,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, assigned_to: assigneeId, user_id: user.cid }) });
       const data = await res.json();
-      if (!data.success) setToast({ type: "error", msg: data.error || "Assignment failed" });
+      if (!data.success) setToast({ type: "error", msg: t((data.error || "Assignment failed") || "") || (data.error || "Assignment failed") });
       else { setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t)); setToast({ type: "success", msg: "Assigned" }); }
     } catch (e) { setToast({ type: "error", msg: "Network error" }); }
   };
@@ -270,7 +272,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/blockers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task_id: taskId, user_id: user.cid, user_name: user.name, title: blockerTitle }) });
       const data = await res.json();
-      if (!data.success) setToast({ type: "error", msg: data.error || "Blocker failed" });
+      if (!data.success) setToast({ type: "error", msg: t((data.error || "Blocker failed") || "") || (data.error || "Blocker failed") });
       else { setToast({ type: "success", msg: "Blocker added" }); fetchData(); }
     } catch (e) { setToast({ type: "error", msg: "Network error" }); }
   };
@@ -297,7 +299,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(); }
-      else setToast({ type: "error", msg: data.error || "Failed" });
+      else setToast({ type: "error", msg: t((data.error || "Failed") || "") || (data.error || "Failed") });
     } catch (e) { setToast({ type: "error", msg: "Network error" }); } finally { setCreatingTask(false); }
   };
 
@@ -314,7 +316,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      setToast({ type: data.success ? "success" : "error", msg: data.success ? "Stand-Up submitted" : data.error });
+      setToast({ type: data.success ? "success" : "error", msg: data.success ? "Stand-Up submitted" : (t(data.error || "") || data.error) });
       if (data.success) fetchData();
     } catch { setToast({ type: "error", msg: "Network error" }); } finally { setSaving(false); }
   };
@@ -324,7 +326,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      setToast({ type: data.success ? "success" : "error", msg: data.success ? "Retro submitted" : data.error });
+      setToast({ type: data.success ? "success" : "error", msg: data.success ? "Retro submitted" : (t(data.error || "") || data.error) });
       if (data.success) fetchData();
     } catch { setToast({ type: "error", msg: "Network error" }); } finally { setSaving(false); }
   };

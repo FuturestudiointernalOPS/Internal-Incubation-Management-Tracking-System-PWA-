@@ -302,6 +302,8 @@ The API surface (~330 error strings, 304 route files) must not be key-wired stri
 
 Never translate inside `alert()` flows that compare the string afterward; treat API strings as data, translated at the edge (client).
 
+**Status on branch `Abel` (implemented):** shared guards (`requireAuth`, `requireCapability`, `requireProjectAccess`, `requireCapabilityV2`) now return keys — `errors.authRequired`, `errors.insufficientPermissions`, `errors.authSystemFailure`, `errors.authzSystemFailure`; `createHandler`'s catch-all returns `errors.somethingWrong` (real message logged server-side only); `errors.notFound` added for future venture-404 wiring. Five new keys in `errors.json` (EN + FR). Client edge: the global `impactos:notify` toast listener (`src/components/ui/GlobalToast.js`) and the auth/profile error displays (login, register-*, forgot-password, setup-password, activate, invite, `ProfileView`, investor profile) wrap API errors with `t(X || "") || X` — safe for both keys and raw strings. Completed after the initial pass: the app-wide client sweep wrapped ~275 user-visible API-error display sites across `src/app` + `src/components` with `t(X || "") || X` (including the `t`-shadow fix in `admin/programs/new/page.js`), and 67 bare `"Not found"` 404 literals across 30 `src/app/api/**/route.js` files were converted to `errors.notFound` (including all venture access-404 callers). Remaining long tail (documented, low priority): compound not-found messages (e.g. `"Venture not found"`), per-route validation/forbidden prose, and per-route success-message keying (option b).
+
 ## 8. Known gaps & follow-up work
 
 1. **223 IDENTICAL FR keys** (§2) — translate them; densest in `vadmin.json`, `adminMisc.json`, `venture.json`, `investorAdmin.json`.

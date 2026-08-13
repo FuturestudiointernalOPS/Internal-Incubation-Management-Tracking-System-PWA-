@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Metric Card (large) ────────────────────────────────────────────
 function MetricCard({ label, value, icon: Icon, color, subtitle }) {
@@ -178,6 +179,7 @@ function ProgressSkeleton() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgressView({ programId: filterProgramId }) {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -192,7 +194,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       const res = await fetch("/api/participant/progress");
       const result = await res.json();
       if (result.success) setData(result);
-      else setError(result.error || "Failed to load");
+      else setError(t((result.error || "Failed to load") || "") || (result.error || "Failed to load"));
     } catch (e) {
       setError("Network error");
     } finally {

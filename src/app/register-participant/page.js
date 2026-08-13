@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, Users } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export const dynamic = 'force-dynamic';
 
 export default function RegisterParticipantPage() {
+  const { t } = useI18n();
   const [groupId, setGroupId] = useState(null);
 
   useEffect(() => {
@@ -84,7 +86,10 @@ export default function RegisterParticipantPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error || 'Registration failed.');
+        setError(
+          t((data.error || 'Registration failed.') || '') ||
+            (data.error || 'Registration failed.'),
+        );
       }
     } catch (e) {
       setError('Network error during registration.');

@@ -318,7 +318,7 @@ export default function EngineeringOperations() {
                             )}
                           </div>
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {err.message}
+                            {t(err.message || "") || err.message}
                           </p>
                           <p className="text-[8px] font-bold text-slate-500 mt-0.5">
                             {err.page && `${err.page}`}

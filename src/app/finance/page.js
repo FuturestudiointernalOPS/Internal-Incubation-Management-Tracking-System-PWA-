@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Send, DollarSign, Calendar, Building2, FileText, CheckCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function FinanceEntryPage() {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     project: "",
     budgetLine: "",
@@ -57,7 +59,7 @@ export default function FinanceEntryPage() {
         setLineSearch("");
         setTimeout(() => setSuccess(false), 4000);
       } else {
-        setError(data.error || "Submission failed.");
+        setError(t((data.error || "Submission failed.") || "") || (data.error || "Submission failed."));
       }
     } catch (e) {
       setError("Network error.");

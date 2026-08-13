@@ -130,7 +130,7 @@ export default function SecurityPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()])
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(t(err.message || "") || err.message))
       .finally(() => setLoading(false));
   }, [fetchSummary, fetchSessions, fetchEvents, fetchLoginHistory]);
 

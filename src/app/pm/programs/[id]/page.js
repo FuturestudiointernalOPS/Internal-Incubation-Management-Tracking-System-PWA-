@@ -297,7 +297,7 @@ function ProgramWorkspace() {
       if (data.success) {
         notify("Saved");
         fetchProgramData(true);
-      } else notify(data.error || "Save failed.", "error");
+      } else notify(t((data.error || "Save failed.") || "") || (data.error || "Save failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -364,7 +364,7 @@ function ProgramWorkspace() {
         setSelectedParticipants([]);
         setActiveTab("teams");
         setActiveSubTab("groups");
-      } else notify(data.error || "Operation failed.", "error");
+      } else notify(t((data.error || "Operation failed.") || "") || (data.error || "Operation failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -389,7 +389,7 @@ function ProgramWorkspace() {
         notify("Participant moved to new team.");
         fetchProgramData(true);
       } else {
-        notify(data.error || "Failed to move participant.", "error");
+        notify(t((data.error || "Failed to move participant.") || "") || (data.error || "Failed to move participant."), "error");
       }
     } catch (e) {
       notify("Network error.", "error");
@@ -451,7 +451,7 @@ function ProgramWorkspace() {
           requirements: [],
         });
         fetchProgramData(true);
-      } else notify(data.error || "Add failed.", "error");
+      } else notify(t((data.error || "Add failed.") || "") || (data.error || "Add failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -504,7 +504,7 @@ function ProgramWorkspace() {
           assignee_id: "",
         });
         fetchProgramData(true);
-      } else notify(data.error || "Failed.", "error");
+      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -608,7 +608,7 @@ function ProgramWorkspace() {
         if (res.status === 401) {
           notify("Session expired. Please save your work and refresh.", "error");
         } else {
-          notify(data.error || "Field sync failed.", "error");
+          notify(t((data.error || "Field sync failed.") || "") || (data.error || "Field sync failed."), "error");
         }
       }
     } catch (e) {
@@ -705,7 +705,7 @@ function ProgramWorkspace() {
           planned_adjustments: "",
         });
         fetchProgramData(true);
-      } else notify(data.error || "Failed.", "error");
+      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -732,7 +732,7 @@ function ProgramWorkspace() {
         setShowKPIModal(false);
         setNewKPI({ title: "" });
         fetchProgramData(true);
-      } else notify(data.error || "Failed.", "error");
+      } else notify(t((data.error || "Failed.") || "") || (data.error || "Failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -778,7 +778,7 @@ function ProgramWorkspace() {
         setShowStaffModal(false);
         setNewStaff({ staff_id: "", role: "staff" });
         fetchProgramData(true);
-      } else notify(data.error || "Assignment failed.", "error");
+      } else notify(t((data.error || "Assignment failed.") || "") || (data.error || "Assignment failed."), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -881,7 +881,7 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(data.error || "Failed to grade", "error");
+      } else notify(t((data.error || "Failed to grade") || "") || (data.error || "Failed to grade"), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -920,7 +920,7 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(data.error || "Failed to schedule follow-up", "error");
+      } else notify(t((data.error || "Failed to schedule follow-up") || "") || (data.error || "Failed to schedule follow-up"), "error");
     } catch (e) {
       notify("Network error.", "error");
     } finally {
@@ -4533,7 +4533,7 @@ function ProgramWorkspace() {
                         body: JSON.stringify(records),
                       });
                       const data = await res.json();
-                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      if (!data.success) throw new Error(t((data.error || "Unknown error") || "") || (data.error || "Unknown error"));
                       notify(`Attendance recorded — ${data.upserted} participants.`);
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
@@ -5677,7 +5677,7 @@ function ProgramWorkspace() {
                             notify("Team approved for Venture OS!");
                             fetchProgramData(true);
                           } else {
-                            notify(data.error || "Approval failed.", "error");
+                            notify(t((data.error || "Approval failed.") || "") || (data.error || "Approval failed."), "error");
                           }
                         } catch (e) {
                           notify("Network error.", "error");
@@ -5724,7 +5724,7 @@ function ProgramWorkspace() {
                             notify("Venture promoted!");
                             fetchProgramData(true);
                           } else {
-                            notify(data.error || "Promotion failed.", "error");
+                            notify(t((data.error || "Promotion failed.") || "") || (data.error || "Promotion failed."), "error");
                           }
                         } catch (e) {
                           notify("Network error.", "error");

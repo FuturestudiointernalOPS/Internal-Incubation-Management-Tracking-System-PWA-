@@ -151,7 +151,7 @@ export default function SegmentsPage() {
         router.push('/admin/communications/campaigns');
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'error', message: data.error } 
+           detail: { type: 'error', message: t(data.error || "") || data.error } 
         }));
       }
     } catch (err) { console.error(err); } finally {

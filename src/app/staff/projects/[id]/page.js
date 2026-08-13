@@ -79,7 +79,7 @@ export default function StaffProjectDetail() {
       const res = await fetch(`/api/admin/projects/${projectId}`);
       const data = await res.json();
       if (data.success) setProject(data.project);
-      else setError(data.error || "Failed to load project");
+      else setError(t((data.error || "Failed to load project") || "") || (data.error || "Failed to load project"));
     } catch (e) {
       setError("Network error loading project");
     } finally {

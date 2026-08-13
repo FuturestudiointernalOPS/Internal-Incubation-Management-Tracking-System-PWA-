@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Building2, Mail, Lock, User, Globe, Link, CheckCircle2, Loader2, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 export default function InvestorRegisterPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [form, setForm] = useState({
     name: "", email: "", password: "", confirmPassword: "",
     organization_name: "", biography: "", website: "", linkedin: "",
@@ -52,7 +54,7 @@ export default function InvestorRegisterPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error || "Registration failed.");
+        setError(t((data.error || "Registration failed.") || "") || (data.error || "Registration failed."));
       }
     } catch (_) {
       setError("Network error. Please try again.");

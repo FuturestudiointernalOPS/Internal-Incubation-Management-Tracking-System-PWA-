@@ -4,12 +4,16 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
+import { useI18n } from "@/lib/i18n";
+
 function PublicFormContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const form_id = params.form_id;
   const cid = searchParams.get('cid');
   const group_name = searchParams.get('group_name');
+
+  const { t } = useI18n();
 
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -32,7 +36,7 @@ function PublicFormContent() {
       if (data.success) {
         setForm(data.form);
       } else {
-        setError(data.error || 'Form not found');
+        setError(t((data.error || 'Form not found') || '') || (data.error || 'Form not found'));
       }
     } catch (err) {
       setError('Connection error');
@@ -63,7 +67,7 @@ function PublicFormContent() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || '') || data.error } }));
       }
     } catch (err) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Error submitting form' } }));

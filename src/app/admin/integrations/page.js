@@ -119,7 +119,7 @@ export default function IntegrationsPage() {
       if (keysData.success) setApiKeys(keysData.keys || []);
       if (webData.success) setWebhooks(webData.webhooks || []);
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     } finally {
       setLoading(false);
     }
