@@ -298,7 +298,7 @@ function ProgramWorkspace() {
       if (data.success) {
         notify(t("pmMisc.workspace.saved"));
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.saveFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.saveFailed")) || "") || (data.error || t("pmMisc.workspace.saveFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -365,7 +365,7 @@ function ProgramWorkspace() {
         setSelectedParticipants([]);
         setActiveTab("teams");
         setActiveSubTab("groups");
-      } else notify(data.error || t("pmMisc.workspace.operationFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.operationFailed")) || "") || (data.error || t("pmMisc.workspace.operationFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -390,7 +390,7 @@ function ProgramWorkspace() {
         notify(t("pmMisc.workspace.participantMoved"));
         fetchProgramData(true);
       } else {
-        notify(data.error || t("pmMisc.workspace.moveParticipantFailed"), "error");
+        notify(t((data.error || t("pmMisc.workspace.moveParticipantFailed")) || "") || (data.error || t("pmMisc.workspace.moveParticipantFailed")), "error");
       }
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
@@ -452,7 +452,7 @@ function ProgramWorkspace() {
           requirements: [],
         });
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.addFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.addFailed")) || "") || (data.error || t("pmMisc.workspace.addFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -505,7 +505,7 @@ function ProgramWorkspace() {
           assignee_id: "",
         });
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -609,7 +609,7 @@ function ProgramWorkspace() {
         if (res.status === 401) {
           notify(t("pmMisc.workspace.sessionExpired"), "error");
         } else {
-          notify(data.error || t("pmMisc.workspace.fieldSyncFailed"), "error");
+          notify(t((data.error || t("pmMisc.workspace.fieldSyncFailed")) || "") || (data.error || t("pmMisc.workspace.fieldSyncFailed")), "error");
         }
       }
     } catch (e) {
@@ -706,7 +706,7 @@ function ProgramWorkspace() {
           planned_adjustments: "",
         });
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -733,7 +733,7 @@ function ProgramWorkspace() {
         setShowKPIModal(false);
         setNewKPI({ title: "" });
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.failed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -779,7 +779,7 @@ function ProgramWorkspace() {
         setShowStaffModal(false);
         setNewStaff({ staff_id: "", role: "staff" });
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.assignmentFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.assignmentFailed")) || "") || (data.error || t("pmMisc.workspace.assignmentFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -882,7 +882,7 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.gradeFailed")) || "") || (data.error || t("pmMisc.workspace.gradeFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -921,7 +921,7 @@ function ProgramWorkspace() {
         setFollowupDate("");
         setFollowupTime("");
         fetchProgramData(true);
-      } else notify(data.error || t("pmMisc.workspace.followupScheduleFailed"), "error");
+      } else notify(t((data.error || t("pmMisc.workspace.followupScheduleFailed")) || "") || (data.error || t("pmMisc.workspace.followupScheduleFailed")), "error");
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -4533,7 +4533,7 @@ function ProgramWorkspace() {
                         body: JSON.stringify(records),
                       });
                       const data = await res.json();
-                      if (!data.success) throw new Error(data.error || "Unknown error");
+                      if (!data.success) throw new Error(t((data.error || "Unknown error") || "") || (data.error || "Unknown error"));
                       notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
@@ -5709,7 +5709,7 @@ function ProgramWorkspace() {
                             notify(t("pmMisc.workspace.teamApproved"));
                             fetchProgramData(true);
                           } else {
-                            notify(data.error || t("pmMisc.workspace.approvalFailed"), "error");
+                            notify(t((data.error || t("pmMisc.workspace.approvalFailed")) || "") || (data.error || t("pmMisc.workspace.approvalFailed")), "error");
                           }
                         } catch (e) {
                           notify(t("pmMisc.workspace.networkError"), "error");
@@ -5756,7 +5756,7 @@ function ProgramWorkspace() {
                             notify(t("pmMisc.workspace.venturePromoted"));
                             fetchProgramData(true);
                           } else {
-                            notify(data.error || t("pmMisc.workspace.promotionFailed"), "error");
+                            notify(t((data.error || t("pmMisc.workspace.promotionFailed")) || "") || (data.error || t("pmMisc.workspace.promotionFailed")), "error");
                           }
                         } catch (e) {
                           notify(t("pmMisc.workspace.networkError"), "error");

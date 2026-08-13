@@ -279,7 +279,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/tasks", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: taskId, assigned_to: assigneeId, user_id: user.cid }) });
       const data = await res.json();
-      if (!data.success) setToast({ type: "error", msg: data.error || t("staffMisc.standupRetro.assignmentFailed") });
+      if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.assignmentFailed")) || "") || (data.error || t("staffMisc.standupRetro.assignmentFailed")) });
       else { setTasks((prev) => prev.map((t) => t.id === taskId ? { ...t, assigned_to: assigneeId } : t)); setToast({ type: "success", msg: t("staffMisc.standupRetro.assigned") }); }
     } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
@@ -288,7 +288,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/blockers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task_id: taskId, user_id: user.cid, user_name: user.name, title: blockerTitle }) });
       const data = await res.json();
-      if (!data.success) setToast({ type: "error", msg: data.error || t("staffMisc.standupRetro.blockerFailed") });
+      if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.blockerFailed")) || "") || (data.error || t("staffMisc.standupRetro.blockerFailed")) });
       else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); fetchData(); }
     } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
@@ -315,7 +315,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(); }
-      else setToast({ type: "error", msg: data.error || t("staffMisc.standupRetro.failed") });
+      else setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.failed")) || "") || (data.error || t("staffMisc.standupRetro.failed")) });
     } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setCreatingTask(false); }
   };
 
@@ -332,7 +332,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.standupSubmitted") : data.error });
+      setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.standupSubmitted") : (t(data.error || "") || data.error) });
       if (data.success) fetchData();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
@@ -342,7 +342,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.retroSubmitted") : data.error });
+      setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.retroSubmitted") : (t(data.error || "") || data.error) });
       if (data.success) fetchData();
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };

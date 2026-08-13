@@ -32,7 +32,7 @@ function SetupPasswordForm() {
       });
       const data = await res.json();
       if (data.success) setSuccess(true);
-      else setError(data.error || t("investorMisc.setupPassword.errorFailed"));
+      else setError(t((data.error || t("investorMisc.setupPassword.errorFailed")) || "") || (data.error || t("investorMisc.setupPassword.errorFailed")));
     } catch (_) { setError(t("investorMisc.setupPassword.errorNetwork")); }
     setLoading(false);
   };

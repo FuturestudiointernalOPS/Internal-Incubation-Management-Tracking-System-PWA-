@@ -94,7 +94,7 @@ export default function SubmitFormPage() {
       // Load run detail + user's submission (participant endpoint)
       const runRes = await fetch(`/api/platform/form-runs?id=${runId}&participant=true`);
       const runData = await runRes.json();
-      if (!runData.success) throw new Error(runData.error || t("platformMisc.runSubmitDetail.runNotFound"));
+      if (!runData.success) throw new Error(t((runData.error || t("platformMisc.runSubmitDetail.runNotFound")) || "") || (runData.error || t("platformMisc.runSubmitDetail.runNotFound")));
       setRun(runData.run);
 
       // Set existing submission if any
@@ -119,7 +119,7 @@ export default function SubmitFormPage() {
       setExpandedSections(expanded);
 
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };
@@ -180,7 +180,7 @@ export default function SubmitFormPage() {
         setExistingSubmission(data.submission);
         notify(t("platformMisc.runSubmitDetail.draftSaved"));
       } else {
-        notify(data.error || t("platformMisc.runSubmitDetail.saveDraftFailed"));
+        notify(t((data.error || t("platformMisc.runSubmitDetail.saveDraftFailed")) || "") || (data.error || t("platformMisc.runSubmitDetail.saveDraftFailed")));
       }
     } catch (_) {}
     setSaving(false);
@@ -201,7 +201,7 @@ export default function SubmitFormPage() {
         setSuccess(true);
         notify(t("platformMisc.runSubmitDetail.submissionReceived"));
       } else {
-        notify(data.error || t("platformMisc.runSubmitDetail.submitFailed"));
+        notify(t((data.error || t("platformMisc.runSubmitDetail.submitFailed")) || "") || (data.error || t("platformMisc.runSubmitDetail.submitFailed")));
       }
     } catch (_) {}
     setSaving(false);

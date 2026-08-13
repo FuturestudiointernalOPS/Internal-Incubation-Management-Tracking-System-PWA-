@@ -86,7 +86,7 @@ export default function RegisterParticipantPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error || t('rootMisc.registerParticipant.registrationFailed'));
+        setError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
       }
     } catch (e) {
       setError(t('rootMisc.registerParticipant.networkError'));

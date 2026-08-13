@@ -34,7 +34,7 @@ function PublicFormContent() {
       if (data.success) {
         setForm(data.form);
       } else {
-        setError(data.error || t("rootMisc.form.formNotFound"));
+        setError(t((data.error || t("rootMisc.form.formNotFound")) || "") || (data.error || t("rootMisc.form.formNotFound")));
       }
     } catch (err) {
       setError(t("rootMisc.form.connectionError"));
@@ -65,7 +65,7 @@ function PublicFormContent() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
     } catch (err) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("rootMisc.form.errorSubmitting") } }));

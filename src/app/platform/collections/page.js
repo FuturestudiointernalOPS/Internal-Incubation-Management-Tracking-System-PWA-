@@ -134,7 +134,7 @@ export default function CollectionsPage() {
         setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
         fetchCollections();
       } else {
-        notify(data.error || t("platformMisc.collections.failed"));
+        notify(t((data.error || t("platformMisc.collections.failed")) || "") || (data.error || t("platformMisc.collections.failed")));
       }
     } catch (_) {}
     setSaving(false);

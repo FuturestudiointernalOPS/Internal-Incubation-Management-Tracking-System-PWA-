@@ -166,7 +166,7 @@ export default function ProjectDetail() {
       if (data.success) {
         setProject(data.project);
       } else {
-        setError(data.error || t("adminMisc.projectDetail.loadProjectFailed"));
+        setError(t((data.error || t("adminMisc.projectDetail.loadProjectFailed")) || "") || (data.error || t("adminMisc.projectDetail.loadProjectFailed")));
       }
     } catch (e) {
       setError(t("adminMisc.projectDetail.loadProjectNetworkError"));
@@ -1077,7 +1077,7 @@ export default function ProjectDetail() {
                       if (data.success) {
                         fetchUpdates();
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.projectDetail.reportGenerated", { week: data.week }) } }));
-                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("adminMisc.projectDetail.generateFailed") } }));
+                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.projectDetail.generateFailed")) || "") || (data.error || t("adminMisc.projectDetail.generateFailed")) } }));
                     } catch (_) {}
                   }}
                   className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"

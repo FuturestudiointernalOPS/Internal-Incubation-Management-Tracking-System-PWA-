@@ -37,7 +37,7 @@ function RegisterVentureContent() {
         if (d.success) {
           setTokenValid(true);
         } else {
-          setError(d.error || t("rootMisc.registerVenture.invalidInvitationLink"));
+          setError(t((d.error || t("rootMisc.registerVenture.invalidInvitationLink")) || "") || (d.error || t("rootMisc.registerVenture.invalidInvitationLink")));
         }
       })
       .catch(() => setError(t("rootMisc.registerVenture.unableToValidateLink")))
@@ -75,7 +75,7 @@ function RegisterVentureContent() {
         );
         setTimeout(() => router.push("/login"), 2500);
       } else {
-        setError(d.error || t("rootMisc.registerVenture.createFailed"));
+        setError(t((d.error || t("rootMisc.registerVenture.createFailed")) || "") || (d.error || t("rootMisc.registerVenture.createFailed")));
         setSubmitting(false);
       }
     } catch (err) {

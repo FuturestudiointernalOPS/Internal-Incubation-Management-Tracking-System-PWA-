@@ -191,7 +191,7 @@ export default function ProjectKanbanBoard() {
       if (data.success) {
         setAllTasks((prev) => prev.filter((t) => t.id !== taskId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("adminMisc.work.deleteTaskFailed") } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.work.deleteTaskFailed")) || "") || (data.error || t("adminMisc.work.deleteTaskFailed")) } }));
       }
     } catch (e) {
       console.error("Delete error:", e);

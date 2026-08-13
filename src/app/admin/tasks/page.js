@@ -841,7 +841,7 @@ export default function AdminTasks() {
                               assigned_to: val,
                             }));
                           } else {
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("adminMisc.tasks.assignFailed") } }));
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.tasks.assignFailed")) || "") || (data.error || t("adminMisc.tasks.assignFailed")) } }));
                           }
                         } catch (_) {} finally {
                           setAssigningUser(false);

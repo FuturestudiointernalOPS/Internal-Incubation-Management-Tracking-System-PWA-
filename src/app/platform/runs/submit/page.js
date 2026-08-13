@@ -45,10 +45,10 @@ export default function MySubmissionsPage() {
       if (data.success) {
         setSubmissions(data.submissions || []);
       } else {
-        setError(data.error || t("platformMisc.runSubmit.loadFailed"));
+        setError(t((data.error || t("platformMisc.runSubmit.loadFailed")) || "") || (data.error || t("platformMisc.runSubmit.loadFailed")));
       }
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };

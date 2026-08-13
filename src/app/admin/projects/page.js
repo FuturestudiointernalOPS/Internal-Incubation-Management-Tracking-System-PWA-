@@ -311,7 +311,7 @@ export default function AdminProjects() {
       } else {
         setToast({
           type: "error",
-          msg: data.error || t("adminMisc.projectsList.createFailed"),
+          msg: t((data.error || t("adminMisc.projectsList.createFailed")) || "") || (data.error || t("adminMisc.projectsList.createFailed")),
         });
       }
     } catch (e) {

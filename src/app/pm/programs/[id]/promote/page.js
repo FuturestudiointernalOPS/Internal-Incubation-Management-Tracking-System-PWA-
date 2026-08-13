@@ -136,16 +136,16 @@ export default function PromoteToVenture() {
           router.push(data.redirect);
         }, 2000);
       } else {
-        setPromotionError(data.error || t("pmMisc.promote.promotionFailed"));
+        setPromotionError(t((data.error || t("pmMisc.promote.promotionFailed")) || "") || (data.error || t("pmMisc.promote.promotionFailed")));
         if (data.conflicts) {
           notify(data.conflicts.join(", "), "error");
         } else {
-          notify(data.error || t("pmMisc.promote.promotionFailed"), "error");
+          notify(t((data.error || t("pmMisc.promote.promotionFailed")) || "") || (data.error || t("pmMisc.promote.promotionFailed")), "error");
         }
       }
     } catch (e) {
       notify(t("pmMisc.promote.networkErrorDuringPromotion"), "error");
-      setPromotionError(e.message);
+      setPromotionError(t(e.message || "") || e.message);
     } finally {
       setSubmitting(false);
       setShowConfirmModal(false);

@@ -81,7 +81,7 @@ export default function PublicApplicationRegistration() {
       } else {
         setStatus({
           state: "error",
-          message: data.error || t("rootMisc.registerStaff.errorSubmitFailed"),
+          message: t((data.error || t("rootMisc.registerStaff.errorSubmitFailed")) || "") || (data.error || t("rootMisc.registerStaff.errorSubmitFailed")),
         });
       }
     } catch (err) {

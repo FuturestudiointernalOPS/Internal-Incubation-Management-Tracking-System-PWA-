@@ -106,7 +106,7 @@ export default function DeveloperRetro() {
         setLessonsLearned("");
         setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
-      } else setError(d.error || t("developerMisc.retro.submitFailed"));
+      } else setError(t((d.error || t("developerMisc.retro.submitFailed")) || "") || (d.error || t("developerMisc.retro.submitFailed")));
     } catch (e) {
       setError(t("developerMisc.retro.networkError"));
     } finally {

@@ -133,7 +133,7 @@ export default function SystemMonitoringPage() {
       if (jobStatsData.success) setJobStats(jobStatsData);
       if (reportsData.success) setReports(reportsData.reports || []);
       setAlerts(alertStatsData);
-    } catch (err) { setError(err.message); }
+    } catch (err) { setError(t(err.message || "") || err.message); }
     finally { setLoading(false); }
   }, []);
 

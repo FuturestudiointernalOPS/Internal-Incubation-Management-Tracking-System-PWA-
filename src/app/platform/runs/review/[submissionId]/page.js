@@ -66,7 +66,7 @@ export default function ReviewPage() {
       const res = await fetch(`/api/platform/form-runs?submission_id=${submissionId}`);
       if (!res.ok) throw new Error(t("platformMisc.runReview.loadFailed"));
       const data = await res.json();
-      if (!data.success) throw new Error(data.error);
+      if (!data.success) throw new Error(t(data.error || "") || data.error);
       setSubmission(data.submission);
       setRun(data.run);
 
@@ -103,7 +103,7 @@ export default function ReviewPage() {
           }
         } catch (_) {}
       }
-    } catch (e) { setError(e.message); }
+    } catch (e) { setError(t(e.message || "") || e.message); }
     setLoading(false);
   }, [submissionId]);
 
@@ -151,7 +151,7 @@ export default function ReviewPage() {
       const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
       const data = await res.json();
       if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); load(); }
-      else notify(data.error || t("platformMisc.runReview.evalFailed"));
+      else notify(t((data.error || t("platformMisc.runReview.evalFailed")) || "") || (data.error || t("platformMisc.runReview.evalFailed")));
     } catch (_) { notify(t("platformMisc.runReview.aiEvalFailed")); }
     setSaving(false);
   };
@@ -175,7 +175,7 @@ export default function ReviewPage() {
       });
       const data = await res.json();
       if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); load(); }
-      else notify(data.error || t("platformMisc.runReview.failed"));
+      else notify(t((data.error || t("platformMisc.runReview.failed")) || "") || (data.error || t("platformMisc.runReview.failed")));
     } catch (_) { notify(t("platformMisc.runReview.failed")); }
     setSaving(false);
   };

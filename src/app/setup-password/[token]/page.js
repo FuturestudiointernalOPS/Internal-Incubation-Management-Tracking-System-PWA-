@@ -77,7 +77,7 @@ export default function SetupPasswordPage({ params }) {
           router.push("/login");
         }, 2500);
       } else {
-        setError(data.error || t("rootMisc.setupPassword.errorSetFailed"));
+        setError(t((data.error || t("rootMisc.setupPassword.errorSetFailed")) || "") || (data.error || t("rootMisc.setupPassword.errorSetFailed")));
         setSubmitting(false);
       }
     } catch (err) {

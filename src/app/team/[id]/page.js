@@ -269,7 +269,7 @@ export default function TeamDashboardPage({ params }) {
       } else {
         setToast({
           type: "error",
-          message: data.error || t("rootMisc.team.submissionFailed"),
+          message: t((data.error || t("rootMisc.team.submissionFailed")) || "") || (data.error || t("rootMisc.team.submissionFailed")),
         });
       }
     } catch (_) {
@@ -324,10 +324,10 @@ export default function TeamDashboardPage({ params }) {
         setFollowUpDate("");
         fetchTeamData();
       } else {
-        setToast({ type: "error", message: data.error || t("rootMisc.team.reviewFailed") });
+        setToast({ type: "error", message: t((data.error || t("rootMisc.team.reviewFailed")) || "") || (data.error || t("rootMisc.team.reviewFailed")) });
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setReviewing(false);
   };
@@ -355,7 +355,7 @@ export default function TeamDashboardPage({ params }) {
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setSavingTask(false);
   };
@@ -385,7 +385,7 @@ export default function TeamDashboardPage({ params }) {
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
   };
 

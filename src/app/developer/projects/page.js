@@ -46,7 +46,7 @@ export default function DeveloperProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("developerMisc.projects.failedToRespond") } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("developerMisc.projects.failedToRespond")) || "") || (data.error || t("developerMisc.projects.failedToRespond")) } }));
       }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("developerMisc.projects.networkError") } }));

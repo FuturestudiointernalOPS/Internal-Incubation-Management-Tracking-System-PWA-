@@ -223,7 +223,7 @@ export default function ParticipantDashboardHome() {
       if (result.success) {
         setData(result);
       } else {
-        setError(result.error || t("participantMisc.dashboardHome.failedToLoad"));
+        setError(t((result.error || t("participantMisc.dashboardHome.failedToLoad")) || "") || (result.error || t("participantMisc.dashboardHome.failedToLoad")));
       }
     } catch (e) {
       setError(t("participantMisc.dashboardHome.networkError"));

@@ -403,7 +403,7 @@ export default function FormRunsPage() {
         await fetchGroups();
         if (onDone) onDone(data.group);
       } else {
-        notify(data.error || t("platformMisc.runs.failedToCreateGroup"));
+        notify(t((data.error || t("platformMisc.runs.failedToCreateGroup")) || "") || (data.error || t("platformMisc.runs.failedToCreateGroup")));
       }
     } catch (_) {
       notify(t("platformMisc.runs.failedToCreateGroup"));
@@ -536,7 +536,7 @@ export default function FormRunsPage() {
         setReviewTimeline([]);
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || t("platformMisc.runs.reviewFailed"));
+        notify(t((data.error || t("platformMisc.runs.reviewFailed")) || "") || (data.error || t("platformMisc.runs.reviewFailed")));
       }
     } catch (_) {}
     setSaving(false);
@@ -558,7 +558,7 @@ export default function FormRunsPage() {
         setEvaluation(data.evaluation);
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || t("platformMisc.runs.reevaluationFailed"));
+        notify(t((data.error || t("platformMisc.runs.reevaluationFailed")) || "") || (data.error || t("platformMisc.runs.reevaluationFailed")));
       }
     } catch (_) {
       notify(t("platformMisc.runs.networkError"));
@@ -647,7 +647,7 @@ export default function FormRunsPage() {
         // Reload run data
         if (selectedRun) openRun(selectedRun);
       } else {
-        notify(data.error || t("platformMisc.runs.deleteFailed"));
+        notify(t((data.error || t("platformMisc.runs.deleteFailed")) || "") || (data.error || t("platformMisc.runs.deleteFailed")));
       }
     } catch (_) {}
   };
@@ -740,7 +740,7 @@ export default function FormRunsPage() {
       if (!data.success) {
         stopped = true;
         setEvalProgress((p) => p && { ...p, running: false, stopped: true });
-        notify(data.error || t("platformMisc.runs.evalStopped"));
+        notify(t((data.error || t("platformMisc.runs.evalStopped")) || "") || (data.error || t("platformMisc.runs.evalStopped")));
         break;
       }
 

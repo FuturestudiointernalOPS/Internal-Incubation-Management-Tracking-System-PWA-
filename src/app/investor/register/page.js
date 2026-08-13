@@ -54,7 +54,7 @@ export default function InvestorRegisterPage() {
       if (data.success) {
         setSuccess(true);
       } else {
-        setError(data.error || t("investorMisc.register.errorRegistrationFailed"));
+        setError(t((data.error || t("investorMisc.register.errorRegistrationFailed")) || "") || (data.error || t("investorMisc.register.errorRegistrationFailed")));
       }
     } catch (_) {
       setError(t("investorMisc.register.errorNetwork"));

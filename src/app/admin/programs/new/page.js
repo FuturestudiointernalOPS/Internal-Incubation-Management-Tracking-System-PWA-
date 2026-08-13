@@ -192,7 +192,7 @@ export default function NewProgram() {
             type: file.type,
           });
         } else {
-          throw new Error(t("adminMisc.newProgram.uploadFailedFor", { name: file.name, error: res.error }));
+          throw new Error(t("adminMisc.newProgram.uploadFailedFor", { name: file.name, error: t(res.error || "") || res.error }));
         }
       }
 
@@ -209,7 +209,7 @@ export default function NewProgram() {
       }
       notify("success", t("adminMisc.newProgram.attached"));
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsUploading(false);
     }
@@ -252,7 +252,7 @@ export default function NewProgram() {
         }
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -280,7 +280,7 @@ export default function NewProgram() {
         notify("success", t("adminMisc.newProgram.created"));
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -375,10 +375,10 @@ export default function NewProgram() {
         notify("success", t("adminMisc.newProgram.created"));
         setTimeout(() => router.push("/admin/programs"), 1500);
       } else {
-        throw new Error(data.error || t("adminMisc.newProgram.failedToSaveProgram"));
+        throw new Error(t((data.error || t("adminMisc.newProgram.failedToSaveProgram")) || "") || (data.error || t("adminMisc.newProgram.failedToSaveProgram")));
       }
     } catch (e) {
-      notify("error", e.message);
+      notify("error", t(e.message || "") || e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -484,10 +484,10 @@ export default function NewProgram() {
                         notify("success", t("adminMisc.newProgram.programCreatedFromTemplate"));
                         setTimeout(() => router.push("/admin/programs"), 1500);
                       } else {
-                        notify("error", data.error || t("adminMisc.newProgram.failed"));
+                        notify("error", t((data.error || t("adminMisc.newProgram.failed")) || "") || (data.error || t("adminMisc.newProgram.failed")));
                       }
                     } catch (e) {
-                      notify("error", e.message);
+                      notify("error", t(e.message || "") || e.message);
                     } finally {
                       setApplyingTemplate(false);
                     }

@@ -51,7 +51,7 @@ export default function FamilyRegistrationLink() {
            setStatus('success');
            IMPACT_CACHE.clear('contacts');
         } else {
-           const errReason = data.errors && data.errors.length > 0 ? data.errors[0].error : t("rootMisc.registerFamily.databaseError");
+           const errReason = data.errors && data.errors.length > 0 ? (t(data.errors[0].error || "") || data.errors[0].error) : t("rootMisc.registerFamily.databaseError");
            window.dispatchEvent(new CustomEvent('impactos:notify', { 
                detail: { type: 'error', message: t("rootMisc.registerFamily.registrationFailed", { reason: errReason }) } 
            }));

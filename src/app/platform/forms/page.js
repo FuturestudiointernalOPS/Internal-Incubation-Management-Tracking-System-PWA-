@@ -470,7 +470,7 @@ export default function PlatformForms() {
             setEditingForm(fresh.form || editingForm);
           }
         } catch (_) {}
-      } else notify(data.error || t("platformMisc.forms.saveFailed"));
+      } else notify(t((data.error || t("platformMisc.forms.saveFailed")) || "") || (data.error || t("platformMisc.forms.saveFailed")));
     } catch (_) {}
     setSaving(false);
   };
@@ -862,7 +862,7 @@ export default function PlatformForms() {
                               setTimeout(() => openBuilder(data.form), 400);
                             }
                           } else {
-                            notify(data.error || t("platformMisc.forms.aiGenFailed"));
+                            notify(t((data.error || t("platformMisc.forms.aiGenFailed")) || "") || (data.error || t("platformMisc.forms.aiGenFailed")));
                           }
                         } catch (_) { notify(t("platformMisc.forms.aiGenFailedConnection")); }
                         setAiGenLoading(false);
@@ -1643,7 +1643,7 @@ export default function PlatformForms() {
                       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
                       const res = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
                       if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
-                      else { const err = await res.json(); notify(err.error || t("platformMisc.forms.saveFailed")); }
+                      else { const err = await res.json(); notify(t((err.error || t("platformMisc.forms.saveFailed")) || "") || (err.error || t("platformMisc.forms.saveFailed"))); }
                     } catch (_) { notify(t("platformMisc.forms.saveFailed")); }
                     setAiEvalLoading(false);
                   }}
@@ -1693,7 +1693,7 @@ export default function PlatformForms() {
                       notify(t("platformMisc.forms.aiEvalGenerated", { count: data.framework.dimensions?.length || 0 }));
                       setAiEvalText("");
                     } else {
-                      notify(data.error || t("platformMisc.forms.aiEvalGenerationFailed"));
+                      notify(t((data.error || t("platformMisc.forms.aiEvalGenerationFailed")) || "") || (data.error || t("platformMisc.forms.aiEvalGenerationFailed")));
                     }
                   } catch (_) { notify(t("platformMisc.forms.aiEvalGenerationFailedConnection")); }
                   setAiEvalLoading(false);

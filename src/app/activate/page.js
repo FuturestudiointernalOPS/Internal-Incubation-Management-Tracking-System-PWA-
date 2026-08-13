@@ -70,7 +70,7 @@ export default function ActivatePage() {
       if (data.success) {
         setResult("success");
       } else {
-        setError(data.error || t("rootMisc.activate.activationFailed"));
+        setError(t((data.error || t("rootMisc.activate.activationFailed")) || "") || (data.error || t("rootMisc.activate.activationFailed")));
       }
     } catch (e) {
       setError(t("rootMisc.activate.networkError"));

@@ -100,7 +100,7 @@ export default function MyProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("staffMisc.projects.failedToRespond") } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("staffMisc.projects.failedToRespond")) || "") || (data.error || t("staffMisc.projects.failedToRespond")) } }));
       }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("staffMisc.projects.networkError") } }));
