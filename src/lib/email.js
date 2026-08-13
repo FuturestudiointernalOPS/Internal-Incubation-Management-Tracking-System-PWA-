@@ -614,6 +614,33 @@ export async function getEmailLogRow(submissionId, emailType) {
 }
 
 /**
+ * RECIPIENT-LEVEL IDEMPOTENCY — when the same person appears in multiple
+ * submissions of the same run (duplicate email), only ONE email of a given
+ * type is ever sent to their address. Returns true when an email of that
+ * type has already been successfully sent to this recipient for this run,
+ * regardless of which submission it was attached to.
+ */
+export async function hasSentEmailToRecipientInRun({ run_id, email_type, recipient }) {
+  if (!run_id || !recipient) return false;
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const res = await db.execute({
+      sql: `SELECT 1
+            FROM platform_email_log el
+            JOIN platform_form_submissions s ON el.submission_id = s.id
+            WHERE s.run_id = ? AND el.email_type = ? AND el.status = 'sent'
+              AND LOWER(el.recipient) = LOWER(?)
+            LIMIT 1`,
+      args: [parseInt(run_id), email_type, String(recipient).trim()],
+    });
+    return res.rows.length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * Artificial/placeholder addresses (import fallbacks, reserved domains) must
  * never be treated as real recipients.
  */

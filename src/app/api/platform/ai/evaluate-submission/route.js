@@ -193,6 +193,43 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     const score = parseFloat(evaluation?.overall_score);
     if (isNaN(score) || score < parseFloat(cutoff)) return;
 
+    // ── DUPLICATE GUARD: when the same email appears in multiple submissions
+    // of this run, only the HIGHEST-scored one is auto-approved — lower-scored
+    // duplicates stay submitted and never receive an email.
+    const subData = submission.data || {};
+    const applicantEmail = Object.values(subData).find((v) => typeof v === "string" && v.includes("@"));
+    if (applicantEmail) {
+      try {
+        const siblings = await db.execute({
+          sql: `SELECT s.id, s.status,
+                      (SELECT overall_score FROM platform_submission_evaluations
+                       WHERE submission_id = s.id ORDER BY evaluated_at DESC LIMIT 1) AS overall_score
+                FROM platform_form_submissions s
+                WHERE s.run_id = ? AND s.id != ?
+                  AND s.data::text ILIKE '%' || ? || '%'
+                  AND s.status IN ('submitted','approved')`,
+          args: [submission.run_id, submissionId, applicantEmail],
+        });
+        const better = siblings.rows.find((r) => {
+          const s = parseFloat(r.overall_score);
+          return !isNaN(s) && s > score;
+        });
+        if (better) {
+          const { recordEmailStatus } = await import("@/lib/email");
+          await recordEmailStatus({
+            submission_id: submissionId,
+            contact_cid: submission.submitter_id || null,
+            email_type: "approval",
+            status: "skipped",
+            error: "Skipped — duplicate email: a higher-scored submission with the same email exists in this run",
+            to: applicantEmail,
+          });
+          console.log("[Auto-Approve] Skipped (lower-scored duplicate):", applicantEmail, "vs submission", better.id);
+          return;
+        }
+      } catch (_) {}
+    }
+
     // Approve through the same path a human reviewer uses
     const { onReview } = await import("@/lib/platform/automation");
     const comment = `Auto-approved: AI score ${score} meets cutoff ${cutoff}`;

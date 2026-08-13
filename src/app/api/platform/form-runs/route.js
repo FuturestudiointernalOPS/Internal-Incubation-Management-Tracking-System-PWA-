@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus, isGenericName } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus, isGenericName, hasSentEmailToRecipientInRun } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -459,6 +459,25 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     const subData = row.data || {};
     const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
     if (!applicantEmail) return { status: "failed", error: "No email address found in submission data" };
+
+    // Duplicate-recipient guard: when the same email address appears in
+    // multiple submissions of this run, only ONE decision email is ever sent.
+    const alreadyEmailed = await hasSentEmailToRecipientInRun({
+      run_id: row.run_id,
+      email_type: decision === "approved" ? "approval" : "rejection",
+      recipient: applicantEmail,
+    });
+    if (alreadyEmailed) {
+      await recordEmailStatus({
+        submission_id: parseInt(submission_id),
+        contact_cid: row.submitter_id || null,
+        email_type: decision === "approved" ? "approval" : "rejection",
+        status: "skipped",
+        error: "Skipped — duplicate recipient: an email was already sent to this address for this run",
+        to: applicantEmail,
+      });
+      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+    }
 
     // Best real name — resolved deterministically with the form's actual
     // question labels (submission data is keyed by field id).
