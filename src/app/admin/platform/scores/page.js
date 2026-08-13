@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronDown,
@@ -14,6 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   ShieldAlert,
+  Search,
+  Filter,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -28,13 +30,20 @@ const STATUS_CONFIG = {
 export default function ScoresPage() {
   const [forms, setForms] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState("");
-  const [minScore, setMinScore] = useState(0);
-  const [maxScore, setMaxScore] = useState(100);
   const [sort, setSort] = useState("desc");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [expanded, setExpanded] = useState({});
+
+  // Search + filters (client-side over the fetched dataset — instant, no reload)
+  const [search, setSearch] = useState("");
+  const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
+  const [scoreVal, setScoreVal] = useState("");
+  const [scoreVal2, setScoreVal2] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [rankingFilter, setRankingFilter] = useState("");
+  const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
 
   // Approval state
   const [selected, setSelected] = useState({});
@@ -73,8 +82,6 @@ export default function ScoresPage() {
         form_id: selectedFormId,
         sort,
       });
-      if (minScore !== null && minScore !== "") params.set("min_score", minScore);
-      if (maxScore !== null && maxScore !== "") params.set("max_score", maxScore);
 
       const res = await fetch(
         `/api/platform/ai/evaluation-scores?${params.toString()}`
@@ -91,7 +98,7 @@ export default function ScoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFormId, minScore, maxScore, sort]);
+  }, [selectedFormId, sort]);
 
   const toggleExpand = (idx) => {
     setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
@@ -102,9 +109,10 @@ export default function ScoresPage() {
   };
 
   const exportCSV = () => {
-    if (!data?.respondents?.length) return;
+    const rows = filteredRespondents;
+    if (!rows.length) return;
     const headers = ["Name", "Email", "Score", "Ranking", "Recommendation", "Status"];
-    const rows = data.respondents.map((r) =>
+    const bodyRows = rows.map((r) =>
       [
         `"${(r.name || "").replace(/"/g, '""')}"`,
         `"${(r.email || "").replace(/"/g, '""')}"`,
@@ -114,7 +122,7 @@ export default function ScoresPage() {
         r.status || "",
       ].join(",")
     );
-    const csv = [headers.join(","), ...rows].join("\n");
+    const csv = [headers.join(","), ...bodyRows].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -122,6 +130,85 @@ export default function ScoresPage() {
     a.download = `evaluation_scores_${selectedFormId}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  // ── Client-side search + filtering (against the actual fetched dataset) ──
+  const scoreFilterLabel = useMemo(() => {
+    if (!scoreOp || scoreVal === "") return "All";
+    const OP_LABELS = { eq: "= ", gte: "≥ ", gt: "> ", lte: "≤ ", lt: "< " };
+    if (scoreOp === "between") return `${scoreVal}–${scoreVal2 || "…"}%`;
+    return `${OP_LABELS[scoreOp] || ""}${scoreVal}%`;
+  }, [scoreOp, scoreVal, scoreVal2]);
+
+  const filteredRespondents = useMemo(() => {
+    const rows = data?.respondents || [];
+    const q = search.trim().toLowerCase();
+    const v1 = parseFloat(scoreVal);
+    const v2 = parseFloat(scoreVal2);
+    const hasScore = !!scoreOp && !isNaN(v1);
+    const scorePass = (score) => {
+      if (!hasScore) return true;
+      switch (scoreOp) {
+        case "eq": return score === v1;
+        case "gte": return score >= v1;
+        case "gt": return score > v1;
+        case "lte": return score <= v1;
+        case "lt": return score < v1;
+        case "between": return !isNaN(v2) ? score >= v1 && score <= v2 : score >= v1;
+        default: return true;
+      }
+    };
+    const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+
+    return rows.filter((r) => {
+      if (q) {
+        const hay = [
+          r.name || "",
+          r.email || "",
+          ...Object.values(r.answers || {}),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      const score = Number(r.score);
+      if (!scorePass(isNaN(score) ? 0 : score)) return false;
+      if (statusFilter && r.status !== statusFilter) return false;
+      if (rankingFilter && (r.ranking || "") !== rankingFilter) return false;
+      for (const [label, val] of activeFieldFilters) {
+        const actual = String(r.answers?.[label] ?? "").trim().toLowerCase();
+        if (actual !== String(val).trim().toLowerCase()) return false;
+      }
+      return true;
+    });
+  }, [data, search, scoreOp, scoreVal, scoreVal2, statusFilter, rankingFilter, fieldFilters]);
+
+  const filteredStats = useMemo(() => {
+    const rows = filteredRespondents;
+    if (rows.length === 0) return { qualifying: 0, average: 0 };
+    const sum = rows.reduce((s, r) => s + (Number(r.score) || 0), 0);
+    return {
+      qualifying: rows.length,
+      average: Math.round((sum / rows.length) * 10) / 10,
+    };
+  }, [filteredRespondents]);
+
+  const hasActiveFilters = !!(
+    search.trim() ||
+    (scoreOp && scoreVal !== "") ||
+    statusFilter ||
+    rankingFilter ||
+    Object.values(fieldFilters).some(Boolean)
+  );
+
+  const clearFilters = () => {
+    setSearch("");
+    setScoreOp("");
+    setScoreVal("");
+    setScoreVal2("");
+    setStatusFilter("");
+    setRankingFilter("");
+    setFieldFilters({});
   };
 
   // Single decision
@@ -149,7 +236,9 @@ export default function ScoresPage() {
   // Bulk decision
   const selectedIds = Object.keys(selected).filter((k) => selected[k]);
   const pendingSelectedIds = selectedIds.filter(
-    (sid) => data?.respondents?.find((r) => String(r.submission_id) === sid)?.status === "submitted"
+    (sid) =>
+      filteredRespondents.find((r) => String(r.submission_id) === sid)?.status ===
+      "submitted"
   );
 
   const handleBulkDecision = async () => {
@@ -247,7 +336,12 @@ export default function ScoresPage() {
             </label>
             <select
               value={selectedFormId}
-              onChange={(e) => setSelectedFormId(e.target.value)}
+              onChange={(e) => {
+                setSelectedFormId(e.target.value);
+                setData(null);
+                setError("");
+                clearFilters();
+              }}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">Choose a form...</option>
@@ -257,41 +351,6 @@ export default function ScoresPage() {
                 </option>
               ))}
             </select>
-          </div>
-
-          {/* Dual range slider */}
-          <div>
-            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-              Score Range: {minScore} – {maxScore}
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={minScore}
-                onChange={(e) =>
-                  setMinScore(Math.min(Number(e.target.value), maxScore - 1))
-                }
-                className="w-full accent-[var(--brand-orange)] h-2"
-              />
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={maxScore}
-                onChange={(e) =>
-                  setMaxScore(Math.max(Number(e.target.value), minScore + 1))
-                }
-                className="w-full accent-[var(--brand-orange)] h-2"
-              />
-            </div>
-            <div className="flex justify-between mt-1">
-              <span className="text-[9px] text-[var(--text-secondary)]">0</span>
-              <span className="text-[9px] text-[var(--text-secondary)]">
-                100
-              </span>
-            </div>
           </div>
 
           {/* Sort */}
@@ -360,7 +419,7 @@ export default function ScoresPage() {
                 <div className="card p-4 text-center border-l-4 border-emerald-500">
                   <Target className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
                   <p className="text-2xl font-black text-emerald-500">
-                    {data.qualifying_count}
+                    {filteredStats.qualifying}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
                     Qualifying
@@ -369,7 +428,7 @@ export default function ScoresPage() {
                 <div className="card p-4 text-center border-l-4 border-blue-500">
                   <BarChart3 className="w-4 h-4 text-blue-500 mx-auto mb-1" />
                   <p className="text-2xl font-black text-blue-500">
-                    {data.average_score}
+                    {filteredStats.average}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
                     Avg Score
@@ -378,12 +437,136 @@ export default function ScoresPage() {
                 <div className="card p-4 text-center border-l-4 border-amber-500">
                   <Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" />
                   <p className="text-2xl font-black text-amber-500">
-                    {data.threshold?.min ?? 0}–{data.threshold?.max ?? 100}
+                    {scoreFilterLabel}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                    Threshold
+                    Score Filter
                   </p>
                 </div>
+              </div>
+
+              {/* Search + Filters (dynamic, based on the form's actual fields) */}
+              <div className="card p-4 space-y-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search respondents (name, email, answers)..."
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                    <Filter className="w-3 h-3" /> Filters
+                  </span>
+
+                  {/* Score filter with numeric operators */}
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={scoreOp}
+                      onChange={(e) => setScoreOp(e.target.value)}
+                      className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                    >
+                      <option value="">Score: All</option>
+                      <option value="gte">Score ≥</option>
+                      <option value="gt">Score &gt;</option>
+                      <option value="eq">Score =</option>
+                      <option value="lte">Score ≤</option>
+                      <option value="lt">Score &lt;</option>
+                      <option value="between">Score Between</option>
+                    </select>
+                    {scoreOp && (
+                      <>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={scoreVal}
+                          onChange={(e) => setScoreVal(e.target.value)}
+                          placeholder="80"
+                          className="w-16 px-2 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        />
+                        {scoreOp === "between" && (
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoreVal2}
+                            onChange={(e) => setScoreVal2(e.target.value)}
+                            placeholder="90"
+                            className="w-16 px-2 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                          />
+                        )}
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">%</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Status filter */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                  >
+                    <option value="">Status: All</option>
+                    {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
+                      <option key={key} value={key}>
+                        Status: {cfg.label}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Ranking filter (actual values in the dataset) */}
+                  {(data.rankings || []).length > 0 && (
+                    <select
+                      value={rankingFilter}
+                      onChange={(e) => setRankingFilter(e.target.value)}
+                      className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                    >
+                      <option value="">Result: All</option>
+                      {data.rankings.map((rk) => (
+                        <option key={rk} value={rk}>
+                          Result: {rk}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* Dynamic field filters — from the form's actual columns */}
+                  {(data.filterable_fields || []).map((f) => (
+                    <select
+                      key={f.label}
+                      value={fieldFilters[f.label] || ""}
+                      onChange={(e) =>
+                        setFieldFilters((prev) => ({ ...prev, [f.label]: e.target.value }))
+                      }
+                      className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                    >
+                      <option value="">{f.label}: All</option>
+                      {f.options.map((o, idx) => (
+                        <option key={`${f.label}-${idx}`} value={String(o)}>
+                          {f.label}: {String(o)}
+                        </option>
+                      ))}
+                    </select>
+                  ))}
+
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="px-2.5 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  Showing {filteredRespondents.length} of {data.respondents?.length || 0} respondents
+                </p>
               </div>
 
               {/* Bulk action bar */}
@@ -393,17 +576,17 @@ export default function ScoresPage() {
                     <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                       <input
                         type="checkbox"
-                        checked={pendingSelectedIds.length === data.respondents.filter((r) => r.status === "submitted").length && data.respondents.some((r) => r.status === "submitted")}
+                        checked={pendingSelectedIds.length === filteredRespondents.filter((r) => r.status === "submitted").length && filteredRespondents.some((r) => r.status === "submitted")}
                         onChange={(e) => {
                           const next = {};
-                          data.respondents.forEach((r) => {
+                          filteredRespondents.forEach((r) => {
                             if (r.status === "submitted") next[r.submission_id] = e.target.checked;
                           });
                           setSelected(next);
                         }}
                         className="accent-[var(--brand-orange)]"
                       />
-                      Select all pending ({data.respondents.filter((r) => r.status === "submitted").length})
+                      Select all pending ({filteredRespondents.filter((r) => r.status === "submitted").length})
                     </label>
                   </div>
                   {pendingSelectedIds.length > 0 && (
@@ -437,14 +620,19 @@ export default function ScoresPage() {
 
               {/* Respondents list */}
               <div className="card divide-y divide-[var(--border-primary)]">
-                {data.respondents.length === 0 ? (
+                {filteredRespondents.length === 0 ? (
                   <div className="p-8 text-center">
                     <p className="text-sm text-[var(--text-secondary)]">
-                      No respondents found in this score range.
+                      No respondents match your search and filters.
                     </p>
+                    {hasActiveFilters && (
+                      <button onClick={clearFilters} className="mt-3 text-[10px] font-black uppercase text-[var(--brand-orange)] hover:underline">
+                        Clear all filters
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  data.respondents.map((r, i) => (
+                  filteredRespondents.map((r, i) => (
                     <div key={i}>
                       <div
                         onClick={() => toggleExpand(i)}
@@ -468,18 +656,25 @@ export default function ScoresPage() {
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                             {r.name}
                           </p>
-                          {r.email && (
-                            <p className="text-[9px] text-[var(--text-secondary)] truncate">
-                              {r.email}
-                            </p>
-                          )}
+                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                            {r.ranking || "—"}
+                          </p>
+                        </div>
+                        {/* Email column — the address that receives the emails */}
+                        <div className="hidden md:block w-56 min-w-0 flex-shrink-0">
+                          <p
+                            className="text-[9px] text-[var(--text-secondary)] truncate"
+                            title={r.email || "No email"}
+                          >
+                            {r.email || "—"}
+                          </p>
                         </div>
                         {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase flex-shrink-0 ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
                             {STATUS_CONFIG[r.status].label}
                           </span>
                         )}
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-right flex-shrink-0 w-16">
                           <p
                             className={`text-sm font-black ${
                               r.score >= 70
@@ -492,7 +687,7 @@ export default function ScoresPage() {
                             {r.score}
                           </p>
                           <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                            {r.ranking || "—"}
+                            score
                           </p>
                         </div>
                         {expanded[i] ? (
