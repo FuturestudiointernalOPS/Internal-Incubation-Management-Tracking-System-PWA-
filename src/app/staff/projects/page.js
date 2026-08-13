@@ -100,10 +100,10 @@ export default function MyProjects() {
       if (data.success) {
         setInvitations((prev) => prev.filter((i) => i.id !== invitationId));
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || 'Failed to respond') || '') || (data.error || 'Failed to respond') } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("staffMisc.projects.failedToRespond") } }));
       }
     } catch (e) {
-      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Network error' } }));
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("staffMisc.projects.networkError") } }));
     } finally {
       setResponding(null);
     }
@@ -114,6 +114,12 @@ export default function MyProjects() {
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       (p.meta?.description || "").toLowerCase().includes(search.toLowerCase()),
   );
+
+  const STATUS_LABELS = {
+    Active: "staffMisc.projects.statusActive",
+    Completed: "staffMisc.projects.statusCompleted",
+    Paused: "staffMisc.projects.statusPaused",
+  };
 
   const statusBadge = (status) => {
     const map = {
@@ -137,10 +143,10 @@ export default function MyProjects() {
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              My Projects
+              {t("staffMisc.projects.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Projects assigned to you
+              {t("staffMisc.projects.subtitle")}
             </p>
           </div>
 
@@ -160,7 +166,7 @@ export default function MyProjects() {
           <div className="space-y-3">
             <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight flex items-center gap-2">
               <Users className="w-4 h-4 text-amber-400" />
-              Project Invitations ({invitations.length})
+              {t("staffMisc.projects.invitations", { count: invitations.length })}
             </h2>
             <div className="space-y-2">
               {invitations.map((inv) => (
@@ -171,10 +177,10 @@ export default function MyProjects() {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">
-                        {inv.project_name || "Project"}
+                        {inv.project_name || t("staffMisc.projects.defaultProject")}
                       </h3>
                       <p className="text-[9px] text-slate-500 mt-1">
-                        Invited you to join this project
+                        {t("staffMisc.projects.invitedYou")}
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -185,7 +191,7 @@ export default function MyProjects() {
                         disabled={responding === inv.id}
                         className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                       >
-                        Decline
+                        {t("staffMisc.projects.decline")}
                       </button>
                       <button
                         onClick={() =>
@@ -194,7 +200,7 @@ export default function MyProjects() {
                         disabled={responding === inv.id}
                         className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                       >
-                        Accept
+                        {t("staffMisc.projects.accept")}
                       </button>
                     </div>
                   </div>
@@ -213,12 +219,12 @@ export default function MyProjects() {
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <Briefcase className="w-16 h-16 text-[var(--text-tertiary)] mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              {search ? t("common.noResults") : "No Projects Assigned"}
+              {search ? t("common.noResults") : t("staffMisc.projects.noProjectsAssigned")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
               {search
                 ? t("common.noResults")
-                : "Projects assigned to you by a Super Admin will appear here."}
+                : t("staffMisc.projects.noProjectsHint")}
             </p>
           </div>
         ) : (
@@ -247,7 +253,9 @@ export default function MyProjects() {
                           <span
                             className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${statusBadge(project.status)}`}
                           >
-                            {project.status || "Active"}
+                            {project.status
+                              ? t(STATUS_LABELS[project.status] || project.status)
+                              : t("staffMisc.projects.statusActive")}
                           </span>
                         </div>
                         <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-none italic group-hover:text-[var(--brand-orange)] transition-colors">
@@ -265,7 +273,7 @@ export default function MyProjects() {
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-4">
                         <div>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Members
+                            {t("staffMisc.projects.members")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
                             {project.members?.length || 0}
@@ -273,7 +281,7 @@ export default function MyProjects() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Tasks
+                            {t("staffMisc.projects.tasks")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
                             {tasksDone}/{tasksTotal}
@@ -281,7 +289,7 @@ export default function MyProjects() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Timeline
+                            {t("staffMisc.projects.timeline")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
                             {project.start_date
@@ -301,7 +309,7 @@ export default function MyProjects() {
                         </div>
                         <div>
                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                            Program
+                            {t("staffMisc.projects.program")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1 truncate">
                             {project.program_name || "—"}
@@ -313,7 +321,7 @@ export default function MyProjects() {
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-end">
                             <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
-                              Progress
+                              {t("staffMisc.projects.progress")}
                             </span>
                             <span className="text-[10px] font-black text-[var(--brand-orange)]">
                               {progress}%
@@ -336,12 +344,12 @@ export default function MyProjects() {
                               m.user_cid === (user?.cid || user?.id) &&
                               m.role === "lead",
                           )
-                            ? "You are lead"
-                            : "Member"}
+                            ? t("staffMisc.projects.youAreLead")
+                            : t("staffMisc.projects.member")}
                         </span>
                         <span className="text-[9px] text-slate-500 flex items-center gap-1 ml-auto">
                           <ChevronRight className="w-3 h-3" />
-                          View
+                          {t("staffMisc.projects.view")}
                         </span>
                       </div>
                     </div>

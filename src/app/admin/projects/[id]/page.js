@@ -166,10 +166,10 @@ export default function ProjectDetail() {
       if (data.success) {
         setProject(data.project);
       } else {
-        setError(t((data.error || "Failed to load project") || "") || (data.error || "Failed to load project"));
+        setError(data.error || t("adminMisc.projectDetail.loadProjectFailed"));
       }
     } catch (e) {
-      setError("Network error loading project");
+      setError(t("adminMisc.projectDetail.loadProjectNetworkError"));
       console.error(e);
     } finally {
       setLoading(false);
@@ -379,13 +379,13 @@ export default function ProjectDetail() {
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
-            {error || "Project not found"}
+            {error || t("adminMisc.projectDetail.projectNotFound")}
           </p>
           <button
             onClick={() => router.push("/admin/projects")}
             className="mt-6 flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
           >
-            <ArrowLeft className="w-3.5 h-3.5" /> Back to Projects
+            <ArrowLeft className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.backToProjects")}
           </button>
         </div>
       </DashboardLayout>
@@ -396,6 +396,28 @@ export default function ProjectDetail() {
   const blockers = project.blockers || [];
   const members = project.members || [];
   const timeline = project.timeline || [];
+
+  // ── Status display labels ──
+  const projectStatusLabels = {
+    Active: t("adminMisc.projectDetail.projectStatusActive"),
+    Completed: t("adminMisc.projectDetail.projectStatusCompleted"),
+    Paused: t("adminMisc.projectDetail.projectStatusPaused"),
+    Archived: t("adminMisc.projectDetail.projectStatusArchived"),
+  };
+  const blockerStatusLabels = {
+    active: t("adminMisc.projectDetail.blockerStatusActive"),
+    resolved: t("adminMisc.projectDetail.blockerStatusResolved"),
+  };
+  const updateStatusLabels = {
+    on_track: t("adminMisc.projectDetail.statusOnTrack"),
+    at_risk: t("adminMisc.projectDetail.statusAtRisk"),
+    behind: t("adminMisc.projectDetail.statusBehind"),
+    completed: t("adminMisc.projectDetail.statusCompleted"),
+  };
+  const approvalStatusLabels = {
+    approved: t("adminMisc.projectDetail.approvalStatusApproved"),
+    rejected: t("adminMisc.projectDetail.approvalStatusRejected"),
+  };
 
   return (
     <DashboardLayout role={userRole || "super_admin"}>
@@ -418,7 +440,7 @@ export default function ProjectDetail() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              All Projects
+              {t("adminMisc.projectDetail.allProjects")}
             </button>
             <div className="flex items-center gap-3 mt-1">
               <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center">
@@ -432,7 +454,7 @@ export default function ProjectDetail() {
                   <span
                     className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                   >
-                    {project.status}
+                    {projectStatusLabels[project.status] || project.status}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 mt-1.5">
@@ -451,7 +473,7 @@ export default function ProjectDetail() {
                   <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-secondary)]">
                     <Calendar className="w-3 h-3" />
                     <span className="font-bold">
-                      Created{" "}
+                      {t("adminMisc.projectDetail.created")}{" "}
                       {new Date(project.created_at).toLocaleDateString()}
                     </span>
                   </div>
@@ -459,7 +481,7 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
                       <Calendar className="w-3 h-3" />
                       <span className="font-bold">
-                        Start{" "}
+                        {t("adminMisc.projectDetail.start")}{" "}
                         {new Date(project.start_date).toLocaleDateString()}
                       </span>
                     </div>
@@ -468,7 +490,8 @@ export default function ProjectDetail() {
                     <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
                       <Calendar className="w-3 h-3" />
                       <span className="font-bold">
-                        End {new Date(project.end_date).toLocaleDateString()}
+                        {t("adminMisc.projectDetail.end")}{" "}
+                        {new Date(project.end_date).toLocaleDateString()}
                       </span>
                     </div>
                   )}
@@ -480,7 +503,7 @@ export default function ProjectDetail() {
             onClick={fetchProject}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[9px] font-black uppercase tracking-widest"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.refresh")}
           </button>
         </header>
 
@@ -492,7 +515,7 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Progress
+                {t("adminMisc.projectDetail.progress")}
               </p>
               <p className="text-xl font-black text-emerald-500">
                 {project.completionRate || 0}%
@@ -505,7 +528,7 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Tasks
+                {t("adminMisc.projectDetail.tasks")}
               </p>
               <p className="text-xl font-black">
                 {project.taskStats?.total || 0}
@@ -518,7 +541,7 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Active Blockers
+                {t("adminMisc.projectDetail.activeBlockers")}
               </p>
               <p className="text-xl font-black text-rose-500">
                 {activeBlockersCount}
@@ -531,7 +554,7 @@ export default function ProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Team
+                {t("adminMisc.projectDetail.team")}
               </p>
               <p className="text-xl font-black text-blue-500">
                 {members.length}
@@ -548,30 +571,59 @@ export default function ProjectDetail() {
           <div className="overflow-x-auto custom-scrollbar pb-1">
             <div className="flex items-center gap-1 border-b border-[var(--border-primary)] min-w-max px-2">
               {[
-                { id: "overview", label: "OVERVIEW", icon: Activity },
+                {
+                  id: "overview",
+                  label: t("adminMisc.projectDetail.tabOverview"),
+                  icon: Activity,
+                },
                 {
                   id: "tasks",
-                  label: `TASKS (${tasks.length})`,
+                  label: t("adminMisc.projectDetail.tabTasks", {
+                    count: tasks.length,
+                  }),
                   icon: ListTodo,
                 },
                 {
                   id: "blockers",
-                  label: `BLOCKERS (${blockers.length})`,
+                  label: t("adminMisc.projectDetail.tabBlockers", {
+                    count: blockers.length,
+                  }),
                   icon: Shield,
                 },
-                { id: "team", label: `TEAM (${members.length})`, icon: Users },
-                { id: "updates", label: "UPDATE", icon: FileText },
+                {
+                  id: "team",
+                  label: t("adminMisc.projectDetail.tabTeam", {
+                    count: members.length,
+                  }),
+                  icon: Users,
+                },
+                {
+                  id: "updates",
+                  label: t("adminMisc.projectDetail.tabUpdates"),
+                  icon: FileText,
+                },
                 {
                   id: "discussions",
-                  label: `DISCUSSIONS (${discussions.length})`,
+                  label: t("adminMisc.projectDetail.tabDiscussions", {
+                    count: discussions.length,
+                  }),
                   icon: MessageSquare,
                 },
                 {
                   id: "approvals",
-                  label: `REQUESTS${approvalRequests.filter((r) => r.status === "pending").length > 0 ? ` (${approvalRequests.filter((r) => r.status === "pending").length})` : ""}`,
+                  label:
+                    t("adminMisc.projectDetail.tabApprovals") +
+                    (approvalRequests.filter((r) => r.status === "pending")
+                      .length > 0
+                      ? ` (${approvalRequests.filter((r) => r.status === "pending").length})`
+                      : ""),
                   icon: UserPlus,
                 },
-                { id: "timeline", label: "TIMELINE", icon: Clock },
+                {
+                  id: "timeline",
+                  label: t("adminMisc.projectDetail.tabTimeline"),
+                  icon: Clock,
+                },
               ].map((tab) => {
                 const isActive = activeTab === tab.id;
                 const TabIcon = tab.icon;
@@ -600,7 +652,7 @@ export default function ProjectDetail() {
             {/* Progress bar */}
             <div className="card space-y-3">
               <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                Overall Progress
+                {t("adminMisc.projectDetail.overallProgress")}
               </h3>
               <div className="flex items-center gap-4">
                 <div className="flex-1 h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden">
@@ -619,31 +671,31 @@ export default function ProjectDetail() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
                 {
-                  label: "Completed",
+                  label: t("adminMisc.projectDetail.breakdownCompleted"),
                   count: project.taskStats?.completed || 0,
                   color: "text-emerald-500",
                   bg: "bg-emerald-500/10",
                 },
                 {
-                  label: "In Progress",
+                  label: t("adminMisc.projectDetail.breakdownInProgress"),
                   count: project.taskStats?.in_progress || 0,
                   color: "text-blue-500",
                   bg: "bg-blue-500/10",
                 },
                 {
-                  label: "Blocked",
+                  label: t("adminMisc.projectDetail.breakdownBlocked"),
                   count: project.taskStats?.blocked || 0,
                   color: "text-rose-500",
                   bg: "bg-rose-500/10",
                 },
                 {
-                  label: "Carried Over",
+                  label: t("adminMisc.projectDetail.breakdownCarriedOver"),
                   count: project.taskStats?.carried_over || 0,
                   color: "text-amber-500",
                   bg: "bg-amber-500/10",
                 },
                 {
-                  label: "Pending",
+                  label: t("adminMisc.projectDetail.breakdownPending"),
                   count: project.taskStats?.pending || 0,
                   color: "text-slate-500",
                   bg: "bg-slate-500/10",
@@ -669,7 +721,7 @@ export default function ProjectDetail() {
             {project.timelineHealth !== undefined && (
               <div className="card space-y-2">
                 <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Timeline Coverage
+                  {t("adminMisc.projectDetail.timelineCoverage")}
                 </h3>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
@@ -679,7 +731,9 @@ export default function ProjectDetail() {
                     />
                   </div>
                   <span className="text-xs font-bold text-blue-500">
-                    {project.timelineHealth}% of tasks have start/end dates
+                    {t("adminMisc.projectDetail.timelineHealthLabel", {
+                      percent: project.timelineHealth,
+                    })}
                   </span>
                 </div>
               </div>
@@ -710,14 +764,25 @@ export default function ProjectDetail() {
             {/* Blocker filter */}
             <div className="flex items-center gap-2 flex-wrap">
               {[
-                { id: "all", label: `All (${blockers.length})` },
+                {
+                  id: "all",
+                  label: t("adminMisc.projectDetail.blockerFilterAll", {
+                    count: blockers.length,
+                  }),
+                },
                 {
                   id: "active",
-                  label: `Active (${blockers.filter((b) => b.status === "active").length})`,
+                  label: t("adminMisc.projectDetail.blockerFilterActive", {
+                    count: blockers.filter((b) => b.status === "active")
+                      .length,
+                  }),
                 },
                 {
                   id: "resolved",
-                  label: `Resolved (${blockers.filter((b) => b.status === "resolved").length})`,
+                  label: t("adminMisc.projectDetail.blockerFilterResolved", {
+                    count: blockers.filter((b) => b.status === "resolved")
+                      .length,
+                  }),
                 },
               ].map((f) => (
                 <button
@@ -738,10 +803,10 @@ export default function ProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <Shield className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No blockers found
+                  {t("adminMisc.projectDetail.noBlockers")}
                 </p>
                 <p className="text-[9px] text-slate-500 mt-1">
-                  All blockers for this project will appear here.
+                  {t("adminMisc.projectDetail.noBlockersHint")}
                 </p>
               </div>
             ) : (
@@ -782,13 +847,14 @@ export default function ProjectDetail() {
                               : "bg-emerald-500/10 text-emerald-500"
                           }`}
                         >
-                          {blocker.status}
+                          {blockerStatusLabels[blocker.status] ||
+                            blocker.status}
                         </span>
                       </div>
                       <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-500">
                         {blocker.task_title && (
                           <span>
-                            Task:{" "}
+                            {t("adminMisc.projectDetail.taskLabel")}{" "}
                             <span className="font-bold text-[var(--text-secondary)]">
                               {blocker.task_title}
                             </span>
@@ -796,7 +862,7 @@ export default function ProjectDetail() {
                         )}
                         {blocker.user_name && (
                           <span>
-                            by{" "}
+                            {t("adminMisc.projectDetail.by")}{" "}
                             <span className="font-bold">
                               {blocker.user_name}
                             </span>
@@ -834,7 +900,7 @@ export default function ProjectDetail() {
               <div className="flex items-center gap-2 mb-3">
                 <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
-                  Project Owner
+                  {t("adminMisc.projectDetail.projectOwner")}
                 </span>
               </div>
               {project.owner_name ? (
@@ -847,13 +913,13 @@ export default function ProjectDetail() {
                       {project.owner_name}
                     </p>
                     <p className="text-[8px] text-slate-500 mt-0.5">
-                      Accountable for project delivery
+                      {t("adminMisc.projectDetail.ownerAccountable")}
                     </p>
                   </div>
                 </div>
               ) : (
                 <p className="text-[10px] text-slate-500 italic">
-                  No owner assigned
+                  {t("adminMisc.projectDetail.noOwnerAssigned")}
                 </p>
               )}
             </div>
@@ -864,18 +930,20 @@ export default function ProjectDetail() {
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-500" />
                   <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">
-                    Collaborators
+                    {t("adminMisc.projectDetail.collaborators")}
                   </span>
                 </div>
                 <span className="text-[9px] font-bold text-slate-500">
-                  {members.length} total
+                  {t("adminMisc.projectDetail.totalCount", {
+                    count: members.length,
+                  })}
                 </span>
               </div>
 
               {/* Collaborator list */}
               {members.length === 0 ? (
                 <p className="text-[10px] text-slate-500 italic text-center py-6">
-                  No collaborators yet. Add team members to this project.
+                  {t("adminMisc.projectDetail.noCollaborators")}
                 </p>
               ) : (
                 <div className="space-y-1.5 mb-4">
@@ -890,7 +958,9 @@ export default function ProjectDetail() {
                         </div>
                         <div>
                           <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                            {member.name || member.member_id || "Unknown"}
+                            {member.name ||
+                              member.member_id ||
+                              t("adminMisc.projectDetail.unknown")}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             {member.member_role && (
@@ -920,7 +990,7 @@ export default function ProjectDetail() {
                         }}
                         className="text-[8px] font-black uppercase text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all"
                       >
-                        Remove
+                        {t("adminMisc.projectDetail.remove")}
                       </button>
                     </div>
                   ))}
@@ -930,14 +1000,14 @@ export default function ProjectDetail() {
               {/* Add Collaborator */}
               <div className="pt-3 border-t border-[var(--border-primary)]/30">
                 <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                  Add Collaborator
+                  {t("adminMisc.projectDetail.addCollaborator")}
                 </p>
                 <div className="flex gap-2">
                   <select
                     id="add-collab-team"
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                   >
-                    <option value="">Select staff...</option>
+                    <option value="">{t("adminMisc.projectDetail.selectStaff")}</option>
                     {allStaff
                       .filter(
                         (s) =>
@@ -978,7 +1048,7 @@ export default function ProjectDetail() {
                     }}
                     className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
                   >
-                    Add
+                    {t("adminMisc.projectDetail.add")}
                   </button>
                 </div>
               </div>
@@ -994,7 +1064,7 @@ export default function ProjectDetail() {
               <div className="flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-[var(--brand-orange)]" />
                 <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
-                  This Week&apos;s Update
+                  {t("adminMisc.projectDetail.thisWeeksUpdate")}
                 </h3>
                 <button
                   onClick={async () => {
@@ -1006,19 +1076,19 @@ export default function ProjectDetail() {
                       const data = await res.json();
                       if (data.success) {
                         fetchUpdates();
-                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: 'Report generated for Week ' + data.week } }));
-                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || 'Failed') || "") || (data.error || 'Failed') } }));
+                        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.projectDetail.reportGenerated", { week: data.week }) } }));
+                      } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("adminMisc.projectDetail.generateFailed") } }));
                     } catch (_) {}
                   }}
                   className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
                 >
-                  Generate Report
+                  {t("adminMisc.projectDetail.generateReport")}
                 </button>
               </div>
               <div className="space-y-3">
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Overall Status
+                    {t("adminMisc.projectDetail.overallStatus")}
                   </label>
                   <select
                     value={updateForm.overall_status}
@@ -1030,15 +1100,23 @@ export default function ProjectDetail() {
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                   >
-                    <option value="on_track">On Track</option>
-                    <option value="at_risk">At Risk</option>
-                    <option value="behind">Behind</option>
-                    <option value="completed">Completed</option>
+                    <option value="on_track">
+                      {t("adminMisc.projectDetail.statusOnTrack")}
+                    </option>
+                    <option value="at_risk">
+                      {t("adminMisc.projectDetail.statusAtRisk")}
+                    </option>
+                    <option value="behind">
+                      {t("adminMisc.projectDetail.statusBehind")}
+                    </option>
+                    <option value="completed">
+                      {t("adminMisc.projectDetail.statusCompleted")}
+                    </option>
                   </select>
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Accomplishments This Week
+                    {t("adminMisc.projectDetail.accomplishmentsThisWeek")}
                   </label>
                   <textarea
                     value={updateForm.accomplishments}
@@ -1048,14 +1126,14 @@ export default function ProjectDetail() {
                         accomplishments: e.target.value,
                       }))
                     }
-                    placeholder="What got done this week?"
+                    placeholder={t("adminMisc.projectDetail.accomplishmentsPlaceholder")}
                     rows={3}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                   />
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Current Focus
+                    {t("adminMisc.projectDetail.currentFocus")}
                   </label>
                   <textarea
                     value={updateForm.current_focus}
@@ -1065,14 +1143,14 @@ export default function ProjectDetail() {
                         current_focus: e.target.value,
                       }))
                     }
-                    placeholder="What are you working on now?"
+                    placeholder={t("adminMisc.projectDetail.currentFocusPlaceholder")}
                     rows={2}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                   />
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Blockers / Issues
+                    {t("adminMisc.projectDetail.blockersIssues")}
                   </label>
                   <textarea
                     value={updateForm.blockers}
@@ -1082,14 +1160,14 @@ export default function ProjectDetail() {
                         blockers: e.target.value,
                       }))
                     }
-                    placeholder="Any blockers or issues?"
+                    placeholder={t("adminMisc.projectDetail.blockersPlaceholder")}
                     rows={2}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                   />
                 </div>
                 <div>
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Next Steps
+                    {t("adminMisc.projectDetail.nextSteps")}
                   </label>
                   <textarea
                     value={updateForm.next_steps}
@@ -1099,7 +1177,7 @@ export default function ProjectDetail() {
                         next_steps: e.target.value,
                       }))
                     }
-                    placeholder="What's next?"
+                    placeholder={t("adminMisc.projectDetail.nextStepsPlaceholder")}
                     rows={2}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                   />
@@ -1113,7 +1191,9 @@ export default function ProjectDetail() {
                   className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  {savingUpdate ? "Saving..." : "Submit Weekly Update"}
+                  {savingUpdate
+                    ? t("adminMisc.projectDetail.saving")
+                    : t("adminMisc.projectDetail.submitWeeklyUpdate")}
                 </button>
               </div>
             </div>
@@ -1123,10 +1203,12 @@ export default function ProjectDetail() {
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate-500" />
                 <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                  Previous Updates
+                  {t("adminMisc.projectDetail.previousUpdates")}
                 </h3>
                 <span className="text-[9px] font-bold text-slate-500 ml-auto">
-                  {updates.length} total
+                  {t("adminMisc.projectDetail.totalCount", {
+                    count: updates.length,
+                  })}
                 </span>
               </div>
 
@@ -1134,15 +1216,15 @@ export default function ProjectDetail() {
                 <div className="card py-12 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                   <FileText className="w-10 h-10 mb-2" />
                   <p className="text-[9px] font-bold uppercase tracking-widest">
-                    No updates yet
+                    {t("adminMisc.projectDetail.noUpdates")}
                   </p>
                   <p className="text-[8px] text-slate-500 mt-1">
-                    Weekly project narratives will appear here.
+                    {t("adminMisc.projectDetail.noUpdatesHint")}
                   </p>
                 </div>
               ) : updatesLoading ? (
                 <div className="text-center py-8 text-[10px] text-slate-500 italic">
-                  Loading updates...
+                  {t("adminMisc.projectDetail.loadingUpdates")}
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
@@ -1164,7 +1246,10 @@ export default function ProjectDetail() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <span className="text-[10px] font-black">
-                              Week {update.week_number}, {update.year}
+                              {t("adminMisc.projectDetail.weekLabel", {
+                                week: update.week_number,
+                                year: update.year,
+                              })}
                             </span>
                             <span
                               className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
@@ -1175,7 +1260,8 @@ export default function ProjectDetail() {
                                 "text-slate-500"
                               }`}
                             >
-                              {update.overall_status.replace(/_/g, " ")}
+                              {updateStatusLabels[update.overall_status] ||
+                                update.overall_status.replace(/_/g, " ")}
                             </span>
                           </div>
                           <span className="text-[8px] text-slate-500">
@@ -1185,7 +1271,7 @@ export default function ProjectDetail() {
                         {update.accomplishments && (
                           <div>
                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Accomplishments
+                              {t("adminMisc.projectDetail.accomplishments")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
                               {update.accomplishments}
@@ -1195,7 +1281,7 @@ export default function ProjectDetail() {
                         {update.current_focus && (
                           <div>
                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Current Focus
+                              {t("adminMisc.projectDetail.currentFocus")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
                               {update.current_focus}
@@ -1205,7 +1291,7 @@ export default function ProjectDetail() {
                         {update.blockers && (
                           <div>
                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Blockers
+                              {t("adminMisc.projectDetail.blockers")}
                             </p>
                             <p className="text-[10px] text-rose-400 whitespace-pre-wrap">
                               {update.blockers}
@@ -1215,7 +1301,7 @@ export default function ProjectDetail() {
                         {update.next_steps && (
                           <div>
                             <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                              Next Steps
+                              {t("adminMisc.projectDetail.nextSteps")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
                               {update.next_steps}
@@ -1236,7 +1322,7 @@ export default function ProjectDetail() {
           <div className="space-y-4">
             {approvalsLoading ? (
               <div className="text-center py-8 text-[10px] text-slate-500 italic">
-                Loading requests...
+                {t("adminMisc.projectDetail.loadingRequests")}
               </div>
             ) : approvalRequests.filter((r) => r.status === "pending")
                 .length === 0 &&
@@ -1245,11 +1331,10 @@ export default function ProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <UserPlus className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No contribution requests
+                  {t("adminMisc.projectDetail.noContributionRequests")}
                 </p>
                 <p className="text-[9px] text-slate-500 mt-1">
-                  When staff link tasks to this project without being
-                  collaborators, requests appear here.
+                  {t("adminMisc.projectDetail.noContributionRequestsHint")}
                 </p>
               </div>
             ) : (
@@ -1260,12 +1345,11 @@ export default function ProjectDetail() {
                   <div className="space-y-2">
                     <h3 className="text-[9px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
-                      Pending Review (
-                      {
-                        approvalRequests.filter((r) => r.status === "pending")
-                          .length
-                      }
-                      )
+                      {t("adminMisc.projectDetail.pendingReview", {
+                        count: approvalRequests.filter(
+                          (r) => r.status === "pending",
+                        ).length,
+                      })}
                     </h3>
                     {approvalRequests
                       .filter((r) => r.status === "pending")
@@ -1277,10 +1361,13 @@ export default function ProjectDetail() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs font-bold text-[var(--text-primary)]">
-                                {req.task_title || `Task #${req.task_id}`}
+                                {req.task_title ||
+                                  t("adminMisc.projectDetail.taskFallback", {
+                                    id: req.task_id,
+                                  })}
                               </p>
                               <p className="text-[9px] text-slate-500 mt-0.5">
-                                by{" "}
+                                {t("adminMisc.projectDetail.by")}{" "}
                                 {req.requester_name ||
                                   req.requester_name_lookup ||
                                   req.requester_id}{" "}
@@ -1296,11 +1383,13 @@ export default function ProjectDetail() {
                               }
                               className="px-4 py-2 bg-emerald-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                             >
-                              Approve
+                              {t("adminMisc.projectDetail.approve")}
                             </button>
                             <button
                               onClick={() => {
-                                const reason = prompt("Reason for rejection:");
+                                const reason = prompt(
+                                  t("adminMisc.projectDetail.rejectionReasonPrompt"),
+                                );
                                 if (reason)
                                   handleApprovalAction(
                                     req.id,
@@ -1310,7 +1399,7 @@ export default function ProjectDetail() {
                               }}
                               className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
                             >
-                              Reject
+                              {t("adminMisc.projectDetail.reject")}
                             </button>
                           </div>
                         </div>
@@ -1323,7 +1412,7 @@ export default function ProjectDetail() {
                   0 && (
                   <div className="space-y-2">
                     <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                      History
+                      {t("adminMisc.projectDetail.history")}
                     </h3>
                     {approvalRequests
                       .filter((r) => r.status !== "pending")
@@ -1344,10 +1433,13 @@ export default function ProjectDetail() {
                                   : "bg-rose-500/10 text-rose-500"
                               }`}
                             >
-                              {req.status}
+                              {approvalStatusLabels[req.status] || req.status}
                             </span>
                             <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                              {req.task_title || `Task #${req.task_id}`}
+                              {req.task_title ||
+                                t("adminMisc.projectDetail.taskFallback", {
+                                  id: req.task_id,
+                                })}
                             </span>
                           </div>
                           <p className="text-[9px] text-slate-500 mt-1">
@@ -1356,7 +1448,7 @@ export default function ProjectDetail() {
                             {req.rejection_reason && (
                               <>
                                 {" "}
-                                · Reason:{" "}
+                                · {t("adminMisc.projectDetail.reasonLabel")}{" "}
                                 <span className="text-rose-400">
                                   {req.rejection_reason}
                                 </span>
@@ -1378,7 +1470,7 @@ export default function ProjectDetail() {
             {/* Post new message */}
             <div className="card space-y-3">
               <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest">
-                Project Discussions
+                {t("adminMisc.projectDetail.projectDiscussions")}
               </h3>
               <div className="flex gap-2">
                 <textarea
@@ -1429,7 +1521,7 @@ export default function ProjectDetail() {
                         {(msg.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        {msg.sender_name || "Unknown"}
+                        {msg.sender_name || t("adminMisc.projectDetail.unknown")}
                       </span>
                       <span className="text-[8px] text-slate-500 ml-auto">
                         {new Date(msg.created_at).toLocaleDateString(
@@ -1460,10 +1552,10 @@ export default function ProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <Clock className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No activity yet
+                  {t("adminMisc.projectDetail.noActivity")}
                 </p>
                 <p className="text-[9px] text-slate-500 mt-1">
-                  Task assignments, completions, and updates will appear here.
+                  {t("adminMisc.projectDetail.noActivityHint")}
                 </p>
               </div>
             ) : (
@@ -1508,7 +1600,7 @@ export default function ProjectDetail() {
                           >
                             {entry.action_type?.replace(/_/g, " ") ||
                               entry.action ||
-                              "Update"}
+                              t("adminMisc.projectDetail.update")}
                           </span>
                           <span className="text-[9px] text-slate-500">
                             {new Date(entry.created_at).toLocaleDateString(
@@ -1529,7 +1621,7 @@ export default function ProjectDetail() {
                         )}
                         {entry.actor_name && (
                           <p className="text-[9px] text-slate-500 mt-0.5">
-                            by{" "}
+                            {t("adminMisc.projectDetail.by")}{" "}
                             <span className="font-bold">
                               {entry.actor_name}
                             </span>

@@ -74,11 +74,11 @@ export default function NewProgram() {
 
   const validateDates = (start, end) => {
     if (!start || !end) {
-      setDateError("Start Date and End Date are required.");
+      setDateError(t("adminMisc.newProgram.dateErrorRequired"));
       return false;
     }
     if (new Date(end) < new Date(start)) {
-      setDateError("End Date cannot be earlier than Start Date.");
+      setDateError(t("adminMisc.newProgram.dateErrorOrder"));
       return false;
     }
     setDateError("");
@@ -159,7 +159,7 @@ export default function NewProgram() {
         console.error("Asset Load Failure:", e);
         notify(
           "error",
-          "Failed to synchronize personnel and knowledge assets.",
+          t("adminMisc.newProgram.syncFailed"),
         );
       } finally {
         setLoadingAssets(false);
@@ -192,7 +192,7 @@ export default function NewProgram() {
             type: file.type,
           });
         } else {
-          throw new Error(`Upload failed for ${file.name}: ${t(res.error || "") || res.error}`);
+          throw new Error(t("adminMisc.newProgram.uploadFailedFor", { name: file.name, error: res.error }));
         }
       }
 
@@ -207,16 +207,16 @@ export default function NewProgram() {
           materials: [...prev.materials, ...uploadedUrls],
         }));
       }
-      notify("success", "Attached");
+      notify("success", t("adminMisc.newProgram.attached"));
     } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+      notify("error", e.message);
     } finally {
       setIsUploading(false);
     }
   };
 
   const handleCreateGroupInline = async () => {
-    if (!newGroup.name) return notify("error", "Group name is required.");
+    if (!newGroup.name) return notify("error", t("adminMisc.newProgram.groupNameRequired"));
     // Vérifier que la date actuelle est dans la fenêtre d'inscription
     if (program.registration_window_start && program.registration_window_end) {
       const now = new Date();
@@ -224,10 +224,10 @@ export default function NewProgram() {
       const end = new Date(program.registration_window_end);
       end.setHours(23, 59, 59, 999);
       if (now < start) {
-        return notify("error", `Registration window opens on ${program.registration_window_start}.`);
+        return notify("error", t("adminMisc.newProgram.registrationWindowOpens", { date: program.registration_window_start }));
       }
       if (now > end) {
-        return notify("error", `Registration window closed on ${program.registration_window_end}.`);
+        return notify("error", t("adminMisc.newProgram.registrationWindowClosed", { date: program.registration_window_end }));
       }
     }
     setIsDeploying(true);
@@ -245,14 +245,14 @@ export default function NewProgram() {
         setIsCreatingGroup(false);
         // Only auto-save program if PM is already selected
         if (program.assigned_pm_id) {
-          notify("success", "Group created. Auto-saving program...");
+          notify("success", t("adminMisc.newProgram.groupCreatedAutoSaving"));
           setTimeout(() => handleDeploy({ preventDefault: () => {} }, data.group.id), 300);
         } else {
-          notify("success", "Group created. Fill in the Program Manager and name, then deploy to save.");
+          notify("success", t("adminMisc.newProgram.groupCreatedFillIn"));
         }
       }
     } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+      notify("error", e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -260,7 +260,7 @@ export default function NewProgram() {
 
   const handleCreateKBInline = async () => {
     if (!newKB.title)
-      return notify("error", "Knowledge Base title is required.");
+      return notify("error", t("adminMisc.newProgram.kbTitleRequired"));
     setIsDeploying(true);
     try {
       const res = await fetch("/api/knowledge", {
@@ -277,10 +277,10 @@ export default function NewProgram() {
           { id: data.id, title: newKB.title },
         ]);
         setIsCreatingKB(false);
-        notify("success", "Created");
+        notify("success", t("adminMisc.newProgram.created"));
       }
     } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+      notify("error", e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -298,7 +298,7 @@ export default function NewProgram() {
     if (!program.name || !program.assigned_pm_id) {
       notify(
         "error",
-        "Critical Parameters Missing: Mission Name and PM are required.",
+        t("adminMisc.newProgram.criticalParametersMissing"),
       );
       return;
     }
@@ -372,13 +372,13 @@ export default function NewProgram() {
       const data = await res.json();
 
       if (data.success) {
-        notify("success", "Created");
+        notify("success", t("adminMisc.newProgram.created"));
         setTimeout(() => router.push("/admin/programs"), 1500);
       } else {
-        throw new Error(t((data.error || "Failed to save program") || "") || (data.error || "Failed to save program"));
+        throw new Error(data.error || t("adminMisc.newProgram.failedToSaveProgram"));
       }
     } catch (e) {
-      notify("error", t(e.message || "") || e.message);
+      notify("error", e.message);
     } finally {
       setIsDeploying(false);
     }
@@ -423,17 +423,17 @@ export default function NewProgram() {
             className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
           >
             <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-            Program List
+            {t("adminMisc.newProgram.programList")}
           </button>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Administration
+                {t("adminMisc.newProgram.administration")}
               </span>
             </div>
             <h1 className="text-6xl font-black tracking-tighter text-[var(--text-primary)]">
-              NEW PROGRAM
+              {t("adminMisc.newProgram.title")}
             </h1>
           </div>
         </header>
@@ -465,7 +465,7 @@ export default function NewProgram() {
                     if (!selectedTemplate) return;
                     setApplyingTemplate(true);
                     try {
-                      const template = templates.find(
+                      const t = templates.find(
                         (x) => x.id === selectedTemplate,
                       );
                       const res = await fetch(
@@ -475,26 +475,26 @@ export default function NewProgram() {
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({
                             template_id: selectedTemplate,
-                            name: program.name || template?.name || "New Program",
+                            name: program.name || t?.name || "New Program",
                           }),
                         },
                       );
                       const data = await res.json();
                       if (data.success) {
-                        notify("success", "Program created from template!");
+                        notify("success", t("adminMisc.newProgram.programCreatedFromTemplate"));
                         setTimeout(() => router.push("/admin/programs"), 1500);
                       } else {
-                        notify("error", t((data.error || "Failed") || "") || (data.error || "Failed"));
+                        notify("error", data.error || t("adminMisc.newProgram.failed"));
                       }
                     } catch (e) {
-                      notify("error", t(e.message || "") || e.message);
+                      notify("error", e.message);
                     } finally {
                       setApplyingTemplate(false);
                     }
                   }}
                   className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
                 >
-                  {applyingTemplate ? "Creating..." : t("admin.apply")}
+                  {applyingTemplate ? t("adminMisc.newProgram.creating") : t("admin.apply")}
                 </button>
               </div>
             </div>
@@ -512,13 +512,13 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, name: e.target.value })
                 }
-                placeholder="Ex: Entrepreneurship Bootcamp 2024"
+                placeholder={t("adminMisc.newProgram.namePlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Start Date
+                {t("adminMisc.newProgram.startDate")}
               </label>
               <input
                 required
@@ -534,7 +534,7 @@ export default function NewProgram() {
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                End Date
+                {t("adminMisc.newProgram.endDate")}
               </label>
               <input
                 required
@@ -595,7 +595,7 @@ export default function NewProgram() {
                   type="button"
                   onClick={() => setShowNewTypeInput(!showNewTypeInput)}
                   className="px-4 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] border border-[var(--brand-orange)]/20 rounded-2xl hover:bg-[var(--brand-orange)]/20 transition-all shrink-0"
-                  title="Ajouter un type"
+                  title={t("adminMisc.newProgram.addTypeTitle")}
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -606,7 +606,7 @@ export default function NewProgram() {
                     type="text"
                     value={newTypeInput}
                     onChange={(e) => setNewTypeInput(e.target.value)}
-                    placeholder="Nouveau type de programme..."
+                    placeholder={t("adminMisc.newProgram.newTypePlaceholder")}
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                   />
                   <button
@@ -628,7 +628,7 @@ export default function NewProgram() {
                     }}
                     className="px-4 bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase tracking-widest rounded-xl border border-emerald-500/20 hover:bg-emerald-500/20"
                   >
-                    Ajouter
+                    {t("adminMisc.newProgram.addType")}
                   </button>
                 </div>
               )}
@@ -683,7 +683,7 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, vision: e.target.value })
                 }
-                placeholder="What is the long-term vision for this program?"
+                placeholder={t("adminMisc.newProgram.visionPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             </div>
@@ -697,7 +697,7 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, objectives: e.target.value })
                 }
-                placeholder="What are the key objectives?"
+                placeholder={t("adminMisc.newProgram.objectivesPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             </div>
@@ -707,7 +707,7 @@ export default function NewProgram() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Expected Outcomes
+                {t("adminMisc.newProgram.expectedOutcomes")}
               </label>
               <textarea
                 rows={3}
@@ -715,13 +715,13 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, expected_outcomes: e.target.value })
                 }
-                placeholder="What are the expected outcomes?"
+                placeholder={t("adminMisc.newProgram.expectedOutcomesPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             </div>
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                Success Metrics
+                {t("adminMisc.newProgram.successMetrics")}
               </label>
               <textarea
                 rows={3}
@@ -729,7 +729,7 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, success_metrics: e.target.value })
                 }
-                placeholder="How will success be measured?"
+                placeholder={t("adminMisc.newProgram.successMetricsPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             </div>
@@ -738,7 +738,7 @@ export default function NewProgram() {
           {/* Program Banner */}
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-              Program Banner URL
+              {t("adminMisc.newProgram.programBannerUrl")}
             </label>
             <input
               type="url"
@@ -844,7 +844,7 @@ export default function NewProgram() {
                 onChange={(e) =>
                   setProgram({ ...program, description: e.target.value })
                 }
-                placeholder="Outline the program objectives and goals..."
+                placeholder={t("adminMisc.newProgram.conceptNotePlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
             )}
@@ -884,11 +884,13 @@ export default function NewProgram() {
                   <Upload className="w-8 h-8 text-slate-500 group-hover:text-[var(--brand-orange)] mb-3 transition-all" />
                   <p className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
                     {program.conceptNoteFile ||
-                      "Click to upload PDF, DOC, or DOCX"}
+                      t("adminMisc.newProgram.clickToUpload")}
                   </p>
                   {program.conceptNoteFile && (
                     <p className="text-[8px] text-emerald-400 mt-2 font-semibold">
-                      {program.conceptNoteFile} selected
+                      {t("adminMisc.newProgram.fileSelected", {
+                        name: program.conceptNoteFile,
+                      })}
                     </p>
                   )}
                 </div>
@@ -907,7 +909,7 @@ export default function NewProgram() {
                   <BookOpen className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-bold uppercase tracking-tight">
-                  Select from Knowledge Base
+                  {t("adminMisc.newProgram.selectFromKnowledgeBase")}
                 </h3>
               </div>
 
@@ -915,14 +917,16 @@ export default function NewProgram() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center mb-2">
                     <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
-                      Knowledge Node Link
+                      {t("adminMisc.newProgram.knowledgeNodeLink")}
                     </label>
                     <button
                       type="button"
                       onClick={() => setIsCreatingKB(!isCreatingKB)}
                       className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest hover:underline"
                     >
-                      {isCreatingKB ? "Cancel" : "+ Create New KB"}
+                      {isCreatingKB
+                        ? t("adminMisc.newProgram.cancel")
+                        : t("adminMisc.newProgram.createNewKb")}
                     </button>
                   </div>
 
@@ -934,7 +938,7 @@ export default function NewProgram() {
                       }
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
                     >
-                      <option value="">Link Knowledge Node...</option>
+                      <option value="">{t("adminMisc.newProgram.linkKnowledgeNode")}</option>
                       {knowledgeNodes.map((node) => (
                         <option key={node.id} value={node.id}>
                           {node.title.toUpperCase()}
@@ -948,7 +952,7 @@ export default function NewProgram() {
                         onChange={(e) =>
                           setNewKB({ ...newKB, title: e.target.value })
                         }
-                        placeholder="Knowledge Base Name..."
+                        placeholder={t("adminMisc.newProgram.knowledgeBaseNamePlaceholder")}
                         className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
                       />
                       <div className="relative group h-20">
@@ -961,13 +965,15 @@ export default function NewProgram() {
                         />
                         <div className="flex flex-col items-center justify-center h-full border border-dashed border-[var(--border-primary)] rounded-lg group-hover:border-[var(--brand-orange)]">
                           <p className="text-[8px] font-black uppercase text-white/40">
-                            Upload Documents for KB
+                            {t("adminMisc.newProgram.uploadDocumentsForKb")}
                           </p>
                         </div>
                       </div>
                       {newKB.files.length > 0 && (
                         <div className="text-[8px] font-bold text-emerald-400 uppercase italic">
-                          {newKB.files.length} documents attached.
+                          {t("adminMisc.newProgram.documentsAttached", {
+                            count: newKB.files.length,
+                          })}
                         </div>
                       )}
                       <button
@@ -975,7 +981,7 @@ export default function NewProgram() {
                         onClick={handleCreateKBInline}
                         className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[9px] font-black uppercase rounded-lg border border-[var(--brand-orange)]/20"
                       >
-                        Initialize Knowledge Base
+                        {t("adminMisc.newProgram.initializeKnowledgeBase")}
                       </button>
                     </div>
                   )}
@@ -998,8 +1004,8 @@ export default function NewProgram() {
                     )}
                     <p className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
                       {isUploading
-                        ? "Uploading Assets..."
-                        : "Attach Program Materials (PDF)"}
+                        ? t("adminMisc.newProgram.uploadingAssets")
+                        : t("adminMisc.newProgram.attachProgramMaterials")}
                     </p>
                   </div>
                 </div>
@@ -1041,14 +1047,14 @@ export default function NewProgram() {
                   <Users className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-bold uppercase tracking-tight">
-                  Contact Group Assignment
+                  {t("adminMisc.newProgram.contactGroupAssignment")}
                 </h3>
               </div>
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-1">
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
-                    Group Target
+                    {t("adminMisc.newProgram.groupTarget")}
                   </label>
                   <button
                     type="button"
@@ -1063,7 +1069,9 @@ export default function NewProgram() {
                     }}
                     className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
                   >
-                    {isCreatingGroup ? "Cancel" : "+ Create New Group"}
+                    {isCreatingGroup
+                      ? t("adminMisc.newProgram.cancel")
+                      : t("adminMisc.newProgram.createNewGroup")}
                   </button>
                 </div>
 
@@ -1078,7 +1086,7 @@ export default function NewProgram() {
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
-                    <option value="">Select Existing Group...</option>
+                    <option value="">{t("adminMisc.newProgram.selectExistingGroup")}</option>
                     {segments.map((s) => (
                       <option key={s.id} value={s.id}>
                         {s.name.toUpperCase()}
@@ -1092,7 +1100,7 @@ export default function NewProgram() {
                       onChange={(e) =>
                         setNewGroup({ ...newGroup, name: e.target.value })
                       }
-                      placeholder="Group Name (e.g. Cohort A)..."
+                      placeholder={t("adminMisc.newProgram.groupNamePlaceholder")}
                       className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-blue-400"
                     />
                     <textarea
@@ -1103,7 +1111,7 @@ export default function NewProgram() {
                           description: e.target.value,
                         })
                       }
-                      placeholder="Group Description (optional)..."
+                      placeholder={t("adminMisc.newProgram.groupDescriptionPlaceholder")}
                       rows={2}
                       className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-white outline-none focus:border-blue-400 resize-none"
                     />
@@ -1112,7 +1120,7 @@ export default function NewProgram() {
                       onClick={handleCreateGroupInline}
                       className="w-full py-2 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20"
                     >
-                      Generate Group & URL
+                      {t("adminMisc.newProgram.generateGroupAndUrl")}
                     </button>
                   </div>
                 )}
@@ -1120,7 +1128,7 @@ export default function NewProgram() {
                 {createdGroup && (
                   <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-2">
                     <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
-                      Public Registration URL:
+                      {t("adminMisc.newProgram.publicRegistrationUrl")}
                     </p>
                     <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
                       <span className="text-[8px] font-mono text-white/60 truncate">
@@ -1133,7 +1141,7 @@ export default function NewProgram() {
                           navigator.clipboard.writeText(
                             `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}`,
                           );
-                          notify("success", "Copied");
+                          notify("success", t("adminMisc.newProgram.copied"));
                         }}
                         className="p-1 bg-white/5 rounded hover:bg-white/10"
                       >
@@ -1155,14 +1163,14 @@ export default function NewProgram() {
                   <Shield className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-bold uppercase tracking-tight">
-                  Assigned Managers
+                  {t("adminMisc.newProgram.assignedManagers")}
                 </h3>
               </div>
 
               <div className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
-                    PROGRAM MANAGER
+                    {t("adminMisc.newProgram.programManager")}
                   </label>
                   <select
                     required
@@ -1172,7 +1180,7 @@ export default function NewProgram() {
                     }
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
-                    <option value="">Select Manager...</option>
+                    <option value="">{t("adminMisc.newProgram.selectManager")}</option>
                     {staffList.map((staff) => (
                       <option key={staff.cid} value={staff.cid}>
                         {staff.name.toUpperCase()}
@@ -1183,7 +1191,7 @@ export default function NewProgram() {
 
                 <div className="space-y-3">
                   <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
-                    ASSIGNED TEAM (Collaborators)
+                    {t("adminMisc.newProgram.assignedTeam")}
                   </label>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {selectedAssistants.map((cid) => {
@@ -1211,7 +1219,7 @@ export default function NewProgram() {
                     }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
                   >
-                    <option value="">Select Support...</option>
+                    <option value="">{t("adminMisc.newProgram.selectSupport")}</option>
                     {staffList
                       .filter((s) => !selectedAssistants.includes(s.cid))
                       .map((staff) => (
@@ -1234,17 +1242,16 @@ export default function NewProgram() {
                 </div>
                 <div className="text-left">
                   <h3 className="text-xl font-bold text-white uppercase tracking-tight italic">
-                    Strategic KPIs Configuration
+                    {t("adminMisc.newProgram.strategicKpisConfiguration")}
                   </h3>
                   <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                    Define KPI targets for this program
+                    {t("adminMisc.newProgram.defineKpiTargets")}
                   </p>
                   <p className="text-[11px] text-slate-400 mt-3 max-w-2xl leading-relaxed">
-                    <strong className="text-white">What is a Target?</strong> A
-                    target is the percentage completion goal (e.g., 80%) you aim
-                    to achieve for a metric. Each KPI's progress is averaged
-                    together to calculate the program's overall total
-                    percentage.
+                    <strong className="text-white">
+                      {t("adminMisc.newProgram.targetTitle")}
+                    </strong>{" "}
+                    {t("adminMisc.newProgram.targetDescription")}
                   </p>
                 </div>
               </div>
@@ -1253,12 +1260,12 @@ export default function NewProgram() {
             <div className="grid grid-cols-1 md:grid-cols-1 gap-6 items-end">
               <div className="space-y-1 text-left">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">
-                  KPI Title
+                  {t("adminMisc.newProgram.kpiTitle")}
                 </label>
                 <div className="flex gap-3">
                   <input
                     type="text"
-                    placeholder="e.g. Weekly Attendance Rate, Assignment Submission..."
+                    placeholder={t("adminMisc.newProgram.kpiTitlePlaceholder")}
                     value={kpiInput.title}
                     onChange={(e) =>
                       setKpiInput({ ...kpiInput, title: e.target.value })
@@ -1303,7 +1310,7 @@ export default function NewProgram() {
                     }}
                     className="px-6 bg-[var(--brand-orange)] text-black font-bold uppercase text-[10px] tracking-widest rounded-xl hover:bg-white transition-all flex items-center justify-center shrink-0"
                   >
-                    <Plus className="w-4 h-4" /> Add
+                    <Plus className="w-4 h-4" /> {t("adminMisc.newProgram.add")}
                   </button>
                 </div>
               </div>
@@ -1312,7 +1319,9 @@ export default function NewProgram() {
             {kpisList.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-[var(--border-primary)]">
                 <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic text-left">
-                  Defined KPIs ({kpisList.length})
+                  {t("adminMisc.newProgram.definedKpis", {
+                    count: kpisList.length,
+                  })}
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {kpisList.map((kpi, idx) => (
@@ -1352,12 +1361,12 @@ export default function NewProgram() {
             {isDeploying ? (
               <div className="flex items-center justify-center gap-4">
                 <Loader2 className="w-6 h-6 animate-spin" />
-                <span>Saving Program...</span>
+                <span>{t("adminMisc.newProgram.savingProgram")}</span>
               </div>
             ) : (
               <div className="flex items-center justify-center gap-3">
                 <Zap className="w-5 h-5" />
-                <span>Save Program</span>
+                <span>{t("adminMisc.newProgram.saveProgram")}</span>
               </div>
             )}
           </button>

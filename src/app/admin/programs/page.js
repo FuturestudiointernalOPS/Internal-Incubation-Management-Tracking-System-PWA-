@@ -425,13 +425,13 @@ export default function ProgramManagement() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              Back to Dashboard
+              {t("adminMisc.programs.backToDashboard")}
             </button>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Signal className="w-4 h-4 text-[var(--brand-orange)]" />
                 <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                  Administration
+                  {t("adminMisc.programs.administration")}
                 </span>
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)]">
@@ -462,7 +462,7 @@ export default function ProgramManagement() {
             {[
               { key: "all", label: t("admin.tabAll") },
               { key: "active", label: t("admin.tabActive") },
-              { key: "planned", label: "Planned" },
+              { key: "planned", label: t("adminMisc.programs.tabPlanned") },
               { key: "pending", label: t("admin.tabPending") },
               { key: "completed", label: t("admin.tabCompleted") },
               { key: "archived", label: t("admin.tabArchived") },
@@ -499,11 +499,11 @@ export default function ProgramManagement() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Program Details</th>
-                  <th>Status</th>
-                  <th>PROGRAM MANAGER</th>
-                  <th>Engagement</th>
-                  <th className="text-right">Administration</th>
+                  <th>{t("adminMisc.programs.programDetails")}</th>
+                  <th>{t("adminMisc.programs.status")}</th>
+                  <th>{t("adminMisc.programs.programManager")}</th>
+                  <th>{t("adminMisc.programs.engagement")}</th>
+                  <th className="text-right">{t("adminMisc.programs.administration")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -522,10 +522,10 @@ export default function ProgramManagement() {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-base font-bold text-[var(--text-primary)] uppercase tracking-tight">
-                            {p?.name || "Unnamed Mission"}
+                            {p?.name || t("adminMisc.programs.unnamedMission")}
                           </span>
                           <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5 line-clamp-1 max-w-xs">
-                            {p?.description || "No directive provided."}
+                            {p?.description || t("adminMisc.programs.noDirective")}
                           </span>
                         </div>
                       </div>
@@ -547,18 +547,18 @@ export default function ProgramManagement() {
                         }`}
                       >
                         {p?.status === "active"
-                          ? "In Progress"
+                          ? t("adminMisc.programs.statusInProgress")
                           : p?.status === "in_progress"
-                            ? "In Progress"
+                            ? t("adminMisc.programs.statusInProgress")
                             : p?.status === "planned"
-                              ? "Planned"
+                              ? t("adminMisc.programs.statusPlanned")
                               : p?.status === "pending"
-                                ? "Pending"
+                                ? t("adminMisc.programs.statusPending")
                                 : p?.status === "completed"
-                                  ? "Completed"
+                                  ? t("adminMisc.programs.statusCompleted")
                                   : p?.status === "archived"
-                                    ? "Archived"
-                                    : p?.status || "Unknown"}
+                                    ? t("adminMisc.programs.statusArchived")
+                                    : p?.status || t("adminMisc.programs.unknown")}
                       </span>
                     </td>
                     <td>
@@ -573,11 +573,11 @@ export default function ProgramManagement() {
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col">
                           <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
-                            {p?.participants_count || 0} Members
+                            {p?.participants_count || 0} {t("adminMisc.programs.members")}
                           </span>
                           <span className="text-[9px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">
                             {Math.round(p?.completion_index || 0) || 0}%
-                            Progress
+                            {t("adminMisc.programs.progress")}
                           </span>
                         </div>
                         <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
@@ -596,14 +596,14 @@ export default function ProgramManagement() {
                               onClick={(e) =>
                                 handleArchiveAction(p?.id, false, e)
                               }
-                              title="Restore"
+                              title={t("adminMisc.programs.restore")}
                               className="p-2 hover:text-emerald-500"
                             >
                               <RotateCcw className="w-4 h-4" />
                             </button>
                             <button
                               onClick={(e) => handlePermanentDelete(p?.id, e)}
-                              title="Delete"
+                              title={t("adminMisc.programs.delete")}
                               className="p-2 hover:text-rose-500"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -616,7 +616,7 @@ export default function ProgramManagement() {
                                 e.stopPropagation();
                                 router.push(`/admin/programs/${p?.id}`);
                               }}
-                              title="Launch Executive Dashboard"
+                              title={t("adminMisc.programs.launchExecutiveDashboard")}
                               className="p-2 hover:text-[var(--brand-orange)]"
                             >
                               <ChevronRight className="w-4 h-4" />
@@ -646,7 +646,7 @@ export default function ProgramManagement() {
                                 e.stopPropagation();
                                 router.push(`/admin/programs/${p?.id}/teams`);
                               }}
-                              title="Manage Teams"
+                              title={t("adminMisc.programs.manageTeams")}
                               className="p-2 hover:text-[var(--brand-orange)]"
                             >
                               <Users className="w-4 h-4" />
@@ -655,7 +655,7 @@ export default function ProgramManagement() {
                               onClick={(e) =>
                                 handleArchiveAction(p?.id, true, e)
                               }
-                              title="Archive"
+                              title={t("adminMisc.programs.archive")}
                               className="p-2 hover:text-orange-500"
                             >
                               <Archive className="w-4 h-4" />
@@ -678,10 +678,10 @@ export default function ProgramManagement() {
             <div className="flex justify-between items-center sticky top-0 bg-secondary pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
                 <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">
-                  Edit Program Registry
+                  {t("adminMisc.programs.editProgramRegistry")}
                 </h3>
                 <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
-                  Operational ID: {editingProgram?.id}
+                  {t("adminMisc.programs.operationalId")}: {editingProgram?.id}
                 </p>
               </div>
               <button
@@ -698,7 +698,7 @@ export default function ProgramManagement() {
             <form onSubmit={handleUpdate} className="space-y-6 pt-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Program Name
+                  {t("adminMisc.programs.programName")}
                 </label>
                 <input
                   type="text"
@@ -827,7 +827,7 @@ export default function ProgramManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    Expected Outcomes
+                    {t("adminMisc.programs.expectedOutcomes")}
                   </label>
                   <textarea
                     rows={2}
@@ -843,7 +843,7 @@ export default function ProgramManagement() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    Success Metrics
+                    {t("adminMisc.programs.successMetrics")}
                   </label>
                   <textarea
                     rows={2}
@@ -862,7 +862,7 @@ export default function ProgramManagement() {
               {/* Program Banner */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Program Banner URL
+                  {t("adminMisc.programs.programBannerUrl")}
                 </label>
                 <input
                   type="url"
@@ -925,7 +925,7 @@ export default function ProgramManagement() {
               {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && editingProgram.assigned_segments[0] && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    Registration Link
+                    {t("adminMisc.programs.registrationLink")}
                   </label>
                   <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
                     <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
@@ -944,10 +944,10 @@ export default function ProgramManagement() {
                         const formUrl = groupRegLinks[gid];
                         const link = formUrl || `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
                         navigator.clipboard.writeText(link);
-                        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Registration link copied!" } }));
+                        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.registrationLinkCopied") } }));
                       }}
                       className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                      title="Copy registration link"
+                      title={t("adminMisc.programs.copyRegistrationLink")}
                     >
                       <Copy className="w-4 h-4" />
                     </button>
@@ -986,8 +986,9 @@ export default function ProgramManagement() {
                   {t?.("admin.programPersonnel") || "PROGRAM PERSONNEL (STAFF)"}
                 </label>
                 <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
-                  Select staff members assigned to assist the{" "}
-                  {t("admin.selectManager")} in oversight.
+                  {t("adminMisc.programs.staffAssistHint", {
+                    manager: t("admin.selectManager"),
+                  })}
                 </p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
                   {(Array.isArray(teams) ? teams : [])
@@ -1053,7 +1054,7 @@ export default function ProgramManagement() {
                             {member.name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[9px] font-black uppercase truncate italic">
-                            {member.name || "Unknown"}
+                            {member.name || t("adminMisc.programs.unknown")}
                           </span>
                         </button>
                       );
@@ -1063,7 +1064,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Knowledge Base Note
+                  {t("adminMisc.programs.knowledgeBaseNote")}
                 </label>
                 <div className="flex gap-2">
                   <select
@@ -1076,7 +1077,7 @@ export default function ProgramManagement() {
                     }
                     className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all cursor-pointer"
                   >
-                    <option value="">None Assigned</option>
+                    <option value="">{t("adminMisc.programs.noneAssigned")}</option>
                     {(Array.isArray(knowledgeItems)
                       ? knowledgeItems
                       : []
@@ -1084,7 +1085,7 @@ export default function ProgramManagement() {
                       (item) =>
                         item && (
                           <option key={item.id} value={item.id}>
-                            {item.title?.toUpperCase() || "UNTITLED NODE"}
+                            {item.title?.toUpperCase() || t("adminMisc.programs.untitledNode")}
                           </option>
                         ),
                     )}
@@ -1094,19 +1095,19 @@ export default function ProgramManagement() {
                     onClick={() => setShowCreateNote(!showCreateNote)}
                     className="px-3 py-2 rounded-xl border border-dashed border-[var(--brand-orange)] text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:bg-[var(--brand-orange)]/10 transition-all whitespace-nowrap"
                   >
-                    + New Note
+                    {t("adminMisc.programs.newNote")}
                   </button>
                 </div>
                 {showCreateNote && (
                   <div className="mt-3 p-4 bg-primary border border-[var(--border-primary)] rounded-xl space-y-3 animate-in">
                     <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
-                      Create New Concept Note
+                      {t("adminMisc.programs.createNewConceptNote")}
                     </p>
                     <input
                       type="text"
                       value={newNoteTitle}
                       onChange={(e) => setNewNoteTitle(e.target.value)}
-                      placeholder="Concept note title..."
+                      placeholder={t("adminMisc.programs.conceptNoteTitlePlaceholder")}
                       className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     />
                     <div className="flex gap-2">
@@ -1116,7 +1117,7 @@ export default function ProgramManagement() {
                         disabled={creatingNote || !newNoteTitle.trim()}
                         className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-wider disabled:opacity-50 transition-all"
                       >
-                        {creatingNote ? "Creating..." : "Create & Link"}
+                        {creatingNote ? t("adminMisc.programs.creating") : t("adminMisc.programs.createAndLink")}
                       </button>
                       <button
                         type="button"
@@ -1126,7 +1127,7 @@ export default function ProgramManagement() {
                         }}
                         className="py-2 px-4 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider hover:bg-tertiary transition-all"
                       >
-                        Cancel
+                        {t("adminMisc.programs.cancel")}
                       </button>
                     </div>
                   </div>
@@ -1135,7 +1136,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Duration (Weeks)
+                  {t("adminMisc.programs.durationWeeks")}
                 </label>
                 <input
                   type="number"
@@ -1177,19 +1178,19 @@ export default function ProgramManagement() {
                   }`}
                 >
                   <option value="planned" className="text-sky-500">
-                    Planned
+                    {t("adminMisc.programs.statusPlanned")}
                   </option>
                   <option value="active" className="text-emerald-500">
-                    In Progress
+                    {t("adminMisc.programs.statusInProgress")}
                   </option>
                   <option value="pending" className="text-amber-500">
-                    Pending
+                    {t("adminMisc.programs.statusPending")}
                   </option>
                   <option value="completed" className="text-purple-500">
-                    Completed
+                    {t("adminMisc.programs.statusCompleted")}
                   </option>
                   <option value="archived" className="text-rose-500">
-                    Archived
+                    {t("adminMisc.programs.statusArchived")}
                   </option>
                 </select>
               </div>
@@ -1231,7 +1232,7 @@ export default function ProgramManagement() {
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-blue-500" />
                               <span className="text-[10px] font-bold text-white uppercase truncate max-w-[200px]">
-                                {f.name || "Untitled PDF"}
+                                {f.name || t("adminMisc.programs.untitledPdf")}
                               </span>
                             </div>
                             <button
@@ -1329,7 +1330,7 @@ export default function ProgramManagement() {
                         <div className="flex flex-col overflow-hidden">
                           <div className="flex items-center gap-2">
                             <span className="text-[9px] font-black uppercase truncate italic">
-                              {s.name || "Unnamed"}
+                              {s.name || t("adminMisc.programs.unnamed")}
                             </span>
                             {isActive && s.default_role && (
                               typeof window !== "undefined" && JSON.parse(localStorage.getItem("user") || "{}").role === "super_admin" ?
@@ -1343,20 +1344,20 @@ export default function ProgramManagement() {
                                       await fetch("/api/families", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, default_role: newRole }) });
                                       const updated = (Array.isArray(notes) ? notes : []).map((n) => n.id === s.id ? { ...n, default_role: newRole } : n);
                                       setNotes(updated);
-                                      window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: "Role updated" } }));
+                                      window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.roleUpdated") } }));
                                     } catch (_) {}
                                   }}
                                   className="text-[7px] font-black px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
                                 >
                                   <option value={s.default_role}>{s.default_role}</option>
-                                  <option value="">— None —</option>
-                                  <option value="participant">Participant</option>
-                                  <option value="staff">Staff</option>
-                                  <option value="program_manager">Program Manager</option>
-                                  <option value="teacher">Teacher</option>
-                                  <option value="mentor">Mentor</option>
-                                  <option value="investor">Investor</option>
-                                  <option value="founder">Founder</option>
+                                  <option value="">{t("adminMisc.programs.roleNone")}</option>
+                                  <option value="participant">{t("adminMisc.programs.roleParticipant")}</option>
+                                  <option value="staff">{t("adminMisc.programs.roleStaff")}</option>
+                                  <option value="program_manager">{t("adminMisc.programs.roleProgramManager")}</option>
+                                  <option value="teacher">{t("adminMisc.programs.roleTeacher")}</option>
+                                  <option value="mentor">{t("adminMisc.programs.roleMentor")}</option>
+                                  <option value="investor">{t("adminMisc.programs.roleInvestor")}</option>
+                                  <option value="founder">{t("adminMisc.programs.roleFounder")}</option>
                                 </select>
                               :
                                 <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">{s.default_role}</span>
@@ -1365,7 +1366,7 @@ export default function ProgramManagement() {
                           {isActive && (
                             <span 
                               className="text-[8px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
-                              title="Click to copy registration link"
+                              title={t("adminMisc.programs.clickToCopyRegistrationLink")}
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 const regId = s.registration_id || s.id;
@@ -1418,7 +1419,7 @@ export default function ProgramManagement() {
                       onChange={(e) =>
                         setNewGroup({ ...newGroup, name: e.target.value })
                       }
-                      placeholder="Group name (defaults to program name)"
+                      placeholder={t("adminMisc.programs.groupNamePlaceholder")}
                       className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-blue-400"
                     />
                     <textarea
@@ -1429,7 +1430,7 @@ export default function ProgramManagement() {
                           description: e.target.value,
                         })
                       }
-                      placeholder="Group description (optional)..."
+                      placeholder={t("adminMisc.programs.groupDescriptionPlaceholder")}
                       rows={2}
                       className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400 resize-none"
                     />
@@ -1440,14 +1441,14 @@ export default function ProgramManagement() {
                       }
                       className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400"
                     >
-                      <option value="">— Default role (optional) —</option>
-                      <option value="participant">Participant</option>
-                      <option value="staff">Staff</option>
-                      <option value="program_manager">Program Manager</option>
-                      <option value="teacher">Teacher / Assistant</option>
-                      <option value="mentor">Mentor</option>
-                      <option value="investor">Investor</option>
-                      <option value="founder">Founder</option>
+                      <option value="">{t("adminMisc.programs.defaultRoleOptional")}</option>
+                      <option value="participant">{t("adminMisc.programs.roleParticipant")}</option>
+                      <option value="staff">{t("adminMisc.programs.roleStaff")}</option>
+                      <option value="program_manager">{t("adminMisc.programs.roleProgramManager")}</option>
+                      <option value="teacher">{t("adminMisc.programs.roleTeacherAssistant")}</option>
+                      <option value="mentor">{t("adminMisc.programs.roleMentor")}</option>
+                      <option value="investor">{t("adminMisc.programs.roleInvestor")}</option>
+                      <option value="founder">{t("adminMisc.programs.roleFounder")}</option>
                     </select>
                     <button
                       type="button"
@@ -1462,7 +1463,7 @@ export default function ProgramManagement() {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  Concept Note
+                  {t("adminMisc.programs.conceptNote")}
                 </label>
                 <textarea
                   rows={3}
@@ -1481,11 +1482,11 @@ export default function ProgramManagement() {
               <div className="space-y-4 pt-6 border-t border-[var(--border-primary)] text-left">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 font-sans flex items-center gap-2">
-                    <Target className="w-3.5 h-3.5" /> Strategic KPIs
-                    Configuration
+                    <Target className="w-3.5 h-3.5" />{" "}
+                    {t("adminMisc.programs.strategicKpisConfiguration")}
                   </label>
                   <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest italic opacity-50">
-                    SuperAdmin Only
+                    {t("adminMisc.programs.superAdminOnly")}
                   </span>
                 </div>
 
@@ -1516,19 +1517,17 @@ export default function ProgramManagement() {
                   <div className="p-4 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10 rounded-xl space-y-4">
                     <div className="space-y-1">
                       <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
-                        Define New Target
+                        {t("adminMisc.programs.defineNewTarget")}
                       </p>
                       <p className="text-[10px] text-[var(--text-secondary)]">
-                        Target represents the completion percentage goal (e.g.
-                        80%) for this metric. All defined KPIs are averaged
-                        together to calculate the program's total progress.
+                        {t("adminMisc.programs.targetDescription")}
                       </p>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <input
-                        placeholder={
-                          t("admin.kpiTitle") + " (e.g. Attendance)..."
-                        }
+                        placeholder={t("adminMisc.programs.kpiTitlePlaceholder", {
+                          title: t("admin.kpiTitle"),
+                        })}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
                         onChange={(e) =>
@@ -1561,7 +1560,7 @@ export default function ProgramManagement() {
                           }
                           className="px-4 bg-[var(--brand-orange)] text-black font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50"
                         >
-                          Add
+                          {t("adminMisc.programs.add")}
                         </button>
                       </div>
                     </div>
@@ -1580,13 +1579,13 @@ export default function ProgramManagement() {
                     <span>{t("common.saving")}</span>
                   </div>
                 ) : (
-                  "Save"
+                  t("adminMisc.programs.save")
                 )}
               </button>
               <button
                 type="button"
                 onClick={async () => {
-                  const name = prompt("Template name:");
+                  const name = prompt(t("adminMisc.programs.templateNamePrompt"));
                   if (!name || !editingProgram?.id) return;
                   const res = await fetch(
                     "/api/pm/programs/templates?action=save",

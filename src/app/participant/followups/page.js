@@ -47,7 +47,7 @@ export default function ParticipantFollowupsPage() {
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
           <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-            {t("participant.followUpMeeting") || "Follow-up Meetings"}
+            {t("participantMisc.followups.title")}
           </span>
         </div>
 
@@ -61,7 +61,7 @@ export default function ParticipantFollowupsPage() {
           <div className="text-center py-16">
             <Calendar className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
             <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-              No follow-up meetings scheduled
+              {t("participantMisc.followups.empty")}
             </p>
           </div>
         ) : (
@@ -74,7 +74,7 @@ export default function ParticipantFollowupsPage() {
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-[12px] font-bold text-[var(--text-primary)]">
-                      {f.comment || "Follow-up Meeting"}
+                      {f.comment || t("participantMisc.followups.followUpMeeting")}
                     </p>
                     <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
                       {f.program_name || ""}
@@ -82,7 +82,7 @@ export default function ParticipantFollowupsPage() {
                     </p>
                   </div>
                   <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${statusStyles[f.status] || statusStyles.scheduled}`}>
-                    {f.status || "scheduled"}
+                    {f.status || t("participantMisc.followups.statusScheduled")}
                   </span>
                 </div>
 
@@ -95,7 +95,7 @@ export default function ParticipantFollowupsPage() {
                     </div>
                   )}
                   {f.duration_minutes && (
-                    <span>{f.duration_minutes} min</span>
+                    <span>{t("participantMisc.followups.duration", { minutes: f.duration_minutes })}</span>
                   )}
                 </div>
 
@@ -107,7 +107,7 @@ export default function ParticipantFollowupsPage() {
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[9px] font-bold text-[var(--brand-orange)] hover:brightness-110 transition-all"
                   >
                     <Video className="w-3 h-3" />
-                    Join Meeting
+                    {t("participantMisc.followups.joinMeeting")}
                     <ExternalLink className="w-2.5 h-2.5" />
                   </a>
                 )}
@@ -116,7 +116,7 @@ export default function ParticipantFollowupsPage() {
                   <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
                     <div className="flex items-center gap-1.5 mb-1">
                       <MessageSquare className="w-3 h-3 text-blue-400" />
-                      <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">Notes</span>
+                      <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{t("participantMisc.followups.notes")}</span>
                     </div>
                     <p className="text-[9px] text-[var(--text-primary)]">{f.notes}</p>
                   </div>

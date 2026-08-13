@@ -47,6 +47,7 @@ import enInvestorMisc from "@/locales/en/investorMisc.json";
 import enParticipantMisc from "@/locales/en/participantMisc.json";
 import enStaffMisc from "@/locales/en/staffMisc.json";
 import enRootMisc from "@/locales/en/rootMisc.json";
+import enTeacherMisc from "@/locales/en/teacherMisc.json";
 
 import frCommon from "@/locales/fr/common.json";
 import frAuth from "@/locales/fr/auth.json";
@@ -79,6 +80,7 @@ import frInvestorMisc from "@/locales/fr/investorMisc.json";
 import frParticipantMisc from "@/locales/fr/participantMisc.json";
 import frStaffMisc from "@/locales/fr/staffMisc.json";
 import frRootMisc from "@/locales/fr/rootMisc.json";
+import frTeacherMisc from "@/locales/fr/teacherMisc.json";
 
 // ─── Deep merge: recursively merges objects ───
 function deepMerge(target, source) {
@@ -126,6 +128,7 @@ const EN = [
   enParticipantMisc,
   enStaffMisc,
   enRootMisc,
+  enTeacherMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 const FR = [
@@ -160,6 +163,7 @@ const FR = [
   frParticipantMisc,
   frStaffMisc,
   frRootMisc,
+  frTeacherMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 export const LOCALE_REGISTRY = {

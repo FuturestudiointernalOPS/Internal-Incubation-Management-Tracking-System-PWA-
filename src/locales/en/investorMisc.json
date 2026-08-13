@@ -156,6 +156,25 @@
       "philosophyPlaceholder": "Describe your investment approach...",
       "savePreferences": "Save Preferences",
       "preferencesSaved": "Preferences saved"
+    },
+    "history": {
+      "title": "Investment History",
+      "subtitle": "Decisions, timeline & reports",
+      "exportCsv": "CSV",
+      "exportJson": "JSON",
+      "exportPrintable": "Printable",
+      "totalDecisions": "Total Decisions",
+      "invested": "Invested",
+      "totalCapital": "Total Capital",
+      "declined": "Declined",
+      "decisions": "Decisions",
+      "activityTimeline": "Activity Timeline",
+      "noActivity": "No activity yet",
+      "venture": "Venture",
+      "decisionInvested": "Invested",
+      "decisionDeclined": "Declined",
+      "decisionContinueDiscussions": "Continue Discussions",
+      "decisionRevisitLater": "Revisit Later"
     }
   }
 }

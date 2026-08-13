@@ -84,6 +84,58 @@
       "approved": "Approuvés",
       "totalSessions": "Séances totales",
       "ritualSubmissions": "Soumissions de rituels"
+    },
+    "programListing": {
+      "active": "Actif",
+      "weekRange": "Semaine {current}/{total}",
+      "facilitators": "{count} facilitateur(s)",
+      "progress": "Progression",
+      "attendance": "Présences",
+      "assignments": "Devoirs",
+      "na": "N/D",
+      "details": "Détails",
+      "failedToLoadPrograms": "Échec du chargement des programmes",
+      "networkError": "Erreur réseau. Veuillez réessayer.",
+      "retry": "Réessayer",
+      "noProgramsYet": "Aucun programme pour l'instant",
+      "noProgramsHint": "Vous n'êtes inscrit à aucun programme pour l'instant. Une fois ajouté à un programme, il apparaîtra ici.",
+      "myPrograms": "Mes programmes",
+      "enrolledCount": "{count} programme(s) suivi(s)",
+      "activePrograms": "Programmes actifs ({count})",
+      "otherPrograms": "Autres programmes ({count})"
+    },
+    "dashboardHome": {
+      "failedToLoad": "Échec du chargement du tableau de bord",
+      "networkError": "Erreur réseau. Veuillez réessayer.",
+      "failedToLoadTitle": "Échec du chargement",
+      "retry": "Réessayer",
+      "noProgramsYet": "Aucun programme pour l'instant",
+      "noProgramsHint": "Vous n'êtes inscrit à aucun programme pour l'instant. Une fois ajouté à un programme, votre tableau de bord apparaîtra ici.",
+      "activeSession": "Session active",
+      "welcomeBack": "Bon retour,",
+      "participant": "Participant",
+      "weekOf": "Semaine {current} sur {total}",
+      "yourProgress": "Votre progression",
+      "programCompletion": "Complétion du programme",
+      "attendance": "Présences",
+      "assignments": "Devoirs",
+      "kpiAchievement": "Réalisation des KPI",
+      "overdue": "En retard ({count})",
+      "dueThisWeek": "Échéance cette semaine ({count})",
+      "pendingReview": "En attente de révision ({count})",
+      "deliverableNumber": "Livrable #{id}",
+      "announcements": "Annonces",
+      "newBadge": "{count} NOUVEAU",
+      "noAnnouncements": "Aucune annonce pour l'instant"
+    },
+    "followups": {
+      "title": "Réunions de suivi",
+      "empty": "Aucune réunion de suivi planifiée",
+      "followUpMeeting": "Réunion de suivi",
+      "statusScheduled": "Planifiée",
+      "duration": "{minutes} min",
+      "joinMeeting": "Rejoindre la réunion",
+      "notes": "Notes"
     }
   }
 }

@@ -84,6 +84,58 @@
       "approved": "Approved",
       "totalSessions": "Total Sessions",
       "ritualSubmissions": "Ritual Submissions"
+    },
+    "programListing": {
+      "active": "Active",
+      "weekRange": "Week {current}/{total}",
+      "facilitators": "{count} facilitator(s)",
+      "progress": "Progress",
+      "attendance": "Attendance",
+      "assignments": "Assignments",
+      "na": "N/A",
+      "details": "Details",
+      "failedToLoadPrograms": "Failed to Load Programs",
+      "networkError": "Network error. Please try again.",
+      "retry": "Retry",
+      "noProgramsYet": "No Programs Yet",
+      "noProgramsHint": "You are not enrolled in any programs yet. Once you are added to a program, it will appear here.",
+      "myPrograms": "My Programs",
+      "enrolledCount": "{count} program(s) enrolled",
+      "activePrograms": "Active Programs ({count})",
+      "otherPrograms": "Other Programs ({count})"
+    },
+    "dashboardHome": {
+      "failedToLoad": "Failed to load dashboard",
+      "networkError": "Network error. Please try again.",
+      "failedToLoadTitle": "Failed to Load",
+      "retry": "Retry",
+      "noProgramsYet": "No Programs Yet",
+      "noProgramsHint": "You are not enrolled in any programs yet. Once you are added to a program, your dashboard will appear here.",
+      "activeSession": "Active Session",
+      "welcomeBack": "Welcome back,",
+      "participant": "Participant",
+      "weekOf": "Week {current} of {total}",
+      "yourProgress": "Your Progress",
+      "programCompletion": "Program Completion",
+      "attendance": "Attendance",
+      "assignments": "Assignments",
+      "kpiAchievement": "KPI Achievement",
+      "overdue": "Overdue ({count})",
+      "dueThisWeek": "Due This Week ({count})",
+      "pendingReview": "Pending Review ({count})",
+      "deliverableNumber": "Deliverable #{id}",
+      "announcements": "Announcements",
+      "newBadge": "{count} NEW",
+      "noAnnouncements": "No announcements yet"
+    },
+    "followups": {
+      "title": "Follow-up Meetings",
+      "empty": "No follow-up meetings scheduled",
+      "followUpMeeting": "Follow-up Meeting",
+      "statusScheduled": "Scheduled",
+      "duration": "{minutes} min",
+      "joinMeeting": "Join Meeting",
+      "notes": "Notes"
     }
   }
 }

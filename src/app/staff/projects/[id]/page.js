@@ -37,6 +37,27 @@ const STATUS_BG = {
   Archived: "bg-slate-500/10",
 };
 
+const PROJECT_STATUS_LABELS = {
+  Active: "staffMisc.projectDetail.statusActive",
+  Completed: "staffMisc.projectDetail.statusCompleted",
+  Paused: "staffMisc.projectDetail.statusPaused",
+  Archived: "staffMisc.projectDetail.statusArchived",
+};
+const BLOCKER_STATUS_LABELS = {
+  active: "staffMisc.projectDetail.blockerStatusActive",
+  resolved: "staffMisc.projectDetail.blockerStatusResolved",
+};
+const MEMBER_ROLE_LABELS = {
+  lead: "staffMisc.projectDetail.roleLead",
+  member: "staffMisc.projectDetail.roleMember",
+};
+const UPDATE_STATUS_LABELS = {
+  on_track: "staffMisc.projectDetail.updateStatusOnTrack",
+  at_risk: "staffMisc.projectDetail.updateStatusAtRisk",
+  blocked: "staffMisc.projectDetail.updateStatusBlocked",
+  completed: "staffMisc.projectDetail.updateStatusCompleted",
+};
+
 export default function StaffProjectDetail() {
   const router = useRouter();
   const params = useParams();
@@ -79,9 +100,9 @@ export default function StaffProjectDetail() {
       const res = await fetch(`/api/admin/projects/${projectId}`);
       const data = await res.json();
       if (data.success) setProject(data.project);
-      else setError(t((data.error || "Failed to load project") || "") || (data.error || "Failed to load project"));
+      else setError(data.error || t("staffMisc.projectDetail.loadFailed"));
     } catch (e) {
-      setError("Network error loading project");
+      setError(t("staffMisc.projectDetail.loadNetworkError"));
     } finally {
       setLoading(false);
     }
@@ -187,14 +208,14 @@ export default function StaffProjectDetail() {
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
-            {error || "Project not found"}
+            {error || t("staffMisc.projectDetail.notFound")}
           </p>
           <button
             onClick={() => router.push("/staff/projects")}
             className="mt-6 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest"
           >
             <ArrowLeft className="w-3.5 h-3.5 inline mr-2" />
-            Back to Projects
+            {t("staffMisc.projectDetail.backToProjects")}
           </button>
         </div>
       </DashboardLayout>
@@ -224,7 +245,7 @@ export default function StaffProjectDetail() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              All Projects
+              {t("staffMisc.projectDetail.allProjects")}
             </button>
             <div className="flex items-center gap-3 mt-1">
               <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center">
@@ -238,7 +259,8 @@ export default function StaffProjectDetail() {
                   <span
                     className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                   >
-                    {project.status}
+                    {project.status &&
+                      t(PROJECT_STATUS_LABELS[project.status] || project.status)}
                   </span>
                 </div>
                 <div className="flex items-center gap-4 mt-1.5">
@@ -252,8 +274,9 @@ export default function StaffProjectDetail() {
                     <div className="flex items-center gap-1.5 text-[10px] text-emerald-400">
                       <Calendar className="w-3 h-3" />
                       <span className="font-bold">
-                        Start{" "}
-                        {new Date(project.start_date).toLocaleDateString()}
+                        {t("staffMisc.projectDetail.startDate", {
+                          date: new Date(project.start_date).toLocaleDateString(),
+                        })}
                       </span>
                     </div>
                   )}
@@ -261,7 +284,9 @@ export default function StaffProjectDetail() {
                     <div className="flex items-center gap-1.5 text-[10px] text-amber-400">
                       <Calendar className="w-3 h-3" />
                       <span className="font-bold">
-                        End {new Date(project.end_date).toLocaleDateString()}
+                        {t("staffMisc.projectDetail.endDate", {
+                          date: new Date(project.end_date).toLocaleDateString(),
+                        })}
                       </span>
                     </div>
                   )}
@@ -273,7 +298,7 @@ export default function StaffProjectDetail() {
             onClick={fetchProject}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[9px] font-black uppercase tracking-widest"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> {t("staffMisc.projectDetail.refresh")}
           </button>
         </header>
 
@@ -285,7 +310,7 @@ export default function StaffProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Progress
+                {t("staffMisc.projectDetail.statProgress")}
               </p>
               <p className="text-xl font-black text-emerald-500">
                 {project.completionRate || 0}%
@@ -298,7 +323,7 @@ export default function StaffProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Tasks
+                {t("staffMisc.projectDetail.statTasks")}
               </p>
               <p className="text-xl font-black">
                 {project.taskStats?.total || 0}
@@ -311,7 +336,7 @@ export default function StaffProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Blockers
+                {t("staffMisc.projectDetail.statBlockers")}
               </p>
               <p className="text-xl font-black text-rose-500">
                 {activeBlockersCount}
@@ -324,7 +349,7 @@ export default function StaffProjectDetail() {
             </div>
             <div>
               <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
-                Team
+                {t("staffMisc.projectDetail.statTeam")}
               </p>
               <p className="text-xl font-black text-blue-500">
                 {members.length}
@@ -338,25 +363,49 @@ export default function StaffProjectDetail() {
           <div className="overflow-x-auto custom-scrollbar pb-1">
             <div className="flex items-center gap-1 border-b border-[var(--border-primary)] min-w-max px-2">
               {[
-                { id: "overview", label: "OVERVIEW", icon: Activity },
+                {
+                  id: "overview",
+                  label: t("staffMisc.projectDetail.tabOverview"),
+                  icon: Activity,
+                },
                 {
                   id: "tasks",
-                  label: `TASKS (${tasks.length})`,
+                  label: t("staffMisc.projectDetail.tabTasks", {
+                    count: tasks.length,
+                  }),
                   icon: ListTodo,
                 },
                 {
                   id: "blockers",
-                  label: `BLOCKERS (${blockers.length})`,
+                  label: t("staffMisc.projectDetail.tabBlockers", {
+                    count: blockers.length,
+                  }),
                   icon: Shield,
                 },
-                { id: "team", label: `TEAM (${members.length})`, icon: Users },
-                { id: "updates", label: "UPDATE", icon: FileText },
+                {
+                  id: "team",
+                  label: t("staffMisc.projectDetail.tabTeam", {
+                    count: members.length,
+                  }),
+                  icon: Users,
+                },
+                {
+                  id: "updates",
+                  label: t("staffMisc.projectDetail.tabUpdates"),
+                  icon: FileText,
+                },
                 {
                   id: "discussions",
-                  label: `DISCUSSIONS (${discussions.length})`,
+                  label: t("staffMisc.projectDetail.tabDiscussions", {
+                    count: discussions.length,
+                  }),
                   icon: MessageSquare,
                 },
-                { id: "timeline", label: "TIMELINE", icon: Clock },
+                {
+                  id: "timeline",
+                  label: t("staffMisc.projectDetail.tabTimeline"),
+                  icon: Clock,
+                },
               ].map((tab) => {
                 const isActive = activeTab === tab.id;
                 const TabIcon = tab.icon;
@@ -380,7 +429,7 @@ export default function StaffProjectDetail() {
           <div className="space-y-6">
             <div className="card space-y-3">
               <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                Overall Progress
+                {t("staffMisc.projectDetail.overallProgress")}
               </h3>
               <div className="flex items-center gap-4">
                 <div className="flex-1 h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden">
@@ -397,31 +446,31 @@ export default function StaffProjectDetail() {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               {[
                 {
-                  label: "Active",
+                  label: t("staffMisc.projectDetail.taskStatusActive"),
                   key: "in_progress",
                   color: "text-blue-500",
                   bg: "bg-blue-500/10",
                 },
                 {
-                  label: "Blocked",
+                  label: t("staffMisc.projectDetail.taskStatusBlocked"),
                   key: "blocked",
                   color: "text-rose-500",
                   bg: "bg-rose-500/10",
                 },
                 {
-                  label: "Pending",
+                  label: t("staffMisc.projectDetail.taskStatusPending"),
                   key: "pending",
                   color: "text-slate-500",
                   bg: "bg-slate-500/10",
                 },
                 {
-                  label: "Done",
+                  label: t("staffMisc.projectDetail.taskStatusDone"),
                   key: "completed",
                   color: "text-emerald-500",
                   bg: "bg-emerald-500/10",
                 },
                 {
-                  label: "Carryover",
+                  label: t("staffMisc.projectDetail.taskStatusCarryover"),
                   key: "carried_over",
                   color: "text-amber-500",
                   bg: "bg-amber-500/10",
@@ -441,7 +490,7 @@ export default function StaffProjectDetail() {
             {tasks.length > 0 && (
               <div className="card">
                 <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                  Latest Tasks
+                  {t("staffMisc.projectDetail.latestTasks")}
                 </h3>
                 <div className="space-y-2">
                   {tasks.slice(0, 5).map((task) => (
@@ -486,14 +535,23 @@ export default function StaffProjectDetail() {
           <div className="space-y-4">
             <div className="flex items-center gap-2 flex-wrap">
               {[
-                { id: "all", label: `All (${blockers.length})` },
+                {
+                  id: "all",
+                  label: t("staffMisc.projectDetail.blockerFilterAll", {
+                    count: blockers.length,
+                  }),
+                },
                 {
                   id: "active",
-                  label: `Active (${blockers.filter((b) => b.status === "active").length})`,
+                  label: t("staffMisc.projectDetail.blockerFilterActive", {
+                    count: blockers.filter((b) => b.status === "active").length,
+                  }),
                 },
                 {
                   id: "resolved",
-                  label: `Resolved (${blockers.filter((b) => b.status === "resolved").length})`,
+                  label: t("staffMisc.projectDetail.blockerFilterResolved", {
+                    count: blockers.filter((b) => b.status === "resolved").length,
+                  }),
                 },
               ].map((f) => (
                 <button
@@ -509,7 +567,7 @@ export default function StaffProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50">
                 <Shield className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No blockers found
+                  {t("staffMisc.projectDetail.noBlockers")}
                 </p>
               </div>
             ) : (
@@ -532,19 +590,23 @@ export default function StaffProjectDetail() {
                       </p>
                       {blocker.task_title && (
                         <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
-                          Task: {blocker.task_title}
+                          {t("staffMisc.projectDetail.taskLabel", {
+                            title: blocker.task_title,
+                          })}
                         </p>
                       )}
                       {blocker.user_name && (
                         <p className="text-[8px] text-slate-500 mt-0.5">
-                          Raised by {blocker.user_name}
+                          {t("staffMisc.projectDetail.raisedBy", {
+                            name: blocker.user_name,
+                          })}
                         </p>
                       )}
                     </div>
                     <span
                       className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${blocker.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
                     >
-                      {blocker.status}
+                      {t(BLOCKER_STATUS_LABELS[blocker.status] || blocker.status)}
                     </span>
                   </div>
                 ))}
@@ -560,7 +622,7 @@ export default function StaffProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50">
                 <Users className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No team members
+                  {t("staffMisc.projectDetail.noTeamMembers")}
                 </p>
               </div>
             ) : (
@@ -571,7 +633,7 @@ export default function StaffProjectDetail() {
                   </div>
                   <div className="flex-1">
                     <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                      {m.name || m.member_id || "Unknown"}
+                      {m.name || m.member_id || t("staffMisc.projectDetail.unknown")}
                     </p>
                     {m.email && (
                       <p className="text-[9px] text-[var(--text-secondary)]">
@@ -582,7 +644,11 @@ export default function StaffProjectDetail() {
                   <span
                     className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${m.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
                   >
-                    {m.member_role || "member"}
+                    {t(
+                      MEMBER_ROLE_LABELS[m.member_role] ||
+                        m.member_role ||
+                        "staffMisc.projectDetail.roleMember",
+                    )}
                   </span>
                 </div>
               ))
@@ -595,11 +661,11 @@ export default function StaffProjectDetail() {
           <div className="space-y-6">
             <div className="card space-y-4">
               <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest">
-                Post Weekly Update
+                {t("staffMisc.projectDetail.postWeeklyUpdate")}
               </h3>
               <div>
                 <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 block">
-                  Status
+                  {t("staffMisc.projectDetail.statusField")}
                 </label>
                 <select
                   value={updateForm.overall_status}
@@ -611,18 +677,26 @@ export default function StaffProjectDetail() {
                   }
                   className="w-full px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none"
                 >
-                  <option value="on_track">On Track</option>
-                  <option value="at_risk">At Risk</option>
-                  <option value="blocked">Blocked</option>
-                  <option value="completed">Completed</option>
+                  <option value="on_track">
+                    {t("staffMisc.projectDetail.updateStatusOnTrack")}
+                  </option>
+                  <option value="at_risk">
+                    {t("staffMisc.projectDetail.updateStatusAtRisk")}
+                  </option>
+                  <option value="blocked">
+                    {t("staffMisc.projectDetail.updateStatusBlocked")}
+                  </option>
+                  <option value="completed">
+                    {t("staffMisc.projectDetail.updateStatusCompleted")}
+                  </option>
                 </select>
               </div>
               {[
-                { key: "accomplishments", label: "Accomplishments" },
-                { key: "current_focus", label: "Current Focus" },
-                { key: "blockers", label: "Blockers" },
-                { key: "next_steps", label: "Next Steps" },
-                { key: "notes", label: "Notes" },
+                { key: "accomplishments", label: t("staffMisc.projectDetail.fieldAccomplishments") },
+                { key: "current_focus", label: t("staffMisc.projectDetail.fieldCurrentFocus") },
+                { key: "blockers", label: t("staffMisc.projectDetail.fieldBlockers") },
+                { key: "next_steps", label: t("staffMisc.projectDetail.fieldNextSteps") },
+                { key: "notes", label: t("staffMisc.projectDetail.fieldNotes") },
               ].map(({ key, label }) => (
                 <div key={key}>
                   <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 block">
@@ -647,30 +721,37 @@ export default function StaffProjectDetail() {
                 className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
-                {savingUpdate ? "Saving..." : "Submit Update"}
+                {savingUpdate
+                  ? t("staffMisc.projectDetail.saving")
+                  : t("staffMisc.projectDetail.submitUpdate")}
               </button>
             </div>
             {updates.length > 0 && (
               <div className="space-y-2">
                 <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest">
-                  History ({updates.length})
+                  {t("staffMisc.projectDetail.historyCount", {
+                    count: updates.length,
+                  })}
                 </h3>
                 {updates.map((u) => (
                   <div key={u.id} className="card p-4 space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-black text-[var(--text-primary)]">
-                        Week {u.week_number}, {u.year}
+                        {t("staffMisc.projectDetail.weekLabel", {
+                          week: u.week_number,
+                          year: u.year,
+                        })}
                       </span>
                       <span
                         className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full ${u.overall_status === "on_track" ? "bg-emerald-500/10 text-emerald-500" : u.overall_status === "at_risk" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}
                       >
-                        {u.overall_status}
+                        {t(UPDATE_STATUS_LABELS[u.overall_status] || u.overall_status)}
                       </span>
                     </div>
                     {u.accomplishments && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <span className="font-bold text-[var(--text-primary)]">
-                          Done:
+                          {t("staffMisc.projectDetail.doneLabel")}
                         </span>{" "}
                         {u.accomplishments}
                       </p>
@@ -678,7 +759,7 @@ export default function StaffProjectDetail() {
                     {u.current_focus && (
                       <p className="text-[10px] text-[var(--text-secondary)]">
                         <span className="font-bold text-[var(--text-primary)]">
-                          Focus:
+                          {t("staffMisc.projectDetail.focusLabel")}
                         </span>{" "}
                         {u.current_focus}
                       </p>
@@ -696,7 +777,7 @@ export default function StaffProjectDetail() {
             {/* Post new message */}
             <div className="card space-y-3">
               <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-widest">
-                Project Discussions
+                {t("staffMisc.projectDetail.projectDiscussions")}
               </h3>
               <div className="flex gap-2">
                 <textarea
@@ -747,7 +828,7 @@ export default function StaffProjectDetail() {
                         {(msg.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                        {msg.sender_name || "Unknown"}
+                        {msg.sender_name || t("staffMisc.projectDetail.unknown")}
                       </span>
                       <span className="text-[8px] text-slate-500 ml-auto">
                         {new Date(msg.created_at).toLocaleDateString(
@@ -778,10 +859,10 @@ export default function StaffProjectDetail() {
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50">
                 <Clock className="w-12 h-12 mb-3" />
                 <p className="text-[10px] font-bold uppercase tracking-widest">
-                  No activity yet
+                  {t("staffMisc.projectDetail.noActivityYet")}
                 </p>
                 <p className="text-[9px] text-slate-500 mt-1">
-                  Task assignments, completions, and updates will appear here.
+                  {t("staffMisc.projectDetail.timelineEmptyHint")}
                 </p>
               </div>
             ) : (
@@ -797,12 +878,16 @@ export default function StaffProjectDetail() {
                     </p>
                     {entry.task_title && (
                       <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
-                        Task: {entry.task_title}
+                        {t("staffMisc.projectDetail.taskLabel", {
+                          title: entry.task_title,
+                        })}
                       </p>
                     )}
                     {entry.actor_name && (
                       <p className="text-[8px] text-slate-500 mt-0.5">
-                        By {entry.actor_name}
+                        {t("staffMisc.projectDetail.byActor", {
+                          name: entry.actor_name,
+                        })}
                       </p>
                     )}
                   </div>

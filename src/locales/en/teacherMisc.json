@@ -1,0 +1,18 @@
+{
+  "teacherMisc": {
+    "sessions": {
+      "tacticalTimeline": "Tactical Timeline",
+      "session": "Session",
+      "calendar": "Calendar",
+      "daySun": "Sun",
+      "dayMon": "Mon",
+      "dayTue": "Tue",
+      "dayWed": "Wed",
+      "dayThu": "Thu",
+      "dayFri": "Fri",
+      "daySat": "Sat",
+      "quickInsight": "Quick Insight",
+      "quickInsightText": "Synchronize your physical presence with these tactical windows. Attendance vectors are logged in real-time."
+    }
+  }
+}
