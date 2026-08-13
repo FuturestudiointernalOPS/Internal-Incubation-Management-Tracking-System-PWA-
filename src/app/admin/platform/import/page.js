@@ -96,7 +96,7 @@ export default function ImportPage() {
       const res = await fetch("/api/platform/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv_text: csvText, form_id: selectedFormId }),
+        body: JSON.stringify({ csv_text: csvText, form_id: selectedFormId, run_id: selectedRunId }),
       });
       const data = await res.json();
       if (data.success) {
@@ -297,6 +297,10 @@ export default function ImportPage() {
                 onChange={(e) => {
                   setSelectedFormId(e.target.value);
                   setSelectedRunId("");
+                  // Prevent stale questions from a previous selection
+                  setPreviewData(null);
+                  setMapping({});
+                  setStep(0);
                   fetchRuns(e.target.value);
                 }}
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
@@ -318,7 +322,13 @@ export default function ImportPage() {
                 </label>
                 <select
                   value={selectedRunId}
-                  onChange={(e) => setSelectedRunId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedRunId(e.target.value);
+                    // Prevent stale questions from a previous selection
+                    setPreviewData(null);
+                    setMapping({});
+                    setStep(0);
+                  }}
                   className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
                   <option value="">Choose a run...</option>
@@ -410,6 +420,18 @@ export default function ImportPage() {
                   {previewData.total_rows} rows detected. Map CSV columns to
                   form fields below.
                 </p>
+                <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                  Questions loaded from{" "}
+                  <span className="text-[var(--brand-orange)] font-black">{previewData.form?.name || "selected form"}</span>
+                  {previewData.run?.name ? (
+                    <> · Run: <span className="text-[var(--brand-orange)] font-black">{previewData.run.name}</span></>
+                  ) : null}
+                  {previewData.form_field_count === 0 ? (
+                    <span className="text-rose-500 font-black"> — this form has no questions yet.</span>
+                  ) : (
+                    <> · {previewData.form_field_count} question{previewData.form_field_count === 1 ? "" : "s"}</>
+                  )}
+                </p>
               </div>
               <button
                 onClick={() => setStep(0)}
@@ -418,6 +440,19 @@ export default function ImportPage() {
                 <ArrowLeft className="w-3 h-3" /> Back
               </button>
             </div>
+
+            {/* Empty state — form has no questions */}
+            {(previewData.form_field_count || 0) === 0 && (
+              <div className="p-4 bg-rose-500/5 border border-rose-500/20 rounded-xl">
+                <p className="text-[11px] font-bold text-rose-400">
+                  This form has no questions yet.
+                </p>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                  Add questions in the form builder (Forms → this form) and
+                  then return here to map and import your CSV.
+                </p>
+              </div>
+            )}
 
             {/* Mapping table */}
             <div className="overflow-x-auto">
@@ -465,6 +500,26 @@ export default function ImportPage() {
                             ))}
                           </optgroup>
                         </select>
+                        {(() => {
+                          const mappedField = previewData.form_fields.find(
+                            (f) => String(f.id) === String(mapping[col])
+                          );
+                          if (
+                            mappedField &&
+                            Array.isArray(mappedField.options) &&
+                            mappedField.options.length > 0
+                          ) {
+                            const optionLabels = mappedField.options.map((o) =>
+                              typeof o === "string" ? o : o?.label || o?.value || String(o)
+                            );
+                            return (
+                              <p className="text-[8px] text-[var(--text-secondary)] mt-1 break-words">
+                                Allowed options: {optionLabels.join(" · ")}
+                              </p>
+                            );
+                          }
+                          return null;
+                        })()}
                       </td>
                       <td className="p-3 text-[10px] text-[var(--text-secondary)] font-mono truncate max-w-[200px]">
                         {previewData.preview_rows[0]?.[col] || ""}
@@ -526,7 +581,7 @@ export default function ImportPage() {
 
             <button
               onClick={handleExecute}
-              disabled={!selectedRunId}
+              disabled={!selectedRunId || (previewData.form_field_count || 0) === 0}
               className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />

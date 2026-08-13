@@ -103,10 +103,10 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "admin"]);
     if (authError) return authError;
 
-    const { csv_text, form_id } = await req.json();
-    if (!csv_text || !form_id) {
+    const { csv_text, form_id, run_id } = await req.json();
+    if (!csv_text || (!form_id && !run_id)) {
       return NextResponse.json(
-        { success: false, error: "csv_text and form_id are required" },
+        { success: false, error: "csv_text and form_id (or run_id) are required" },
         { status: 400 }
       );
     }
@@ -122,13 +122,71 @@ export async function POST(req) {
       );
     }
 
-    // Fetch form fields
+    // ── Resolve the authoritative form by tracing Run → Form ──
+    // When a run is selected, its form is the single source of truth — the
+    // client-passed form_id is ignored so questions can never come from a
+    // different form than the run being imported into.
+    let effectiveFormId = form_id != null ? String(form_id) : null;
+    let runInfo = null;
+    let formInfo = null;
+
+    if (run_id) {
+      const runRes = await db.execute({
+        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
+        args: [parseInt(run_id)],
+      });
+      if (runRes.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Selected run not found" },
+          { status: 404 }
+        );
+      }
+      runInfo = runRes.rows[0];
+      effectiveFormId = String(runInfo.form_id);
+    }
+
+    if (!effectiveFormId) {
+      return NextResponse.json(
+        { success: false, error: "Could not determine the form" },
+        { status: 400 }
+      );
+    }
+
+    const formRes = await db.execute({
+      sql: "SELECT id, name FROM platform_forms WHERE id = ?",
+      args: [parseInt(effectiveFormId)],
+    });
+    if (formRes.rows.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "Form not found for the selected run" },
+        { status: 404 }
+      );
+    }
+    formInfo = formRes.rows[0];
+
+    // ── Fetch THIS form's questions AND their configured answer options ──
     const fieldsResult = await db.execute({
-      sql: "SELECT id, label, field_type FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order",
-      args: [String(form_id)],
+      sql: "SELECT id, label, field_type, options, required FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
+      args: [effectiveFormId],
     });
 
-    const formFields = fieldsResult.rows;
+    const formFields = fieldsResult.rows.map((f) => {
+      let options = null;
+      if (f.options) {
+        try {
+          options = typeof f.options === "string" ? JSON.parse(f.options) : f.options;
+        } catch (_) {
+          options = null;
+        }
+      }
+      return {
+        id: f.id,
+        label: f.label,
+        field_type: f.field_type,
+        options: Array.isArray(options) ? options : null,
+        required: !!f.required,
+      };
+    });
 
     // Fuzzy match
     const { mapping, unmatched } = fuzzyMatch(parsed.headers, formFields);
@@ -147,7 +205,10 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
+      form: { id: formInfo.id, name: formInfo.name },
+      run: runInfo ? { id: runInfo.id, name: runInfo.name } : null,
       form_fields: formFields,
+      form_field_count: formFields.length,
       csv_columns: parsed.headers,
       suggested_mapping: suggestedMapping,
       unmatched,
