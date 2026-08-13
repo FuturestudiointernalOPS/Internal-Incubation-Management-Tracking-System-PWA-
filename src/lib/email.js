@@ -620,6 +620,85 @@ export function resolveRecipientEmail({ contactEmail, submissionData }) {
   return null;
 }
 
+const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
+const FULL_NAME_HINTS = /^(full\s*name|fullname|name|nom(\s+complet)?)$/i;
+const FIRST_NAME_HINTS = /(first|given|pr[eé]nom|prenom)/i;
+const LAST_NAME_HINTS = /(last|surname|family)/i;
+
+/**
+ * Resolve the best real person name from the available identity data:
+ *   CRM full name → submission submitter name → full-name form answer →
+ *   first+last form answers → any name-ish form answer → "" (caller falls back).
+ * Never returns placeholder values like "Unknown"/"Anonymous" when a real
+ * name exists anywhere.
+ */
+export function resolvePersonName({ contactName, submitterName, submissionData }) {
+  const clean = (v) =>
+    typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
+
+  const candidates = [];
+  if (clean(contactName)) candidates.push(clean(contactName));
+  if (clean(submitterName)) candidates.push(clean(submitterName));
+
+  const data = submissionData && typeof submissionData === "object" ? submissionData : {};
+  const stringify = (v) => {
+    if (typeof v !== "string") return "";
+    try {
+      if (v.startsWith("{") && v.includes('"code"')) return ""; // phone objects
+    } catch (_) {}
+    return v;
+  };
+
+  // 1. Explicit full-name answers first
+  for (const [k, v] of Object.entries(data)) {
+    if (FULL_NAME_HINTS.test(String(k)) && clean(stringify(v))) {
+      candidates.push(clean(stringify(v)));
+    }
+  }
+
+  // 2. First-name + last-name combination when stored separately
+  let firstPart = "";
+  let lastPart = "";
+  for (const [k, v] of Object.entries(data)) {
+    const key = String(k);
+    const val = clean(stringify(v));
+    if (!val) continue;
+    if (FIRST_NAME_HINTS.test(key) && !lastPart && !key.toLowerCase().includes("last")) {
+      if (!firstPart) firstPart = val;
+    }
+    if (LAST_NAME_HINTS.test(key)) {
+      if (!lastPart) lastPart = val;
+    }
+  }
+  if (firstPart || lastPart) candidates.push(`${firstPart} ${lastPart}`.trim());
+
+  // 3. Any remaining name-ish answer
+  for (const [k, v] of Object.entries(data)) {
+    const key = String(k).toLowerCase();
+    const val = clean(stringify(v));
+    if (!val) continue;
+    if (key.includes("name") || key.includes("nom") || key.includes("prénom") || key.includes("prenom")) {
+      candidates.push(val);
+    }
+  }
+
+  for (const c of candidates) {
+    if (c && !GENERIC_NAMES.test(c)) return c;
+  }
+  return "";
+}
+
+/**
+ * Map account state to the kind of email to send:
+ *  - no account                    → "create_activate"
+ *  - account exists, not activated → "activate_existing"
+ *  - account exists AND activated  → "login_existing"
+ */
+export function decideEmailKind({ accountExists, accountActivated }) {
+  if (!accountExists) return "create_activate";
+  return accountActivated ? "login_existing" : "activate_existing";
+}
+
 /**
  * Record a workflow email status row (skipped/failed) with a human-readable
  * reason so the dashboard shows WHY an expected email never fired. Deduped:

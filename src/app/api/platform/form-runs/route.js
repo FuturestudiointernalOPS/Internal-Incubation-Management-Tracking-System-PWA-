@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -373,13 +373,17 @@ export async function GET(req) {
       const rawSubs = submissions.rows;
       const cids = [...new Set(rawSubs.map((s) => s.submitter_id).filter(Boolean))];
       const emailMap = new Map();
+      const nameMap = new Map();
       if (cids.length > 0) {
         try {
           const cres = await db.execute({
-            sql: "SELECT cid, email FROM contacts WHERE cid = ANY(?)",
+            sql: "SELECT cid, email, name FROM contacts WHERE cid = ANY(?)",
             args: [cids],
           });
-          for (const row of cres.rows) emailMap.set(row.cid, row.email || "");
+          for (const row of cres.rows) {
+            emailMap.set(row.cid, row.email || "");
+            nameMap.set(row.cid, row.name || "");
+          }
         } catch (_) {}
       }
       const enrichedSubmissions = rawSubs.map((s) => {
@@ -389,7 +393,13 @@ export async function GET(req) {
           const found = Object.values(d).find((v) => typeof v === "string" && v.includes("@"));
           if (found) email = found;
         }
-        return { ...s, email };
+        const displayName =
+          resolvePersonName({
+            contactName: nameMap.get(s.submitter_id) || "",
+            submitterName: s.submitter_name || "",
+            submissionData: s.data || {},
+          }) || s.submitter_name || s.submitter_id;
+        return { ...s, email, display_name: displayName };
       });
 
       return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
@@ -636,7 +646,19 @@ export async function POST(req) {
       try {
         const subData = result.rows[0].data || {};
         const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
-        const applicantName = result.rows[0].submitter_name || "";
+        let applicantName = result.rows[0].submitter_name || "";
+        // Best real name: CRM name → submitter name → form answers.
+        try {
+          const cNameRes = await db.execute({
+            sql: "SELECT name FROM contacts WHERE cid = ?",
+            args: [result.rows[0].submitter_id],
+          });
+          applicantName = resolvePersonName({
+            contactName: cNameRes.rows[0]?.name || "",
+            submitterName: applicantName,
+            submissionData: subData,
+          }) || applicantName || "";
+        } catch (_) {}
 
         if (applicantEmail) {
           let shouldSend = true;

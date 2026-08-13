@@ -216,10 +216,25 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
       const subData = updated.rows[0].data || {};
       const applicantEmail = Object.values(subData).find((v) => typeof v === "string" && v.includes("@"));
       if (applicantEmail) {
-        const { sendDecisionEmail, sendTrackedEmail, getTemplate } = await import("@/lib/email");
+        const { sendDecisionEmail, sendTrackedEmail, getTemplate, resolvePersonName } = await import("@/lib/email");
         const decisionTemplate = getTemplate(form.rows[0].settings || {}, "approval", run.rows[0].settings || {});
         const formName = form.rows[0].name || "";
         const groupName = await getRunGroupName(db, run.rows[0].id);
+
+        // Best real name: CRM name → submitter name → form answers.
+        let applicantName = updated.rows[0].submitter_name || "";
+        try {
+          const cRes = await db.execute({
+            sql: "SELECT name FROM contacts WHERE cid = ?",
+            args: [updated.rows[0].submitter_id],
+          });
+          applicantName = resolvePersonName({
+            contactName: cRes.rows[0]?.name || "",
+            submitterName: applicantName,
+            submissionData: subData,
+          }) || applicantName || "";
+        } catch (_) {}
+
         await sendTrackedEmail({
           submission_id: submissionId,
           contact_cid: updated.rows[0].submitter_id || null,
@@ -228,7 +243,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
           sendFn: () =>
             sendDecisionEmail({
               to: applicantEmail,
-              applicantName: updated.rows[0].submitter_name || "",
+              applicantName,
               formName,
               decision: "approved",
               comment,
@@ -237,7 +252,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
                 form_name: formName,
                 score: String(score),
                 group_name: groupName || "",
-                name: updated.rows[0].submitter_name || "",
+                name: applicantName,
               },
             }),
         });

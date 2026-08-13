@@ -305,10 +305,12 @@ const RULES = [
         await initDb();
 
         const submissionData = ctx.submission?.data || {};
-        let contactName = ctx.submission?.submitter_name || "Participant";
+        let contactName = ctx.submission?.submitter_name || "";
 
         const {
           resolveRecipientEmail,
+          resolvePersonName,
+          decideEmailKind,
           sendInviteEmail,
           sendLoginEmail,
           getTemplate,
@@ -369,7 +371,8 @@ const RULES = [
 
         // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
         let contact = null;
-        let accountAlreadyActive = false;
+        let accountExists = false;
+        let accountActivated = false;
         const existingContact = await db.execute({
           sql: "SELECT cid, name, email, password FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],
@@ -377,10 +380,12 @@ const RULES = [
 
         if (existingContact.rows.length > 0) {
           contact = existingContact.rows[0];
-          contactName = contact.name || contactName;
-          // A non-empty password means the person already completed setup.
-          accountAlreadyActive = !!(contact.password && String(contact.password).trim() !== "");
-          if (!accountAlreadyActive) {
+          accountExists = true;
+          // Existing source of truth for completed activation: the password
+          // column — empty means never activated, a bcrypt hash means the
+          // user completed password setup.
+          accountActivated = !!(contact.password && String(contact.password).trim() !== "");
+          if (!accountActivated) {
             await db.execute({
               sql: "UPDATE contacts SET role = ?, status = 'approved', group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END WHERE cid = ?",
               args: [targetRole, groupName || null, contact.cid],
@@ -390,10 +395,19 @@ const RULES = [
           const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
           await db.execute({
             sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password) VALUES (?, ?, ?, ?, 'approved', ?, '')`,
-            args: [cid, contactName, contactEmail, targetRole, groupName || ''],
+            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || ''],
           });
-          contact = { cid, name: contactName, email: contactEmail };
+          contact = { cid, name: contactName || "Participant", email: contactEmail };
         }
+
+        // Resolve the best REAL name: CRM name → submitter name → form answers.
+        // Only falls back to a neutral value when no real name exists anywhere.
+        contactName =
+          resolvePersonName({
+            contactName: contact?.name || "",
+            submitterName: ctx.submission?.submitter_name || "",
+            submissionData,
+          }) || "Participant";
 
         // 3. Workflow toggle for the email itself
         if (!shouldSendActivation) {
@@ -417,8 +431,16 @@ const RULES = [
         }
 
         // 5. Send the RIGHT email for the account state:
-        //    - no account yet  → activation email with password-setup link
-        //    - account exists  → access email with the login URL (no new token)
+        //    - no account                     → activation email (setup link)
+        //    - account exists, NOT activated → activation email (setup link, reuse token)
+        //    - account exists AND activated  → existing-user login email (no token)
+        const emailKind = decideEmailKind({ accountExists, accountActivated });
+        const KIND_NOTES = {
+          create_activate: "New account activation email",
+          activate_existing: "Existing account activation email",
+          login_existing: "Existing user login email",
+        };
+
         const activationTemplate = getTemplate(ctx.form?.settings, "activation", ctx.run?.settings);
         const existingUserTemplate = getTemplate(ctx.form?.settings, "existing_user", ctx.run?.settings);
         const templateVars = {
@@ -428,15 +450,26 @@ const RULES = [
           name: contactName,
         };
 
+        // For setup emails, reuse a still-valid unused token when one exists
+        // so retries do not create unnecessary token records.
+        let existingToken = null;
+        if (emailKind !== "login_existing") {
+          try {
+            const tokRes = await db.execute({
+              sql: "SELECT token FROM password_setup_tokens WHERE contact_cid = ? AND used = 0 AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1",
+              args: [contact.cid],
+            });
+            if (tokRes.rows.length > 0) existingToken = tokRes.rows[0].token;
+          } catch (_) {}
+        }
+
         const tracked = await sendTrackedEmail({
           submission_id: ctx.submission?.id || null,
           contact_cid: contact.cid,
           email_type: "activation",
-          note: accountAlreadyActive
-            ? "Existing account login email"
-            : "New account activation email",
+          note: KIND_NOTES[emailKind],
           sendFn: async () => {
-            if (accountAlreadyActive) {
+            if (emailKind === "login_existing") {
               return sendLoginEmail({
                 to: contactEmail,
                 name: contactName,
@@ -445,15 +478,18 @@ const RULES = [
                 templateVars,
               });
             }
-            // New account: generate the token INSIDE the send function so a
-            // skipped send never produces an orphaned token
-            const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-            const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
-            await db.execute({
-              sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
-              args: [contact.cid, token, expiresAt],
-            });
-            console.log("[Automation] Token stored for", contactEmail);
+            // Setup email: reuse the existing valid token or create one.
+            const token =
+              existingToken ||
+              "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            if (!existingToken) {
+              const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
+              await db.execute({
+                sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
+                args: [contact.cid, token, expiresAt],
+              });
+              console.log("[Automation] Token stored for", contactEmail);
+            }
             return sendInviteEmail({
               to: contactEmail,
               name: contactName,
@@ -468,16 +504,16 @@ const RULES = [
         if (tracked.success) {
           console.log(
             "[Automation]",
-            accountAlreadyActive ? "Access email sent to" : "Activation email sent to",
+            emailKind === "login_existing" ? "Access email sent to" : "Activation email sent to",
             contactEmail
           );
           await writeCrmTimeline(contact.cid, "activation_sent",
-            accountAlreadyActive
+            emailKind === "login_existing"
               ? "Access email sent with platform login link"
               : "Activation email sent with password setup link",
             "forms", ctx.submission?.id || null, "system", {});
         } else if (tracked.skipped) {
-          console.log("[Automation] Activation email already sent — skipped", contactEmail);
+          console.log("[Automation] Activation/access email already sent — skipped", contactEmail);
         } else {
           console.error("[Automation] Activation email FAILED for", contactEmail);
           await writeCrmTimeline(contact.cid, "activation_email_failed",

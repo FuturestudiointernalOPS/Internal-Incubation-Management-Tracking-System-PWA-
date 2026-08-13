@@ -1253,7 +1253,7 @@ export default function FormRunsPage() {
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
+                              <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.display_name || s.submitter_name || s.submitter_id}</div>
                             </td>
                             {/* Email — always visible, from the actual respondent data */}
                             <td className="px-4 py-3">
