@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { resolvePersonName } from "@/lib/email";
+import { resolvePersonName, resolveSubmissionEmail } from "@/lib/email";
 
 /**
  * GET /api/platform/ai/evaluation-scores
@@ -209,15 +209,14 @@ export async function GET(req) {
         answers[label] = answerValue(value);
       }
 
-      // Email meant to receive notifications: contact email first,
-      // fall back to any email-looking value inside the submission data.
-      let email = emailMap.get(r.submitter_id) || "";
-      if (!email) {
-        const found = Object.values(subData).find(
-          (v) => typeof v === "string" && v.includes("@")
-        );
-        if (found) email = found;
-      }
+      // Real applicant email: the form's actual email answer first, then any
+      // real email in the submission, then the CRM email. Placeholder import
+      // addresses are never returned.
+      const email = resolveSubmissionEmail({
+        submissionData: subData,
+        fieldLabels: labelById,
+        contactEmail: emailMap.get(r.submitter_id) || "",
+      });
 
       if (r.ranking) rankings.add(r.ranking);
 
