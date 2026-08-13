@@ -556,6 +556,15 @@ async function sendViaResend({ to, subject, html }) {
  * receives the notification — it remains a single tracked attempt.
  */
 async function sendEmail({ to, subject, html, provider }) {
+  // HARD GUARD: an internal placeholder address (import-…@placeholder…,
+  // .local, example.com…) must NEVER leave the system, no matter which
+  // code path built the recipient. This is the final safety net before any
+  // provider is called.
+  if (isPlaceholderEmail(to)) {
+    console.warn("[Email] REFUSING to send to placeholder address:", to);
+    return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
+  }
+
   const chosen = provider || "resend";
   if (chosen === "gmail") {
     const gmailResult = await sendViaGmail({ to, subject, html });
