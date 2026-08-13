@@ -131,9 +131,30 @@ export async function POST(req) {
     if (authError) return authError;
 
     const { form_id, run_id, mapping, csv_rows, batch_id } = await req.json();
-    if (!form_id || !run_id || !mapping || !csv_rows) {
+    if ((!form_id && !run_id) || !mapping || !csv_rows) {
       return NextResponse.json(
-        { success: false, error: "form_id, run_id, mapping, and csv_rows are required" },
+        { success: false, error: "form_id (or run_id), mapping, and csv_rows are required" },
+        { status: 400 }
+      );
+    }
+
+    // ── Resolve the run's actual form — server-side source of truth ──
+    // The run determines the form, so a mismatched client form_id can never
+    // cause data to be imported against the wrong form.
+    let effectiveFormId = form_id != null ? parseInt(form_id) : null;
+    if (run_id) {
+      const runRes = await db.execute({
+        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
+        args: [parseInt(run_id)],
+      });
+      if (runRes.rows.length === 0) {
+        return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+      }
+      effectiveFormId = runRes.rows[0].form_id;
+    }
+    if (effectiveFormId == null) {
+      return NextResponse.json(
+        { success: false, error: "Could not determine the form for this run" },
         { status: 400 }
       );
     }
@@ -197,7 +218,7 @@ export async function POST(req) {
         const batchRes = await db.execute({
           sql: `INSERT INTO platform_import_batches (form_id, run_id, file_hash, total_rows, imported, skipped, needs_review, created_by)
                 VALUES (?, ?, ?, 0, 0, 0, 0, ?) RETURNING id`,
-          args: [parseInt(form_id), parseInt(run_id), hash, "system"],
+          args: [effectiveFormId, parseInt(run_id), hash, "system"],
         });
         activeBatchId = batchRes.rows[0]?.id || null;
       } catch (e) {
@@ -330,7 +351,7 @@ export async function POST(req) {
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               args: [
                 activeBatchId,
-                parseInt(form_id),
+                effectiveFormId,
                 parseInt(run_id),
                 i + 1,
                 name,
