@@ -6,7 +6,7 @@ import {
   XCircle, FileText, RotateCcw, Eye, MessageSquare, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn, Download,
 } from "lucide-react";
 
 /**
@@ -1110,6 +1110,54 @@ export default function FormRunsPage() {
   // Manual retry: batches of 10 through the same tracked senders (approval
   // re-sends via sendDecisionEmailForSubmission; activation re-fires the
   // REVIEW_COMPLETED automation). No automatic retries anywhere.
+  // Export the CURRENTLY FILTERED respondents to CSV (respects search,
+  // filters, score and the duplicates view). Presentation-level export.
+  const exportRespondentsCSV = () => {
+    if (!visibleSubmissions.length) return;
+    const esc = (v) => {
+      const s = v == null ? "" : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const headers = ["S/N", "Name", "Email"];
+    const fieldCols = Object.entries(fieldLabels)
+      .filter(([, label]) => label)
+      .map(([id, label]) => ({ id, label }));
+    for (const c of fieldCols) headers.push(c.label);
+    headers.push("Status", "AI Score", "Activation", "Submitted", "Review");
+
+    const rows = visibleSubmissions.map((s, i) => {
+      const evalRow = evaluations.find((e) => e.submission_id === s.id);
+      const activationEmail = emailLog
+        .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+        .slice(-1)[0];
+      const subReviews = reviews.filter((r) => r.submission_id === s.id);
+      const lastReview = subReviews[subReviews.length - 1];
+      const cells = [
+        i + 1,
+        s.display_name || s.submitter_name || s.submitter_id,
+        s.email || "",
+      ];
+      for (const c of fieldCols) cells.push((s.data || {})[c.id] ?? "");
+      cells.push(
+        s.status || "",
+        evalRow != null ? evalRow.overall_score : (s.data?._scores?.overall ?? ""),
+        activationEmail ? activationEmail.status : "",
+        s.submitted_at ? new Date(s.submitted_at).toLocaleString() : "",
+        lastReview ? `${lastReview.decision} by ${lastReview.reviewer_name || lastReview.reviewer_id}` : ""
+      );
+      return cells.map(esc).join(",");
+    });
+
+    const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedRun?.name || "run"}-respondents.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const runRetryEmails = async () => {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
     setRetryProcessing(true);
@@ -1524,6 +1572,16 @@ export default function FormRunsPage() {
                       className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
                     >
                       Clear all
+                    </button>
+                  )}
+
+                  {/* Export the CURRENTLY FILTERED set to CSV */}
+                  {visibleSubmissions.length > 0 && (
+                    <button
+                      onClick={exportRespondentsCSV}
+                      className="ml-auto px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" /> Export CSV ({visibleSubmissions.length})
                     </button>
                   )}
                 </div>
