@@ -353,52 +353,70 @@ const RULES = [
           return;
         }
 
-        // Determine target role and group from the run's group assignment
-        let targetRole = null;
+        // Determine the Group + its Program from the run assignment.
+        // The group establishes organizational/program CONTEXT — it never
+        // elevates the platform role to staff. Basic access is Participant.
         let groupName = null;
+        let groupProgramId = null;
         if (ctx.run?.id) {
           try {
             const grp = await db.execute({
-              sql: `SELECT f.name, f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
+              sql: `SELECT f.name, f.program_id FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
               args: [ctx.run.id],
             });
             if (grp.rows.length > 0) {
-              targetRole = resolveDefaultRole(grp.rows[0].default_role);
               groupName = grp.rows[0].name;
+              groupProgramId = grp.rows[0].program_id || null;
             }
           } catch (_) {}
         }
-        if (!targetRole) targetRole = "participant";
 
         // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
         let contact = null;
         let accountExists = false;
         let accountActivated = false;
+        let targetRole = "participant"; // Group/Program never make a user Staff
         const existingContact = await db.execute({
-          sql: "SELECT cid, name, email, password FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+          sql: "SELECT cid, name, email, password, role FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],
         });
 
         if (existingContact.rows.length > 0) {
           contact = existingContact.rows[0];
           accountExists = true;
+          // Preserve an explicitly assigned privileged role; otherwise participant.
+          targetRole = resolveDefaultRole(contact.role);
           // Existing source of truth for completed activation: the password
           // column — empty means never activated, a bcrypt hash means the
           // user completed password setup.
           accountActivated = !!(contact.password && String(contact.password).trim() !== "");
           if (!accountActivated) {
             await db.execute({
-              sql: "UPDATE contacts SET role = ?, status = 'approved', group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END WHERE cid = ?",
-              args: [targetRole, groupName || null, contact.cid],
+              sql: `UPDATE contacts SET role = ?, status = 'approved',
+                    group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END,
+                    program_id = COALESCE(NULLIF(program_id, ''), ?)
+                    WHERE cid = ?`,
+              args: [targetRole, groupName || null, groupProgramId || null, contact.cid],
             });
           }
         } else {
           const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
           await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password) VALUES (?, ?, ?, ?, 'approved', ?, '')`,
-            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || ''],
+            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, password) VALUES (?, ?, ?, ?, 'approved', ?, ?, '')`,
+            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', groupProgramId || null],
           });
-          contact = { cid, name: contactName || "Participant", email: contactEmail };
+          contact = { cid, name: contactName || "Participant", email: contactEmail, role: targetRole };
+        }
+
+        // Associate with the group's Program when one exists. This provides
+        // program ACCESS context — it does NOT change the platform role.
+        if (groupProgramId) {
+          try {
+            await db.execute({
+              sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'active', NOW()) ON CONFLICT DO NOTHING",
+              args: [contact.cid, groupProgramId],
+            });
+          } catch (_) {}
         }
 
         // Resolve the best REAL name: CRM name → submitter name → form answers.
