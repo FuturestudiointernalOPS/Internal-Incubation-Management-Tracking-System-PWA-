@@ -6,7 +6,7 @@ import {
   XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key,
 } from "lucide-react";
 
 /**
@@ -433,6 +433,7 @@ export default function FormRunsPage() {
         setRunSettings(data.run.settings || {});
         setEvaluations(data.evaluations || []);
         setEmailLog(data.emails || []);
+        setRunTemplates(data.run?.settings?.templates || {});
       }
 
       // Fetch form fields for spreadsheet column view
@@ -675,6 +676,9 @@ export default function FormRunsPage() {
   const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
   const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
   const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
+  const [runTemplates, setRunTemplates] = useState({}); // run-level email template overrides
+  const [runTplSaving, setRunTplSaving] = useState(false);
+  const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -787,6 +791,7 @@ export default function FormRunsPage() {
       { id: "share", label: "Share", icon: Link2 },
       { id: "assignments", label: `Assignments (${assignments.length})`, icon: Users },
       { id: "responses", label: "All Responses", icon: FileText, href: `/platform/responses?form_id=${selectedRun?.form_id || ""}` },
+      { id: "templates", label: "Templates", icon: Mail },
       { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -1368,6 +1373,152 @@ export default function FormRunsPage() {
               </div>
             </div>
           )}
+
+          {/* ─── TEMPLATES TAB (run-level email overrides) ─── */}
+          {detailTab === "templates" && (() => {
+            const updateRunTemplate = (key, field, val) => {
+              setRunTemplates((prev) => {
+                const next = JSON.parse(JSON.stringify(prev || {}));
+                if (!next[key]) next[key] = {};
+                next[key][field] = val;
+                return next;
+              });
+            };
+
+            const saveRunTemplates = async () => {
+              if (!selectedRun) return;
+              setRunTplSaving(true);
+              try {
+                const res = await fetch("/api/platform/form-runs", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: selectedRun.id, settings: { ...(runSettings || {}), templates: runTemplates } }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setRunSettings(data.run.settings || {});
+                  setSelectedRun({ ...selectedRun, settings: data.run.settings });
+                  notify("Run templates saved");
+                } else {
+                  notify(data.error || "Could not save templates");
+                }
+              } catch (_) {
+                notify("Could not save templates — network error");
+              }
+              setRunTplSaving(false);
+            };
+
+            const personalizeRunTemplate = async (tKey, label) => {
+              if (runPersonalizing) return;
+              setRunPersonalizing(tKey);
+              try {
+                const res = await fetch("/api/platform/ai/personalize-template", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    template_key: tKey,
+                    form_name: selectedRun?.name || "",
+                    organization: "Future Studio",
+                    existing_subject: runTemplates[tKey]?.subject || "",
+                    existing_body: runTemplates[tKey]?.body || "",
+                  }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  updateRunTemplate(tKey, "subject", data.subject);
+                  updateRunTemplate(tKey, "body", data.body);
+                  notify(`${label} personalized with AI`);
+                } else {
+                  notify(data.error || "AI personalization failed");
+                }
+              } catch (_) {
+                notify("AI personalization failed — network error");
+              }
+              setRunPersonalizing(null);
+            };
+
+            const RunTemplateEditor = ({ tKey, label, icon: Icon, desc, vars, current }) => (
+              <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className="w-3.5 h-3.5 text-cyan-400" />
+                  <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                  <button
+                    type="button"
+                    disabled={runPersonalizing === tKey}
+                    onClick={() => personalizeRunTemplate(tKey, label)}
+                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {runPersonalizing === tKey ? "Writing..." : "Personalize with AI"}
+                  </button>
+                </div>
+                <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Subject</label>
+                  <input
+                    value={current.subject || ""}
+                    onChange={(e) => updateRunTemplate(tKey, "subject", e.target.value)}
+                    placeholder="Empty = use the form template, then the platform default"
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Body (HTML)</label>
+                  <textarea
+                    value={current.body || ""}
+                    onChange={(e) => updateRunTemplate(tKey, "body", e.target.value)}
+                    rows={4}
+                    placeholder="Empty = use the form template, then the platform default"
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+                  />
+                </div>
+                {vars && (
+                  <p className="text-[7px] text-[var(--text-secondary)] italic">Variables: {vars.join(", ")}</p>
+                )}
+              </div>
+            );
+
+            return (
+              <div className="space-y-6 max-w-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">Run Email Templates</h3>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">Override the approval, activation, and rejection emails for this run only. Leave a field empty to fall back to the form's template, then the platform default.</p>
+                  </div>
+                  <button onClick={saveRunTemplates} disabled={runTplSaving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40">
+                    {runTplSaving ? "Saving..." : "Save Templates"}
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <RunTemplateEditor
+                    tKey="approval"
+                    label="Approval Message"
+                    icon={CheckCircle2}
+                    desc="Sent (via Gmail) when an applicant is approved for this run."
+                    vars={["name", "form_name", "score", "group_name", "organization"]}
+                    current={runTemplates.approval || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="activation"
+                    label="Activation Email"
+                    icon={Key}
+                    desc="Sent (via Resend) with the password setup link after approval."
+                    vars={["name", "organization", "activation_link"]}
+                    current={runTemplates.activation || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="rejection"
+                    label="Rejection Message"
+                    icon={XCircle}
+                    desc="Sent (via Gmail) when an application is not accepted."
+                    vars={["name", "form_name", "organization"]}
+                    current={runTemplates.rejection || {}}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Review Modal */}

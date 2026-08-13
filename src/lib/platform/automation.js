@@ -369,7 +369,7 @@ const RULES = [
           // Check whether an activation email was already successfully sent for
           // this submission BEFORE generating a new token.
           const { sendInviteEmail, getTemplate, sendTrackedEmail, getEmailLogRow } = await import("@/lib/email");
-          const activationTemplate = getTemplate(ctx.form?.settings, "activation");
+          const activationTemplate = getTemplate(ctx.form?.settings, "activation", ctx.run?.settings);
           const priorSend = ctx.submission?.id
             ? await getEmailLogRow(ctx.submission.id, "activation")
             : null;
