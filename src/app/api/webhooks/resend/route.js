@@ -1,20 +1,29 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { markEmailBounced } from "@/lib/email";
+import { recordResendEvent } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
+
+// Resend event type → ImpactOS email status.
+const EVENT_STATUS = {
+  "email.sent": "sent",
+  "email.delivered": "delivered",
+  "email.delivery_delayed": "delayed",
+  "email.bounced": "bounced",
+  "email.failed": "failed",
+  "email.opened": "opened",
+  "email.clicked": "clicked",
+  "email.complained": "complained",
+};
 
 /**
  * POST /api/webhooks/resend
  *
- * Resend bounce webhook (Svix-signed). On "email.bounced" events, the most
- * recent SENT email to the bounced recipient is marked BOUNCED — the sent row
- * is kept, a bounced row becomes the latest status, and history is never
- * deleted. The Emails tab then shows it as Bounced (retryable) instead of
- * treating it as successfully delivered.
- *
- * Configure in Resend → Webhooks → add this URL; set RESEND_WEBHOOK_SECRET
- * (the whsec_... signing secret) in the environment.
+ * Resend lifecycle webhook (Svix-signed). Each event is APPENDED to the email
+ * log so the full timeline (Sent → Delivered → Opened → Clicked, or
+ * Sent → Bounced, etc.) is preserved, while the latest row drives the
+ * current status. Events are matched by Resend's email_id — never by recipient
+ * — so two emails to the same address stay distinct.
  */
 export async function POST(req) {
   try {
@@ -31,8 +40,6 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Missing signature headers" }, { status: 401 });
     }
 
-    // Svix signature: HMAC-SHA256 over "<id>.<timestamp>.<raw body>",
-    // base64-encoded; secret is "whsec_" + base64 key material.
     const secretKey = secret.startsWith("whsec_") ? secret.slice(6) : secret;
     const signedContent = `${svixId}.${svixTs}.${raw}`;
     const expected = crypto
@@ -45,20 +52,17 @@ export async function POST(req) {
     }
 
     const payload = JSON.parse(raw);
-    if (payload?.type === "email.bounced") {
-      const tos = Array.isArray(payload.data?.to) ? payload.data.to : [];
-      let marked = 0;
-      for (const to of tos) {
-        if (typeof to === "string" && to) {
-          const ok = await markEmailBounced({ recipient: to, error: payload.data?.reason || "Bounced" });
-          if (ok) marked++;
-        }
-      }
-      return NextResponse.json({ success: true, marked });
+    const status = EVENT_STATUS[payload?.type];
+    if (!status) {
+      // email.received / email.scheduled and other non-lifecycle events.
+      return NextResponse.json({ success: true, ignored: true });
     }
 
-    // Other event types (delivered, opened, clicked…) are acknowledged.
-    return NextResponse.json({ success: true, ignored: true });
+    const emailId = payload.data?.email_id;
+    const reason = payload.data?.reason;
+    const createdAt = payload.data?.created_at || payload.created_at;
+    const ok = await recordResendEvent({ email_id: emailId, status, error: reason, createdAt });
+    return NextResponse.json({ success: true, recorded: ok, status, email_id: emailId });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
