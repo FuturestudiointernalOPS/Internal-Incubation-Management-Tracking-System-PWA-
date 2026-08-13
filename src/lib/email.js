@@ -25,6 +25,16 @@ const GMAIL_REDIRECT_URI = process.env.GMAIL_REDIRECT_URI;
 const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || "info@futurestudio.bj";
 const GMAIL_SENDER_NAME = "Future Studio";
 
+/**
+ * Shared, application-controlled email footer. Appended by the senders AFTER
+ * template personalization so the AI can never remove or modify it.
+ */
+export const FUTURE_STUDIO_FOOTER = `
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #334155;font-size:12px;line-height:1.6;color:#94a3b8;">
+    <strong style="color:#f8fafc;">Future Studio</strong> —
+    <a href="https://futurestudio.bj" style="color:#f97316;text-decoration:none;font-weight:700;">futurestudio.bj</a>
+  </div>`;
+
 // Decision emails default to Gmail when credentials exist; override with
 // DECISION_EMAIL_PROVIDER=resend if needed. Activation stays on Resend.
 const DECISION_EMAIL_DEFAULT =
@@ -246,6 +256,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
                 If you did not expect this invitation, please ignore this email.
               </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
@@ -315,6 +326,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars })
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
                 If you did not expect this email, please ignore it.
               </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
@@ -363,6 +375,7 @@ export async function sendWelcomeEmail({ to, name, role }) {
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
                 If you did not create this account, please contact your administrator.
               </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
@@ -419,6 +432,7 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
                 If you did not request a password reset, please ignore this email.
               </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
@@ -486,6 +500,7 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
                 If you have any questions, please contact your administrator.
               </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
@@ -918,9 +933,7 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
             <tr><td style="padding: 40px;">
               <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 800;">${subject}</h1>
               ${bodyHtml}
-              <p style="margin:24px 0 0;font-size:12px;color:#64748b;">
-                ${orgName || "Future Studio"} — This is an automated notification.
-              </p>
+              ${FUTURE_STUDIO_FOOTER}
             </td></tr>
           </table>
         </td></tr>
