@@ -4,6 +4,7 @@ import { deepseekIntelligence } from "@/lib/deepseek";
 import { getDefaultTemplate } from "@/lib/email";
 import {
   placeholdersOf,
+  normalizeToHtml,
   splitHtmlParts,
   splicePersonalizedSegments,
   countTextSegments,
@@ -97,7 +98,7 @@ export async function POST(req) {
     // structure (never a new hardcoded document).
     const draftSubject = (body.existing_subject || "").trim().substring(0, 500);
     const existingBody = (body.existing_body || "").trim().substring(0, 8000);
-    const draftBody = existingBody || getDefaultTemplate(templateKey).body;
+    const draftBody = normalizeToHtml(existingBody || getDefaultTemplate(templateKey).body);
 
     // Every placeholder that already exists in the draft (plus the official
     // set for this template type) is allowed to survive personalization.
@@ -214,6 +215,9 @@ ${segments.map((s, i) => `[${i + 1}] ${s}`).join("\n")}`;
     if (!finalBody || countTextSegments(splitHtmlParts(finalBody)) === 0) {
       finalBody = draftBody; // keep the admin's structure untouched
     }
+    // Ensure the result is well-formed HTML with paragraph structure even if
+    // the AI returned plain text.
+    finalBody = normalizeToHtml(finalBody);
 
     // Empty subject stays empty → the existing default-subject fallback
     // (run → form → platform default) applies when the email is sent.
