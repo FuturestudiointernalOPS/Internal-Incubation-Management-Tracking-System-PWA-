@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus, isGenericName, hasSentEmailToRecipientInRun } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, hasSentEmailToRecipientInRun } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -387,12 +387,14 @@ export async function GET(req) {
         } catch (_) {}
       }
       const enrichedSubmissions = rawSubs.map((s) => {
-        let email = emailMap.get(s.submitter_id) || "";
-        if (!email) {
-          const d = s.data || {};
-          const found = Object.values(d).find((v) => typeof v === "string" && v.includes("@"));
-          if (found) email = found;
-        }
+        // Real applicant email: the form's actual email answer first, then any
+        // real email in the submission, then the CRM email — placeholder
+        // import addresses are NEVER shown.
+        const email = resolveSubmissionEmail({
+          submissionData: s.data || {},
+          fieldLabels,
+          contactEmail: emailMap.get(s.submitter_id) || "",
+        });
         const displayName =
           resolvePersonName({
             contactName: nameMap.get(s.submitter_id) || "",
@@ -457,8 +459,39 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
 
   try {
     const subData = row.data || {};
-    const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
-    if (!applicantEmail) return { status: "failed", error: "No email address found in submission data" };
+
+    // Fetch the form's real field labels + CRM contact once, then resolve
+    // BOTH the name and the real applicant email from the same sources so
+    // the UI and the sender can never disagree about the recipient.
+    let labels = {};
+    let crmName = "";
+    let crmEmail = "";
+    try {
+      const fieldRes = await db.execute({
+        sql: `SELECT f2.id, f2.label
+              FROM platform_form_fields f2
+              JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
+              WHERE r2.id = ?`,
+        args: [row.run_id],
+      });
+      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const cNameRes = await db.execute({
+        sql: "SELECT name, email FROM contacts WHERE cid = ?",
+        args: [row.submitter_id],
+      });
+      if (cNameRes.rows[0]) {
+        crmName = cNameRes.rows[0].name || "";
+        crmEmail = cNameRes.rows[0].email || "";
+      }
+    } catch (_) {}
+
+    // Real applicant email — placeholders (import-…@placeholder…) never used.
+    const applicantEmail = resolveSubmissionEmail({
+      submissionData: subData,
+      fieldLabels: labels,
+      contactEmail: crmEmail,
+    });
+    if (!applicantEmail) return { status: "failed", error: "No real email address found in the submission data" };
 
     // Duplicate-recipient guard: when the same email address appears in
     // multiple submissions of this run, only ONE decision email is ever sent.
@@ -481,28 +514,12 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
 
     // Best real name — resolved deterministically with the form's actual
     // question labels (submission data is keyed by field id).
-    let applicantName = "";
-    try {
-      const fieldRes = await db.execute({
-        sql: `SELECT f2.id, f2.label
-              FROM platform_form_fields f2
-              JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
-              WHERE r2.id = ?`,
-        args: [row.run_id],
-      });
-      const labels = {};
-      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
-      const cNameRes = await db.execute({
-        sql: "SELECT name FROM contacts WHERE cid = ?",
-        args: [row.submitter_id],
-      });
-      applicantName = resolvePersonName({
-        contactName: cNameRes.rows[0]?.name || "",
-        submitterName: row.submitter_name || "",
-        submissionData: subData,
-        fieldLabels: labels,
-      });
-    } catch (_) {}
+    const applicantName = resolvePersonName({
+      contactName: crmName,
+      submitterName: row.submitter_name || "",
+      submissionData: subData,
+      fieldLabels: labels,
+    });
 
     let shouldSend = true;
     // Approval email requires a group (organizational context). With no
