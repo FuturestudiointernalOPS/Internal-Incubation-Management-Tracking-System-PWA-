@@ -611,6 +611,20 @@ export async function POST(req) {
                 if (decision === "approved") decisionTemplate = tmpl?.approval;
                 else if (decision === "rejected") decisionTemplate = tmpl?.rejection;
                 templateVars = { form_name: formName };
+                // Resolve the group linked to this run so {{group_name}} works
+                // in manual approval/rejection templates (same lookup the
+                // activation + auto-approve flows use).
+                try {
+                  const groupRes = await db.execute({
+                    sql: `SELECT f.name AS group_name
+                          FROM platform_form_run_assignments a
+                          JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
+                          WHERE a.run_id = ? AND a.target_type = 'group'
+                          LIMIT 1`,
+                    args: [result.rows[0].run_id],
+                  });
+                  if (groupRes.rows.length > 0) templateVars.group_name = groupRes.rows[0].group_name;
+                } catch (_) {}
               }
               const evalRes = await db.execute({
                 sql: "SELECT overall_score FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
