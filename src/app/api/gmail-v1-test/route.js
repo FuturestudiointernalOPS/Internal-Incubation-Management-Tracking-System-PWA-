@@ -33,6 +33,12 @@ We are testing whether the previous Gmail sending infrastructure is still active
 
 Future Studio`;
 
+// ─── SENDER IDENTITY (approved configuration) ──────────────────────────
+// All Gmail-transport emails must come from the official Workspace mailbox.
+// Recipient stays dynamic (per-email); only From/Reply-To are fixed.
+const SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || "info@futurestudio.bj";
+const SENDER_NAME = "Future Studio";
+
 /** Map provider errors to safe, non-sensitive categories for the response. */
 function classifyError(err) {
   const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
@@ -108,10 +114,12 @@ export async function GET() {
       report.authenticated_sender = null;
     }
 
-    // Step 3 — send exactly ONE test email
+    // Step 3 — send exactly ONE test email (From + Reply-To = info@futurestudio.bj)
     try {
       const gmail = google.gmail({ version: "v1", auth });
       const message = [
+        `From: ${SENDER_NAME} <${SENDER_EMAIL}>`,
+        `Reply-To: ${SENDER_EMAIL}`,
         `To: ${TEST_RECIPIENT}`,
         `Subject: ${TEST_SUBJECT}`,
         "Content-Type: text/plain; charset=utf-8",
@@ -133,6 +141,9 @@ export async function GET() {
       report.gmail_api = "AVAILABLE";
       report.test_email = "SENT";
       report.message_id = sendRes.data.id || null;
+      report.from = `${SENDER_NAME} <${SENDER_EMAIL}>`;
+      report.reply_to = SENDER_EMAIL;
+      report.to = TEST_RECIPIENT;
       return NextResponse.json({ success: true, report });
     } catch (e) {
       console.error("[gmail-v1-test] Send failed:", classifyError(e));
