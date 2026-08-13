@@ -659,13 +659,28 @@ export async function ensurePasswordSetupTokensSchema() {
       used INTEGER NOT NULL DEFAULT 0,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    // Repair tables created by the LEGACY script (user_cid/user_email NOT NULL,
+    // used BOOLEAN). The app writes contact_cid + integer used; legacy NOT NULL
+    // columns without defaults otherwise break every insert.
+    await db.execute(`ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS contact_cid TEXT`);
+    try {
+      await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_cid DROP NOT NULL`);
+    } catch (_) {}
+    try {
+      await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_email DROP NOT NULL`);
+    } catch (_) {}
+    try {
+      await db.execute(`UPDATE password_setup_tokens SET contact_cid = user_cid WHERE contact_cid IS NULL AND user_cid IS NOT NULL`);
+    } catch (_) {}
     await db.execute(`DO $$
     BEGIN
       IF EXISTS (
         SELECT 1 FROM information_schema.columns
         WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
       ) THEN
+        ALTER TABLE password_setup_tokens ALTER COLUMN used DROP DEFAULT;
         ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
+        ALTER TABLE password_setup_tokens ALTER COLUMN used SET DEFAULT 0;
       END IF;
     END $$`);
     return true;
