@@ -1082,10 +1082,12 @@ export default function FormRunsPage() {
       }
       setBulkProgress({ done: Math.min(i + BULK_BATCH, ids.length), total: ids.length });
     }
-    setBulkSummary(agg);
     setBulkProcessing(false);
     setSelectedIds([]);
-    if (selectedRun) openRun(selectedRun); // refresh statuses + email log
+    // Refresh the data FIRST, then show the summary over the updated table —
+    // openRun resets the summary state, so setting it after keeps it visible.
+    if (selectedRun) await openRun(selectedRun);
+    setBulkSummary(agg);
   };
 
   // ─── Email delivery summary: latest row per (submission, email_type) ───
@@ -1210,10 +1212,14 @@ export default function FormRunsPage() {
       }
       setRetryProgress({ done: Math.min(i + 10, items.length), total: items.length });
     }
-    setRetrySummary(agg);
+    agg.retried = items.length;
     setRetryProcessing(false);
     setRetrySelected([]);
-    if (selectedRun) openRun(selectedRun);
+    // Refresh the data FIRST, then show the summary over the updated table —
+    // openRun resets the summary state, so setting it after keeps it visible.
+    // Successful retries disappear from the Failed list and move into Sent.
+    if (selectedRun) await openRun(selectedRun);
+    setRetrySummary(agg);
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -2024,6 +2030,9 @@ export default function FormRunsPage() {
                   <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
                     <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
                       <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">Email retry complete</h4>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                        {retrySummary.retried} email{retrySummary.retried === 1 ? "" : "s"} retried
+                      </p>
                       <p className="text-[10px] font-bold text-emerald-500">{retrySummary.sent} sent successfully</p>
                       {retrySummary.already_sent > 0 && (
                         <p className="text-[10px] font-bold text-slate-400">{retrySummary.already_sent} were already sent</p>
