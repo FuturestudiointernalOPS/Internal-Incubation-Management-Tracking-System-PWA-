@@ -633,23 +633,48 @@ export function resolveRecipientEmail({ contactEmail, submissionData }) {
 }
 
 const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
-// Explicit full-name fields (strongest signal). Intentionally excludes the
-// bare "name"/"nom" field so "Full Name" always wins over "Name".
-const FULL_NAME_HINTS = /^(full\s*name|fullname|nom(\s+complet)?|prenom\s*et\s*nom|prénom\s*et\s*nom)$/i;
-const NAME_HINTS = /^(name|nom)$/i;
+
+/** True when a value is a placeholder rather than a real person name. */
+export function isGenericName(v) {
+  return GENERIC_NAMES.test(typeof v === "string" ? v.trim() : "");
+}
+
+// Explicit full-name fields (strongest submission signal). Intentionally
+// excludes the bare "name"/"nom" field so "Full Name"/"Nom complet" always
+// wins over the shorter fields.
+const FULL_NAME_HINTS = /^(full\s*name|fullname|nom\s+complet|prenom\s*et\s*nom|prénom\s*et\s*nom|nom\s*et\s*pr[eé]nom|nom\s*&\s*pr[eé]nom)$/i;
 const FIRST_NAME_HINTS = /(first|given|pr[eé]nom|prenom)/i;
 const LAST_NAME_HINTS = /(last|surname|family)/i;
+// Bare French "Nom" / "Nom de famille" is a LAST name (combined with "Prénom").
+const FR_LAST_NAME_HINTS = /^(nom|nom\s+de\s+famille)$/i;
+// Bare English "Name" is treated as a full-name field.
+const NAME_HINTS = /^(name)$/i;
 
 /**
- * Resolve the best real person name from the available identity data:
- *   full-name form answer → CRM name → submission submitter name →
- *   "name" form answer → first+last form answers → any name-ish form answer
- *   → "" (caller falls back).
- * "Full Name" always takes priority over the shorter "Name" field.
- * Never returns placeholder values like "Unknown"/"Anonymous" when a real
- * name exists anywhere.
+ * Resolve the best real person name deterministically (application code
+ * resolves identity — the AI never has to guess who the applicant is).
+ *
+ * Priority (per product directive):
+ *   1. CRM verified full name (contacts.name)
+ *   2. Full-name field from the submission
+ *   3. CRM first (+ last) name when stored separately
+ *   4. First-name field from the submission (combined with its last name)
+ *   5. Other recognized name field (bare "Name")
+ *   6. Stored submission submitter_name
+ *   7. Any other name-ish answer
+ *   8. "" — the caller decides the neutral fallback
+ *
+ * Language-aware: English and French labels are understood as equivalent
+ * semantic fields (Full Name / Nom complet, First Name / Prénom).
+ *
+ * `fieldLabels` maps a submission data KEY (usually the numeric field id)
+ * to the actual question label — without it, label hints can never match
+ * and form answers are effectively invisible to name resolution.
+ *
+ * Placeholder values (Unknown / Anonymous / N/A / ...) are never returned
+ * when a real name exists anywhere.
  */
-export function resolvePersonName({ contactName, submitterName, submissionData }) {
+export function resolvePersonName({ contactName, contactFirstName, contactLastName, submitterName, submissionData, fieldLabels }) {
   const clean = (v) =>
     typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
 
@@ -661,48 +686,62 @@ export function resolvePersonName({ contactName, submitterName, submissionData }
     } catch (_) {}
     return v;
   };
+  // Effective label for a data key: field id → real question label.
+  const labelOf = (k) => {
+    const raw =
+      fieldLabels && fieldLabels[String(k)] != null
+        ? String(fieldLabels[String(k)])
+        : String(k);
+    return raw.toLowerCase().trim();
+  };
+
+  const fullNames = [];
+  const firstNames = [];
+  const lastNames = [];
+  let bareName = "";
+
+  for (const [k, v] of Object.entries(data)) {
+    const val = clean(stringify(v));
+    if (!val) continue;
+    const label = labelOf(k);
+    if (!label) continue;
+    if (FULL_NAME_HINTS.test(label)) fullNames.push(val);
+    else if (FIRST_NAME_HINTS.test(label)) firstNames.push(val);
+    else if (LAST_NAME_HINTS.test(label) || FR_LAST_NAME_HINTS.test(label)) lastNames.push(val);
+    else if (NAME_HINTS.test(label)) bareName = bareName || val;
+  }
 
   const candidates = [];
 
-  // 1. Explicit full-name answers FIRST — "Full Name" beats every other source
-  for (const [k, v] of Object.entries(data)) {
-    if (FULL_NAME_HINTS.test(String(k)) && clean(stringify(v))) {
-      candidates.push(clean(stringify(v)));
-    }
+  // 1. CRM verified full name
+  if (clean(contactName)) candidates.push(clean(contactName));
+
+  // 2. Submission full-name field(s)
+  for (const n of fullNames) candidates.push(n);
+
+  // 3. CRM first (+ last) name when stored separately
+  const crmFirst = clean(contactFirstName);
+  const crmLast = clean(contactLastName);
+  if (crmFirst || crmLast) candidates.push(`${crmFirst} ${crmLast}`.trim());
+
+  // 4. Submission first-name field, combined with its last name when present
+  if (firstNames.length > 0) {
+    candidates.push(`${firstNames[0]} ${lastNames[0] || ""}`.trim());
+  } else if (lastNames.length > 0) {
+    candidates.push(lastNames[0]);
   }
 
-  // 2. Stored names: CRM name, then submission submitter name
-  if (clean(contactName)) candidates.push(clean(contactName));
+  // 5. Other recognized name field (bare English "Name")
+  if (bareName) candidates.push(bareName);
+
+  // 6. Stored submission submitter_name
   if (clean(submitterName)) candidates.push(clean(submitterName));
 
-  // 3. Bare "Name" form answer
+  // 7. Any remaining name-ish answer (label or key contains name words)
   for (const [k, v] of Object.entries(data)) {
-    if (NAME_HINTS.test(String(k)) && clean(stringify(v))) {
-      candidates.push(clean(stringify(v)));
-    }
-  }
-
-  // 4. First-name + last-name combination when stored separately
-  let firstPart = "";
-  let lastPart = "";
-  for (const [k, v] of Object.entries(data)) {
-    const key = String(k);
+    const key = labelOf(k);
     const val = clean(stringify(v));
-    if (!val) continue;
-    if (!FULL_NAME_HINTS.test(key) && FIRST_NAME_HINTS.test(key) && !lastPart && !key.toLowerCase().includes("last")) {
-      if (!firstPart) firstPart = val;
-    }
-    if (!FULL_NAME_HINTS.test(key) && LAST_NAME_HINTS.test(key)) {
-      if (!lastPart) lastPart = val;
-    }
-  }
-  if (firstPart || lastPart) candidates.push(`${firstPart} ${lastPart}`.trim());
-
-  // 5. Any remaining name-ish answer
-  for (const [k, v] of Object.entries(data)) {
-    const key = String(k).toLowerCase();
-    const val = clean(stringify(v));
-    if (!val) continue;
+    if (!val || !key) continue;
     if (key.includes("name") || key.includes("nom") || key.includes("prénom") || key.includes("prenom")) {
       candidates.push(val);
     }

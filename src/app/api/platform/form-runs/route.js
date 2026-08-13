@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus, isGenericName } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -398,7 +398,12 @@ export async function GET(req) {
             contactName: nameMap.get(s.submitter_id) || "",
             submitterName: s.submitter_name || "",
             submissionData: s.data || {},
-          }) || s.submitter_name || s.submitter_id;
+            fieldLabels,
+          }) ||
+          // Fallbacks must never surface placeholder names when a real one
+          // is missing — prefer the submitter id over "Unknown"/"Anonymous".
+          (!isGenericName(s.submitter_name) ? s.submitter_name : "") ||
+          s.submitter_id;
         return { ...s, email, display_name: displayName };
       });
 
@@ -646,18 +651,30 @@ export async function POST(req) {
       try {
         const subData = result.rows[0].data || {};
         const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
-        let applicantName = result.rows[0].submitter_name || "";
-        // Best real name: CRM name → submitter name → form answers.
+        // Best real name — resolved deterministically with the form's actual
+        // question labels (submission data is keyed by field id). The AI never
+        // receives "Unknown" when a real name exists anywhere.
+        let applicantName = "";
         try {
+          const fieldRes = await db.execute({
+            sql: `SELECT f2.id, f2.label
+                  FROM platform_form_fields f2
+                  JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
+                  WHERE r2.id = ?`,
+            args: [result.rows[0].run_id],
+          });
+          const labels = {};
+          for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
           const cNameRes = await db.execute({
             sql: "SELECT name FROM contacts WHERE cid = ?",
             args: [result.rows[0].submitter_id],
           });
           applicantName = resolvePersonName({
             contactName: cNameRes.rows[0]?.name || "",
-            submitterName: applicantName,
+            submitterName: result.rows[0].submitter_name || "",
             submissionData: subData,
-          }) || applicantName || "";
+            fieldLabels: labels,
+          });
         } catch (_) {}
 
         if (applicantEmail) {
