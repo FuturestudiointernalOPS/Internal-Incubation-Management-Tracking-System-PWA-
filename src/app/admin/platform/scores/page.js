@@ -30,6 +30,8 @@ const STATUS_CONFIG = {
 export default function ScoresPage() {
   const [forms, setForms] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState("");
+  const [runs, setRuns] = useState([]);
+  const [selectedRunId, setSelectedRunId] = useState("");
   const [sort, setSort] = useState("desc");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
@@ -69,9 +71,17 @@ export default function ScoresPage() {
     } catch (_) {}
   };
 
+  const fetchRuns = async (formId) => {
+    try {
+      const res = await fetch(`/api/platform/form-runs?form_id=${formId}`);
+      const d = await res.json();
+      if (d.success) setRuns(d.runs || []);
+    } catch (_) {}
+  };
+
   const fetchScores = useCallback(async () => {
-    if (!selectedFormId) {
-      setError("Please select a form.");
+    if (!selectedRunId) {
+      setError("Please select a run.");
       return;
     }
     setLoading(true);
@@ -79,6 +89,7 @@ export default function ScoresPage() {
     setData(null);
     try {
       const params = new URLSearchParams({
+        run_id: selectedRunId,
         form_id: selectedFormId,
         sort,
       });
@@ -98,7 +109,7 @@ export default function ScoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFormId, sort]);
+  }, [selectedRunId, selectedFormId, sort]);
 
   const toggleExpand = (idx) => {
     setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
@@ -127,7 +138,7 @@ export default function ScoresPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `evaluation_scores_${selectedFormId}.csv`;
+    a.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -323,7 +334,7 @@ export default function ScoresPage() {
             Evaluation Scores
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Filter, rank, and export AI evaluation scores by score threshold.
+            Filter, rank, and export AI evaluation scores for a specific run.
           </p>
         </div>
 
@@ -338,9 +349,12 @@ export default function ScoresPage() {
               value={selectedFormId}
               onChange={(e) => {
                 setSelectedFormId(e.target.value);
+                setSelectedRunId("");
+                setRuns([]);
                 setData(null);
                 setError("");
                 clearFilters();
+                if (e.target.value) fetchRuns(e.target.value);
               }}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
             >
@@ -352,6 +366,32 @@ export default function ScoresPage() {
               ))}
             </select>
           </div>
+
+          {/* Run selector — evaluations are scoped to THIS run */}
+          {selectedFormId && (
+            <div>
+              <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                Select Run
+              </label>
+              <select
+                value={selectedRunId}
+                onChange={(e) => {
+                  setSelectedRunId(e.target.value);
+                  setData(null);
+                  setError("");
+                  clearFilters();
+                }}
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="">Choose a run...</option>
+                {runs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name || `Run #${r.id}`} ({r.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Sort */}
           <div className="flex items-center gap-4">
@@ -370,7 +410,7 @@ export default function ScoresPage() {
 
           <button
             onClick={fetchScores}
-            disabled={loading || !selectedFormId}
+            disabled={loading || !selectedRunId}
             className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {loading ? (
@@ -565,6 +605,9 @@ export default function ScoresPage() {
                 </div>
 
                 <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  {data.run?.name ? (
+                    <>Run: <span className="text-[var(--brand-orange)] font-black">{data.run.name}</span> · </>
+                  ) : null}
                   Showing {filteredRespondents.length} of {data.respondents?.length || 0} respondents
                 </p>
               </div>
