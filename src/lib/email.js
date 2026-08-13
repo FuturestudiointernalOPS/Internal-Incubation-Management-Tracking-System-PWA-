@@ -641,6 +641,41 @@ export async function hasSentEmailToRecipientInRun({ run_id, email_type, recipie
 }
 
 /**
+ * Ensure password_setup_tokens exists with the CORRECT shape and repair
+ * environments where `used` was created as BOOLEAN. A boolean `used` breaks
+ * every "used = 0/1" write with Postgres error
+ * "column 'used' is boolean but expression is of type integer" — which is
+ * what makes activation emails fail while approval emails still work.
+ * Idempotent: safe to call on every activation send.
+ */
+export async function ensurePasswordSetupTokensSchema() {
+  try {
+    const { default: db } = await import("@/lib/db");
+    await db.execute(`CREATE TABLE IF NOT EXISTS password_setup_tokens (
+      id SERIAL PRIMARY KEY,
+      contact_cid TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      expires_at TIMESTAMP NOT NULL,
+      used INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await db.execute(`DO $$
+    BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
+      ) THEN
+        ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
+      END IF;
+    END $$`);
+    return true;
+  } catch (e) {
+    console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", e.message);
+    return false;
+  }
+}
+
+/**
  * Artificial/placeholder addresses (import fallbacks, reserved domains) must
  * never be treated as real recipients.
  */

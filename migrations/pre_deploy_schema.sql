@@ -274,6 +274,20 @@ CREATE TABLE IF NOT EXISTS password_setup_tokens (
 );
 CREATE INDEX IF NOT EXISTS idx_password_setup_tokens_contact ON password_setup_tokens(contact_cid);
 
+-- Repair environments where `used` was created as BOOLEAN: the code writes
+-- integers (used = 0/1), which fails with
+-- "column 'used' is boolean but expression is of type integer" and breaks
+-- activation emails + password setup. Safe/idempotent.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
+  ) THEN
+    ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
+  END IF;
+END $$;
+
 -- ═══════════════════════════════════════════════════════════════════════════
 -- 6. PROGRAM MEMBERSHIP
 -- ═══════════════════════════════════════════════════════════════════════════
