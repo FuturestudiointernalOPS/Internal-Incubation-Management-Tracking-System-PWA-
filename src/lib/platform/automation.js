@@ -354,8 +354,10 @@ const RULES = [
         }
 
         // Determine the Group + its Program from the run assignment.
-        // The group establishes organizational/program CONTEXT — it never
-        // elevates the platform role to staff. Basic access is Participant.
+        // The group establishes organizational/program CONTEXT:
+        //  - group name exactly "Future Studio" → internal Staff
+        //  - any other group (with or without a Program) → Participant
+        //  - no group → no activation email can be sent
         let groupName = null;
         let groupProgramId = null;
         if (ctx.run?.id) {
@@ -371,11 +373,28 @@ const RULES = [
           } catch (_) {}
         }
 
+        // No group assigned → do not send an activation email.
+        if (!groupName) {
+          console.warn("[Automation] Activation skipped: no group assigned", ctx.submission?.id);
+          await recordEmailStatus({
+            submission_id: ctx.submission?.id || null,
+            contact_cid: ctx.submission?.submitter_id || null,
+            email_type: "activation",
+            status: "skipped",
+            error: "Skipped — No group assigned to this run; activation email not sent",
+          });
+          return;
+        }
+
         // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
         let contact = null;
         let accountExists = false;
         let accountActivated = false;
-        let targetRole = "participant"; // Group/Program never make a user Staff
+        // Automated role: only the internal "Future Studio" group becomes Staff.
+        let targetRole =
+          groupName && groupName.trim().toUpperCase() === "FUTURE STUDIO"
+            ? "staff"
+            : "participant";
         const existingContact = await db.execute({
           sql: "SELECT cid, name, email, password, role FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],

@@ -180,7 +180,8 @@ export async function POST(req) {
       } else if (
         user.role === "staff" ||
         user.role === "project_manager" ||
-        user.role === "admin"
+        user.role === "admin" ||
+        user.group_name?.toUpperCase() === "FUTURE STUDIO"
       ) {
         finalRole = "staff";
       }
