@@ -331,6 +331,7 @@ const RULES = [
           getTemplate,
           sendTrackedEmail,
           getEmailLogRow,
+          hasSentEmailToRecipientInRun,
         } = await import("@/lib/email");
 
         // 1. Resolve the recipient email with strict priority:
@@ -483,6 +484,28 @@ const RULES = [
           : null;
         if (priorSend && priorSend.status === "sent") {
           console.log("[Automation] Activation/access email already sent — skipped", contactEmail);
+          return;
+        }
+
+        // Duplicate-recipient guard: when the same email appears in multiple
+        // submissions of this run, only ONE activation/access email is ever
+        // sent to that address (the highest-scored approval reaches this
+        // point; lower-scored duplicates are skipped earlier).
+        const recipientAlreadyEmailed = await hasSentEmailToRecipientInRun({
+          run_id: ctx.run?.id || null,
+          email_type: "activation",
+          recipient: contactEmail,
+        });
+        if (recipientAlreadyEmailed) {
+          console.log("[Automation] Duplicate recipient — activation already sent", contactEmail);
+          await recordEmailStatus({
+            submission_id: ctx.submission?.id || null,
+            contact_cid: contact.cid,
+            email_type: "activation",
+            status: "skipped",
+            error: "Skipped — duplicate recipient: an activation email was already sent to this address for this run",
+            to: contactEmail,
+          });
           return;
         }
 

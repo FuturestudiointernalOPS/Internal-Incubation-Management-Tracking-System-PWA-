@@ -444,6 +444,7 @@ export default function FormRunsPage() {
         setFieldFilters({});
         setRespPage(1);
         setSelectedIds([]);
+        setShowDuplicates(false);
         setBulkSummary(null);
         setBulkMenuOpen(false);
         setBulkConfirmOpen(false);
@@ -706,6 +707,7 @@ export default function FormRunsPage() {
   const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
   const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
   const [respPage, setRespPage] = useState(1); // respondent table pagination
+  const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
   const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
@@ -901,6 +903,7 @@ export default function FormRunsPage() {
   useEffect(() => {
     setRespPage(1);
     setSelectedIds([]);
+    setShowDuplicates(false);
   }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter]);
 
   const clearRunFilters = () => {
@@ -913,10 +916,58 @@ export default function FormRunsPage() {
     setSelectedIds([]);
   };
 
+  // ─── Duplicate detection: same resolved email appearing multiple times ───
+  // The keeper (highest AI score) is marked; the rest are duplicates. After
+  // evaluation, only the keeper should receive approval/activation emails.
+  const duplicateGroups = useMemo(() => {
+    const byEmail = new Map();
+    for (const s of submissions) {
+      const key = (s.email || "").trim().toLowerCase();
+      if (!key || !key.includes("@")) continue;
+      if (!byEmail.has(key)) byEmail.set(key, []);
+      byEmail.get(key).push(s);
+    }
+    const groups = [...byEmail.values()].filter((g) => g.length > 1);
+    const keeperIds = new Set();
+    for (const g of groups) {
+      let best = null;
+      let bestScore = NaN;
+      for (const s of g) {
+        const ev = evaluations.find((e) => e.submission_id === s.id);
+        const sc = ev != null ? Number(ev.overall_score) : NaN;
+        if (!isNaN(sc) && (isNaN(bestScore) || sc > bestScore)) {
+          best = s;
+          bestScore = sc;
+        }
+      }
+      if (best) keeperIds.add(best.id);
+    }
+    const extra = groups.reduce((n, g) => n + g.length - 1, 0);
+    return { groups, keeperIds, extra };
+  }, [submissions, evaluations]);
+
+  const duplicateEmailSet = useMemo(() => {
+    const set = new Set();
+    for (const g of duplicateGroups.groups) {
+      for (const s of g) set.add((s.email || "").trim().toLowerCase());
+    }
+    return set;
+  }, [duplicateGroups]);
+
+  // What the table actually displays: the filtered set, or only duplicates
+  // when the duplicates view is active.
+  const visibleSubmissions = useMemo(
+    () =>
+      showDuplicates
+        ? filteredSubmissions.filter((s) => duplicateEmailSet.has((s.email || "").trim().toLowerCase()))
+        : filteredSubmissions,
+    [filteredSubmissions, showDuplicates, duplicateEmailSet]
+  );
+
   // ─── Respondent table pagination (perPage rows per page) ───
-  const respTotalPages = Math.max(1, Math.ceil(filteredSubmissions.length / perPage));
+  const respTotalPages = Math.max(1, Math.ceil(visibleSubmissions.length / perPage));
   const respSafePage = Math.min(respPage, respTotalPages);
-  const pagedSubmissions = filteredSubmissions.slice(
+  const pagedSubmissions = visibleSubmissions.slice(
     (respSafePage - 1) * perPage,
     respSafePage * perPage
   );
@@ -924,7 +975,7 @@ export default function FormRunsPage() {
   // ─── Bulk selection (respects the CURRENT filters; Select All = all filtered, across pages) ───
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
   const allFilteredSelected =
-    filteredSubmissions.length > 0 && filteredSubmissions.every((s) => selectedSet.has(s.id));
+    visibleSubmissions.length > 0 && visibleSubmissions.every((s) => selectedSet.has(s.id));
 
   const toggleSelect = (id) => {
     setSelectedIds((prev) =>
@@ -933,7 +984,7 @@ export default function FormRunsPage() {
   };
 
   const toggleSelectAllFiltered = () => {
-    setSelectedIds(allFilteredSelected ? [] : filteredSubmissions.map((s) => s.id));
+    setSelectedIds(allFilteredSelected ? [] : visibleSubmissions.map((s) => s.id));
   };
 
   // Bulk approve: batches of 10 through the SAME review workflow as a single
@@ -1354,6 +1405,15 @@ export default function FormRunsPage() {
                     </select>
                   ))}
 
+                  {duplicateGroups.groups.length > 0 && (
+                    <button
+                      onClick={() => setShowDuplicates(!showDuplicates)}
+                      className={cn("px-2.5 py-2 rounded-lg text-[9px] font-black uppercase border", showDuplicates ? "bg-amber-500 text-black border-amber-500" : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20")}
+                    >
+                      {showDuplicates ? "Show all" : `Duplicates (${duplicateGroups.extra})`}
+                    </button>
+                  )}
+
                   {hasRunFilters && (
                     <button
                       onClick={clearRunFilters}
@@ -1365,6 +1425,13 @@ export default function FormRunsPage() {
                 </div>
 
                 {/* Bulk selection bar — selection always respects the active filters */}
+                {duplicateGroups.groups.length > 0 && (
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-amber-500">
+                    <AlertTriangle className="w-3 h-3" />
+                    {duplicateGroups.groups.length} duplicate email group{duplicateGroups.groups.length === 1 ? "" : "s"} — {duplicateGroups.extra} extra submission{duplicateGroups.extra === 1 ? "" : "s"}. Only the highest-scored duplicate receives emails.
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-3">
                     <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer">
@@ -1377,7 +1444,9 @@ export default function FormRunsPage() {
                       Select all filtered
                     </label>
                     <span className="text-[9px] font-bold text-[var(--text-secondary)]">
-                      {filteredSubmissions.length} respondent{filteredSubmissions.length === 1 ? "" : "s"} match your filters
+                      {showDuplicates
+                        ? `${visibleSubmissions.length} duplicate submission${visibleSubmissions.length === 1 ? "" : "s"}`
+                        : `${filteredSubmissions.length} respondent${filteredSubmissions.length === 1 ? "" : "s"} match your filters`}
                     </span>
                   </div>
                   {selectedIds.length > 0 && (
@@ -1409,7 +1478,7 @@ export default function FormRunsPage() {
                 </div>
 
                 <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-                  Showing {filteredSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1}–{Math.min(respSafePage * perPage, filteredSubmissions.length)} of {filteredSubmissions.length} respondents in this run
+                  Showing {visibleSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1}–{Math.min(respSafePage * perPage, visibleSubmissions.length)} of {visibleSubmissions.length} respondents in this run
                 </p>
               </div>
 
@@ -1498,7 +1567,15 @@ export default function FormRunsPage() {
                               />
                             </td>
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.display_name || s.submitter_name || s.submitter_id}</div>
+                              <div className="flex items-center gap-2">
+                                <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+                                {s.display_name || s.submitter_name || s.submitter_id}
+                                {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                                    {duplicateGroups.keeperIds.has(s.id) ? "Keeper" : "Duplicate"}
+                                  </span>
+                                )}
+                              </div>
                             </td>
                             {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
                             <td className="px-4 py-3">
