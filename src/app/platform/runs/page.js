@@ -1955,6 +1955,14 @@ export default function FormRunsPage() {
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black text-[var(--brand-orange)]">{retrySelected.length} selected</span>
                         <button
+                          onClick={() => setRetrySelected([])}
+                          disabled={retryProcessing}
+                          title="Deselect all — emails stay in the list so you can come back to them"
+                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase hover:text-[var(--text-primary)] disabled:opacity-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
                           onClick={runRetryEmails}
                           disabled={retryProcessing}
                           className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
