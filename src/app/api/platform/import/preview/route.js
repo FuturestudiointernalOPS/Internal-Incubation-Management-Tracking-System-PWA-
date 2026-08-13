@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { parseCSVRows } from "@/lib/csv";
 
 /**
  * POST /api/platform/import/preview
@@ -10,41 +11,18 @@ import { requireAuth } from "@/lib/auth";
  */
 
 function parseCSV(text) {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length === 0) return { headers: [], rows: [] };
-
-  const parseLine = (line) => {
-    const result = [];
-    let current = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (ch === "," && !inQuotes) {
-        result.push(current.trim());
-        current = "";
-      } else {
-        current += ch;
-      }
-    }
-    result.push(current.trim());
-    return result;
-  };
-
-  const headers = parseLine(lines[0]);
+  // RFC 4180-aware: quoted cells may contain commas and embedded newlines,
+  // so logical rows are derived from the parser, never from physical lines.
+  const grid = parseCSVRows(text);
+  if (grid.length === 0) return { headers: [], rows: [] };
+  const headers = (grid[0] || []).map((h) => h.trim());
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = parseLine(lines[i]);
+  for (let i = 1; i < grid.length; i++) {
+    const cells = grid[i];
     if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
     const row = {};
     headers.forEach((h, idx) => {
-      row[h] = cells[idx] !== undefined ? cells[idx] : "";
+      row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
     });
     rows.push(row);
   }

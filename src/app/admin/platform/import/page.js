@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { parseCSVRows, rowsToCsv } from "@/lib/csv";
 
 const STEPS = [
   { key: "upload", label: "Upload CSV" },
@@ -115,9 +116,10 @@ export default function ImportPage() {
     try {
       // Mapping only needs the header + a few sample rows — never send the
       // full file to preview (large CSVs would hit Vercel's 4.5 MB limit).
-      const lines = csvText.trim().split(/\r?\n/);
-      const sample = lines.slice(0, 51).join("\n");
-      const totalRows = lines.length > 0 ? lines.length - 1 : 0;
+      // Count REAL CSV rows (quoted multi-line cells count as one row).
+      const grid = parseCSVRows(csvText);
+      const sample = rowsToCsv(grid.slice(0, 51));
+      const totalRows = grid.length > 0 ? grid.length - 1 : 0;
       const res = await fetch("/api/platform/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,40 +145,20 @@ export default function ImportPage() {
     }
   };
 
+  // Parse the full CSV into row objects using the RFC 4180-aware parser —
+  // quoted cells containing newlines/commas stay intact instead of being
+  // exploded into phantom rows.
   const parseFullCSV = () => {
-    const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length === 0) return [];
-    const parseLine = (line) => {
-      const result = [];
-      let current = "";
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (ch === "," && !inQuotes) {
-          result.push(current.trim());
-          current = "";
-        } else {
-          current += ch;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    };
-    const headers = parseLine(lines[0]);
+    const grid = parseCSVRows(csvText);
+    if (grid.length === 0) return [];
+    const headers = grid[0].map((h) => h.trim());
     const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cells = parseLine(lines[i]);
+    for (let i = 1; i < grid.length; i++) {
+      const cells = grid[i];
       if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
       const row = {};
       headers.forEach((h, idx) => {
-        row[h] = cells[idx] !== undefined ? cells[idx] : "";
+        row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
       });
       rows.push(row);
     }
