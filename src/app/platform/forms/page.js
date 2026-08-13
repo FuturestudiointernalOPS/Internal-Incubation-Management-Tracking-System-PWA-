@@ -8,7 +8,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, XCircle,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, LogIn, XCircle,
 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -1466,6 +1466,16 @@ export default function PlatformForms() {
                   defaultSubject="Welcome to {{organization}} — Set Your Password"
                   defaultBody='<p>Hello {{name}},</p><p>Your account has been created on <strong>{{organization}}</strong>.</p><p>Click the button below to set your password.</p>'
                   vars={["name", "organization", "activation_link"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
+                />
+                <TemplateEditor
+                  label="Existing User Access Email" icon={LogIn}
+                  tKey="existing_user"
+                  desc="Sent when the applicant already has an account — they log in with existing credentials."
+                  defaultSubject="Welcome back to {{organization}} — Log In"
+                  defaultBody='<p>Hello {{name}},</p><p>You already have an account with us. Use your existing credentials to log in and access the platform.</p>'
+                  vars={["name", "organization", "login_url"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />

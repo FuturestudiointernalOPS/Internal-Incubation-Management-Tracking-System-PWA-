@@ -53,6 +53,10 @@ const TEMPLATE_SPECS = {
     label: "account activation email that includes a password setup link",
     placeholders: ["{{name}}", "{{organization}}", "{{activation_link}}"],
   },
+  existing_user: {
+    label: "access email for a person who already has an account (they must log in with their existing credentials)",
+    placeholders: ["{{name}}", "{{organization}}", "{{login_url}}"],
+  },
   rejection: {
     label: "polite rejection notification",
     placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],

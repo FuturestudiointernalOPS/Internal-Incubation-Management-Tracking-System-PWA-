@@ -133,6 +133,10 @@ const DEFAULT_TEMPLATES = {
     subject: "Welcome to {{organization}} — Set Your Password",
     body: `<p>Hello {{name}},</p><p>Your account has been created on <strong>{{organization}}</strong>.</p><p>Click the button below to create your password and access your dashboard.</p>`,
   },
+  existing_user: {
+    subject: "Welcome back to {{organization}} — Log In",
+    body: `<p>Hello {{name}},</p><p>You already have an account with us. You can access the platform using your existing login credentials.</p>`,
+  },
 };
 
 /**
@@ -242,6 +246,73 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
   `;
 
   return sendEmail({ to, subject: `You're invited to ImpactOS — ${roleLabel}`, html });
+}
+
+/**
+ * Send an access email to someone who ALREADY has a platform account.
+ * No password-setup token — the recipient logs in with existing credentials.
+ */
+export async function sendLoginEmail({ to, name, role, template, templateVars }) {
+  const loginUrl = `${APP_URL}/login`;
+  const org = templateVars?.organization || "ImpactOS";
+  const tv = { name: name || "there", role: (role || "").replace(/_/g, " "), organization: org, login_url: loginUrl, ...(templateVars || {}) };
+
+  const subject = template?.subject
+    ? applyTemplate(template.subject, tv)
+    : `Welcome back to ${org} — Log In`;
+
+  const bodyHtml = template?.body
+    ? applyTemplate(template.body, tv)
+    : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hello <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
+       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You already have an account with us. Use your existing credentials to log in and access the platform.</p>`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">${subject}</h2>
+              ${bodyHtml}
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${loginUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      LOGIN TO YOUR ACCOUNT
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">
+                ${loginUrl}
+              </p>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                If you did not expect this email, please ignore it.
+              </p>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -582,16 +653,16 @@ export async function recordEmailFailure(args) {
   return recordEmailStatus({ ...args, status: "failed" });
 }
 
-async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider }) {
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
     if (success) {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, sent_at)
-              VALUES (?, ?, ?, 'sent', ?, NOW())
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, sent_at)
+              VALUES (?, ?, ?, 'sent', ?, ?, NOW())
               ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null],
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null],
       });
     } else {
       await db.execute({
@@ -611,7 +682,7 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
  * - Send succeeds → records 'sent' and returns { success: true }
  * - Send fails → records 'failed' and returns { success: false } (retryable)
  */
-export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider }) {
+export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider, note }) {
   const existing = await getEmailLogRow(submission_id, email_type);
   if (existing && existing.status === "sent") {
     return { skipped: true, already_sent: true, log: existing };
@@ -631,6 +702,7 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
     success: !!result.success,
     error: result.error ? (typeof result.error === "string" ? result.error : JSON.stringify(result.error)) : undefined,
     provider: result?.provider || provider,
+    note,
   });
 
   return { ...result, skipped: false };

@@ -6,7 +6,7 @@ import {
   XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn,
 } from "lucide-react";
 
 /**
@@ -1281,7 +1281,7 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               {activationEmail ? (
                                 activationEmail.status === "sent" ? (
-                                  <span title="Sent successfully" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
+                                  <span title={activationEmail.error || "Sent successfully"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
                                 ) : activationEmail.status === "failed" ? (
                                   <span title={activationEmail.error || "Failed to send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
                                 ) : activationEmail.status === "skipped" ? (
@@ -1721,6 +1721,14 @@ export default function FormRunsPage() {
                     desc="Sent (via Resend) with the password setup link after approval."
                     vars={["name", "organization", "activation_link"]}
                     current={runTemplates.activation || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="existing_user"
+                    label="Existing User Access Email"
+                    icon={LogIn}
+                    desc="Sent (via Resend) when the applicant already has an account — they log in with existing credentials."
+                    vars={["name", "organization", "login_url"]}
+                    current={runTemplates.existing_user || {}}
                   />
                   <RunTemplateEditor
                     tKey="rejection"
