@@ -65,7 +65,7 @@ export default function PendingUsersPage() {
     setActionMsg(null);
     // Get selected role from dropdown
     const roleSelect = document.getElementById("role-" + userCid);
-    const selectedRole = roleSelect ? roleSelect.value : "staff";
+    const selectedRole = roleSelect ? roleSelect.value : "participant";
     try {
       const res = await fetch("/api/admin/approve-user", {
         method: "POST",
