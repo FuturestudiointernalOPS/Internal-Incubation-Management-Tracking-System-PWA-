@@ -439,6 +439,155 @@ export async function GET(req) {
 }
 
 /**
+ * Send (or re-send) the tracked decision email for a submission using the
+ * SAME resolution chain as the approval flow: recipient from submission
+ * data, name resolved deterministically with the form's real field labels,
+ * run→form→default template, score variable, group gating. Used by both the
+ * review workflow and the manual retry action.
+ *
+ * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
+ */
+async function sendDecisionEmailForSubmission({ submission_id, decision, comment }) {
+  const subRes = await db.execute({
+    sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
+    args: [parseInt(submission_id)],
+  });
+  if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = subRes.rows[0];
+
+  try {
+    const subData = row.data || {};
+    const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
+    if (!applicantEmail) return { status: "failed", error: "No email address found in submission data" };
+
+    // Best real name — resolved deterministically with the form's actual
+    // question labels (submission data is keyed by field id).
+    let applicantName = "";
+    try {
+      const fieldRes = await db.execute({
+        sql: `SELECT f2.id, f2.label
+              FROM platform_form_fields f2
+              JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
+              WHERE r2.id = ?`,
+        args: [row.run_id],
+      });
+      const labels = {};
+      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const cNameRes = await db.execute({
+        sql: "SELECT name FROM contacts WHERE cid = ?",
+        args: [row.submitter_id],
+      });
+      applicantName = resolvePersonName({
+        contactName: cNameRes.rows[0]?.name || "",
+        submitterName: row.submitter_name || "",
+        submissionData: subData,
+        fieldLabels: labels,
+      });
+    } catch (_) {}
+
+    let shouldSend = true;
+    // Approval email requires a group (organizational context). With no
+    // group, the person stays in the platform/CRM but no email is sent.
+    if (decision === "approved") {
+      try {
+        const grpCheck = await db.execute({
+          sql: `SELECT 1
+                FROM platform_form_run_assignments a
+                JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
+                WHERE a.run_id = ? AND a.target_type = 'group'
+                LIMIT 1`,
+          args: [row.run_id],
+        });
+        if (grpCheck.rows.length === 0) {
+          shouldSend = false;
+          await recordEmailStatus({
+            submission_id: parseInt(submission_id),
+            contact_cid: row.submitter_id || null,
+            email_type: "approval",
+            status: "skipped",
+            error: "Skipped — No group assigned; approval email not sent",
+            to: applicantEmail,
+          });
+          return { status: "skipped", error: "No group assigned; approval email not sent", to: applicantEmail };
+        }
+      } catch (_) {}
+    }
+    if (decision !== "approved") {
+      try {
+        const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [row.run_id] });
+        if (runInfo2.rows[0]) {
+          const auto = (runInfo2.rows[0].settings || {}).automation;
+          if (auto?.on_reject?.send_rejection_email === false) shouldSend = false;
+        }
+      } catch (_) {}
+    }
+    if (!shouldSend) return { status: "skipped", error: "Email disabled by form workflow settings", to: applicantEmail };
+
+    // Gather template + score for variables
+    let decisionTemplate = null;
+    let templateVars = null;
+    let score = null;
+    try {
+      const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings, r.settings AS run_settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [row.run_id] });
+      if (runInfo2.rows[0]) {
+        const formName = runInfo2.rows[0].name || "";
+        decisionTemplate = getTemplate(
+          runInfo2.rows[0].settings || {},
+          decision === "approved" ? "approval" : "rejection",
+          runInfo2.rows[0].run_settings || {}
+        );
+        templateVars = { form_name: formName };
+        try {
+          const groupRes = await db.execute({
+            sql: `SELECT f.name AS group_name
+                  FROM platform_form_run_assignments a
+                  JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
+                  WHERE a.run_id = ? AND a.target_type = 'group'
+                  LIMIT 1`,
+            args: [row.run_id],
+          });
+          if (groupRes.rows.length > 0) templateVars.group_name = groupRes.rows[0].group_name;
+        } catch (_) {}
+      }
+      const evalRes = await db.execute({
+        sql: "SELECT overall_score FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
+        args: [parseInt(submission_id)],
+      });
+      if (evalRes.rows.length > 0) score = evalRes.rows[0].overall_score;
+    } catch (_) {}
+
+    const { sendTrackedEmail } = await import("@/lib/email");
+    const emailType = decision === "approved" ? "approval" : "rejection";
+    const tracked = await sendTrackedEmail({
+      submission_id: parseInt(submission_id),
+      contact_cid: row.submitter_id || null,
+      email_type: emailType,
+      provider: "gmail",
+      to: applicantEmail,
+      sendFn: () => sendDecisionEmail({
+        to: applicantEmail,
+        applicantName,
+        formName: templateVars?.form_name || "application",
+        decision,
+        comment: comment || "",
+        template: decisionTemplate,
+        templateVars: { ...(templateVars || {}), score: score != null ? String(score) : "" },
+      }),
+    });
+    if (tracked.success) {
+      logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision, retry: true });
+      return { status: "sent", to: applicantEmail };
+    }
+    if (tracked.skipped) return { status: "already_sent", to: applicantEmail };
+    logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, decision, email_type: emailType, retry: true });
+    return { status: "failed", error: tracked.error || "Email send failed", to: applicantEmail };
+  } catch (e) {
+    console.error("[form-runs] Decision email error:", e);
+    return { status: "failed", error: e?.message || "Email error" };
+  }
+}
+
+/**
  * Shared approval/rejection workflow — used by BOTH the single review action
  * and the bulk review action so bulk approval is a controlled extension of
  * the individual flow, never a parallel implementation.
@@ -514,138 +663,7 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
 
   // Send decision email to applicant — TRACKED (never sent twice)
-  try {
-    const subData = result.rows[0].data || {};
-    const applicantEmail = Object.values(subData).find(v => typeof v === "string" && v.includes("@"));
-    // Best real name — resolved deterministically with the form's actual
-    // question labels (submission data is keyed by field id). The AI never
-    // receives "Unknown" when a real name exists anywhere.
-    let applicantName = "";
-    try {
-      const fieldRes = await db.execute({
-        sql: `SELECT f2.id, f2.label
-              FROM platform_form_fields f2
-              JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
-              WHERE r2.id = ?`,
-        args: [result.rows[0].run_id],
-      });
-      const labels = {};
-      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
-      const cNameRes = await db.execute({
-        sql: "SELECT name FROM contacts WHERE cid = ?",
-        args: [result.rows[0].submitter_id],
-      });
-      applicantName = resolvePersonName({
-        contactName: cNameRes.rows[0]?.name || "",
-        submitterName: result.rows[0].submitter_name || "",
-        submissionData: subData,
-        fieldLabels: labels,
-      });
-    } catch (_) {}
-
-    if (applicantEmail) {
-      let shouldSend = true;
-      // Approval email requires a group (organizational context). With no
-      // group, the person stays in the platform/CRM but no email is sent.
-      if (decision === "approved") {
-        try {
-          const grpCheck = await db.execute({
-            sql: `SELECT 1
-                  FROM platform_form_run_assignments a
-                  JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
-                  WHERE a.run_id = ? AND a.target_type = 'group'
-                  LIMIT 1`,
-            args: [result.rows[0].run_id],
-          });
-          if (grpCheck.rows.length === 0) {
-            shouldSend = false;
-            await recordEmailStatus({
-              submission_id: parseInt(submission_id),
-              contact_cid: result.rows[0].submitter_id || null,
-              email_type: "approval",
-              status: "skipped",
-              error: "Skipped — No group assigned; approval email not sent",
-              to: applicantEmail,
-            });
-          }
-        } catch (_) {}
-      }
-      if (decision !== "approved") {
-        try {
-          const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-          if (runInfo2.rows[0]) {
-            const auto = (runInfo2.rows[0].settings || {}).automation;
-            if (auto?.on_reject?.send_rejection_email === false) shouldSend = false;
-          }
-        } catch (_) {}
-      }
-      if (shouldSend) {
-        // Gather template + score for variables
-        let decisionTemplate = null;
-        let templateVars = null;
-        let contactCid = result.rows[0].submitter_id || null;
-        let score = null;
-        try {
-          const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings, r.settings AS run_settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
-          if (runInfo2.rows[0]) {
-            const formName = runInfo2.rows[0].name || "";
-            // Run template overrides form template, then platform default
-            decisionTemplate = getTemplate(
-              runInfo2.rows[0].settings || {},
-              decision === "approved" ? "approval" : "rejection",
-              runInfo2.rows[0].run_settings || {}
-            );
-            templateVars = { form_name: formName };
-            // Resolve the group linked to this run so {{group_name}} works
-            // in manual approval/rejection templates (same lookup the
-            // activation + auto-approve flows use).
-            try {
-              const groupRes = await db.execute({
-                sql: `SELECT f.name AS group_name
-                      FROM platform_form_run_assignments a
-                      JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
-                      WHERE a.run_id = ? AND a.target_type = 'group'
-                      LIMIT 1`,
-                args: [result.rows[0].run_id],
-              });
-              if (groupRes.rows.length > 0) templateVars.group_name = groupRes.rows[0].group_name;
-            } catch (_) {}
-          }
-          const evalRes = await db.execute({
-            sql: "SELECT overall_score FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
-            args: [parseInt(submission_id)],
-          });
-          if (evalRes.rows.length > 0) score = evalRes.rows[0].overall_score;
-        } catch (_) {}
-
-        const { sendTrackedEmail } = await import("@/lib/email");
-        const emailType = decision === "approved" ? "approval" : "rejection";
-        const tracked = await sendTrackedEmail({
-          submission_id: parseInt(submission_id),
-          contact_cid: contactCid,
-          email_type: emailType,
-          provider: "gmail",
-          to: applicantEmail,
-          sendFn: () => sendDecisionEmail({
-            to: applicantEmail,
-            applicantName,
-            formName: templateVars?.form_name || "application",
-            decision,
-            comment: comment || "",
-            template: decisionTemplate,
-            templateVars: { ...(templateVars || {}), score: score != null ? String(score) : "" },
-          }),
-        });
-        if (tracked.success) {
-          logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, decision });
-        } else if (!tracked.skipped) {
-          logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, decision, email_type: emailType });
-        }
-      }
-    }
-  } catch (emailErr) {
-    console.error("[form-runs] Decision email error:", emailErr);
-  }
+  await sendDecisionEmailForSubmission({ submission_id, decision, comment: comment || "" });
 
   // Fire automation — get run details + form config for context
   const sub = await db.execute({ sql: "SELECT run_id FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });
@@ -924,6 +942,99 @@ export async function POST(req) {
             name: row.submitter_name || "",
             error: e?.message || "Unknown error",
           });
+        }
+      }
+
+      return NextResponse.json({ success: true, results });
+    }
+
+    // ─── RETRY FAILED EMAILS ACTION ───
+    // Manual retry only — no automatic retries. Each selected (submission,
+    // email_type) pair must have a FAILED send; succeeded sends are never
+    // resent. Approval/rejection re-sends through the same tracked decision
+    // email helper; activation re-fires the REVIEW_COMPLETED automation so
+    // contact, token, template and idempotency logic stay identical.
+    if (action === "retry_emails") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { run_id, retries } = body;
+      if (!run_id || !Array.isArray(retries) || retries.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and retries are required" }, { status: 400 });
+      }
+      if (retries.length > 25) {
+        return NextResponse.json({ success: false, error: "A retry batch can process at most 25 emails" }, { status: 400 });
+      }
+      if (!retries.every((r) => r && Number.isFinite(parseInt(r.submission_id)) && typeof r.email_type === "string")) {
+        return NextResponse.json({ success: false, error: "Each retry needs submission_id and email_type" }, { status: 400 });
+      }
+
+      // Backend validation: every submission must belong to THIS run.
+      const idList = [...new Set(retries.map((r) => parseInt(r.submission_id)))];
+      const valRes = await db.execute({
+        sql: `SELECT id, submitter_name FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
+        args: [idList, parseInt(run_id)],
+      });
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      const { getEmailLogRow } = await import("@/lib/email");
+      const results = [];
+      for (const item of retries) {
+        const id = parseInt(item.submission_id);
+        const type = String(item.email_type);
+        const name = validMap.get(id)?.submitter_name || "";
+        if (!validMap.has(id)) {
+          results.push({ submission_id: id, email_type: type, name, status: "failed", error: "Submission is not in this run" });
+          continue;
+        }
+        const logRow = await getEmailLogRow(id, type);
+        if (logRow && logRow.status === "sent") {
+          results.push({ submission_id: id, email_type: type, name, status: "already_sent", error: "Email already sent — not resent" });
+          continue;
+        }
+        if (!logRow || logRow.status !== "failed") {
+          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed send to retry" });
+          continue;
+        }
+
+        if (type === "approval" || type === "rejection") {
+          const r = await sendDecisionEmailForSubmission({
+            submission_id: id,
+            decision: type === "approval" ? "approved" : "rejected",
+            comment: "",
+          });
+          results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
+        } else if (type === "activation") {
+          try {
+            const sub = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE id = ?", args: [id] });
+            const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.rows[0]?.run_id] });
+            let formData = null;
+            if (runData.rows[0]) {
+              const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+              formData = f.rows[0] || null;
+            }
+            await onReview(
+              { id: null, submission_id: id, decision: "approved", comment: "Manual email retry", reviewer_name: session.cid },
+              sub.rows[0],
+              runData.rows[0] || null,
+              session,
+              formData
+            );
+            const after = await getEmailLogRow(id, "activation");
+            results.push({
+              submission_id: id,
+              email_type: "activation",
+              name,
+              status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
+              error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
+              to: after?.recipient,
+            });
+          } catch (e) {
+            results.push({ submission_id: id, email_type: "activation", name, status: "failed", error: e?.message || "Retry error" });
+          }
+        } else {
+          results.push({ submission_id: id, email_type: type, name, status: "failed", error: `Unsupported email type: ${type}` });
         }
       }
 
