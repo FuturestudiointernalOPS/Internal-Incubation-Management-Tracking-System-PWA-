@@ -1,6 +1,18 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { deepseekIntelligence } from "@/lib/deepseek";
+import { getDefaultTemplate } from "@/lib/email";
+import {
+  placeholdersOf,
+  splitHtmlParts,
+  splicePersonalizedSegments,
+  countTextSegments,
+  ensureSegmentPlaceholders,
+  stripUnknownPlaceholders,
+  validateStructure,
+  validateSubject,
+  finalizeSubject,
+} from "@/lib/platform/ai/email-personalize";
 
 /**
  * POST /api/platform/ai/personalize-template
@@ -14,10 +26,16 @@ import { deepseekIntelligence } from "@/lib/deepseek";
  *   existing_body?: string,
  * }
  *
- * Uses the existing DeepSeek AI layer to write (or improve) a personalized
- * email template that uses the same {{variable}} placeholders as the
- * platform's email system. Returns { subject, body } — the caller decides
- * when to save (nothing is written to the database here).
+ * STRUCTURE PRESERVATION CONTRACT
+ *  - The admin owns the structure; the AI owns the wording.
+ *  - The returned body must keep the exact tag skeleton of the draft
+ *    (headings, paragraphs, <ol>/<ul>/<li>, <a href>, <strong>/<em>, <br>).
+ *  - If the AI returns a structurally different document, a deterministic
+ *    fallback personalizes only the text segments and splices them back into
+ *    the original markup, so structure is preserved by construction.
+ *  - {{placeholders}} are never renamed, removed, or invented.
+ *  - Empty subject stays empty so the existing default-subject fallback
+ *    (run → form → platform default) applies at send time.
  */
 
 export const dynamic = "force-dynamic";
@@ -41,6 +59,16 @@ const TEMPLATE_SPECS = {
   },
 };
 
+function parseJsonObject(raw) {
+  const match = (raw || "").match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return JSON.parse(match[0]);
+  } catch (_) {
+    return null;
+  }
+}
+
 export async function POST(req) {
   try {
     const authError = await requireAuth(["super_admin", "admin"]);
@@ -59,56 +87,127 @@ export async function POST(req) {
     const formName = (body.form_name || "application").substring(0, 200);
     const organization = (body.organization || "Future Studio").substring(0, 100);
     const language = (body.language || "English").substring(0, 30);
-    const existingSubject = (body.existing_subject || "").substring(0, 500);
-    const existingBody = (body.existing_body || "").substring(0, 4000);
-    const hasDraft = !!(existingSubject.trim() || existingBody.trim());
 
-    const prompt = `You are an expert email copywriter for "${organization}", an entrepreneurship incubator platform.
+    // ── Draft resolution ──
+    // Empty body → use the platform's existing default template as the base
+    // structure (never a new hardcoded document).
+    const draftSubject = (body.existing_subject || "").trim().substring(0, 500);
+    const existingBody = (body.existing_body || "").trim().substring(0, 8000);
+    const draftBody = existingBody || getDefaultTemplate(templateKey).body;
 
-Write a ${spec.label} email for the form "${formName}" (organization: ${organization}).
+    // Every placeholder that already exists in the draft (plus the official
+    // set for this template type) is allowed to survive personalization.
+    const allowedNames = new Set([
+      ...placeholdersOf(draftSubject),
+      ...placeholdersOf(draftBody),
+      ...spec.placeholders.map((p) => p.replace(/[{}]/g, "").toLowerCase()),
+    ]);
 
-Tone: warm, professional, encouraging, and concise. Write in ${language}. If the form name appears to be in French, write in French instead.
+    const tone =
+      `Tone: warm, professional, encouraging, concise. Write in ${language}. ` +
+      `If the form name appears to be in French, write in French instead.`;
 
-You MUST use these placeholders where natural (never invent other placeholders):
-${spec.placeholders.join(", ")}
+    // ── TIER 1 — full-body personalization with structural validation ──
+    let tier1Body = null;
+    let tier1Subject = null;
+    try {
+      const prompt = `You personalize email copy. You must NOT redesign the document.
 
-${hasDraft
-  ? `Improve and personalize this existing draft while keeping its meaning:
+EMAIL BODY (HTML template):
+${draftBody}
 
-Existing subject: ${existingSubject}
-Existing body: ${existingBody}`
-  : "Write from scratch."}
+${draftSubject ? `CURRENT SUBJECT: ${draftSubject}` : ""}
 
-Requirements:
-- "subject": 4-9 words, friendly, no ALL CAPS
-- "body": a valid HTML fragment using inline styles only (no <style>, <html> or <body> tags). Use simple <p> and <strong> tags, comfortable spacing, and a warm sign-off. Always address the applicant personally with {{name}}.
+Personalize ONLY the wording of the text content. Preserve the structure exactly:
+- identical HTML tags in identical order — do not add, remove, reorder, or rename any tag
+- keep every <a> link and its href unchanged
+- keep list markers and their numbering unchanged (1. 2. 3. or bullets)
+- keep bold (<strong>/<b>) and italic (<em>/<i>) exactly where they are
+- keep paragraph breaks and line breaks
+- keep every {{placeholder}} exactly as written — never rename, remove, or add variables
 
-Return ONLY valid JSON with exactly two keys, like:
-{"subject": "...", "body": "<p>...</p>"}`;
+${tone}
+${draftSubject ? "Personalize the subject wording (keep its placeholders)." : 'Return an EMPTY string for "subject".'}
 
-    console.log(`[AI Personalize] ${templateKey} for form "${formName}" (${language})`);
-    const raw = await deepseekIntelligence.chat(prompt, undefined, 4096);
+Return ONLY valid JSON with exactly two keys:
+{"subject": "...", "body": "<the personalized HTML with identical structure>"}`;
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error("[AI Personalize] No JSON in response");
-      return NextResponse.json(
-        { success: false, error: "AI returned an unreadable response — try again" },
-        { status: 500 }
-      );
+      const raw = await deepseekIntelligence.chat(prompt, undefined, 4096);
+      const parsed = parseJsonObject(raw);
+      if (parsed) {
+        const candidateBody =
+          typeof parsed.body === "string" ? parsed.body.trim() : "";
+        const check = validateStructure(draftBody, candidateBody, allowedNames);
+        if (check.ok && candidateBody) {
+          tier1Body = candidateBody;
+        } else {
+          console.warn(
+            `[AI Personalize] Tier 1 rejected (${check.reason}) — falling back to segment splice`
+          );
+        }
+        if (draftSubject) {
+          const candidateSubject =
+            typeof parsed.subject === "string" ? parsed.subject.trim() : "";
+          const subjectCheck = validateSubject(draftSubject, candidateSubject, allowedNames);
+          tier1Subject = subjectCheck.ok ? candidateSubject : draftSubject;
+        }
+      }
+    } catch (e) {
+      console.warn("[AI Personalize] Tier 1 failed:", e.message);
     }
 
-    const parsed = JSON.parse(jsonMatch[0]);
-    const subject = typeof parsed.subject === "string" ? parsed.subject.trim() : "";
-    const bodyHtml = typeof parsed.body === "string" ? parsed.body.trim() : "";
-    if (!subject || !bodyHtml) {
-      return NextResponse.json(
-        { success: false, error: "AI response was missing the subject or body — try again" },
-        { status: 500 }
-      );
+    // ── TIER 2 — deterministic segment splice (structure guaranteed) ──
+    let finalBody = tier1Body;
+    if (!finalBody) {
+      try {
+        const parts = splitHtmlParts(draftBody);
+        const segments = parts
+          .filter((p) => p.type === "text" && p.value.trim().length > 0)
+          .map((p) => p.value);
+
+        if (segments.length > 0) {
+          const segmentPrompt = `Personalize each text segment of an email individually.
+Return ONLY valid JSON: {"segments": ["segment 1", "segment 2", ...]} with EXACTLY the same number of segments, in the same order.
+
+Rules for every segment:
+- keep {{placeholders}} exactly as written (never rename, remove, or add variables)
+- keep list markers and their numbers (1. 2. 3., bullets, dashes)
+- keep trailing spaces and line breaks within the segment
+- only reword the human-readable text; keep it short and natural
+- ${tone}
+
+Segments (${segments.length}):
+${segments.map((s, i) => `[${i + 1}] ${s}`).join("\n")}`;
+
+          const raw = await deepseekIntelligence.chat(segmentPrompt, undefined, 4096);
+          const parsed = parseJsonObject(raw);
+          const candidates = parsed && Array.isArray(parsed.segments) ? parsed.segments : null;
+          if (candidates && candidates.length === segments.length) {
+            const cleaned = segments.map((original, i) => {
+              let out = stripUnknownPlaceholders(
+                ensureSegmentPlaceholders(original, candidates[i]),
+                allowedNames
+              );
+              return out == null ? original : String(out);
+            });
+            finalBody = splicePersonalizedSegments(parts, cleaned);
+          }
+        }
+      } catch (e) {
+        console.warn("[AI Personalize] Tier 2 failed:", e.message);
+      }
     }
 
-    return NextResponse.json({ success: true, subject, body: bodyHtml });
+    // ── Final guarantee ──
+    if (!finalBody || countTextSegments(splitHtmlParts(finalBody)) === 0) {
+      finalBody = draftBody; // keep the admin's structure untouched
+    }
+
+    // Empty subject stays empty → the existing default-subject fallback
+    // (run → form → platform default) applies when the email is sent.
+    const finalSubject = finalizeSubject(draftSubject, tier1Subject);
+
+    return NextResponse.json({ success: true, subject: finalSubject, body: finalBody });
   } catch (error) {
     console.error("[AI Personalize] Error:", error.message);
     return NextResponse.json(
