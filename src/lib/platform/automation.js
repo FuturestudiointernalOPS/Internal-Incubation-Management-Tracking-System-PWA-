@@ -16,6 +16,7 @@ import {
   summarizeSubmission,
   notifyUser,
 } from "@/lib/platform/integrations";
+import { resolveDefaultRole } from "@/lib/platform/roles";
 
 // ─── EVENT DEFINITIONS ─────────────────────────────────────────────
 
@@ -362,12 +363,12 @@ const RULES = [
               args: [ctx.run.id],
             });
             if (grp.rows.length > 0) {
-              targetRole = grp.rows[0].default_role || "staff";
+              targetRole = resolveDefaultRole(grp.rows[0].default_role);
               groupName = grp.rows[0].name;
             }
           } catch (_) {}
         }
-        if (!targetRole) targetRole = "staff";
+        if (!targetRole) targetRole = "participant";
 
         // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
         let contact = null;

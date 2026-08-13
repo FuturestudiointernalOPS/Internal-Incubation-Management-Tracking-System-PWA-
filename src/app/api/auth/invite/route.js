@@ -37,7 +37,7 @@ export async function POST(req) {
         sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
         args: [token, contact.cid],
       });
-      await sendInviteEmail({ to: contact.email, name: contact.name || contact.email.split("@")[0], role: contact.role || "staff", token });
+      await sendInviteEmail({ to: contact.email, name: contact.name || contact.email.split("@")[0], role: contact.role || "participant", token });
       return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
     }
 
@@ -57,7 +57,7 @@ export async function POST(req) {
       await db.execute({ sql: "UPDATE contacts SET name = ?, group_name = COALESCE(?, group_name) WHERE cid = ?", args: [name, group_id || null, contactCid] });
     } else {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
-      await db.execute({ sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)", args: [contactCid, name, cleanEmail, role || "staff", group_id || null] });
+      await db.execute({ sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)", args: [contactCid, name, cleanEmail, role || "participant", group_id || null] });
     }
 
     await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contactCid] });
@@ -69,7 +69,7 @@ export async function POST(req) {
     });
 
     const contactName = name || existingContact.rows[0]?.name || cleanEmail.split("@")[0];
-    await sendInviteEmail({ to: cleanEmail, name: contactName, role: role || "staff", token });
+    await sendInviteEmail({ to: cleanEmail, name: contactName, role: role || "participant", token });
 
     return NextResponse.json({
       success: true,
