@@ -418,10 +418,12 @@ export default function FormRunsPage() {
 
   useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchDashboardStats(); }, [fetchRuns]);
 
-  const openRun = useCallback(async (run) => {
+  const openRun = useCallback(async (run, opts = {}) => {
+    if (!opts.keepTab) {
+      setDetailTab("overview");
+      setSubFilter("all");
+    }
     setSelectedRun(run);
-    setDetailTab("overview");
-    setSubFilter("all");
     setSubLoading(true);
     try {
       const res = await fetch(`/api/platform/form-runs?id=${run.id}`);
@@ -436,22 +438,24 @@ export default function FormRunsPage() {
         setRunTemplates(data.run?.settings?.templates || {});
         setFieldLabels(data.field_labels || {});
         setFilterableFields(data.filterable_fields || []);
-        // Fresh run → reset search/filters so nothing leaks across runs
-        setRespSearch("");
-        setScoreOp("");
-        setScoreVal("");
-        setScoreVal2("");
-        setFieldFilters({});
-        setRespPage(1);
-        setSelectedIds([]);
-        setShowDuplicates(false);
-        setFilterPickerOpen(false);
-        setFilterPickerMode(null);
-        setBulkSummary(null);
-        setBulkMenuOpen(false);
-        setBulkConfirmOpen(false);
-        setRetrySelected([]);
-        setRetrySummary(null);
+        if (!opts.keepTab) {
+          // Fresh run → reset search/filters so nothing leaks across runs
+          setRespSearch("");
+          setScoreOp("");
+          setScoreVal("");
+          setScoreVal2("");
+          setFieldFilters({});
+          setRespPage(1);
+          setSelectedIds([]);
+          setShowDuplicates(false);
+          setFilterPickerOpen(false);
+          setFilterPickerMode(null);
+          setBulkSummary(null);
+          setBulkMenuOpen(false);
+          setBulkConfirmOpen(false);
+          setRetrySelected([]);
+          setRetrySummary(null);
+        }
       }
 
       // Fetch form fields for spreadsheet column view
@@ -1215,11 +1219,16 @@ export default function FormRunsPage() {
     agg.retried = items.length;
     setRetryProcessing(false);
     setRetrySelected([]);
-    // Refresh the data FIRST, then show the summary over the updated table —
-    // openRun resets the summary state, so setting it after keeps it visible.
-    // Successful retries disappear from the Failed list and move into Sent.
-    if (selectedRun) await openRun(selectedRun);
+    // Refresh with keepTab so we STAY on the Emails tab — the summary modal
+    // lives there, and the Failed list must update in place: successful
+    // retries disappear from it, failures keep their latest reason.
+    if (selectedRun) await openRun(selectedRun, { keepTab: true });
     setRetrySummary(agg);
+    notify(
+      agg.failed.length > 0
+        ? `Email retry: ${agg.sent} sent, ${agg.failed.length} failed`
+        : `Email retry: ${agg.sent} sent successfully`
+    );
   };
 
   // ─── RUN DETAIL VIEW ───
