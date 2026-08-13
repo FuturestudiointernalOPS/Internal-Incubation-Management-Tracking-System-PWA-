@@ -332,6 +332,7 @@ const RULES = [
           sendTrackedEmail,
           getEmailLogRow,
           hasSentEmailToRecipientInRun,
+          ensurePasswordSetupTokensSchema,
         } = await import("@/lib/email");
 
         // 1. Resolve the recipient email with strict priority:
@@ -563,6 +564,11 @@ const RULES = [
               existingToken ||
               "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             if (!existingToken) {
+              // Repair environments where password_setup_tokens.used was
+              // created as BOOLEAN — otherwise the INSERT below throws
+              // "column 'used' is boolean but expression is of type integer"
+              // and the activation email is recorded as failed.
+              await ensurePasswordSetupTokensSchema();
               const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
               await db.execute({
                 sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
