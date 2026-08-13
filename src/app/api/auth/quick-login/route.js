@@ -46,7 +46,7 @@ export async function POST(req) {
     else if (user.role === "founder") finalRole = "founder";
     else if (user.role === "program_manager") finalRole = "program_manager";
     else if (user.role === "teacher") finalRole = "teacher";
-    else if (user.role === "staff" || user.role === "admin") finalRole = "staff";
+    else if (user.role === "staff" || user.role === "admin" || (user.group_name || "").toUpperCase() === "FUTURE STUDIO") finalRole = "staff";
 
     // Also check pm assignment
     if (finalRole === "participant") {

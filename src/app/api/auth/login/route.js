@@ -157,8 +157,11 @@ export async function POST(req) {
       finalRole = "teacher"; // Active Teammate
     } else if (user.role === "investor") {
       finalRole = "investor";
-    } else if (user.role === "project_manager") {
-      finalRole = "staff"; // legacy project_manager role maps to staff
+    } else if (
+      user.role === "project_manager" ||
+      user.group_name?.toUpperCase() === "FUTURE STUDIO"
+    ) {
+      finalRole = "staff"; // internal Future Studio team
     }
 
     // Load user language preference from contact record (not families/teams)
