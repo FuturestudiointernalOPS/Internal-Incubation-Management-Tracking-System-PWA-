@@ -447,6 +447,8 @@ export default function FormRunsPage() {
         setBulkSummary(null);
         setBulkMenuOpen(false);
         setBulkConfirmOpen(false);
+        setRetrySelected([]);
+        setRetrySummary(null);
       }
 
       // Fetch form fields for spreadsheet column view
@@ -710,6 +712,10 @@ export default function FormRunsPage() {
   const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
   const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
+  const [retrySelected, setRetrySelected] = useState([]); // "submissionId:emailType" keys
+  const [retryProcessing, setRetryProcessing] = useState(false);
+  const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
+  const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -974,6 +980,86 @@ export default function FormRunsPage() {
     if (selectedRun) openRun(selectedRun); // refresh statuses + email log
   };
 
+  // ─── Email delivery summary: latest row per (submission, email_type) ───
+  const emailSummary = useMemo(() => {
+    const latest = new Map();
+    for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
+    const stats = {
+      approval: { sent: 0, failed: 0, skipped: 0 }, // approval + rejection emails
+      activation: { sent: 0, failed: 0, skipped: 0 }, // activation/access emails
+    };
+    const failedList = [];
+    for (const e of latest.values()) {
+      const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
+      if (e.status === "sent") bucket.sent++;
+      else if (e.status === "failed") {
+        bucket.failed++;
+        failedList.push(e);
+      } else if (e.status === "skipped") bucket.skipped++;
+    }
+    return { stats, failedList };
+  }, [emailLog]);
+
+  // Failed rows enriched with the respondent's resolved name + recipient
+  const failedRows = emailSummary.failedList.map((e) => {
+    const sub = submissions.find((s) => s.id === e.submission_id);
+    return {
+      ...e,
+      name: sub?.display_name || sub?.submitter_name || `#${e.submission_id}`,
+      email: e.recipient || sub?.email || "",
+    };
+  });
+
+  const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
+  const toggleRetrySelect = (key) =>
+    setRetrySelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  // Manual retry: batches of 10 through the same tracked senders (approval
+  // re-sends via sendDecisionEmailForSubmission; activation re-fires the
+  // REVIEW_COMPLETED automation). No automatic retries anywhere.
+  const runRetryEmails = async () => {
+    if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
+    setRetryProcessing(true);
+    const items = retrySelected.map((k) => {
+      const [sid, type] = k.split(":");
+      return { submission_id: parseInt(sid), email_type: type };
+    });
+    const agg = { sent: 0, already_sent: 0, failed: [] };
+    setRetryProgress({ done: 0, total: items.length });
+    let aborted = false;
+    for (let i = 0; i < items.length && !aborted; i += 10) {
+      const chunk = items.slice(i, i + 10);
+      let data;
+      try {
+        const res = await fetch("/api/platform/form-runs?action=retry_emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, retries: chunk }),
+        });
+        data = await res.json();
+      } catch (_) {
+        aborted = true;
+        agg.failed.push({ name: `Batch ${Math.floor(i / 10) + 1}`, error: "Network error — remaining retries were not processed" });
+        break;
+      }
+      if (!data.success) {
+        aborted = true;
+        agg.failed.push({ name: "Batch", error: data.error || "Retry failed" });
+        break;
+      }
+      for (const r of data.results || []) {
+        if (r.status === "sent") agg.sent++;
+        else if (r.status === "already_sent") agg.already_sent++;
+        else agg.failed.push({ name: r.name || `#${r.submission_id} (${r.email_type})`, error: r.error || "Failed" });
+      }
+      setRetryProgress({ done: Math.min(i + 10, items.length), total: items.length });
+    }
+    setRetrySummary(agg);
+    setRetryProcessing(false);
+    setRetrySelected([]);
+    if (selectedRun) openRun(selectedRun);
+  };
+
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
     const cfg = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
@@ -991,6 +1077,7 @@ export default function FormRunsPage() {
       { id: "assignments", label: `Assignments (${assignments.length})`, icon: Users },
       { id: "responses", label: "All Responses", icon: FileText, href: `/platform/responses?form_id=${selectedRun?.form_id || ""}` },
       { id: "templates", label: "Templates", icon: Mail },
+      { id: "emails", label: "Emails", icon: Send },
       { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -1559,6 +1646,148 @@ export default function FormRunsPage() {
               )}
             </>
           )}
+
+          {/* ─── EMAILS TAB ─── */}
+          {detailTab === "emails" && (() => {
+            const s = emailSummary.stats;
+            const allFailedSelected = failedRows.length > 0 && failedRows.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+            return (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Email status counts for THIS run */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Approval / Decision emails</p>
+                    <div className="flex items-center gap-4">
+                      <span className="text-emerald-500 text-[11px] font-black">{s.approval.sent} sent</span>
+                      <span className="text-rose-500 text-[11px] font-black">{s.approval.failed} failed</span>
+                      <span className="text-slate-400 text-[11px] font-black">{s.approval.skipped} skipped</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Activation / Access emails</p>
+                    <div className="flex items-center gap-4">
+                      <span className="text-emerald-500 text-[11px] font-black">{s.activation.sent} sent</span>
+                      <span className="text-rose-500 text-[11px] font-black">{s.activation.failed} failed</span>
+                      <span className="text-slate-400 text-[11px] font-black">{s.activation.skipped} skipped</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Failed emails — selectable + manual retry (no auto retries) */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                      Failed emails ({failedRows.length})
+                    </p>
+                    {retrySelected.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-[var(--brand-orange)]">{retrySelected.length} selected</span>
+                        <button
+                          onClick={runRetryEmails}
+                          disabled={retryProcessing}
+                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" /> Retry
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {failedRows.length === 0 ? (
+                    <p className="text-[10px] text-[var(--text-secondary)]">No failed emails in this run.</p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                      <table className="w-full text-left">
+                        <thead className="bg-tertiary">
+                          <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                            <th className="px-4 py-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={allFailedSelected}
+                                onChange={() =>
+                                  setRetrySelected(allFailedSelected ? [] : failedRows.map((f) => `${f.submission_id}:${f.email_type}`))
+                                }
+                                className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                              />
+                            </th>
+                            <th className="px-3 py-3">Respondent</th>
+                            <th className="px-3 py-3">Email type</th>
+                            <th className="px-3 py-3">Recipient</th>
+                            <th className="px-3 py-3">Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-primary)]">
+                          {failedRows.map((f) => {
+                            const key = `${f.submission_id}:${f.email_type}`;
+                            return (
+                              <tr key={key} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                                <td className="px-4 py-3 w-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={retrySelectedSet.has(key)}
+                                    onChange={() => toggleRetrySelect(key)}
+                                    className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                                  />
+                                </td>
+                                <td className="px-3 py-3">{f.name}</td>
+                                <td className="px-3 py-3">
+                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", f.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
+                                    {f.email_type}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[200px]" title={f.email}>
+                                  {f.email || "—"}
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[300px] truncate" title={f.error || "Unknown reason"}>
+                                  {f.error || "Unknown reason"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ─── RETRY PROCESSING ─── */}
+                {retryProcessing && (
+                  <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                      <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                        Retrying {retryProgress.done} of {retryProgress.total} emails...
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── RETRY SUMMARY ─── */}
+                {retrySummary && !retryProcessing && (
+                  <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
+                      <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">Email retry complete</h4>
+                      <p className="text-[10px] font-bold text-emerald-500">{retrySummary.sent} sent successfully</p>
+                      {retrySummary.already_sent > 0 && (
+                        <p className="text-[10px] font-bold text-slate-400">{retrySummary.already_sent} were already sent</p>
+                      )}
+                      {retrySummary.failed.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-rose-500">{retrySummary.failed.length} still failed:</p>
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {retrySummary.failed.map((f, i) => (
+                              <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || "Email"} — {f.error}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button onClick={() => setRetrySummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">Done</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ─── SHARE TAB ─── */}
           {detailTab === "share" && (() => {
