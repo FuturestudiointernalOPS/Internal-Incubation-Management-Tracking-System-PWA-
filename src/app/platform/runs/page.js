@@ -443,6 +443,10 @@ export default function FormRunsPage() {
         setScoreVal2("");
         setFieldFilters({});
         setRespPage(1);
+        setSelectedIds([]);
+        setBulkSummary(null);
+        setBulkMenuOpen(false);
+        setBulkConfirmOpen(false);
       }
 
       // Fetch form fields for spreadsheet column view
@@ -700,6 +704,12 @@ export default function FormRunsPage() {
   const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
   const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
   const [respPage, setRespPage] = useState(1); // respondent table pagination
+  const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
+  const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
+  const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -880,9 +890,11 @@ export default function FormRunsPage() {
     Object.values(fieldFilters).some(Boolean)
   );
 
-  // Any search/filter change returns the respondent table to page 1
+  // Any search/filter change returns the respondent table to page 1 AND
+  // clears the selection — hidden selections must never be bulk-approved.
   useEffect(() => {
     setRespPage(1);
+    setSelectedIds([]);
   }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter]);
 
   const clearRunFilters = () => {
@@ -892,6 +904,7 @@ export default function FormRunsPage() {
     setScoreVal2("");
     setFieldFilters({});
     setRespPage(1);
+    setSelectedIds([]);
   };
 
   // ─── Respondent table pagination (perPage rows per page) ───
@@ -901,6 +914,65 @@ export default function FormRunsPage() {
     (respSafePage - 1) * perPage,
     respSafePage * perPage
   );
+
+  // ─── Bulk selection (respects the CURRENT filters; Select All = all filtered, across pages) ───
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allFilteredSelected =
+    filteredSubmissions.length > 0 && filteredSubmissions.every((s) => selectedSet.has(s.id));
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedIds(allFilteredSelected ? [] : filteredSubmissions.map((s) => s.id));
+  };
+
+  // Bulk approve: batches of 10 through the SAME review workflow as a single
+  // approval (server-side action=bulk_review → processReviewInternal).
+  const BULK_BATCH = 10;
+  const runBulkApprove = async () => {
+    if (!selectedRun || selectedIds.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkConfirmOpen(false);
+    const ids = [...selectedIds];
+    const agg = { approved: 0, already_approved: 0, failed: [] };
+    setBulkProgress({ done: 0, total: ids.length });
+    let aborted = false;
+    for (let i = 0; i < ids.length && !aborted; i += BULK_BATCH) {
+      const chunk = ids.slice(i, i + BULK_BATCH);
+      let data;
+      try {
+        const res = await fetch("/api/platform/form-runs?action=bulk_review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, decision: "approved" }),
+        });
+        data = await res.json();
+      } catch (_) {
+        aborted = true;
+        agg.failed.push({ name: `Batch ${Math.floor(i / BULK_BATCH) + 1}`, error: "Network error — remaining respondents were not processed" });
+        break;
+      }
+      if (!data.success) {
+        aborted = true;
+        agg.failed.push({ name: "Batch", error: data.error || "Bulk approval failed" });
+        break;
+      }
+      for (const r of data.results || []) {
+        if (r.status === "approved") agg.approved++;
+        else if (r.status === "already_approved") agg.already_approved++;
+        else agg.failed.push({ name: r.name || `#${r.submission_id}`, error: r.error || "Failed" });
+      }
+      setBulkProgress({ done: Math.min(i + BULK_BATCH, ids.length), total: ids.length });
+    }
+    setBulkSummary(agg);
+    setBulkProcessing(false);
+    setSelectedIds([]);
+    if (selectedRun) openRun(selectedRun); // refresh statuses + email log
+  };
 
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
@@ -1205,6 +1277,50 @@ export default function FormRunsPage() {
                   )}
                 </div>
 
+                {/* Bulk selection bar — selection always respects the active filters */}
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allFilteredSelected}
+                        onChange={toggleSelectAllFiltered}
+                        className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                      />
+                      Select all filtered
+                    </label>
+                    <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                      {filteredSubmissions.length} respondent{filteredSubmissions.length === 1 ? "" : "s"} match your filters
+                    </span>
+                  </div>
+                  {selectedIds.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                        {selectedIds.length} selected
+                      </span>
+                      <div className="relative">
+                        <button
+                          onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
+                          disabled={bulkProcessing}
+                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                        >
+                          Actions <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {bulkMenuOpen && (
+                          <div className="absolute right-0 mt-1 w-44 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
+                            <button
+                              onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
+                            >
+                              Approve
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-[9px] font-bold text-[var(--text-secondary)]">
                   Showing {filteredSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1}–{Math.min(respSafePage * perPage, filteredSubmissions.length)} of {filteredSubmissions.length} respondents in this run
                 </p>
@@ -1217,6 +1333,14 @@ export default function FormRunsPage() {
                   <table className="w-full text-left">
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                        <th className="px-4 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={allFilteredSelected}
+                            onChange={toggleSelectAllFiltered}
+                            className="accent-[var(--brand-orange)] w-3.5 h-3.5 align-middle"
+                          />
+                        </th>
                         <th className="px-4 py-3">Submitter</th>
                         <th className="px-4 py-3">Email</th>
                         {runFormFields.slice(0, 2).map(f => (
@@ -1278,6 +1402,14 @@ export default function FormRunsPage() {
                         
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                            <td className="px-4 py-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedSet.has(s.id)}
+                                onChange={() => toggleSelect(s.id)}
+                                className="accent-[var(--brand-orange)] w-3.5 h-3.5 align-middle"
+                              />
+                            </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.display_name || s.submitter_name || s.submitter_id}</div>
                             </td>
@@ -1368,6 +1500,62 @@ export default function FormRunsPage() {
               {/* Submission Timeline (expandable per submission) */}
               {selectedSubmission && (
                 <SubmissionTimeline submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} />
+              )}
+
+              {/* ─── BULK APPROVE CONFIRM ─── */}
+              {bulkConfirmOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                      Approve {selectedIds.length} respondent{selectedIds.length === 1 ? "" : "s"}?
+                    </h4>
+                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                      This will approve all selected respondents and trigger the configured approval email and subsequent activation/access workflow where applicable.
+                    </p>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">Cancel</button>
+                      <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                        Approve {selectedIds.length}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── BULK PROCESSING ─── */}
+              {bulkProcessing && (
+                <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                      Approving {bulkProgress.done} of {bulkProgress.total} respondents...
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── BULK SUMMARY ─── */}
+              {bulkSummary && !bulkProcessing && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">Bulk approval complete</h4>
+                    <p className="text-[10px] font-bold text-emerald-500">{bulkSummary.approved} approved successfully</p>
+                    {bulkSummary.already_approved > 0 && (
+                      <p className="text-[10px] font-bold text-slate-400">{bulkSummary.already_approved} were already approved</p>
+                    )}
+                    {bulkSummary.failed.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-rose-500">{bulkSummary.failed.length} failed:</p>
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {bulkSummary.failed.map((f, i) => (
+                            <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || "Respondent"} — {f.error}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={() => setBulkSummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">Done</button>
+                  </div>
+                </div>
               )}
             </>
           )}
