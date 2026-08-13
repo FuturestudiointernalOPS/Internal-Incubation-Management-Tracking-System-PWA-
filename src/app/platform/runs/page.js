@@ -292,7 +292,7 @@ export default function FormRunsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [perPage] = useState(15);
+  const [perPage] = useState(50);
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -442,6 +442,7 @@ export default function FormRunsPage() {
         setScoreVal("");
         setScoreVal2("");
         setFieldFilters({});
+        setRespPage(1);
       }
 
       // Fetch form fields for spreadsheet column view
@@ -698,6 +699,7 @@ export default function FormRunsPage() {
   const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
   const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
   const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
+  const [respPage, setRespPage] = useState(1); // respondent table pagination
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -878,13 +880,27 @@ export default function FormRunsPage() {
     Object.values(fieldFilters).some(Boolean)
   );
 
+  // Any search/filter change returns the respondent table to page 1
+  useEffect(() => {
+    setRespPage(1);
+  }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter]);
+
   const clearRunFilters = () => {
     setRespSearch("");
     setScoreOp("");
     setScoreVal("");
     setScoreVal2("");
     setFieldFilters({});
+    setRespPage(1);
   };
+
+  // ─── Respondent table pagination (perPage rows per page) ───
+  const respTotalPages = Math.max(1, Math.ceil(filteredSubmissions.length / perPage));
+  const respSafePage = Math.min(respPage, respTotalPages);
+  const pagedSubmissions = filteredSubmissions.slice(
+    (respSafePage - 1) * perPage,
+    respSafePage * perPage
+  );
 
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
@@ -1190,12 +1206,13 @@ export default function FormRunsPage() {
                 </div>
 
                 <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-                  Showing {filteredSubmissions.length} of {submissions.length} respondents in this run
+                  Showing {filteredSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1}–{Math.min(respSafePage * perPage, filteredSubmissions.length)} of {filteredSubmissions.length} respondents in this run
                 </p>
               </div>
 
               {/* Submissions table */}
               {subLoading ? <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
+                <>
                 <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                   <table className="w-full text-left">
                     <thead className="bg-tertiary">
@@ -1216,7 +1233,7 @@ export default function FormRunsPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {filteredSubmissions.map((s) => {
+                      {pagedSubmissions.map((s) => {
                         const sc = SUB_STATUS[s.status] || SUB_STATUS.draft;
                         const subReviews = reviews.filter((r) => r.submission_id === s.id);
                         const lastReview = subReviews[subReviews.length - 1];
@@ -1328,6 +1345,24 @@ export default function FormRunsPage() {
                     </tbody>
                   </table>
                 </div>
+                {respTotalPages > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-[10px] text-[var(--text-secondary)]">Page {respSafePage} of {respTotalPages}</p>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setRespPage(Math.max(1, respSafePage - 1))} disabled={respSafePage === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Prev</button>
+                      {Array.from({ length: Math.min(respTotalPages, 7) }, (_, i) => {
+                        let pn;
+                        if (respTotalPages <= 7) pn = i + 1;
+                        else if (respSafePage <= 4) pn = i + 1;
+                        else if (respSafePage >= respTotalPages - 3) pn = respTotalPages - 6 + i;
+                        else pn = respSafePage - 3 + i;
+                        return <button key={pn} onClick={() => setRespPage(pn)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", respSafePage === pn ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pn}</button>;
+                      })}
+                      <button onClick={() => setRespPage(Math.min(respTotalPages, respSafePage + 1))} disabled={respSafePage === respTotalPages} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Next</button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
 
               {/* Submission Timeline (expandable per submission) */}
