@@ -1228,6 +1228,13 @@ export default function FormRunsPage() {
                         const activationEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "activation")
                           .slice(-1)[0];
+                        // The address the system actually sent to (from the
+                        // delivery log) — falls back to the resolved respondent
+                        // email when nothing has been sent yet.
+                        const sentLog = [...emailLog]
+                          .filter((e) => e.submission_id === s.id && (e.status === "sent" || e.status === "failed"))
+                          .slice(-1)[0];
+                        const sentEmail = sentLog?.recipient || s.email || "";
                         const scoreColor = overall != null
                           ? overall >= 80 ? "text-emerald-500"
                           : overall >= 60 ? "text-amber-500"
@@ -1255,13 +1262,15 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.display_name || s.submitter_name || s.submitter_id}</div>
                             </td>
-                            {/* Email — always visible, from the actual respondent data */}
+                            {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
                             <td className="px-4 py-3">
                               <span
                                 className="text-[10px] text-[var(--text-secondary)] truncate max-w-[180px] block"
-                                title={s.email || "No email"}
+                                title={sentLog
+                                  ? `Sent to ${sentLog.recipient || "n/a"} — ${sentLog.email_type} via ${sentLog.provider || "email"} (${sentLog.status}${sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : ""})`
+                                  : s.email || "No email"}
                               >
-                                {s.email || "—"}
+                                {sentEmail || "—"}
                               </span>
                             </td>
                             {runFormFields.slice(0, 2).map(f => (

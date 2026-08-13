@@ -682,6 +682,7 @@ export async function POST(req) {
                   email_type: "approval",
                   status: "skipped",
                   error: "Skipped — No group assigned; approval email not sent",
+                  to: applicantEmail,
                 });
               }
             } catch (_) {}
@@ -741,6 +742,7 @@ export async function POST(req) {
               contact_cid: contactCid,
               email_type: emailType,
               provider: "gmail",
+              to: applicantEmail,
               sendFn: () => sendDecisionEmail({
                 to: applicantEmail,
                 applicantName,

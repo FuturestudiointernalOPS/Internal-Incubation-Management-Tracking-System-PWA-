@@ -382,6 +382,7 @@ const RULES = [
             email_type: "activation",
             status: "skipped",
             error: "Skipped — No group assigned to this run; activation email not sent",
+            to: contactEmail,
           });
           return;
         }
@@ -455,6 +456,7 @@ const RULES = [
             email_type: "activation",
             status: "skipped",
             error: "Skipped — Send activation email disabled in the form's Workflow settings",
+            to: contactEmail,
           });
           return;
         }
@@ -506,6 +508,7 @@ const RULES = [
           contact_cid: contact.cid,
           email_type: "activation",
           note: KIND_NOTES[emailKind],
+          to: contactEmail,
           sendFn: async () => {
             if (emailKind === "login_existing") {
               return sendLoginEmail({

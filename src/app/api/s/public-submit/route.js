@@ -92,28 +92,40 @@ export async function POST(req) {
           for (const f of fieldsRes.rows) {
             fieldMap[String(f.id)] = { label: f.label, type: f.field_type };
           }
-          // Now find name/email by field label, not field ID
+          // Now find name/email by field label, not field ID.
+          // Name resolution: an explicit "Full Name" field wins; otherwise
+          // fall back to the first "Name" field.
+          let fullNameVal = "";
+          let plainNameVal = "";
           for (const [key, value] of Object.entries(data)) {
             const fieldInfo = fieldMap[String(key)];
             if (!fieldInfo) continue;
             const label = (fieldInfo.label || "").toLowerCase();
-            const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
-            if ((label.includes("name") || label.includes("full")) && submitterName === "Anonymous") {
-              submitterName = v.substring(0, 200);
-            }
+            const v = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
+            if (!v) continue;
+            const isFull = /full\s*name|fullname|nom\s+complet|pr[eé]nom\s*et\s*nom/.test(label);
+            if (isFull && !fullNameVal) fullNameVal = v.substring(0, 200);
+            else if (!isFull && (label.includes("name") || label.includes("nom")) && !plainNameVal) plainNameVal = v.substring(0, 200);
             if (label.includes("email") && !submitterEmail && v.includes("@")) {
               submitterEmail = v.substring(0, 200);
             }
           }
+          if (fullNameVal || plainNameVal) submitterName = fullNameVal || plainNameVal;
         }
       } catch (_) {
-        // Fallback: try matching by key (legacy approach)
+        // Fallback: try matching by key (legacy approach), full name first
+        let kFullName = "";
+        let kPlainName = "";
         for (const [key, value] of Object.entries(data)) {
           const k = String(key).toLowerCase();
-          const v = typeof value === "string" && !value.startsWith("{") ? value : String(value);
-          if ((k.includes("name") || k.includes("full")) && submitterName === "Anonymous") submitterName = v.substring(0, 200);
+          const v = typeof value === "string" && !value.startsWith("{") ? value.trim() : String(value).trim();
+          if (!v) continue;
+          const isFull = /full\s*name|fullname|nom\s+complet/.test(k);
+          if (isFull && !kFullName) kFullName = v.substring(0, 200);
+          else if (!isFull && k.includes("name") && !kPlainName) kPlainName = v.substring(0, 200);
           if (k.includes("email") && !submitterEmail && v.includes("@")) submitterEmail = v.substring(0, 200);
         }
+        if (submitterName === "Anonymous" && (kFullName || kPlainName)) submitterName = kFullName || kPlainName;
       }
     }
     const submitterId = submitterEmail || "public-" + Date.now();

@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { resolvePersonName } from "@/lib/email";
 
 /**
  * GET /api/platform/ai/evaluation-scores
@@ -221,7 +222,14 @@ export async function GET(req) {
       if (r.ranking) rankings.add(r.ranking);
 
       return {
-        name: r.name || "Unknown",
+        // Best real name: explicit full-name answer → submitter name →
+        // any name-ish answer; never "Unknown" when a real name exists.
+        name:
+          resolvePersonName({
+            contactName: "",
+            submitterName: r.name || "",
+            submissionData: subData,
+          }) || r.name || "Unknown",
         email,
         score: r.score,
         ranking: r.ranking || "",
