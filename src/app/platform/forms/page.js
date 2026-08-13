@@ -96,6 +96,7 @@ export default function PlatformForms() {
   // Templates panel
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateConfig, setTemplateConfig] = useState(null);
+  const [personalizing, setPersonalizing] = useState(null); // template key while AI is writing
 
   const DEFAULT_AUTOMATION = {
     on_submit: { send_acknowledgement: true },
@@ -1364,11 +1365,51 @@ export default function PlatformForms() {
               setTemplateConfig(next);
             };
 
-            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars }) => (
+            // Ask the existing AI layer to write (or improve) a template,
+            // then fill the subject/body fields — saving stays manual.
+            const personalize = async (tKey, label) => {
+              if (personalizing) return;
+              setPersonalizing(tKey);
+              try {
+                const res = await fetch("/api/platform/ai/personalize-template", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    template_key: tKey,
+                    form_name: editingForm?.name || "",
+                    organization: "Future Studio",
+                    existing_subject: tmpl[tKey]?.subject || "",
+                    existing_body: tmpl[tKey]?.body || "",
+                  }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  update(tKey, "subject", data.subject);
+                  update(tKey, "body", data.body);
+                  notify(`${label} personalized with AI`);
+                } else {
+                  notify(data.error || "AI personalization failed");
+                }
+              } catch (_) {
+                notify("AI personalization failed — network error");
+              }
+              setPersonalizing(null);
+            };
+
+            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => (
               <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <div className="flex items-center gap-2 mb-1">
                   <Icon className="w-3.5 h-3.5 text-cyan-400" />
                   <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                  <button
+                    type="button"
+                    disabled={personalizingKey === tKey}
+                    onClick={() => onPersonalize(tKey, label)}
+                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {personalizingKey === tKey ? "Writing..." : "Personalize with AI"}
+                  </button>
                 </div>
                 <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
                 <div className="space-y-1">
@@ -1405,6 +1446,8 @@ export default function PlatformForms() {
                   defaultSubject="Thank you for your submission — {{form_name}}"
                   defaultBody='<p>Hi {{name}},</p><p>We received your submission for <strong>{{form_name}}</strong>.</p><p>Our team will review it soon.</p>'
                   vars={["name", "form_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label="Approval Message" icon={CheckCircle2}
@@ -1413,6 +1456,8 @@ export default function PlatformForms() {
                   defaultSubject="Your {{form_name}} application has been approved"
                   defaultBody='<p>Congratulations {{name}}!</p><p>Your application for <strong>{{form_name}}</strong> has been approved.</p><p>We are excited to welcome you.</p>'
                   vars={["name", "form_name", "program_name", "group_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label="Activation Email" icon={Key}
@@ -1421,6 +1466,8 @@ export default function PlatformForms() {
                   defaultSubject="Welcome to {{organization}} — Set Your Password"
                   defaultBody='<p>Hello {{name}},</p><p>Your account has been created on <strong>{{organization}}</strong>.</p><p>Click the button below to set your password.</p>'
                   vars={["name", "organization", "activation_link"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label="Rejection Message" icon={XCircle}
@@ -1429,6 +1476,8 @@ export default function PlatformForms() {
                   defaultSubject="Update on your {{form_name}} application"
                   defaultBody='<p>Dear {{name}},</p><p>Thank you for your interest in <strong>{{form_name}}</strong>.</p><p>Unfortunately, you were not selected this time.</p><p>We encourage you to apply again.</p>'
                   vars={["name", "form_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
               </div>
             );
