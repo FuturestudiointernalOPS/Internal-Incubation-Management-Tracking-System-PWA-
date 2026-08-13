@@ -130,7 +130,7 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "admin"]);
     if (authError) return authError;
 
-    const { form_id, run_id, mapping, csv_rows, batch_id } = await req.json();
+    const { form_id, run_id, mapping, csv_rows, batch_id, file_hash } = await req.json();
     if ((!form_id && !run_id) || !mapping || !csv_rows) {
       return NextResponse.json(
         { success: false, error: "form_id (or run_id), mapping, and csv_rows are required" },
@@ -192,7 +192,9 @@ export async function POST(req) {
       console.warn("[Import] Could not ensure batch tables:", e.message);
     }
 
-    const hash = fileHash(csv_rows);
+    // Chunked imports send a client-computed hash of the FULL file so every
+    // chunk (and every re-upload of the same file) maps to one stable hash.
+    const hash = file_hash || fileHash(csv_rows);
 
     let duplicateBatch = false;
     let previousBatch = null;
