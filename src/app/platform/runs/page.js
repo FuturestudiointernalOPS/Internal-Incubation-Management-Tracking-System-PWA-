@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Play, Plus, Search, Loader2, X, Send, Clock, Users, CheckCircle2,
   XCircle, FileText, RotateCcw, Eye, MessageSquare, Filter,
@@ -712,6 +712,7 @@ export default function FormRunsPage() {
   const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
   const [filterPickerOpen, setFilterPickerOpen] = useState(false); // Add Filter dropdown
   const [filterPickerMode, setFilterPickerMode] = useState(null); // null | "score" | { type: "field", label }
+  const filterRowRef = useRef(null); // closes the picker when clicking outside
   const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
   const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
@@ -952,6 +953,20 @@ export default function FormRunsPage() {
     setScoreVal("");
     setScoreVal2("");
   };
+
+  // Clicking anywhere outside the filter row closes the Add Filter dropdown
+  // and any open inline editor automatically.
+  useEffect(() => {
+    if (!filterPickerOpen && !filterPickerMode) return;
+    const onDown = (e) => {
+      if (filterRowRef.current && !filterRowRef.current.contains(e.target)) {
+        setFilterPickerOpen(false);
+        setFilterPickerMode(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [filterPickerOpen, filterPickerMode]);
 
   const pickFilterParam = (p) => {
     setFilterPickerOpen(false);
@@ -1429,7 +1444,7 @@ export default function FormRunsPage() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap" ref={filterRowRef}>
                   <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
                     <Filter className="w-3 h-3" /> Filters
                   </span>
@@ -1585,6 +1600,9 @@ export default function FormRunsPage() {
                     </button>
                   )}
                 </div>
+
+                {/* Visual separator between the filter controls and the selection bar */}
+                <div className="border-t border-[var(--border-primary)]" />
 
                 {/* Bulk selection bar — selection always respects the active filters */}
                 {duplicateGroups.groups.length > 0 && (
