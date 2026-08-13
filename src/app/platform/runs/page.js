@@ -431,6 +431,8 @@ export default function FormRunsPage() {
         setReviews(data.reviews || []);
         setAssignments(data.assignments || []);
         setRunSettings(data.run.settings || {});
+        setEvaluations(data.evaluations || []);
+        setEmailLog(data.emails || []);
       }
 
       // Fetch form fields for spreadsheet column view
@@ -671,6 +673,8 @@ export default function FormRunsPage() {
   // AI Evaluation progress state (Phase 4 client-driven batching)
   const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
   const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
+  const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
+  const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -722,7 +726,7 @@ export default function FormRunsPage() {
           body: JSON.stringify({
             form_id: formId,
             action: retryOnly ? "retry_failed" : "batch",
-            batch_size: 20,
+            batch_size: 10,
           }),
         });
         data = await res.json();
@@ -742,6 +746,7 @@ export default function FormRunsPage() {
 
       const prog = data.progress;
       setEvalProgress({ ...prog, running: true, batch: batchNo, stopped: false });
+      fetchEvalProgress(formId).catch(() => {}); // refresh approval + email dashboard stats each batch
 
       if (prog.remaining === 0) {
         setEvalProgress({ ...prog, running: false, batch: batchNo, stopped: true });
@@ -993,7 +998,9 @@ export default function FormRunsPage() {
                         ))}
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Score</th>
+                        <th className="px-4 py-3">Activation</th>
                         <th className="px-4 py-3">Submitted</th>
+                        <th className="px-4 py-3">Review</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -1004,8 +1011,14 @@ export default function FormRunsPage() {
                         const lastReview = subReviews[subReviews.length - 1];
                         const subData = s.data || {};
                         const scores = subData._scores;
-                        const overall = scores?.overall;
-                        const ranking = scores?.ranking;
+                        // AI evaluation table is the source of truth; fall back
+                        // to legacy inline _scores for pre-evaluation data.
+                        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+                        const overall = evalRow != null ? evalRow.overall_score : scores?.overall;
+                        const ranking = evalRow != null ? evalRow.ranking : scores?.ranking;
+                        const activationEmail = emailLog
+                          .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+                          .slice(-1)[0];
                         const scoreColor = overall != null
                           ? overall >= 80 ? "text-emerald-500"
                           : overall >= 60 ? "text-amber-500"
@@ -1043,6 +1056,19 @@ export default function FormRunsPage() {
                                   <span className={cn("text-[11px] font-black", scoreColor)}>{overall}%</span>
                                   {ranking && <span className={cn("text-[8px] font-bold uppercase mt-0.5 px-1.5 py-0.5 rounded", scoreColor, scoreBg)}>{ranking}</span>}
                                 </div>
+                              ) : (
+                                <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {activationEmail ? (
+                                activationEmail.status === "sent" ? (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
+                                ) : activationEmail.status === "failed" ? (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Pending</span>
+                                )
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
                               )}

@@ -314,7 +314,33 @@ export async function GET(req) {
       const submissions = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE run_id = ? ORDER BY updated_at DESC", args: [parseInt(id)] });
       const reviews = await db.execute({ sql: "SELECT pr.* FROM platform_submission_reviews pr JOIN platform_form_submissions ps ON pr.submission_id = ps.id WHERE ps.run_id = ? ORDER BY pr.created_at DESC", args: [parseInt(id)] });
 
-      return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: submissions.rows, reviews: reviews.rows });
+      // AI evaluation rows (latest per submission) so the Responses table can
+      // show stored scores/rankings without loading each submission individually.
+      let evaluations = [];
+      try {
+        const evalRes = await db.execute({
+          sql: `SELECT DISTINCT ON (submission_id) *
+                FROM platform_submission_evaluations
+                WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)
+                ORDER BY submission_id, evaluated_at DESC`,
+          args: [parseInt(id)],
+        });
+        evaluations = evalRes.rows;
+      } catch (_) {}
+
+      // Email delivery log so the Responses table can show activation-email state.
+      let emails = [];
+      try {
+        const emailRes = await db.execute({
+          sql: `SELECT * FROM platform_email_log
+                WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)
+                ORDER BY id ASC`,
+          args: [parseInt(id)],
+        });
+        emails = emailRes.rows;
+      } catch (_) {}
+
+      return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: submissions.rows, reviews: reviews.rows, evaluations, emails });
     }
 
     // Submissions for a specific user
@@ -599,6 +625,7 @@ export async function POST(req) {
               submission_id: parseInt(submission_id),
               contact_cid: contactCid,
               email_type: emailType,
+              provider: "gmail",
               sendFn: () => sendDecisionEmail({
                 to: applicantEmail,
                 applicantName,

@@ -10,6 +10,110 @@ const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestud
 const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 const APP_URL = (typeof rawAppUrl === "string" ? rawAppUrl : "http://localhost:3000").replace(/\/login.*$/i, "").replace(/\/$/, "");
 
+// ─── GMAIL WORKSPACE TRANSPORT (decision/approval emails) ─────────────
+// Approval/rejection emails go through the Google Workspace mailbox so the
+// platform can exceed Resend's free-tier daily limit. Activation emails keep
+// using Resend. From/Reply-To are fixed to the official mailbox; the
+// recipient is always dynamic.
+
+const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID;
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+const GMAIL_REDIRECT_URI = process.env.GMAIL_REDIRECT_URI;
+const GMAIL_SENDER_EMAIL = process.env.GMAIL_SENDER_EMAIL || "info@futurestudio.bj";
+const GMAIL_SENDER_NAME = "Future Studio";
+
+// Decision emails default to Gmail when credentials exist; override with
+// DECISION_EMAIL_PROVIDER=resend if needed. Activation stays on Resend.
+const DECISION_EMAIL_DEFAULT =
+  process.env.DECISION_EMAIL_PROVIDER ||
+  (GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN ? "gmail" : "resend");
+
+function gmailCredentialsAvailable() {
+  return !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
+}
+
+/** Map provider errors to safe, non-sensitive categories (never echo raw details). */
+function classifyGmailError(err) {
+  const msg = String(err?.message || err?.response?.data?.error || "").toLowerCase();
+  if (msg.includes("invalid_grant")) return "refresh_token_invalid_or_revoked";
+  if (msg.includes("invalid_client")) return "client_id_or_secret_invalid";
+  if (msg.includes("access_denied") || msg.includes("insufficient") || msg.includes("forbidden"))
+    return "permission_or_scope_denied";
+  if (msg.includes("quota") || msg.includes("rate")) return "quota_or_rate_limit";
+  if (msg.includes("daily limit")) return "daily_send_limit_reached";
+  if (msg.includes("delegation") || msg.includes("send-as")) return "sender_identity_not_authorized";
+  if (msg.includes("enabled") || msg.includes("not found") || msg.includes("404")) return "gmail_api_not_enabled";
+  return "unknown_error";
+}
+
+/** RFC 2047 encode headers containing non-ASCII characters (e.g. French subjects). */
+function encodeMailHeader(value) {
+  if (!value) return "";
+  if (/^[\x20-\x7E]*$/.test(value)) return value;
+  return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
+}
+
+/** Build a raw MIME message (multipart/alternative) for the Gmail API. */
+function buildGmailRawMessage({ to, subject, html }) {
+  const plainText = (html || "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .substring(0, 4000);
+  const boundary = `futurestudio_mix_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const message = [
+    `From: ${GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
+    `Reply-To: ${GMAIL_SENDER_EMAIL}`,
+    `To: ${to}`,
+    `Subject: ${encodeMailHeader(subject)}`,
+    "MIME-Version: 1.0",
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    "",
+    `--${boundary}`,
+    'Content-Type: text/plain; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(plainText, "utf8").toString("base64"),
+    `--${boundary}`,
+    'Content-Type: text/html; charset="UTF-8"',
+    "Content-Transfer-Encoding: base64",
+    "",
+    Buffer.from(html || plainText, "utf8").toString("base64"),
+    `--${boundary}--`,
+  ].join("\n");
+  return Buffer.from(message, "utf8").toString("base64url");
+}
+
+/** Send one email through the Google Workspace (Gmail API) transport. */
+async function sendViaGmail({ to, subject, html }) {
+  if (!gmailCredentialsAvailable()) {
+    console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
+    return { success: false, provider: "gmail", note: "Gmail credentials not configured" };
+  }
+
+  try {
+    const { google } = await import("googleapis");
+    const auth = new google.auth.OAuth2(
+      GMAIL_CLIENT_ID,
+      GMAIL_CLIENT_SECRET,
+      GMAIL_REDIRECT_URI || "https://developers.google.com/oauthplayground"
+    );
+    auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+
+    const gmail = google.gmail({ version: "v1", auth });
+    const raw = buildGmailRawMessage({ to, subject, html });
+    const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
+
+    return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };
+  } catch (e) {
+    console.error("[Gmail] Send error:", classifyGmailError(e));
+    return { success: false, provider: "gmail", error: classifyGmailError(e) };
+  }
+}
+
 // ─── TEMPLATE ENGINE ────────────────────────────────────────────────
 
 const DEFAULT_TEMPLATES = {
@@ -302,10 +406,10 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
 /**
  * Internal: sends email via Resend
  */
-async function sendEmail({ to, subject, html }) {
+async function sendViaResend({ to, subject, html }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
-    return { success: false, note: "Resend API key not configured" };
+    return { success: false, provider: "resend", note: "Resend API key not configured" };
   }
 
   try {
@@ -321,14 +425,37 @@ async function sendEmail({ to, subject, html }) {
 
     if (error) {
       console.error("Resend error:", error);
-      return { success: false, error };
+      return { success: false, provider: "resend", error };
     }
 
-    return { success: true, data };
+    return { success: true, provider: "resend", data };
   } catch (e) {
     console.error("Email send error:", e);
-    return { success: false, error: e.message };
+    return { success: false, provider: "resend", error: e.message };
   }
+}
+
+/**
+ * Internal: single dispatch point for outgoing email.
+ *
+ * Provider selection:
+ *  - "gmail" → Google Workspace transport (approval/decision emails)
+ *  - otherwise → Resend (activation, invites, password resets)
+ *
+ * Decision emails default to Gmail (configurable via DECISION_EMAIL_PROVIDER)
+ * and fall back to Resend on transport failure so the applicant still
+ * receives the notification — it remains a single tracked attempt.
+ */
+async function sendEmail({ to, subject, html, provider }) {
+  const chosen = provider || "resend";
+  if (chosen === "gmail") {
+    const gmailResult = await sendViaGmail({ to, subject, html });
+    if (gmailResult.success || !RESEND_API_KEY) return gmailResult;
+    console.warn("[Email] Gmail transport failed — falling back to Resend:", gmailResult.error);
+    const resendResult = await sendViaResend({ to, subject, html });
+    return { ...resendResult, provider: resendResult.success ? "resend" : "gmail" };
+  }
+  return sendViaResend({ to, subject, html });
 }
 
 // ─── EMAIL DELIVERY LOG (idempotency layer) ─────────────────────────
@@ -350,6 +477,7 @@ async function ensureEmailLogTable() {
       sent_at TIMESTAMP,
       created_at TIMESTAMP DEFAULT NOW()
     )`);
+    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
     await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
       ON platform_email_log (submission_id, email_type)
       WHERE status = 'sent'`);
@@ -375,22 +503,22 @@ export async function getEmailLogRow(submissionId, emailType) {
   }
 }
 
-async function recordEmailResult({ submission_id, contact_cid, email_type, success, error }) {
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
     if (success) {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, sent_at)
-              VALUES (?, ?, ?, 'sent', NOW())
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, sent_at)
+              VALUES (?, ?, ?, 'sent', ?, NOW())
               ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type],
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null],
       });
     } else {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, error)
-              VALUES (?, ?, ?, 'failed', ?)`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, (error || "Unknown error").substring(0, 500)],
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error)
+              VALUES (?, ?, ?, 'failed', ?, ?)`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500)],
       });
     }
   } catch (e) {
@@ -404,7 +532,7 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
  * - Send succeeds → records 'sent' and returns { success: true }
  * - Send fails → records 'failed' and returns { success: false } (retryable)
  */
-export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn }) {
+export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider }) {
   const existing = await getEmailLogRow(submission_id, email_type);
   if (existing && existing.status === "sent") {
     return { skipped: true, already_sent: true, log: existing };
@@ -423,6 +551,7 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
     email_type,
     success: !!result.success,
     error: result.error ? (typeof result.error === "string" ? result.error : JSON.stringify(result.error)) : undefined,
+    provider: result?.provider || provider,
   });
 
   return { ...result, skipped: false };
@@ -461,7 +590,7 @@ export async function getEmailStatsForForm(formId) {
 /**
  * Send a decision notification email to an applicant
  */
-export async function sendDecisionEmail({ to, applicantName, formName, decision, comment, orgName, template, templateVars }) {
+export async function sendDecisionEmail({ to, applicantName, formName, decision, comment, orgName, template, templateVars, provider }) {
   const tv = { name: applicantName || "there", form_name: formName || "application", organization: orgName || "Future Studio", decision, comment: comment || "", ...(templateVars || {}) };
   const decisionLabel = decision === "approved" ? "approved" : decision === "rejected" ? "not selected to proceed" : "being reviewed";
 
@@ -499,5 +628,5 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
       </table>
     </body></html>`;
 
-  return sendEmail({ to, subject, html });
+  return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
 }
