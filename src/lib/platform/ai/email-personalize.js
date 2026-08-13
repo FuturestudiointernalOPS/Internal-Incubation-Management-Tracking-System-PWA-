@@ -16,27 +16,87 @@
 
 /**
  * Convert a template body into a well-formed HTML fragment with proper
- * paragraph structure. If the body already contains HTML tags it is returned
- * unchanged; otherwise plain-text paragraphs (blank-line separated) become
- * <p> tags and single line breaks become <br>, so the email never renders as
- * one long straight line.
+ * paragraph structure and real formatting:
+ *  - If the body already contains HTML tags, Markdown emphasis is converted
+ *    ONLY inside text nodes — the tag structure, attributes and links are
+ *    never touched.
+ *  - Otherwise plain text becomes paragraphs (blank-line separated), single
+ *    line breaks become <br>, Markdown bold and italic emphasis become real
+ *    <strong>/<em>, and Markdown bullet lines become a real <ul>.
+ * Recipients must never see raw Markdown symbols in the final email.
  */
 export function normalizeToHtml(body) {
   const text = String(body || "").replace(/\r\n?/g, "\n").trim();
   if (!text) return "";
-  if (/<[a-zA-Z][^>]*>/.test(text)) return text; // already HTML
+  if (/<[a-zA-Z][^>]*>/.test(text)) {
+    // Already HTML — convert Markdown emphasis inside text nodes only.
+    return splitHtmlParts(text)
+      .map((p) => (p.type === "text" ? markdownInlineToHtml(p.value) : p.value))
+      .join("");
+  }
 
   const escape = (s) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  const paragraphs = text
+  // Escape first so raw user HTML stays text; Markdown conversion then
+  // inserts REAL tags after escaping, so they survive it.
+  const withLists = markdownListsToHtml(escape(text));
+  const withInline = markdownInlineToHtml(withLists);
+
+  const paragraphs = withInline
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);
 
   return paragraphs
-    .map((p) => `<p>${escape(p).replace(/\n/g, "<br>")}</p>`)
+    .map((p) => {
+      if (p.startsWith("<ul>")) return p; // real list block — keep as-is
+      return `<p>${p.replace(/\n/g, "<br>")}</p>`;
+    })
     .join("\n");
+}
+
+/**
+ * Convert supported Markdown emphasis in a plain-text segment:
+ *   **bold**  → <strong>bold</strong>
+ *   *italic* → <em>italic</em>
+ * An unmatched leading "* " (list bullet) never matches here because inline
+ * emphasis requires a closing "*" on the same line.
+ */
+export function markdownInlineToHtml(text) {
+  if (!text || typeof text !== "string") return text;
+  return String(text)
+    .replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/(^|[^\w*])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>");
+}
+
+/**
+ * Convert Markdown bullet lines (* item / - item / + item) into a real <ul>
+ * block. Only lines whose bullet is followed by a space are treated as list
+ * items — emphasis asterisks are never consumed here.
+ */
+export function markdownListsToHtml(text) {
+  const lines = String(text || "").split("\n");
+  const out = [];
+  let inList = false;
+  for (const line of lines) {
+    const m = line.match(/^\s*[*+-]\s+(.+)$/);
+    if (m) {
+      if (!inList) {
+        out.push("<ul>");
+        inList = true;
+      }
+      out.push(`<li>${m[1]}</li>`);
+    } else {
+      if (inList) {
+        out.push("</ul>");
+        inList = false;
+      }
+      out.push(line);
+    }
+  }
+  if (inList) out.push("</ul>");
+  return out.join("\n");
 }
 
 /** Extract lowercased placeholder names from text ({{name}} → "name"). */
