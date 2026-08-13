@@ -1281,9 +1281,11 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               {activationEmail ? (
                                 activationEmail.status === "sent" ? (
-                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
+                                  <span title="Sent successfully" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
                                 ) : activationEmail.status === "failed" ? (
-                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
+                                  <span title={activationEmail.error || "Failed to send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
+                                ) : activationEmail.status === "skipped" ? (
+                                  <span title={activationEmail.error || "Skipped"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Skipped</span>
                                 ) : (
                                   <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Pending</span>
                                 )
