@@ -165,7 +165,9 @@ export default function ReportResponses() {
               onChange={(e) => setSelectedProgram(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option>All Programs</option>
+              <option value="All Programs">
+                {t("adminMisc.reportsResponses.allPrograms")}
+              </option>
               {programs.map((p) => (
                 <option key={p.id}>{p.name}</option>
               ))}

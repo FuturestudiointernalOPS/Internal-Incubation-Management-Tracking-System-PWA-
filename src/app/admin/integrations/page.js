@@ -37,6 +37,32 @@ const PROVIDER_ICONS = {
   microsoft_teams: "👥",
 };
 
+// Lookup maps keyed by provider_key (keep raw DB values as fallback)
+const PROVIDER_NAME_KEYS = {
+  google_calendar: "adminMisc.integrations.providerNames.google_calendar",
+  google_drive: "adminMisc.integrations.providerNames.google_drive",
+  microsoft_outlook: "adminMisc.integrations.providerNames.microsoft_outlook",
+  slack: "adminMisc.integrations.providerNames.slack",
+  zoom: "adminMisc.integrations.providerNames.zoom",
+  microsoft_teams: "adminMisc.integrations.providerNames.microsoft_teams",
+};
+
+const PROVIDER_DESC_KEYS = {
+  google_calendar: "adminMisc.integrations.providerDescriptions.google_calendar",
+  google_drive: "adminMisc.integrations.providerDescriptions.google_drive",
+  microsoft_outlook: "adminMisc.integrations.providerDescriptions.microsoft_outlook",
+  slack: "adminMisc.integrations.providerDescriptions.slack",
+  zoom: "adminMisc.integrations.providerDescriptions.zoom",
+  microsoft_teams: "adminMisc.integrations.providerDescriptions.microsoft_teams",
+};
+
+// Lookup map keyed by integration status value (keep raw value as fallback)
+const STATUS_KEYS = {
+  connected: "adminMisc.integrations.statusValues.connected",
+  error: "adminMisc.integrations.statusValues.error",
+  disconnected: "adminMisc.integrations.statusValues.disconnected",
+};
+
 const WEBHOOK_EVENT_OPTIONS = [
   "startup.created",
   "project.updated",
@@ -315,7 +341,7 @@ export default function IntegrationsPage() {
                           <div className="flex items-center gap-3">
                             <span className="text-2xl">{PROVIDER_ICONS[integ.provider] || "🔌"}</span>
                             <div>
-                              <p className="font-medium">{integ.label || integ.provider_name || integ.provider}</p>
+                              <p className="font-medium">{integ.label || t(PROVIDER_NAME_KEYS[integ.provider] || "") || integ.provider_name || integ.provider}</p>
                               <p className="text-xs text-gray-500">{integ.provider}</p>
                             </div>
                           </div>
@@ -324,7 +350,7 @@ export default function IntegrationsPage() {
                             integ.status === "error" ? "bg-red-500/10 text-red-400" :
                             "bg-gray-500/10 text-gray-400"
                           }`}>
-                            {integ.status || "disconnected"}
+                            {t(STATUS_KEYS[integ.status] || "") || integ.status || t(STATUS_KEYS.disconnected)}
                           </span>
                         </div>
                         {integ.last_sync_at && (
@@ -332,7 +358,7 @@ export default function IntegrationsPage() {
                         )}
                         <div className="flex gap-2 mt-3">
                           <button
-                            onClick={() => setConfirmAction({ type: "remove_integration", id: integ.id, name: integ.label || integ.provider })}
+                            onClick={() => setConfirmAction({ type: "remove_integration", id: integ.id, name: integ.label || t(PROVIDER_NAME_KEYS[integ.provider] || "") || integ.provider })}
                             className="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
                           >
                             <Trash2 size={14} />
@@ -351,8 +377,8 @@ export default function IntegrationsPage() {
                       {providers.map((p) => (
                         <div key={p.id} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4 text-center hover:border-gray-700 transition-colors cursor-pointer" onClick={() => { setNewIntegration({ provider: p.provider_key, label: p.name }); setShowAddIntegration(true); }}>
                           <span className="text-3xl block mb-2">{PROVIDER_ICONS[p.provider_key] || "🔌"}</span>
-                          <p className="text-xs font-medium">{p.name}</p>
-                          <p className="text-[10px] text-gray-500 mt-1">{p.description?.substring(0, 40)}</p>
+                          <p className="text-xs font-medium">{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">{t(PROVIDER_DESC_KEYS[p.provider_key] || "") || p.description?.substring(0, 40)}</p>
                         </div>
                       ))}
                     </div>
@@ -558,7 +584,7 @@ export default function IntegrationsPage() {
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]">
                     <option value="">{t("adminMisc.integrations.selectProvider")}</option>
                     {providers.map((p) => (
-                      <option key={p.provider_key} value={p.provider_key}>{p.name} ({p.provider_key})</option>
+                      <option key={p.provider_key} value={p.provider_key}>{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name} ({p.provider_key})</option>
                     ))}
                   </select>
                 </div>

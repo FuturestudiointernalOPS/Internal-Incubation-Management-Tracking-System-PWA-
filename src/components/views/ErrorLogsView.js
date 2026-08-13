@@ -26,6 +26,16 @@ const SEV = {
   info: { color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
+// Lookup map: raw severity value → i18n key (keep raw value as fallback)
+const SEV_KEYS = {
+  critical: "engineering.errorLogs.severityValues.critical",
+  fatal: "engineering.errorLogs.severityValues.fatal",
+  error: "engineering.errorLogs.severityValues.error",
+  warning: "engineering.errorLogs.severityValues.warning",
+  info: "engineering.errorLogs.severityValues.info",
+  unknown: "engineering.errorLogs.severityValues.unknown",
+};
+
 const CAT = {
   server_error: {
     color: "#ef4444",
@@ -60,6 +70,7 @@ const CAT = {
 
 // ─── Sub-components ───
 function SeverityBadge({ severity }) {
+  const { t } = useI18n();
   const c = SEV[severity?.toLowerCase()] || {
     color: "#64748b",
     bg: "rgba(100,116,139,0.05)",
@@ -69,7 +80,7 @@ function SeverityBadge({ severity }) {
       className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
       style={{ color: c.color, background: c.bg }}
     >
-      {severity || "unknown"}
+      {t(SEV_KEYS[severity] || "") || severity || t(SEV_KEYS.unknown)}
     </span>
   );
 }
@@ -323,10 +334,10 @@ export default function ErrorLogsView({
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
             <option value="all">{t("engineering.errorLogs.severity")}</option>
-            <option value="critical">Critical</option>
-            <option value="error">Error</option>
-            <option value="warning">Warning</option>
-            <option value="info">Info</option>
+            <option value="critical">{t("engineering.errorLogs.severityValues.critical")}</option>
+            <option value="error">{t("engineering.errorLogs.severityValues.error")}</option>
+            <option value="warning">{t("engineering.errorLogs.severityValues.warning")}</option>
+            <option value="info">{t("engineering.errorLogs.severityValues.info")}</option>
           </select>
           <select
             value={cat}

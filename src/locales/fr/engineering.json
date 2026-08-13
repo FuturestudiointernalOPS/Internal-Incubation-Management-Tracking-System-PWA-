@@ -162,7 +162,15 @@
       "markUnresolved": "Marquer comme non résolue",
       "markResolved": "Marquer comme résolue",
       "resolvedOnDate": "Résolue le {date}",
-      "previousNotes": "Notes précédentes"
+      "previousNotes": "Notes précédentes",
+      "severityValues": {
+        "critical": "Critique",
+        "fatal": "Fatal",
+        "error": "Erreur",
+        "warning": "Avertissement",
+        "info": "Info",
+        "unknown": "Inconnu"
+      }
     },
     "overview": {
       "title": "Opérations d'ingénierie",
@@ -190,7 +198,16 @@
       "assignedTo": "Assigné à : {name}",
       "due": "Échéance : {date}",
       "taskTitle": "Tâche : {title}",
-      "reportedBy": "Signalé par : {name}"
+      "reportedBy": "Signalé par : {name}",
+      "eyebrow": "Ingénierie",
+      "severityValues": {
+        "critical": "Critique",
+        "fatal": "Fatal",
+        "warning": "Avertissement",
+        "high": "Élevée",
+        "medium": "Moyenne",
+        "low": "Faible"
+      }
     },
     "reports": {
       "periodWeek": "Cette semaine",

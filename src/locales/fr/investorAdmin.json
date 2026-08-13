@@ -2,7 +2,7 @@
   "investorAdmin": {
     "campaigns": {
       "title": "Campagnes de financement",
-      "subtitle": "Créez et gérez les campagnes de financement des ventures approuvées",
+      "subtitle": "Créez et gérez les campagnes de financement des entreprises approuvées",
       "newCampaign": "Nouvelle campagne",
       "statTotal": "Total",
       "statActive": "Actives",
@@ -10,7 +10,7 @@
       "statClosed": "Clôturées",
       "createCampaign": "Créer une campagne",
       "ventureLabel": "Entreprise *",
-      "selectVenture": "Sélectionnez une venture...",
+      "selectVenture": "Sélectionnez une entreprise...",
       "campaignNameLabel": "Nom de la campagne *",
       "campaignNamePlaceholder": "ex. Tour d'amorçage NovaSpark",
       "targetRaiseLabel": "Objectif de levée ($)",
@@ -35,7 +35,7 @@
       "investorCount": "{count} investisseurs",
       "inDdCount": "{count} en DD",
       "na": "N/A",
-      "ventureNameRequired": "La venture et le nom de la campagne sont requis",
+      "ventureNameRequired": "L'entreprise et le nom de la campagne sont requis",
       "campaignCreated": "Campagne créée (brouillon)",
       "confirmStatusChange": "Voulez-vous vraiment {action} cette campagne ?",
       "campaignStatusToast": "Campagne {status}",

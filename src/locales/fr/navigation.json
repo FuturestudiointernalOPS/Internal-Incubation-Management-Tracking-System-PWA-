@@ -47,8 +47,8 @@
     "pipeline": "Pipeline",
     "portfolio": "Portefeuille",
     "watchlist": "Liste de suivi",
-    "ventures": "Ventures",
-    "allVentures": "Toutes les ventures",
+    "ventures": "Entreprises",
+    "allVentures": "Toutes les entreprises",
     "registerVenture": "Enregistrer une startup",
     "investors": "Investisseurs",
     "investorsManage": "Gestion des investisseurs",
@@ -84,6 +84,12 @@
     "deliverables": "Livrables",
     "teamWorkspace": "Espace de travail d'équipe",
     "discover": "Découvrir",
-    "registerStartup": "Enregistrer une startup"
+    "registerStartup": "Enregistrer une startup",
+    "tasks": "Tâches",
+    "blockers": "Bloqueurs",
+    "collections": "Collections",
+    "modules": "Modules",
+    "submissions": "Soumissions",
+    "manageTeams": "Gérer les équipes"
   }
 }

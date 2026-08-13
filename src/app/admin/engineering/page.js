@@ -25,6 +25,16 @@ import {
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
+// Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
+const SEV_KEYS = {
+  critical: "engineering.overview.severityValues.critical",
+  fatal: "engineering.overview.severityValues.fatal",
+  warning: "engineering.overview.severityValues.warning",
+  high: "engineering.overview.severityValues.high",
+  medium: "engineering.overview.severityValues.medium",
+  low: "engineering.overview.severityValues.low",
+};
+
 export default function EngineeringOperations() {
   const router = useRouter();
   const { t } = useI18n();
@@ -125,7 +135,7 @@ export default function EngineeringOperations() {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                {t("engineering.overview.title")}
+                {t("engineering.overview.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
@@ -309,7 +319,7 @@ export default function EngineeringOperations() {
                                     : "bg-amber-500/10 text-amber-400"
                               }`}
                             >
-                              {err.severity}
+                              {t(SEV_KEYS[err.severity] || "") || err.severity}
                             </span>
                             {err.task_id && (
                               <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider">
@@ -374,7 +384,7 @@ export default function EngineeringOperations() {
                                 : "bg-slate-500/10 text-slate-400"
                           }`}
                         >
-                          {task.priority || "medium"}
+                          {t(SEV_KEYS[task.priority] || "") || task.priority || t("engineering.overview.severityValues.medium")}
                         </span>
                       </div>
                     </div>
@@ -416,7 +426,7 @@ export default function EngineeringOperations() {
                               : "bg-amber-500/10 text-amber-400"
                           }`}
                         >
-                          {blocker.severity}
+                          {t(SEV_KEYS[blocker.severity] || "") || blocker.severity}
                         </span>
                       </div>
                     </div>

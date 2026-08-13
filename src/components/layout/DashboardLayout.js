@@ -55,6 +55,7 @@ const NAV_KEY_MAP = {
   create_program: "navigation.createProgram",
   create_project: "navigation.createProject",
   progress_hub: "navigation.progress",
+  progress: "navigation.progress",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
@@ -128,16 +129,79 @@ const NAV_KEY_MAP = {
   bulk_upload: "navigation.bulkUpload",
 };
 
-// Breadcrumb path-segment overrides (keys resolved via t() at render time).
-// Unknown segments intentionally pass through unchanged.
-const SEGMENT_LABELS = {
-  teacher: "navigation.instructor",
-};
-
 function tnav(key) {
   const mapped = NAV_KEY_MAP[key];
   if (mapped) return mapped;
   return key;
+}
+
+// Map last path segment -> translation key for the topbar breadcrumb
+const CRUMB_PATH_MAP = {
+  admin: "navigation.dashboard",
+  crm: "navigation.crm",
+  timeline: "navigation.crmTimeline",
+  duplicates: "navigation.crmDuplicates",
+  contacts: "navigation.contacts",
+  communications: "navigation.communication",
+  pending_users: "navigation.pendingUsers",
+  "pending-users": "navigation.pendingUsers",
+  bulk_upload: "navigation.bulkUpload",
+  "bulk-upload": "navigation.bulkUpload",
+  forms: "navigation.forms",
+  announcements: "navigation.announcements",
+  programs: "navigation.programs",
+  progress: "navigation.progress",
+  responses: "navigation.reportResponses",
+  ventures: "navigation.ventures",
+  investors: "navigation.investors",
+  campaigns: "navigation.investorsCampaigns",
+  relationships: "navigation.investorsRelationships",
+  review: "navigation.investorsReview",
+  overview: "navigation.investorsOverview",
+  dashboard: "navigation.dashboard",
+  work: "navigation.internalOpsBoard",
+  projects: "navigation.projects",
+  tasks: "navigation.tasks",
+  blockers: "navigation.blockers",
+  standup: "navigation.standup",
+  retro: "navigation.retro",
+  knowledge: "navigation.knowledgeBase",
+  intelligence: "navigation.intelligence",
+  finance: "navigation.finance",
+  reports: "navigation.reports",
+  metrics: "navigation.metrics",
+  settings: "navigation.settings",
+  security: "navigation.security",
+  integrations: "navigation.integrations",
+  access: "navigation.accessSummary",
+  permissions: "navigation.permissions",
+  engineering: "navigation.engineering",
+  system: "navigation.system",
+  profile: "navigation.profile",
+  messages: "navigation.messages",
+  notifications: "navigation.notifications",
+  sessions: "navigation.sessions",
+  reviews: "navigation.reviews",
+  assignments: "navigation.assignments",
+  rituals: "navigation.rituals",
+  followups: "navigation.followups",
+  certificates: "navigation.certificates",
+  portfolio: "navigation.portfolio",
+  pipeline: "navigation.pipeline",
+  history: "navigation.activity",
+  teams: "navigation.manageTeams",
+  submit: "navigation.forms",
+  runs: "navigation.forms",
+  collections: "navigation.collections",
+  modules: "navigation.modules",
+  responses: "navigation.forms",
+  groups: "navigation.groups",
+  submissions: "navigation.submissions",
+};
+
+function navCrumb(pathname) {
+  const seg = (pathname || "").split("/").filter(Boolean).pop() || "";
+  return CRUMB_PATH_MAP[seg] || (NAV_KEY_MAP[seg] ? NAV_KEY_MAP[seg] : seg);
 }
 
 /**
@@ -1401,13 +1465,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     hasCommunicationActivity,
   };
 
-  const breadcrumbSeg = pathname
-    ? pathname.split("/").pop().replace(/-/g, " ")
-    : "";
-  const breadcrumbLabel = pathname
-    ? t(SEGMENT_LABELS[breadcrumbSeg] || "") || breadcrumbSeg
-    : t("navigation.dashboard");
-
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;
   }
@@ -1448,10 +1505,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
-              <span>{t("navigation.impactOs")}</span>
+              <span>ImpactOS</span>
               <ChevronRight className="w-3 h-3 opacity-30" />
               <span className="text-[var(--text-primary)]">
-                {breadcrumbLabel}
+                {pathname ? t(navCrumb(pathname)) : t("navigation.dashboard")}
               </span>
             </div>
 
@@ -1835,13 +1892,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
-                    {t("navigation.stagingBannerTitle", {
-                      name: user?.name || t("navigation.unknown"),
-                      role: user?.role || "unknown",
-                    })}
+                    STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
                   </p>
                   <p className="text-[9px] text-amber-500/70 mt-0.5">
-                    {t("navigation.stagingBannerDesc")}
+                    You are viewing the application as this user. Log out to return to your own account.
                   </p>
                 </div>
               </div>

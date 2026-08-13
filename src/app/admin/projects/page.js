@@ -304,16 +304,21 @@ export default function AdminProjects() {
         fetchData();
         setToast({
           type: "success",
-          msg: `Project "${newProject.name.trim()}" created successfully!`,
+          msg: t("adminMisc.projectsList.projectCreatedToast", {
+            name: newProject.name.trim(),
+          }),
         });
       } else {
         setToast({
           type: "error",
-          msg: t((data.error || "Failed to create project.") || "") || (data.error || "Failed to create project."),
+          msg: data.error || t("adminMisc.projectsList.createFailed"),
         });
       }
     } catch (e) {
-      setToast({ type: "error", msg: "Network error creating project." });
+      setToast({
+        type: "error",
+        msg: t("adminMisc.projectsList.networkError"),
+      });
     } finally {
       setCreating(false);
     }
@@ -400,18 +405,20 @@ export default function AdminProjects() {
             <div className="flex items-center gap-2 mt-2">
               <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Internal Operations
+                {t("adminMisc.projectsList.internalOperations")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Projects
+              {t("adminMisc.projectsList.projects")}
             </h1>
           </div>
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
               <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-xs font-black">
-                {projects.length} Projects
+                {t("adminMisc.projectsList.projectsCount", {
+                  count: projects.length,
+                })}
               </span>
             </div>
             {canCreate && (
@@ -422,7 +429,8 @@ export default function AdminProjects() {
                 }}
                 className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
               >
-                <Plus className="w-3.5 h-3.5" /> Create Project
+                <Plus className="w-3.5 h-3.5" />{" "}
+                {t("adminMisc.projectsList.createProject")}
               </button>
             )}
             <button
@@ -597,11 +605,21 @@ export default function AdminProjects() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option value="all">All Statuses</option>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="Paused">Paused</option>
-              <option value="Archived">Archived</option>
+              <option value="all">
+                {t("adminMisc.projectsList.allStatuses")}
+              </option>
+              <option value="Active">
+                {t("adminMisc.projectsList.statusActive")}
+              </option>
+              <option value="Completed">
+                {t("adminMisc.projectsList.statusCompleted")}
+              </option>
+              <option value="Paused">
+                {t("adminMisc.projectsList.statusPaused")}
+              </option>
+              <option value="Archived">
+                {t("adminMisc.projectsList.statusArchived")}
+              </option>
             </select>
           </div>
         </div>
@@ -613,10 +631,10 @@ export default function AdminProjects() {
           <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <Briefcase className="w-16 h-16 mb-4" />
             <p className="text-[10px] font-bold uppercase tracking-widest">
-              No projects found
+              {t("adminMisc.projectsList.noProjectsFound")}
             </p>
             <p className="text-[9px] text-slate-500 mt-2">
-              Projects appear here once tasks are linked to them.
+              {t("adminMisc.projectsList.emptyStateDesc")}
             </p>
           </div>
         ) : (
@@ -626,31 +644,31 @@ export default function AdminProjects() {
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
                     <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Project
+                      {t("adminMisc.projectsList.project")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Status
+                      {t("adminMisc.projectsList.status")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Priority
+                      {t("adminMisc.projectsList.priority")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Tasks
+                      {t("adminMisc.projectsList.tasks")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Completed
+                      {t("adminMisc.projectsList.completed")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Blockers
+                      {t("adminMisc.projectsList.blockers")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Progress
+                      {t("adminMisc.projectsList.progress")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Start
+                      {t("adminMisc.projectsList.start")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      End
+                      {t("adminMisc.projectsList.end")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest"></th>
                   </tr>
@@ -673,7 +691,9 @@ export default function AdminProjects() {
                             <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
                               {project.name}
                             </p>
-                            <p className="text-[9px] text-slate-500">Project</p>
+                            <p className="text-[9px] text-slate-500">
+                              {t("adminMisc.projectsList.project")}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -773,7 +793,9 @@ export default function AdminProjects() {
                               disabled={actionLoading}
                               className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              {actionLoading ? "..." : "Pause"}
+                              {actionLoading
+                                ? "..."
+                                : t("adminMisc.projectsList.pause")}
                             </button>
                           )}
                           {project.status === "Paused" && (
@@ -785,7 +807,9 @@ export default function AdminProjects() {
                               disabled={actionLoading}
                               className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              {actionLoading ? "..." : "Resume"}
+                              {actionLoading
+                                ? "..."
+                                : t("adminMisc.projectsList.resume")}
                             </button>
                           )}
                           {project.status === "Active" && (
@@ -801,7 +825,9 @@ export default function AdminProjects() {
                               disabled={actionLoading}
                               className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
-                              {actionLoading ? "..." : "Complete"}
+                              {actionLoading
+                                ? "..."
+                                : t("adminMisc.projectsList.complete")}
                             </button>
                           )}
                           <button
@@ -829,7 +855,7 @@ export default function AdminProjects() {
                             }}
                             className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
                           >
-                            Edit
+                            {t("adminMisc.projectsList.edit")}
                           </button>
                           <button
                             onClick={(e) => {
@@ -847,9 +873,11 @@ export default function AdminProjects() {
                                 : "bg-slate-500/10 text-slate-500 hover:bg-rose-500 hover:text-white"
                             }`}
                           >
-                            {actionLoading ? "..." : (project.status === "Archived"
-                              ? "Restore"
-                              : "Archive")}
+                            {actionLoading
+                              ? "..."
+                              : project.status === "Archived"
+                                ? t("adminMisc.projectsList.restore")
+                                : t("adminMisc.projectsList.archive")}
                           </button>
                         </div>
                       </td>
@@ -874,7 +902,7 @@ export default function AdminProjects() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                Edit Project
+                {t("adminMisc.projectsList.editProject")}
               </h2>
               <button onClick={() => setShowMemberModal(null)}>
                 <X className="w-5 h-5" />
@@ -885,7 +913,7 @@ export default function AdminProjects() {
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Name
+                  {t("adminMisc.projectsList.projectName")}
                 </label>
                 <input
                   value={editProject.name}
@@ -898,7 +926,7 @@ export default function AdminProjects() {
 
               <div className="col-span-2">
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Description
+                  {t("adminMisc.projectsList.description")}
                 </label>
                 <textarea
                   value={editProject.description}
@@ -908,14 +936,14 @@ export default function AdminProjects() {
                       description: e.target.value,
                     }))
                   }
-                  placeholder="Project description..."
+                  placeholder={t("adminMisc.projectsList.descriptionPlaceholder")}
                   rows={2}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                 />
               </div>
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Status
+                  {t("adminMisc.projectsList.status")}
                 </label>
                 <select
                   value={editProject.status}
@@ -924,16 +952,26 @@ export default function AdminProjects() {
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
-                  <option value="Active">Active</option>
-                  <option value="Paused">Paused</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Archived">Archived</option>
-                  <option value="Closed">Closed</option>
+                  <option value="Active">
+                    {t("adminMisc.projectsList.statusActive")}
+                  </option>
+                  <option value="Paused">
+                    {t("adminMisc.projectsList.statusPaused")}
+                  </option>
+                  <option value="Completed">
+                    {t("adminMisc.projectsList.statusCompleted")}
+                  </option>
+                  <option value="Archived">
+                    {t("adminMisc.projectsList.statusArchived")}
+                  </option>
+                  <option value="Closed">
+                    {t("adminMisc.projectsList.statusClosed")}
+                  </option>
                 </select>
               </div>
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Priority
+                  {t("adminMisc.projectsList.priority")}
                 </label>
                 <select
                   value={editProject.priority || "medium"}
@@ -942,15 +980,23 @@ export default function AdminProjects() {
                   }
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none appearance-none cursor-pointer"
                 >
-                  <option value="critical">Critical</option>
-                  <option value="high">High</option>
-                  <option value="medium">Medium</option>
-                  <option value="low">Low</option>
+                  <option value="critical">
+                    {t("adminMisc.projectsList.priorityCritical")}
+                  </option>
+                  <option value="high">
+                    {t("adminMisc.projectsList.priorityHigh")}
+                  </option>
+                  <option value="medium">
+                    {t("adminMisc.projectsList.priorityMedium")}
+                  </option>
+                  <option value="low">
+                    {t("adminMisc.projectsList.priorityLow")}
+                  </option>
                 </select>
               </div>
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Start Date
+                  {t("adminMisc.projectsList.startDate")}
                 </label>
                 <input
                   type="date"
@@ -966,7 +1012,7 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  End Date
+                  {t("adminMisc.projectsList.endDate")}
                 </label>
                 <input
                   type="date"
@@ -979,7 +1025,7 @@ export default function AdminProjects() {
               </div>
               <div className="col-span-2">
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Leads
+                  {t("adminMisc.projectsList.projectLeads")}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
                   {allStaff.map((s) => {
@@ -1024,13 +1070,13 @@ export default function AdminProjects() {
             {/* Concept Note */}
             <div className="p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)] space-y-2">
               <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
-                Concept Note{" "}
+                {t("adminMisc.projectsList.conceptNote")}{" "}
                 <span className="text-slate-600 font-normal normal-case">
-                  (optional)
+                  {t("adminMisc.projectsList.optional")}
                 </span>
               </p>
               <p className="text-[8px] text-[var(--text-secondary)]">
-                Upload a document or provide a link.
+                {t("adminMisc.projectsList.uploadOrLinkHint")}
               </p>
               {editProject.conceptNoteUrl && (
                 <a
@@ -1038,7 +1084,7 @@ export default function AdminProjects() {
                   target="_blank"
                   className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block"
                 >
-                  View current concept note
+                  {t("adminMisc.projectsList.viewCurrentConceptNote")}
                 </a>
               )}
               <div className="flex gap-2 items-center">
@@ -1055,7 +1101,9 @@ export default function AdminProjects() {
                   }
                   className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider"
                 >
-                  {editProject.conceptNoteUrl ? "Replace File" : "Upload File"}
+                  {editProject.conceptNoteUrl
+                    ? t("adminMisc.projectsList.replaceFile")
+                    : t("adminMisc.projectsList.uploadFile")}
                 </button>
                 {editConceptFile && (
                   <button
@@ -1083,14 +1131,16 @@ export default function AdminProjects() {
                     disabled={uploadingEditConcept}
                     className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
                   >
-                    {uploadingEditConcept ? "..." : "Save"}
+                    {uploadingEditConcept
+                      ? "..."
+                      : t("adminMisc.projectsList.save")}
                   </button>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-[var(--border-primary)]" />
                 <span className="text-[8px] text-[var(--text-secondary)] font-bold">
-                  OR
+                  {t("adminMisc.projectsList.or")}
                 </span>
                 <div className="flex-1 h-px bg-[var(--border-primary)]" />
               </div>
@@ -1103,7 +1153,7 @@ export default function AdminProjects() {
                     conceptNoteUrl: e.target.value,
                   }))
                 }
-                placeholder="Paste a link to the concept note..."
+                placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
@@ -1113,18 +1163,20 @@ export default function AdminProjects() {
               disabled={savingEdit || !editProject.name.trim()}
               className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
             >
-              {savingEdit ? "Saving..." : "Save Changes"}
+              {savingEdit
+                ? t("adminMisc.projectsList.saving")
+                : t("adminMisc.projectsList.saveChanges")}
             </button>
 
             {/* Collaborators */}
             <div className="pt-3 border-t border-[var(--border-primary)]/30">
               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-                Collaborators
+                {t("adminMisc.projectsList.collaborators")}
               </p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto mb-3">
                 {(projectMembers[showMemberModal] || []).length === 0 ? (
                   <p className="text-[10px] text-slate-600 italic text-center py-4">
-                    No collaborators assigned yet.
+                    {t("adminMisc.projectsList.noCollaborators")}
                   </p>
                 ) : (
                   (projectMembers[showMemberModal] || []).map((m) => (
@@ -1149,7 +1201,7 @@ export default function AdminProjects() {
                         }
                         className="text-[7px] font-black uppercase text-rose-400 hover:text-rose-300"
                       >
-                        Remove
+                        {t("adminMisc.projectsList.remove")}
                       </button>
                     </div>
                   ))
@@ -1160,7 +1212,9 @@ export default function AdminProjects() {
                   id="add-collab-select"
                   className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
-                  <option value="">Add collaborator...</option>
+                  <option value="">
+                    {t("adminMisc.projectsList.addCollaboratorPlaceholder")}
+                  </option>
                   {allStaff
                     .filter(
                       (s) =>
@@ -1184,7 +1238,7 @@ export default function AdminProjects() {
                   }}
                   className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
                 >
-                  Add
+                  {t("adminMisc.projectsList.add")}
                 </button>
               </div>
             </div>
@@ -1204,7 +1258,7 @@ export default function AdminProjects() {
           >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                Create Project
+                {t("adminMisc.projectsList.createProject")}
               </h2>
               <button onClick={() => setShowCreateModal(false)}>
                 <X className="w-5 h-5" />
@@ -1214,21 +1268,21 @@ export default function AdminProjects() {
             <div className="space-y-3">
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Name *
+                  {t("adminMisc.projectsList.projectNameRequired")}
                 </label>
                 <input
                   value={newProject.name}
                   onChange={(e) =>
                     setNewProject((p) => ({ ...p, name: e.target.value }))
                   }
-                  placeholder="e.g. Website Redesign"
+                  placeholder={t("adminMisc.projectsList.projectNameExample")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
 
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Description
+                  {t("adminMisc.projectsList.description")}
                 </label>
                 <textarea
                   value={newProject.description}
@@ -1238,7 +1292,7 @@ export default function AdminProjects() {
                       description: e.target.value,
                     }))
                   }
-                  placeholder="Project description, goals, scope..."
+                  placeholder={t("adminMisc.projectsList.descriptionGoalsPlaceholder")}
                   rows={3}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                 />
@@ -1248,7 +1302,7 @@ export default function AdminProjects() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Start Date
+                    {t("adminMisc.projectsList.startDate")}
                   </label>
                   <input
                     type="date"
@@ -1264,7 +1318,7 @@ export default function AdminProjects() {
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    End Date
+                    {t("adminMisc.projectsList.endDate")}
                   </label>
                   <input
                     type="date"
@@ -1279,11 +1333,13 @@ export default function AdminProjects() {
 
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Concept Note{" "}
-                  <span className="text-slate-600 font-normal">(optional)</span>
+                  {t("adminMisc.projectsList.conceptNote")}{" "}
+                  <span className="text-slate-600 font-normal">
+                    {t("adminMisc.projectsList.optional")}
+                  </span>
                 </label>
                 <p className="text-[8px] text-[var(--text-secondary)] mb-2">
-                  Upload a document or provide a link.
+                  {t("adminMisc.projectsList.uploadOrLinkHint")}
                 </p>
                 <div className="space-y-2">
                   {/* Upload option */}
@@ -1323,7 +1379,9 @@ export default function AdminProjects() {
                         disabled={uploadingConcept}
                         className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
                       >
-                        {uploadingConcept ? "..." : "Upload"}
+                        {uploadingConcept
+                          ? "..."
+                          : t("adminMisc.projectsList.upload")}
                       </button>
                     )}
                   </div>
@@ -1331,7 +1389,7 @@ export default function AdminProjects() {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-px bg-[var(--border-primary)]" />
                     <span className="text-[8px] text-[var(--text-secondary)] font-bold">
-                      OR
+                      {t("adminMisc.projectsList.or")}
                     </span>
                     <div className="flex-1 h-px bg-[var(--border-primary)]" />
                   </div>
@@ -1345,7 +1403,7 @@ export default function AdminProjects() {
                         conceptNoteUrlInput: e.target.value,
                       }))
                     }
-                    placeholder="Paste a link to the concept note..."
+                    placeholder={t("adminMisc.projectsList.pasteLinkPlaceholder")}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
@@ -1355,19 +1413,19 @@ export default function AdminProjects() {
                     target="_blank"
                     className="text-[9px] text-[var(--brand-orange)] font-bold underline mt-1 inline-block"
                   >
-                    View uploaded concept note
+                    {t("adminMisc.projectsList.viewUploadedConceptNote")}
                   </a>
                 )}
                 {newProject.conceptNoteUrlInput &&
                   !newProject.conceptNoteUrl && (
                     <p className="text-[9px] text-[var(--text-secondary)] mt-1 italic">
-                      Link will be saved when you create the project.
+                      {t("adminMisc.projectsList.linkSavedHint")}
                     </p>
                   )}
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Project Leads
+                  {t("adminMisc.projectsList.projectLeads")}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
                   {allStaff.map((s) => {
@@ -1407,7 +1465,9 @@ export default function AdminProjects() {
               </div>
               <div>
                 <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                  Collaborators ({selectedMembers.length} selected)
+                  {t("adminMisc.projectsList.collaboratorsCount", {
+                    count: selectedMembers.length,
+                  })}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
                   {allStaff.map((s) => {
@@ -1444,14 +1504,16 @@ export default function AdminProjects() {
                 onClick={() => setShowCreateModal(false)}
                 className="flex-1 btn btn-secondary py-3 text-[10px] font-black uppercase tracking-widest"
               >
-                Cancel
+                {t("adminMisc.projectsList.cancel")}
               </button>
               <button
                 onClick={handleCreateProject}
                 disabled={creating || !newProject.name.trim()}
                 className="flex-1 btn btn-primary py-3 text-[10px] font-black uppercase tracking-widest"
               >
-                {creating ? "Creating..." : "Create Project"}
+                {creating
+                  ? t("adminMisc.projectsList.creating")
+                  : t("adminMisc.projectsList.createProject")}
               </button>
             </div>
           </div>

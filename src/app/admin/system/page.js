@@ -50,47 +50,34 @@ const COMPONENT_ICONS = {
   notifications: Activity, integrations: Activity,
 };
 
-const COMPONENT_LABELS = {
-  app: "adminMisc.system.components.app",
-  database: "adminMisc.system.components.database",
-  cache: "adminMisc.system.components.cache",
-  queue: "adminMisc.system.components.queue",
-  email: "adminMisc.system.components.email",
-  storage: "adminMisc.system.components.storage",
-  search: "adminMisc.system.components.search",
-  notifications: "adminMisc.system.components.notifications",
-  integrations: "adminMisc.system.components.integrations",
+const COMPONENT_KEYS = {
+  app: "adminMisc.system.componentApp",
+  database: "adminMisc.system.componentDatabase",
+  cache: "adminMisc.system.componentCache",
+  queue: "adminMisc.system.componentQueue",
+  email: "adminMisc.system.componentEmail",
+  storage: "adminMisc.system.componentStorage",
+  search: "adminMisc.system.componentSearch",
+  notifications: "adminMisc.system.componentNotifications",
+  integrations: "adminMisc.system.componentIntegrations",
 };
 
-const STATUS_LABELS = {
-  healthy: "adminMisc.system.statuses.healthy",
-  degraded: "adminMisc.system.statuses.degraded",
-  unhealthy: "adminMisc.system.statuses.unhealthy",
+const STATUS_KEYS = {
+  healthy: "adminMisc.system.statusHealthy",
+  degraded: "adminMisc.system.statusDegraded",
+  unhealthy: "adminMisc.system.statusUnhealthy",
 };
 
-const ENV_LABELS = {
-  development: "adminMisc.system.environments.development",
-  staging: "adminMisc.system.environments.staging",
-  production: "adminMisc.system.environments.production",
+const ENV_KEYS = {
+  development: "adminMisc.system.envDevelopment",
+  production: "adminMisc.system.envProduction",
+  staging: "adminMisc.system.envStaging",
 };
 
-const SEVERITY_LABELS = {
-  critical: "adminMisc.system.severities.critical",
-  warning: "adminMisc.system.severities.warning",
-  info: "adminMisc.system.severities.info",
-};
-
-const JOB_STATUS_LABELS = {
-  completed: "adminMisc.system.jobStatuses.completed",
-  running: "adminMisc.system.jobStatuses.running",
-  failed: "adminMisc.system.jobStatuses.failed",
-  queued: "adminMisc.system.jobStatuses.queued",
-};
-
-const REPORT_TYPE_LABELS = {
-  daily: "adminMisc.system.reportTypes.daily",
-  weekly: "adminMisc.system.reportTypes.weekly",
-  monthly: "adminMisc.system.reportTypes.monthly",
+const REPORT_TYPE_KEYS = {
+  daily: "adminMisc.system.reportTypeDaily",
+  weekly: "adminMisc.system.reportTypeWeekly",
+  monthly: "adminMisc.system.reportTypeMonthly",
 };
 
 export default function SystemMonitoringPage() {
@@ -146,7 +133,7 @@ export default function SystemMonitoringPage() {
       if (jobStatsData.success) setJobStats(jobStatsData);
       if (reportsData.success) setReports(reportsData.reports || []);
       setAlerts(alertStatsData);
-    } catch (err) { setError(t(err.message || "") || err.message); }
+    } catch (err) { setError(err.message); }
     finally { setLoading(false); }
   }, []);
 
@@ -235,9 +222,9 @@ export default function SystemMonitoringPage() {
                     return (
                       <div key={c.id || c.component} className={`rounded-xl p-3 border ${STATUS_COLORS[c.status] || STATUS_COLORS.healthy}`}>
                         <Icon size={16} className="mb-1.5" />
-                        <p className="text-xs font-medium truncate">{t(COMPONENT_LABELS[c.component] || "") || c.component}</p>
+                        <p className="text-xs font-medium capitalize truncate">{t(COMPONENT_KEYS[c.component] || "") || c.component}</p>
                         <p className={`text-[10px] mt-0.5 ${c.status === "healthy" ? "text-emerald-400" : c.status === "degraded" ? "text-amber-400" : "text-red-400"}`}>
-                          {t(STATUS_LABELS[c.status] || "") || c.status}
+                          {t(STATUS_KEYS[c.status] || "") || c.status}
                         </p>
                       </div>
                     );
@@ -250,11 +237,11 @@ export default function SystemMonitoringPage() {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.status")}</span>
                         <span className={`${status?.status === "healthy" ? "text-emerald-400" : status?.status === "degraded" ? "text-amber-400" : "text-red-400"}`}>
-                          {t(STATUS_LABELS[status?.status] || "") || status?.status || t("adminMisc.system.unknown")}
+                          {t(STATUS_KEYS[status?.status] || "") || status?.status || t("adminMisc.system.unknown")}
                         </span>
                       </div>
                       <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.uptime")}</span><span className="text-gray-300">{Math.round(status?.uptime || 0)}s</span></div>
-                      <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.env")}</span><span className="text-gray-300">{t(ENV_LABELS[status?.environment] || "") || status?.environment || t("adminMisc.system.na")}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">{t("adminMisc.system.env")}</span><span className="text-gray-300">{t(ENV_KEYS[status?.environment] || "") || status?.environment || t("adminMisc.system.na")}</span></div>
                     </div>
                   </div>
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
@@ -284,7 +271,7 @@ export default function SystemMonitoringPage() {
                     return (
                       <div key={c.id || c.component} className={`rounded-xl p-4 border ${STATUS_COLORS[c.status] || STATUS_COLORS.healthy}`}>
                         <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2"><Icon size={18} /><span className="font-medium">{t(COMPONENT_LABELS[c.component] || "") || c.component}</span></div>
+                          <div className="flex items-center gap-2"><Icon size={18} /><span className="font-medium capitalize">{t(COMPONENT_KEYS[c.component] || "") || c.component}</span></div>
                           {c.status === "healthy" ? <CheckCircle2 size={18} className="text-emerald-400" /> :
                            c.status === "degraded" ? <AlertTriangle size={18} className="text-amber-400" /> :
                            <XCircle size={18} className="text-red-400" />}
@@ -322,7 +309,7 @@ export default function SystemMonitoringPage() {
                           {a.message && <p className="text-xs text-gray-400 mt-1">{a.message}</p>}
                           <div className="flex gap-2 mt-1.5 text-[10px] text-gray-500">
                             <span className={`px-1.5 py-0.5 rounded ${a.severity === "critical" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"}`}>
-                              {t(SEVERITY_LABELS[a.severity] || "") || a.severity}
+                              {a.severity}
                             </span>
                             <span>{a.alert_type?.replace(/_/g, " ")}</span>
                             <span>{formatDate(a.created_at)}</span>
@@ -448,7 +435,7 @@ export default function SystemMonitoringPage() {
                                 j.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
                                 j.status === "running" ? "bg-blue-500/10 text-blue-400" :
                                 j.status === "failed" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
-                              }`}>{t(JOB_STATUS_LABELS[j.status] || "") || j.status}</span>
+                              }`}>{j.status}</span>
                             </td>
                             <td className="p-3 text-sm text-gray-400">{j.duration_ms ? `${j.duration_ms}ms` : "-"}</td>
                             <td className="p-3 text-sm text-gray-500">{formatDate(j.created_at)}</td>
@@ -498,7 +485,7 @@ export default function SystemMonitoringPage() {
                         {reports.map((r) => (
                           <tr key={r.id} className="border-b border-gray-800/50">
                             <td className="p-3 text-sm font-medium">{r.title}</td>
-                            <td className="p-3"><span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{t(REPORT_TYPE_LABELS[r.report_type] || "") || r.report_type}</span></td>
+                            <td className="p-3"><span className="text-xs px-2 py-0.5 bg-blue-500/10 text-blue-400 rounded-full">{t(REPORT_TYPE_KEYS[r.report_type] || "") || r.report_type}</span></td>
                             <td className="p-3 text-sm text-gray-400">{r.period_start} → {r.period_end}</td>
                             <td className="p-3 text-sm text-gray-500 truncate max-w-[300px]">{r.summary}</td>
                             <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{formatDate(r.created_at)}</td>

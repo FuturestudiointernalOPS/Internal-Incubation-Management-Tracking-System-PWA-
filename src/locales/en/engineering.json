@@ -162,7 +162,15 @@
       "markUnresolved": "Mark Unresolved",
       "markResolved": "Mark Resolved",
       "resolvedOnDate": "Resolved {date}",
-      "previousNotes": "Previous Notes"
+      "previousNotes": "Previous Notes",
+      "severityValues": {
+        "critical": "Critical",
+        "fatal": "Fatal",
+        "error": "Error",
+        "warning": "Warning",
+        "info": "Info",
+        "unknown": "Unknown"
+      }
     },
     "overview": {
       "title": "Engineering Operations",
@@ -190,7 +198,16 @@
       "assignedTo": "Assigned to: {name}",
       "due": "Due: {date}",
       "taskTitle": "Task: {title}",
-      "reportedBy": "Reported by: {name}"
+      "reportedBy": "Reported by: {name}",
+      "eyebrow": "Engineering",
+      "severityValues": {
+        "critical": "Critical",
+        "fatal": "Fatal",
+        "warning": "Warning",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
     },
     "reports": {
       "periodWeek": "This Week",

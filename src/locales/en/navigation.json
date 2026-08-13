@@ -84,6 +84,12 @@
     "deliverables": "Deliverables",
     "teamWorkspace": "Team Workspace",
     "discover": "Discover",
-    "registerStartup": "Register Startup"
+    "registerStartup": "Register Startup",
+    "tasks": "Tasks",
+    "blockers": "Blockers",
+    "collections": "Collections",
+    "modules": "Modules",
+    "submissions": "Submissions",
+    "manageTeams": "Manage Teams"
   }
 }
