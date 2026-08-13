@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, recordEmailStatus } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 
@@ -662,6 +662,30 @@ export async function POST(req) {
 
         if (applicantEmail) {
           let shouldSend = true;
+          // Approval email requires a group (organizational context). With no
+          // group, the person stays in the platform/CRM but no email is sent.
+          if (decision === "approved") {
+            try {
+              const grpCheck = await db.execute({
+                sql: `SELECT 1
+                      FROM platform_form_run_assignments a
+                      JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
+                      WHERE a.run_id = ? AND a.target_type = 'group'
+                      LIMIT 1`,
+                args: [result.rows[0].run_id],
+              });
+              if (grpCheck.rows.length === 0) {
+                shouldSend = false;
+                await recordEmailStatus({
+                  submission_id: parseInt(submission_id),
+                  contact_cid: result.rows[0].submitter_id || null,
+                  email_type: "approval",
+                  status: "skipped",
+                  error: "Skipped — No group assigned; approval email not sent",
+                });
+              }
+            } catch (_) {}
+          }
           if (decision !== "approved") {
             try {
               const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [result.rows[0].run_id] });
