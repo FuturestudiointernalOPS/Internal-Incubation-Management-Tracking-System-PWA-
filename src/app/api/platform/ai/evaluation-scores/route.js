@@ -222,13 +222,14 @@ export async function GET(req) {
       if (r.ranking) rankings.add(r.ranking);
 
       return {
-        // Best real name: explicit full-name answer → submitter name →
-        // any name-ish answer; never "Unknown" when a real name exists.
+        // Best real name — resolved deterministically with the form's actual
+        // question labels; never "Unknown" when a real name exists.
         name:
           resolvePersonName({
             contactName: "",
             submitterName: r.name || "",
             submissionData: subData,
+            fieldLabels: labelById,
           }) || r.name || "Unknown",
         email,
         score: r.score,

@@ -308,6 +308,20 @@ const RULES = [
         const submissionData = ctx.submission?.data || {};
         let contactName = ctx.submission?.submitter_name || "";
 
+        // Form field labels so name resolution understands the actual
+        // questions (submission data is keyed by field id).
+        let fieldLabels = {};
+        try {
+          const formIdForLabels = ctx.run?.form_id || ctx.form?.id;
+          if (formIdForLabels) {
+            const flRes = await db.execute({
+              sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+              args: [formIdForLabels],
+            });
+            for (const frow of flRes.rows) fieldLabels[String(frow.id)] = frow.label;
+          }
+        } catch (_) {}
+
         const {
           resolveRecipientEmail,
           resolvePersonName,
@@ -439,13 +453,15 @@ const RULES = [
           } catch (_) {}
         }
 
-        // Resolve the best REAL name: CRM name → submitter name → form answers.
-        // Only falls back to a neutral value when no real name exists anywhere.
+        // Resolve the best REAL name deterministically (full name → first
+        // name → recognized field). Only falls back to a neutral value when
+        // no real name exists anywhere — never "Unknown" if one does.
         contactName =
           resolvePersonName({
             contactName: contact?.name || "",
             submitterName: ctx.submission?.submitter_name || "",
             submissionData,
+            fieldLabels,
           }) || "Participant";
 
         // 3. Workflow toggle for the email itself

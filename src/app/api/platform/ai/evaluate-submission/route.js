@@ -224,18 +224,26 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
         // Approval email requires a group. With no group, the person stays in
         // the platform/CRM but no approval email is sent.
         if (groupName) {
-          // Best real name: CRM name → submitter name → form answers.
-          let applicantName = updated.rows[0].submitter_name || "";
+          // Best real name — resolved deterministically with the form's actual
+          // question labels; never "Unknown" when a real name exists.
+          let applicantName = "";
           try {
+            const fieldRes = await db.execute({
+              sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+              args: [form.rows[0].id],
+            });
+            const labels = {};
+            for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
             const cRes = await db.execute({
               sql: "SELECT name FROM contacts WHERE cid = ?",
               args: [updated.rows[0].submitter_id],
             });
             applicantName = resolvePersonName({
               contactName: cRes.rows[0]?.name || "",
-              submitterName: applicantName,
+              submitterName: updated.rows[0].submitter_name || "",
               submissionData: subData,
-            }) || applicantName || "";
+              fieldLabels: labels,
+            });
           } catch (_) {}
 
           await sendTrackedEmail({
