@@ -450,6 +450,7 @@ export default function FormRunsPage() {
         const formData = await formRes.json();
         if (formData.success) {
           setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)).slice(0, 5));
+          setRunFormSettings(formData.form?.settings || {});
         }
       } catch (_) {}
     } catch (_) {}
@@ -685,6 +686,7 @@ export default function FormRunsPage() {
   const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
   const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
   const [runTemplates, setRunTemplates] = useState({}); // run-level email template overrides
+  const [runFormSettings, setRunFormSettings] = useState({}); // form settings (for template fallback + AI base)
   const [runTplSaving, setRunTplSaving] = useState(false);
   const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
 
@@ -1613,10 +1615,20 @@ export default function FormRunsPage() {
               if (!selectedRun) return;
               setRunTplSaving(true);
               try {
+                // Never persist empty template shells: an entry whose subject AND
+                // body are both blank must fall through to the form template, not
+                // shadow it at send time.
+                const cleanedTemplates = Object.fromEntries(
+                  Object.entries(runTemplates || {}).filter(([, t]) => {
+                    const s = (t?.subject || "").trim();
+                    const b = (t?.body || "").trim();
+                    return s || b;
+                  })
+                );
                 const res = await fetch("/api/platform/form-runs", {
                   method: "PUT",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ id: selectedRun.id, settings: { ...(runSettings || {}), templates: runTemplates } }),
+                  body: JSON.stringify({ id: selectedRun.id, settings: { ...(runSettings || {}), templates: cleanedTemplates } }),
                 });
                 const data = await res.json();
                 if (data.success) {
@@ -1636,6 +1648,12 @@ export default function FormRunsPage() {
               if (runPersonalizing) return;
               setRunPersonalizing(tKey);
               try {
+                // Draft base: run-level draft first; when the run draft is empty,
+                // personalize the form-level template (never the platform default
+                // alone) so a designed template is improved, not replaced.
+                const formTpl = runFormSettings?.automation?.templates?.[tKey] || {};
+                const baseSubject = (runTemplates[tKey]?.subject || "").trim() || (formTpl.subject || "").trim();
+                const baseBody = (runTemplates[tKey]?.body || "").trim() || (formTpl.body || "").trim();
                 const res = await fetch("/api/platform/ai/personalize-template", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -1643,8 +1661,8 @@ export default function FormRunsPage() {
                     template_key: tKey,
                     form_name: selectedRun?.name || "",
                     organization: "Future Studio",
-                    existing_subject: runTemplates[tKey]?.subject || "",
-                    existing_body: runTemplates[tKey]?.body || "",
+                    existing_subject: baseSubject,
+                    existing_body: baseBody,
                   }),
                 });
                 const data = await res.json();

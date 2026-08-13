@@ -157,15 +157,20 @@ export function applyTemplate(text, vars = {}) {
 /**
  * Resolve a template with a run-level override chain:
  * run.settings.templates[key] → form.settings.automation.templates[key] → DEFAULT_TEMPLATES.
+ * Blank (empty/whitespace) values fall through to the next level, so an
+ * empty run-level field can never shadow a designed form-level template
+ * (the UI promises "Empty = use the form template, then the platform default").
  */
 export function getTemplate(formSettings, templateKey, runSettings) {
-  const custom = formSettings?.automation?.templates?.[templateKey];
-  const runCustom = runSettings?.templates?.[templateKey];
-  const merged = { ...(custom || {}), ...(runCustom || {}) };
+  const custom = formSettings?.automation?.templates?.[templateKey] || {};
+  const runCustom = runSettings?.templates?.[templateKey] || {};
+  const text = (v) => (typeof v === "string" ? v.trim() : v);
+  // Per-field fallthrough: run value (non-blank) → form value (non-blank) → default
+  const pick = (runVal, formVal) => text(runVal) || text(formVal) || "";
   const def = DEFAULT_TEMPLATES[templateKey];
   return {
-    subject: merged.subject || def?.subject || "",
-    body: merged.body || def?.body || "",
+    subject: pick(runCustom.subject, custom.subject) || def?.subject || "",
+    body: pick(runCustom.body, custom.body) || def?.body || "",
   };
 }
 
