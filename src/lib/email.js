@@ -164,6 +164,15 @@ export function getTemplate(formSettings, templateKey, runSettings) {
 }
 
 /**
+ * The platform's built-in template for a key (used as the base structure
+ * when AI personalization runs on an empty draft).
+ */
+export function getDefaultTemplate(templateKey) {
+  const def = DEFAULT_TEMPLATES[templateKey];
+  return { subject: def?.subject || "", body: def?.body || "" };
+}
+
+/**
  * Send an invite email with activation link
  */
 export async function sendInviteEmail({ to, name, role, token, template, templateVars }) {
