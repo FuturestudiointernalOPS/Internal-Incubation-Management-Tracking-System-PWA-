@@ -310,6 +310,7 @@ const RULES = [
         const {
           resolveRecipientEmail,
           sendInviteEmail,
+          sendLoginEmail,
           getTemplate,
           sendTrackedEmail,
           getEmailLogRow,
@@ -406,36 +407,46 @@ const RULES = [
           return;
         }
 
-        // 4. Idempotency: never re-send after success; never re-activate an
-        //    account that already completed password setup.
+        // 4. Idempotency: never re-send automatically after a successful send.
         const priorSend = ctx.submission?.id
           ? await getEmailLogRow(ctx.submission.id, "activation")
           : null;
         if (priorSend && priorSend.status === "sent") {
-          console.log("[Automation] Activation email already sent — skipped", contactEmail);
-          return;
-        }
-        if (accountAlreadyActive) {
-          console.log("[Automation] Activation skipped: platform account already exists", contactEmail);
-          await recordEmailStatus({
-            submission_id: ctx.submission?.id || null,
-            contact_cid: contact.cid,
-            email_type: "activation",
-            status: "skipped",
-            error: "Skipped — Platform account already exists (password already set)",
-          });
+          console.log("[Automation] Activation/access email already sent — skipped", contactEmail);
           return;
         }
 
-        // 5. Send the tracked activation email (token generated inside sendFn)
+        // 5. Send the RIGHT email for the account state:
+        //    - no account yet  → activation email with password-setup link
+        //    - account exists  → access email with the login URL (no new token)
         const activationTemplate = getTemplate(ctx.form?.settings, "activation", ctx.run?.settings);
+        const existingUserTemplate = getTemplate(ctx.form?.settings, "existing_user", ctx.run?.settings);
+        const templateVars = {
+          organization: "ImpactOS",
+          form_name: ctx.run?.name || "",
+          group_name: groupName || "",
+          name: contactName,
+        };
+
         const tracked = await sendTrackedEmail({
           submission_id: ctx.submission?.id || null,
           contact_cid: contact.cid,
           email_type: "activation",
+          note: accountAlreadyActive
+            ? "Existing account login email"
+            : "New account activation email",
           sendFn: async () => {
-            // Generate the token INSIDE the send function so a skipped
-            // send never produces an orphaned token
+            if (accountAlreadyActive) {
+              return sendLoginEmail({
+                to: contactEmail,
+                name: contactName,
+                role: targetRole,
+                template: existingUserTemplate,
+                templateVars,
+              });
+            }
+            // New account: generate the token INSIDE the send function so a
+            // skipped send never produces an orphaned token
             const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
             const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
             await db.execute({
@@ -449,20 +460,22 @@ const RULES = [
               role: targetRole,
               token,
               template: activationTemplate,
-              templateVars: {
-                organization: "ImpactOS",
-                form_name: ctx.run?.name || "",
-                group_name: groupName || "",
-                name: contactName,
-              },
+              templateVars,
             });
           },
         });
 
         if (tracked.success) {
-          console.log("[Automation] Activation email sent to", contactEmail);
+          console.log(
+            "[Automation]",
+            accountAlreadyActive ? "Access email sent to" : "Activation email sent to",
+            contactEmail
+          );
           await writeCrmTimeline(contact.cid, "activation_sent",
-            "Activation email sent with password setup link", "forms", ctx.submission?.id || null, "system", {});
+            accountAlreadyActive
+              ? "Access email sent with platform login link"
+              : "Activation email sent with password setup link",
+            "forms", ctx.submission?.id || null, "system", {});
         } else if (tracked.skipped) {
           console.log("[Automation] Activation email already sent — skipped", contactEmail);
         } else {
