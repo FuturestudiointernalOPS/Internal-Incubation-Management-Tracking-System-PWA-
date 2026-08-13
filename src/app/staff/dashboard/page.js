@@ -20,6 +20,30 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 
+const STATUS_LABELS = {
+  active: "status.active",
+  pending: "status.pending",
+  inProgress: "status.inProgress",
+  completed: "status.completed",
+  archived: "status.archived",
+  draft: "status.draft",
+  submitted: "status.submitted",
+  blocked: "status.blocked",
+  carriedOver: "status.carriedOver",
+  carryover: "status.carryover",
+  resolved: "status.resolved",
+  done: "status.done",
+  overdue: "status.overdue",
+  onTrack: "status.onTrack",
+  atRisk: "status.atRisk",
+};
+
+const ROLE_LABELS = {
+  group_leader: "staff.roles.groupLeader",
+  teacher: "staff.roles.teacher",
+  staff: "staff.roles.staff",
+};
+
 export default function StaffDashboard() {
   const { t } = useI18n();
   const [isLoaded, setIsLoaded] = useState(false);
@@ -76,15 +100,14 @@ export default function StaffDashboard() {
           <div className="flex items-center gap-4">
             <Star className="w-5 h-5 text-[#FF6600]" />
             <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">
-              Tactical Faculty Hub
+              {t("staff.welcome.eyebrow")}
             </span>
           </div>
           <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">
-            Command Overview
+            {t("staff.welcome.title")}
           </h2>
           <p className="text-slate-400 font-bold max-w-xl opacity-70">
-            Monitor your assigned program clusters and intercept participant
-            submissions for evaluation.
+            {t("staff.welcome.subtitle")}
           </p>
         </header>
 
@@ -92,7 +115,7 @@ export default function StaffDashboard() {
         <StandupRetroView
           user={user}
           context={{ context_type: "staff", context_id: null }}
-          contextLabel="Future Studio — Staff Operations"
+          contextLabel={t("staff.welcome.contextLabel")}
         />
 
         {/* UPCOMING TASKS */}
@@ -100,19 +123,19 @@ export default function StaffDashboard() {
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-amber-400" />
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-              Next 5 Upcoming Tasks
+              {t("staff.tasks.upcomingTitle")}
             </h3>
           </div>
           {tasksLoading ? (
             <div className="flex items-center gap-3 py-4">
               <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                Loading tasks...
+                {t("staff.tasks.loading")}
               </span>
             </div>
           ) : upcomingTasks.length === 0 ? (
             <p className="text-[10px] text-slate-600 italic py-4">
-              No upcoming tasks.
+              {t("staff.tasks.none")}
             </p>
           ) : (
             <div className="space-y-2">
@@ -135,7 +158,7 @@ export default function StaffDashboard() {
                     </div>
                   </div>
                   <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 uppercase tracking-wider shrink-0 ml-2">
-                    {task.status}
+                    {t(STATUS_LABELS[task.status] || "") || task.status}
                   </span>
                 </div>
               ))}
@@ -148,10 +171,12 @@ export default function StaffDashboard() {
           <div className="xl:col-span-2 space-y-8">
             <div className="flex justify-between items-end">
               <h3 className="text-xl font-black text-white uppercase italic tracking-widest">
-                Active Assignments
+                {t("staff.assignments.title")}
               </h3>
               <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
-                {assignments.length} Program Clusters
+                {t("staff.assignments.clusterCount", {
+                  count: assignments.length,
+                })}
               </span>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -164,7 +189,8 @@ export default function StaffDashboard() {
                     <div
                       className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${assign.role === "group_leader" ? "bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20" : "bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20"}`}
                     >
-                      {assign.role.replace("_", " ")}
+                      {t(ROLE_LABELS[assign.role] || "") ||
+                        assign.role.replace("_", " ")}
                     </div>
                     <Activity className="w-5 h-5 text-slate-800 group-hover:text-[#FF6600] transition-colors" />
                   </div>
@@ -173,12 +199,14 @@ export default function StaffDashboard() {
                       {assign.program_name}
                     </h4>
                     <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-                      Status: {assign.program_status}
+                      {t("staff.assignments.statusLabel")}
+                      {t(STATUS_LABELS[assign.program_status] || "") ||
+                        assign.program_status}
                     </p>
                   </div>
                   <div className="pt-6 border-t border-white/5 flex justify-between items-center">
                     <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
-                      View Program Logic
+                      {t("staff.assignments.viewLogic")}
                     </span>
                     <ArrowRight className="w-4 h-4 text-slate-800" />
                   </div>
@@ -190,7 +218,7 @@ export default function StaffDashboard() {
           {/* PENDING INTERCEPTIONS (Submissions) */}
           <div className="space-y-8">
             <h3 className="text-xl font-black text-white uppercase italic tracking-widest">
-              Pending Signals
+              {t("staff.signals.title")}
             </h3>
             <div className="space-y-4">
               {pendingSubmissions.map((sub) => (
@@ -202,25 +230,26 @@ export default function StaffDashboard() {
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-[#FF6600] shadow-[0_0_10px_rgba(255,102,0,0.5)]" />
                       <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
-                        New Submission
+                        {t("staff.signals.newSubmission")}
                       </span>
                     </div>
                     <span className="text-[9px] font-bold text-slate-700">
-                      2m ago
+                      {t("staff.signals.twoMinAgo")}
                     </span>
                   </div>
                   <p className="text-[12px] font-bold text-slate-400 leading-relaxed italic">
-                    Participant CID-{sub.participant_id.slice(0, 8)} has
-                    deployed a tactical node for review.
+                    {t("staff.signals.submissionAlert", {
+                      cid: sub.participant_id.slice(0, 8),
+                    })}
                   </p>
                   <button className="w-full py-4 bg-white/5 text-white font-black uppercase text-[9px] tracking-[0.3em] rounded-xl group-hover:bg-[#FF6600] group-hover:text-black transition-all">
-                    Intercept & Evaluate
+                    {t("staff.signals.intercept")}
                   </button>
                 </div>
               ))}
               {pendingSubmissions.length === 0 && (
                 <div className="ios-card border-dashed py-32 text-center italic text-slate-700 text-[11px] uppercase tracking-widest opacity-40">
-                  No Pending Signals detected...
+                  {t("staff.signals.none")}
                 </div>
               )}
             </div>

@@ -27,6 +27,17 @@ import {
 import { motion } from "framer-motion";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 
+// ─── Submission status labels ──────────────────────────────────────
+// Raw values come from the API (v2_submissions.status); translate at
+// render time and fall back to the raw value for anything unknown.
+const SUBMISSION_STATUS_LABELS = {
+  pending: "participant.pending",
+  approved: "participant.approved",
+  rejected: "participant.rejected",
+  revision_requested: "participant.revisionRequested",
+  pending_followup: "participant.pendingFollowup",
+};
+
 // ─── Progress Ring ─────────────────────────────────────────────────
 function ProgressRing({
   percent,
@@ -111,7 +122,7 @@ function MetricCard({ label, value, icon: Icon, color, trend }) {
 }
 
 // ─── Announcement Item ──────────────────────────────────────────────
-function AnnouncementItem({ announcement }) {
+function AnnouncementItem({ announcement, lang }) {
   const typeIcons = {
     announcement: Bell,
     schedule: Calendar,
@@ -211,7 +222,7 @@ export default function ParticipantDashboardHome() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { t, lang } = useI18n();
+  const { lang, t } = useI18n();
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -222,10 +233,10 @@ export default function ParticipantDashboardHome() {
       if (result.success) {
         setData(result);
       } else {
-        setError(result.error || "Failed to load dashboard");
+        setError(result.error || t("participant.failedToLoad"));
       }
     } catch (e) {
-      setError("Network error. Please try again.");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -244,7 +255,7 @@ export default function ParticipantDashboardHome() {
         </div>
         <div className="text-center">
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-            Failed to Load
+            {t("participant.failedToLoad")}
           </h3>
           <p className="text-[12px] text-[var(--text-secondary)] mt-2 max-w-md">
             {error}
@@ -254,7 +265,7 @@ export default function ParticipantDashboardHome() {
           onClick={fetchDashboard}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
         >
-          <RefreshCw className="w-3.5 h-3.5" /> Retry
+          <RefreshCw className="w-3.5 h-3.5" /> {t("participant.retry")}
         </button>
       </div>
     );
@@ -274,11 +285,10 @@ export default function ParticipantDashboardHome() {
         </div>
         <div className="text-center">
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-            No Programs Yet
+            {t("participant.noPrograms")}
           </h3>
           <p className="text-[12px] text-[var(--text-secondary)] mt-2 max-w-md">
-            You are not enrolled in any programs yet. Once you are added to a
-            program, your dashboard will appear here.
+            {t("participant.noProgramsDesc")}
           </p>
         </div>
       </div>
@@ -321,13 +331,13 @@ export default function ParticipantDashboardHome() {
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
             <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">
-              Active Session
+              {t("participant.activeSession")}
             </span>
           </div>
           <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight">
-            Welcome back,{" "}
+            {t("participant.welcomeBack")},{" "}
             <span className="text-[var(--brand-orange)]">
-              {participant?.name?.split(" ")[0] || "Participant"}
+              {participant?.name?.split(" ")[0] || t("participant.defaultName")}
             </span>
           </h1>
           {primaryProgram && (
@@ -347,8 +357,10 @@ export default function ParticipantDashboardHome() {
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <Layers className="w-3.5 h-3.5 text-emerald-400" />
                 <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">
-                  Week {primaryProgram.currentWeek} of{" "}
-                  {primaryProgram.durationWeeks || "?"}
+                  {t("participant.weekOfTotal", {
+                    week: primaryProgram.currentWeek,
+                    total: primaryProgram.durationWeeks || "?",
+                  })}
                 </span>
               </div>
             </div>
@@ -363,11 +375,11 @@ export default function ParticipantDashboardHome() {
         transition={{ duration: 0.4, delay: 0.1 }}
       >
         <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4">
-          Your Progress
+          {t("participant.yourProgress")}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <MetricCard
-            label="Program Completion"
+            label={t("participant.programCompletion")}
             value={primaryProgram?.metrics?.programCompletion || 0}
             icon={Target}
             color={{
@@ -377,7 +389,7 @@ export default function ParticipantDashboardHome() {
             }}
           />
           <MetricCard
-            label="Attendance"
+            label={t("participant.attendance")}
             value={primaryProgram?.metrics?.attendanceRate || 0}
             icon={Users}
             color={{
@@ -387,7 +399,7 @@ export default function ParticipantDashboardHome() {
             }}
           />
           <MetricCard
-            label="Assignments"
+            label={t("participant.assignments")}
             value={primaryProgram?.metrics?.assignmentCompletion || 0}
             icon={FileText}
             color={{
@@ -397,7 +409,7 @@ export default function ParticipantDashboardHome() {
             }}
           />
           <MetricCard
-            label="KPI Achievement"
+            label={t("participant.kpiAchievement")}
             value={primaryProgram?.metrics?.kpiCompletion || 0}
             icon={BarChart3}
             color={{
@@ -418,7 +430,9 @@ export default function ParticipantDashboardHome() {
           {actionCenter.overdue.length > 0 && (
             <div className="card border-l-4 border-l-rose-500 !py-3 !px-4">
               <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
-                Overdue ({actionCenter.overdue.length})
+                {t("participant.overdueCount", {
+                  count: actionCenter.overdue.length,
+                })}
               </p>
               <div className="space-y-1 mt-2">
                 {actionCenter.overdue.slice(0, 3).map((item) => (
@@ -439,7 +453,9 @@ export default function ParticipantDashboardHome() {
           {actionCenter.dueSoon.length > 0 && (
             <div className="card border-l-4 border-l-amber-500 !py-3 !px-4">
               <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">
-                Due This Week ({actionCenter.dueSoon.length})
+                {t("participant.dueThisWeekCount", {
+                  count: actionCenter.dueSoon.length,
+                })}
               </p>
               <div className="space-y-1 mt-2">
                 {actionCenter.dueSoon.slice(0, 3).map((item) => (
@@ -460,7 +476,9 @@ export default function ParticipantDashboardHome() {
           {actionCenter.pendingSubmissions.length > 0 && (
             <div className="card border-l-4 border-l-blue-500 !py-3 !px-4">
               <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">
-                Pending Review ({actionCenter.pendingSubmissions.length})
+                {t("participant.pendingReviewCount", {
+                  count: actionCenter.pendingSubmissions.length,
+                })}
               </p>
               <div className="space-y-1 mt-2">
                 {actionCenter.pendingSubmissions.slice(0, 3).map((item) => (
@@ -470,10 +488,13 @@ export default function ParticipantDashboardHome() {
                   >
                     <AlertCircle className="w-3 h-3 text-blue-500 shrink-0" />
                     <span className="truncate">
-                      Deliverable #{item.deliverableId}
+                      {t("participant.deliverableNumber", {
+                        id: item.deliverableId,
+                      })}
                     </span>
                     <span className="text-[7px] text-blue-500 shrink-0">
-                      {item.status}
+                      {t(SUBMISSION_STATUS_LABELS[item.status] || "") ||
+                        item.status}
                     </span>
                   </div>
                 ))}
@@ -492,11 +513,13 @@ export default function ParticipantDashboardHome() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-              Announcements
+              {t("participant.announcements")}
             </h2>
             {announcements.filter((a) => !a.isRead).length > 0 && (
               <span className="px-1.5 py-0.5 rounded text-[8px] font-black bg-[var(--brand-orange)] text-black">
-                {announcements.filter((a) => !a.isRead).length} NEW
+                {t("participant.newCount", {
+                  count: announcements.filter((a) => !a.isRead).length,
+                })}
               </span>
             )}
           </div>
@@ -508,13 +531,13 @@ export default function ParticipantDashboardHome() {
               <Bell className="w-6 h-6 text-[var(--text-tertiary)]" />
             </div>
             <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-              No announcements yet
+              {t("participant.noAnnouncements")}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {announcements.slice(0, 6).map((a) => (
-              <AnnouncementItem key={a.id} announcement={a} />
+              <AnnouncementItem key={a.id} announcement={a} lang={lang} />
             ))}
           </div>
         )}

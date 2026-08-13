@@ -17,15 +17,17 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const STEPS = [
-  { key: "upload", label: "Upload CSV" },
-  { key: "preview", label: "Preview Mapping" },
-  { key: "importing", label: "Import" },
-  { key: "done", label: "Done" },
+  { key: "upload", label: "adminMisc.platformImport.stepUpload" },
+  { key: "preview", label: "adminMisc.platformImport.stepPreview" },
+  { key: "importing", label: "adminMisc.platformImport.stepImport" },
+  { key: "done", label: "adminMisc.platformImport.stepDone" },
 ];
 
 export default function ImportPage() {
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [csvText, setCsvText] = useState("");
   const [csvFileName, setCsvFileName] = useState("");
@@ -71,7 +73,7 @@ export default function ImportPage() {
     const file = e.target.files[0];
     if (!file) return;
     if (!file.name.endsWith(".csv")) {
-      setError("Only CSV files are accepted.");
+      setError(t("adminMisc.platformImport.errorCsvOnly"));
       return;
     }
     setCsvFileName(file.name);
@@ -86,7 +88,7 @@ export default function ImportPage() {
 
   const handlePreview = async () => {
     if (!csvText || !selectedFormId) {
-      setError("Please select a form and upload a CSV file.");
+      setError(t("adminMisc.platformImport.errorSelectFormAndFile"));
       return;
     }
     setLoading(true);
@@ -109,10 +111,10 @@ export default function ImportPage() {
         setMapping(initialMapping);
         setStep(1);
       } else {
-        setError(data.error || "Preview failed.");
+        setError(data.error || t("adminMisc.platformImport.errorPreviewFailed"));
       }
     } catch (err) {
-      setError("Network error.");
+      setError(t("adminMisc.platformImport.errorNetwork"));
     } finally {
       setLoading(false);
     }
@@ -160,7 +162,7 @@ export default function ImportPage() {
 
   const handleExecute = async () => {
     if (!selectedRunId) {
-      setError("Please select a run.");
+      setError(t("adminMisc.platformImport.errorSelectRun"));
       return;
     }
     setStep(2);
@@ -185,11 +187,11 @@ export default function ImportPage() {
         setImportProgress(100);
         setStep(3);
       } else {
-        setError(data.error || "Import failed.");
+        setError(data.error || t("adminMisc.platformImport.errorImportFailed"));
         setStep(1);
       }
     } catch (err) {
-      setError("Network error during import.");
+      setError(t("adminMisc.platformImport.errorNetworkDuringImport"));
       setStep(1);
     }
   };
@@ -219,15 +221,14 @@ export default function ImportPage() {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-              Platform
+              {t("adminMisc.platformImport.eyebrow")}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-            Historical Import
+            {t("adminMisc.platformImport.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Import past submissions from CSV with intelligent field mapping and
-            CRM contact resolution.
+            {t("adminMisc.platformImport.subtitle")}
           </p>
         </div>
 
@@ -252,7 +253,7 @@ export default function ImportPage() {
                     {i + 1}
                   </span>
                 )}
-                {s.label}
+                {t(s.label)}
               </button>
               {i < STEPS.length - 1 && (
                 <ArrowRight className="w-3 h-3 text-[var(--text-secondary)]" />
@@ -290,7 +291,7 @@ export default function ImportPage() {
             {/* Form selector */}
             <div>
               <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                Select Form
+                {t("adminMisc.platformImport.selectForm")}
               </label>
               <select
                 value={selectedFormId}
@@ -305,10 +306,10 @@ export default function ImportPage() {
                 }}
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
-                <option value="">Choose a form...</option>
+                <option value="">{t("adminMisc.platformImport.chooseForm")}</option>
                 {forms.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.name} {f.status === "archived" ? "(archived)" : ""}
+                    {f.name} {f.status === "archived" ? `(${t("adminMisc.platformImport.archivedSuffix")})` : ""}
                   </option>
                 ))}
               </select>
@@ -318,7 +319,7 @@ export default function ImportPage() {
             {selectedFormId && (
               <div>
                 <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-                  Select Run
+                  {t("adminMisc.platformImport.selectRun")}
                 </label>
                 <select
                   value={selectedRunId}
@@ -331,10 +332,10 @@ export default function ImportPage() {
                   }}
                   className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
                 >
-                  <option value="">Choose a run...</option>
+                  <option value="">{t("adminMisc.platformImport.chooseRun")}</option>
                   {runs.map((r) => (
                     <option key={r.id} value={r.id}>
-                      {r.name || `Run #${r.id}`} ({r.status})
+                      {r.name || `${t("adminMisc.platformImport.runFallback")} #${r.id}`} ({r.status})
                     </option>
                   ))}
                 </select>
@@ -368,17 +369,17 @@ export default function ImportPage() {
                     }}
                     className="text-[10px] text-rose-500 font-bold uppercase hover:underline"
                   >
-                    Remove
+                    {t("adminMisc.platformImport.remove")}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <UploadCloud className="w-12 h-12 text-[var(--text-secondary)] mx-auto" />
                   <p className="text-sm font-bold text-[var(--text-primary)]">
-                    Click to select CSV file
+                    {t("adminMisc.platformImport.clickToSelect")}
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)]">
-                    CSV with historical submission data
+                    {t("adminMisc.platformImport.csvHint")}
                   </p>
                 </div>
               )}
@@ -392,11 +393,11 @@ export default function ImportPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Analyzing...
+                  {t("adminMisc.platformImport.analyzing")}
                 </>
               ) : (
                 <>
-                  Preview Mapping
+                  {t("adminMisc.platformImport.previewMapping")}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -414,11 +415,10 @@ export default function ImportPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-bold text-[var(--text-primary)]">
-                  Column Mapping
+                  {t("adminMisc.platformImport.columnMapping")}
                 </h2>
                 <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                  {previewData.total_rows} rows detected. Map CSV columns to
-                  form fields below.
+                  {t("adminMisc.platformImport.rowsDetected", { count: previewData.total_rows })}
                 </p>
                 <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
                   Questions loaded from{" "}
@@ -437,7 +437,7 @@ export default function ImportPage() {
                 onClick={() => setStep(0)}
                 className="flex items-center gap-1 text-[10px] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] font-bold uppercase"
               >
-                <ArrowLeft className="w-3 h-3" /> Back
+                <ArrowLeft className="w-3 h-3" /> {t("adminMisc.platformImport.back")}
               </button>
             </div>
 
@@ -460,13 +460,13 @@ export default function ImportPage() {
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
                     <th className="p-3 text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                      CSV Column
+                      {t("adminMisc.platformImport.csvColumn")}
                     </th>
                     <th className="p-3 text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                      Maps To
+                      {t("adminMisc.platformImport.mapsTo")}
                     </th>
                     <th className="p-3 text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                      Sample Value
+                      {t("adminMisc.platformImport.sampleValue")}
                     </th>
                   </tr>
                 </thead>
@@ -485,14 +485,14 @@ export default function ImportPage() {
                           onChange={(e) => updateMapping(col, e.target.value)}
                           className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                         >
-                          <option value="">-- Skip --</option>
-                          <optgroup label="Special Fields">
-                            <option value="_name">→ Name</option>
-                            <option value="_email">→ Email</option>
-                            <option value="_phone">→ Phone</option>
-                            <option value="_crm_id">→ CRM ID</option>
+                          <option value="">{t("adminMisc.platformImport.skipOption")}</option>
+                          <optgroup label={t("adminMisc.platformImport.specialFields")}>
+                            <option value="_name">{t("adminMisc.platformImport.fieldName")}</option>
+                            <option value="_email">{t("adminMisc.platformImport.fieldEmail")}</option>
+                            <option value="_phone">{t("adminMisc.platformImport.fieldPhone")}</option>
+                            <option value="_crm_id">{t("adminMisc.platformImport.fieldCrmId")}</option>
                           </optgroup>
-                          <optgroup label="Form Fields">
+                          <optgroup label={t("adminMisc.platformImport.formFields")}>
                             {previewData.form_fields.map((f) => (
                               <option key={f.id} value={f.id}>
                                 {f.label} ({f.field_type})
@@ -534,7 +534,7 @@ export default function ImportPage() {
             {previewData.unmatched.length > 0 && (
               <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <p className="text-[10px] font-bold text-amber-500 uppercase">
-                  Unmatched columns: {previewData.unmatched.join(", ")}
+                  {t("adminMisc.platformImport.unmatchedColumns", { columns: previewData.unmatched.join(", ") })}
                 </p>
               </div>
             )}
@@ -542,7 +542,7 @@ export default function ImportPage() {
             {/* Preview rows */}
             <div>
               <h3 className="text-xs font-bold text-[var(--text-primary)] mb-3">
-                Preview Rows
+                {t("adminMisc.platformImport.previewRows")}
               </h3>
               <div className="overflow-x-auto max-h-48">
                 <table className="w-full text-left text-[10px]">
@@ -585,7 +585,7 @@ export default function ImportPage() {
               className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
-              Start Import ({previewData.total_rows} rows)
+              {t("adminMisc.platformImport.startImport", { count: previewData.total_rows })}
             </button>
           </motion.div>
         )}
@@ -599,7 +599,7 @@ export default function ImportPage() {
           >
             <Loader2 className="w-12 h-12 text-[var(--brand-orange)] mx-auto animate-spin" />
             <h2 className="text-lg font-bold text-[var(--text-primary)]">
-              Importing Submissions...
+              {t("adminMisc.platformImport.importingTitle")}
             </h2>
             <div className="w-full bg-[var(--border-primary)] rounded-full h-2 overflow-hidden">
               <motion.div
@@ -610,7 +610,7 @@ export default function ImportPage() {
               />
             </div>
             <p className="text-[10px] text-[var(--text-secondary)]">
-              Resolving contacts and creating submissions...
+              {t("adminMisc.platformImport.importingSubtitle")}
             </p>
           </motion.div>
         )}
@@ -625,17 +625,17 @@ export default function ImportPage() {
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
               <p className="text-[11px] font-bold text-emerald-500 uppercase">
-                Import Complete
+                {t("adminMisc.platformImport.importComplete")}
               </p>
             </div>
 
             {importResult.duplicate_batch && importResult.previous_batch && (
               <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                 <p className="text-[10px] font-bold text-amber-500 uppercase">
-                  ⚠ This file appears to have been imported before (batch #{importResult.previous_batch.id}, {new Date(importResult.previous_batch.created_at).toLocaleDateString()}).
+                  {t("adminMisc.platformImport.duplicateWarning", { batchId: importResult.previous_batch.id, date: new Date(importResult.previous_batch.created_at).toLocaleDateString() })}
                 </p>
                 <p className="text-[9px] text-[var(--text-secondary)] mt-1">
-                  Duplicates were skipped automatically — no applicant or response was created twice.
+                  {t("adminMisc.platformImport.duplicateSkipped")}
                 </p>
               </div>
             )}
@@ -646,7 +646,7 @@ export default function ImportPage() {
                   {importResult.imported}
                 </p>
                 <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                  Imported
+                  {t("adminMisc.platformImport.statImported")}
                 </p>
               </div>
               <div className="card p-4 text-center border-l-4 border-amber-500">
@@ -654,7 +654,7 @@ export default function ImportPage() {
                   {importResult.skipped}
                 </p>
                 <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                  Skipped
+                  {t("adminMisc.platformImport.statSkipped")}
                 </p>
               </div>
               <div className="card p-4 text-center border-l-4 border-blue-500">
@@ -662,7 +662,7 @@ export default function ImportPage() {
                   {importResult.needs_review || 0}
                 </p>
                 <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                  Needs Review
+                  {t("adminMisc.platformImport.statNeedsReview")}
                 </p>
               </div>
               <div className="card p-4 text-center border-l-4 border-rose-500">
@@ -670,7 +670,7 @@ export default function ImportPage() {
                   {importResult.errors?.length || 0}
                 </p>
                 <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                  Errors
+                  {t("adminMisc.platformImport.statErrors")}
                 </p>
               </div>
             </div>
@@ -678,20 +678,20 @@ export default function ImportPage() {
             {importResult.needs_review > 0 && importResult.review_rows?.length > 0 && (
               <div className="card p-4 border-l-4 border-blue-500">
                 <p className="text-[10px] font-bold text-blue-500 uppercase mb-2">
-                  Identity Review Required
+                  {t("adminMisc.platformImport.identityReviewRequired")}
                 </p>
                 <p className="text-[9px] text-[var(--text-secondary)] mb-3">
-                  These rows matched an existing contact by name only. Verify each one in the CRM duplicate tool before evaluation.
+                  {t("adminMisc.platformImport.identityReviewHint")}
                 </p>
                 <div className="max-h-40 overflow-y-auto space-y-1">
                   {importResult.review_rows.slice(0, 20).map((r, i) => (
                     <p key={i} className="text-[10px] text-[var(--text-secondary)]">
-                      Row {r.row}: {r.name} {r.email ? `(${r.email})` : ""} — {r.reason}
+                      {t("adminMisc.platformImport.rowPrefix")} {r.row}: {r.name} {r.email ? `(${r.email})` : ""} — {r.reason}
                     </p>
                   ))}
                   {importResult.review_rows.length > 20 && (
                     <p className="text-[9px] text-[var(--text-secondary)] italic">
-                      +{importResult.review_rows.length - 20} more rows…
+                      {t("adminMisc.platformImport.moreRows", { count: importResult.review_rows.length - 20 })}
                     </p>
                   )}
                 </div>
@@ -701,7 +701,7 @@ export default function ImportPage() {
             {importResult.errors?.length > 0 && (
               <div className="card p-4">
                 <p className="text-[10px] font-bold text-rose-500 uppercase mb-2">
-                  Row Errors
+                  {t("adminMisc.platformImport.rowErrors")}
                 </p>
                 <div className="max-h-32 overflow-y-auto space-y-1">
                   {importResult.errors.slice(0, 10).map((err, i) => (
@@ -709,7 +709,7 @@ export default function ImportPage() {
                       key={i}
                       className="text-[10px] text-[var(--text-secondary)] font-mono"
                     >
-                      Row {err.row}: {err.error}
+                      {t("adminMisc.platformImport.rowPrefix")} {err.row}: {err.error}
                     </p>
                   ))}
                 </div>
@@ -722,7 +722,9 @@ export default function ImportPage() {
                 className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3"
               >
                 <AlertTriangle className="w-4 h-4" />
-                Review {importResult.needs_review} Flagged Identit{importResult.needs_review === 1 ? "y" : "ies"}
+                {importResult.needs_review === 1
+                  ? t("adminMisc.platformImport.reviewFlaggedOne", { count: importResult.needs_review })
+                  : t("adminMisc.platformImport.reviewFlaggedMany", { count: importResult.needs_review })}
               </Link>
             )}
 
@@ -731,7 +733,7 @@ export default function ImportPage() {
               className="btn w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3"
             >
               <RefreshCw className="w-4 h-4" />
-              New Import
+              {t("adminMisc.platformImport.newImport")}
             </button>
           </motion.div>
         )}

@@ -120,6 +120,36 @@
       "hr": "RH",
       "technology": "Technologie",
       "other": "Autre"
+    },
+    "welcome": {
+      "eyebrow": "Hub tactique du corps enseignant",
+      "title": "Vue de commandement",
+      "subtitle": "Surveillez vos clusters de programme assignés et interceptez les soumissions des participants pour évaluation.",
+      "contextLabel": "Future Studio — Opérations du personnel"
+    },
+    "tasks": {
+      "upcomingTitle": "Les 5 prochaines tâches",
+      "loading": "Chargement des tâches...",
+      "none": "Aucune tâche à venir."
+    },
+    "assignments": {
+      "title": "Affectations actives",
+      "clusterCount": "{count} clusters de programme",
+      "statusLabel": "Statut : ",
+      "viewLogic": "Voir la logique du programme"
+    },
+    "signals": {
+      "title": "Signaux en attente",
+      "newSubmission": "Nouvelle soumission",
+      "twoMinAgo": "il y a 2 min",
+      "submissionAlert": "Le participant CID-{cid} a déployé un nœud tactique pour examen.",
+      "intercept": "Intercepter et évaluer",
+      "none": "Aucun signal en attente détecté..."
+    },
+    "roles": {
+      "groupLeader": "Chef de groupe",
+      "teacher": "Enseignant",
+      "staff": "Personnel"
     }
   }
 }

@@ -21,8 +21,25 @@ import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 
-// ─── Status Badge ──────────────────────────────────────────────────
+// ─── Status / Mode Lookup Maps ─────────────────────────────────────
+const STATUS_LABELS = {
+  active: "status.active",
+  completed: "status.completed",
+  pending: "status.pending",
+  archived: "status.archived",
+};
+
+const PROGRAM_MODE_LABELS = {
+  academic: "participant.academic",
+  incubation: "participant.incubation",
+  acceleration: "participant.acceleration",
+  bootcamp: "participant.bootcamp",
+  workshop: "participant.workshop",
+  fellowship: "participant.fellowship",
+};
+
 function StatusBadge({ status }) {
+  const { t } = useI18n();
   const config = {
     active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     completed: "bg-blue-500/10 text-blue-400 border-blue-500/20",
@@ -34,7 +51,9 @@ function StatusBadge({ status }) {
     <span
       className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${classes}`}
     >
-      {status || "Active"}
+      {t(STATUS_LABELS[status?.toLowerCase()] || "") ||
+        status ||
+        t("status.active")}
     </span>
   );
 }
@@ -62,7 +81,7 @@ function MiniMetric({ icon: Icon, label, value, color }) {
 
 // ─── Program Card ───────────────────────────────────────────────────
 function ProgramCard({ program, onSelect }) {
-  const { lang } = useI18n();
+  const { lang, t } = useI18n();
   const { metrics } = program;
   const progressColor =
     metrics.percentComplete >= 80
@@ -87,7 +106,8 @@ function ProgramCard({ program, onSelect }) {
             <StatusBadge status={program.status} />
             {program.programMode && (
               <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                {program.programMode}
+                {t(PROGRAM_MODE_LABELS[program.programMode?.toLowerCase()] || "") ||
+                  program.programMode}
               </span>
             )}
           </div>
@@ -139,7 +159,7 @@ function ProgramCard({ program, onSelect }) {
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Layers className="w-3 h-3 text-[var(--text-tertiary)]" />
             <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
-              Week {program.currentWeek}/{program.durationWeeks}
+              {t("time.week")} {program.currentWeek}/{program.durationWeeks}
             </span>
           </div>
         )}
@@ -147,8 +167,12 @@ function ProgramCard({ program, onSelect }) {
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
             <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
-              {program.facilitators.length} facilitator
-              {program.facilitators.length > 1 ? "s" : ""}
+              {t(
+                program.facilitators.length > 1
+                  ? "participant.facilitatorCountPlural"
+                  : "participant.facilitatorCount",
+                { count: program.facilitators.length },
+              )}
             </span>
           </div>
         )}
@@ -158,7 +182,7 @@ function ProgramCard({ program, onSelect }) {
       <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--border-primary)]">
         <MiniMetric
           icon={Target}
-          label="Progress"
+          label={t("participant.progress")}
           value={metrics.percentComplete}
           color={{
             bg: "bg-[var(--brand-orange)]/10",
@@ -167,13 +191,13 @@ function ProgramCard({ program, onSelect }) {
         />
         <MiniMetric
           icon={Users}
-          label="Attendance"
+          label={t("participant.attendance")}
           value={metrics.attendanceRate}
           color={{ bg: "bg-emerald-500/10", text: "text-emerald-400" }}
         />
         <MiniMetric
           icon={FileText}
-          label="Assignments"
+          label={t("participant.assignments")}
           value={metrics.assignmentCompletion}
           color={{ bg: "bg-blue-500/10", text: "text-blue-400" }}
         />
@@ -194,7 +218,7 @@ function ProgramCard({ program, onSelect }) {
           </span>
         </div>
         <div className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] group-hover:gap-2 transition-all">
-          <span>Details</span>
+          <span>{t("participant.details")}</span>
           <ChevronRight className="w-3 h-3" />
         </div>
       </div>
@@ -242,6 +266,7 @@ export default function ProgramListing() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [contact, setContact] = useState(null);
+  const { t } = useI18n();
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -253,10 +278,10 @@ export default function ProgramListing() {
         setPrograms(data.programs || []);
         setContact(data.contact);
       } else {
-        setError(data.error || "Failed to load programs");
+        setError(data.error || t("participant.failedToLoadPrograms"));
       }
     } catch (e) {
-      setError("Network error. Please try again.");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -279,7 +304,7 @@ export default function ProgramListing() {
         </div>
         <div className="text-center">
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-            Failed to Load Programs
+            {t("participant.failedToLoadPrograms")}
           </h3>
           <p className="text-[12px] text-[var(--text-secondary)] mt-2">
             {error}
@@ -289,7 +314,7 @@ export default function ProgramListing() {
           onClick={fetchPrograms}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
         >
-          <RefreshCw className="w-3.5 h-3.5" /> Retry
+          <RefreshCw className="w-3.5 h-3.5" /> {t("participant.retry")}
         </button>
       </div>
     );
@@ -307,11 +332,10 @@ export default function ProgramListing() {
         </div>
         <div className="text-center">
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
-            No Programs Yet
+            {t("participant.noPrograms")}
           </h3>
           <p className="text-[12px] text-[var(--text-secondary)] mt-2 max-w-md">
-            You are not enrolled in any programs yet. Once you are added to a
-            program, it will appear here.
+            {t("participant.noProgramsDesc")}
           </p>
         </div>
       </div>
@@ -335,10 +359,10 @@ export default function ProgramListing() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-          My Programs
+          {t("participant.myPrograms")}
         </h1>
         <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-          {programs.length} program{programs.length > 1 ? "s" : ""} enrolled
+          {programs.length} {t("participant.programsEnrolled")}
           {contact?.name ? ` — ${contact.name}` : ""}
         </p>
       </div>
@@ -349,7 +373,7 @@ export default function ProgramListing() {
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
-              Active Programs ({activePrograms.length})
+              {t("participant.activePrograms")} ({activePrograms.length})
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -370,7 +394,7 @@ export default function ProgramListing() {
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
             <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
-              Other Programs ({otherPrograms.length})
+              {t("participant.otherPrograms")} ({otherPrograms.length})
             </h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

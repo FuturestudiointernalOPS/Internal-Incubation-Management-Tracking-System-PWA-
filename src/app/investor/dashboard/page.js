@@ -32,13 +32,13 @@ const STAGE_COLORS = {
 };
 
 const STAGE_LABELS = {
-  interested: "Interested",
-  watching: "Watching",
-  meeting_requested: "Meeting Requested",
-  due_diligence: "Due Diligence",
-  negotiation: "Negotiation",
-  invested: "Invested",
-  declined: "Declined",
+  interested: "interested",
+  watching: "watching",
+  meeting_requested: "meetingRequested",
+  due_diligence: "dueDiligence",
+  negotiation: "negotiation",
+  invested: "invested",
+  declined: "declined",
 };
 
 const INDUSTRY_OPTIONS = ["FinTech","HealthTech","AgriTech","EdTech","CleanTech","Logistics","E-Commerce","SaaS","AI/ML","Renewable Energy"];
@@ -115,7 +115,7 @@ export default function InvestorDashboard() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: `Venture ${STAGE_LABELS[stage]}` });
+        setToast({ type: "success", message: `${t("venture")} ${t(STAGE_LABELS[stage] || "")}` });
         fetchDashboard();
       }
     } catch (_) {} finally {
@@ -550,7 +550,7 @@ export default function InvestorDashboard() {
                       stageFilter === stage ? "bg-[var(--brand-orange)] text-white" : STAGE_COLORS[stage]
                     }`}
                   >
-                    {STAGE_LABELS[stage]} ({count})
+                    {t(STAGE_LABELS[stage] || "")} ({count})
                   </button>
                 );
               })}
@@ -578,7 +578,7 @@ export default function InvestorDashboard() {
                       </div>
                       <div className="flex items-center gap-3">
                         <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${STAGE_COLORS[p.stage]}`}>
-                          {STAGE_LABELS[t(p.stage)] || p.stage}
+                          {t(STAGE_LABELS[p.stage] || "") || p.stage}
                         </span>
                         {p.stage === "due_diligence" && (
                           <button onClick={() => router.push(`/investor/diligence?pipeline_id=${p.id}`)}
@@ -593,7 +593,7 @@ export default function InvestorDashboard() {
                           className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait"
                         >
                           {PIPELINE_STAGES.map(s => (
-                            <option key={s} value={s}>{STAGE_LABELS[s]}</option>
+                            <option key={s} value={s}>{t(STAGE_LABELS[s] || "")}</option>
                           ))}
                         </select>
                       </div>
@@ -827,13 +827,13 @@ export default function InvestorDashboard() {
                     <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Your Pipeline Status</p>
                     <div className="flex items-center gap-3">
                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${STAGE_COLORS[detailPipeline.stage]}`}>
-                        {STAGE_LABELS[detailPipeline.stage]}
+                        {t(STAGE_LABELS[detailPipeline.stage] || "")}
                       </span>
                       <select value={detailPipeline.stage}
                         onChange={e => { addToPipeline(detailVenture.id, e.target.value); setDetailPipeline({...detailPipeline, stage: e.target.value}); }}
                         disabled={processingId !== null}
                         className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait">
-                        {PIPELINE_STAGES.map(s => <option key={s} value={s}>{STAGE_LABELS[s]}</option>)}
+                        {PIPELINE_STAGES.map(s => <option key={s} value={s}>{t(STAGE_LABELS[s] || "")}</option>)}
                       </select>
                     </div>
                   </div>

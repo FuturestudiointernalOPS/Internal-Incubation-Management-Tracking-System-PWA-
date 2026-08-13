@@ -122,7 +122,7 @@
       "updatedAt": "Mis à jour à {time}",
       "uploadDocuments": "Téléverser des documents",
       "uploadFirstDocument": "Téléversez votre premier document",
-      "venture": "Venture",
+      "venture": "Entreprise",
       "verification": "Vérification",
       "verifiedCount": "{verified}/{total} vérifiés"
     },
@@ -372,7 +372,7 @@
       "attendanceAbbr": "Prés.",
       "cancelRate": "Annul.",
       "noAdvisorAnalytics": "Aucune analyse de conseiller pour le moment",
-      "venturesCount": "{count} ventures",
+      "venturesCount": "{count} entreprises",
       "noFeedback": "Aucun retour pour le moment",
       "sessionNumber": "Session n°{id}",
       "commRating": "Comm. : {value}/5",
@@ -553,7 +553,7 @@
       "create": "Créer"
     },
     "list": {
-      "title": "Ventures",
+      "title": "Entreprises",
       "ventureOs": "Venture OS",
       "copyInviteLink": "Copier le lien d'invitation",
       "registerStartup": "Enregistrer une startup",
@@ -562,7 +562,7 @@
       "noVentures": "Aucune venture pour le moment",
       "tryDifferentSearch": "Essayez un autre terme de recherche",
       "noVenturesDesc": "Enregistrez votre première startup dans Venture OS",
-      "venture": "Venture",
+      "venture": "Entreprise",
       "industry": "Industrie",
       "stage": "Stade",
       "status": "Statut",

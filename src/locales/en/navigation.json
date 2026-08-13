@@ -30,6 +30,11 @@
     "assignments": "Assignments",
     "rituals": "Rituals",
     "announcements": "Announcements",
-    "followups": "Follow-ups"
+    "followups": "Follow-ups",
+    "impactOs": "ImpactOS",
+    "instructor": "Instructor",
+    "unknown": "Unknown",
+    "stagingBannerTitle": "STAGING ENVIRONMENT — Impersonating: {name} ({role})",
+    "stagingBannerDesc": "You are viewing the application as this user. Log out to return to your own account."
   }
 }

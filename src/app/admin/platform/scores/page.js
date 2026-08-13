@@ -18,16 +18,18 @@ import {
   Filter,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const STATUS_CONFIG = {
-  submitted: { label: "Pending Review", color: "text-amber-500", bg: "bg-amber-500/10" },
-  approved: { label: "Approved", color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  rejected: { label: "Rejected", color: "text-rose-500", bg: "bg-rose-500/10" },
-  revision_requested: { label: "Revision", color: "text-blue-500", bg: "bg-blue-500/10" },
-  draft: { label: "Draft", color: "text-slate-500", bg: "bg-slate-500/10" },
+  submitted: { label: "adminMisc.platformScores.statusSubmitted", color: "text-amber-500", bg: "bg-amber-500/10" },
+  approved: { label: "adminMisc.platformScores.statusApproved", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  rejected: { label: "adminMisc.platformScores.statusRejected", color: "text-rose-500", bg: "bg-rose-500/10" },
+  revision_requested: { label: "adminMisc.platformScores.statusRevision", color: "text-blue-500", bg: "bg-blue-500/10" },
+  draft: { label: "adminMisc.platformScores.statusDraft", color: "text-slate-500", bg: "bg-slate-500/10" },
 };
 
 export default function ScoresPage() {
+  const { t } = useI18n();
   const [forms, setForms] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState("");
   const [sort, setSort] = useState("desc");
@@ -71,7 +73,7 @@ export default function ScoresPage() {
 
   const fetchScores = useCallback(async () => {
     if (!selectedFormId) {
-      setError("Please select a form.");
+      setError(t("adminMisc.platformScores.errorSelectForm"));
       return;
     }
     setLoading(true);
@@ -91,10 +93,10 @@ export default function ScoresPage() {
         setData(d);
         setSelected({});
       } else {
-        setError(d.error || "Failed to fetch scores.");
+        setError(d.error || t("adminMisc.platformScores.fetchFailed"));
       }
     } catch (err) {
-      setError("Network error.");
+      setError(t("adminMisc.platformScores.networkError"));
     } finally {
       setLoading(false);
     }
@@ -111,7 +113,14 @@ export default function ScoresPage() {
   const exportCSV = () => {
     const rows = filteredRespondents;
     if (!rows.length) return;
-    const headers = ["Name", "Email", "Score", "Ranking", "Recommendation", "Status"];
+    const headers = [
+      t("adminMisc.platformScores.csvName"),
+      t("adminMisc.platformScores.csvEmail"),
+      t("adminMisc.platformScores.csvScore"),
+      t("adminMisc.platformScores.csvRanking"),
+      t("adminMisc.platformScores.csvRecommendation"),
+      t("adminMisc.platformScores.csvStatus"),
+    ];
     const bodyRows = rows.map((r) =>
       [
         `"${(r.name || "").replace(/"/g, '""')}"`,
@@ -222,13 +231,13 @@ export default function ScoresPage() {
       });
       const d = await res.json();
       if (d.success) {
-        notify(decision === "approved" ? "Applicant approved — group + activation email sent" : "Applicant rejected — history retained");
+        notify(decision === "approved" ? t("adminMisc.platformScores.approvedToast") : t("adminMisc.platformScores.rejectedToast"));
         fetchScores();
       } else {
-        notify(d.error || "Decision failed");
+        notify(d.error || t("adminMisc.platformScores.decisionFailed"));
       }
     } catch (_) {
-      notify("Network error");
+      notify(t("adminMisc.platformScores.networkError"));
     }
     setDeciding(null);
   };
@@ -258,7 +267,15 @@ export default function ScoresPage() {
     }
     setBulkLoading(false);
     setShowBulkConfirm(null);
-    notify(`${done} applicant${done === 1 ? "" : "s"} ${decision === "approved" ? "approved" : "rejected"}`);
+    notify(
+      decision === "approved"
+        ? done === 1
+          ? t("adminMisc.platformScores.bulkApprovedOne", { count: done })
+          : t("adminMisc.platformScores.bulkApprovedMany", { count: done })
+        : done === 1
+          ? t("adminMisc.platformScores.bulkRejectedOne", { count: done })
+          : t("adminMisc.platformScores.bulkRejectedMany", { count: done })
+    );
     fetchScores();
   };
 
@@ -278,33 +295,39 @@ export default function ScoresPage() {
               <div className="flex items-center gap-3">
                 <ShieldAlert className={`w-6 h-6 ${showBulkConfirm.decision === "approved" ? "text-emerald-500" : "text-rose-500"}`} />
                 <h3 className="text-lg font-black uppercase text-[var(--text-primary)]">
-                  {showBulkConfirm.decision === "approved" ? "Approve" : "Reject"} {pendingSelectedIds.length} applicant{pendingSelectedIds.length === 1 ? "" : "s"}?
+                  {showBulkConfirm.decision === "approved"
+                    ? pendingSelectedIds.length === 1
+                      ? t("adminMisc.platformScores.bulkApproveTitleOne", { count: pendingSelectedIds.length })
+                      : t("adminMisc.platformScores.bulkApproveTitleMany", { count: pendingSelectedIds.length })
+                    : pendingSelectedIds.length === 1
+                      ? t("adminMisc.platformScores.bulkRejectTitleOne", { count: pendingSelectedIds.length })
+                      : t("adminMisc.platformScores.bulkRejectTitleMany", { count: pendingSelectedIds.length })}
                 </h3>
               </div>
               {showBulkConfirm.decision === "approved" ? (
                 <div className="space-y-2 text-[10px] font-bold text-[var(--text-secondary)]">
-                  <p>✓ Each applicant's existing CRM Contact will be assigned to the Bootcamp Group linked to the Form Run</p>
-                  <p>✓ Platform credentials will be created (pending password setup)</p>
-                  <p>✓ Activation email will be sent to each applicant</p>
-                  <p>✓ CRM timeline updated for each contact</p>
+                  <p>{t("adminMisc.platformScores.bulkApproveBullet1")}</p>
+                  <p>{t("adminMisc.platformScores.bulkApproveBullet2")}</p>
+                  <p>{t("adminMisc.platformScores.bulkApproveBullet3")}</p>
+                  <p>{t("adminMisc.platformScores.bulkApproveBullet4")}</p>
                 </div>
               ) : (
                 <div className="space-y-2 text-[10px] font-bold text-[var(--text-secondary)]">
-                  <p>✗ No Group assignment</p>
-                  <p>✗ No activation email</p>
-                  <p>✓ Form response, CRM contact, and evaluation history are retained</p>
+                  <p>{t("adminMisc.platformScores.bulkRejectBullet1")}</p>
+                  <p>{t("adminMisc.platformScores.bulkRejectBullet2")}</p>
+                  <p>{t("adminMisc.platformScores.bulkRejectBullet3")}</p>
                 </div>
               )}
               <div className="flex gap-3">
                 <button onClick={() => setShowBulkConfirm(null)} className="flex-1 btn btn-secondary" disabled={bulkLoading}>
-                  Cancel
+                  {t("adminMisc.platformScores.cancel")}
                 </button>
                 <button
                   onClick={handleBulkDecision}
                   disabled={bulkLoading}
                   className={`flex-1 btn ${showBulkConfirm.decision === "approved" ? "bg-emerald-600 hover:bg-emerald-700" : "bg-rose-600 hover:bg-rose-700"} text-white`}
                 >
-                  {bulkLoading ? "Processing..." : "Confirm"}
+                  {bulkLoading ? t("adminMisc.platformScores.processing") : t("adminMisc.platformScores.confirm")}
                 </button>
               </div>
             </div>
@@ -316,14 +339,14 @@ export default function ScoresPage() {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-              Platform · AI
+              {t("adminMisc.platformScores.eyebrow")}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-            Evaluation Scores
+            {t("adminMisc.platformScores.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Filter, rank, and export AI evaluation scores by score threshold.
+            {t("adminMisc.platformScores.subtitle")}
           </p>
         </div>
 
@@ -332,7 +355,7 @@ export default function ScoresPage() {
           {/* Form selector */}
           <div>
             <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-              Select Form
+              {t("adminMisc.platformScores.selectForm")}
             </label>
             <select
               value={selectedFormId}
@@ -344,7 +367,7 @@ export default function ScoresPage() {
               }}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
             >
-              <option value="">Choose a form...</option>
+              <option value="">{t("adminMisc.platformScores.chooseForm")}</option>
               {forms.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -356,15 +379,15 @@ export default function ScoresPage() {
           {/* Sort */}
           <div className="flex items-center gap-4">
             <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-              Sort
+              {t("adminMisc.platformScores.sort")}
             </label>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
               className="bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
             >
-              <option value="desc">Highest First</option>
-              <option value="asc">Lowest First</option>
+              <option value="desc">{t("adminMisc.platformScores.sortDesc")}</option>
+              <option value="asc">{t("adminMisc.platformScores.sortAsc")}</option>
             </select>
           </div>
 
@@ -376,10 +399,10 @@ export default function ScoresPage() {
             {loading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Loading...
+                {t("adminMisc.platformScores.loading")}
               </>
             ) : (
-              "Fetch Scores"
+              t("adminMisc.platformScores.fetchScores")
             )}
           </button>
         </div>
@@ -413,7 +436,7 @@ export default function ScoresPage() {
                     {data.total_evaluated}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                    Total Evaluated
+                    {t("adminMisc.platformScores.statTotalEvaluated")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-emerald-500">
@@ -422,7 +445,7 @@ export default function ScoresPage() {
                     {filteredStats.qualifying}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                    Qualifying
+                    {t("adminMisc.platformScores.statQualifying")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-blue-500">
@@ -431,7 +454,7 @@ export default function ScoresPage() {
                     {filteredStats.average}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                    Avg Score
+                    {t("adminMisc.platformScores.statAvgScore")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-amber-500">
@@ -440,7 +463,7 @@ export default function ScoresPage() {
                     {scoreFilterLabel}
                   </p>
                   <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                    Score Filter
+                    {t("adminMisc.platformScores.statThreshold")}
                   </p>
                 </div>
               </div>
@@ -514,7 +537,7 @@ export default function ScoresPage() {
                     <option value="">Status: All</option>
                     {Object.entries(STATUS_CONFIG).map(([key, cfg]) => (
                       <option key={key} value={key}>
-                        Status: {cfg.label}
+                        Status: {t(cfg.label)}
                       </option>
                     ))}
                   </select>
@@ -586,25 +609,25 @@ export default function ScoresPage() {
                         }}
                         className="accent-[var(--brand-orange)]"
                       />
-                      Select all pending ({filteredRespondents.filter((r) => r.status === "submitted").length})
+                      {t("adminMisc.platformScores.selectAllPending", { count: filteredRespondents.filter((r) => r.status === "submitted").length })}
                     </label>
                   </div>
                   {pendingSelectedIds.length > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-                        {pendingSelectedIds.length} selected
+                        {t("adminMisc.platformScores.selectedCount", { count: pendingSelectedIds.length })}
                       </span>
                       <button
                         onClick={() => setShowBulkConfirm({ decision: "approved", count: pendingSelectedIds.length })}
                         className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110"
                       >
-                        Approve
+                        {t("adminMisc.platformScores.approve")}
                       </button>
                       <button
                         onClick={() => setShowBulkConfirm({ decision: "rejected", count: pendingSelectedIds.length })}
                         className="px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110"
                       >
-                        Reject
+                        {t("adminMisc.platformScores.reject")}
                       </button>
                     </div>
                   )}
@@ -613,7 +636,7 @@ export default function ScoresPage() {
                     className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all"
                   >
                     <Download className="w-3 h-3" />
-                    Export CSV
+                    {t("adminMisc.platformScores.exportCsv")}
                   </button>
                 </div>
               )}
@@ -623,7 +646,7 @@ export default function ScoresPage() {
                 {filteredRespondents.length === 0 ? (
                   <div className="p-8 text-center">
                     <p className="text-sm text-[var(--text-secondary)]">
-                      No respondents match your search and filters.
+                      {t("adminMisc.platformScores.noRespondents")}
                     </p>
                     {hasActiveFilters && (
                       <button onClick={clearFilters} className="mt-3 text-[10px] font-black uppercase text-[var(--brand-orange)] hover:underline">
@@ -671,7 +694,7 @@ export default function ScoresPage() {
                         </div>
                         {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
                           <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase flex-shrink-0 ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
-                            {STATUS_CONFIG[r.status].label}
+                            {t(STATUS_CONFIG[r.status].label)}
                           </span>
                         )}
                         <div className="text-right flex-shrink-0 w-16">
@@ -708,7 +731,7 @@ export default function ScoresPage() {
                             <div className="px-4 pb-4 pl-16 space-y-2">
                               <div>
                                 <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                                  Score
+                                  {t("adminMisc.platformScores.detailScore")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
                                   {r.score}
@@ -716,16 +739,16 @@ export default function ScoresPage() {
                               </div>
                               <div>
                                 <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                                  Ranking
+                                  {t("adminMisc.platformScores.detailRanking")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
-                                  {r.ranking || "N/A"}
+                                  {r.ranking || t("adminMisc.platformScores.na")}
                                 </p>
                               </div>
                               {r.recommendation && (
                                 <div>
                                   <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                                    Recommendation
+                                    {t("adminMisc.platformScores.detailRecommendation")}
                                   </span>
                                   <p className="text-xs text-[var(--text-primary)] mt-1 leading-relaxed">
                                     {r.recommendation}
@@ -742,7 +765,7 @@ export default function ScoresPage() {
                                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
-                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "approved" ? "..." : "Approve"}
+                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "approved" ? "..." : t("adminMisc.platformScores.approve")}
                                   </button>
                                   <button
                                     onClick={() => handleDecision(r.submission_id, "rejected")}
@@ -750,13 +773,13 @@ export default function ScoresPage() {
                                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
                                   >
                                     <XCircle className="w-3 h-3" />
-                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "rejected" ? "..." : "Reject"}
+                                    {deciding?.submission_id === r.submission_id && deciding?.decision === "rejected" ? "..." : t("adminMisc.platformScores.reject")}
                                   </button>
                                 </div>
                               ) : (
                                 <div className="pt-2">
                                   <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${STATUS_CONFIG[r.status]?.bg} ${STATUS_CONFIG[r.status]?.color}`}>
-                                    {STATUS_CONFIG[r.status]?.label || r.status}
+                                    {t(STATUS_CONFIG[r.status]?.label) || r.status}
                                   </span>
                                 </div>
                               )}

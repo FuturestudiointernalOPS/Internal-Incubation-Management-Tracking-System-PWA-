@@ -82,6 +82,12 @@ const NAV_KEY_MAP = {
   followups: "navigation.followups",
 };
 
+// Breadcrumb path-segment overrides (keys resolved via t() at render time).
+// Unknown segments intentionally pass through unchanged.
+const SEGMENT_LABELS = {
+  teacher: "navigation.instructor",
+};
+
 function tnav(key) {
   const mapped = NAV_KEY_MAP[key];
   if (mapped) return mapped;
@@ -131,7 +137,7 @@ const SidebarContent = ({
       {!collapsed && (
         <div className="px-3 mb-4">
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-40">
-            Main Operations
+            {t("navigation.mainOperations")}
           </p>
         </div>
       )}
@@ -238,7 +244,7 @@ const SidebarContent = ({
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
         {!collapsed && (
           <p className="px-3 mb-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-30">
-            User Protocol
+            {t("navigation.userProtocol")}
           </p>
         )}
         <Link
@@ -1349,6 +1355,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
     hasCommunicationActivity,
   };
 
+  const breadcrumbSeg = pathname
+    ? pathname.split("/").pop().replace(/-/g, " ")
+    : "";
+  const breadcrumbLabel = pathname
+    ? t(SEGMENT_LABELS[breadcrumbSeg] || "") || breadcrumbSeg
+    : t("navigation.dashboard");
+
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;
   }
@@ -1389,16 +1402,10 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
-              <span>ImpactOS</span>
+              <span>{t("navigation.impactOs")}</span>
               <ChevronRight className="w-3 h-3 opacity-30" />
               <span className="text-[var(--text-primary)]">
-                {pathname
-                  ? pathname
-                      .split("/")
-                      .pop()
-                      .replace(/-/g, " ")
-                      .replace(/\bteacher\b/gi, "Instructor")
-                  : "Dashboard"}
+                {breadcrumbLabel}
               </span>
             </div>
 
@@ -1782,10 +1789,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
-                    STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
+                    {t("navigation.stagingBannerTitle", {
+                      name: user?.name || t("navigation.unknown"),
+                      role: user?.role || "unknown",
+                    })}
                   </p>
                   <p className="text-[9px] text-amber-500/70 mt-0.5">
-                    You are viewing the application as this user. Log out to return to your own account.
+                    {t("navigation.stagingBannerDesc")}
                   </p>
                 </div>
               </div>

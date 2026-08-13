@@ -1,6 +1,6 @@
 {
   "venture": {
-    "title": "Ventures",
+    "title": "Entreprises",
     "createVenture": "Créer une venture",
     "namePlaceholder": "Nom de la venture",
     "description": "Description",
@@ -76,7 +76,7 @@
     "memberSince": "Membre depuis",
     "addMember": "Ajouter un membre",
     "memberRole": "Rôle",
-    "permissions": "Permissions",
+    "permissions": "Autorisations",
     "confirmRemove": "Retirer ce membre ?",
     "addSuccess": "Membre ajouté avec succès",
     "removeSuccess": "Membre retiré avec succès",
