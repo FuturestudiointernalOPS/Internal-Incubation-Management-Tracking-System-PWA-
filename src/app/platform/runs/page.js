@@ -1757,9 +1757,9 @@ export default function FormRunsPage() {
                                   className="text-[10px] text-[var(--text-secondary)] truncate max-w-[160px] block"
                                   title={sentLog
                                     ? `Sent to ${sentLog.recipient || "n/a"} — ${sentLog.email_type} via ${sentLog.provider || "email"} (${sentLog.status}${sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : ""})`
-                                    : s.email || "No email"}
+                                    : s.email || "No email provided"}
                                 >
-                                  {sentEmail || "—"}
+                                  {sentEmail || "No email provided"}
                                 </span>
                                 {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
                                   <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
