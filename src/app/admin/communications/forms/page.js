@@ -1,7 +1,10 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
+  ArrowLeft,
   Plus,
   CheckSquare,
   AlignLeft,
@@ -20,6 +23,7 @@ import { useI18n } from "@/lib/i18n";
 
 export default function FormsPage() {
   const { t } = useI18n();
+  const router = useRouter();
 
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -250,6 +254,23 @@ export default function FormsPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        {/* Back navigation */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToPrevious")}
+          </button>
+          <Link
+            href="/admin/crm"
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToCrm")}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">

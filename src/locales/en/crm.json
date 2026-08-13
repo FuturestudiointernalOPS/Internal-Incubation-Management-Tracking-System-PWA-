@@ -204,6 +204,8 @@
       "mergeFailed": "Merge failed."
     },
     "forms": {
+      "backToPrevious": "Back to previous menu",
+      "backToCrm": "Back to CRM",
       "formNeedsName": "Form needs a name.",
       "addAtLeastOneQuestion": "Add at least one question.",
       "saved": "Saved",

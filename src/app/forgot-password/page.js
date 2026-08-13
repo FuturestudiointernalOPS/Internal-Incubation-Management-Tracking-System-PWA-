@@ -12,7 +12,6 @@ import { useI18n } from "@/lib/i18n";
 export default function ForgotPasswordPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);

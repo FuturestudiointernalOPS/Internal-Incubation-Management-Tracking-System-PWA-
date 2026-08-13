@@ -11,7 +11,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
-import { useI18n } from "@/lib/i18n";
 
 const INDUSTRY_OPTIONS = [
   "FinTech", "HealthTech", "AgriTech", "EdTech", "CleanTech",
@@ -23,7 +22,6 @@ const COUNTRY_OPTIONS = ["CD", "KE", "NG", "ZA", "GH", "RW", "UG", "TZ", "EG", "
 export default function InvestorProfilePage() {
   const { t } = useI18n();
   const router = useRouter();
-  const { t } = useI18n();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

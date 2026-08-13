@@ -204,6 +204,8 @@
       "mergeFailed": "Échec de la fusion."
     },
     "forms": {
+      "backToPrevious": "Retour au menu précédent",
+      "backToCrm": "Retour au CRM",
       "formNeedsName": "Le formulaire doit avoir un nom.",
       "addAtLeastOneQuestion": "Ajoutez au moins une question.",
       "saved": "Enregistré",
