@@ -18,9 +18,16 @@ import { evaluateSubmission, hasEvaluation, getEvaluation } from "@/lib/platform
  *  - Progress % reflects only successfully saved evaluations
  */
 
-const DEFAULT_BATCH_SIZE = 20;
-const MAX_BATCH_SIZE = 25;
+const DEFAULT_BATCH_SIZE = 10;
+const MAX_BATCH_SIZE = 15;
 const CLAIM_TTL_MINUTES = 15;
+const AI_TIMEOUT_MS = 180000; // per-submission AI call timeout
+const IN_FLIGHT = 4; // concurrent AI evaluations within one batch request
+
+// Vercel: allow this route to run long enough for several AI evaluations
+// (Fluid compute clamps to the plan limit; harmless on smaller plans).
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
 
 async function ensureTables(db) {
   try {
@@ -48,11 +55,14 @@ async function cleanupExpiredClaims(db) {
 }
 
 async function getProgress(db, formId) {
+  // NOTE: total counts ALL real submissions (submitted/approved/rejected), not
+  // only 'submitted' — auto-approval flips status to 'approved' as evaluations
+  // complete, and that must not shrink the denominator while the batch runs.
   const [totalRes, evaluatedRes, failedRes] = await Promise.all([
     db.execute({
       sql: `SELECT COUNT(*)::int AS cnt FROM platform_form_submissions ps
             JOIN platform_form_runs r ON ps.run_id = r.id
-            WHERE r.form_id = ? AND ps.status = 'submitted'`,
+            WHERE r.form_id = ? AND ps.status IN ('submitted', 'approved', 'rejected', 'revision_requested')`,
       args: [parseInt(formId)],
     }),
     db.execute({
@@ -88,9 +98,17 @@ async function getProgress(db, formId) {
   };
 }
 
+/** Bound a promise so a hanging AI call cannot stall a whole batch forever. */
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error(label)), ms)),
+  ]);
+}
+
 async function processSubmission(db, subId) {
   try {
-    const result = await evaluateSubmission(subId);
+    const result = await withTimeout(evaluateSubmission(subId), AI_TIMEOUT_MS, "AI evaluation timed out");
     if (result === null) {
       // evaluateSubmission returns null on failure — record it
       throw new Error("Evaluation failed (null result)");
@@ -118,6 +136,25 @@ async function processSubmission(db, subId) {
       });
     } catch (_) {}
     return { ok: false, error: msg };
+  }
+}
+
+/**
+ * Look up the group linked to a run (used for approval email templates).
+ */
+async function getRunGroupName(db, runId) {
+  try {
+    const res = await db.execute({
+      sql: `SELECT f.name
+            FROM platform_form_run_assignments a
+            JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
+            WHERE a.run_id = ? AND a.target_type = 'group'
+            LIMIT 1`,
+      args: [runId],
+    });
+    return res.rows[0]?.name || null;
+  } catch (_) {
+    return null;
   }
 }
 
@@ -172,6 +209,42 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
       args: [submissionId],
     });
     if (updated.rows.length === 0) return; // raced with another decision
+
+    // Send the TRACKED approval email (Gmail transport) with template variables
+    // so auto-approved applicants receive the personalized approval template.
+    try {
+      const subData = updated.rows[0].data || {};
+      const applicantEmail = Object.values(subData).find((v) => typeof v === "string" && v.includes("@"));
+      if (applicantEmail) {
+        const { sendDecisionEmail, sendTrackedEmail } = await import("@/lib/email");
+        const tmpl = (form.rows[0].settings || {}).automation?.templates;
+        const formName = form.rows[0].name || "";
+        const groupName = await getRunGroupName(db, run.rows[0].id);
+        await sendTrackedEmail({
+          submission_id: submissionId,
+          contact_cid: updated.rows[0].submitter_id || null,
+          email_type: "approval",
+          provider: "gmail",
+          sendFn: () =>
+            sendDecisionEmail({
+              to: applicantEmail,
+              applicantName: updated.rows[0].submitter_name || "",
+              formName,
+              decision: "approved",
+              comment,
+              template: tmpl?.approval,
+              templateVars: {
+                form_name: formName,
+                score: String(score),
+                group_name: groupName || "",
+                name: updated.rows[0].submitter_name || "",
+              },
+            }),
+        });
+      }
+    } catch (e) {
+      console.error("[Auto-Approve] Approval email error:", e.message);
+    }
 
     // Fire the same REVIEW_COMPLETED automation (group + emails)
     try {
@@ -230,17 +303,31 @@ async function runBatch(db, formId, onlyFailed, batchSize) {
 
   let ok = 0;
   let fail = 0;
-  for (const subId of claimed) {
-    const res = await processSubmission(db, subId);
-    if (res.ok) ok++;
+  // Evaluate claimed submissions with limited concurrency so a 10-submission
+  // batch finishes well within the serverless function duration instead of
+  // stacking 10 sequential AI calls in one request.
+  const results = new Array(claimed.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(IN_FLIGHT, claimed.length) }, async () => {
+    while (cursor < claimed.length) {
+      const i = cursor++;
+      const subId = claimed[i];
+      const res = await processSubmission(db, subId);
+      results[i] = res;
+      // Release claim regardless of outcome
+      try {
+        await db.execute({
+          sql: "DELETE FROM platform_evaluation_claims WHERE submission_id = ?",
+          args: [subId],
+        });
+      } catch (_) {}
+    }
+  });
+  await Promise.all(workers);
+
+  for (const res of results) {
+    if (res && res.ok) ok++;
     else fail++;
-    // Release claim regardless of outcome
-    try {
-      await db.execute({
-        sql: "DELETE FROM platform_evaluation_claims WHERE submission_id = ?",
-        args: [subId],
-      });
-    } catch (_) {}
   }
 
   return { evaluated: ok, failed: fail, processed: claimed.length };
