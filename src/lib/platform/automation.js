@@ -196,23 +196,25 @@ const RULES = [
     description: "Write review decision to CRM, auto-enroll into program/group, send activation email",
     condition: (ctx) => ctx.review?.decision && (ctx.review.decision === "approved" || ctx.review.decision === "rejected"),
     action: async (ctx) => {
-      if (!ctx.submission?.submitter_id) return;
       const isApproved = ctx.review.decision === "approved";
       const runName = ctx.run?.name || "form";
       const auto = ctx.form?.settings?.automation;
 
-      // Write CRM timeline
-      await writeCrmTimeline(ctx.submission.submitter_id,
-        isApproved ? "application_approved" : "application_rejected",
-        isApproved ? `Application approved for "${runName}"` : `Application not successful for "${runName}"`,
-        "forms", ctx.submission.id, ctx.review.reviewer_id || "system",
-        { decision: ctx.review.decision, run_id: ctx.submission.run_id });
+      // Write CRM timeline (guarded — CRM identity is NOT a prerequisite for
+      // onboarding; it is only used when it already exists)
+      if (ctx.submission?.submitter_id) {
+        await writeCrmTimeline(ctx.submission.submitter_id,
+          isApproved ? "application_approved" : "application_rejected",
+          isApproved ? `Application approved for "${runName}"` : `Application not successful for "${runName}"`,
+          "forms", ctx.submission.id, ctx.review.reviewer_id || "system",
+          { decision: ctx.review.decision, run_id: ctx.submission.run_id });
+      }
 
       if (!isApproved) return;
 
       // ── Program enrollment (respects automation config) ──
       const shouldEnroll = !auto || auto.on_approve?.enroll_in_program !== false;
-      if (shouldEnroll && ctx.run?.form_id) {
+      if (shouldEnroll && ctx.run?.form_id && ctx.submission?.submitter_id) {
         try {
           const { default: db, initDb } = await import("@/lib/db");
           await initDb();
@@ -234,7 +236,7 @@ const RULES = [
 
       // ── Group assignment from form run (respects automation config) ──
       const shouldAssignGroup = !auto || auto.on_approve?.assign_to_group !== false;
-      if (shouldAssignGroup && ctx.run?.id) {
+      if (shouldAssignGroup && ctx.run?.id && ctx.submission?.submitter_id) {
         try {
           const { default: db, initDb } = await import("@/lib/db");
           await initDb();
@@ -277,152 +279,211 @@ const RULES = [
         } catch (e) {}
       }
 
-      // ── Create platform user + send activation email (respects automation config) ──
+      // ── Create platform user + send activation email (respects workflow settings) ──
+      // CRM existence is NOT a prerequisite: the submission itself can onboard
+      // a brand-new person as long as a valid email can be resolved.
       const shouldCreateUser = !auto || auto.on_approve?.create_platform_user !== false;
       const shouldSendActivation = !auto || auto.on_approve?.send_activation_email !== false;
-      if (shouldCreateUser && shouldSendActivation) {
-        try {
-          console.log("[Automation] Activation: starting for submission", ctx.submission?.id);
-          const { default: db, initDb } = await import("@/lib/db");
-          await initDb();
-          
-          // Extract contact email and name from submission data
-          const submissionData = ctx.submission?.data || {};
-          let contactEmail = null;
-          let contactName = ctx.submission?.submitter_name || "Participant";
-          
-          // Try to get email from submitter_id (may be email or CID)
-          if (ctx.submission?.submitter_id) {
-            if (ctx.submission.submitter_id.includes("@")) {
-              contactEmail = ctx.submission.submitter_id;
-            } else {
-              // It's a CID, look up the contact
-              try {
-                const cRes = await db.execute({
-                  sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
-                  args: [ctx.submission.submitter_id],
-                });
-                if (cRes.rows.length > 0 && cRes.rows[0].email) {
-                  contactEmail = cRes.rows[0].email;
-                  contactName = cRes.rows[0].name || contactName;
-                }
-              } catch (_) {}
-            }
-          }
-          
-          // If still no email, search submission data values
-          if (!contactEmail || !contactEmail.includes("@")) {
-            const sData = typeof submissionData === "object" ? submissionData : {};
-            for (const val of Object.values(sData)) {
-              if (typeof val === "string" && val.includes("@")) {
-                contactEmail = val;
-                break;
-              }
-            }
-          }
-          
-          if (!contactEmail || !contactEmail.includes("@")) return;
-          
-          // Determine target role and group from form run assignment
-          let targetRole = null;
-          let groupName = null;
-          if (ctx.run?.id) {
+
+      const { recordEmailStatus } = await import("@/lib/email");
+
+      if (!shouldCreateUser) {
+        console.warn("[Automation] Activation skipped: create platform user disabled", ctx.submission?.id);
+        await recordEmailStatus({
+          submission_id: ctx.submission?.id || null,
+          contact_cid: ctx.submission?.submitter_id || null,
+          email_type: "activation",
+          status: "skipped",
+          error: "Skipped — Create platform user disabled in the form's Workflow settings",
+        });
+        return;
+      }
+
+      try {
+        console.log("[Automation] Activation: starting for submission", ctx.submission?.id);
+        const { default: db, initDb } = await import("@/lib/db");
+        await initDb();
+
+        const submissionData = ctx.submission?.data || {};
+        let contactName = ctx.submission?.submitter_name || "Participant";
+
+        const {
+          resolveRecipientEmail,
+          sendInviteEmail,
+          getTemplate,
+          sendTrackedEmail,
+          getEmailLogRow,
+        } = await import("@/lib/email");
+
+        // 1. Resolve the recipient email with strict priority:
+        //    existing valid contact email → valid email in form answers → fail.
+        //    Placeholder/import-fallback addresses are never accepted.
+        let contactEmail = null;
+        if (ctx.submission?.submitter_id) {
+          if (ctx.submission.submitter_id.includes("@")) {
+            contactEmail = ctx.submission.submitter_id;
+          } else {
             try {
-              const grp = await db.execute({
-                sql: `SELECT f.name, f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
-                args: [ctx.run.id],
+              const cRes = await db.execute({
+                sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
+                args: [ctx.submission.submitter_id],
               });
-              if (grp.rows.length > 0) {
-                targetRole = grp.rows[0].default_role || "staff";
-                groupName = grp.rows[0].name;
+              if (cRes.rows.length > 0) {
+                contactName = cRes.rows[0].name || contactName;
+                contactEmail = cRes.rows[0].email || null;
               }
             } catch (_) {}
           }
-          if (!targetRole) targetRole = "staff";
-          
-          // Find or create contact by email
-          let contact = null;
-          const existingContact = await db.execute({
-            sql: "SELECT cid, name, email FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-            args: [contactEmail],
+        }
+        contactEmail = resolveRecipientEmail({ contactEmail, submissionData });
+
+        if (!contactEmail) {
+          console.warn("[Automation] Activation failed: no usable email", ctx.submission?.id);
+          await recordEmailStatus({
+            submission_id: ctx.submission?.id || null,
+            contact_cid: ctx.submission?.submitter_id || null,
+            email_type: "activation",
+            status: "failed",
+            error: "Failed — No usable email address found (placeholder or missing email)",
           });
-          
-          if (existingContact.rows.length > 0) {
-            contact = existingContact.rows[0];
-            contactName = contact.name || contactName;
-            // Update existing contact: set status to approved (NOT active — requires password setup)
+          return;
+        }
+
+        // Determine target role and group from the run's group assignment
+        let targetRole = null;
+        let groupName = null;
+        if (ctx.run?.id) {
+          try {
+            const grp = await db.execute({
+              sql: `SELECT f.name, f.default_role FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
+              args: [ctx.run.id],
+            });
+            if (grp.rows.length > 0) {
+              targetRole = grp.rows[0].default_role || "staff";
+              groupName = grp.rows[0].name;
+            }
+          } catch (_) {}
+        }
+        if (!targetRole) targetRole = "staff";
+
+        // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
+        let contact = null;
+        let accountAlreadyActive = false;
+        const existingContact = await db.execute({
+          sql: "SELECT cid, name, email, password FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+          args: [contactEmail],
+        });
+
+        if (existingContact.rows.length > 0) {
+          contact = existingContact.rows[0];
+          contactName = contact.name || contactName;
+          // A non-empty password means the person already completed setup.
+          accountAlreadyActive = !!(contact.password && String(contact.password).trim() !== "");
+          if (!accountAlreadyActive) {
             await db.execute({
               sql: "UPDATE contacts SET role = ?, status = 'approved', group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END WHERE cid = ?",
               args: [targetRole, groupName || null, contact.cid],
             });
-          } else {
-            // Create new contact
-            const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
-            await db.execute({
-              sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password) VALUES (?, ?, ?, ?, 'approved', ?, '')`,
-              args: [cid, contactName, contactEmail, targetRole, groupName || ''],
-            });
-            contact = { cid, name: contactName, email: contactEmail };
           }
-          
-          // ── Activation email — TRACKED so it is never sent twice ──
-          // Check whether an activation email was already successfully sent for
-          // this submission BEFORE generating a new token.
-          const { sendInviteEmail, getTemplate, sendTrackedEmail, getEmailLogRow } = await import("@/lib/email");
-          const activationTemplate = getTemplate(ctx.form?.settings, "activation", ctx.run?.settings);
-          const priorSend = ctx.submission?.id
-            ? await getEmailLogRow(ctx.submission.id, "activation")
-            : null;
-          if (priorSend && priorSend.status === "sent") {
-            console.log("[Automation] Activation email already sent — skipped", contactEmail);
-            return;
-          }
+        } else {
+          const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
+          await db.execute({
+            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password) VALUES (?, ?, ?, ?, 'approved', ?, '')`,
+            args: [cid, contactName, contactEmail, targetRole, groupName || ''],
+          });
+          contact = { cid, name: contactName, email: contactEmail };
+        }
 
-          let activationToken = null;
-          const tracked = await sendTrackedEmail({
+        // 3. Workflow toggle for the email itself
+        if (!shouldSendActivation) {
+          await recordEmailStatus({
             submission_id: ctx.submission?.id || null,
             contact_cid: contact.cid,
             email_type: "activation",
-            sendFn: async () => {
-              // Generate the token INSIDE the send function so a skipped
-              // send never produces an orphaned token
-              const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
-              const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
-              await db.execute({
-                sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
-                args: [contact.cid, token, expiresAt],
-              });
-              activationToken = token;
-              console.log("[Automation] Token stored for", contactEmail);
-              return sendInviteEmail({
-                to: contactEmail,
-                name: contactName,
-                role: targetRole,
-                token,
-                template: activationTemplate,
-                templateVars: {
-                  organization: "ImpactOS",
-                  form_name: ctx.run?.name || "",
-                  group_name: groupName || "",
-                  name: contactName,
-                },
-              });
-            },
+            status: "skipped",
+            error: "Skipped — Send activation email disabled in the form's Workflow settings",
           });
-          if (tracked.success) {
-            console.log("[Automation] Activation email sent to", contactEmail);
-            await writeCrmTimeline(contact.cid, "activation_sent",
-              "Activation email sent with password setup link", "forms", ctx.submission.id, "system", {});
-          } else if (tracked.skipped) {
-            console.log("[Automation] Activation email already sent — skipped", contactEmail);
-          } else {
-            console.error("[Automation] Activation email FAILED for", contactEmail);
-            await writeCrmTimeline(contact.cid, "activation_email_failed",
-              "Activation email failed to send", "forms", ctx.submission.id, "system", {});
-          }
-        } catch (e) {
-          console.error("[Automation] Activation email failed:", e.message);
+          return;
         }
+
+        // 4. Idempotency: never re-send after success; never re-activate an
+        //    account that already completed password setup.
+        const priorSend = ctx.submission?.id
+          ? await getEmailLogRow(ctx.submission.id, "activation")
+          : null;
+        if (priorSend && priorSend.status === "sent") {
+          console.log("[Automation] Activation email already sent — skipped", contactEmail);
+          return;
+        }
+        if (accountAlreadyActive) {
+          console.log("[Automation] Activation skipped: platform account already exists", contactEmail);
+          await recordEmailStatus({
+            submission_id: ctx.submission?.id || null,
+            contact_cid: contact.cid,
+            email_type: "activation",
+            status: "skipped",
+            error: "Skipped — Platform account already exists (password already set)",
+          });
+          return;
+        }
+
+        // 5. Send the tracked activation email (token generated inside sendFn)
+        const activationTemplate = getTemplate(ctx.form?.settings, "activation", ctx.run?.settings);
+        const tracked = await sendTrackedEmail({
+          submission_id: ctx.submission?.id || null,
+          contact_cid: contact.cid,
+          email_type: "activation",
+          sendFn: async () => {
+            // Generate the token INSIDE the send function so a skipped
+            // send never produces an orphaned token
+            const token = "act_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+            const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
+            await db.execute({
+              sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
+              args: [contact.cid, token, expiresAt],
+            });
+            console.log("[Automation] Token stored for", contactEmail);
+            return sendInviteEmail({
+              to: contactEmail,
+              name: contactName,
+              role: targetRole,
+              token,
+              template: activationTemplate,
+              templateVars: {
+                organization: "ImpactOS",
+                form_name: ctx.run?.name || "",
+                group_name: groupName || "",
+                name: contactName,
+              },
+            });
+          },
+        });
+
+        if (tracked.success) {
+          console.log("[Automation] Activation email sent to", contactEmail);
+          await writeCrmTimeline(contact.cid, "activation_sent",
+            "Activation email sent with password setup link", "forms", ctx.submission?.id || null, "system", {});
+        } else if (tracked.skipped) {
+          console.log("[Automation] Activation email already sent — skipped", contactEmail);
+        } else {
+          console.error("[Automation] Activation email FAILED for", contactEmail);
+          await writeCrmTimeline(contact.cid, "activation_email_failed",
+            "Activation email failed to send", "forms", ctx.submission?.id || null, "system", {});
+        }
+      } catch (e) {
+        console.error("[Automation] Activation email failed:", e.message);
+        try {
+          const { recordEmailFailure, getEmailLogRow } = await import("@/lib/email");
+          const existing = ctx.submission?.id ? await getEmailLogRow(ctx.submission.id, "activation") : null;
+          if (!existing) {
+            await recordEmailFailure({
+              submission_id: ctx.submission?.id || null,
+              contact_cid: ctx.submission?.submitter_id || null,
+              email_type: "activation",
+              error: `Failed — Activation flow error: ${String(e?.message || "unknown").substring(0, 300)}`,
+            });
+          }
+        } catch (_) {}
       }
     },
   },

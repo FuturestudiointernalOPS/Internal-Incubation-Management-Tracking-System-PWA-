@@ -515,6 +515,73 @@ export async function getEmailLogRow(submissionId, emailType) {
   }
 }
 
+/**
+ * Artificial/placeholder addresses (import fallbacks, reserved domains) must
+ * never be treated as real recipients.
+ */
+export function isPlaceholderEmail(email) {
+  if (!email || typeof email !== "string") return true;
+  const e = email.trim().toLowerCase();
+  if (!e.includes("@")) return true;
+  if (e.includes("placeholder")) return true;
+  if (e.includes("@example.") || e.includes("@test.") || e.endsWith(".local") || e.endsWith(".invalid")) return true;
+  if (e.startsWith("import-")) return true; // import-generated placeholder pattern
+  return false;
+}
+
+/**
+ * Resolve the recipient for an activation email with a strict priority:
+ *   1. a valid existing CRM/contact email
+ *   2. a valid email found inside the submission's form answers
+ *   otherwise null — activation cannot proceed.
+ * Placeholder/import-fallback addresses are never accepted.
+ */
+export function resolveRecipientEmail({ contactEmail, submissionData }) {
+  if (!isPlaceholderEmail(contactEmail)) {
+    return String(contactEmail).trim().toLowerCase();
+  }
+  const values = submissionData && typeof submissionData === "object" ? Object.values(submissionData) : [];
+  for (const v of values) {
+    if (typeof v === "string" && !isPlaceholderEmail(v)) {
+      return v.trim().toLowerCase();
+    }
+  }
+  return null;
+}
+
+/**
+ * Record a workflow email status row (skipped/failed) with a human-readable
+ * reason so the dashboard shows WHY an expected email never fired. Deduped:
+ * no new row is written when the latest row already has the same status.
+ */
+export async function recordEmailStatus({ submission_id, contact_cid, email_type, status, error, provider }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const safeStatus = status === "skipped" ? "skipped" : "failed";
+    if (submission_id) {
+      const latest = await db.execute({
+        sql: "SELECT status, error FROM platform_email_log WHERE submission_id = ? AND email_type = ? ORDER BY id DESC LIMIT 1",
+        args: [parseInt(submission_id), email_type],
+      });
+      const last = latest.rows[0];
+      if (last && last.status === safeStatus) return; // already recorded — no spam
+    }
+    await db.execute({
+      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+      args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, safeStatus, provider || null, (error || "Unknown reason").substring(0, 500)],
+    });
+  } catch (e) {
+    console.warn("[EmailLog] Could not record status:", e.message);
+  }
+}
+
+/** Record a hard failure (status 'failed') with a reason. */
+export async function recordEmailFailure(args) {
+  return recordEmailStatus({ ...args, status: "failed" });
+}
+
 async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider }) {
   try {
     await ensureEmailLogTable();
