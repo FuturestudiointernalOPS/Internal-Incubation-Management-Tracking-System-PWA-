@@ -597,6 +597,7 @@ async function ensureEmailLogTable() {
     )`);
     await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
     await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS recipient TEXT`);
+    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS email_id TEXT`);
     await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
       ON platform_email_log (submission_id, email_type)
       WHERE status = 'sent'`);
@@ -964,17 +965,63 @@ export async function markEmailBounced({ recipient, error }) {
   }
 }
 
-async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to }) {
+/**
+ * Record a Resend lifecycle event (delivered / delayed / bounced / failed /
+ * opened / clicked / complained). The event is APPENDED to the log so the
+ * full timeline is preserved; the email is identified by Resend's email_id
+ * (never just by recipient, so two emails to the same address stay distinct).
+ * If the email_id is unknown (an email sent before email_id tracking was
+ * added), no event is recorded and false is returned — legacy recipient-based
+ * bounce handling remains in markEmailBounced for old records.
+ */
+export async function recordResendEvent({ email_id, status, error, createdAt }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    let row = null;
+    if (email_id) {
+      const r = await db.execute({
+        sql: "SELECT * FROM platform_email_log WHERE email_id = ? ORDER BY id DESC LIMIT 1",
+        args: [String(email_id)],
+      });
+      row = r.rows[0] || null;
+    }
+    if (!row) return false; // unknown email_id — nothing to attach to
+    const eventAt = createdAt ? new Date(createdAt).toISOString() : new Date().toISOString();
+    await db.execute({
+      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, sent_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: [
+        row.submission_id,
+        row.contact_cid || null,
+        row.email_type,
+        status,
+        row.provider || "resend",
+        (error || "").substring(0, 500) || null,
+        row.recipient,
+        row.email_id || email_id || null,
+        row.sent_at,
+        eventAt,
+      ],
+    });
+    return true;
+  } catch (e) {
+    console.warn("[EmailLog] recordResendEvent:", e.message);
+    return false;
+  }
+}
+
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to, emailId }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
     const recipient = to ? String(to).trim().substring(0, 300) : null;
     if (success) {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, sent_at)
-              VALUES (?, ?, ?, 'sent', ?, ?, ?, NOW())
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, sent_at)
+              VALUES (?, ?, ?, 'sent', ?, ?, ?, ?, NOW())
               ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient],
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null],
       });
     } else {
       await db.execute({
@@ -1016,6 +1063,7 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
     provider: result?.provider || provider,
     note,
     to,
+    emailId: result?.data?.id || null,
   });
 
   return { ...result, skipped: false };
