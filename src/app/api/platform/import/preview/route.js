@@ -103,7 +103,7 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "admin"]);
     if (authError) return authError;
 
-    const { csv_text, form_id, run_id } = await req.json();
+    const { csv_text, form_id, run_id, total_rows } = await req.json();
     if (!csv_text || (!form_id && !run_id)) {
       return NextResponse.json(
         { success: false, error: "csv_text and form_id (or run_id) are required" },
@@ -213,7 +213,12 @@ export async function POST(req) {
       suggested_mapping: suggestedMapping,
       unmatched,
       preview_rows: previewRows,
-      total_rows: parsed.rows.length,
+      // Chunked clients send only a sample of the CSV but know the real count;
+      // prefer their number so the UI shows the actual row total.
+      total_rows:
+        Number.isFinite(Number(total_rows)) && Number(total_rows) > parsed.rows.length
+          ? Number(total_rows)
+          : parsed.rows.length,
     });
   } catch (error) {
     return NextResponse.json(
