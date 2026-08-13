@@ -340,7 +340,59 @@ export async function GET(req) {
         emails = emailRes.rows;
       } catch (_) {}
 
-      return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: submissions.rows, reviews: reviews.rows, evaluations, emails });
+      // ── Run-scoped respondent enrichment: emails + dynamic filter fields ──
+      const formIdOfRun = run.rows[0].form_id;
+
+      let fieldLabels = {};
+      let filterableFields = [];
+      try {
+        const fRes = await db.execute({
+          sql: "SELECT id, label, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
+          args: [String(formIdOfRun)],
+        });
+        for (const f of fRes.rows) {
+          fieldLabels[String(f.id)] = f.label;
+          let parsedOpts = null;
+          if (f.options) {
+            try {
+              parsedOpts = typeof f.options === "string" ? JSON.parse(f.options) : f.options;
+            } catch (_) {
+              parsedOpts = null;
+            }
+          }
+          const opts = Array.isArray(parsedOpts)
+            ? parsedOpts
+                .map((o) => (typeof o === "string" ? o : o?.label || o?.value || String(o)))
+                .filter((s) => s != null && String(s).trim() !== "")
+            : [];
+          if (opts.length > 0) filterableFields.push({ label: f.label, options: opts });
+        }
+      } catch (_) {}
+
+      // Emails: batch contact lookup, falling back to the submission data
+      const rawSubs = submissions.rows;
+      const cids = [...new Set(rawSubs.map((s) => s.submitter_id).filter(Boolean))];
+      const emailMap = new Map();
+      if (cids.length > 0) {
+        try {
+          const cres = await db.execute({
+            sql: "SELECT cid, email FROM contacts WHERE cid = ANY(?)",
+            args: [cids],
+          });
+          for (const row of cres.rows) emailMap.set(row.cid, row.email || "");
+        } catch (_) {}
+      }
+      const enrichedSubmissions = rawSubs.map((s) => {
+        let email = emailMap.get(s.submitter_id) || "";
+        if (!email) {
+          const d = s.data || {};
+          const found = Object.values(d).find((v) => typeof v === "string" && v.includes("@"));
+          if (found) email = found;
+        }
+        return { ...s, email };
+      });
+
+      return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
     }
 
     // Submissions for a specific user

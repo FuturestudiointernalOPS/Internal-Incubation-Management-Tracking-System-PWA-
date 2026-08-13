@@ -434,6 +434,14 @@ export default function FormRunsPage() {
         setEvaluations(data.evaluations || []);
         setEmailLog(data.emails || []);
         setRunTemplates(data.run?.settings?.templates || {});
+        setFieldLabels(data.field_labels || {});
+        setFilterableFields(data.filterable_fields || []);
+        // Fresh run → reset search/filters so nothing leaks across runs
+        setRespSearch("");
+        setScoreOp("");
+        setScoreVal("");
+        setScoreVal2("");
+        setFieldFilters({});
       }
 
       // Fetch form fields for spreadsheet column view
@@ -680,6 +688,15 @@ export default function FormRunsPage() {
   const [runTplSaving, setRunTplSaving] = useState(false);
   const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
 
+  // Run-scoped respondent search + filters (operate only on THIS run's submissions)
+  const [respSearch, setRespSearch] = useState("");
+  const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
+  const [scoreVal, setScoreVal] = useState("");
+  const [scoreVal2, setScoreVal2] = useState("");
+  const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
+  const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
+  const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
+
   const fetchEvalProgress = async (formId) => {
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", {
@@ -774,6 +791,99 @@ export default function FormRunsPage() {
     return { stopped };
   };
 
+  // ─── RUN-SCOPED FILTERING (Overview) ───
+  // Runs against ONLY this run's submissions + their AI evaluations.
+  const fmtAnswer = (v) => {
+    if (v === undefined || v === null) return "";
+    if (typeof v === "string") {
+      try {
+        if (v.startsWith("{") && v.includes('"code"')) {
+          const p = JSON.parse(v);
+          if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
+        }
+      } catch (_) {}
+      return v;
+    }
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  };
+
+  const submissionAnswers = (s) => {
+    const d = s.data || {};
+    const answers = {};
+    for (const [key, value] of Object.entries(d)) {
+      if (key.startsWith("_")) continue;
+      answers[fieldLabels[key] || key] = fmtAnswer(value);
+    }
+    return answers;
+  };
+
+  const filteredSubmissions = useMemo(() => {
+    if (!selectedRun) return [];
+    const q = respSearch.trim().toLowerCase();
+    const v1 = parseFloat(scoreVal);
+    const v2 = parseFloat(scoreVal2);
+    const hasScore = !!scoreOp && !isNaN(v1);
+    const scorePass = (score) => {
+      if (!hasScore) return true;
+      switch (scoreOp) {
+        case "eq": return score === v1;
+        case "gte": return score >= v1;
+        case "gt": return score > v1;
+        case "lte": return score <= v1;
+        case "lt": return score < v1;
+        case "between": return !isNaN(v2) ? score >= v1 && score <= v2 : score >= v1;
+        default: return true;
+      }
+    };
+    const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+
+    return submissions.filter((s) => {
+      if (subFilter !== "all" && s.status !== subFilter) return false;
+
+      if (q) {
+        const hay = [
+          s.submitter_name || "",
+          s.email || "",
+          ...Object.values(submissionAnswers(s)),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      if (hasScore) {
+        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+        const score = evalRow != null ? Number(evalRow.overall_score) : null;
+        if (score == null || isNaN(score) || !scorePass(score)) return false;
+      }
+
+      if (activeFieldFilters.length > 0) {
+        const answers = submissionAnswers(s);
+        for (const [label, val] of activeFieldFilters) {
+          const actual = String(answers[label] ?? "").trim().toLowerCase();
+          if (actual !== String(val).trim().toLowerCase()) return false;
+        }
+      }
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, fieldLabels]);
+
+  const hasRunFilters = !!(
+    respSearch.trim() ||
+    (scoreOp && scoreVal !== "") ||
+    Object.values(fieldFilters).some(Boolean)
+  );
+
+  const clearRunFilters = () => {
+    setRespSearch("");
+    setScoreOp("");
+    setScoreVal("");
+    setScoreVal2("");
+    setFieldFilters({});
+  };
+
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
     const cfg = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
@@ -784,7 +894,6 @@ export default function FormRunsPage() {
     const revision = submissions.filter((s) => s.status === "revision_requested").length;
     const drafts = submissions.filter((s) => s.status === "draft").length;
     const overdue = submissions.filter((s) => s.status === "submitted" && selectedRun.closes_at && new Date(s.submitted_at) > new Date(selectedRun.closes_at)).length;
-    const filteredSubmissions = subFilter === "all" ? submissions : submissions.filter((s) => s.status === subFilter);
 
     const tabs = [
       { id: "overview", label: "Overview", icon: BarChart3 },
@@ -989,6 +1098,100 @@ export default function FormRunsPage() {
                 ))}
               </div>
 
+              {/* Run-scoped search + filters */}
+              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary p-4 space-y-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                  <input
+                    type="text"
+                    value={respSearch}
+                    onChange={(e) => setRespSearch(e.target.value)}
+                    placeholder="Search this run's respondents (name, email, answers)..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                    <Filter className="w-3 h-3" /> Filters
+                  </span>
+
+                  {/* AI Score filter (real evaluation scores of THIS run) */}
+                  <div className="flex items-center gap-1.5">
+                    <select
+                      value={scoreOp}
+                      onChange={(e) => setScoreOp(e.target.value)}
+                      className="bg-primary border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                    >
+                      <option value="">AI Score: All</option>
+                      <option value="gte">AI Score ≥</option>
+                      <option value="gt">AI Score &gt;</option>
+                      <option value="eq">AI Score =</option>
+                      <option value="lte">AI Score ≤</option>
+                      <option value="lt">AI Score &lt;</option>
+                      <option value="between">AI Score Between</option>
+                    </select>
+                    {scoreOp && (
+                      <>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={scoreVal}
+                          onChange={(e) => setScoreVal(e.target.value)}
+                          placeholder="80"
+                          className="w-16 px-2 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        />
+                        {scoreOp === "between" && (
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={scoreVal2}
+                            onChange={(e) => setScoreVal2(e.target.value)}
+                            placeholder="90"
+                            className="w-16 px-2 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                          />
+                        )}
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">%</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Dynamic field filters — from THIS run's form questions */}
+                  {filterableFields.map((f) => (
+                    <select
+                      key={f.label}
+                      value={fieldFilters[f.label] || ""}
+                      onChange={(e) =>
+                        setFieldFilters((prev) => ({ ...prev, [f.label]: e.target.value }))
+                      }
+                      className="bg-primary border border-[var(--border-primary)] rounded-lg p-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                    >
+                      <option value="">{f.label}: All</option>
+                      {f.options.map((o, idx) => (
+                        <option key={`${f.label}-${idx}`} value={String(o)}>
+                          {f.label}: {String(o)}
+                        </option>
+                      ))}
+                    </select>
+                  ))}
+
+                  {hasRunFilters && (
+                    <button
+                      onClick={clearRunFilters}
+                      className="px-2.5 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  Showing {filteredSubmissions.length} of {submissions.length} respondents in this run
+                </p>
+              </div>
+
               {/* Submissions table */}
               {subLoading ? <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
                 <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
@@ -996,13 +1199,14 @@ export default function FormRunsPage() {
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
                         <th className="px-4 py-3">Submitter</th>
-                        {runFormFields.slice(0, 3).map(f => (
+                        <th className="px-4 py-3">Email</th>
+                        {runFormFields.slice(0, 2).map(f => (
                           <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
                             <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
                           </th>
                         ))}
                         <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Score</th>
+                        <th className="px-4 py-3">AI Score</th>
                         <th className="px-4 py-3">Activation</th>
                         <th className="px-4 py-3">Submitted</th>
                         <th className="px-4 py-3">Review</th>
@@ -1051,7 +1255,16 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
                             </td>
-                            {runFormFields.slice(0, 3).map(f => (
+                            {/* Email — always visible, from the actual respondent data */}
+                            <td className="px-4 py-3">
+                              <span
+                                className="text-[10px] text-[var(--text-secondary)] truncate max-w-[180px] block"
+                                title={s.email || "No email"}
+                              >
+                                {s.email || "—"}
+                              </span>
+                            </td>
+                            {runFormFields.slice(0, 2).map(f => (
                               <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
                             ))}
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
