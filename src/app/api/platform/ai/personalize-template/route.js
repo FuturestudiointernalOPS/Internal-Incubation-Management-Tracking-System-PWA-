@@ -86,7 +86,7 @@ export async function POST(req) {
 
     const formName = (body.form_name || "application").substring(0, 200);
     const organization = (body.organization || "Future Studio").substring(0, 100);
-    const language = (body.language || "English").substring(0, 30);
+    const requestedLanguage = (body.language || "English").substring(0, 30);
 
     // ── Draft resolution ──
     // Empty body → use the platform's existing default template as the base
@@ -103,9 +103,15 @@ export async function POST(req) {
       ...spec.placeholders.map((p) => p.replace(/[{}]/g, "").toLowerCase()),
     ]);
 
-    const tone =
-      `Tone: warm, professional, encouraging, concise. Write in ${language}. ` +
-      `If the form name appears to be in French, write in French instead.`;
+    // LANGUAGE LOCK: personalization must NEVER translate the template.
+    // When content already exists, the AI keeps its language exactly; only
+    // empty drafts may use the requested language (platform defaults).
+    const hasExistingContent = !!(draftSubject || existingBody);
+    const languageRule = hasExistingContent
+      ? "Write in the SAME language as the template content. Never translate the content into another language."
+      : `Write in ${requestedLanguage}.`;
+
+    const tone = `Tone: warm, professional, encouraging, concise. ${languageRule}`;
 
     // ── TIER 1 — full-body personalization with structural validation ──
     let tier1Body = null;
@@ -125,6 +131,7 @@ Personalize ONLY the wording of the text content. Preserve the structure exactly
 - keep bold (<strong>/<b>) and italic (<em>/<i>) exactly where they are
 - keep paragraph breaks and line breaks
 - keep every {{placeholder}} exactly as written — never rename, remove, or add variables
+- keep the language of the template — never translate the content into another language
 
 ${tone}
 ${draftSubject ? "Personalize the subject wording (keep its placeholders)." : 'Return an EMPTY string for "subject".'}
@@ -174,6 +181,7 @@ Rules for every segment:
 - keep list markers and their numbers (1. 2. 3., bullets, dashes)
 - keep trailing spaces and line breaks within the segment
 - only reword the human-readable text; keep it short and natural
+- keep the language of the segment — never translate it into another language
 - ${tone}
 
 Segments (${segments.length}):
