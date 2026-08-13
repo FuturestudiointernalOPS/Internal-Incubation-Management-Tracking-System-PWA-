@@ -424,10 +424,10 @@ export default function PendingUsersPage() {
                                   id={"role-" + user.cid}
                                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
                                 >
+                                  <option value="participant">Participant</option>
                                   <option value="staff">Staff</option>
                                   <option value="intern">Intern</option>
                                   <option value="developer">Developer</option>
-                                  <option value="participant">Participant</option>
                                 </select>
                                 <button
                                   onClick={() =>
