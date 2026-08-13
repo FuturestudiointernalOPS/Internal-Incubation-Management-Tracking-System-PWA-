@@ -902,7 +902,8 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
-    const safeStatus = status === "skipped" ? "skipped" : "failed";
+    const ALLOWED = ["skipped", "failed", "bounced", "cancelled"];
+    const safeStatus = ALLOWED.includes(status) ? status : "failed";
     if (submission_id) {
       const latest = await db.execute({
         sql: "SELECT status, error FROM platform_email_log WHERE submission_id = ? AND email_type = ? ORDER BY id DESC LIMIT 1",
@@ -924,6 +925,43 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
 /** Record a hard failure (status 'failed') with a reason. */
 export async function recordEmailFailure(args) {
   return recordEmailStatus({ ...args, status: "failed" });
+}
+
+/**
+ * Mark the most recent SENT email to a recipient as BOUNCED (provider
+ * reported the recipient could not receive it). Keeps the sent row and adds
+ * a bounced row as the latest status — history is never deleted.
+ */
+export async function markEmailBounced({ recipient, error }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const res = await db.execute({
+      sql: `SELECT * FROM platform_email_log
+            WHERE LOWER(recipient) = LOWER(?) AND status = 'sent'
+            ORDER BY id DESC LIMIT 1`,
+      args: [String(recipient).trim()],
+    });
+    const row = res.rows[0];
+    if (!row) return false;
+    await db.execute({
+      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, sent_at)
+            VALUES (?, ?, ?, 'bounced', ?, ?, ?, ?)`,
+      args: [
+        row.submission_id,
+        row.contact_cid || null,
+        row.email_type,
+        row.provider || null,
+        (error || "Bounced — provider reported delivery failure").substring(0, 500),
+        row.recipient,
+        row.sent_at,
+      ],
+    });
+    return true;
+  } catch (e) {
+    console.warn("[EmailLog] markEmailBounced:", e.message);
+    return false;
+  }
 }
 
 async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to }) {

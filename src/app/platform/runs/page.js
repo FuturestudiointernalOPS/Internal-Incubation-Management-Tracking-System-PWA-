@@ -1095,6 +1095,21 @@ export default function FormRunsPage() {
     // reported as cancelled — nothing was sent for those rows, and they stay
     // in their previous state so they can be selected again later.
     agg.cancelled = ids.length - processed;
+    // Record the unprocessed remainder as CANCELLED so history keeps
+    // sent / failed / cancelled distinct and those rows stay retryable later.
+    const unprocessedIds = ids.slice(processed);
+    if (unprocessedIds.length > 0 && selectedRun) {
+      try {
+        await fetch("/api/platform/form-runs?action=mark_email_cancelled", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run_id: selectedRun.id,
+            items: unprocessedIds.map((sid) => ({ submission_id: sid, email_type: "approval" })),
+          }),
+        });
+      } catch (_) {}
+    }
     setBulkProcessing(false);
     setSelectedIds([]);
     if (selectedRun) await openRun(selectedRun);
@@ -1106,23 +1121,24 @@ export default function FormRunsPage() {
     const latest = new Map();
     for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
     const stats = {
-      approval: { sent: 0, failed: 0, skipped: 0 }, // approval + rejection emails
-      activation: { sent: 0, failed: 0, skipped: 0 }, // activation/access emails
+      approval: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
+      activation: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
     };
-    const failedList = [];
+    const notDelivered = [];
     for (const e of latest.values()) {
       const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
       if (e.status === "sent") bucket.sent++;
-      else if (e.status === "failed") {
-        bucket.failed++;
-        failedList.push(e);
+      else if (["failed", "bounced", "cancelled"].includes(e.status)) {
+        bucket[e.status]++;
+        notDelivered.push(e);
       } else if (e.status === "skipped") bucket.skipped++;
     }
-    return { stats, failedList };
+    return { stats, notDelivered };
   }, [emailLog]);
 
-  // Failed rows enriched with the respondent's resolved name + recipient
-  const failedRows = emailSummary.failedList.map((e) => {
+  // Not-delivered rows (failed / bounced / cancelled) enriched with the
+  // respondent's resolved name + recipient — all three remain retryable.
+  const notDeliveredRows = emailSummary.notDelivered.map((e) => {
     const sub = submissions.find((s) => s.id === e.submission_id);
     return {
       ...e,
@@ -1130,6 +1146,12 @@ export default function FormRunsPage() {
       email: e.recipient || sub?.email || "",
     };
   });
+
+  const [emailStatusFilter, setEmailStatusFilter] = useState("all"); // all | failed | bounced | cancelled
+  const visibleNotDelivered =
+    emailStatusFilter === "all"
+      ? notDeliveredRows
+      : notDeliveredRows.filter((r) => r.status === emailStatusFilter);
 
   const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
   const toggleRetrySelect = (key) =>
@@ -1228,6 +1250,19 @@ export default function FormRunsPage() {
     }
     agg.retried = items.length;
     agg.cancelled = items.length - processed;
+    // Record the unprocessed remainder as CANCELLED so history keeps
+    // sent / failed / bounced / cancelled distinct and those rows stay
+    // retryable later.
+    const unprocessed = items.slice(processed);
+    if (unprocessed.length > 0 && selectedRun) {
+      try {
+        await fetch("/api/platform/form-runs?action=mark_email_cancelled", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, items: unprocessed }),
+        });
+      } catch (_) {}
+    }
     setRetryProcessing(false);
     setRetrySelected([]);
     // Refresh with keepTab so we STAY on the Emails tab — the summary modal
@@ -1814,6 +1849,10 @@ export default function FormRunsPage() {
                                   <span title={activationEmail.error || "Sent successfully"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
                                 ) : activationEmail.status === "failed" ? (
                                   <span title={activationEmail.error || "Failed to send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
+                                ) : activationEmail.status === "bounced" ? (
+                                  <span title={activationEmail.error || "Bounced by provider"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Bounced</span>
+                                ) : activationEmail.status === "cancelled" ? (
+                                  <span title={activationEmail.error || "Cancelled before send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Cancelled</span>
                                 ) : activationEmail.status === "skipped" ? (
                                   <span title={activationEmail.error || "Skipped"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Skipped</span>
                                 ) : (
@@ -1945,35 +1984,65 @@ export default function FormRunsPage() {
           {/* ─── EMAILS TAB ─── */}
           {detailTab === "emails" && (() => {
             const s = emailSummary.stats;
-            const allFailedSelected = failedRows.length > 0 && failedRows.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+            const allFailedSelected = visibleNotDelivered.length > 0 && visibleNotDelivered.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+            const STATUS_BADGE = {
+              failed: "bg-rose-500/10 text-rose-500",
+              bounced: "bg-amber-500/10 text-amber-500",
+              cancelled: "bg-slate-500/10 text-slate-400",
+            };
             return (
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                 {/* Email status counts for THIS run */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Approval / Decision emails</p>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-emerald-500 text-[11px] font-black">{s.approval.sent} sent</span>
                       <span className="text-rose-500 text-[11px] font-black">{s.approval.failed} failed</span>
-                      <span className="text-slate-400 text-[11px] font-black">{s.approval.skipped} skipped</span>
+                      <span className="text-amber-500 text-[11px] font-black">{s.approval.bounced} bounced</span>
+                      <span className="text-slate-400 text-[11px] font-black">{s.approval.cancelled} cancelled</span>
+                      <span className="text-slate-500 text-[11px] font-black">{s.approval.skipped} skipped</span>
                     </div>
                   </div>
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Activation / Access emails</p>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3 flex-wrap">
                       <span className="text-emerald-500 text-[11px] font-black">{s.activation.sent} sent</span>
                       <span className="text-rose-500 text-[11px] font-black">{s.activation.failed} failed</span>
-                      <span className="text-slate-400 text-[11px] font-black">{s.activation.skipped} skipped</span>
+                      <span className="text-amber-500 text-[11px] font-black">{s.activation.bounced} bounced</span>
+                      <span className="text-slate-400 text-[11px] font-black">{s.activation.cancelled} cancelled</span>
+                      <span className="text-slate-500 text-[11px] font-black">{s.activation.skipped} skipped</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Failed emails — selectable + manual retry (no auto retries) */}
+                {/* Not-delivered emails — failed/bounced/cancelled, all selectable + manually retryable */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
-                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
-                      Failed emails ({failedRows.length})
-                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                        Not delivered ({notDeliveredRows.length})
+                      </p>
+                      {[
+                        { key: "all", label: `All (${notDeliveredRows.length})` },
+                        { key: "failed", label: `Failed (${notDeliveredRows.filter((r) => r.status === "failed").length})` },
+                        { key: "bounced", label: `Bounced (${notDeliveredRows.filter((r) => r.status === "bounced").length})` },
+                        { key: "cancelled", label: `Cancelled (${notDeliveredRows.filter((r) => r.status === "cancelled").length})` },
+                      ].map((f) => (
+                        <button
+                          key={f.key}
+                          onClick={() => { setEmailStatusFilter(f.key); setRetrySelected([]); }}
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-[8px] font-black uppercase border",
+                            emailStatusFilter === f.key
+                              ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
+                              : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]"
+                          )}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
                     {retrySelected.length > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-black text-[var(--brand-orange)]">{retrySelected.length} selected</span>
@@ -1990,14 +2059,16 @@ export default function FormRunsPage() {
                           disabled={retryProcessing}
                           className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
                         >
-                          <RefreshCw className="w-3 h-3" /> Retry
+                          <RefreshCw className="w-3 h-3" /> Retry Selected
                         </button>
                       </div>
                     )}
                   </div>
 
-                  {failedRows.length === 0 ? (
-                    <p className="text-[10px] text-[var(--text-secondary)]">No failed emails in this run.</p>
+                  {visibleNotDelivered.length === 0 ? (
+                    <p className="text-[10px] text-[var(--text-secondary)]">
+                      {notDeliveredRows.length === 0 ? "No failed, bounced or cancelled emails in this run." : "No emails match this status filter."}
+                    </p>
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                       <table className="w-full text-left">
@@ -2008,19 +2079,20 @@ export default function FormRunsPage() {
                                 type="checkbox"
                                 checked={allFailedSelected}
                                 onChange={() =>
-                                  setRetrySelected(allFailedSelected ? [] : failedRows.map((f) => `${f.submission_id}:${f.email_type}`))
+                                  setRetrySelected(allFailedSelected ? [] : visibleNotDelivered.map((f) => `${f.submission_id}:${f.email_type}`))
                                 }
                                 className="accent-[var(--brand-orange)] w-3.5 h-3.5"
                               />
                             </th>
                             <th className="px-3 py-3">Respondent</th>
                             <th className="px-3 py-3">Email type</th>
+                            <th className="px-3 py-3">Status</th>
                             <th className="px-3 py-3">Recipient</th>
                             <th className="px-3 py-3">Reason</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-primary)]">
-                          {failedRows.map((f) => {
+                          {visibleNotDelivered.map((f) => {
                             const key = `${f.submission_id}:${f.email_type}`;
                             return (
                               <tr key={key} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
@@ -2038,10 +2110,15 @@ export default function FormRunsPage() {
                                     {f.email_type}
                                   </span>
                                 </td>
-                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[200px]" title={f.email}>
+                                <td className="px-3 py-3">
+                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", STATUS_BADGE[f.status] || STATUS_BADGE.failed)}>
+                                    {f.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[180px]" title={f.email}>
                                   {f.email || "—"}
                                 </td>
-                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[300px] truncate" title={f.error || "Unknown reason"}>
+                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[260px] truncate" title={f.error || "Unknown reason"}>
                                   {f.error || "Unknown reason"}
                                 </td>
                               </tr>

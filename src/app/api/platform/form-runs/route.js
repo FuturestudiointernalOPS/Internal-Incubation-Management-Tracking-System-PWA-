@@ -1029,8 +1029,8 @@ export async function POST(req) {
           results.push({ submission_id: id, email_type: type, name, status: "already_sent", error: "Email already sent — not resent" });
           continue;
         }
-        if (!logRow || logRow.status !== "failed") {
-          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed send to retry" });
+        if (!logRow || !["failed", "bounced", "cancelled"].includes(logRow.status)) {
+          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed/bounced/cancelled send to retry" });
           continue;
         }
 
@@ -1075,6 +1075,50 @@ export async function POST(req) {
       }
 
       return NextResponse.json({ success: true, results });
+    }
+
+    // ─── MARK EMAILS CANCELLED (admin stopped a batch before sending) ───
+    // Appends a 'cancelled' row for pairs that were NOT attempted. History is
+    // preserved and already-sent pairs are never touched.
+    if (action === "mark_email_cancelled") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { run_id, items } = body;
+      if (!run_id || !Array.isArray(items) || items.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and items are required" }, { status: 400 });
+      }
+      if (items.length > 100) {
+        return NextResponse.json({ success: false, error: "A cancel batch can process at most 100 items" }, { status: 400 });
+      }
+
+      const idList = [...new Set(items.map((r) => parseInt(r?.submission_id)).filter((n) => Number.isFinite(n)))];
+      const valRes = await db.execute({
+        sql: `SELECT id FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
+        args: [idList, parseInt(run_id)],
+      });
+      const validSet = new Set(valRes.rows.map((r) => r.id));
+
+      const { getEmailLogRow } = await import("@/lib/email");
+      let marked = 0;
+      for (const item of items) {
+        const id = parseInt(item?.submission_id);
+        const type = String(item?.email_type || "");
+        if (!Number.isFinite(id) || !type || !validSet.has(id)) continue;
+        const logRow = await getEmailLogRow(id, type);
+        if (logRow && logRow.status === "sent") continue; // never touch successful sends
+        await recordEmailStatus({
+          submission_id: id,
+          contact_cid: logRow?.contact_cid || null,
+          email_type: type,
+          status: "cancelled",
+          error: "Cancelled by administrator before send",
+          to: logRow?.recipient || null,
+        });
+        marked++;
+      }
+      return NextResponse.json({ success: true, marked });
     }
 
     // ─── LAUNCH ACTION ───
