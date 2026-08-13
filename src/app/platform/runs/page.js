@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Play, Plus, Search, Loader2, X, Send, Clock, Users, CheckCircle2,
-  XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
+  XCircle, FileText, RotateCcw, Eye, MessageSquare, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn,
@@ -1602,7 +1602,6 @@ export default function FormRunsPage() {
                           />
                         </th>
                         <th className="px-4 py-3 w-10">S/N</th>
-                        <th className="px-4 py-3">Submitter</th>
                         <th className="px-4 py-3">Email</th>
                         {runFormFields.slice(0, 2).map(f => (
                           <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
@@ -1675,27 +1674,23 @@ export default function FormRunsPage() {
                             <td className="px-4 py-3 w-10 text-center text-[10px] text-[var(--text-secondary)]">
                               {(respSafePage - 1) * perPage + i + 1}
                             </td>
+                            {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
                             <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-                                {s.display_name || s.submitter_name || s.submitter_id}
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="text-[10px] text-[var(--text-secondary)] truncate max-w-[160px] block"
+                                  title={sentLog
+                                    ? `Sent to ${sentLog.recipient || "n/a"} — ${sentLog.email_type} via ${sentLog.provider || "email"} (${sentLog.status}${sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : ""})`
+                                    : s.email || "No email"}
+                                >
+                                  {sentEmail || "—"}
+                                </span>
                                 {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
-                                  <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
                                     {duplicateGroups.keeperIds.has(s.id) ? "Keeper" : "Duplicate"}
                                   </span>
                                 )}
                               </div>
-                            </td>
-                            {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
-                            <td className="px-4 py-3">
-                              <span
-                                className="text-[10px] text-[var(--text-secondary)] truncate max-w-[180px] block"
-                                title={sentLog
-                                  ? `Sent to ${sentLog.recipient || "n/a"} — ${sentLog.email_type} via ${sentLog.provider || "email"} (${sentLog.status}${sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : ""})`
-                                  : s.email || "No email"}
-                              >
-                                {sentEmail || "—"}
-                              </span>
                             </td>
                             {runFormFields.slice(0, 2).map(f => (
                               <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
