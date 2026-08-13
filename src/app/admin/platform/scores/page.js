@@ -663,6 +663,16 @@ export default function ScoresPage() {
 
               {/* Respondents list */}
               <div className="card divide-y divide-[var(--border-primary)]">
+                {/* Column header strip — S/N is a presentation-level row number */}
+                <div className="flex items-center gap-4 px-4 py-2 bg-[var(--bg-primary)]">
+                  <span className="w-8 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">S/N</span>
+                  <span className="w-4" />
+                  <span className="flex-1 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Applicant</span>
+                  <span className="hidden md:block w-56 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Email</span>
+                  <span className="flex-shrink-0 w-20 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Status</span>
+                  <span className="w-16 text-right text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Score</span>
+                  <span className="w-4" />
+                </div>
                 {filteredRespondents.length === 0 ? (
                   <div className="p-8 text-center">
                     <p className="text-sm text-[var(--text-secondary)]">
@@ -681,19 +691,20 @@ export default function ScoresPage() {
                         onClick={() => toggleExpand(i)}
                         className="w-full p-4 flex items-center gap-4 hover:bg-[var(--bg-primary)] transition-colors text-left cursor-pointer"
                       >
-                        {r.status === "submitted" && (
-                          <input
-                            type="checkbox"
-                            checked={!!selected[r.submission_id]}
-                            onChange={() => toggleSelect(r.submission_id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-shrink-0 accent-[var(--brand-orange)]"
-                          />
-                        )}
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                          <span className="text-[10px] font-black text-[var(--brand-orange)]">
-                            {i + 1}
-                          </span>
+                        {/* S/N — continuous row number over the filtered result set */}
+                        <div className="w-8 flex-shrink-0 text-center">
+                          <span className="text-[10px] font-black text-[var(--text-secondary)]">{i + 1}</span>
+                        </div>
+                        <div className="w-4 flex-shrink-0 flex items-center justify-center">
+                          {r.status === "submitted" && (
+                            <input
+                              type="checkbox"
+                              checked={!!selected[r.submission_id]}
+                              onChange={() => toggleSelect(r.submission_id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="accent-[var(--brand-orange)]"
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
@@ -712,11 +723,13 @@ export default function ScoresPage() {
                             {r.email || "—"}
                           </p>
                         </div>
-                        {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
-                          <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase flex-shrink-0 ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
-                            {STATUS_CONFIG[r.status].label}
-                          </span>
-                        )}
+                        <div className="flex-shrink-0 w-20 flex items-center justify-center">
+                          {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
+                            <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
+                              {STATUS_CONFIG[r.status].label}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-right flex-shrink-0 w-16">
                           <p
                             className={`text-sm font-black ${
