@@ -243,6 +243,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
             contact_cid: updated.rows[0].submitter_id || null,
             email_type: "approval",
             provider: "gmail",
+            to: applicantEmail,
             sendFn: () =>
               sendDecisionEmail({
                 to: applicantEmail,
@@ -266,6 +267,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
             email_type: "approval",
             status: "skipped",
             error: "Skipped — No group assigned; approval email not sent",
+            to: applicantEmail,
           });
         }
       }

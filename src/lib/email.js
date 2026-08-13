@@ -567,6 +567,7 @@ async function ensureEmailLogTable() {
       created_at TIMESTAMP DEFAULT NOW()
     )`);
     await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
+    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS recipient TEXT`);
     await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
       ON platform_email_log (submission_id, email_type)
       WHERE status = 'sent'`);
@@ -627,24 +628,25 @@ export function resolveRecipientEmail({ contactEmail, submissionData }) {
 }
 
 const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
-const FULL_NAME_HINTS = /^(full\s*name|fullname|name|nom(\s+complet)?)$/i;
+// Explicit full-name fields (strongest signal). Intentionally excludes the
+// bare "name"/"nom" field so "Full Name" always wins over "Name".
+const FULL_NAME_HINTS = /^(full\s*name|fullname|nom(\s+complet)?|prenom\s*et\s*nom|prénom\s*et\s*nom)$/i;
+const NAME_HINTS = /^(name|nom)$/i;
 const FIRST_NAME_HINTS = /(first|given|pr[eé]nom|prenom)/i;
 const LAST_NAME_HINTS = /(last|surname|family)/i;
 
 /**
  * Resolve the best real person name from the available identity data:
- *   CRM full name → submission submitter name → full-name form answer →
- *   first+last form answers → any name-ish form answer → "" (caller falls back).
+ *   full-name form answer → CRM name → submission submitter name →
+ *   "name" form answer → first+last form answers → any name-ish form answer
+ *   → "" (caller falls back).
+ * "Full Name" always takes priority over the shorter "Name" field.
  * Never returns placeholder values like "Unknown"/"Anonymous" when a real
  * name exists anywhere.
  */
 export function resolvePersonName({ contactName, submitterName, submissionData }) {
   const clean = (v) =>
     typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "";
-
-  const candidates = [];
-  if (clean(contactName)) candidates.push(clean(contactName));
-  if (clean(submitterName)) candidates.push(clean(submitterName));
 
   const data = submissionData && typeof submissionData === "object" ? submissionData : {};
   const stringify = (v) => {
@@ -655,30 +657,43 @@ export function resolvePersonName({ contactName, submitterName, submissionData }
     return v;
   };
 
-  // 1. Explicit full-name answers first
+  const candidates = [];
+
+  // 1. Explicit full-name answers FIRST — "Full Name" beats every other source
   for (const [k, v] of Object.entries(data)) {
     if (FULL_NAME_HINTS.test(String(k)) && clean(stringify(v))) {
       candidates.push(clean(stringify(v)));
     }
   }
 
-  // 2. First-name + last-name combination when stored separately
+  // 2. Stored names: CRM name, then submission submitter name
+  if (clean(contactName)) candidates.push(clean(contactName));
+  if (clean(submitterName)) candidates.push(clean(submitterName));
+
+  // 3. Bare "Name" form answer
+  for (const [k, v] of Object.entries(data)) {
+    if (NAME_HINTS.test(String(k)) && clean(stringify(v))) {
+      candidates.push(clean(stringify(v)));
+    }
+  }
+
+  // 4. First-name + last-name combination when stored separately
   let firstPart = "";
   let lastPart = "";
   for (const [k, v] of Object.entries(data)) {
     const key = String(k);
     const val = clean(stringify(v));
     if (!val) continue;
-    if (FIRST_NAME_HINTS.test(key) && !lastPart && !key.toLowerCase().includes("last")) {
+    if (!FULL_NAME_HINTS.test(key) && FIRST_NAME_HINTS.test(key) && !lastPart && !key.toLowerCase().includes("last")) {
       if (!firstPart) firstPart = val;
     }
-    if (LAST_NAME_HINTS.test(key)) {
+    if (!FULL_NAME_HINTS.test(key) && LAST_NAME_HINTS.test(key)) {
       if (!lastPart) lastPart = val;
     }
   }
   if (firstPart || lastPart) candidates.push(`${firstPart} ${lastPart}`.trim());
 
-  // 3. Any remaining name-ish answer
+  // 5. Any remaining name-ish answer
   for (const [k, v] of Object.entries(data)) {
     const key = String(k).toLowerCase();
     const val = clean(stringify(v));
@@ -710,7 +725,7 @@ export function decideEmailKind({ accountExists, accountActivated }) {
  * reason so the dashboard shows WHY an expected email never fired. Deduped:
  * no new row is written when the latest row already has the same status.
  */
-export async function recordEmailStatus({ submission_id, contact_cid, email_type, status, error, provider }) {
+export async function recordEmailStatus({ submission_id, contact_cid, email_type, status, error, provider, to }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
@@ -724,9 +739,9 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
       if (last && last.status === safeStatus) return; // already recorded — no spam
     }
     await db.execute({
-      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, safeStatus, provider || null, (error || "Unknown reason").substring(0, 500)],
+      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient)
+            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, safeStatus, provider || null, (error || "Unknown reason").substring(0, 500), to ? String(to).trim().substring(0, 300) : null],
     });
   } catch (e) {
     console.warn("[EmailLog] Could not record status:", e.message);
@@ -738,22 +753,23 @@ export async function recordEmailFailure(args) {
   return recordEmailStatus({ ...args, status: "failed" });
 }
 
-async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note }) {
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
+    const recipient = to ? String(to).trim().substring(0, 300) : null;
     if (success) {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, sent_at)
-              VALUES (?, ?, ?, 'sent', ?, ?, NOW())
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, sent_at)
+              VALUES (?, ?, ?, 'sent', ?, ?, ?, NOW())
               ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null],
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient],
       });
     } else {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error)
-              VALUES (?, ?, ?, 'failed', ?, ?)`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500)],
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient)
+              VALUES (?, ?, ?, 'failed', ?, ?, ?)`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500), recipient],
       });
     }
   } catch (e) {
@@ -767,7 +783,7 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
  * - Send succeeds → records 'sent' and returns { success: true }
  * - Send fails → records 'failed' and returns { success: false } (retryable)
  */
-export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider, note }) {
+export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider, note, to }) {
   const existing = await getEmailLogRow(submission_id, email_type);
   if (existing && existing.status === "sent") {
     return { skipped: true, already_sent: true, log: existing };
@@ -788,6 +804,7 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
     error: result.error ? (typeof result.error === "string" ? result.error : JSON.stringify(result.error)) : undefined,
     provider: result?.provider || provider,
     note,
+    to,
   });
 
   return { ...result, skipped: false };
