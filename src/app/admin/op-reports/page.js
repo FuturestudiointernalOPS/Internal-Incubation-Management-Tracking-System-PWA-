@@ -480,8 +480,12 @@ export default function AdminOpReports() {
               onChange={(e) => setFilterWorkspace(e.target.value)}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
             >
-              <option value="main">Main Workspace</option>
-              <option value="interns">Interns</option>
+              <option value="main">
+                {t("adminMisc.opReports.mainWorkspace")}
+              </option>
+              <option value="interns">
+                {t("adminMisc.opReports.interns")}
+              </option>
             </select>
           </div>
         </div>
@@ -1787,7 +1791,7 @@ function ReportDetailModal({ report, onClose }) {
                 const btn = document.getElementById("pdf-export-btn");
                 if (btn) {
                   btn.disabled = true;
-                  btn.textContent = "Generating...";
+                  btn.textContent = t("adminMisc.opReports.generating");
                 }
                 try {
                   // Method 1: Try html2canvas + jsPDF for a clean PDF file
@@ -1867,8 +1871,7 @@ function ReportDetailModal({ report, onClose }) {
                     new CustomEvent("impactos:notify", {
                       detail: {
                         type: "info",
-                        message:
-                          "Print dialog opened. Choose 'Save as PDF' to export.",
+                        message: t("adminMisc.opReports.printDialogOpened"),
                         duration: 5000,
                       },
                     }),
@@ -1879,8 +1882,7 @@ function ReportDetailModal({ report, onClose }) {
                     new CustomEvent("impactos:notify", {
                       detail: {
                         type: "error",
-                        message:
-                          "PDF export unavailable. Try using your browser's Print (Ctrl+P) instead.",
+                        message: t("adminMisc.opReports.pdfExportUnavailable"),
                         duration: 6000,
                       },
                     }),

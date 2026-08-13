@@ -285,10 +285,10 @@ export default function AdminTasks() {
   };
 
   const sortOptions = [
-    { id: "newest", label: "Newest First" },
-    { id: "oldest", label: "Oldest First" },
-    { id: "most_carried", label: "Most Carried Over" },
-    { id: "updated", label: "Recently Updated" },
+    { id: "newest", label: t("adminMisc.tasks.sortNewest") },
+    { id: "oldest", label: t("adminMisc.tasks.sortOldest") },
+    { id: "most_carried", label: t("adminMisc.tasks.sortMostCarried") },
+    { id: "updated", label: t("adminMisc.tasks.sortRecentlyUpdated") },
   ];
 
   return (
@@ -302,7 +302,7 @@ export default function AdminTasks() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              Dashboard
+              {t("adminMisc.tasks.dashboard")}
             </button>
             <div className="flex items-center gap-2 mt-2">
               <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -407,7 +407,7 @@ export default function AdminTasks() {
               onChange={(e) => setFilterUser(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option>All Users</option>
+              <option value="All Users">{t("adminMisc.tasks.allUsers")}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -423,7 +423,7 @@ export default function AdminTasks() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">{t("adminMisc.tasks.allStatuses")}</option>
               <option value="pending">{t("status.pending")}</option>
               <option value="in_progress">{t("status.inProgress")}</option>
               <option value="blocked">{t("status.blocked")}</option>
@@ -439,8 +439,8 @@ export default function AdminTasks() {
               onChange={(e) => setFilterProject(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option>All Projects</option>
-              <option value="Independent">Independent Tasks</option>
+              <option value="All Projects">{t("adminMisc.tasks.allProjects")}</option>
+              <option value="Independent">{t("adminMisc.tasks.independentTasks")}</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name || p.title}
@@ -475,7 +475,7 @@ export default function AdminTasks() {
               {t("reports.noTasksFound")}
             </p>
             <p className="text-[9px] text-slate-500 mt-2">
-              Tasks will appear here once created during standups.
+              {t("adminMisc.tasks.emptyStateDesc")}
             </p>
           </div>
         ) : (
@@ -485,16 +485,16 @@ export default function AdminTasks() {
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
                     <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Task
+                      {t("adminMisc.tasks.task")}
                     </th>
                     <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Owner
+                      {t("adminMisc.tasks.owner")}
                     </th>
                     <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Project
+                      {t("adminMisc.tasks.project")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Status
+                      {t("adminMisc.tasks.status")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
                       {t("time.created")}
@@ -506,10 +506,10 @@ export default function AdminTasks() {
                       {t("reports.carryOver")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Blockers
+                      {t("adminMisc.tasks.blockers")}
                     </th>
                     <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                      Actions
+                      {t("adminMisc.tasks.actions")}
                     </th>
                   </tr>
                 </thead>
@@ -540,7 +540,7 @@ export default function AdminTasks() {
                             {task.user_name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[10px] font-bold uppercase tracking-tight">
-                            {task.user_name || "Unknown"}
+                            {task.user_name || t("adminMisc.tasks.unknown")}
                           </span>
                         </div>
                       </td>
@@ -548,8 +548,10 @@ export default function AdminTasks() {
                         <span className="text-[9px] font-bold text-indigo-500">
                           {task.project_id
                             ? projectMap[task.project_id] ||
-                              `Project #${task.project_id}`
-                            : "Independent"}
+                              t("adminMisc.tasks.projectNumber", {
+                                id: task.project_id,
+                              })
+                            : t("adminMisc.tasks.independent")}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -602,7 +604,7 @@ export default function AdminTasks() {
                                     }
                                     disabled={statusUpdating !== null}
                                     className="p-1.5 rounded-lg hover:bg-blue-500/10 text-blue-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                    title="Mark In Progress"
+                                    title={t("adminMisc.tasks.markInProgress")}
                                   >
                                     {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Clock className="w-3.5 h-3.5" />}
                                   </button>
@@ -614,7 +616,7 @@ export default function AdminTasks() {
                                     }
                                     disabled={statusUpdating !== null}
                                     className="p-1.5 rounded-lg hover:bg-rose-500/10 text-rose-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                    title="Mark Blocked"
+                                    title={t("adminMisc.tasks.markBlocked")}
                                   >
                                     {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
                                   </button>
@@ -625,7 +627,7 @@ export default function AdminTasks() {
                                   }
                                   disabled={statusUpdating !== null}
                                   className="p-1.5 rounded-lg hover:bg-emerald-500/10 text-emerald-500 transition-all disabled:opacity-40 disabled:cursor-wait"
-                                  title="Mark Completed"
+                                  title={t("adminMisc.tasks.markCompleted")}
                                 >
                                   {statusUpdating === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
                                 </button>
@@ -634,7 +636,7 @@ export default function AdminTasks() {
                           <button
                             onClick={() => setViewingTask(task)}
                             className="p-1.5 rounded-lg hover:bg-slate-500/10 text-slate-500 transition-all"
-                            title="View Details"
+                            title={t("adminMisc.tasks.viewDetails")}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -658,7 +660,7 @@ export default function AdminTasks() {
             <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Task Details
+                  {t("adminMisc.tasks.taskDetails")}
                 </h3>
                 <button
                   onClick={() => setViewingTask(null)}
@@ -671,7 +673,7 @@ export default function AdminTasks() {
               <div className="space-y-4">
                 <div>
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                    Title
+                    {t("adminMisc.tasks.title")}
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
                     {viewingTask.title}
@@ -681,7 +683,7 @@ export default function AdminTasks() {
                 {viewingTask.description && (
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Description
+                      {t("adminMisc.tasks.description")}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)]">
                       {viewingTask.description}
@@ -692,21 +694,23 @@ export default function AdminTasks() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Owner
+                      {t("adminMisc.tasks.owner")}
                     </p>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {viewingTask.user_name || "Unknown"}
+                      {viewingTask.user_name || t("adminMisc.tasks.unknown")}
                     </p>
                   </div>
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Project
+                      {t("adminMisc.tasks.project")}
                     </p>
                     <p className="text-xs font-bold text-indigo-500">
                       {viewingTask.project_id
                         ? projectMap[viewingTask.project_id] ||
-                          `Project #${viewingTask.project_id}`
-                        : "Independent Task"}
+                          t("adminMisc.tasks.projectNumber", {
+                            id: viewingTask.project_id,
+                          })
+                        : t("adminMisc.tasks.independentTask")}
                     </p>
                   </div>
                 </div>
@@ -714,7 +718,7 @@ export default function AdminTasks() {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Status
+                      {t("adminMisc.tasks.status")}
                     </p>
                     <span
                       className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${getStatusBg(viewingTask.status)} ${getStatusColor(viewingTask.status)}`}
@@ -738,7 +742,7 @@ export default function AdminTasks() {
                       {t("time.created")}
                     </p>
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      Week {viewingTask.created_week} ·{" "}
+                      {t("adminMisc.tasks.week")} {viewingTask.created_week} ·{" "}
                       {viewingTask.created_year}
                     </p>
                   </div>
@@ -757,7 +761,7 @@ export default function AdminTasks() {
                 {viewingTask.completed_at && (
                   <div>
                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Completed At
+                      {t("adminMisc.tasks.completedAt")}
                     </p>
                     <p className="text-[10px] font-bold text-emerald-500">
                       {new Date(viewingTask.completed_at).toLocaleDateString()}
@@ -771,8 +775,9 @@ export default function AdminTasks() {
                       {t("reports.carryOver")}
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      Originally created as Task #
-                      {viewingTask.carried_over_from_task_id}
+                      {t("adminMisc.tasks.originallyCreatedAs", {
+                        id: viewingTask.carried_over_from_task_id,
+                      })}
                     </p>
                   </div>
                 )}
@@ -781,7 +786,9 @@ export default function AdminTasks() {
                 {viewingTask.blockers && viewingTask.blockers.length > 0 && (
                   <div>
                     <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-2">
-                      Linked Blockers ({viewingTask.blockers.length})
+                      {t("adminMisc.tasks.linkedBlockers", {
+                        count: viewingTask.blockers.length,
+                      })}
                     </p>
                     <div className="space-y-1.5">
                       {viewingTask.blockers.map((b) => (
@@ -808,7 +815,7 @@ export default function AdminTasks() {
                 {/* Assignment */}
                 <div className="border-t border-[var(--border-primary)] pt-4">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Assignment
+                    {t("adminMisc.tasks.assignment")}
                   </p>
                   <div className="flex gap-2">
                     <select
@@ -834,7 +841,7 @@ export default function AdminTasks() {
                               assigned_to: val,
                             }));
                           } else {
-                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || 'Failed to assign') || "") || (data.error || 'Failed to assign') } }));
+                            window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t("adminMisc.tasks.assignFailed") } }));
                           }
                         } catch (_) {} finally {
                           setAssigningUser(false);
@@ -842,7 +849,7 @@ export default function AdminTasks() {
                       }}
                       className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-wait"
                     >
-                      <option value="">Unassigned</option>
+                      <option value="">{t("adminMisc.tasks.unassigned")}</option>
                       {allUsers.map((u) => (
                         <option key={u.cid} value={u.cid}>
                           {u.name}
@@ -884,7 +891,7 @@ export default function AdminTasks() {
                 {/* Comments */}
                 <div className="border-t border-[var(--border-primary)] pt-4">
                   <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                    Comments
+                    {t("adminMisc.tasks.comments")}
                   </p>
                   <div className="space-y-2 mb-3 max-h-32 overflow-y-auto">
                     {comments.map((c) => (
@@ -902,7 +909,7 @@ export default function AdminTasks() {
                     ))}
                     {comments.length === 0 && (
                       <p className="text-[10px] text-slate-500 italic">
-                        No comments yet.
+                        {t("adminMisc.tasks.noCommentsYet")}
                       </p>
                     )}
                   </div>
@@ -914,7 +921,7 @@ export default function AdminTasks() {
                       onKeyDown={(e) => {
                         if (e.key === "Enter") handleAddComment();
                       }}
-                      placeholder="Add a comment..."
+                      placeholder={t("adminMisc.tasks.addCommentPlaceholder")}
                       className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     />
                     <button
