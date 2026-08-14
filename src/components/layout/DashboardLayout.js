@@ -224,6 +224,7 @@ const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
+  const { switchLang } = useI18n();
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
@@ -368,9 +369,7 @@ const SidebarContent = ({
           onClick={() => {
             if (typeof window === "undefined") return;
             const current = localStorage.getItem("impactos_lang") || "en";
-            const next = current === "en" ? "fr" : "en";
-            localStorage.setItem("impactos_lang", next);
-            window.location.reload();
+            switchLang(current === "en" ? "fr" : "en");
           }}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
         >

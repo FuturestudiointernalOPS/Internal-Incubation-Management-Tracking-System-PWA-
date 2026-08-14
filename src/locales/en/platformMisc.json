@@ -144,6 +144,7 @@
     },
     "forms": {
       "addOption": "+ Add option",
+      "optionDefault": "Option {n}",
       "aiCreated": "✓ AI created \"{title}\" — {parts}",
       "aiEvalAddDimension": "+ Add Dimension",
       "aiEvalCriteriaPlaceholder": "criterion 1, criterion 2",

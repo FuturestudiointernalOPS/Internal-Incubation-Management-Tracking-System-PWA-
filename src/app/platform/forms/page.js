@@ -326,14 +326,14 @@ export default function PlatformForms() {
         _tmpId: tempId,
         section_id: targetSectionId,
         field_type: fieldType,
-        label: typeInfo.label,
+        label: t("platformMisc.forms." + (FIELD_TYPE_KEYS[fieldType] || "")) || typeInfo.label,
         placeholder: "",
         help_text: "",
         required: false,
         options: fieldType === "rating"
           ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
           : ["select", "radio", "checkbox", "multiselect"].includes(fieldType)
-            ? [{ label: "Option 1", value: "option-1" }]
+            ? [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]
             : fieldType === "rating"
             ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
             : null,
@@ -370,7 +370,7 @@ export default function PlatformForms() {
   const addOption = (tmpId) => {
     setFields((prev) => prev.map((f) => {
       if (f._tmpId !== tmpId || !f.options) return f;
-      return { ...f, options: [...f.options, { label: `Option ${f.options.length + 1}`, value: `option-${f.options.length + 1}` }] };
+      return { ...f, options: [...f.options, { label: t("platformMisc.forms.optionDefault", { n: f.options.length + 1 }), value: `option-${f.options.length + 1}` }] };
     }));
   };
 
@@ -596,7 +596,7 @@ export default function PlatformForms() {
                   onChange={(e) => {
                     const newType = e.target.value;
                     const needsOptions = ["select", "radio", "checkbox", "multiselect", "rating"].includes(newType);
-                    updateField(tmpId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: "Option 1", value: "option-1" }]) : null });
+                    updateField(tmpId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]) : null });
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                 >
