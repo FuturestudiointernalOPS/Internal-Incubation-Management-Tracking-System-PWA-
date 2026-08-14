@@ -48,6 +48,13 @@ const EMAIL_STATUS_CONFIG = {
 
 const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed", "complained", "failed", "bounced", "cancelled", "skipped"];
 
+// Filter option lists for the Run Overview tracking columns.
+const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed", "bounced", "failed", "cancelled", "skipped", "not_sent"];
+const REVIEW_FILTER_OPTIONS = ["approved", "rejected", "revision_requested"];
+const STATUS_FILTER_OPTIONS = ["submitted", "approved", "rejected", "revision_requested", "draft"];
+const ACCOUNT_STATUS_OPTIONS = ["activated", "pending", "not_created"];
+const ACCOUNT_STATUS_LABELS = { activated: "Activated", pending: "Pending Activation", not_created: "Not Created" };
+
 const TARGET_LABELS = {
   user: "User", group: "Group", program: "Program", cohort: "Cohort",
   team: "Team", organization: "Organization", all: "Everyone",
@@ -462,6 +469,10 @@ export default function FormRunsPage() {
           setScoreVal("");
           setScoreVal2("");
           setFieldFilters({});
+          setApprovalEmailFilter("");
+          setActivationEmailFilter("");
+          setReviewFilter("");
+          setAccountStatusFilter("");
           setRespPage(1);
           setSelectedIds([]);
           setShowDuplicates(false);
@@ -727,6 +738,10 @@ export default function FormRunsPage() {
   const [scoreVal, setScoreVal] = useState("");
   const [scoreVal2, setScoreVal2] = useState("");
   const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
+  const [approvalEmailFilter, setApprovalEmailFilter] = useState("");
+  const [activationEmailFilter, setActivationEmailFilter] = useState("");
+  const [reviewFilter, setReviewFilter] = useState("");
+  const [accountStatusFilter, setAccountStatusFilter] = useState("");
   const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
   const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
   const [respPage, setRespPage] = useState(1); // respondent table pagination
@@ -868,6 +883,21 @@ export default function FormRunsPage() {
     return answers;
   };
 
+  const latestEmailOf = (s, type) =>
+    emailLog
+      .filter((e) => e.submission_id === s.id && e.email_type === type)
+      .slice(-1)[0] || null;
+  const latestReviewOf = (s) => {
+    const rs = reviews.filter((r) => r.submission_id === s.id);
+    return rs[rs.length - 1] || null;
+  };
+  const emailStatusOf = (s, type) => {
+    const e = latestEmailOf(s, type);
+    return e ? e.status : "not_sent";
+  };
+  const accountStatusOf = (s) =>
+    s.account_activated ? "activated" : s.account_created ? "pending" : "not_created";
+
   const filteredSubmissions = useMemo(() => {
     if (!selectedRun) return [];
     const q = respSearch.trim().toLowerCase();
@@ -890,6 +920,15 @@ export default function FormRunsPage() {
 
     return submissions.filter((s) => {
       if (subFilter !== "all" && s.status !== subFilter) return false;
+
+      if (approvalEmailFilter && emailStatusOf(s, "approval") !== approvalEmailFilter) return false;
+      if (activationEmailFilter && emailStatusOf(s, "activation") !== activationEmailFilter) return false;
+      if (reviewFilter) {
+        const r = latestReviewOf(s);
+        const decision = r ? r.decision : "none";
+        if (decision !== reviewFilter) return false;
+      }
+      if (accountStatusFilter && accountStatusOf(s) !== accountStatusFilter) return false;
 
       if (q) {
         const hay = [
@@ -918,12 +957,16 @@ export default function FormRunsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, fieldLabels]);
+  }, [selectedRun, submissions, evaluations, emailLog, reviews, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, fieldLabels, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
   const hasRunFilters = !!(
     respSearch.trim() ||
     (scoreOp && scoreVal !== "") ||
-    Object.values(fieldFilters).some(Boolean)
+    Object.values(fieldFilters).some(Boolean) ||
+    approvalEmailFilter ||
+    activationEmailFilter ||
+    reviewFilter ||
+    accountStatusFilter
   );
 
   // Any search/filter change returns the respondent table to page 1 AND
@@ -932,7 +975,7 @@ export default function FormRunsPage() {
     setRespPage(1);
     setSelectedIds([]);
     setShowDuplicates(false);
-  }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter]);
+  }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter, approvalEmailFilter, activationEmailFilter, reviewFilter, accountStatusFilter]);
 
   const clearRunFilters = () => {
     setRespSearch("");
@@ -940,6 +983,10 @@ export default function FormRunsPage() {
     setScoreVal("");
     setScoreVal2("");
     setFieldFilters({});
+    setApprovalEmailFilter("");
+    setActivationEmailFilter("");
+    setReviewFilter("");
+    setAccountStatusFilter("");
     setRespPage(1);
     setSelectedIds([]);
     setFilterPickerOpen(false);
@@ -956,8 +1003,56 @@ export default function FormRunsPage() {
       : `AI Score: ${SCORE_OPS[scoreOp] || ""} ${scoreVal}%`
     : "";
   const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+
+  // Tracking filters (Approval Email / Review / Status / Activation Email /
+  // Account Status) — same pattern as field filters, but backed by fixed
+  // option lists and the tracking filter state.
+  const TRACKING_FILTERS = [
+    { key: "approval_email", label: "Approval Email" },
+    { key: "review", label: "Review" },
+    { key: "status", label: "Status" },
+    { key: "activation_email", label: "Activation Email" },
+    { key: "account_status", label: "Account Status" },
+  ];
+  const trackingFilterValue = (key) => {
+    if (key === "approval_email") return approvalEmailFilter;
+    if (key === "review") return reviewFilter;
+    if (key === "status") return subFilter === "all" ? "" : subFilter;
+    if (key === "activation_email") return activationEmailFilter;
+    if (key === "account_status") return accountStatusFilter;
+    return "";
+  };
+  const setTrackingFilter = (key, value) => {
+    if (key === "approval_email") setApprovalEmailFilter(value);
+    else if (key === "review") setReviewFilter(value);
+    else if (key === "status") setSubFilter(value || "all");
+    else if (key === "activation_email") setActivationEmailFilter(value);
+    else if (key === "account_status") setAccountStatusFilter(value);
+  };
+  const trackingFilterOptions = (key) => {
+    if (key === "approval_email" || key === "activation_email") return EMAIL_FILTER_OPTIONS;
+    if (key === "review") return REVIEW_FILTER_OPTIONS;
+    if (key === "status") return STATUS_FILTER_OPTIONS;
+    if (key === "account_status") return ACCOUNT_STATUS_OPTIONS;
+    return [];
+  };
+  const trackingFilterOptionLabel = (key, val) => {
+    if (key === "account_status") return ACCOUNT_STATUS_LABELS[val] || val;
+    if (key === "approval_email" || key === "activation_email") {
+      if (val === "not_sent") return "Not Sent";
+      return EMAIL_STATUS_CONFIG[val]?.label || val;
+    }
+    return SUB_STATUS[val]?.label || val;
+  };
+  const activeTrackingFilters = TRACKING_FILTERS
+    .map((f) => ({ key: f.key, label: f.label, value: trackingFilterValue(f.key) }))
+    .filter((f) => f.value);
+
   const availableParams = [
     ...(scoreChipActive ? [] : [{ key: "score", label: "AI Score" }]),
+    ...TRACKING_FILTERS
+      .filter((f) => !trackingFilterValue(f.key))
+      .map((f) => ({ key: f.key, label: f.label })),
     ...filterableFields
       .filter((f) => !fieldFilters[f.label])
       .map((f) => ({ key: `field:${f.label}`, label: f.label })),
@@ -993,7 +1088,9 @@ export default function FormRunsPage() {
 
   const pickFilterParam = (p) => {
     setFilterPickerOpen(false);
-    setFilterPickerMode(p.key === "score" ? "score" : { type: "field", label: p.label });
+    if (p.key === "score") setFilterPickerMode("score");
+    else if (p.key.startsWith("field:")) setFilterPickerMode({ type: "field", label: p.label });
+    else setFilterPickerMode({ type: "status", key: p.key });
   };
 
   // ─── Duplicate detection: same resolved email appearing multiple times ───
@@ -1551,6 +1648,17 @@ export default function FormRunsPage() {
                     </button>
                   ))}
 
+                  {activeTrackingFilters.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => setTrackingFilter(f.key, "")}
+                      title="Remove this filter"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                    >
+                      {f.label}: {trackingFilterOptionLabel(f.key, f.value)} <X className="w-3 h-3" />
+                    </button>
+                  ))}
+
                   {/* Inline editor — AI Score */}
                   {filterPickerMode === "score" && (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
@@ -1619,6 +1727,33 @@ export default function FormRunsPage() {
                           <option key={`${filterPickerMode.label}-${idx}`} value={String(o)}>
                             {String(o)}
                           </option>
+                        ))}
+                      </select>
+                      <button onClick={() => setFilterPickerMode(null)} className="text-[var(--text-secondary)] hover:text-rose-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Inline editor — tracking filter (Approval Email / Review / Status / Activation Email / Account Status) */}
+                  {filterPickerMode && filterPickerMode.type === "status" && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                      <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                        {TRACKING_FILTERS.find((f) => f.key === filterPickerMode.key)?.label || filterPickerMode.key}:
+                      </span>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setTrackingFilter(filterPickerMode.key, e.target.value);
+                            setFilterPickerMode(null);
+                          }
+                        }}
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      >
+                        <option value="">Select…</option>
+                        {trackingFilterOptions(filterPickerMode.key).map((v) => (
+                          <option key={v} value={v}>{trackingFilterOptionLabel(filterPickerMode.key, v)}</option>
                         ))}
                       </select>
                       <button onClick={() => setFilterPickerMode(null)} className="text-[var(--text-secondary)] hover:text-rose-500">
@@ -1764,13 +1899,13 @@ export default function FormRunsPage() {
                             <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
                           </th>
                         ))}
-                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Submitted</th>
                         <th className="px-4 py-3">AI Score</th>
                         <th className="px-4 py-3">Approval Email</th>
+                        <th className="px-4 py-3">Review</th>
+                        <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">Activation Email</th>
                         <th className="px-4 py-3">Account Status</th>
-                        <th className="px-4 py-3">Submitted</th>
-                        <th className="px-4 py-3">Review</th>
                         <th className="px-4 py-3">Actions</th>
                       </tr>
                     </thead>
@@ -1861,7 +1996,7 @@ export default function FormRunsPage() {
                             {runFormFields.slice(0, 2).map(f => (
                               <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
                             ))}
-                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
+                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
                             <td className="px-4 py-3">
                               {overall != null ? (
                                 <div className="flex flex-col">
@@ -1886,6 +2021,10 @@ export default function FormRunsPage() {
                                 <span title="No approval email sent" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Not sent</span>
                               )}
                             </td>
+                            <td className="px-4 py-3 text-[9px] text-[var(--text-secondary)]">
+                              {lastReview ? <span>{lastReview.decision} by {lastReview.reviewer_name || lastReview.reviewer_id}</span> : "—"}
+                            </td>
+                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{sc.label}</span></td>
                             <td className="px-4 py-3">
                               {activationEmail ? (
                                 (() => {
@@ -1908,10 +2047,6 @@ export default function FormRunsPage() {
                               ) : (
                                 <span title="No platform account yet" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Not Created</span>
                               )}
-                            </td>
-                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
-                            <td className="px-4 py-3 text-[9px] text-[var(--text-secondary)]">
-                              {lastReview ? <span>{lastReview.decision} by {lastReview.reviewer_name || lastReview.reviewer_id}</span> : "—"}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
