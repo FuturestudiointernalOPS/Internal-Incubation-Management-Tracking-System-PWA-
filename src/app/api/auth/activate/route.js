@@ -21,7 +21,7 @@ export async function GET(req) {
     }
 
     const tokenRes = await db.execute({
-      sql: `SELECT pt.*, c.name, c.email, c.role
+      sql: `SELECT pt.*, c.name, c.email, c.role, c.language
             FROM password_setup_tokens pt
             JOIN contacts c ON pt.contact_cid = c.cid
             WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
@@ -52,6 +52,7 @@ export async function GET(req) {
       name: record.name,
       email: record.email,
       role: record.role || "participant",
+      language: record.language || "en",
       cid: record.contact_cid,
     });
   } catch (error) {
@@ -81,7 +82,7 @@ export async function POST(req) {
 
     // Validate token
     const tokenRes = await db.execute({
-      sql: `SELECT pt.*, c.email, c.name, c.role
+      sql: `SELECT pt.*, c.email, c.name, c.role, c.language
             FROM password_setup_tokens pt
             JOIN contacts c ON pt.contact_cid = c.cid
             WHERE pt.token = ? AND pt.used = 0 AND pt.expires_at > NOW()`,
@@ -111,7 +112,7 @@ export async function POST(req) {
     });
 
     // Send welcome email (non-blocking)
-    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role }).catch((e) =>
+    sendWelcomeEmail({ to: record.email, name: record.name, role: record.role, language: record.language }).catch((e) =>
       console.error("Welcome email failed:", e),
     );
 

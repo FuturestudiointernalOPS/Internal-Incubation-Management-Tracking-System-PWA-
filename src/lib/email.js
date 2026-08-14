@@ -348,10 +348,28 @@ export async function sendLoginEmail({ to, name, role, template, templateVars })
 /**
  * Send a welcome email after activation
  */
-export async function sendWelcomeEmail({ to, name, role }) {
+export async function sendWelcomeEmail({ to, name, role, language }) {
   // Never render placeholder identities (UNKNOWN / Anonymous / empty) when a
   // resolved name is unavailable — use a neutral greeting instead.
   const displayName = isGenericName(name) ? "there" : (name || "there").trim();
+  const isFr = (language || "en").toLowerCase().startsWith("fr");
+  const copy = isFr
+    ? {
+        platform: "Plateforme Future Studio",
+        heading: `Bienvenue, ${displayName} ! 👋`,
+        body: "Votre compte est maintenant actif. Vous pouvez vous connecter et commencer à utiliser ImpactOS.",
+        cta: "SE CONNECTER",
+        note: "Si vous n'avez pas créé ce compte, veuillez contacter votre administrateur.",
+        subject: "Bienvenue sur ImpactOS — Votre compte est actif",
+      }
+    : {
+        platform: "Future Studio Platform",
+        heading: `Welcome, ${displayName}! 👋`,
+        body: "Your account is now active. You can log in and start using ImpactOS.",
+        cta: "LOG IN",
+        note: "If you did not create this account, please contact your administrator.",
+        subject: "Welcome to ImpactOS — Your account is active",
+      };
   const html = `
     <!DOCTYPE html>
     <html>
@@ -364,18 +382,18 @@ export async function sendWelcomeEmail({ to, name, role }) {
               <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
                 <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
               </h1>
-              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">${copy.platform}</p>
 
-              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Welcome, ${displayName}! 👋</h2>
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">${copy.heading}</h2>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-                Your account is now active. You can log in and start using ImpactOS.
+                ${copy.body}
               </p>
 
               <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
                 <tr>
                   <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
                     <a href="${APP_URL}/login" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
-                      LOG IN
+                      ${copy.cta}
                     </a>
                   </td>
                 </tr>
@@ -383,7 +401,7 @@ export async function sendWelcomeEmail({ to, name, role }) {
 
               <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
-                If you did not create this account, please contact your administrator.
+                ${copy.note}
               </p>
               ${FUTURE_STUDIO_FOOTER}
             </td></tr>
@@ -394,7 +412,7 @@ export async function sendWelcomeEmail({ to, name, role }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: "Welcome to ImpactOS — Your account is active", html, provider: "gmail" });
+  return sendEmail({ to, subject: copy.subject, html, provider: "gmail" });
 }
 
 /**
@@ -891,6 +909,26 @@ export function resolvePersonName({ contactName, contactFirstName, contactLastNa
     if (c && !GENERIC_NAMES.test(c)) return c;
   }
   return "";
+}
+
+/**
+ * Infer the workflow language from form question labels. Returns "fr" when the
+ * form's questions are predominantly French (Nom complet / Prénom / Courriel…),
+ * otherwise "en". Used to set a new contact's language so the Welcome email
+ * matches the form/workflow the applicant completed.
+ */
+export function detectLanguage(fieldLabels) {
+  let fr = 0;
+  let en = 0;
+  for (const v of Object.values(fieldLabels || {})) {
+    const l = String(v).toLowerCase();
+    if (/nom complet|pr[eé]nom|prenom|courriel|t[eé]l[eé]phone|date de naissance|ville|pays/.test(l)) {
+      fr++;
+    } else if (/full name|first name|last name|email address|phone|date of birth|city|country/.test(l)) {
+      en++;
+    }
+  }
+  return fr > en ? "fr" : "en";
 }
 
 /**
