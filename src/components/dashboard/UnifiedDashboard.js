@@ -10,6 +10,7 @@ import {
   ListTodo,
   Shield,
   Target,
+  Trophy,
   Rocket,
   Briefcase,
   Users,
