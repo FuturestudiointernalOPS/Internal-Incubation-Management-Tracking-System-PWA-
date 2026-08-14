@@ -28,9 +28,10 @@ ALTER TABLE families ADD COLUMN IF NOT EXISTS lead_facilitator_id TEXT;
 CREATE INDEX IF NOT EXISTS idx_families_lead_facilitator ON families(lead_facilitator_id);
 
 -- 4. Facilitator reviews + PM decisions (single row, distinct fields for audit)
+--    program_id is TEXT to match v2_programs.id (app-generated IDs like P-2026-...)
 CREATE TABLE IF NOT EXISTS program_facilitator_reviews (
     id SERIAL PRIMARY KEY,
-    program_id UUID NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
+    program_id TEXT NOT NULL REFERENCES v2_programs(id) ON DELETE CASCADE,
     facilitator_id TEXT NOT NULL,
     facilitator_name TEXT,
     week_number INTEGER,
