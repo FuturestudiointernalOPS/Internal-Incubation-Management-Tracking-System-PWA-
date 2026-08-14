@@ -87,6 +87,13 @@
       "launchFailed": "Failed to initiate campaign."
     },
     "contacts": {
+      "allContacts": "All Contacts",
+      "allTeams": "All Teams",
+      "filterAll": "All",
+      "filterInactive": "Inactive",
+      "statusInactive": "Inactive",
+      "statusApproved": "Approved",
+      "unassigned": "Unassigned",
       "dashboard": "Dashboard",
       "contact": "Contact",
       "contactsTitle": "CONTACTS",

@@ -258,6 +258,7 @@
       "testNotificationSent": "Notification de test envoyée"
     },
     "pendingUsers": {
+      "unassigned": "Non attribué",
       "userManagement": "Gestion des utilisateurs",
       "title": "Utilisateurs en attente",
       "subtitle": "Examinez et approuvez les utilisateurs qui se sont inscrits mais qui ne sont pas encore activés.",

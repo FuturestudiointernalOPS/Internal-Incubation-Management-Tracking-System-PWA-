@@ -258,6 +258,7 @@
       "testNotificationSent": "Test notification sent"
     },
     "pendingUsers": {
+      "unassigned": "Unassigned",
       "userManagement": "User Management",
       "title": "Pending Users",
       "subtitle": "Review and approve users who have registered but not yet been activated.",

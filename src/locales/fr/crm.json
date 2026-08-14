@@ -87,6 +87,13 @@
       "launchFailed": "Échec du lancement de la campagne."
     },
     "contacts": {
+      "allContacts": "Tous les contacts",
+      "allTeams": "Toutes les équipes",
+      "filterAll": "Tous",
+      "filterInactive": "Inactifs",
+      "statusInactive": "Inactif",
+      "statusApproved": "Approuvé",
+      "unassigned": "Non attribué",
       "dashboard": "Tableau de bord",
       "contact": "Contact",
       "contactsTitle": "CONTACTS",

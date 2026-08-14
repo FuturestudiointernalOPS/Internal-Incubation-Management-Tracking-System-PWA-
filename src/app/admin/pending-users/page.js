@@ -366,7 +366,7 @@ export default function PendingUsersPage() {
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-[var(--brand-orange)]" />
                   <span className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                    {groupName}
+                    {groupName === "UNASSIGNED" ? t("adminMisc.pendingUsers.unassigned") : groupName}
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                     {users.length}
