@@ -1,5 +1,7 @@
 {
   "crm": {
+    "backToPrevious": "Back to previous menu",
+    "backToCrm": "Back to CRM",
     "campaigns": {
       "title": "Campaigns",
       "subtitle": "Broadcast messages and track engagement metrics.",

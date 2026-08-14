@@ -7,6 +7,7 @@ import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -44,6 +45,7 @@ export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
   const router = useRouter();
   const { t, lang } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
@@ -197,10 +199,17 @@ export default function CrmDetailPage({ params }) {
   return (
     <DashboardLayout role="super_admin" activeTab="crm">
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
-        {/* Back link */}
-        <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">
-          {t("crm.people.backToCrmDashboard")}
-        </Link>
+        {/* Back links */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.people.backToCrmDashboard")}
+          </Link>
+        </nav>
 
         {/* Identity Header */}
         <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-6">

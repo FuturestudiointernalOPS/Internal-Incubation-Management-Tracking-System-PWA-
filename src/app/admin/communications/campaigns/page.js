@@ -1,15 +1,18 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Plus, Send, CheckCircle, Search, Rocket, X, Users, Loader2, List, Trash2, Calendar, MailOpen, Clock, Settings2, ArrowRight, Save, ChevronRight, Power } from 'lucide-react';
+import { Plus, Send, CheckCircle, Search, Rocket, X, Users, Loader2, List, Trash2, Calendar, MailOpen, Clock, Settings2, ArrowRight, Save, ChevronRight, Power, ArrowLeft } from 'lucide-react';
+import Link from 'next/link';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
+import { useSafeBack } from '@/lib/useSafeBack';
 
 const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 
 export default function CampaignsPage() {
   const { t, lang } = useI18n();
+  const goBack = useSafeBack('/admin/crm');
   const [campaigns, setCampaigns] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -269,6 +272,16 @@ export default function CampaignsPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('crm.backToPrevious')}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('crm.backToCrm')}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">{t('crm.campaigns.title')}</h2>
@@ -369,7 +382,7 @@ export default function CampaignsPage() {
                          </div>
                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
                             <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('crm.campaigns.sent')}</p>
-                            <p className="text-lg font-black text-white text-emerald-400">{c.sent_contacts}</p>
+                            <p className="text-lg font-black text-emerald-400">{c.sent_contacts}</p>
                          </div>
                       </div>
                    </div>

@@ -1,5 +1,7 @@
 {
   "crm": {
+    "backToPrevious": "Retour au menu précédent",
+    "backToCrm": "Retour au CRM",
     "campaigns": {
       "title": "Campagnes",
       "subtitle": "Diffusez des messages et suivez les métriques d'engagement.",

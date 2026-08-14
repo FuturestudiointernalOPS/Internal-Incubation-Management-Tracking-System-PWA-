@@ -3,52 +3,54 @@
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
-const NAV_COUNT_KEY = "impactos_inapp_nav_count";
+const STACK_KEY = "impactos_nav_stack";
+const MAX_STACK = 30;
 
-/**
- * Marks that a client-side in-app navigation occurred.
- * Called by <NavigationTracker /> on every route change.
- */
-export function trackInAppNavigation() {
-  if (typeof window === "undefined") return;
+function getStack() {
+  if (typeof window === "undefined") return [];
   try {
-    const count = Number(sessionStorage.getItem(NAV_COUNT_KEY) || "0");
-    sessionStorage.setItem(NAV_COUNT_KEY, String(count + 1));
+    const raw = JSON.parse(sessionStorage.getItem(STACK_KEY) || "[]");
+    return Array.isArray(raw) ? raw.filter((x) => typeof x === "string") : [];
   } catch {
-    /* storage unavailable — fall back to history.length only */
+    return [];
   }
 }
 
-/** True when the user has visited at least 2 pages inside the app. */
-export function hasInAppHistory() {
-  if (typeof window === "undefined") return false;
+function saveStack(stack) {
   try {
-    return Number(sessionStorage.getItem(NAV_COUNT_KEY) || "0") > 1;
+    sessionStorage.setItem(STACK_KEY, JSON.stringify(stack));
   } catch {
-    return typeof window !== "undefined" && window.history.length > 1;
+    /* storage unavailable — back falls back to the fallback path */
+  }
+}
+
+/** Record a visited page (dedupes consecutive visits). Called on every route change. */
+export function trackPage(pathname) {
+  const stack = getStack();
+  if (stack[stack.length - 1] !== pathname) {
+    stack.push(pathname);
+    if (stack.length > MAX_STACK) stack.shift();
+    saveStack(stack);
   }
 }
 
 /**
- * Back to the previous in-app page when possible; otherwise go to a
- * known fallback path so the control never dead-ends.
+ * Returns the previous in-app page path (removing the current entry from the
+ * stack), or null when there is none (fresh tab / deep link / first page).
  */
-export function goBack(router, fallbackPath) {
-  if (hasInAppHistory() && typeof window !== "undefined" && window.history.length > 1) {
-    router.back();
-  } else {
-    router.push(fallbackPath);
-  }
+export function getPreviousPath(currentPathname) {
+  const stack = getStack();
+  if (stack[stack.length - 1] === currentPathname) stack.pop();
+  const prev = stack[stack.length - 1] || null;
+  saveStack(stack);
+  return prev;
 }
 
-/**
- * Mount once in the root layout. Increments the in-app nav counter on every
- * route change so back buttons know whether browser-back stays in the app.
- */
+/** Mount once in the root layout. Records every client-side route change. */
 export function NavigationTracker() {
   const pathname = usePathname();
   useEffect(() => {
-    trackInAppNavigation();
+    trackPage(pathname);
   }, [pathname]);
   return null;
 }

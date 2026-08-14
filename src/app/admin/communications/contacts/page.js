@@ -31,8 +31,10 @@ import {
   UploadCloud,
   AlertTriangle,
 } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
@@ -58,9 +60,9 @@ const GROUP_LABELS = {
 
 function ContactsPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const roleParam = searchParams.get("role");
   const { t } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
 
   const [contacts, setContacts] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -658,15 +660,19 @@ function ContactsPageContent() {
       </AnimatePresence>
 
       <div className="space-y-10 pb-20 animate-in text-left">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToCrm")}
+          </Link>
+        </nav>
+
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div className="space-y-4">
-            <button
-              onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
-            >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              {t("crm.contacts.dashboard")}
-            </button>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[var(--brand-orange)]" />

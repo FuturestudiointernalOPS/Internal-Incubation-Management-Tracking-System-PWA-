@@ -1,33 +1,30 @@
 /**
  * useSafeBack — back navigation that always works.
  *
- * `router.back()` is only useful when the previous history entry is an
- * in-app page. Uses `hasInAppHistory()` (a sessionStorage counter maintained
- * by <NavigationTracker /> in the root layout) to detect that; otherwise
- * falls back to a stable destination (the parent menu) so a back control
- * always navigates somewhere.
- *
- * Usage:
- *   const goBack = useSafeBack("/admin/crm");
- *   <button onClick={goBack}>Back</button>
+ * Uses the in-app page stack (see src/lib/navigation.js, maintained by
+ * <NavigationTracker /> in the root layout): goes to the previously visited
+ * in-app page when one exists, otherwise to a stable fallback (the parent
+ * menu) — the control never dead-ends and never leaves the app.
  */
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useCallback } from "react";
-import { hasInAppHistory } from "@/lib/navigation";
+import { getPreviousPath } from "@/lib/navigation";
 
 export function useSafeBack(fallbackPath) {
   const router = useRouter();
+  const pathname = usePathname();
 
   const goBack = useCallback(() => {
     if (typeof window === "undefined") return;
-    if (hasInAppHistory() && window.history.length > 1) {
-      router.back();
+    const prev = getPreviousPath(pathname);
+    if (prev && prev !== pathname) {
+      router.push(prev);
     } else if (fallbackPath) {
       router.push(fallbackPath);
     }
-  }, [router, fallbackPath]);
+  }, [router, pathname, fallbackPath]);
 
   return goBack;
 }
