@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export const dynamic = "force-dynamic";
 export default function PromoteToVenture() {
   const { id } = useParams();
   const router = useRouter();
+  const goBack = useSafeBack(`/pm/programs/${id}`);
   const { t } = useI18n();
 
   const [user, setUser] = useState({});
@@ -188,7 +190,7 @@ export default function PromoteToVenture() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.back()}
+              onClick={goBack}
               className="p-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all"
               title={t("pmMisc.promote.goBack")}
             >

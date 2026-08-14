@@ -7,6 +7,7 @@ import {
   FileText, Clock, User, Info, ChevronDown, ChevronUp, Star, X,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const COUNTRY_CODES = [
   { flag: "🇳🇬", name: "Nigeria", code: "+234" },
@@ -60,6 +61,7 @@ const FIELD_TYPES = {
 export default function SubmitFormPage() {
   const params = useParams();
   const router = useRouter();
+  const goBack = useSafeBack("/admin/platform/runs");
   const { t } = useI18n();
   const runId = params.runId;
 
@@ -524,7 +526,7 @@ export default function SubmitFormPage() {
           <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
           <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.errorTitle")}</h1>
           <p className="text-[11px] text-[var(--text-secondary)]">{error}</p>
-          <button onClick={() => router.back()} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase">{t("platformMisc.runSubmitDetail.goBack")}</button>
+          <button onClick={goBack} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase">{t("platformMisc.runSubmitDetail.goBack")}</button>
         </div>
       </div>
     );
@@ -543,7 +545,7 @@ export default function SubmitFormPage() {
       <div className="sticky top-0 z-30 bg-secondary border-b border-[var(--border-primary)]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={() => router.back()} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
+            <button onClick={goBack} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
               <ArrowLeft className="w-3 h-3" /> {t("platformMisc.runSubmitDetail.back")}
             </button>
             <span className="text-[var(--text-secondary)] opacity-30">|</span>

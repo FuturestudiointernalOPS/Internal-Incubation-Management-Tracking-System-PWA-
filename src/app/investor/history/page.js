@@ -5,11 +5,11 @@ import {
   Clock, TrendingUp, DollarSign, Target, XCircle, Download,
   FileText, Loader2, Building2, ArrowLeft, CheckCircle2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const DECISION_COLORS = {
   invest: "bg-emerald-500/10 text-emerald-400",
@@ -32,7 +32,7 @@ const STAGE_COLORS = {
 };
 
 export default function InvestmentHistoryPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
   const [decisions, setDecisions] = useState([]);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({});
@@ -92,7 +92,7 @@ export default function InvestmentHistoryPage() {
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
+            <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
             <div>
               <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorMisc.history.title")}</h1>
               <p className="text-xs text-[var(--text-secondary)]">{t("investorMisc.history.subtitle")}</p>

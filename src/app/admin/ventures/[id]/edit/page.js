@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const INDUSTRIES = [
   "Fintech",
@@ -41,6 +42,7 @@ const BUSINESS_STAGES = [
 export default function EditVenturePage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
+  const goBack = useSafeBack(`/admin/ventures/${id}`);
   const { t } = useI18n();
   const [form, setForm] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -143,7 +145,7 @@ export default function EditVenturePage({ params }) {
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 rounded-lg hover:bg-tertiary transition-all">
+          <button onClick={goBack} className="p-2 rounded-lg hover:bg-tertiary transition-all">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
@@ -273,7 +275,7 @@ export default function EditVenturePage({ params }) {
             <div className="flex items-center justify-end gap-4 pt-4 border-t border-[var(--border-primary)]">
               <button
                 type="button"
-                onClick={() => router.back()}
+                onClick={goBack}
                 className="px-6 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("vadmin.edit.cancel")}

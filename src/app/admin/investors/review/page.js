@@ -6,14 +6,14 @@ import {
   Target, DollarSign, MapPin, FileText, CheckCircle2, XCircle, MessageSquare,
   TrendingUp, Clock,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
 export default function InvestorReviewPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/admin/investors");
   const { t } = useI18n();
   const [investors, setInvestors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +129,7 @@ export default function InvestorReviewPage() {
     <DashboardLayout role="super_admin">
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
+          <button onClick={goBack} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
           <div>
             <h1 className="text-xl font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.review.title")}</h1>
             <p className="text-xs text-[var(--text-secondary)]">{t("investorAdmin.review.subtitle")}</p>

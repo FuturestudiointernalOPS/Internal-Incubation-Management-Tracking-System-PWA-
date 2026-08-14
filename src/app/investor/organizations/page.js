@@ -5,15 +5,15 @@ import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
   Save, UserPlus, Crown, Shield, Mail, X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function InvestorOrganizationsPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
   const { t } = useI18n();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ export default function InvestorOrganizationsPage() {
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]">
+            <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>

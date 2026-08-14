@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/ThemeProvider";
+import NavHistoryTracker from "@/components/NavHistoryTracker";
 
 export default function RootLayout({ children }) {
   const [themeReady, setThemeReady] = useState(false);
@@ -164,7 +165,10 @@ export default function RootLayout({ children }) {
       </head>
       <body className="antialiased min-h-screen">
         <ThemeProvider>
-          <I18nProvider>{children}</I18nProvider>
+          <I18nProvider>
+            <NavHistoryTracker />
+            {children}
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

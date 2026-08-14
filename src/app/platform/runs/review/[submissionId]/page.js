@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
   ArrowLeft, Loader2, User, FileText, CheckCircle2,
   AlertTriangle, Sparkles, ChevronDown,
   ChevronUp, RefreshCw, History, Lock
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
@@ -37,7 +38,7 @@ const STATUS_LABEL_KEYS = {
 
 export default function ReviewPage() {
   const params = useParams();
-  const router = useRouter();
+  const goBack = useSafeBack("/admin/platform/runs");
   const submissionId = params.submissionId;
   const { t, lang } = useI18n();
 
@@ -181,7 +182,7 @@ export default function ReviewPage() {
   };
 
   if (loading) return <div className="min-h-screen bg-primary flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" /></div>;
-  if (error) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 text-rose-500 mx-auto mb-3" /><p className="text-[var(--text-primary)]">{error}</p><button onClick={() => router.back()} className="mt-4 text-[var(--brand-orange)] text-sm font-bold">← {t("platformMisc.runReview.goBack")}</button></div></div>;
+  if (error) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 text-rose-500 mx-auto mb-3" /><p className="text-[var(--text-primary)]">{error}</p><button onClick={goBack} className="mt-4 text-[var(--brand-orange)] text-sm font-bold">← {t("platformMisc.runReview.goBack")}</button></div></div>;
 
   const subData = submission?.data || {};
   const statusLabel = (t(STATUS_LABEL_KEYS[submission?.status] || "") || workflow.statusLabels[submission?.status]) || submission?.status || t("platformMisc.runReview.unknown");
@@ -213,7 +214,7 @@ export default function ReviewPage() {
 
       {/* Top Bar */}
       <div className="sticky top-0 z-[100] flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary">
-        <button onClick={() => router.back()} className="text-xs font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runReview.back")}</button>
+        <button onClick={goBack} className="text-xs font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runReview.back")}</button>
         <span className="text-[var(--text-secondary)] opacity-20">|</span>
         <h2 className="text-sm font-black uppercase text-[var(--text-primary)] truncate">{submission?.submitter_name || t("platformMisc.runReview.reviewTitle")}</h2>
         <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", statusColor)}>{statusLabel}</span>

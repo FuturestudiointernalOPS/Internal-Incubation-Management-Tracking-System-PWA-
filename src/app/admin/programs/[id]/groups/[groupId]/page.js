@@ -8,14 +8,14 @@ import {
   Users
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function GroupWorkspaceV2({ params }) {
   const unwrappedParams = use(params);
   const { id: programId, groupId } = unwrappedParams;
-  const router = useRouter();
+  const goBack = useSafeBack(`/admin/programs/${programId}`);
   const { t } = useI18n();
   
   const [isLoaded, setIsLoaded] = useState(false);
@@ -58,7 +58,7 @@ export default function GroupWorkspaceV2({ params }) {
       <div className="max-w-5xl mx-auto space-y-12">
         <header className="flex items-center justify-between">
            <button 
-              onClick={() => router.back()}
+              onClick={goBack}
               className="btn-ghost !py-2 !px-4 hover:bg-white/5"
            >
               <ChevronLeft className="w-4 h-4 mr-2" /> {t('adminMisc.programGroups.programHq')}

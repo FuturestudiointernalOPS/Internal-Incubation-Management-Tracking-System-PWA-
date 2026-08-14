@@ -43,11 +43,13 @@ import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
   const { id: teamId } = unwrappedParams;
   const router = useRouter();
+  const goBack = useSafeBack("/");
   const { t } = useI18n();
 
   // — State —
@@ -516,7 +518,7 @@ export default function TeamDashboardPage({ params }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <button
-              onClick={() => router.back()}
+              onClick={goBack}
               className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors mb-2 uppercase tracking-wider"
             >
               <ArrowLeft className="w-3.5 h-3.5" />

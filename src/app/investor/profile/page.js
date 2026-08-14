@@ -5,8 +5,8 @@ import {
   User, Building2, Globe, Link, Camera, Save, Loader2,
   Briefcase, Target, DollarSign, MapPin, TrendingUp, ArrowLeft,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -21,7 +21,7 @@ const COUNTRY_OPTIONS = ["CD", "KE", "NG", "ZA", "GH", "RW", "UG", "TZ", "EG", "
 
 export default function InvestorProfilePage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -128,7 +128,7 @@ export default function InvestorProfilePage() {
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]">
+          <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>

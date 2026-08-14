@@ -6,15 +6,15 @@ import {
   ArrowLeft, BarChart3, MessageSquare, Plus, Send, FileText,
   Activity, MapPin, Video, X, Edit3, Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function PortfolioPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
   const { t } = useI18n();
   const [pipeline, setPipeline] = useState([]);
   const [decisions, setDecisions] = useState([]);
@@ -237,7 +237,7 @@ export default function PortfolioPage() {
     <DashboardLayout role="investor">
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <button onClick={()=>router.back()} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5"/></button>
+          <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5"/></button>
           <div><h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorMisc.portfolio.title")}</h1><p className="text-xs text-[var(--text-secondary)]">{t("investorMisc.portfolio.yourInvestedVentures")}</p></div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

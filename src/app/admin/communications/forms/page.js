@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   Plus,
@@ -20,10 +19,11 @@ import {
 } from "lucide-react";
 import { IMPACT_CACHE } from "@/utils/impactCache";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function FormsPage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const goBack = useSafeBack("/admin/crm");
 
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -257,7 +257,7 @@ export default function FormsPage() {
         {/* Back navigation */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
