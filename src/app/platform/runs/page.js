@@ -1769,7 +1769,9 @@ export default function FormRunsPage() {
                         ))}
                         <th className="px-4 py-3">{t("platformMisc.runs.colStatus")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colAiScore")}</th>
-                        <th className="px-4 py-3">{t("platformMisc.runs.colActivation")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colApprovalEmail")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colActivationEmail")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colAccountStatus")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.statusSubmitted")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.review")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colActions")}</th>
@@ -1790,6 +1792,14 @@ export default function FormRunsPage() {
                         const activationEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "activation")
                           .slice(-1)[0];
+                        const approvalEmail = emailLog
+                          .filter((e) => e.submission_id === s.id && e.email_type === "approval")
+                          .slice(-1)[0];
+                        const accountStatus = s.account_activated
+                          ? "activated"
+                          : s.account_created
+                            ? "pending"
+                            : "not_created";
                         // The address the system actually sent to (from the
                         // delivery log) — falls back to the resolved respondent
                         // email when nothing has been sent yet.
@@ -1866,6 +1876,20 @@ export default function FormRunsPage() {
                               )}
                             </td>
                             <td className="px-4 py-3">
+                              {approvalEmail ? (
+                                (() => {
+                                  const cfg = EMAIL_STATUS_CONFIG[approvalEmail.status] || { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailPending" };
+                                  return (
+                                    <span title={approvalEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                      {t(cfg.label)}
+                                    </span>
+                                  );
+                                })()
+                              ) : (
+                                <span title={t("platformMisc.runs.emailNotSentTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailNotSent")}</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
                               {activationEmail ? (
                                 (() => {
                                   const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
@@ -1877,6 +1901,15 @@ export default function FormRunsPage() {
                                 })()
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {accountStatus === "activated" ? (
+                                <span title={t("platformMisc.runs.accountActivatedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">{t("platformMisc.runs.accountActivated")}</span>
+                              ) : accountStatus === "pending" ? (
+                                <span title={t("platformMisc.runs.accountPendingActivationTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.accountPendingActivation")}</span>
+                              ) : (
+                                <span title={t("platformMisc.runs.accountNotCreatedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.accountNotCreated")}</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
