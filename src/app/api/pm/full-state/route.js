@@ -87,7 +87,7 @@ export async function GET(req) {
       },
       {
         name: "assignedStaff",
-        sql: `SELECT ps.id, c.cid, c.name, c.email, ps.role FROM v2_program_staff ps JOIN contacts c ON ps.staff_id = c.cid WHERE ps.program_id = ?`,
+        sql: `SELECT ps.id, c.cid, c.name, c.email, ps.role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id = c.cid OR LOWER(TRIM(c.email)) = LOWER(TRIM(ps.staff_id)) WHERE ps.program_id = ?`,
         args: [id],
       },
       {
@@ -245,6 +245,15 @@ export async function GET(req) {
     }
 
     let assignedStaff = assignedStaffRes.rows;
+    // Dedupe (cid+email OR-match can produce duplicates)
+    assignedStaff = Array.from(
+      new Map((assignedStaff || []).map((r) => [r.id ?? r.cid ?? r.staff_id, r])).values(),
+    );
+    // Never show a bare id where a name is expected — fall back to email
+    assignedStaff = (assignedStaff || []).map((r) => ({
+      ...r,
+      name: r.name || r.email || r.staff_id,
+    }));
     let programFacilitators = [];
 
     // External facilitators (role='facilitator') are NOT internal staff —

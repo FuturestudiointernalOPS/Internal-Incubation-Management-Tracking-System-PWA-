@@ -1251,7 +1251,7 @@ export default function ProgramManagement() {
                             {member.name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[9px] font-black uppercase truncate italic">
-                            {member.name || t("adminMisc.programs.unknown")}
+                            {member.name || member.email || member.cid || t("adminMisc.programs.unknown")}
                           </span>
                         </button>
                       );
@@ -1665,8 +1665,8 @@ export default function ProgramManagement() {
                       <div key={f.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[9px] font-black uppercase truncate">{f.name}</p>
-                            <p className="text-[8px] text-[var(--text-secondary)] truncate">{f.email}</p>
+                            <p className="text-[9px] font-black uppercase truncate">{f.name || f.email || f.cid}</p>
+                            <p className="text-[8px] text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
                           </div>
                           <button
                             type="button"
@@ -1744,8 +1744,8 @@ export default function ProgramManagement() {
                             onClick={() => addFacilitator(c)}
                             className="w-full flex items-center justify-between gap-2 p-2 rounded-lg border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
                           >
-                            <span className="text-[9px] font-black uppercase truncate">{c.name}</span>
-                            <span className="text-[8px] text-[var(--text-secondary)] truncate">{c.email}</span>
+                            <span className="text-[9px] font-black uppercase truncate">{c.name || c.email}</span>
+                            <span className="text-[8px] text-[var(--text-secondary)] truncate">{c.email && c.email !== c.name ? c.email : ""}</span>
                             <Plus className="w-3 h-3 shrink-0 text-emerald-400" />
                           </button>
                         ))}

@@ -406,7 +406,7 @@ export default function AdminBlockers() {
                             {blocker.user_name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[10px] font-bold uppercase tracking-tight">
-                            {blocker.user_name || t("adminMisc.blockers.unknown")}
+                            {blocker.user_name || blocker.user_id || t("adminMisc.blockers.unknown")}
                           </span>
                         </div>
                       </td>
@@ -522,7 +522,7 @@ export default function AdminBlockers() {
                       {t("adminMisc.blockers.owner")}
                     </p>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {viewingBlocker.user_name || t("adminMisc.blockers.unknown")}
+                      {viewingBlocker.user_name || viewingBlocker.user_id || t("adminMisc.blockers.unknown")}
                     </p>
                   </div>
                   <div>

@@ -164,7 +164,7 @@ export async function GET(req) {
         const facRes = await db.execute({
           sql: `SELECT ps.id, ps.staff_id, ps.role, ps.permissions, c.name, c.email
                 FROM v2_program_staff ps
-                LEFT JOIN contacts c ON ps.staff_id = c.cid
+                LEFT JOIN contacts c ON ps.staff_id = c.cid OR LOWER(TRIM(c.email)) = LOWER(TRIM(ps.staff_id))
                 WHERE CAST(ps.program_id AS TEXT) = ? AND ps.role = 'facilitator'`,
           args: [String(p.id)],
         });
@@ -178,8 +178,8 @@ export async function GET(req) {
             cid: r.staff_id,
             role: r.role || "facilitator",
             permissions: perms,
-            name: r.name || r.staff_id,
-            email: r.email || "",
+            name: r.name || r.email || r.staff_id,
+            email: r.email || r.staff_id,
           };
         });
       } catch (_) {}
