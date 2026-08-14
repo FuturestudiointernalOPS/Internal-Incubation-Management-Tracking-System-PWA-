@@ -32,6 +32,8 @@ export default function ScoresPage() {
   const { t } = useI18n();
   const [forms, setForms] = useState([]);
   const [selectedFormId, setSelectedFormId] = useState("");
+  const [runs, setRuns] = useState([]);
+  const [selectedRunId, setSelectedRunId] = useState("");
   const [sort, setSort] = useState("desc");
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
@@ -71,9 +73,17 @@ export default function ScoresPage() {
     } catch (_) {}
   };
 
+  const fetchRuns = async (formId) => {
+    try {
+      const res = await fetch(`/api/platform/form-runs?form_id=${formId}`);
+      const d = await res.json();
+      if (d.success) setRuns(d.runs || []);
+    } catch (_) {}
+  };
+
   const fetchScores = useCallback(async () => {
-    if (!selectedFormId) {
-      setError(t("adminMisc.platformScores.errorSelectForm"));
+    if (!selectedRunId) {
+      setError(t("adminMisc.platformScores.errorSelectRun"));
       return;
     }
     setLoading(true);
@@ -81,6 +91,7 @@ export default function ScoresPage() {
     setData(null);
     try {
       const params = new URLSearchParams({
+        run_id: selectedRunId,
         form_id: selectedFormId,
         sort,
       });
@@ -100,7 +111,7 @@ export default function ScoresPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedFormId, sort]);
+  }, [selectedRunId, selectedFormId, sort]);
 
   const toggleExpand = (idx) => {
     setExpanded((prev) => ({ ...prev, [idx]: !prev[idx] }));
@@ -136,7 +147,7 @@ export default function ScoresPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `evaluation_scores_${selectedFormId}.csv`;
+    a.download = `evaluation_scores_run_${selectedRunId || selectedFormId}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -361,9 +372,12 @@ export default function ScoresPage() {
               value={selectedFormId}
               onChange={(e) => {
                 setSelectedFormId(e.target.value);
+                setSelectedRunId("");
+                setRuns([]);
                 setData(null);
                 setError("");
                 clearFilters();
+                if (e.target.value) fetchRuns(e.target.value);
               }}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
             >
@@ -375,6 +389,32 @@ export default function ScoresPage() {
               ))}
             </select>
           </div>
+
+          {/* Run selector — evaluations are scoped to THIS run */}
+          {selectedFormId && (
+            <div>
+              <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+                {t("adminMisc.platformScores.selectRun")}
+              </label>
+              <select
+                value={selectedRunId}
+                onChange={(e) => {
+                  setSelectedRunId(e.target.value);
+                  setData(null);
+                  setError("");
+                  clearFilters();
+                }}
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="">{t("adminMisc.platformScores.chooseRun")}</option>
+                {runs.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name || `${t("adminMisc.platformScores.runFallback")} #${r.id}`} ({r.status})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Sort */}
           <div className="flex items-center gap-4">
@@ -393,7 +433,7 @@ export default function ScoresPage() {
 
           <button
             onClick={fetchScores}
-            disabled={loading || !selectedFormId}
+            disabled={loading || !selectedRunId}
             className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
           >
             {loading ? (
@@ -588,6 +628,9 @@ export default function ScoresPage() {
                 </div>
 
                 <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  {data.run?.name ? (
+                    <>{t("adminMisc.platformScores.runLabel")}: <span className="text-[var(--brand-orange)] font-black">{data.run.name}</span> · </>
+                  ) : null}
                   Showing {filteredRespondents.length} of {data.respondents?.length || 0} respondents
                 </p>
               </div>
@@ -643,6 +686,16 @@ export default function ScoresPage() {
 
               {/* Respondents list */}
               <div className="card divide-y divide-[var(--border-primary)]">
+                {/* Column header strip — S/N is a presentation-level row number */}
+                <div className="flex items-center gap-4 px-4 py-2 bg-[var(--bg-primary)]">
+                  <span className="w-8 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.colSn")}</span>
+                  <span className="w-4" />
+                  <span className="flex-1 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.colApplicant")}</span>
+                  <span className="hidden md:block w-56 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvEmail")}</span>
+                  <span className="flex-shrink-0 w-20 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvStatus")}</span>
+                  <span className="w-16 text-right text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvScore")}</span>
+                  <span className="w-4" />
+                </div>
                 {filteredRespondents.length === 0 ? (
                   <div className="p-8 text-center">
                     <p className="text-sm text-[var(--text-secondary)]">
@@ -661,19 +714,20 @@ export default function ScoresPage() {
                         onClick={() => toggleExpand(i)}
                         className="w-full p-4 flex items-center gap-4 hover:bg-[var(--bg-primary)] transition-colors text-left cursor-pointer"
                       >
-                        {r.status === "submitted" && (
-                          <input
-                            type="checkbox"
-                            checked={!!selected[r.submission_id]}
-                            onChange={() => toggleSelect(r.submission_id)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex-shrink-0 accent-[var(--brand-orange)]"
-                          />
-                        )}
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                          <span className="text-[10px] font-black text-[var(--brand-orange)]">
-                            {i + 1}
-                          </span>
+                        {/* S/N — continuous row number over the filtered result set */}
+                        <div className="w-8 flex-shrink-0 text-center">
+                          <span className="text-[10px] font-black text-[var(--text-secondary)]">{i + 1}</span>
+                        </div>
+                        <div className="w-4 flex-shrink-0 flex items-center justify-center">
+                          {r.status === "submitted" && (
+                            <input
+                              type="checkbox"
+                              checked={!!selected[r.submission_id]}
+                              onChange={() => toggleSelect(r.submission_id)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="accent-[var(--brand-orange)]"
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
@@ -692,11 +746,13 @@ export default function ScoresPage() {
                             {r.email || "—"}
                           </p>
                         </div>
-                        {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
-                          <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase flex-shrink-0 ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
-                            {t(STATUS_CONFIG[r.status].label)}
-                          </span>
-                        )}
+                        <div className="flex-shrink-0 w-20 flex items-center justify-center">
+                          {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
+                            <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
+                              {t(STATUS_CONFIG[r.status].label)}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-right flex-shrink-0 w-16">
                           <p
                             className={`text-sm font-black ${
@@ -710,7 +766,7 @@ export default function ScoresPage() {
                             {r.score}
                           </p>
                           <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                            score
+                            {t("adminMisc.platformScores.detailScore")}
                           </p>
                         </div>
                         {expanded[i] ? (

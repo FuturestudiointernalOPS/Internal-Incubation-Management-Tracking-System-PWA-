@@ -18,6 +18,7 @@ import {
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { parseCSVRows, rowsToCsv } from "@/lib/csv";
 
 const STEPS = [
   { key: "upload", label: "adminMisc.platformImport.stepUpload" },
@@ -25,6 +26,26 @@ const STEPS = [
   { key: "importing", label: "adminMisc.platformImport.stepImport" },
   { key: "done", label: "adminMisc.platformImport.stepDone" },
 ];
+
+// Chunk size for the execute endpoint. Vercel serverless functions reject
+// request bodies over 4.5 MB with 413, so large CSVs are imported in batches
+// that reuse one import batch record (batch_id continuation).
+const EXECUTE_CHUNK_SIZE = 200;
+
+// Stable string hash (cyrb53) so every chunk of the same file reports the
+// same file_hash — duplicate-batch detection works across re-uploads.
+function simpleHash(str) {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
+}
 
 export default function ImportPage() {
   const { t } = useI18n();
@@ -95,10 +116,16 @@ export default function ImportPage() {
     setError("");
 
     try {
+      // Mapping only needs the header + a few sample rows — never send the
+      // full file to preview (large CSVs would hit Vercel's 4.5 MB limit).
+      // Count REAL CSV rows (quoted multi-line cells count as one row).
+      const grid = parseCSVRows(csvText);
+      const sample = rowsToCsv(grid.slice(0, 51));
+      const totalRows = grid.length > 0 ? grid.length - 1 : 0;
       const res = await fetch("/api/platform/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv_text: csvText, form_id: selectedFormId, run_id: selectedRunId }),
+        body: JSON.stringify({ csv_text: sample, form_id: selectedFormId, run_id: selectedRunId, total_rows: totalRows }),
       });
       const data = await res.json();
       if (data.success) {
@@ -120,40 +147,20 @@ export default function ImportPage() {
     }
   };
 
+  // Parse the full CSV into row objects using the RFC 4180-aware parser —
+  // quoted cells containing newlines/commas stay intact instead of being
+  // exploded into phantom rows.
   const parseFullCSV = () => {
-    const lines = csvText.trim().split(/\r?\n/);
-    if (lines.length === 0) return [];
-    const parseLine = (line) => {
-      const result = [];
-      let current = "";
-      let inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-          if (inQuotes && line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = !inQuotes;
-          }
-        } else if (ch === "," && !inQuotes) {
-          result.push(current.trim());
-          current = "";
-        } else {
-          current += ch;
-        }
-      }
-      result.push(current.trim());
-      return result;
-    };
-    const headers = parseLine(lines[0]);
+    const grid = parseCSVRows(csvText);
+    if (grid.length === 0) return [];
+    const headers = grid[0].map((h) => h.trim());
     const rows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cells = parseLine(lines[i]);
+    for (let i = 1; i < grid.length; i++) {
+      const cells = grid[i];
       if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
       const row = {};
       headers.forEach((h, idx) => {
-        row[h] = cells[idx] !== undefined ? cells[idx] : "";
+        row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
       });
       rows.push(row);
     }
@@ -169,31 +176,81 @@ export default function ImportPage() {
     setImportProgress(0);
     setError("");
 
-    try {
-      const allRows = parseFullCSV();
-      const res = await fetch("/api/platform/import/execute", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          form_id: selectedFormId,
-          run_id: selectedRunId,
-          mapping,
-          csv_rows: allRows,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setImportResult(data);
-        setImportProgress(100);
-        setStep(3);
-      } else {
-        setError(t((data.error || t("adminMisc.platformImport.errorImportFailed")) || "") || (data.error || t("adminMisc.platformImport.errorImportFailed")));
-        setStep(1);
-      }
-    } catch (err) {
-      setError(t("adminMisc.platformImport.errorNetworkDuringImport"));
+    const allRows = parseFullCSV();
+    if (allRows.length === 0) {
+      setError(t("adminMisc.platformImport.errorEmptyRows"));
       setStep(1);
+      return;
     }
+
+    // Import in chunks: every request stays far below Vercel's 4.5 MB body
+    // limit, and all chunks share one import batch record via batch_id.
+    const fullHash = simpleHash(JSON.stringify(allRows));
+    const agg = {
+      success: true,
+      imported: 0,
+      skipped: 0,
+      needs_review: 0,
+      errors: [],
+      review_rows: [],
+      total: allRows.length,
+      duplicate_batch: false,
+      previous_batch: null,
+    };
+    let batchId = null;
+
+    for (let start = 0; start < allRows.length; start += EXECUTE_CHUNK_SIZE) {
+      const chunk = allRows.slice(start, start + EXECUTE_CHUNK_SIZE);
+      let data;
+      try {
+        const res = await fetch("/api/platform/import/execute", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            form_id: selectedFormId,
+            run_id: selectedRunId,
+            mapping,
+            csv_rows: chunk,
+            batch_id: batchId,
+            file_hash: fullHash,
+          }),
+        });
+        data = await res.json();
+      } catch (err) {
+        setError(
+          t("adminMisc.platformImport.errorNetworkDuringImport") +
+            " " +
+            t("adminMisc.platformImport.errorPartialImport")
+        );
+        setStep(1);
+        return;
+      }
+      if (!data.success) {
+        setError(
+          (data.error || t("adminMisc.platformImport.errorImportFailed")) +
+            " " +
+            t("adminMisc.platformImport.errorPartialImport")
+        );
+        setStep(1);
+        return;
+      }
+      batchId = data.batch?.id || batchId;
+      agg.imported += data.imported || 0;
+      agg.skipped += data.skipped || 0;
+      agg.needs_review += data.needs_review || 0;
+      agg.errors.push(...(data.errors || []));
+      agg.review_rows.push(...(data.review_rows || []));
+      if (data.duplicate_batch) {
+        agg.duplicate_batch = true;
+        agg.previous_batch = data.previous_batch || null;
+      }
+      const done = Math.min(start + EXECUTE_CHUNK_SIZE, allRows.length);
+      setImportProgress(Math.round((done / allRows.length) * 100));
+    }
+
+    setImportResult(agg);
+    setImportProgress(100);
+    setStep(3);
   };
 
   const handleReset = () => {

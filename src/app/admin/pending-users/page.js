@@ -67,7 +67,7 @@ export default function PendingUsersPage() {
     setActionMsg(null);
     // Get selected role from dropdown
     const roleSelect = document.getElementById("role-" + userCid);
-    const selectedRole = roleSelect ? roleSelect.value : "staff";
+    const selectedRole = roleSelect ? roleSelect.value : "participant";
     try {
       const res = await fetch("/api/admin/approve-user", {
         method: "POST",
@@ -458,10 +458,10 @@ export default function PendingUsersPage() {
                                   id={"role-" + user.cid}
                                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
                                 >
+                                  <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
                                   <option value="staff">{t("adminMisc.pendingUsers.roleStaff")}</option>
                                   <option value="intern">{t("adminMisc.pendingUsers.roleIntern")}</option>
                                   <option value="developer">{t("adminMisc.pendingUsers.roleDeveloper")}</option>
-                                  <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
                                 </select>
                                 <button
                                   onClick={() =>

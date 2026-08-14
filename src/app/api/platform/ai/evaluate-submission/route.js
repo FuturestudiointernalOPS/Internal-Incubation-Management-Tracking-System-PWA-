@@ -193,6 +193,58 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     const score = parseFloat(evaluation?.overall_score);
     if (isNaN(score) || score < parseFloat(cutoff)) return;
 
+    // ── DUPLICATE GUARD: when the same email appears in multiple submissions
+    // of this run, only the HIGHEST-scored one is auto-approved — lower-scored
+    // duplicates stay submitted and never receive an email.
+    const subData = submission.data || {};
+    // Fetch the form's field labels once — the real applicant email is
+    // resolved label-aware (EN/FR), never from placeholder values.
+    let labels = {};
+    try {
+      const fieldRes = await db.execute({
+        sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+        args: [form.rows[0].id],
+      });
+      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+    } catch (_) {}
+    const { resolveSubmissionEmail } = await import("@/lib/email");
+    const applicantEmail = resolveSubmissionEmail({
+      submissionData: subData,
+      fieldLabels: labels,
+      contactEmail: submission.submitter_id && submission.submitter_id.includes("@") ? submission.submitter_id : "",
+    });
+    if (applicantEmail) {
+      try {
+        const siblings = await db.execute({
+          sql: `SELECT s.id, s.status,
+                      (SELECT overall_score FROM platform_submission_evaluations
+                       WHERE submission_id = s.id ORDER BY evaluated_at DESC LIMIT 1) AS overall_score
+                FROM platform_form_submissions s
+                WHERE s.run_id = ? AND s.id != ?
+                  AND s.data::text ILIKE '%' || ? || '%'
+                  AND s.status IN ('submitted','approved')`,
+          args: [submission.run_id, submissionId, applicantEmail],
+        });
+        const better = siblings.rows.find((r) => {
+          const s = parseFloat(r.overall_score);
+          return !isNaN(s) && s > score;
+        });
+        if (better) {
+          const { recordEmailStatus } = await import("@/lib/email");
+          await recordEmailStatus({
+            submission_id: submissionId,
+            contact_cid: submission.submitter_id || null,
+            email_type: "approval",
+            status: "skipped",
+            error: "Skipped — duplicate email: a higher-scored submission with the same email exists in this run",
+            to: applicantEmail,
+          });
+          console.log("[Auto-Approve] Skipped (lower-scored duplicate):", applicantEmail, "vs submission", better.id);
+          return;
+        }
+      } catch (_) {}
+    }
+
     // Approve through the same path a human reviewer uses
     const { onReview } = await import("@/lib/platform/automation");
     const comment = `Auto-approved: AI score ${score} meets cutoff ${cutoff}`;
@@ -214,33 +266,78 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     // so auto-approved applicants receive the personalized approval template.
     try {
       const subData = updated.rows[0].data || {};
-      const applicantEmail = Object.values(subData).find((v) => typeof v === "string" && v.includes("@"));
+      const { sendDecisionEmail, sendTrackedEmail, getTemplate, resolvePersonName, recordEmailStatus, resolveSubmissionEmail } = await import("@/lib/email");
+      // Fetch the form's field labels once — used for the real applicant
+      // email (label-aware, EN/FR) and the name resolution below.
+      let labels = {};
+      try {
+        const fieldRes = await db.execute({
+          sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+          args: [form.rows[0].id],
+        });
+        for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      } catch (_) {}
+      const applicantEmail = resolveSubmissionEmail({
+        submissionData: subData,
+        fieldLabels: labels,
+        contactEmail: updated.rows[0].submitter_id && updated.rows[0].submitter_id.includes("@") ? updated.rows[0].submitter_id : "",
+      });
       if (applicantEmail) {
-        const { sendDecisionEmail, sendTrackedEmail, getTemplate } = await import("@/lib/email");
         const decisionTemplate = getTemplate(form.rows[0].settings || {}, "approval", run.rows[0].settings || {});
         const formName = form.rows[0].name || "";
         const groupName = await getRunGroupName(db, run.rows[0].id);
-        await sendTrackedEmail({
-          submission_id: submissionId,
-          contact_cid: updated.rows[0].submitter_id || null,
-          email_type: "approval",
-          provider: "gmail",
-          sendFn: () =>
-            sendDecisionEmail({
-              to: applicantEmail,
-              applicantName: updated.rows[0].submitter_name || "",
-              formName,
-              decision: "approved",
-              comment,
-              template: decisionTemplate,
-              templateVars: {
-                form_name: formName,
-                score: String(score),
-                group_name: groupName || "",
-                name: updated.rows[0].submitter_name || "",
-              },
-            }),
-        });
+
+        // Approval email requires a group. With no group, the person stays in
+        // the platform/CRM but no approval email is sent.
+        if (groupName) {
+          // Best real name — resolved deterministically with the form's actual
+          // question labels; never "Unknown" when a real name exists.
+          let applicantName = "";
+          try {
+            const cRes = await db.execute({
+              sql: "SELECT name FROM contacts WHERE cid = ?",
+              args: [updated.rows[0].submitter_id],
+            });
+            applicantName = resolvePersonName({
+              contactName: cRes.rows[0]?.name || "",
+              submitterName: updated.rows[0].submitter_name || "",
+              submissionData: subData,
+              fieldLabels: labels,
+            });
+          } catch (_) {}
+
+          await sendTrackedEmail({
+            submission_id: submissionId,
+            contact_cid: updated.rows[0].submitter_id || null,
+            email_type: "approval",
+            provider: "gmail",
+            to: applicantEmail,
+            sendFn: () =>
+              sendDecisionEmail({
+                to: applicantEmail,
+                applicantName,
+                formName,
+                decision: "approved",
+                comment,
+                template: decisionTemplate,
+                templateVars: {
+                  form_name: formName,
+                  score: String(score),
+                  group_name: groupName || "",
+                  name: applicantName,
+                },
+              }),
+          });
+        } else {
+          await recordEmailStatus({
+            submission_id: submissionId,
+            contact_cid: updated.rows[0].submitter_id || null,
+            email_type: "approval",
+            status: "skipped",
+            error: "Skipped — No group assigned; approval email not sent",
+            to: applicantEmail,
+          });
+        }
       }
     } catch (e) {
       console.error("[Auto-Approve] Approval email error:", e.message);

@@ -181,13 +181,8 @@ export async function POST(req) {
         user.role === "staff" ||
         user.role === "project_manager" ||
         user.role === "admin" ||
-        (user.group_name || "").toUpperCase().includes("STAFF")
+        user.group_name?.toUpperCase() === "FUTURE STUDIO"
       ) {
-        finalRole = "staff";
-      } else if (
-        (user.group_name || "").toUpperCase().includes("FUTURE STUDIO")
-      ) {
-        // Only fallback to group_name if role is not explicitly set
         finalRole = "staff";
       }
     }

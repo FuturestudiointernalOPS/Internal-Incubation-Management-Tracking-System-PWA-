@@ -1,30 +1,33 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { resolvePersonName, resolveSubmissionEmail } from "@/lib/email";
 
 /**
  * GET /api/platform/ai/evaluation-scores
  *
+ * RUN-SCOPED: evaluations are returned for a specific Run. The run
+ * determines its form (server-side source of truth), and all counts,
+ * averages, answers and filterable fields derive from that run's actual
+ * submissions — never from another form or another run.
+ *
  * Query params:
- *   form_id                 (required) — filter evaluations to submissions in runs of this form
+ *   run_id                  (preferred) — scope to one run
+ *   form_id                 (fallback)  — scope to all runs of one form
  *   min_score               (optional) — minimum overall_score filter
  *   max_score               (optional) — maximum overall_score filter
  *   sort                    (optional) — "asc" or "desc", default "desc"
  *
  * Returns:
- *   total_evaluated     — count of all evaluated submissions for this form
- *   qualifying_count    — count after applying min/max filters
- *   average_score       — average overall_score of qualifying
- *   threshold           — the min/max boundary used for qualifying
- *   respondents[]       — { name, email, score, ranking, recommendation,
- *                          submission_id, status, answers }
- *   filterable_fields[] — the form's actual fields that carry answer options
- *                         (dynamic source for the dashboard's column filters)
- *   rankings[]          — distinct evaluation rankings present in the data
- *
- * `answers` maps each form field's label to the respondent's stored value,
- * so the dashboard can search and filter against the real dataset without
- * any hardcoded columns.
+ *   run                  — { id, name } when run-scoped
+ *   total_evaluated      — evaluated submissions in scope
+ *   qualifying_count     — count after min/max filters
+ *   average_score        — average overall_score of qualifying
+ *   threshold            — min/max boundary used
+ *   respondents[]        — { name, email, score, ranking, recommendation,
+ *                           submission_id, status, answers }
+ *   filterable_fields[]  — the form's actual fields that carry answer options
+ *   rankings[]           — distinct evaluation rankings present in the data
  */
 
 function normalizeOptions(raw) {
@@ -65,22 +68,46 @@ export async function GET(req) {
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
-    const formId = searchParams.get("form_id");
+    const runIdParam = searchParams.get("run_id");
+    const formIdParam = searchParams.get("form_id");
     const minScore = searchParams.get("min_score");
     const maxScore = searchParams.get("max_score");
     const sort = searchParams.get("sort") || "desc";
 
-    if (!formId) {
+    // ── Run → Form resolution (the run is the source of truth) ──
+    let effectiveFormId = formIdParam ? parseInt(formIdParam) : null;
+    let runInfo = null;
+    const conditions = [];
+    const args = [];
+
+    if (runIdParam) {
+      const runRes = await db.execute({
+        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
+        args: [parseInt(runIdParam)],
+      });
+      if (runRes.rows.length === 0) {
+        return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+      }
+      runInfo = runRes.rows[0];
+      effectiveFormId = runInfo.form_id;
+      conditions.push("s.run_id = ?");
+      args.push(parseInt(runIdParam));
+    }
+
+    if (effectiveFormId == null) {
       return NextResponse.json(
-        { success: false, error: "form_id is required" },
+        { success: false, error: "run_id or form_id is required" },
         { status: 400 }
       );
     }
 
+    conditions.push("r.form_id = ?");
+    args.push(effectiveFormId);
+
     // ── The form's actual fields — the dynamic filter source ──
     const fieldsRes = await db.execute({
       sql: "SELECT id, label, field_type, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
-      args: [String(formId)],
+      args: [String(effectiveFormId)],
     });
     const labelById = {};
     const filterableFields = [];
@@ -90,34 +117,29 @@ export async function GET(req) {
       if (opts.length > 0) filterableFields.push({ label: f.label, options: opts });
     }
 
-    // Build conditions
-    const conditions = [];
-    const args = [parseInt(formId)];
-
-    conditions.push("r.form_id = ?");
-
+    // Score boundaries apply on top of the run/form scope
     let qualifyingConditions = [...conditions];
-
+    const qualifyingArgs = [...args];
     if (minScore !== null && minScore !== "" && !isNaN(parseFloat(minScore))) {
       qualifyingConditions.push("e.overall_score >= ?");
-      args.push(parseFloat(minScore));
+      qualifyingArgs.push(parseFloat(minScore));
     }
     if (maxScore !== null && maxScore !== "" && !isNaN(parseFloat(maxScore))) {
       qualifyingConditions.push("e.overall_score <= ?");
-      args.push(parseFloat(maxScore));
+      qualifyingArgs.push(parseFloat(maxScore));
     }
 
     const whereAll = conditions.join(" AND ");
     const whereQualifying = qualifyingConditions.join(" AND ");
 
-    // Total evaluated (all for this form, regardless of score filter)
+    // Total evaluated in scope
     const totalRes = await db.execute({
       sql: `SELECT COUNT(*)::int AS cnt
             FROM platform_submission_evaluations e
             JOIN platform_form_submissions s ON e.submission_id = s.id
             JOIN platform_form_runs r ON s.run_id = r.id
             WHERE ${whereAll}`,
-      args: [parseInt(formId)],
+      args,
     });
     const totalEvaluated = totalRes.rows[0]?.cnt || 0;
 
@@ -128,7 +150,7 @@ export async function GET(req) {
             JOIN platform_form_submissions s ON e.submission_id = s.id
             JOIN platform_form_runs r ON s.run_id = r.id
             WHERE ${whereQualifying}`,
-      args,
+      args: qualifyingArgs,
     });
     const qualifyingCount = qualifyingRes.rows[0]?.cnt || 0;
 
@@ -139,7 +161,7 @@ export async function GET(req) {
             JOIN platform_form_submissions s ON e.submission_id = s.id
             JOIN platform_form_runs r ON s.run_id = r.id
             WHERE ${whereQualifying}`,
-      args,
+      args: qualifyingArgs,
     });
     const averageScore = Math.round((avgRes.rows[0]?.avg || 0) * 10) / 10;
 
@@ -160,7 +182,7 @@ export async function GET(req) {
             JOIN platform_form_runs r ON s.run_id = r.id
             WHERE ${whereQualifying}
             ORDER BY e.overall_score ${sortDir}`,
-      args,
+      args: qualifyingArgs,
     });
 
     // Batch-load contact emails (single query instead of one per respondent)
@@ -187,20 +209,27 @@ export async function GET(req) {
         answers[label] = answerValue(value);
       }
 
-      // Email meant to receive notifications: contact email first,
-      // fall back to any email-looking value inside the submission data.
-      let email = emailMap.get(r.submitter_id) || "";
-      if (!email) {
-        const found = Object.values(subData).find(
-          (v) => typeof v === "string" && v.includes("@")
-        );
-        if (found) email = found;
-      }
+      // Real applicant email: the form's actual email answer first, then any
+      // real email in the submission, then the CRM email. Placeholder import
+      // addresses are never returned.
+      const email = resolveSubmissionEmail({
+        submissionData: subData,
+        fieldLabels: labelById,
+        contactEmail: emailMap.get(r.submitter_id) || "",
+      });
 
       if (r.ranking) rankings.add(r.ranking);
 
       return {
-        name: r.name || "Unknown",
+        // Best real name — resolved deterministically with the form's actual
+        // question labels; never "Unknown" when a real name exists.
+        name:
+          resolvePersonName({
+            contactName: "",
+            submitterName: r.name || "",
+            submissionData: subData,
+            fieldLabels: labelById,
+          }) || r.name || "Unknown",
         email,
         score: r.score,
         ranking: r.ranking || "",
@@ -213,6 +242,7 @@ export async function GET(req) {
 
     return NextResponse.json({
       success: true,
+      run: runInfo ? { id: runInfo.id, name: runInfo.name } : null,
       total_evaluated: totalEvaluated,
       qualifying_count: qualifyingCount,
       average_score: averageScore,

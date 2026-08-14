@@ -18,6 +18,7 @@ import {
   validateStructure,
   validateSubject,
   finalizeSubject,
+  normalizeToHtml,
 } from "../src/lib/platform/ai/email-personalize.js";
 
 let passed = 0;
@@ -158,6 +159,56 @@ console.log("\nTEST — Spliced result always matches the original skeleton");
   const out = splicePersonalizedSegments(parts, parts.filter((p) => p.type === "text" && p.value.trim()).map(() => "reworded"));
   check("skeleton identical by construction", tagSkeleton(out) === tagSkeleton(draft));
   check("whitespace gaps preserved", out.includes("</p>\n\n<ul>"));
+}
+
+console.log("\nTEST — normalizeToHtml (plain text → paragraphs)");
+{
+  const html = normalizeToHtml("Hello there,\n\nYou have been selected.\n\nNext steps:\n1. Do this\n2. Do that");
+  check("paragraphs become <p>", (html.match(/<p>/g) || []).length === 3);
+  check("single newline becomes <br>", html.includes("Next steps:<br>1. Do this<br>2. Do that"));
+  check("blank lines split paragraphs", html.includes("</p>\n<p>"));
+}
+{
+  const already = normalizeToHtml("<p>Hi</p><p>There</p>");
+  check("HTML returned unchanged", already === "<p>Hi</p><p>There</p>");
+}
+{
+  check("empty → empty", normalizeToHtml("") === "");
+}
+
+console.log("\nTEST — Markdown symbols never reach the recipient (screenshot regression)");
+{
+  // 1. French emphasis lines from the reported email
+  const fr = normalizeToHtml("*Bootcamp Pré-Entrepreneuriat de Future Studio*\n\n*Confirmez votre participation*");
+  check("single-asterisk emphasis becomes <em>", fr.includes("<em>Bootcamp Pré-Entrepreneuriat de Future Studio</em>"));
+  check("no literal * remains (emphasis)", !fr.replace(/<[^>]+>/g, "").includes("*"));
+
+  // 2. Bold
+  const bold = normalizeToHtml("**Félicitations** vous êtes retenu.");
+  check("**bold** becomes <strong>", bold.includes("<strong>Félicitations</strong>"));
+  check("no literal ** remains", !bold.includes("**"));
+
+  // 3. The screenshot's objectives bullet list
+  const list = normalizeToHtml("* mieux comprendre votre profil entrepreneurial ;\n* identifier des problèmes réels ;\n* valider vos hypothèses auprès du marché ;");
+  check("bullet list becomes <ul><li>", list.includes("<ul>") && (list.match(/<li>/g) || []).length === 3);
+  check("no bullet asterisks remain", !list.replace(/<[^>]+>/g, "").includes("*"));
+
+  // 4. Signature line
+  const sig = normalizeToHtml("*L'équipe Future Studio*");
+  check("signature emphasis converted", sig.includes("<em>L'équipe Future Studio</em>") && !sig.includes("*"));
+
+  // 5. Markdown inside an HTML template — only text nodes converted
+  const htmlDraft = normalizeToHtml('<p>Bonjour,</p>\n\n<p>**Confirmez votre participation** avant le 20.</p>\n\n<p><a href="https://chat.whatsapp.com/abc">Rejoindre le groupe</a></p>');
+  check("markdown inside HTML text nodes converted", htmlDraft.includes("<strong>Confirmez votre participation</strong>"));
+  check("link href untouched", htmlDraft.includes('href="https://chat.whatsapp.com/abc"'));
+
+  // 6. Existing HTML formatting stays intact (no regression)
+  const untouched = normalizeToHtml("<p><strong>Already</strong> formatted <em>HTML</em></p>");
+  check("existing HTML untouched", untouched === "<p><strong>Already</strong> formatted <em>HTML</em></p>");
+
+  // 7. Plain text still escapes raw HTML characters
+  const esc = normalizeToHtml("5 < 6 & 7");
+  check("plain text escapes &lt; and &amp;", esc.includes("&lt;") && esc.includes("&amp;"));
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

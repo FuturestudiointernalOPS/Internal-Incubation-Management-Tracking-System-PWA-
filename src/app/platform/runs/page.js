@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Play, Plus, Search, Loader2, X, Send, Clock, Users, CheckCircle2,
-  XCircle, FileText, RotateCcw, Eye, MessageSquare, User, Filter,
+  XCircle, FileText, RotateCcw, Eye, MessageSquare, Filter,
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
-  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles,
+  StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn, Download,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -296,7 +296,7 @@ export default function FormRunsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [perPage] = useState(15);
+  const [perPage] = useState(50);
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
 
@@ -422,10 +422,12 @@ export default function FormRunsPage() {
 
   useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchDashboardStats(); }, [fetchRuns]);
 
-  const openRun = useCallback(async (run) => {
+  const openRun = useCallback(async (run, opts = {}) => {
+    if (!opts.keepTab) {
+      setDetailTab("overview");
+      setSubFilter("all");
+    }
     setSelectedRun(run);
-    setDetailTab("overview");
-    setSubFilter("all");
     setSubLoading(true);
     try {
       const res = await fetch(`/api/platform/form-runs?id=${run.id}`);
@@ -435,6 +437,29 @@ export default function FormRunsPage() {
         setReviews(data.reviews || []);
         setAssignments(data.assignments || []);
         setRunSettings(data.run.settings || {});
+        setEvaluations(data.evaluations || []);
+        setEmailLog(data.emails || []);
+        setRunTemplates(data.run?.settings?.templates || {});
+        setFieldLabels(data.field_labels || {});
+        setFilterableFields(data.filterable_fields || []);
+        if (!opts.keepTab) {
+          // Fresh run → reset search/filters so nothing leaks across runs
+          setRespSearch("");
+          setScoreOp("");
+          setScoreVal("");
+          setScoreVal2("");
+          setFieldFilters({});
+          setRespPage(1);
+          setSelectedIds([]);
+          setShowDuplicates(false);
+          setFilterPickerOpen(false);
+          setFilterPickerMode(null);
+          setBulkSummary(null);
+          setBulkMenuOpen(false);
+          setBulkConfirmOpen(false);
+          setRetrySelected([]);
+          setRetrySummary(null);
+        }
       }
 
       // Fetch form fields for spreadsheet column view
@@ -443,6 +468,7 @@ export default function FormRunsPage() {
         const formData = await formRes.json();
         if (formData.success) {
           setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)).slice(0, 5));
+          setRunFormSettings(formData.form?.settings || {});
         }
       } catch (_) {}
     } catch (_) {}
@@ -675,6 +701,38 @@ export default function FormRunsPage() {
   // AI Evaluation progress state (Phase 4 client-driven batching)
   const [evalProgress, setEvalProgress] = useState(null); // { total, evaluated, failed, remaining, percent, running, batch }
   const [evalStats, setEvalStats] = useState(null); // { approvals, emails }
+  const [evaluations, setEvaluations] = useState([]); // AI evaluation rows for the open run
+  const [emailLog, setEmailLog] = useState([]); // email delivery log for the open run
+  const [runTemplates, setRunTemplates] = useState({}); // run-level email template overrides
+  const [runFormSettings, setRunFormSettings] = useState({}); // form settings (for template fallback + AI base)
+  const [runTplSaving, setRunTplSaving] = useState(false);
+  const [runPersonalizing, setRunPersonalizing] = useState(null); // template key while AI writes
+
+  // Run-scoped respondent search + filters (operate only on THIS run's submissions)
+  const [respSearch, setRespSearch] = useState("");
+  const [scoreOp, setScoreOp] = useState(""); // "" | "eq" | "gte" | "gt" | "lte" | "lt" | "between"
+  const [scoreVal, setScoreVal] = useState("");
+  const [scoreVal2, setScoreVal2] = useState("");
+  const [fieldFilters, setFieldFilters] = useState({}); // field label → option value
+  const [fieldLabels, setFieldLabels] = useState({}); // field id → label (from the run's form)
+  const [filterableFields, setFilterableFields] = useState([]); // form fields that carry options
+  const [respPage, setRespPage] = useState(1); // respondent table pagination
+  const [showDuplicates, setShowDuplicates] = useState(false); // duplicates-only view
+  const [filterPickerOpen, setFilterPickerOpen] = useState(false); // Add Filter dropdown
+  const [filterPickerMode, setFilterPickerMode] = useState(null); // null | "score" | { type: "field", label }
+  const filterRowRef = useRef(null); // closes the picker when clicking outside
+  const [selectedIds, setSelectedIds] = useState([]); // bulk-selected respondent ids
+  const [bulkMenuOpen, setBulkMenuOpen] = useState(false); // bulk Actions dropdown
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false); // confirm dialog
+  const [bulkProcessing, setBulkProcessing] = useState(false); // bulk op running
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
+  const [bulkSummary, setBulkSummary] = useState(null); // { approved, already_approved, failed[] }
+  const bulkAbortRef = useRef(false); // stops issuing new bulk batches when true
+  const [retrySelected, setRetrySelected] = useState([]); // "submissionId:emailType" keys
+  const [retryProcessing, setRetryProcessing] = useState(false);
+  const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
+  const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
+  const retryAbortRef = useRef(false); // stops issuing new retry batches when true
 
   const fetchEvalProgress = async (formId) => {
     try {
@@ -769,6 +827,459 @@ export default function FormRunsPage() {
     return { stopped };
   };
 
+  // ─── RUN-SCOPED FILTERING (Overview) ───
+  // Runs against ONLY this run's submissions + their AI evaluations.
+  const fmtAnswer = (v) => {
+    if (v === undefined || v === null) return "";
+    if (typeof v === "string") {
+      try {
+        if (v.startsWith("{") && v.includes('"code"')) {
+          const p = JSON.parse(v);
+          if (p.code != null) return `${p.code} ${p.number || ""}`.trim();
+        }
+      } catch (_) {}
+      return v;
+    }
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  };
+
+  const submissionAnswers = (s) => {
+    const d = s.data || {};
+    const answers = {};
+    for (const [key, value] of Object.entries(d)) {
+      if (key.startsWith("_")) continue;
+      answers[fieldLabels[key] || key] = fmtAnswer(value);
+    }
+    return answers;
+  };
+
+  const filteredSubmissions = useMemo(() => {
+    if (!selectedRun) return [];
+    const q = respSearch.trim().toLowerCase();
+    const v1 = parseFloat(scoreVal);
+    const v2 = parseFloat(scoreVal2);
+    const hasScore = !!scoreOp && !isNaN(v1);
+    const scorePass = (score) => {
+      if (!hasScore) return true;
+      switch (scoreOp) {
+        case "eq": return score === v1;
+        case "gte": return score >= v1;
+        case "gt": return score > v1;
+        case "lte": return score <= v1;
+        case "lt": return score < v1;
+        case "between": return !isNaN(v2) ? score >= v1 && score <= v2 : score >= v1;
+        default: return true;
+      }
+    };
+    const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+
+    return submissions.filter((s) => {
+      if (subFilter !== "all" && s.status !== subFilter) return false;
+
+      if (q) {
+        const hay = [
+          s.submitter_name || "",
+          s.email || "",
+          ...Object.values(submissionAnswers(s)),
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+
+      if (hasScore) {
+        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+        const score = evalRow != null ? Number(evalRow.overall_score) : null;
+        if (score == null || isNaN(score) || !scorePass(score)) return false;
+      }
+
+      if (activeFieldFilters.length > 0) {
+        const answers = submissionAnswers(s);
+        for (const [label, val] of activeFieldFilters) {
+          const actual = String(answers[label] ?? "").trim().toLowerCase();
+          if (actual !== String(val).trim().toLowerCase()) return false;
+        }
+      }
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRun, submissions, evaluations, subFilter, respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, fieldLabels]);
+
+  const hasRunFilters = !!(
+    respSearch.trim() ||
+    (scoreOp && scoreVal !== "") ||
+    Object.values(fieldFilters).some(Boolean)
+  );
+
+  // Any search/filter change returns the respondent table to page 1 AND
+  // clears the selection — hidden selections must never be bulk-approved.
+  useEffect(() => {
+    setRespPage(1);
+    setSelectedIds([]);
+    setShowDuplicates(false);
+  }, [respSearch, scoreOp, scoreVal, scoreVal2, fieldFilters, subFilter]);
+
+  const clearRunFilters = () => {
+    setRespSearch("");
+    setScoreOp("");
+    setScoreVal("");
+    setScoreVal2("");
+    setFieldFilters({});
+    setRespPage(1);
+    setSelectedIds([]);
+    setFilterPickerOpen(false);
+    setFilterPickerMode(null);
+  };
+
+  // ─── Filter chips (presentation only — the underlying filter state is the
+  // same scoreOp/scoreVal/fieldFilters the filtering logic already uses) ───
+  const SCORE_OPS = { eq: "=", gt: ">", gte: "≥", lt: "<", lte: "≤" };
+  const scoreChipActive = !!scoreOp && scoreVal !== "";
+  const scoreChipLabel = scoreChipActive
+    ? scoreOp === "between"
+      ? `${t("platformMisc.runs.colAiScore")}: ${scoreVal}–${scoreVal2 || "?"}%`
+      : `${t("platformMisc.runs.colAiScore")}: ${SCORE_OPS[scoreOp] || ""} ${scoreVal}%`
+    : "";
+  const activeFieldFilters = Object.entries(fieldFilters).filter(([, v]) => v);
+  const availableParams = [
+    ...(scoreChipActive ? [] : [{ key: "score", label: t("platformMisc.runs.colAiScore") }]),
+    ...filterableFields
+      .filter((f) => !fieldFilters[f.label])
+      .map((f) => ({ key: `field:${f.label}`, label: f.label })),
+  ];
+  const fieldOptionsOf = (label) => filterableFields.find((f) => f.label === label)?.options || [];
+
+  const removeFieldFilter = (label) =>
+    setFieldFilters((prev) => {
+      const next = { ...prev };
+      delete next[label];
+      return next;
+    });
+
+  const clearScoreFilter = () => {
+    setScoreOp("");
+    setScoreVal("");
+    setScoreVal2("");
+  };
+
+  // Clicking anywhere outside the filter row closes the Add Filter dropdown
+  // and any open inline editor automatically.
+  useEffect(() => {
+    if (!filterPickerOpen && !filterPickerMode) return;
+    const onDown = (e) => {
+      if (filterRowRef.current && !filterRowRef.current.contains(e.target)) {
+        setFilterPickerOpen(false);
+        setFilterPickerMode(null);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [filterPickerOpen, filterPickerMode]);
+
+  const pickFilterParam = (p) => {
+    setFilterPickerOpen(false);
+    setFilterPickerMode(p.key === "score" ? "score" : { type: "field", label: p.label });
+  };
+
+  // ─── Duplicate detection: same resolved email appearing multiple times ───
+  // The keeper (highest AI score) is marked; the rest are duplicates. After
+  // evaluation, only the keeper should receive approval/activation emails.
+  const duplicateGroups = useMemo(() => {
+    const byEmail = new Map();
+    for (const s of submissions) {
+      const key = (s.email || "").trim().toLowerCase();
+      if (!key || !key.includes("@")) continue;
+      if (!byEmail.has(key)) byEmail.set(key, []);
+      byEmail.get(key).push(s);
+    }
+    const groups = [...byEmail.values()].filter((g) => g.length > 1);
+    const keeperIds = new Set();
+    for (const g of groups) {
+      let best = null;
+      let bestScore = NaN;
+      for (const s of g) {
+        const ev = evaluations.find((e) => e.submission_id === s.id);
+        const sc = ev != null ? Number(ev.overall_score) : NaN;
+        if (!isNaN(sc) && (isNaN(bestScore) || sc > bestScore)) {
+          best = s;
+          bestScore = sc;
+        }
+      }
+      if (best) keeperIds.add(best.id);
+    }
+    const extra = groups.reduce((n, g) => n + g.length - 1, 0);
+    return { groups, keeperIds, extra };
+  }, [submissions, evaluations]);
+
+  const duplicateEmailSet = useMemo(() => {
+    const set = new Set();
+    for (const g of duplicateGroups.groups) {
+      for (const s of g) set.add((s.email || "").trim().toLowerCase());
+    }
+    return set;
+  }, [duplicateGroups]);
+
+  // What the table actually displays: the filtered set, or only duplicates
+  // when the duplicates view is active.
+  const visibleSubmissions = useMemo(
+    () =>
+      showDuplicates
+        ? filteredSubmissions.filter((s) => duplicateEmailSet.has((s.email || "").trim().toLowerCase()))
+        : filteredSubmissions,
+    [filteredSubmissions, showDuplicates, duplicateEmailSet]
+  );
+
+  // ─── Respondent table pagination (perPage rows per page) ───
+  const respTotalPages = Math.max(1, Math.ceil(visibleSubmissions.length / perPage));
+  const respSafePage = Math.min(respPage, respTotalPages);
+  const pagedSubmissions = visibleSubmissions.slice(
+    (respSafePage - 1) * perPage,
+    respSafePage * perPage
+  );
+
+  // ─── Bulk selection (respects the CURRENT filters; Select All = all filtered, across pages) ───
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const allFilteredSelected =
+    visibleSubmissions.length > 0 && visibleSubmissions.every((s) => selectedSet.has(s.id));
+
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAllFiltered = () => {
+    setSelectedIds(allFilteredSelected ? [] : visibleSubmissions.map((s) => s.id));
+  };
+
+  // Bulk approve: batches of 10 through the SAME review workflow as a single
+  // approval (server-side action=bulk_review → processReviewInternal).
+  const BULK_BATCH = 10;
+  const runBulkApprove = async () => {
+    if (!selectedRun || selectedIds.length === 0 || bulkProcessing) return;
+    setBulkProcessing(true);
+    setBulkConfirmOpen(false);
+    bulkAbortRef.current = false;
+    const ids = [...selectedIds];
+    const agg = { approved: 0, already_approved: 0, failed: [], cancelled: 0 };
+    setBulkProgress({ done: 0, total: ids.length });
+    let aborted = false;
+    let processed = 0;
+    for (let i = 0; i < ids.length && !aborted && !bulkAbortRef.current; i += BULK_BATCH) {
+      const chunk = ids.slice(i, i + BULK_BATCH);
+      let data;
+      try {
+        const res = await fetch("/api/platform/form-runs?action=bulk_review", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, decision: "approved" }),
+        });
+        data = await res.json();
+      } catch (_) {
+        aborted = true;
+        agg.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(i / BULK_BATCH) + 1 }), error: t("platformMisc.runs.bulkNetworkError") });
+        break;
+      }
+      if (!data.success) {
+        aborted = true;
+        agg.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.bulkFailedError") });
+        break;
+      }
+      for (const r of data.results || []) {
+        if (r.status === "approved") agg.approved++;
+        else if (r.status === "already_approved") agg.already_approved++;
+        else agg.failed.push({ name: r.name || `#${r.submission_id}`, error: r.error || t("platformMisc.runs.failedFallback") });
+      }
+      processed = Math.min(i + BULK_BATCH, ids.length);
+      setBulkProgress({ done: processed, total: ids.length });
+    }
+    // Anything not yet processed when the user cancels (or a batch fails) is
+    // reported as cancelled — nothing was sent for those rows, and they stay
+    // in their previous state so they can be selected again later.
+    agg.cancelled = ids.length - processed;
+    // Record the unprocessed remainder as CANCELLED so history keeps
+    // sent / failed / cancelled distinct and those rows stay retryable later.
+    const unprocessedIds = ids.slice(processed);
+    if (unprocessedIds.length > 0 && selectedRun) {
+      try {
+        await fetch("/api/platform/form-runs?action=mark_email_cancelled", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            run_id: selectedRun.id,
+            items: unprocessedIds.map((sid) => ({ submission_id: sid, email_type: "approval" })),
+          }),
+        });
+      } catch (_) {}
+    }
+    setBulkProcessing(false);
+    setSelectedIds([]);
+    if (selectedRun) await openRun(selectedRun);
+    setBulkSummary(agg);
+  };
+
+  // ─── Email delivery summary: latest row per (submission, email_type) ───
+  const emailSummary = useMemo(() => {
+    const latest = new Map();
+    for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
+    const stats = {
+      approval: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
+      activation: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
+    };
+    const notDelivered = [];
+    for (const e of latest.values()) {
+      const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
+      if (e.status === "sent") bucket.sent++;
+      else if (["failed", "bounced", "cancelled"].includes(e.status)) {
+        bucket[e.status]++;
+        notDelivered.push(e);
+      } else if (e.status === "skipped") bucket.skipped++;
+    }
+    return { stats, notDelivered };
+  }, [emailLog]);
+
+  // Not-delivered rows (failed / bounced / cancelled) enriched with the
+  // respondent's resolved name + recipient — all three remain retryable.
+  const notDeliveredRows = emailSummary.notDelivered.map((e) => {
+    const sub = submissions.find((s) => s.id === e.submission_id);
+    return {
+      ...e,
+      name: sub?.display_name || sub?.submitter_name || `#${e.submission_id}`,
+      email: e.recipient || sub?.email || "",
+    };
+  });
+
+  const [emailStatusFilter, setEmailStatusFilter] = useState("all"); // all | failed | bounced | cancelled
+  const visibleNotDelivered =
+    emailStatusFilter === "all"
+      ? notDeliveredRows
+      : notDeliveredRows.filter((r) => r.status === emailStatusFilter);
+
+  const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
+  const toggleRetrySelect = (key) =>
+    setRetrySelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+
+  // Manual retry: batches of 10 through the same tracked senders (approval
+  // re-sends via sendDecisionEmailForSubmission; activation re-fires the
+  // REVIEW_COMPLETED automation). No automatic retries anywhere.
+  // Export the CURRENTLY FILTERED respondents to CSV (respects search,
+  // filters, score and the duplicates view). Presentation-level export.
+  const exportRespondentsCSV = () => {
+    if (!visibleSubmissions.length) return;
+    const esc = (v) => {
+      const s = v == null ? "" : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const headers = [t("platformMisc.runs.colSn"), t("platformMisc.runs.colName"), t("platformMisc.runs.colEmail")];
+    const fieldCols = Object.entries(fieldLabels)
+      .filter(([, label]) => label)
+      .map(([id, label]) => ({ id, label }));
+    for (const c of fieldCols) headers.push(c.label);
+    headers.push(t("platformMisc.runs.colStatus"), t("platformMisc.runs.colAiScore"), t("platformMisc.runs.colActivation"), t("platformMisc.runs.statusSubmitted"), t("platformMisc.runs.review"));
+
+    const rows = visibleSubmissions.map((s, i) => {
+      const evalRow = evaluations.find((e) => e.submission_id === s.id);
+      const activationEmail = emailLog
+        .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+        .slice(-1)[0];
+      const subReviews = reviews.filter((r) => r.submission_id === s.id);
+      const lastReview = subReviews[subReviews.length - 1];
+      const cells = [
+        i + 1,
+        s.display_name || s.submitter_name || s.submitter_id,
+        s.email || "",
+      ];
+      for (const c of fieldCols) cells.push((s.data || {})[c.id] ?? "");
+      cells.push(
+        s.status || "",
+        evalRow != null ? evalRow.overall_score : (s.data?._scores?.overall ?? ""),
+        activationEmail ? activationEmail.status : "",
+        s.submitted_at ? new Date(s.submitted_at).toLocaleString() : "",
+        lastReview ? `${lastReview.decision} by ${lastReview.reviewer_name || lastReview.reviewer_id}` : ""
+      );
+      return cells.map(esc).join(",");
+    });
+
+    const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedRun?.name || "run"}-respondents.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const runRetryEmails = async () => {
+    if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
+    setRetryProcessing(true);
+    retryAbortRef.current = false;
+    const items = retrySelected.map((k) => {
+      const [sid, type] = k.split(":");
+      return { submission_id: parseInt(sid), email_type: type };
+    });
+    const agg = { sent: 0, already_sent: 0, failed: [], cancelled: 0 };
+    setRetryProgress({ done: 0, total: items.length });
+    let aborted = false;
+    let processed = 0;
+    for (let i = 0; i < items.length && !aborted && !retryAbortRef.current; i += 10) {
+      const chunk = items.slice(i, i + 10);
+      let data;
+      try {
+        const res = await fetch("/api/platform/form-runs?action=retry_emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, retries: chunk }),
+        });
+        data = await res.json();
+      } catch (_) {
+        aborted = true;
+        agg.failed.push({ name: t("platformMisc.runs.batchLabel", { count: Math.floor(i / 10) + 1 }), error: t("platformMisc.runs.retryNetworkError") });
+        break;
+      }
+      if (!data.success) {
+        aborted = true;
+        agg.failed.push({ name: t("platformMisc.runs.batchFallback"), error: data.error || t("platformMisc.runs.retryFailedError") });
+        break;
+      }
+      for (const r of data.results || []) {
+        if (r.status === "sent") agg.sent++;
+        else if (r.status === "already_sent") agg.already_sent++;
+        else agg.failed.push({ name: r.name || `#${r.submission_id} (${r.email_type})`, error: r.error || t("platformMisc.runs.failedFallback") });
+      }
+      processed = Math.min(i + 10, items.length);
+      setRetryProgress({ done: processed, total: items.length });
+    }
+    agg.retried = items.length;
+    agg.cancelled = items.length - processed;
+    // Record the unprocessed remainder as CANCELLED so history keeps
+    // sent / failed / bounced / cancelled distinct and those rows stay
+    // retryable later.
+    const unprocessed = items.slice(processed);
+    if (unprocessed.length > 0 && selectedRun) {
+      try {
+        await fetch("/api/platform/form-runs?action=mark_email_cancelled", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, items: unprocessed }),
+        });
+      } catch (_) {}
+    }
+    setRetryProcessing(false);
+    setRetrySelected([]);
+    // Refresh with keepTab so we STAY on the Emails tab — the summary modal
+    // lives there, and the Failed list must update in place: successful
+    // retries disappear from it, failures keep their latest reason.
+    if (selectedRun) await openRun(selectedRun, { keepTab: true });
+    setRetrySummary(agg);
+    notify(
+      agg.failed.length > 0
+        ? t("platformMisc.runs.emailRetryPartial", { sent: agg.sent, failed: agg.failed.length })
+        : t("platformMisc.runs.emailRetrySuccess", { sent: agg.sent })
+    );
+  };
+
   // ─── RUN DETAIL VIEW ───
   if (selectedRun) {
     const cfg = STATUS_CONFIG[selectedRun.status] || STATUS_CONFIG.draft;
@@ -779,13 +1290,14 @@ export default function FormRunsPage() {
     const revision = submissions.filter((s) => s.status === "revision_requested").length;
     const drafts = submissions.filter((s) => s.status === "draft").length;
     const overdue = submissions.filter((s) => s.status === "submitted" && selectedRun.closes_at && new Date(s.submitted_at) > new Date(selectedRun.closes_at)).length;
-    const filteredSubmissions = subFilter === "all" ? submissions : submissions.filter((s) => s.status === subFilter);
 
     const tabs = [
       { id: "overview", label: t("platformMisc.runs.tabOverview"), icon: BarChart3 },
       { id: "share", label: t("platformMisc.runs.tabShare"), icon: Link2 },
       { id: "assignments", label: t("platformMisc.runs.tabAssignments", { count: assignments.length }), icon: Users },
       { id: "responses", label: t("platformMisc.runs.tabAllResponses"), icon: FileText, href: `/platform/responses?form_id=${selectedRun?.form_id || ""}` },
+      { id: "templates", label: t("platformMisc.runs.tabTemplates"), icon: Mail },
+      { id: "emails", label: t("platformMisc.runs.tabEmails"), icon: Send },
       { id: "settings", label: t("platformMisc.runs.tabSettings"), icon: Settings },
     ];
 
@@ -983,33 +1495,289 @@ export default function FormRunsPage() {
                 ))}
               </div>
 
+              {/* Run-scoped search + filters */}
+              <div className="rounded-xl border border-[var(--border-primary)] bg-secondary p-4 space-y-3">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                  <input
+                    type="text"
+                    value={respSearch}
+                    onChange={(e) => setRespSearch(e.target.value)}
+                    placeholder="Search this run's respondents (name, email, answers)..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap" ref={filterRowRef}>
+                  <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                    <Filter className="w-3 h-3" /> Filters
+                  </span>
+
+                  {/* Active filter chips — each removable individually */}
+                  {scoreChipActive && (
+                    <button
+                      onClick={clearScoreFilter}
+                      title="Remove this filter"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                    >
+                      {scoreChipLabel} <X className="w-3 h-3" />
+                    </button>
+                  )}
+
+                  {activeFieldFilters.map(([label, val]) => (
+                    <button
+                      key={label}
+                      onClick={() => removeFieldFilter(label)}
+                      title="Remove this filter"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                    >
+                      {label}: {val} <X className="w-3 h-3" />
+                    </button>
+                  ))}
+
+                  {/* Inline editor — AI Score */}
+                  {filterPickerMode === "score" && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                      <select
+                        value={scoreOp}
+                        onChange={(e) => setScoreOp(e.target.value)}
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none"
+                      >
+                        <option value="gte">≥</option>
+                        <option value="gt">&gt;</option>
+                        <option value="eq">=</option>
+                        <option value="lte">≤</option>
+                        <option value="lt">&lt;</option>
+                        <option value="between">Between</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={scoreVal}
+                        onChange={(e) => setScoreVal(e.target.value)}
+                        placeholder="80"
+                        className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      />
+                      {scoreOp === "between" && (
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={scoreVal2}
+                          onChange={(e) => setScoreVal2(e.target.value)}
+                          placeholder="90"
+                          className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        />
+                      )}
+                      <span className="text-[9px] font-bold text-[var(--text-secondary)]">%</span>
+                      <button
+                        onClick={() => setFilterPickerMode(null)}
+                        disabled={scoreVal === ""}
+                        className="px-2 py-1 rounded-md bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase disabled:opacity-40"
+                      >
+                        Apply
+                      </button>
+                      <button onClick={() => { setFilterPickerMode(null); clearScoreFilter(); }} className="text-[var(--text-secondary)] hover:text-rose-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Inline editor — form field option */}
+                  {filterPickerMode && filterPickerMode.type === "field" && (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
+                      <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{filterPickerMode.label}:</span>
+                      <select
+                        value=""
+                        onChange={(e) => {
+                          if (e.target.value) {
+                            setFieldFilters((prev) => ({ ...prev, [filterPickerMode.label]: e.target.value }));
+                            setFilterPickerMode(null);
+                          }
+                        }}
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      >
+                        <option value="">Select…</option>
+                        {fieldOptionsOf(filterPickerMode.label).map((o, idx) => (
+                          <option key={`${filterPickerMode.label}-${idx}`} value={String(o)}>
+                            {String(o)}
+                          </option>
+                        ))}
+                      </select>
+                      <button onClick={() => setFilterPickerMode(null)} className="text-[var(--text-secondary)] hover:text-rose-500">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* + Add Filter dropdown — parameters come from this run's form */}
+                  {availableParams.length > 0 && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setFilterPickerOpen(!filterPickerOpen)}
+                        className="px-2.5 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:border-[var(--brand-orange)] hover:text-[var(--brand-orange)] flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" /> Add Filter
+                      </button>
+                      {filterPickerOpen && (
+                        <div className="absolute left-0 top-full mt-1 w-52 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30 max-h-64 overflow-y-auto">
+                          {availableParams.map((p) => (
+                            <button
+                              key={p.key}
+                              onClick={() => pickFilterParam(p)}
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold text-[var(--text-primary)] hover:bg-tertiary"
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {duplicateGroups.groups.length > 0 && (
+                    <button
+                      onClick={() => setShowDuplicates(!showDuplicates)}
+                      className={cn("px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase border", showDuplicates ? "bg-amber-500 text-black border-amber-500" : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20")}
+                    >
+                      {showDuplicates ? "Show all" : `Duplicates (${duplicateGroups.extra})`}
+                    </button>
+                  )}
+
+                  {hasRunFilters && (
+                    <button
+                      onClick={clearRunFilters}
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                    >
+                      Clear all
+                    </button>
+                  )}
+
+                  {/* Export the CURRENTLY FILTERED set to CSV */}
+                  {visibleSubmissions.length > 0 && (
+                    <button
+                      onClick={exportRespondentsCSV}
+                      className="ml-auto px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"
+                    >
+                      <Download className="w-3 h-3" /> Export CSV ({visibleSubmissions.length})
+                    </button>
+                  )}
+                </div>
+
+                {/* Visual separator between the filter controls and the selection bar */}
+                <div className="border-t border-[var(--border-primary)]" />
+
+                {/* Bulk selection bar — selection always respects the active filters */}
+                {duplicateGroups.groups.length > 0 && (
+                  <div className="flex items-center gap-2 text-[9px] font-bold text-amber-500">
+                    <AlertTriangle className="w-3 h-3" />
+                    {duplicateGroups.groups.length} duplicate email group{duplicateGroups.groups.length === 1 ? "" : "s"} — {duplicateGroups.extra} extra submission{duplicateGroups.extra === 1 ? "" : "s"}. Only the highest-scored duplicate receives emails.
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allFilteredSelected}
+                        onChange={toggleSelectAllFiltered}
+                        className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                      />
+                      Select all filtered
+                    </label>
+                    <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                      {showDuplicates
+                        ? `${visibleSubmissions.length} duplicate submission${visibleSubmissions.length === 1 ? "" : "s"}`
+                        : `${filteredSubmissions.length} respondent${filteredSubmissions.length === 1 ? "" : "s"} match your filters`}
+                    </span>
+                  </div>
+                  {selectedIds.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                        {selectedIds.length} selected
+                      </span>
+                      <div className="relative">
+                        <button
+                          onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
+                          disabled={bulkProcessing}
+                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                        >
+                          Actions <ChevronDown className="w-3 h-3" />
+                        </button>
+                        {bulkMenuOpen && (
+                          <div className="absolute right-0 mt-1 w-44 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
+                            <button
+                              onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
+                            >
+                              Approve
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  {t("platformMisc.runs.showingRespondentsInRun", { start: visibleSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1, end: Math.min(respSafePage * perPage, visibleSubmissions.length), total: visibleSubmissions.length })}
+                </p>
+              </div>
+
               {/* Submissions table */}
               {subLoading ? <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
+                <>
                 <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                   <table className="w-full text-left">
                     <thead className="bg-tertiary">
                       <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
-                        <th className="px-4 py-3">{t("platformMisc.runs.colSubmitter")}</th>
-                        {runFormFields.slice(0, 3).map(f => (
+                        <th className="px-4 py-3 w-10">
+                          <input
+                            type="checkbox"
+                            checked={allFilteredSelected}
+                            onChange={toggleSelectAllFiltered}
+                            className="accent-[var(--brand-orange)] w-3.5 h-3.5 align-middle"
+                          />
+                        </th>
+                        <th className="px-4 py-3 w-10">{t("platformMisc.runs.colSn")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colEmail")}</th>
+                        {runFormFields.slice(0, 2).map(f => (
                           <th key={f.id} className="px-3 py-3 max-w-[120px]" title={f.label}>
                             <span className="line-clamp-1">{f.label.length > 25 ? f.label.substring(0, 25) + "..." : f.label}</span>
                           </th>
                         ))}
                         <th className="px-4 py-3">{t("platformMisc.runs.colStatus")}</th>
-                        <th className="px-4 py-3">{t("platformMisc.runs.colScore")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colAiScore")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.colActivation")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.statusSubmitted")}</th>
+                        <th className="px-4 py-3">{t("platformMisc.runs.review")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[var(--border-primary)]">
-                      {filteredSubmissions.map((s) => {
+                      {pagedSubmissions.map((s, i) => {
                         const sc = SUB_STATUS[s.status] || SUB_STATUS.draft;
                         const subReviews = reviews.filter((r) => r.submission_id === s.id);
                         const lastReview = subReviews[subReviews.length - 1];
                         const subData = s.data || {};
                         const scores = subData._scores;
-                        const overall = scores?.overall;
-                        const ranking = scores?.ranking;
+                        // AI evaluation table is the source of truth; fall back
+                        // to legacy inline _scores for pre-evaluation data.
+                        const evalRow = evaluations.find((e) => e.submission_id === s.id);
+                        const overall = evalRow != null ? evalRow.overall_score : scores?.overall;
+                        const ranking = evalRow != null ? evalRow.ranking : scores?.ranking;
+                        const activationEmail = emailLog
+                          .filter((e) => e.submission_id === s.id && e.email_type === "activation")
+                          .slice(-1)[0];
+                        // The address the system actually sent to (from the
+                        // delivery log) — falls back to the resolved respondent
+                        // email when nothing has been sent yet.
+                        const sentLog = [...emailLog]
+                          .filter((e) => e.submission_id === s.id && (e.status === "sent" || e.status === "failed"))
+                          .slice(-1)[0];
+                        const sentEmail = sentLog?.recipient || s.email || "";
                         const scoreColor = overall != null
                           ? overall >= 80 ? "text-emerald-500"
                           : overall >= 60 ? "text-amber-500"
@@ -1034,10 +1802,37 @@ export default function FormRunsPage() {
                         
                         return (
                           <tr key={s.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2"><User className="w-3.5 h-3.5 text-[var(--text-secondary)]" />{s.submitter_name || s.submitter_id}</div>
+                            <td className="px-4 py-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={selectedSet.has(s.id)}
+                                onChange={() => toggleSelect(s.id)}
+                                className="accent-[var(--brand-orange)] w-3.5 h-3.5 align-middle"
+                              />
                             </td>
-                            {runFormFields.slice(0, 3).map(f => (
+                            {/* S/N — presentation-level row number, continuous across pages and respecting filters */}
+                            <td className="px-4 py-3 w-10 text-center text-[10px] text-[var(--text-secondary)]">
+                              {(respSafePage - 1) * perPage + i + 1}
+                            </td>
+                            {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className="text-[10px] text-[var(--text-secondary)] truncate max-w-[160px] block"
+                                  title={sentLog
+                                    ? t("platformMisc.runs.emailSentToTooltip", { recipient: sentLog.recipient || "n/a", type: sentLog.email_type, provider: sentLog.provider || "email", status: sentLog.status, date: sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : "" })
+                                    : s.email || t("platformMisc.runs.noEmailProvided")}
+                                >
+                                  {sentEmail || t("platformMisc.runs.noEmailProvided")}
+                                </span>
+                                {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                                    {duplicateGroups.keeperIds.has(s.id) ? t("platformMisc.runs.emailKeeper") : t("platformMisc.runs.emailDuplicate")}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            {runFormFields.slice(0, 2).map(f => (
                               <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
                             ))}
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{t(sc.label)}</span></td>
@@ -1047,6 +1842,25 @@ export default function FormRunsPage() {
                                   <span className={cn("text-[11px] font-black", scoreColor)}>{overall}%</span>
                                   {ranking && <span className={cn("text-[8px] font-bold uppercase mt-0.5 px-1.5 py-0.5 rounded", scoreColor, scoreBg)}>{ranking}</span>}
                                 </div>
+                              ) : (
+                                <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {activationEmail ? (
+                                activationEmail.status === "sent" ? (
+                                  <span title={activationEmail.error || t("platformMisc.runs.emailSentTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">{t("platformMisc.runs.emailSent")}</span>
+                                ) : activationEmail.status === "failed" ? (
+                                  <span title={activationEmail.error || t("platformMisc.runs.emailFailedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">{t("platformMisc.runs.emailFailed")}</span>
+                                ) : activationEmail.status === "bounced" ? (
+                                  <span title={activationEmail.error || t("platformMisc.runs.emailBouncedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.emailBounced")}</span>
+                                ) : activationEmail.status === "cancelled" ? (
+                                  <span title={activationEmail.error || t("platformMisc.runs.emailCancelledTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailCancelled")}</span>
+                                ) : activationEmail.status === "skipped" ? (
+                                  <span title={activationEmail.error || t("platformMisc.runs.emailSkippedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailSkipped")}</span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.emailPending")}</span>
+                                )
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
                               )}
@@ -1075,14 +1889,303 @@ export default function FormRunsPage() {
                     </tbody>
                   </table>
                 </div>
+                {respTotalPages > 1 && (
+                  <div className="flex items-center justify-between pt-2">
+                    <p className="text-[10px] text-[var(--text-secondary)]">Page {respSafePage} of {respTotalPages}</p>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setRespPage(Math.max(1, respSafePage - 1))} disabled={respSafePage === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Prev</button>
+                      {Array.from({ length: Math.min(respTotalPages, 7) }, (_, i) => {
+                        let pn;
+                        if (respTotalPages <= 7) pn = i + 1;
+                        else if (respSafePage <= 4) pn = i + 1;
+                        else if (respSafePage >= respTotalPages - 3) pn = respTotalPages - 6 + i;
+                        else pn = respSafePage - 3 + i;
+                        return <button key={pn} onClick={() => setRespPage(pn)} className={cn("w-7 h-7 rounded-lg text-[10px] font-bold", respSafePage === pn ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>{pn}</button>;
+                      })}
+                      <button onClick={() => setRespPage(Math.min(respTotalPages, respSafePage + 1))} disabled={respSafePage === respTotalPages} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Next</button>
+                    </div>
+                  </div>
+                )}
+                </>
               )}
 
               {/* Submission Timeline (expandable per submission) */}
               {selectedSubmission && (
                 <SubmissionTimeline submission={selectedSubmission} onClose={() => setSelectedSubmission(null)} />
               )}
+
+              {/* ─── BULK APPROVE CONFIRM ─── */}
+              {bulkConfirmOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                      {t("platformMisc.runs.bulkApproveTitle", { count: selectedIds.length })}
+                    </h4>
+                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                      {t("platformMisc.runs.bulkApproveDesc")}
+                    </p>
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                        {t("platformMisc.runs.bulkApproveConfirm", { count: selectedIds.length })}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── BULK PROCESSING ─── */}
+              {bulkProcessing && (
+                <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                      {t("platformMisc.runs.bulkApproving", { done: bulkProgress.done, total: bulkProgress.total })}
+                    </p>
+                    <p className="text-[9px] text-[var(--text-secondary)]">
+                      {t("platformMisc.runs.bulkApprovingHint")}
+                    </p>
+                    <button
+                      onClick={() => { bulkAbortRef.current = true; }}
+                      className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                    >
+                      {t("platformMisc.runs.bulkCancelSending")}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── BULK SUMMARY ─── */}
+              {bulkSummary && !bulkProcessing && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.bulkComplete")}</h4>
+                    <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.bulkApprovedCount", { count: bulkSummary.approved })}</p>
+                    {bulkSummary.already_approved > 0 && (
+                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkAlreadyApproved", { count: bulkSummary.already_approved })}</p>
+                    )}
+                    {bulkSummary.cancelled > 0 && (
+                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkCancelledCount", { count: bulkSummary.cancelled })}</p>
+                    )}
+                    {bulkSummary.failed.length > 0 && (
+                      <div className="space-y-1">
+                        <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.bulkFailedCount", { count: bulkSummary.failed.length })}</p>
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {bulkSummary.failed.map((f, i) => (
+                            <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.bulkFailedFallback")} — {f.error}</p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button onClick={() => setBulkSummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                  </div>
+                </div>
+              )}
             </>
           )}
+
+          {/* ─── EMAILS TAB ─── */}
+          {detailTab === "emails" && (() => {
+            const s = emailSummary.stats;
+            const allFailedSelected = visibleNotDelivered.length > 0 && visibleNotDelivered.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+            const STATUS_BADGE = {
+              failed: "bg-rose-500/10 text-rose-500",
+              bounced: "bg-amber-500/10 text-amber-500",
+              cancelled: "bg-slate-500/10 text-slate-400",
+            };
+            return (
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Email status counts for THIS run */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.emailSummaryApproval")}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-emerald-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSent", { count: s.approval.sent })}</span>
+                      <span className="text-rose-500 text-[11px] font-black">{t("platformMisc.runs.emailCountFailed", { count: s.approval.failed })}</span>
+                      <span className="text-amber-500 text-[11px] font-black">{t("platformMisc.runs.emailCountBounced", { count: s.approval.bounced })}</span>
+                      <span className="text-slate-400 text-[11px] font-black">{t("platformMisc.runs.emailCountCancelled", { count: s.approval.cancelled })}</span>
+                      <span className="text-slate-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSkipped", { count: s.approval.skipped })}</span>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
+                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.emailSummaryActivation")}</p>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-emerald-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSent", { count: s.activation.sent })}</span>
+                      <span className="text-rose-500 text-[11px] font-black">{t("platformMisc.runs.emailCountFailed", { count: s.activation.failed })}</span>
+                      <span className="text-amber-500 text-[11px] font-black">{t("platformMisc.runs.emailCountBounced", { count: s.activation.bounced })}</span>
+                      <span className="text-slate-400 text-[11px] font-black">{t("platformMisc.runs.emailCountCancelled", { count: s.activation.cancelled })}</span>
+                      <span className="text-slate-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSkipped", { count: s.activation.skipped })}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Not-delivered emails — failed/bounced/cancelled, all selectable + manually retryable */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                        {t("platformMisc.runs.emailNotDelivered", { count: notDeliveredRows.length })}
+                      </p>
+                      {[
+                        { key: "all", label: t("platformMisc.runs.emailFilterAll", { count: notDeliveredRows.length }) },
+                        { key: "failed", label: t("platformMisc.runs.emailFilterFailed", { count: notDeliveredRows.filter((r) => r.status === "failed").length }) },
+                        { key: "bounced", label: t("platformMisc.runs.emailFilterBounced", { count: notDeliveredRows.filter((r) => r.status === "bounced").length }) },
+                        { key: "cancelled", label: t("platformMisc.runs.emailFilterCancelled", { count: notDeliveredRows.filter((r) => r.status === "cancelled").length }) },
+                      ].map((f) => (
+                        <button
+                          key={f.key}
+                          onClick={() => { setEmailStatusFilter(f.key); setRetrySelected([]); }}
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-[8px] font-black uppercase border",
+                            emailStatusFilter === f.key
+                              ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
+                              : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]"
+                          )}
+                        >
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                    {retrySelected.length > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black text-[var(--brand-orange)]">{t("platformMisc.runs.emailSelectedCount", { count: retrySelected.length })}</span>
+                        <button
+                          onClick={() => setRetrySelected([])}
+                          disabled={retryProcessing}
+                          title={t("platformMisc.runs.emailDeselectTitle")}
+                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase hover:text-[var(--text-primary)] disabled:opacity-50"
+                        >
+                          {t("platformMisc.runs.cancel")}
+                        </button>
+                        <button
+                          onClick={runRetryEmails}
+                          disabled={retryProcessing}
+                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                        >
+                          <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.emailRetrySelected")}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {visibleNotDelivered.length === 0 ? (
+                    <p className="text-[10px] text-[var(--text-secondary)]">
+                      {notDeliveredRows.length === 0 ? t("platformMisc.runs.emailNoneFailed") : t("platformMisc.runs.emailNoneMatchFilter")}
+                    </p>
+                  ) : (
+                    <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
+                      <table className="w-full text-left">
+                        <thead className="bg-tertiary">
+                          <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                            <th className="px-4 py-3 w-10">
+                              <input
+                                type="checkbox"
+                                checked={allFailedSelected}
+                                onChange={() =>
+                                  setRetrySelected(allFailedSelected ? [] : visibleNotDelivered.map((f) => `${f.submission_id}:${f.email_type}`))
+                                }
+                                className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                              />
+                            </th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.emailColRespondent")}</th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.emailColType")}</th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.colStatus")}</th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.emailColRecipient")}</th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.emailColReason")}</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[var(--border-primary)]">
+                          {visibleNotDelivered.map((f) => {
+                            const key = `${f.submission_id}:${f.email_type}`;
+                            return (
+                              <tr key={key} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
+                                <td className="px-4 py-3 w-10">
+                                  <input
+                                    type="checkbox"
+                                    checked={retrySelectedSet.has(key)}
+                                    onChange={() => toggleRetrySelect(key)}
+                                    className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                                  />
+                                </td>
+                                <td className="px-3 py-3">{f.name}</td>
+                                <td className="px-3 py-3">
+                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", f.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
+                                    {f.email_type}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", STATUS_BADGE[f.status] || STATUS_BADGE.failed)}>
+                                    {f.status}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[180px]" title={f.email}>
+                                  {f.email || "—"}
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[260px] truncate" title={f.error || "Unknown reason"}>
+                                  {f.error || "Unknown reason"}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+
+                {/* ─── RETRY PROCESSING ─── */}
+                {retryProcessing && (
+                  <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                      <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                        Retrying {retryProgress.done} of {retryProgress.total} emails...
+                      </p>
+                      <p className="text-[9px] text-[var(--text-secondary)]">
+                        Already-sent emails are kept. Stopping leaves the remaining rows unchanged — select them again later.
+                      </p>
+                      <button
+                        onClick={() => { retryAbortRef.current = true; }}
+                        className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                      >
+                        Cancel Sending
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ─── RETRY SUMMARY ─── */}
+                {retrySummary && !retryProcessing && (
+                  <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                    <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
+                      <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.emailRetryComplete")}</h4>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                        {t("platformMisc.runs.emailRetryCount", { count: retrySummary.retried })}
+                      </p>
+                      <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.emailRetrySent", { count: retrySummary.sent })}</p>
+                      {retrySummary.already_sent > 0 && (
+                        <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.emailRetryAlready", { count: retrySummary.already_sent })}</p>
+                      )}
+                      {retrySummary.cancelled > 0 && (
+                        <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkCancelledCount", { count: retrySummary.cancelled })}</p>
+                      )}
+                      {retrySummary.failed.length > 0 && (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.emailRetryFailedCount", { count: retrySummary.failed.length })}</p>
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {retrySummary.failed.map((f, i) => (
+                              <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.emailFallback")} — {f.error}</p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <button onClick={() => setRetrySummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ─── SHARE TAB ─── */}
           {detailTab === "share" && (() => {
@@ -1346,6 +2449,176 @@ export default function FormRunsPage() {
               </div>
             </div>
           )}
+
+          {/* ─── TEMPLATES TAB (run-level email overrides) ─── */}
+          {detailTab === "templates" && (() => {
+            const updateRunTemplate = (key, field, val) => {
+              setRunTemplates((prev) => {
+                const next = JSON.parse(JSON.stringify(prev || {}));
+                if (!next[key]) next[key] = {};
+                next[key][field] = val;
+                return next;
+              });
+            };
+
+            const saveRunTemplates = async () => {
+              if (!selectedRun) return;
+              setRunTplSaving(true);
+              try {
+                // Never persist empty template shells: an entry whose subject AND
+                // body are both blank must fall through to the form template, not
+                // shadow it at send time.
+                const cleanedTemplates = Object.fromEntries(
+                  Object.entries(runTemplates || {}).filter(([, t]) => {
+                    const s = (t?.subject || "").trim();
+                    const b = (t?.body || "").trim();
+                    return s || b;
+                  })
+                );
+                const res = await fetch("/api/platform/form-runs", {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ id: selectedRun.id, settings: { ...(runSettings || {}), templates: cleanedTemplates } }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setRunSettings(data.run.settings || {});
+                  setSelectedRun({ ...selectedRun, settings: data.run.settings });
+                  notify(t("platformMisc.runs.runTemplatesSaved"));
+                } else {
+                  notify(data.error || t("platformMisc.runs.runTemplatesSaveFailed"));
+                }
+              } catch (_) {
+                notify(t("platformMisc.runs.runTemplatesSaveNetworkError"));
+              }
+              setRunTplSaving(false);
+            };
+
+            const personalizeRunTemplate = async (tKey, label) => {
+              if (runPersonalizing) return;
+              setRunPersonalizing(tKey);
+              try {
+                // Draft base: run-level draft first; when the run draft is empty,
+                // personalize the form-level template (never the platform default
+                // alone) so a designed template is improved, not replaced.
+                const formTpl = runFormSettings?.automation?.templates?.[tKey] || {};
+                const baseSubject = (runTemplates[tKey]?.subject || "").trim() || (formTpl.subject || "").trim();
+                const baseBody = (runTemplates[tKey]?.body || "").trim() || (formTpl.body || "").trim();
+                const res = await fetch("/api/platform/ai/personalize-template", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    template_key: tKey,
+                    form_name: selectedRun?.name || "",
+                    organization: "Future Studio",
+                    existing_subject: baseSubject,
+                    existing_body: baseBody,
+                  }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  updateRunTemplate(tKey, "subject", data.subject);
+                  updateRunTemplate(tKey, "body", data.body);
+                  notify(t("platformMisc.forms.templatePersonalized", { label }));
+                } else {
+                  notify(data.error || t("platformMisc.forms.templatePersonalizeFailed"));
+                }
+              } catch (_) {
+                notify(t("platformMisc.forms.templatePersonalizeNetworkError"));
+              }
+              setRunPersonalizing(null);
+            };
+
+            const RunTemplateEditor = ({ tKey, label, icon: Icon, desc, vars, current }) => (
+              <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                <div className="flex items-center gap-2 mb-1">
+                  <Icon className="w-3.5 h-3.5 text-cyan-400" />
+                  <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                  <button
+                    type="button"
+                    disabled={runPersonalizing === tKey}
+                    onClick={() => personalizeRunTemplate(tKey, label)}
+                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    {runPersonalizing === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
+                  </button>
+                </div>
+                <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
+                  <input
+                    value={current.subject || ""}
+                    onChange={(e) => updateRunTemplate(tKey, "subject", e.target.value)}
+                    placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
+                  <textarea
+                    value={current.body || ""}
+                    onChange={(e) => updateRunTemplate(tKey, "body", e.target.value)}
+                    rows={4}
+                    placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+                  />
+                </div>
+                {vars && (
+                  <p className="text-[7px] text-[var(--text-secondary)] italic">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+                )}
+              </div>
+            );
+
+            return (
+              <div className="space-y-6 max-w-2xl">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.runTemplatesTitle")}</h3>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runTemplatesDesc")}</p>
+                  </div>
+                  <button onClick={saveRunTemplates} disabled={runTplSaving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40">
+                    {runTplSaving ? t("platformMisc.runs.saving") : t("platformMisc.forms.templatesSave")}
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  <RunTemplateEditor
+                    tKey="approval"
+                    label={t("platformMisc.forms.templateApprovalLabel")}
+                    icon={CheckCircle2}
+                    desc={t("platformMisc.runs.runTemplateApprovalDesc")}
+                    vars={["name", "form_name", "score", "group_name", "organization"]}
+                    current={runTemplates.approval || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="activation"
+                    label={t("platformMisc.forms.templateActivationLabel")}
+                    icon={Key}
+                    desc={t("platformMisc.runs.runTemplateActivationDesc")}
+                    vars={["name", "organization", "activation_link"]}
+                    current={runTemplates.activation || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="existing_user"
+                    label={t("platformMisc.forms.templateExistingUserLabel")}
+                    icon={LogIn}
+                    desc={t("platformMisc.runs.runTemplateExistingUserDesc")}
+                    vars={["name", "organization", "login_url"]}
+                    current={runTemplates.existing_user || {}}
+                  />
+                  <RunTemplateEditor
+                    tKey="rejection"
+                    label={t("platformMisc.forms.templateRejectionLabel")}
+                    icon={XCircle}
+                    desc={t("platformMisc.runs.runTemplateRejectionDesc")}
+                    vars={["name", "form_name", "organization"]}
+                    current={runTemplates.rejection || {}}
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Review Modal */}

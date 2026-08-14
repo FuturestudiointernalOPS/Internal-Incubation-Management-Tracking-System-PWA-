@@ -61,7 +61,7 @@ export async function POST(req) {
     // 2. Change status to 'approved' and set role
     await db.execute({
       sql: "UPDATE contacts SET status = 'approved', role = ? WHERE cid = ?",
-      args: [role || "staff", user_cid],
+      args: [role || "participant", user_cid],
     });
 
     // 3. Generate password setup token (24h expiry)

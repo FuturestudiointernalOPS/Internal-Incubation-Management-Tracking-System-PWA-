@@ -8,7 +8,7 @@ import {
   Eye, Grid3X3, X, ChevronUp, ChevronDown, Trash2,
   CheckSquare, Circle, List, Hash, Mail, PhoneIcon, Calendar,
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
-  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, XCircle,
+  Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, LogIn, XCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -138,6 +138,7 @@ export default function PlatformForms() {
   // Templates panel
   const [showTemplates, setShowTemplates] = useState(false);
   const [templateConfig, setTemplateConfig] = useState(null);
+  const [personalizing, setPersonalizing] = useState(null); // template key while AI is writing
 
   const DEFAULT_AUTOMATION = {
     on_submit: { send_acknowledgement: true },
@@ -1406,13 +1407,53 @@ export default function PlatformForms() {
               setTemplateConfig(next);
             };
 
-            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars }) => {
+            // Ask the existing AI layer to write (or improve) a template,
+            // then fill the subject/body fields — saving stays manual.
+            const personalize = async (tKey, label) => {
+              if (personalizing) return;
+              setPersonalizing(tKey);
+              try {
+                const res = await fetch("/api/platform/ai/personalize-template", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    template_key: tKey,
+                    form_name: editingForm?.name || "",
+                    organization: "Future Studio",
+                    existing_subject: tmpl[tKey]?.subject || "",
+                    existing_body: tmpl[tKey]?.body || "",
+                  }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  update(tKey, "subject", data.subject);
+                  update(tKey, "body", data.body);
+                  notify(t("platformMisc.forms.templatePersonalized", { label }));
+                } else {
+                  notify(data.error || t("platformMisc.forms.templatePersonalizeFailed"));
+                }
+              } catch (_) {
+                notify(t("platformMisc.forms.templatePersonalizeNetworkError"));
+              }
+              setPersonalizing(null);
+            };
+
+            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => {
               const { t } = useI18n();
               return (
                 <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-2 mb-1">
                     <Icon className="w-3.5 h-3.5 text-cyan-400" />
                     <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                    <button
+                      type="button"
+                      disabled={personalizingKey === tKey}
+                      onClick={() => onPersonalize(tKey, label)}
+                      className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {personalizingKey === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
+                    </button>
                   </div>
                   <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
                   <div className="space-y-1">
@@ -1450,6 +1491,8 @@ export default function PlatformForms() {
                   defaultSubject={t("platformMisc.forms.templateSubmissionSubject")}
                   defaultBody={t("platformMisc.forms.templateSubmissionBody")}
                   vars={["name", "form_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateApprovalLabel")} icon={CheckCircle2}
@@ -1458,6 +1501,8 @@ export default function PlatformForms() {
                   defaultSubject={t("platformMisc.forms.templateApprovalSubject")}
                   defaultBody={t("platformMisc.forms.templateApprovalBody")}
                   vars={["name", "form_name", "program_name", "group_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateActivationLabel")} icon={Key}
@@ -1466,6 +1511,18 @@ export default function PlatformForms() {
                   defaultSubject={t("platformMisc.forms.templateActivationSubject")}
                   defaultBody={t("platformMisc.forms.templateActivationBody")}
                   vars={["name", "organization", "activation_link"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
+                />
+                <TemplateEditor
+                  label={t("platformMisc.forms.templateExistingUserLabel")} icon={LogIn}
+                  tKey="existing_user"
+                  desc={t("platformMisc.forms.templateExistingUserDesc")}
+                  defaultSubject={t("platformMisc.forms.templateExistingUserSubject")}
+                  defaultBody={t("platformMisc.forms.templateExistingUserBody")}
+                  vars={["name", "organization", "login_url"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
                 <TemplateEditor
                   label={t("platformMisc.forms.templateRejectionLabel")} icon={XCircle}
@@ -1474,6 +1531,8 @@ export default function PlatformForms() {
                   defaultSubject={t("platformMisc.forms.templateRejectionSubject")}
                   defaultBody={t("platformMisc.forms.templateRejectionBody")}
                   vars={["name", "form_name", "organization"]}
+                  onPersonalize={personalize}
+                  personalizingKey={personalizing}
                 />
               </div>
             );
