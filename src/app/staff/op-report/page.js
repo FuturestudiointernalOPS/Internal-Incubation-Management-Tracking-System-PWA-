@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import {
   Calendar,
   Send,
@@ -25,7 +25,7 @@ import {
   Activity,
   CornerDownRight,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
@@ -112,7 +112,7 @@ const statusLabelKey = (status) => {
   return map[status] || "status.pending";
 };
 
-export default function StaffOpReport() {
+function StaffOpReport() {
   const router = useRouter();
   const { t, lang } = useI18n();
   const [user, setUser] = useState(null);
@@ -413,7 +413,14 @@ export default function StaffOpReport() {
                 return [];
               }
             })(),
-            carryover_items: report.carryover_items || "",
+            carryover_items: (() => {
+              try {
+                const p = JSON.parse(report.carryover_items);
+                return Array.isArray(p) ? p : report.carryover_items || "";
+              } catch {
+                return report.carryover_items || "";
+              }
+            })(),
             retro_notes: report.retro_notes || "",
           });
         } else {
@@ -432,7 +439,7 @@ export default function StaffOpReport() {
             unfinished_tasks: "",
             challenges: "",
             wins: [],
-            carryover_items: "",
+            carryover_items: [],
             retro_notes: "",
           });
         }
@@ -559,16 +566,40 @@ export default function StaffOpReport() {
     }
   }, []);
 
-  // ─── Query param: pre-select tab (e.g. ?tab=standup | retro | summary) ───
+  // ─── URL state sync: tab + week/year live in the query string ───
+  // Reading: reacts to browser back/forward and sidebar <Link> navigation.
+  // (The page does not remount when only the query string changes, so the
+  // tab/week must be read reactively — not just on mount.)
+  const searchParams = useSearchParams();
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const tab = params.get("tab");
-      if (tab === "standup" || tab === "retro" || tab === "summary") {
-        setReportType(tab);
-      }
+    const tab = searchParams.get("tab");
+    if (tab === "standup" || tab === "retro" || tab === "summary") {
+      setReportType(tab);
     }
-  }, []);
+    const w = parseInt(searchParams.get("week") || "", 10);
+    const y = parseInt(searchParams.get("year") || "", 10);
+    if (!isNaN(w) && w >= 1 && w <= 53) {
+      setWeekInfo((prev) => ({
+        week: w,
+        year: !isNaN(y) && y >= 2000 ? y : prev.year,
+      }));
+    }
+  }, [searchParams]);
+
+  // Writing: keep the URL in sync so refresh / share / back-forward keep context
+  useEffect(() => {
+    const qs = new URLSearchParams({
+      tab: reportType,
+      week: String(weekInfo.week),
+      year: String(weekInfo.year),
+    }).toString();
+    if (
+      typeof window !== "undefined" &&
+      window.location.search !== `?${qs}`
+    ) {
+      router.replace(`/staff/op-report?${qs}`, { scroll: false });
+    }
+  }, [reportType, weekInfo, router]);
 
   useEffect(() => {
     async function fetchUser() {
@@ -743,8 +774,8 @@ export default function StaffOpReport() {
         completed_work: form.completed_work || null,
         unfinished_tasks: form.unfinished_tasks || null,
         challenges: form.challenges || null,
-        wins: form.wins || null,
-        carryover_items: form.carryover_items || null,
+        wins: JSON.stringify(form.wins || []),
+        carryover_items: JSON.stringify(form.carryover_items || []),
         retro_notes: form.retro_notes || null,
       };
       const res = await fetch("/api/op-reports", {
@@ -774,6 +805,41 @@ export default function StaffOpReport() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ─── BULLET-LIST ITEM HANDLERS (priorities / deliverables / wins / carryover) ───
+  const addPriority = () => {
+    const v = newPriority.trim();
+    if (!v) return;
+    setForm((p) => ({ ...p, top_priorities: [...(p.top_priorities || []), v] }));
+    setNewPriority("");
+  };
+
+  const addDeliverable = () => {
+    const v = newDeliverable.trim();
+    if (!v) return;
+    setForm((p) => ({
+      ...p,
+      expected_deliverables: [...(p.expected_deliverables || []), v],
+    }));
+    setNewDeliverable("");
+  };
+
+  const addWin = () => {
+    const v = newWin.trim();
+    if (!v) return;
+    setForm((p) => ({ ...p, wins: [...(p.wins || []), v] }));
+    setNewWin("");
+  };
+
+  const addCarryover = () => {
+    const v = newCarryover.trim();
+    if (!v) return;
+    setForm((p) => ({
+      ...p,
+      carryover_items: [...(p.carryover_items || []), v],
+    }));
+    setNewCarryover("");
   };
 
   // ─── TASK ROW MANAGEMENT ───
@@ -1091,13 +1157,6 @@ export default function StaffOpReport() {
               <div className="space-y-6">
                 {/* Header */}
                 {(() => {
-                  const cw = getCurrentWeek();
-                  const hasCurrentWeekStandup = history.some(
-                    (r) =>
-                      r.report_type === "standup" &&
-                      r.week_number === cw.week &&
-                      r.year === cw.year,
-                  );
                   return (
                     <div className="flex items-center justify-between">
                       <div>
@@ -1110,11 +1169,17 @@ export default function StaffOpReport() {
                       </div>
                       <button
                         onClick={async () => {
-                          if (hasCurrentWeekStandup) return;
-                          setReadOnly(false);
-                          setIsHistorical(false);
+                          const cw = getCurrentWeek();
+                          const isPastWeek =
+                            weekInfo.week !== cw.week ||
+                            weekInfo.year !== cw.year;
+                          setReadOnly(isPastWeek);
+                          setIsHistorical(isPastWeek);
                           setShowStandupModal(true);
-                          setWeekInfo(getCurrentWeek());
+
+                          // Only the current week's "new standup" flow pre-fills
+                          // carry-over tasks from previous weeks.
+                          if (isPastWeek) return;
 
                           // ─── Compute current reporting week ───
                           const now = new Date();
@@ -1206,16 +1271,18 @@ export default function StaffOpReport() {
                           }
                           setShowTaskForm(true);
                         }}
-                        className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[10px] font-bold transition-all ${
-                          hasCurrentWeekStandup
-                            ? "bg-slate-200 text-slate-400 cursor-not-allowed opacity-50"
-                            : "bg-[var(--brand-orange)] text-black hover:brightness-110"
-                        }`}
-                        disabled={hasCurrentWeekStandup}
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-[10px] font-bold bg-[var(--brand-orange)] text-black hover:brightness-110 transition-all"
                       >
                         <>
                           <Plus className="w-4 h-4" />{" "}
-                          {t("staff.opReport.createNewStandup")}
+                          {history.some(
+                            (r) =>
+                              r.report_type === "standup" &&
+                              r.week_number === weekInfo.week &&
+                              r.year === weekInfo.year,
+                          )
+                            ? t("staff.opReport.editStandup")
+                            : t("staff.opReport.createNewStandup")}
                         </>
                       </button>
                     </div>
@@ -1693,10 +1760,13 @@ export default function StaffOpReport() {
                             </p>
                             <button
                               onClick={() => {
-                                setReadOnly(false);
-                                setIsHistorical(false);
+                                const cw = getCurrentWeek();
+                                const isPastWeek =
+                                  weekInfo.week !== cw.week ||
+                                  weekInfo.year !== cw.year;
+                                setReadOnly(isPastWeek);
+                                setIsHistorical(isPastWeek);
                                 setShowStandupModal(true);
-                                setWeekInfo(getCurrentWeek());
                               }}
                               className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold hover:brightness-110 transition-all"
                             >
@@ -1723,6 +1793,189 @@ export default function StaffOpReport() {
                     {t("staff.opReport.reviewCompletedWork")}
                   </p>
                 </div>
+
+                {/* ─── RETRO FORM ─── */}
+                <div className="card p-5 space-y-4 border-l-4 border-l-purple-500">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div>
+                      <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
+                        <Trophy className="w-3.5 h-3.5 text-purple-400" />
+                        {t("staff.opReport.retroForWeek", {
+                          week: weekInfo.week,
+                        })}
+                      </h3>
+                      <p className="text-[9px] text-slate-500 mt-0.5">
+                        {weekInfo.year}
+                      </p>
+                    </div>
+                    {existingReport?.status === "submitted" && (
+                      <span className="text-[8px] font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 uppercase tracking-wider">
+                        {t("status.submitted")}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Wins */}
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      {t("staff.opReport.wins")}
+                    </label>
+                    <div className="space-y-1.5">
+                      {(form.wins || []).map((w, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                          <input
+                            value={w}
+                            onChange={(e) =>
+                              setForm((p) => ({
+                                ...p,
+                                wins: (p.wins || []).map((x, j) =>
+                                  j === i ? e.target.value : x,
+                                ),
+                              }))
+                            }
+                            className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all"
+                          />
+                          <button
+                            onClick={() =>
+                              setForm((p) => ({
+                                ...p,
+                                wins: (p.wins || []).filter((_, j) => j !== i),
+                              }))
+                            }
+                            className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input
+                          value={newWin}
+                          onChange={(e) => setNewWin(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addWin();
+                            }
+                          }}
+                          placeholder={t("staff.opReport.winsPlaceholder")}
+                          className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                        />
+                        <button
+                          onClick={addWin}
+                          className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
+                        >
+                          + {t("staff.opReport.addItem")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Challenges */}
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      {t("staff.opReport.challenges")}
+                    </label>
+                    <textarea
+                      value={form.challenges || ""}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, challenges: e.target.value }))
+                      }
+                      rows={3}
+                      placeholder={t("staff.opReport.challengesPlaceholder")}
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  {/* Carry-over items */}
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      {t("staff.opReport.carryoverItems")}
+                    </label>
+                    <div className="space-y-1.5">
+                      {(form.carryover_items || []).map((c, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
+                          <input
+                            value={c}
+                            onChange={(e) =>
+                              setForm((p) => ({
+                                ...p,
+                                carryover_items: (p.carryover_items || []).map(
+                                  (x, j) => (j === i ? e.target.value : x),
+                                ),
+                              }))
+                            }
+                            className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all"
+                          />
+                          <button
+                            onClick={() =>
+                              setForm((p) => ({
+                                ...p,
+                                carryover_items: (p.carryover_items || []).filter(
+                                  (_, j) => j !== i,
+                                ),
+                              }))
+                            }
+                            className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input
+                          value={newCarryover}
+                          onChange={(e) => setNewCarryover(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              addCarryover();
+                            }
+                          }}
+                          placeholder={t("staff.opReport.carryoverPlaceholder")}
+                          className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                        />
+                        <button
+                          onClick={addCarryover}
+                          className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
+                        >
+                          + {t("staff.opReport.addItem")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Retro notes */}
+                  <div>
+                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      {t("staff.opReport.retroNotes")}
+                    </label>
+                    <textarea
+                      value={form.retro_notes || ""}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, retro_notes: e.target.value }))
+                      }
+                      rows={2}
+                      placeholder={t("staff.opReport.retroNotesPlaceholder")}
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => handleSubmit("submitted")}
+                    disabled={saving}
+                    className="w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-wider bg-[var(--brand-orange)] text-black hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+                  >
+                    <Send className="w-4 h-4" />
+                    {saving
+                      ? t("common.saving")
+                      : t("staff.opReport.submitRetro")}
+                  </button>
+                </div>
+
+                {/* Week history table */}
                 <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
                   <div className="overflow-x-auto">
                     <table className="w-full">
@@ -3584,6 +3837,138 @@ export default function StaffOpReport() {
                 )}
               </div>
 
+              {/* Section 1c — Top Priorities */}
+              <div>
+                <h3 className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" />{" "}
+                  {t("staff.opReport.topPriorities")}
+                </h3>
+                <div className="space-y-2">
+                  {(form.top_priorities || []).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
+                      <input
+                        value={item}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            top_priorities: (p.top_priorities || []).map(
+                              (x, j) => (j === i ? e.target.value : x),
+                            ),
+                          }))
+                        }
+                        disabled={readOnly || isHistorical}
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                      {!readOnly && !isHistorical && (
+                        <button
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              top_priorities: (p.top_priorities || []).filter(
+                                (_, j) => j !== i,
+                              ),
+                            }))
+                          }
+                          className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
+                          title="Remove"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && !isHistorical && (
+                    <div className="flex gap-2">
+                      <input
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addPriority();
+                          }
+                        }}
+                        placeholder={t("staff.opReport.topPrioritiesPlaceholder")}
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                      />
+                      <button
+                        onClick={addPriority}
+                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
+                      >
+                        + {t("staff.opReport.addItem")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 1d — Expected Deliverables */}
+              <div>
+                <h3 className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                  {t("staff.opReport.expectedDeliverablesTitle")}
+                </h3>
+                <div className="space-y-2">
+                  {(form.expected_deliverables || []).map((item, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                      <input
+                        value={item}
+                        onChange={(e) =>
+                          setForm((p) => ({
+                            ...p,
+                            expected_deliverables: (
+                              p.expected_deliverables || []
+                            ).map((x, j) => (j === i ? e.target.value : x)),
+                          }))
+                        }
+                        disabled={readOnly || isHistorical}
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                      />
+                      {!readOnly && !isHistorical && (
+                        <button
+                          onClick={() =>
+                            setForm((p) => ({
+                              ...p,
+                              expected_deliverables: (
+                                p.expected_deliverables || []
+                              ).filter((_, j) => j !== i),
+                            }))
+                          }
+                          className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
+                          title="Remove"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  {!readOnly && !isHistorical && (
+                    <div className="flex gap-2">
+                      <input
+                        value={newDeliverable}
+                        onChange={(e) => setNewDeliverable(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addDeliverable();
+                          }
+                        }}
+                        placeholder={t("staff.opReport.deliverablesPlaceholder")}
+                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
+                      />
+                      <button
+                        onClick={addDeliverable}
+                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
+                      >
+                        + {t("staff.opReport.addItem")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               {/* Section 2 — Weekly Focus */}
               <div>
                 <h3 className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
@@ -3924,5 +4309,19 @@ function Section({ title, icon: Icon, color, children }) {
       </div>
       {children}
     </div>
+  );
+}
+
+export default function StaffOpReportPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="w-8 h-8 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+        </div>
+      }
+    >
+      <StaffOpReport />
+    </Suspense>
   );
 }

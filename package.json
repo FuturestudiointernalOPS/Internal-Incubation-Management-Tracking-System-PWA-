@@ -7,8 +7,34 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "jest --runInBand",
     "i18n:parity": "node scripts/i18n-parity.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1",
+      "^uuid$": "<rootDir>/src/__tests__/__mocks__/uuid.js"
+    },
+    "transform": {
+      "^.+\\.jsx?$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "@babel/preset-env",
+              {
+                "targets": {
+                  "node": "current"
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    },
+    "testMatch": ["<rootDir>/src/__tests__/**/*.test.js"]
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -42,9 +68,12 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/parser": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
     "autoprefixer": "^10.4.27",
+    "babel-jest": "^30.4.1",
     "eslint": "9.18.0",
     "eslint-config-next": "^16.2.9",
+    "jest": "^30.4.2",
     "postcss": "^8.5.8",
     "tailwindcss": "^3.4.19"
   }

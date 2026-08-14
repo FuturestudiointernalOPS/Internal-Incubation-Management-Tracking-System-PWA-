@@ -29,6 +29,17 @@ export default function StaffDashboard() {
   const [upcomingTasks, setUpcomingTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(false);
 
+  const timeAgo = (dateStr) => {
+    if (!dateStr) return "";
+    const diff = Date.now() - new Date(dateStr).getTime();
+    if (isNaN(diff) || diff < 0) return "";
+    const mins = Math.max(1, Math.floor(diff / 60000));
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return new Date(dateStr).toLocaleDateString();
+  };
+
   useEffect(() => {
     const sessionUser = JSON.parse(localStorage.getItem("user") || "{}");
     setUser(sessionUser);
@@ -209,7 +220,7 @@ export default function StaffDashboard() {
                       </span>
                     </div>
                     <span className="text-[9px] font-bold text-slate-700">
-                      2m ago
+                      {timeAgo(sub.created_at)}
                     </span>
                   </div>
                   <p className="text-[12px] font-bold text-slate-400 leading-relaxed italic">
