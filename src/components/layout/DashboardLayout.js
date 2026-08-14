@@ -1002,7 +1002,7 @@ function filterNavByResponsibilities(items, userResponsibilities, bypass) {
   }, []);
 }
 
-export default function DashboardLayout({ children, role = "admin", modals }) {
+export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -2074,7 +2074,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                 </div>
               </div>
             )}
-            <div className="max-w-[1400px] mx-auto animate-in">{children}</div>
+            <div className={fullWidth ? "w-full animate-in" : "max-w-[1400px] mx-auto animate-in"}>{children}</div>
           </main>
           {modals}
           <GlobalToast />
