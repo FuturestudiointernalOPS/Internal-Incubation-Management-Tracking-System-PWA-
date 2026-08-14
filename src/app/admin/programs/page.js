@@ -22,6 +22,7 @@ import {
   Target,
   Filter,
   Copy,
+  ExternalLink,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
@@ -270,7 +271,8 @@ export default function ProgramManagement() {
         .then((r) => r.json())
         .then((d) => {
           if (d.success && d.runs && d.runs.length > 0) {
-            setGroupRegLinks((prev) => ({ ...prev, [gid]: `${window.location.origin}/s/${d.runs[0].public_slug}` }));
+            const run = d.runs.find((x) => x.status === "active" && x.public_slug);
+            if (run) setGroupRegLinks((prev) => ({ ...prev, [gid]: `${window.location.origin}/s/${run.public_slug}` }));
           }
         })
         .catch(() => {});
@@ -1118,37 +1120,53 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
-              {/* Registration Link */}
+              {/* Registration Link — the assigned Form is the participant intake point */}
               {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && editingProgram.assigned_segments[0] && (
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                     {t("adminMisc.programs.registrationLink")}
                   </label>
-                  <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
-                    <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
-                      {(() => {
-                        const gid = editingProgram.assigned_segments[0];
-                        const formUrl = groupRegLinks[gid];
-                        if (formUrl) return formUrl;
-                        const origin = typeof window !== "undefined" ? window.location.origin : "";
-                        return `${origin}/register-participant?group_id=${encodeURIComponent(String(gid || ''))}`;
-                      })()}
-                    </code>
-                    <button
-                      onClick={() => {
-                        const gid = editingProgram.assigned_segments[0];
-                        if (!gid) return;
-                        const formUrl = groupRegLinks[gid];
-                        const link = formUrl || `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
-                        navigator.clipboard.writeText(link);
-                        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.registrationLinkCopied") } }));
-                      }}
-                      className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                      title={t("adminMisc.programs.copyRegistrationLink")}
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
+                  {(() => {
+                    const gid = editingProgram.assigned_segments[0];
+                    const formUrl = groupRegLinks[gid];
+                    if (formUrl) {
+                      return (
+                        <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
+                          <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
+                            {formUrl}
+                          </code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(formUrl);
+                              window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.registrationLinkCopied") } }));
+                            }}
+                            className="p-3 rounded-xl bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                            title={t("adminMisc.programs.copyRegistrationLink")}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={formUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-3 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20"
+                            title={t("adminMisc.programs.openForm")}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="space-y-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                        <p className="text-[9px] font-black uppercase text-amber-400">{t("adminMisc.programs.noFormYet")}</p>
+                        <p className="text-[8px] text-[var(--text-secondary)]">{t("adminMisc.programs.noFormYetHint")}</p>
+                        <a href="/admin/communications/forms" className="inline-block text-[8px] font-black uppercase text-blue-400 hover:underline">
+                          {t("adminMisc.programs.goToCrmForms")}
+                        </a>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -1567,17 +1585,19 @@ export default function ProgramManagement() {
                               onClick={async (e) => {
                                 e.stopPropagation();
                                 const regId = s.registration_id || s.id;
-                                // Check for form run URL first
-                                let link = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(regId))}`;
                                 try {
                                   const frRes = await fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(regId)}`);
                                   const frData = await frRes.json();
-                                  if (frData.success && frData.runs && frData.runs.length > 0) {
-                                    link = `${window.location.origin}/s/${frData.runs[0].public_slug}`;
+                                  const run = (frData.success ? frData.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+                                  if (run) {
+                                    navigator.clipboard.writeText(`${window.location.origin}/s/${run.public_slug}`);
+                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
+                                  } else {
+                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") || "No form yet — create a form in CRM first" } }));
                                   }
-                                } catch (_) {}
-                                navigator.clipboard.writeText(link);
-                                window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
+                                } catch (_) {
+                                  window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") || "No form yet — create a form in CRM first" } }));
+                                }
                               }}
                             >
                               {t?.("admin.copyLink") || "Copy Link"}

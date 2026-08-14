@@ -1132,16 +1132,12 @@ export default function NewProgram() {
                     </p>
                     <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
                       <span className="text-[8px] font-mono text-white/60 truncate">
-                        {window.location.origin}/register-participant?group_id=
-                        {createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}
+                        {t?.("adminMisc.newProgram.noFormYet") || "No form yet — the registration link appears here once a form is assigned to the program."}
                       </span>
                       <button
                         type="button"
                         onClick={() => {
-                          navigator.clipboard.writeText(
-                            `${window.location.origin}/register-participant?group_id=${createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}`,
-                          );
-                          notify("success", t("adminMisc.newProgram.copied"));
+                          notify("info", t?.("adminMisc.newProgram.noFormYet") || "No form yet — the registration link appears here once a form is assigned to the program.");
                         }}
                         className="p-1 bg-white/5 rounded hover:bg-white/10"
                       >
