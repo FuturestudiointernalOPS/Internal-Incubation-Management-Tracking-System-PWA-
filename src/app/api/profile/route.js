@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 /**
  * PROFILE COMPLETION API
@@ -21,7 +22,7 @@ export async function GET() {
 
     await initDb();
     const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language FROM contacts WHERE cid = ?",
+      sql: "SELECT name, email, phone, address, language, role, group_name FROM contacts WHERE cid = ?",
       args: [session.cid],
     });
 
@@ -42,6 +43,9 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       profile: {
+        cid: session.cid,
+        role: user.role,
+        group_name: user.group_name,
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -73,7 +77,7 @@ export async function PUT(req) {
 
     await initDb();
     const body = await req.json();
-    const { name, phone, address, language } = body;
+    const { name, phone, address, language, password } = body;
 
     // Build update fields
     const updates = [];
@@ -99,6 +103,18 @@ export async function PUT(req) {
     // Auto-mark profile as completed when at least name is provided
     if (name !== undefined && name.trim().length > 0) {
       updates.push("profile_completed = 1");
+    }
+
+    // Self-service password change (session-scoped — only the logged-in user)
+    if (password !== undefined) {
+      if (String(password).length < 6) {
+        return NextResponse.json(
+          { success: false, error: "Password must be at least 6 characters" },
+          { status: 400 },
+        );
+      }
+      updates.push("password = ?");
+      args.push(await bcrypt.hash(String(password), 10));
     }
 
     if (updates.length === 0) {
