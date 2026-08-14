@@ -1478,16 +1478,6 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
           <SidebarContent {...commonProps} />
         </aside>
 
-        {/* MOBILE TRIGGER */}
-        <div className="md:hidden fixed top-3 left-3 z-[200]">
-          <button
-            onClick={() => setMobileMenuOpen(true)}
-            className="p-2 bg-[var(--brand-orange)] rounded-md"
-          >
-            <Menu className="w-5 h-5 text-white" />
-          </button>
-        </div>
-
         {mobileMenuOpen && (
           <div className="fixed inset-0 z-[150]">
             <div
@@ -1501,19 +1491,19 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
         )}
 
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-          <header className="h-20 flex items-center px-6 border-b border-[var(--border-primary)] relative bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
+          <header className="h-20 flex items-center px-4 lg:px-6 border-b border-[var(--border-primary)] bg-secondary/80 backdrop-blur-xl sticky top-0 z-[100]">
             <div className="absolute inset-0 bg-gradient-to-r from-[var(--brand-orange)]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10">
-              <span>ImpactOS</span>
-              <ChevronRight className="w-3 h-3 opacity-30" />
-              <span className="text-[var(--text-primary)]">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] uppercase relative z-10 min-w-0">
+              <span className="hidden sm:inline">ImpactOS</span>
+              <ChevronRight className="w-3 h-3 opacity-30 hidden sm:inline" />
+              <span className="text-[var(--text-primary)] truncate">
                 {pathname ? t(navCrumb(pathname)) : t("navigation.dashboard")}
               </span>
             </div>
 
-            <div className="flex items-center gap-4 ml-auto relative z-10">
+            <div className="flex items-center gap-2 sm:gap-4 ml-auto relative z-10">
               {/* Theme Selector */}
-              <div className="relative">
+              <div className="relative hidden sm:block">
                 <button
                   onClick={() => setThemeMenuOpen(!themeMenuOpen)}
                   className="p-2 rounded-md flex items-center gap-1"
@@ -1881,6 +1871,13 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
                   {String(user?.name || "U").charAt(0)}
                 </div>
               </div>
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className="md:hidden p-2 bg-[var(--brand-orange)] rounded-md"
+                aria-label="Menu"
+              >
+                <Menu className="w-5 h-5 text-white" />
+              </button>
             </div>
           </header>
 

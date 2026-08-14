@@ -150,12 +150,47 @@ export default function PlatformLayout({ children }) {
         </div>
       </aside>
 
-      {/* Mobile overlay */}
+      {/* Mobile drawer */}
       {mobileMenuOpen && (
-        <div
-          className="fixed inset-0 z-[200] bg-black/60 md:hidden"
-          onClick={() => setMobileMenuOpen(false)}
-        />
+        <div className="fixed inset-0 z-[300] md:hidden">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <aside className="absolute inset-y-0 right-0 w-72 bg-secondary border-l border-[var(--border-primary)] p-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+                {t("platformMisc.nav.forms")}
+              </span>
+              <button onClick={() => setMobileMenuOpen(false)} className="p-1 text-[var(--text-secondary)]">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <nav className="space-y-1">
+              {navModules.map((mod) => {
+                const Icon = ICON_MAP[mod.icon] || LayoutDashboard;
+                const active = isActive(mod.href);
+                return (
+                  <Link
+                    key={mod.id}
+                    href={mod.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-[11px] font-bold tracking-wide ${active ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
+                  >
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span className="truncate">{t(PLATFORM_MODULE_LABELS[mod.id] || "") || mod.name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="pt-4 border-t border-[var(--border-primary)] mt-4">
+              <button onClick={handleLogout} className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all text-[10px] font-black uppercase tracking-widest">
+                <LogOut className="w-4 h-4" />
+                {t("navigation.logout") || "Logout"}
+              </button>
+            </div>
+          </aside>
+        </div>
       )}
 
       {/* Main content */}
@@ -163,16 +198,6 @@ export default function PlatformLayout({ children }) {
         {/* Top bar */}
         <header className="sticky top-0 z-[100] bg-secondary border-b border-[var(--border-primary)] px-4 lg:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 relative z-20">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="md:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-            >
-              {mobileMenuOpen ? (
-                <X className="w-5 h-5" />
-              ) : (
-                <Menu className="w-5 h-5" />
-              )}
-            </button>
             <Link
               href="/admin/crm"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)] transition-colors relative z-10 cursor-pointer"
@@ -193,6 +218,13 @@ export default function PlatformLayout({ children }) {
               className="hidden md:block p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
               <Menu className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="md:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              aria-label="Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </header>
