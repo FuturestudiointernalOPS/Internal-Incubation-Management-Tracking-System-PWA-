@@ -7,8 +7,10 @@ import {
   Loader2, ArrowLeft
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 export default function ForgotPasswordPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,10 @@ export default function ForgotPasswordPage() {
       if (data.success) {
         setSent(true);
       } else {
-        setError(data.error || "Failed to send reset email.");
+        setError(
+          t((data.error || "Failed to send reset email.") || "") ||
+            (data.error || "Failed to send reset email."),
+        );
       }
     } catch (err) {
       setError("Network error. Please try again.");
@@ -53,19 +58,19 @@ export default function ForgotPasswordPage() {
             <CheckCircle className="w-8 h-8 text-emerald-500" />
           </div>
           <h1 className="text-xl font-bold uppercase tracking-tight">
-            Check Your Email
+            {t("rootMisc.forgotPassword.checkEmail")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            If an account exists for <strong>{email}</strong>, we've sent a password reset link.
+            {t("rootMisc.forgotPassword.sentToIntro")}<strong>{email}</strong>{t("rootMisc.forgotPassword.sentToOutro")}
           </p>
           <p className="text-xs text-[var(--text-secondary)]">
-            The link expires in 1 hour. Check your spam folder if you don't see it.
+            {t("rootMisc.forgotPassword.linkExpiry")}
           </p>
           <button
             onClick={() => router.push("/login")}
             className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs mt-4"
           >
-            Return to Login
+            {t("rootMisc.forgotPassword.returnToLogin")}
           </button>
         </motion.div>
       </div>
@@ -90,10 +95,10 @@ export default function ForgotPasswordPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold uppercase tracking-tight">
-              Forgot Password
+              {t("rootMisc.forgotPassword.title")}
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Enter your email and we'll send you a reset link.
+              {t("rootMisc.forgotPassword.subtitle")}
             </p>
           </div>
         </div>
@@ -109,7 +114,7 @@ export default function ForgotPasswordPage() {
 
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Email Address
+                {t("rootMisc.forgotPassword.emailLabel")}
               </label>
               <div className="relative">
                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
@@ -132,11 +137,11 @@ export default function ForgotPasswordPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Sending Reset Link...
+                  {t("rootMisc.forgotPassword.sending")}
                 </>
               ) : (
                 <>
-                  Send Reset Link
+                  {t("rootMisc.forgotPassword.send")}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -149,7 +154,7 @@ export default function ForgotPasswordPage() {
           className="w-full flex items-center justify-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider hover:text-[var(--text-primary)] transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
-          Back to Login
+          {t("rootMisc.forgotPassword.backToLogin")}
         </button>
       </motion.div>
     </div>

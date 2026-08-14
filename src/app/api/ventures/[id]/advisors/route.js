@@ -14,7 +14,7 @@ async function resolveVentureDbId(ventureId) {
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
     const { id } = await params; const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const r = await db.execute({ sql: "SELECT va.*, c.name as advisor_name, c.email as advisor_email FROM venture_advisors va LEFT JOIN contacts c ON va.advisor_contact_id = c.cid WHERE va.venture_id = ? AND va.removed_at IS NULL ORDER BY va.is_primary DESC", args: [dbId] });
@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, is_primary } = await req.json();
@@ -39,7 +39,7 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
     const { id } = await params; const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_id, action, is_primary } = await req.json();

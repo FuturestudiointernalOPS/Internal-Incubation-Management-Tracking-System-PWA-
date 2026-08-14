@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { CheckCircle2, AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export default function ActivatePage() {
+  const { t } = useI18n();
   const [token, setToken] = useState(null);
   const [mode, setMode] = useState("setup"); // setup or reset
   const [tokenState, setTokenState] = useState("loading"); // loading | valid | expired | invalid
@@ -49,11 +51,11 @@ export default function ActivatePage() {
     setError("");
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t("rootMisc.activate.passwordTooShort"));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("rootMisc.activate.passwordsMismatch"));
       return;
     }
 
@@ -68,10 +70,10 @@ export default function ActivatePage() {
       if (data.success) {
         setResult("success");
       } else {
-        setError(data.error || "Activation failed");
+        setError(t((data.error || t("rootMisc.activate.activationFailed")) || "") || (data.error || t("rootMisc.activate.activationFailed")));
       }
     } catch (e) {
-      setError("Network error. Please try again.");
+      setError(t("rootMisc.activate.networkError"));
     }
     setSubmitting(false);
   };
@@ -96,18 +98,18 @@ export default function ActivatePage() {
             <CheckCircle2 className="w-8 h-8 text-emerald-400" />
           </div>
           <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mb-2">
-            {mode === "reset" ? "Password Reset" : "Account Activated"}
+            {mode === "reset" ? t("rootMisc.activate.passwordResetTitle") : t("rootMisc.activate.accountActivatedTitle")}
           </h1>
           <p className="text-[13px] text-[var(--text-secondary)] mb-6">
             {mode === "reset"
-              ? "Your password has been reset successfully."
-              : "Your account is now active. You can log in."}
+              ? t("rootMisc.activate.passwordResetSuccess")
+              : t("rootMisc.activate.accountActivatedSuccess")}
           </p>
           <a
             href="/login"
             className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
           >
-            Go to Login
+            {t("rootMisc.activate.goToLogin")}
           </a>
         </motion.div>
       </div>
@@ -121,15 +123,15 @@ export default function ActivatePage() {
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-8 h-8 text-rose-400" />
           </div>
-          <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mb-2">Link Expired</h1>
+          <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mb-2">{t("rootMisc.activate.linkExpired")}</h1>
           <p className="text-[13px] text-[var(--text-secondary)] mb-6">
-            This activation link has expired. Contact your administrator to request a new one.
+            {t("rootMisc.activate.linkExpiredMessage")}
           </p>
           <a
             href="/login"
             className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
           >
-            Back to Login
+            {t("rootMisc.activate.backToLogin")}
           </a>
         </div>
       </div>
@@ -141,15 +143,15 @@ export default function ActivatePage() {
       <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center p-6">
         <div className="w-full max-w-md bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl p-8 text-center">
           <AlertCircle className="w-12 h-12 text-rose-400 mx-auto mb-4" />
-          <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mb-2">Invalid Link</h1>
+          <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight mb-2">{t("rootMisc.activate.invalidLink")}</h1>
           <p className="text-[13px] text-[var(--text-secondary)] mb-6">
-            This activation link is invalid. Check the link or contact your administrator.
+            {t("rootMisc.activate.invalidLinkMessage")}
           </p>
           <a
             href="/login"
             className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
           >
-            Back to Login
+            {t("rootMisc.activate.backToLogin")}
           </a>
         </div>
       </div>
@@ -168,7 +170,7 @@ export default function ActivatePage() {
           <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
             <span className="text-[var(--brand-orange)]">Impact</span>OS
           </h1>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-2">Future Studio Platform</p>
+          <p className="text-[11px] text-[var(--text-secondary)] mt-2">{t("rootMisc.activate.futureStudioPlatform")}</p>
         </div>
 
         <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl p-8 space-y-6">
@@ -177,17 +179,18 @@ export default function ActivatePage() {
               <CheckCircle2 className="w-8 h-8 text-[var(--brand-orange)]" />
             </div>
             <h2 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
-              {mode === "reset" ? "Reset Your Password" : "Set Your Password"}
+              {mode === "reset" ? t("rootMisc.activate.resetYourPassword") : t("rootMisc.activate.setYourPassword")}
             </h2>
             {userInfo && (
               <div className="space-y-1">
                 <p className="text-[12px] text-[var(--text-secondary)] mt-2">
-                  Hi <strong className="text-[var(--text-primary)]">{userInfo.name}</strong>
+                  {t("rootMisc.activate.hi")}{" "}
+                  <strong className="text-[var(--text-primary)]">{userInfo.name}</strong>
                   {userInfo.role ? ` · ${userInfo.role}` : ""}
                 </p>
                 <div className="mt-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
                   <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
-                    Email
+                    {t("rootMisc.activate.email")}
                   </label>
                   <p className="text-[13px] font-bold text-[var(--text-primary)]">
                     {userInfo.email}
@@ -200,14 +203,14 @@ export default function ActivatePage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                {mode === "reset" ? "New Password" : "Password"}
+                {mode === "reset" ? t("rootMisc.activate.newPassword") : t("rootMisc.activate.password")}
               </label>
               <div className="relative">
                 <input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
+                  placeholder={t("rootMisc.activate.passwordMinHint")}
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 pr-12 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   minLength={6}
                 />
@@ -223,13 +226,13 @@ export default function ActivatePage() {
 
             <div className="space-y-1.5">
               <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider ml-1">
-                Confirm Password
+                {t("rootMisc.activate.confirmPassword")}
               </label>
               <input
                 type={showPassword ? "text" : "password"}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat your password"
+                placeholder={t("rootMisc.activate.repeatPasswordPlaceholder")}
                 className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[13px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
@@ -249,9 +252,9 @@ export default function ActivatePage() {
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : mode === "reset" ? (
-                "Reset Password"
+                t("rootMisc.activate.resetPasswordButton")
               ) : (
-                "Activate Account"
+                t("rootMisc.activate.activateAccountButton")
               )}
             </button>
           </form>

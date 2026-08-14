@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, X, Info, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * GLOBAL TOAST SYSTEM
@@ -10,6 +11,7 @@ import { motion, AnimatePresence } from "framer-motion";
  * Supports: success, error, info, warning.
  */
 export default function GlobalToast() {
+  const { t } = useI18n();
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function GlobalToast() {
                   className="text-xs font-black tracking-tight leading-tight uppercase truncate"
                   style={{ color: "var(--text-primary)" }}
                 >
-                  {n.message}
+                  {t(n.message || "") || n.message}
                 </p>
               </div>
               <button

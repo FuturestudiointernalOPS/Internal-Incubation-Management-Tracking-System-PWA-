@@ -122,6 +122,19 @@ export function I18nProvider({ children }) {
     setLang(newLang);
     localStorage.setItem("impactos_lang", newLang);
 
+    // Keep the localStorage user object in sync so the mount override
+    // (which reads user.language) doesn't flip the language back.
+    try {
+      const userStr = localStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        user.language = newLang;
+        localStorage.setItem("user", JSON.stringify(user));
+      }
+    } catch (e) {
+      // Silent fail — localStorage preference is still saved
+    }
+
     // If a language endpoint exists, persist to account
     try {
       const userStr = localStorage.getItem("user");

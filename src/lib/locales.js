@@ -34,6 +34,20 @@ import enMessaging from "@/locales/en/messaging.json";
 import enVenture from "@/locales/en/venture.json";
 import enInvestor from "@/locales/en/investor.json";
 import enForms from "@/locales/en/forms.json";
+import enCrm from "@/locales/en/crm.json";
+import enVadmin from "@/locales/en/vadmin.json";
+import enEngineering from "@/locales/en/engineering.json";
+import enInvestorAdmin from "@/locales/en/investorAdmin.json";
+import enAdminMisc from "@/locales/en/adminMisc.json";
+import enTeam from "@/locales/en/team.json";
+import enDeveloperMisc from "@/locales/en/developerMisc.json";
+import enPlatformMisc from "@/locales/en/platformMisc.json";
+import enPmMisc from "@/locales/en/pmMisc.json";
+import enInvestorMisc from "@/locales/en/investorMisc.json";
+import enParticipantMisc from "@/locales/en/participantMisc.json";
+import enStaffMisc from "@/locales/en/staffMisc.json";
+import enRootMisc from "@/locales/en/rootMisc.json";
+import enTeacherMisc from "@/locales/en/teacherMisc.json";
 
 import frCommon from "@/locales/fr/common.json";
 import frAuth from "@/locales/fr/auth.json";
@@ -53,6 +67,20 @@ import frMessaging from "@/locales/fr/messaging.json";
 import frVenture from "@/locales/fr/venture.json";
 import frInvestor from "@/locales/fr/investor.json";
 import frForms from "@/locales/fr/forms.json";
+import frCrm from "@/locales/fr/crm.json";
+import frVadmin from "@/locales/fr/vadmin.json";
+import frEngineering from "@/locales/fr/engineering.json";
+import frInvestorAdmin from "@/locales/fr/investorAdmin.json";
+import frAdminMisc from "@/locales/fr/adminMisc.json";
+import frTeam from "@/locales/fr/team.json";
+import frDeveloperMisc from "@/locales/fr/developerMisc.json";
+import frPlatformMisc from "@/locales/fr/platformMisc.json";
+import frPmMisc from "@/locales/fr/pmMisc.json";
+import frInvestorMisc from "@/locales/fr/investorMisc.json";
+import frParticipantMisc from "@/locales/fr/participantMisc.json";
+import frStaffMisc from "@/locales/fr/staffMisc.json";
+import frRootMisc from "@/locales/fr/rootMisc.json";
+import frTeacherMisc from "@/locales/fr/teacherMisc.json";
 
 // ─── Deep merge: recursively merges objects ───
 function deepMerge(target, source) {
@@ -87,6 +115,20 @@ const EN = [
   enVenture,
   enInvestor,
   enForms,
+  enCrm,
+  enVadmin,
+  enEngineering,
+  enInvestorAdmin,
+  enAdminMisc,
+  enTeam,
+  enDeveloperMisc,
+  enPlatformMisc,
+  enPmMisc,
+  enInvestorMisc,
+  enParticipantMisc,
+  enStaffMisc,
+  enRootMisc,
+  enTeacherMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 const FR = [
@@ -108,6 +150,20 @@ const FR = [
   frVenture,
   frInvestor,
   frForms,
+  frCrm,
+  frVadmin,
+  frEngineering,
+  frInvestorAdmin,
+  frAdminMisc,
+  frTeam,
+  frDeveloperMisc,
+  frPlatformMisc,
+  frPmMisc,
+  frInvestorMisc,
+  frParticipantMisc,
+  frStaffMisc,
+  frRootMisc,
+  frTeacherMisc,
 ].reduce((acc, mod) => deepMerge(acc, mod), {});
 
 export const LOCALE_REGISTRY = {

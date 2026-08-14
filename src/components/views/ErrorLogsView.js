@@ -26,6 +26,16 @@ const SEV = {
   info: { color: "#10b981", bg: "rgba(16,185,129,0.1)" },
 };
 
+// Lookup map: raw severity value → i18n key (keep raw value as fallback)
+const SEV_KEYS = {
+  critical: "engineering.errorLogs.severityValues.critical",
+  fatal: "engineering.errorLogs.severityValues.fatal",
+  error: "engineering.errorLogs.severityValues.error",
+  warning: "engineering.errorLogs.severityValues.warning",
+  info: "engineering.errorLogs.severityValues.info",
+  unknown: "engineering.errorLogs.severityValues.unknown",
+};
+
 const CAT = {
   server_error: {
     color: "#ef4444",
@@ -60,6 +70,7 @@ const CAT = {
 
 // ─── Sub-components ───
 function SeverityBadge({ severity }) {
+  const { t } = useI18n();
   const c = SEV[severity?.toLowerCase()] || {
     color: "#64748b",
     bg: "rgba(100,116,139,0.05)",
@@ -69,22 +80,23 @@ function SeverityBadge({ severity }) {
       className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
       style={{ color: c.color, background: c.bg }}
     >
-      {severity || "unknown"}
+      {t(SEV_KEYS[severity] || "") || severity || t(SEV_KEYS.unknown)}
     </span>
   );
 }
 
 function ResolvedBadge({ resolved }) {
+  const { t } = useI18n();
   if (resolved) {
     return (
       <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-        Resolved
+        {t("engineering.errorLogs.resolved")}
       </span>
     );
   }
   return (
     <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-amber-500/10 text-amber-400 border-amber-500/20">
-      Open
+      {t("engineering.errorLogs.open")}
     </span>
   );
 }
@@ -235,14 +247,19 @@ export default function ErrorLogsView({
             <div className="flex items-center gap-2">
               <Bug className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                {isAdmin ? "Error Logs" : "Developer Console"}
+                {isAdmin
+                  ? t("engineering.errorLogs.title")
+                  : t("engineering.errorLogs.developerConsole")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Error Logs
+              {t("engineering.errorLogs.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {errors.length} unique &middot; {totalOcc} total
+              {t("engineering.errorLogs.summary", {
+                count: errors.length,
+                total: totalOcc,
+              })}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -252,14 +269,17 @@ export default function ErrorLogsView({
                   onClick={bulkResolve}
                   className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                 >
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Resolve {sel.size}
+                  <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                  {t("engineering.errorLogs.resolveCount", { count: sel.size })}
                 </button>
                 <button
                   onClick={copySelected}
                   className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                 >
                   <Copy className="w-3.5 h-3.5" />{" "}
-                  {copied ? "Copied!" : `Copy ${sel.size}`}
+                  {copied
+                    ? t("engineering.errorLogs.copied")
+                    : t("engineering.errorLogs.copyCount", { count: sel.size })}
                 </button>
               </>
             )}
@@ -267,7 +287,8 @@ export default function ErrorLogsView({
               onClick={fetchErrors}
               className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
-              <RefreshCw className="w-3.5 h-3.5" /> Refresh
+              <RefreshCw className="w-3.5 h-3.5" />{" "}
+              {t("engineering.errorLogs.refresh")}
             </button>
           </div>
         </header>
@@ -278,19 +299,21 @@ export default function ErrorLogsView({
             onClick={() => setTab("unresolved")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "unresolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            <span className="w-2 h-2 rounded-full bg-amber-400" /> Open
+            <span className="w-2 h-2 rounded-full bg-amber-400" />{" "}
+              {t("engineering.errorLogs.open")}
           </button>
           <button
             onClick={() => setTab("resolved")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "resolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400" /> Resolved
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
+              {t("engineering.errorLogs.resolved")}
           </button>
           <button
             onClick={() => setTab("all")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tab === "all" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
-            All
+            {t("engineering.errorLogs.all")}
           </button>
         </div>
 
@@ -301,7 +324,7 @@ export default function ErrorLogsView({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search..."
+              placeholder={t("engineering.errorLogs.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             />
           </div>
@@ -310,18 +333,18 @@ export default function ErrorLogsView({
             onChange={(e) => setSev(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">Severity</option>
-            <option value="critical">Critical</option>
-            <option value="error">Error</option>
-            <option value="warning">Warning</option>
-            <option value="info">Info</option>
+            <option value="all">{t("engineering.errorLogs.severity")}</option>
+            <option value="critical">{t("engineering.errorLogs.severityValues.critical")}</option>
+            <option value="error">{t("engineering.errorLogs.severityValues.error")}</option>
+            <option value="warning">{t("engineering.errorLogs.severityValues.warning")}</option>
+            <option value="info">{t("engineering.errorLogs.severityValues.info")}</option>
           </select>
           <select
             value={cat}
             onChange={(e) => setCat(e.target.value)}
             className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
           >
-            <option value="all">Category</option>
+            <option value="all">{t("engineering.errorLogs.category")}</option>
             {Object.entries(CAT).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
@@ -346,11 +369,13 @@ export default function ErrorLogsView({
                 ) : (
                   <Square className="w-4 h-4" />
                 )}
-                {allSel ? "Deselect" : "Select All"}
+                {allSel
+                  ? t("engineering.errorLogs.deselect")
+                  : t("engineering.errorLogs.selectAll")}
               </button>
               {sel.size > 0 && (
                 <span className="text-[9px] font-bold text-[var(--brand-orange)]">
-                  {sel.size} selected
+                  {t("engineering.errorLogs.selectedCount", { count: sel.size })}
                 </span>
               )}
             </div>
@@ -373,15 +398,15 @@ export default function ErrorLogsView({
             <CheckCircle2 className="w-16 h-16 text-emerald-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
               {sev !== "all" || cat !== "all" || q
-                ? "No matches"
+                ? t("engineering.errorLogs.noMatches")
                 : tab === "resolved"
-                  ? "No resolved errors"
-                  : "No errors captured"}
+                  ? t("engineering.errorLogs.noResolvedErrors")
+                  : t("engineering.errorLogs.noErrors")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
               {sev !== "all" || cat !== "all" || q
-                ? "Try different filters"
-                : "Errors will appear here when something goes wrong."}
+                ? t("engineering.errorLogs.tryDifferentFilters")
+                : t("engineering.errorLogs.emptyHint")}
             </p>
           </div>
         ) : (
@@ -421,7 +446,7 @@ export default function ErrorLogsView({
                         )}
                       </div>
                       <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                        {error.message || "No message"}
+                        {t((error.message || t("engineering.errorLogs.noMessage")) || "") || (error.message || t("engineering.errorLogs.noMessage"))}
                       </p>
                     </div>
                     <div className="hidden lg:flex items-center gap-4 flex-shrink-0">
@@ -478,7 +503,7 @@ export default function ErrorLogsView({
                       {error.stack && (
                         <div>
                           <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
-                            Stack Trace
+                            {t("engineering.errorLogs.stackTrace")}
                           </p>
                           <pre className="text-[9px] font-mono text-[var(--text-secondary)] bg-primary rounded-xl p-3 overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto border border-[var(--border-primary)]">
                             {error.stack}
@@ -489,42 +514,57 @@ export default function ErrorLogsView({
                       {/* Request Details Grid */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {error.page && (
-                          <FieldChip label="Page" value={error.page} />
+                          <FieldChip
+                            label={t("engineering.errorLogs.page")}
+                            value={error.page}
+                          />
                         )}
                         {error.action_attempted && (
                           <FieldChip
-                            label="Action"
+                            label={t("engineering.errorLogs.action")}
                             value={error.action_attempted}
                           />
                         )}
                         {error.user_name && (
-                          <FieldChip label="User" value={error.user_name} />
+                          <FieldChip
+                            label={t("engineering.errorLogs.user")}
+                            value={error.user_name}
+                          />
                         )}
                         {error.user_role && (
-                          <FieldChip label="Role" value={error.user_role} />
+                          <FieldChip
+                            label={t("engineering.errorLogs.role")}
+                            value={error.user_role}
+                          />
                         )}
                         {error.method && (
-                          <FieldChip label="Method" value={error.method} />
+                          <FieldChip
+                            label={t("engineering.errorLogs.method")}
+                            value={error.method}
+                          />
                         )}
                         {error.endpoint && (
-                          <FieldChip label="Endpoint" value={error.endpoint} />
+                          <FieldChip
+                            label={t("engineering.errorLogs.endpoint")}
+                            value={error.endpoint}
+                          />
                         )}
                         {error.status_code && (
                           <FieldChip
-                            label="Status"
+                            label={t("engineering.errorLogs.status")}
                             value={String(error.status_code)}
                           />
                         )}
                         {error.user_agent && (
                           <FieldChip
-                            label="User Agent"
+                            label={t("engineering.errorLogs.userAgent")}
                             value={error.user_agent}
                           />
                         )}
                         {error.url && (
                           <div className="p-2.5 rounded-lg bg-primary border border-[var(--border-primary)] md:col-span-2">
                             <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
-                              URL
+                              {t("engineering.errorLogs.url")}
                             </p>
                             <p className="text-[9px] font-bold mt-0.5 text-[var(--text-primary)] truncate">
                               {error.url}
@@ -536,7 +576,7 @@ export default function ErrorLogsView({
                       {/* Resolution Panel */}
                       <div className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] space-y-3">
                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                          Resolution
+                          {t("engineering.errorLogs.resolution")}
                         </p>
                         <textarea
                           value={resolutionNotes[error.id] || ""}
@@ -547,7 +587,7 @@ export default function ErrorLogsView({
                             }))
                           }
                           rows={2}
-                          placeholder="Add resolution notes..."
+                          placeholder={t("engineering.errorLogs.resolutionNotesPlaceholder")}
                           className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                         />
                         <div className="flex items-center gap-3">
@@ -568,27 +608,30 @@ export default function ErrorLogsView({
                           >
                             {error.resolved ? (
                               <>
-                                <AlertCircle className="w-3.5 h-3.5" /> Mark
-                                Unresolved
+                                <AlertCircle className="w-3.5 h-3.5" />{" "}
+                                {t("engineering.errorLogs.markUnresolved")}
                               </>
                             ) : (
                               <>
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Mark
-                                Resolved
+                                <CheckCircle2 className="w-3.5 h-3.5" />{" "}
+                                {t("engineering.errorLogs.markResolved")}
                               </>
                             )}
                           </button>
                           {error.resolved_at && (
                             <span className="text-[8px] text-slate-500">
-                              Resolved{" "}
-                              {new Date(error.resolved_at).toLocaleDateString()}
+                              {t("engineering.errorLogs.resolvedOnDate", {
+                                date: new Date(
+                                  error.resolved_at,
+                                ).toLocaleDateString(),
+                              })}
                             </span>
                           )}
                         </div>
                         {error.resolution_notes && (
                           <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                             <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">
-                              Previous Notes
+                              {t("engineering.errorLogs.previousNotes")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)]">
                               {error.resolution_notes}

@@ -20,7 +20,7 @@ export async function POST(req) {
 
   if (!impersonationAllowed) {
     console.log("[impersonate:POST] BLOCKED - env vars not set");
-    return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 
   try {
@@ -174,7 +174,7 @@ export async function GET() {
 
   if (!impersonationAllowed) {
     console.log("[impersonate:GET] BLOCKED");
-    return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 
   try {

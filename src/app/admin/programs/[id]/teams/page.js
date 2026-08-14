@@ -159,7 +159,7 @@ export default function TeamManagementPage({ params }) {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!teamName.trim()) {
-      setFormError("Team name is required.");
+      setFormError(t("adminMisc.programTeams.teamNameRequired"));
       return;
     }
 
@@ -202,10 +202,10 @@ export default function TeamManagementPage({ params }) {
         closeModal();
         fetchData();
       } else {
-        setFormError(data.error || "Operation failed.");
+        setFormError(t((data.error || t("adminMisc.programTeams.operationFailed")) || "") || (data.error || t("adminMisc.programTeams.operationFailed")));
       }
     } catch (e) {
-      setFormError("Network error. Please try again.");
+      setFormError(t("adminMisc.programTeams.networkError"));
     } finally {
       setSaving(false);
     }
@@ -227,7 +227,7 @@ export default function TeamManagementPage({ params }) {
         fetchData();
       }
     } catch (e) {
-      notify("error", "Failed to delete team.");
+      notify("error", t("adminMisc.programTeams.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -250,13 +250,13 @@ export default function TeamManagementPage({ params }) {
         notify(
           "success",
           team.is_venture_ready
-            ? "Venture Ready unmarked"
-            : "Marked as Venture Ready",
+            ? t("adminMisc.programTeams.ventureReadyUnmarked")
+            : t("adminMisc.programTeams.markedVentureReady"),
         );
         fetchData();
       }
     } catch (_) {
-      notify("error", "Failed to update.");
+      notify("error", t("adminMisc.programTeams.updateFailed"));
     }
   };
 
@@ -368,10 +368,10 @@ export default function TeamManagementPage({ params }) {
                     {t("admin.teams.members")}
                   </th>
                   <th className="text-right px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Actions
+                    {t("adminMisc.programTeams.actions")}
                   </th>
                   <th className="text-right px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Workspace
+                    {t("adminMisc.programTeams.workspace")}
                   </th>
                 </tr>
               </thead>
@@ -416,7 +416,7 @@ export default function TeamManagementPage({ params }) {
                       </td>
                       <td className="px-6 py-4 text-center">
                         <span className="px-3 py-1 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider">
-                          {t("admin.teams.membersCount", {
+                          {t("adminMisc.programTeams.membersCount", {
                             count: getMemberCount(team),
                           })}
                         </span>
@@ -427,8 +427,8 @@ export default function TeamManagementPage({ params }) {
                             onClick={() => toggleVentureReady(team)}
                             title={
                               team.is_venture_ready
-                                ? "Unmark Venture Ready"
-                                : "Mark as Venture Ready"
+                                ? t("adminMisc.programTeams.unmarkVentureReady")
+                                : t("adminMisc.programTeams.markAsVentureReady")
                             }
                             className={`p-2 rounded-lg transition-colors ${
                               team.is_venture_ready
@@ -462,7 +462,7 @@ export default function TeamManagementPage({ params }) {
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider hover:bg-[var(--brand-orange)]/20 transition-all"
                         >
                           <ExternalLink className="w-3 h-3" />
-                          Open
+                          {t("adminMisc.programTeams.open")}
                         </button>
                       </td>
                     </tr>
@@ -556,7 +556,9 @@ export default function TeamManagementPage({ params }) {
                 <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest pl-1">
                   {t("admin.teams.members")}{" "}
                   <span className="text-[var(--text-tertiary)]">
-                    ({selectedMembers.length} selected)
+                    {t("adminMisc.programTeams.membersSelected", {
+                      count: selectedMembers.length,
+                    })}
                   </span>
                 </label>
 
@@ -578,8 +580,8 @@ export default function TeamManagementPage({ params }) {
                     <div className="px-4 py-6 text-center">
                       <p className="text-[10px] text-[var(--text-tertiary)] font-bold">
                         {participants.length === 0
-                          ? "No participants registered for this program."
-                          : "No matching participants."}
+                          ? t("adminMisc.programTeams.noParticipants")
+                          : t("adminMisc.programTeams.noMatchingParticipants")}
                       </p>
                     </div>
                   ) : (
@@ -597,7 +599,7 @@ export default function TeamManagementPage({ params }) {
                         >
                           <div className="flex flex-col min-w-0">
                             <span className="text-xs font-bold text-[var(--text-primary)] truncate">
-                              {p.name || "Unnamed"}
+                              {p.name || t("adminMisc.programTeams.unnamed")}
                             </span>
                             <span className="text-[9px] text-[var(--text-tertiary)] truncate">
                               {p.email || ""}
@@ -663,7 +665,7 @@ export default function TeamManagementPage({ params }) {
                 {t("admin.teams.deleteConfirm")}
               </p>
               <p className="text-xs text-[var(--text-secondary)] font-bold">
-                Team:{" "}
+                {t("adminMisc.programTeams.teamLabel")}{" "}
                 <span className="text-[var(--brand-orange)]">
                   {deleteTarget.name}
                 </span>

@@ -174,7 +174,7 @@ export default function EngineeringReports() {
                   {data.topErrors.slice(0, 10).map((err, i) => (
                     <div key={i} className="ios-card !p-3 border-[var(--border-primary)] flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{err.message}</p>
+                        <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{t(err.message || "") || err.message}</p>
                         <p className="text-[7px] font-bold text-slate-500 mt-0.5">
                           Severity: {err.severity} · Last: {new Date(err.last_occurrence).toLocaleDateString()}
                         </p>

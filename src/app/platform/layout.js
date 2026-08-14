@@ -39,6 +39,15 @@ const ICON_MAP = {
   User,
 };
 
+const PLATFORM_MODULE_LABELS = {
+  "platform-dashboard": "platformMisc.nav.dashboard",
+  "platform-forms": "platformMisc.nav.forms",
+  "platform-runs": "platformMisc.nav.runs",
+  "platform-import": "platformMisc.nav.historicalImport",
+  "platform-import-review": "platformMisc.nav.identityReview",
+  "platform-scores": "platformMisc.nav.scores",
+};
+
 export const dynamic = "force-dynamic";
 
 function cn(...classes) {
@@ -83,7 +92,7 @@ export default function PlatformLayout({ children }) {
           </div>
           {!collapsed && (
             <span className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-              Forms
+              {t("platformMisc.nav.forms")}
             </span>
           )}
         </div>
@@ -107,11 +116,13 @@ export default function PlatformLayout({ children }) {
               >
                 <Icon className="w-4 h-4 shrink-0" />
                 {!collapsed && (
-                  <span className="truncate">{mod.name}</span>
+                  <span className="truncate">
+                    {t(PLATFORM_MODULE_LABELS[mod.id] || "") || mod.name}
+                  </span>
                 )}
                 {!collapsed && mod.future && (
                   <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[7px] font-black uppercase tracking-wider">
-                    Soon
+                    {t("platformMisc.nav.soon")}
                   </span>
                 )}
               </Link>
@@ -151,7 +162,7 @@ export default function PlatformLayout({ children }) {
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-[100] bg-secondary border-b border-[var(--border-primary)] px-4 lg:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 relative z-20">
             <button
               onClick={() => setMobileMenuOpen(true)}
               className="md:hidden p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -164,9 +175,9 @@ export default function PlatformLayout({ children }) {
             </button>
             <Link
               href="/admin/crm"
-              className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)] transition-colors relative z-10 cursor-pointer"
             >
-              ← Back to CRM
+              ← {t("crm.backToCrm")}
             </Link>
           </div>
 

@@ -767,7 +767,7 @@ export default function StaffOpReport() {
         fetchHistory();
         fetchTasks();
       } else {
-        notify(data.error || t("reports.failedToSave"), "error");
+        notify(t((data.error || t("reports.failedToSave")) || "") || (data.error || t("reports.failedToSave")), "error");
       }
     } catch (e) {
       notify(t("errors.networkError"), "error");

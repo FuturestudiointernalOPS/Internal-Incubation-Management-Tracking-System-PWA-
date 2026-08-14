@@ -35,7 +35,7 @@ export async function GET(req) {
         args: [id],
       });
       if (form.rows.length === 0) {
-        return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
 
       const sections = await db.execute({

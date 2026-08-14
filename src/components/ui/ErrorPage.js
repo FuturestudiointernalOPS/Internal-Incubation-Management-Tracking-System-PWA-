@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * ErrorPage — Next.js error.js compatible fallback
@@ -11,6 +12,7 @@ import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
  * @param {{ error: Error, reset: () => void }} props
  */
 export default function ErrorPage({ error, reset }) {
+  const { t } = useI18n();
   return (
     <div
       className="flex flex-col items-center justify-center min-h-[400px] p-12 text-center"
@@ -45,7 +47,7 @@ export default function ErrorPage({ error, reset }) {
               className="text-[9px] font-mono mt-2 block opacity-60"
               style={{ color: "var(--text-tertiary)" }}
             >
-              {error.message}
+              {t(error.message || "") || error.message}
             </span>
           </>
         )}

@@ -15,22 +15,24 @@ import {
   Link2,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const VENTURE_STAGES = {
-  idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10" },
-  validation: { label: "Validation", color: "text-purple-400 bg-purple-500/10" },
-  early_traction: { label: "Early Traction", color: "text-amber-400 bg-amber-500/10" },
-  growth: { label: "Growth", color: "text-emerald-400 bg-emerald-500/10" },
-  scaling: { label: "Scaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10" },
+  idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
+  validation: { label: "vadmin.list.stageValidation", color: "text-purple-400 bg-purple-500/10" },
+  early_traction: { label: "vadmin.list.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10" },
+  growth: { label: "vadmin.list.stageGrowth", color: "text-emerald-400 bg-emerald-500/10" },
+  scaling: { label: "vadmin.list.stageScaling", color: "text-[var(--brand-orange)] bg-[var(--brand-orange)]/10" },
 };
 
 const STATUS_CONFIG = {
-  active: { label: "Active", color: "text-emerald-400 bg-emerald-500/10", dot: "bg-emerald-400" },
-  pending: { label: "Pending", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
-  archived: { label: "Archived", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
+  active: { label: "vadmin.list.statusActive", color: "text-emerald-400 bg-emerald-500/10", dot: "bg-emerald-400" },
+  pending: { label: "vadmin.list.statusPending", color: "text-amber-400 bg-amber-500/10", dot: "bg-amber-400" },
+  archived: { label: "vadmin.list.statusArchived", color: "text-slate-400 bg-slate-500/10", dot: "bg-slate-400" },
 };
 
 export default function VenturesPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [ventures, setVentures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +78,7 @@ export default function VenturesPage() {
         new CustomEvent("impactos:notify", {
           detail: {
             type: d.success ? "success" : "error",
-            message: d.success ? "Venture approved — founder notified" : (d.error || "Approval failed"),
+            message: d.success ? t("vadmin.list.approveSuccess") : (t((d.error || t("vadmin.list.approveFailed")) || "") || (d.error || t("vadmin.list.approveFailed"))),
             duration: 4000,
           },
         })
@@ -85,7 +87,7 @@ export default function VenturesPage() {
     } catch (e) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Approval failed", duration: 4000 },
+          detail: { type: "error", message: t("vadmin.list.approveFailed"), duration: 4000 },
         })
       );
     }
@@ -100,12 +102,12 @@ export default function VenturesPage() {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-                Venture OS
+                {t("vadmin.list.ventureOs")}
               </span>
             </div>
             <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)] flex items-center gap-3">
               <Rocket className="w-8 h-8 text-[var(--brand-orange)]" />
-              Ventures
+              {t("vadmin.list.title")}
             </h1>
           </div>
           <div className="flex gap-3">
@@ -121,7 +123,7 @@ export default function VenturesPage() {
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "success",
-                          message: "Invite link copied to clipboard",
+                          message: t("vadmin.list.inviteCopied"),
                           duration: 4000,
                         },
                       })
@@ -131,7 +133,7 @@ export default function VenturesPage() {
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "error",
-                          message: d.error || "Failed to generate invite link",
+                          message: t((d.error || t("vadmin.list.inviteFailed")) || "") || (d.error || t("vadmin.list.inviteFailed")),
                           duration: 5000,
                         },
                       })
@@ -142,7 +144,7 @@ export default function VenturesPage() {
                     new CustomEvent("impactos:notify", {
                       detail: {
                         type: "error",
-                        message: "Failed to generate invite link",
+                        message: t("vadmin.list.inviteFailed"),
                         duration: 5000,
                       },
                     })
@@ -151,13 +153,13 @@ export default function VenturesPage() {
               }}
               className="btn gap-2"
             >
-              <Link2 className="w-4 h-4" /> Copy Invite Link
+              <Link2 className="w-4 h-4" /> {t("vadmin.list.copyInviteLink")}
             </button>
             <button
               onClick={() => router.push("/admin/ventures/register")}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" /> Register Startup
+              <Plus className="w-4 h-4" /> {t("vadmin.list.registerStartup")}
             </button>
           </div>
         </div>
@@ -167,7 +169,7 @@ export default function VenturesPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search ventures by name, ID, or industry..."
+            placeholder={t("vadmin.list.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-500 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
@@ -183,19 +185,19 @@ export default function VenturesPage() {
           <div className="text-center py-20">
             <Rocket className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
-              {searchQuery ? "No ventures match your search" : "No ventures yet"}
+              {searchQuery ? t("vadmin.list.noSearchResults") : t("vadmin.list.noVentures")}
             </h3>
             <p className="text-sm text-slate-500 mb-6">
               {searchQuery
-                ? "Try a different search term"
-                : "Register your first startup in Venture OS"}
+                ? t("vadmin.list.tryDifferentSearch")
+                : t("vadmin.list.noVenturesDesc")}
             </p>
             {!searchQuery && (
               <button
                 onClick={() => router.push("/admin/ventures/register")}
                 className="btn btn-primary gap-2"
               >
-                <Plus className="w-4 h-4" /> Register Startup
+                <Plus className="w-4 h-4" /> {t("vadmin.list.registerStartup")}
               </button>
             )}
           </div>
@@ -205,12 +207,12 @@ export default function VenturesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)] text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
-                    <th className="text-left px-5 py-3">Venture</th>
-                    <th className="text-left px-5 py-3">Industry</th>
-                    <th className="text-left px-5 py-3">Stage</th>
-                    <th className="text-left px-5 py-3">Status</th>
-                    <th className="text-left px-5 py-3">Members</th>
-                    <th className="text-left px-5 py-3">Created</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.venture")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.industry")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.stage")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.status")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.members")}</th>
+                    <th className="text-left px-5 py-3">{t("vadmin.list.created")}</th>
                     <th className="px-5 py-3" />
                   </tr>
                 </thead>
@@ -244,17 +246,17 @@ export default function VenturesPage() {
                         </td>
                         <td className="px-5 py-3">
                           <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
-                            {stage.label}
+                            {t(stage.label)}
                           </span>
                         </td>
                         <td className="px-5 py-3">
                           <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${status.color}`}>
                             <span className={`w-1.5 h-1.5 rounded-full ${status.dot || "bg-current"}`} />
-                            {status.label}
+                            {t(status.label)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
-                          {founderCount + memberCount} members
+                          {t("vadmin.list.membersCount", { count: founderCount + memberCount })}
                         </td>
                         <td className="px-5 py-3 text-[11px] text-slate-400 font-medium">
                           {new Date(venture.created_at).toLocaleDateString()}
@@ -265,7 +267,7 @@ export default function VenturesPage() {
                               onClick={(e) => { e.stopPropagation(); approveVenture(venture); }}
                               className="mr-3 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
                             >
-                              Approve
+                              {t("vadmin.list.approve")}
                             </button>
                           )}
                           <ChevronRight className="w-4 h-4 text-slate-600 inline group-hover:text-[var(--brand-orange)] transition-colors" />

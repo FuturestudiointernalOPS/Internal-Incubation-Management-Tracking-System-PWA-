@@ -27,7 +27,7 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const { week_number, year } = getWeekNumber();
     const cur = await db.execute({ sql: "SELECT id FROM venture_standups WHERE venture_id = ? AND week_number = ? AND year = ? LIMIT 1", args: [dbId, week_number, year] });
@@ -48,7 +48,7 @@ export async function POST(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const { week_number, year, top_priorities, expected_deliverables, weekly_priorities } = await req.json();
     if (!week_number || !year) return NextResponse.json({ success: false, error: "week_number and year required" }, { status: 400 });

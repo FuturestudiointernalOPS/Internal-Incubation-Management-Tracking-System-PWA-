@@ -259,6 +259,30 @@ export default function AdminDashboard() {
     return t(`status.${map[key] || "pending"}`);
   };
 
+  const levelLabel = (key) => {
+    const map = {
+      critical: t("adminMisc.dashboard.critical"),
+      high: t("adminMisc.dashboard.high"),
+      medium: t("adminMisc.dashboard.medium"),
+      low: t("adminMisc.dashboard.low"),
+    };
+    return map[key] || key || map.medium || "medium";
+  };
+
+  const programStatusLabel = (key) => {
+    const map = {
+      active: t("adminMisc.dashboard.statusActive"),
+      planned: t("adminMisc.dashboard.statusPlanned"),
+      completed: t("adminMisc.dashboard.statusCompleted"),
+      pending: t("adminMisc.dashboard.statusPending"),
+      archived: t("adminMisc.dashboard.statusArchived"),
+      cancelled: t("adminMisc.dashboard.statusCancelled"),
+      template: t("adminMisc.dashboard.statusTemplate"),
+    };
+    const normalized = typeof key === "string" ? key.toLowerCase() : "";
+    return map[normalized] || key || "";
+  };
+
   const getMonthLabel = (idx) => t(`time.months.` + MONTH_KEYS[idx]);
 
   // Dashboard widgets state
@@ -615,18 +639,28 @@ export default function AdminDashboard() {
                   <Bell className="w-4 h-4 text-orange-500" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-tight">Pending Access Requests</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)]">{notifications.filter((n) => !n.is_read && n.type === "verification").length} new — review before approving</p>
+                  <h3 className="text-sm font-black uppercase tracking-tight">
+                    {t("adminMisc.dashboard.pendingAccessRequests")}
+                  </h3>
+                  <p className="text-[10px] text-[var(--text-secondary)]">
+                    {t("adminMisc.dashboard.pendingReviewCount", {
+                      count: notifications.filter(
+                        (n) => !n.is_read && n.type === "verification",
+                      ).length,
+                    })}
+                  </p>
                 </div>
               </div>
               <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
-                View All →
+                {t("adminMisc.dashboard.viewAll")} →
               </button>
             </div>
             <div className="divide-y divide-orange-500/5 max-h-[380px] overflow-y-auto">
               {notifications.filter((n) => !n.is_read && n.type === "verification").slice(0, 5).map((notif) => {
                 const nameMatch = notif.message?.match(/^([\w\s]+) has applied/);
-                const applicantName = nameMatch ? nameMatch[1] : "Applicant";
+                const applicantName = nameMatch
+                  ? nameMatch[1]
+                  : t("adminMisc.dashboard.applicant");
                 return (
                   <div key={notif.id} className="px-5 py-4 hover:bg-orange-500/[0.03] transition-colors">
                     <div className="flex flex-col md:flex-row justify-between gap-4">
@@ -647,13 +681,13 @@ export default function AdminDashboard() {
                               className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center gap-1.5"
                             >
                               {processingId === notif.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                              Approve
+                              {t("adminMisc.dashboard.approve")}
                             </button>
                             <button
                               onClick={() => router.push("/admin/pending-users")}
                               className="px-4 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-wider hover:border-orange-500/30"
                             >
-                              View Details
+                              {t("adminMisc.dashboard.viewDetails")}
                             </button>
                           </div>
                         </div>
@@ -665,7 +699,13 @@ export default function AdminDashboard() {
               {notifications.filter((n) => !n.is_read && n.type === "verification").length > 5 && (
                 <div className="px-5 py-3 text-center">
                   <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
-                    +{notifications.filter((n) => !n.is_read && n.type === "verification").length - 5} more pending — view all
+                    +
+                    {t("adminMisc.dashboard.morePendingViewAll", {
+                      count:
+                        notifications.filter(
+                          (n) => !n.is_read && n.type === "verification",
+                        ).length - 5,
+                    })}
                   </button>
                 </div>
               )}
@@ -980,7 +1020,7 @@ export default function AdminDashboard() {
                           </span>
                           <p className="text-[8px] text-slate-500 mt-0.5">
                             {t("admin.assignedBy")}:{" "}
-                            {task.user_name || "System"}
+                            {task.user_name || t("adminMisc.dashboard.system")}
                             {task.end_date
                               ? ` · ${t("time.due")}: ${new Date(task.end_date).toLocaleDateString()}`
                               : ""}
@@ -1172,7 +1212,7 @@ export default function AdminDashboard() {
                           {log.action}
                         </p>
                         <p className="text-[10px] text-[var(--text-secondary)] font-medium mt-0.5">
-                          {log.user || "System"} ·{" "}
+                          {log.user || t("adminMisc.dashboard.system")} ·{" "}
                           {new Date(log.timestamp).toLocaleTimeString()}
                         </p>
                       </div>
@@ -1219,7 +1259,7 @@ export default function AdminDashboard() {
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[8px] font-bold text-emerald-500 uppercase px-1.5 py-0.5 bg-emerald-500/10 rounded">
-                            {prog.status}
+                            {programStatusLabel(prog.status)}
                           </span>
                           <span className="text-[8px] text-[var(--text-secondary)] font-medium uppercase">
                             {new Date(prog.created_at).toLocaleDateString()}
@@ -1251,10 +1291,10 @@ export default function AdminDashboard() {
                 </div>
                 <div>
                   <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                    KPI Progress
+                    {t("adminMisc.dashboard.kpiProgress")}
                   </h3>
                   <p className="text-[9px] font-bold text-slate-500">
-                    Weighted average completion across programs
+                    {t("adminMisc.dashboard.weightedAverageCompletion")}
                   </p>
                 </div>
               </div>
@@ -1278,7 +1318,7 @@ export default function AdminDashboard() {
                     <Target className="w-3 h-3" /> {p.kpi_count} KPIs
                     <span className={cn("ml-auto px-1.5 py-0.5 rounded text-[7px] font-bold",
                       p.status === 'Active' ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"
-                    )}>{p.status}</span>
+                    )}>{programStatusLabel(p.status)}</span>
                   </div>
                   <div className="h-2 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden">
                     <div className={cn("h-full rounded-full transition-all",
@@ -1666,7 +1706,7 @@ export default function AdminDashboard() {
                             <span
                               className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${b.severity === "critical" || b.severity === "high" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
                             >
-                              {b.severity}
+                              {levelLabel(b.severity)}
                             </span>
                           )}
                         </div>
@@ -1877,19 +1917,19 @@ export default function AdminDashboard() {
               </div>
               <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                  Priority
+                  {t("adminMisc.dashboard.priority")}
                 </p>
                 <p
                   className={`text-xs font-bold ${selectedTask.priority === "critical" ? "text-red-400" : selectedTask.priority === "high" ? "text-amber-400" : "text-slate-400"}`}
                 >
-                  {selectedTask.priority || "medium"}
+                  {levelLabel(selectedTask.priority)}
                 </p>
               </div>
             </div>
             {selectedTask.description && (
               <div className="p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                  Description
+                  {t("adminMisc.dashboard.description")}
                 </p>
                 <p className="text-xs text-[var(--text-secondary)]">
                   {selectedTask.description}
@@ -1900,7 +1940,7 @@ export default function AdminDashboard() {
               .length > 0 && (
               <div className="space-y-1">
                 <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
-                  Blockers
+                  {t("adminMisc.dashboard.blockers")}
                 </p>
                 {selectedTask.blockers
                   .filter((b) => b.status === "active")

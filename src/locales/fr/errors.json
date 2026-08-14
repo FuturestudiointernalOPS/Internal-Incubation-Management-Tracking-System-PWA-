@@ -7,6 +7,11 @@
     "passwordTooShort": "Le mot de passe doit contenir au moins 4 caractères.",
     "passwordsDontMatch": "Les mots de passe ne correspondent pas.",
     "networkError": "Erreur réseau. Veuillez réessayer.",
-    "somethingWrong": "Une erreur est survenue. Veuillez réessayer."
+    "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
+    "authRequired": "Authentification requise.",
+    "insufficientPermissions": "Permissions insuffisantes.",
+    "authSystemFailure": "Échec du système d'authentification.",
+    "authzSystemFailure": "Échec du système d'autorisation.",
+    "notFound": "Introuvable."
   }
 }

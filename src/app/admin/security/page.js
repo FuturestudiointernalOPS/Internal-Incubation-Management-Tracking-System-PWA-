@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 import {
   Shield,
   AlertTriangle,
@@ -40,6 +41,7 @@ function formatDate(d) {
 }
 
 export default function SecurityPage() {
+  const { t } = useI18n();
   // Dashboard summary state
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -128,7 +130,7 @@ export default function SecurityPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()])
-      .catch((err) => setError(err.message))
+      .catch((err) => setError(t(err.message || "") || err.message))
       .finally(() => setLoading(false));
   }, [fetchSummary, fetchSessions, fetchEvents, fetchLoginHistory]);
 
@@ -167,10 +169,10 @@ export default function SecurityPage() {
   };
 
   const tabs = [
-    { id: "overview", label: "Overview", icon: Shield },
-    { id: "sessions", label: "Sessions", icon: Monitor },
-    { id: "events", label: "Security Events", icon: AlertTriangle },
-    { id: "login_history", label: "Login History", icon: Activity },
+    { id: "overview", label: t("adminMisc.security.tabOverview"), icon: Shield },
+    { id: "sessions", label: t("adminMisc.security.tabSessions"), icon: Monitor },
+    { id: "events", label: t("adminMisc.security.tabEvents"), icon: AlertTriangle },
+    { id: "login_history", label: t("adminMisc.security.tabLoginHistory"), icon: Activity },
   ];
 
   return (
@@ -181,16 +183,16 @@ export default function SecurityPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Shield className="text-[var(--brand-orange)]" size={24} />
-              Security Dashboard
+              {t("adminMisc.security.title")}
             </h1>
-            <p className="text-gray-400 mt-1">Monitor sessions, security events, and login activity</p>
+            <p className="text-gray-400 mt-1">{t("adminMisc.security.subtitle")}</p>
           </div>
           <button
             onClick={() => { setLoading(true); Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()]).finally(() => setLoading(false)); }}
             className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm"
           >
             <RefreshCw size={14} />
-            Refresh
+            {t("adminMisc.security.refresh")}
           </button>
         </div>
 
@@ -237,28 +239,28 @@ export default function SecurityPage() {
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
                   <Monitor size={14} />
-                  Active Sessions
+                  {t("adminMisc.security.activeSessions")}
                 </div>
                 <p className="text-2xl font-bold">{summary?.active_sessions || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
                   <AlertTriangle size={14} />
-                  Unresolved Events
+                  {t("adminMisc.security.unresolvedEvents")}
                 </div>
                 <p className="text-2xl font-bold text-amber-400">{summary?.unresolved_events || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
                   <CheckCircle2 size={14} />
-                  Login Success
+                  {t("adminMisc.security.loginSuccess")}
                 </div>
                 <p className="text-2xl font-bold text-emerald-400">{summary?.login_successes || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                 <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
                   <XCircle size={14} />
-                  Login Failures
+                  {t("adminMisc.security.loginFailures")}
                 </div>
                 <p className="text-2xl font-bold text-red-400">{summary?.login_failures || 0}</p>
               </div>
@@ -267,9 +269,9 @@ export default function SecurityPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Recent Security Events */}
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">Recent Security Events</h3>
+                <h3 className="text-sm font-medium text-gray-300 mb-4">{t("adminMisc.security.recentSecurityEvents")}</h3>
                 {events.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No security events in the last 24 hours.</p>
+                  <p className="text-gray-500 text-sm">{t("adminMisc.security.noSecurityEvents24h")}</p>
                 ) : (
                   <div className="space-y-2">
                     {events.slice(0, 5).map((evt) => (
@@ -290,9 +292,9 @@ export default function SecurityPage() {
 
               {/* Recent Login Activity */}
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">Recent Login Activity</h3>
+                <h3 className="text-sm font-medium text-gray-300 mb-4">{t("adminMisc.security.recentLoginActivity")}</h3>
                 {loginHistory.length === 0 ? (
-                  <p className="text-gray-500 text-sm">No login activity in the last 24 hours.</p>
+                  <p className="text-gray-500 text-sm">{t("adminMisc.security.noLoginActivity24h")}</p>
                 ) : (
                   <div className="space-y-2">
                     {loginHistory.slice(0, 5).map((h) => (
@@ -303,9 +305,9 @@ export default function SecurityPage() {
                           <XCircle size={14} className="mt-0.5 text-red-400" />
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-300">{h.user_name || h.user_cid || "Unknown"}</p>
+                          <p className="text-sm text-gray-300">{h.user_name || h.user_cid || t("adminMisc.security.unknown")}</p>
                           <p className="text-xs text-gray-500">
-                            {h.action?.replace(/_/g, " ")} {h.ip_address ? `from ${h.ip_address}` : ""}
+                            {h.action?.replace(/_/g, " ")} {h.ip_address ? t("adminMisc.security.fromIp", { ip: h.ip_address }) : ""}
                           </p>
                         </div>
                         <p className="text-xs text-gray-500 whitespace-nowrap">{formatDate(h.created_at)}</p>
@@ -326,7 +328,7 @@ export default function SecurityPage() {
             ) : sessions.length === 0 ? (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                 <Monitor className="mx-auto mb-3 text-gray-500" size={40} />
-                <p className="text-gray-400">No active sessions found.</p>
+                <p className="text-gray-400">{t("adminMisc.security.noActiveSessions")}</p>
               </div>
             ) : (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-hidden">
@@ -334,12 +336,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">User</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Device / Browser</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">IP / Location</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Created</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Status</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Actions</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colUser")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDeviceBrowser")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colIpLocation")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colCreated")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -367,14 +369,14 @@ export default function SecurityPage() {
                                 ? "bg-emerald-500/10 text-emerald-400"
                                 : "bg-gray-500/10 text-gray-400"
                             }`}>
-                              {s.session_status === "revoked" ? "Revoked" : s.session_status === "expired" || new Date(s.expires_at) <= new Date() ? "Expired" : "Active"}
+                              {s.session_status === "revoked" ? t("adminMisc.security.revoked") : s.session_status === "expired" || new Date(s.expires_at) <= new Date() ? t("adminMisc.security.expired") : t("adminMisc.security.active")}
                             </span>
                           </td>
                           <td className="p-4">
                             <button
                               onClick={() => setConfirmAction({ type: "revoke", session: s })}
                               className="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
-                              title="Revoke session"
+                              title={t("adminMisc.security.revokeSession")}
                             >
                               <LogOut size={14} />
                             </button>
@@ -397,7 +399,7 @@ export default function SecurityPage() {
             ) : events.length === 0 ? (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                 <Shield className="mx-auto mb-3 text-gray-500" size={40} />
-                <p className="text-gray-400">No security events recorded.</p>
+                <p className="text-gray-400">{t("adminMisc.security.noSecurityEvents")}</p>
               </div>
             ) : (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-hidden">
@@ -405,12 +407,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Timestamp</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Event Type</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Description</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Severity</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Status</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Actions</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colTimestamp")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colEventType")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDescription")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colSeverity")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -430,7 +432,7 @@ export default function SecurityPage() {
                             <span className={`text-xs px-2.5 py-1 rounded-full ${
                               evt.is_resolved ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
                             }`}>
-                              {evt.is_resolved ? "Resolved" : "Open"}
+                              {evt.is_resolved ? t("adminMisc.security.resolved") : t("adminMisc.security.open")}
                             </span>
                           </td>
                           <td className="p-4">
@@ -438,7 +440,7 @@ export default function SecurityPage() {
                               <button
                                 onClick={() => setConfirmAction({ type: "resolve", eventId: evt.id })}
                                 className="p-2 hover:bg-emerald-500/10 rounded-lg text-gray-400 hover:text-emerald-400 transition-colors"
-                                title="Mark as resolved"
+                                title={t("adminMisc.security.markResolved")}
                               >
                                 <CheckCircle2 size={14} />
                               </button>
@@ -462,7 +464,7 @@ export default function SecurityPage() {
             ) : loginHistory.length === 0 ? (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                 <Activity className="mx-auto mb-3 text-gray-500" size={40} />
-                <p className="text-gray-400">No login history recorded.</p>
+                <p className="text-gray-400">{t("adminMisc.security.noLoginHistory")}</p>
               </div>
             ) : (
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-hidden">
@@ -470,12 +472,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Timestamp</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">User</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Action</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Device / Browser</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">IP / Location</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">Status</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colTimestamp")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colUser")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colAction")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDeviceBrowser")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colIpLocation")}</th>
+                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -483,7 +485,7 @@ export default function SecurityPage() {
                         <tr key={h.id} className="border-b border-gray-800/50 hover:bg-white/[0.02]">
                           <td className="p-4 text-sm text-gray-400 whitespace-nowrap">{formatDate(h.created_at)}</td>
                           <td className="p-4">
-                            <p className="text-sm text-white">{h.user_name || h.user_cid || "Unknown"}</p>
+                            <p className="text-sm text-white">{h.user_name || h.user_cid || t("adminMisc.security.unknown")}</p>
                             {h.user_email && <p className="text-xs text-gray-500">{h.user_email}</p>}
                           </td>
                           <td className="p-4">
@@ -505,7 +507,7 @@ export default function SecurityPage() {
                               h.is_success ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                             }`}>
                               {h.is_success ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
-                              {h.is_success ? "Success" : h.failure_reason || "Failed"}
+                              {h.is_success ? t("adminMisc.security.success") : h.failure_reason || t("adminMisc.security.failed")}
                             </span>
                           </td>
                         </tr>
@@ -530,14 +532,14 @@ export default function SecurityPage() {
                         <LogOut size={24} className="text-red-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold">Revoke Session</h3>
-                        <p className="text-sm text-gray-400">This will force logout this session.</p>
+                        <h3 className="text-lg font-bold">{t("adminMisc.security.revokeSession")}</h3>
+                        <p className="text-sm text-gray-400">{t("adminMisc.security.forceLogoutWarning")}</p>
                       </div>
                     </div>
                     {confirmAction.session && (
                       <div className="bg-[#020617] rounded-lg p-3 mb-4 text-sm">
-                        <p>User: <span className="text-gray-300">{confirmAction.session.user_name || confirmAction.session.user_cid}</span></p>
-                        <p>IP: <span className="text-gray-300 font-mono">{confirmAction.session.ip_address || "N/A"}</span></p>
+                        <p>{t("adminMisc.security.userLabel")} <span className="text-gray-300">{confirmAction.session.user_name || confirmAction.session.user_cid}</span></p>
+                        <p>{t("adminMisc.security.ipLabel")} <span className="text-gray-300 font-mono">{confirmAction.session.ip_address || t("adminMisc.security.na")}</span></p>
                       </div>
                     )}
                   </>
@@ -548,8 +550,8 @@ export default function SecurityPage() {
                         <CheckCircle2 size={24} className="text-emerald-400" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-bold">Resolve Event</h3>
-                        <p className="text-sm text-gray-400">Mark this security event as resolved.</p>
+                        <h3 className="text-lg font-bold">{t("adminMisc.security.resolveEvent")}</h3>
+                        <p className="text-sm text-gray-400">{t("adminMisc.security.markResolvedDesc")}</p>
                       </div>
                     </div>
                   </>
@@ -559,7 +561,7 @@ export default function SecurityPage() {
                     onClick={() => setConfirmAction(null)}
                     className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b] transition-colors"
                   >
-                    Cancel
+                    {t("adminMisc.security.cancel")}
                   </button>
                   <button
                     onClick={() => {
@@ -572,7 +574,7 @@ export default function SecurityPage() {
                         : "bg-emerald-500 hover:bg-emerald-600 text-white"
                     }`}
                   >
-                    Confirm
+                    {t("adminMisc.security.confirm")}
                   </button>
                 </div>
               </div>

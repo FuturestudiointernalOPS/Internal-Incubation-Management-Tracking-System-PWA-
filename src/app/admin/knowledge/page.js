@@ -10,6 +10,7 @@ import {
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPACTOS KNOWLEDGE BANK — OPERATIONAL INTELLIGENCE
@@ -17,6 +18,7 @@ import { uploadFile } from '@/lib/storage';
  */
 
 export default function KnowledgeBank() {
+  const { t } = useI18n();
   const [allNotes, setAllNotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewingNote, setViewingNote] = useState(null);
@@ -69,7 +71,7 @@ export default function KnowledgeBank() {
     const files = Array.from(e.target.files);
     const pdfs = files.filter(f => f.type === 'application/pdf');
     if (pdfs.length === 0) {
-      notify('error', 'Please select PDF files only.');
+      notify('error', t("adminMisc.knowledge.pdfsOnly"));
       return;
     }
     setNewNote(prev => ({ ...prev, stagedFiles: [...(prev.stagedFiles || []), ...pdfs] }));
@@ -78,11 +80,11 @@ export default function KnowledgeBank() {
 
   const handleCreateNote = async () => {
     if (!newNote.title) {
-      notify('error', 'Mission Title is required.');
+      notify('error', t("adminMisc.knowledge.missionTitleRequired"));
       return;
     }
     if (newNote.stagedFiles.length === 0) {
-      notify('error', 'At least one PDF must be staged.');
+      notify('error', t("adminMisc.knowledge.pdfRequired"));
       return;
     }
 
@@ -96,7 +98,7 @@ export default function KnowledgeBank() {
         if (result.success) {
           uploadedFiles.push({ name: file.name, url: result.url });
         } else {
-          throw new Error(`Upload failed for ${file.name}: ${result.error}`);
+          throw new Error(t("adminMisc.knowledge.uploadFailedFor", { name: file.name, error: result.error }));
         }
       }
 
@@ -109,16 +111,16 @@ export default function KnowledgeBank() {
       
       const data = await res.json();
       if (data.success) {
-        notify('success', 'Operational Node Deployed Successfully.');
+        notify('success', t("adminMisc.knowledge.deployedSuccessfully"));
         fetchNotes();
         setShowUploadModal(false);
         setNewNote({ title: '', description: '', stagedFiles: [] });
       } else {
-        throw new Error(data.error || "System Database Exception");
+        throw new Error(t((data.error || t("adminMisc.knowledge.systemDatabaseException")) || "") || (data.error || t("adminMisc.knowledge.systemDatabaseException")));
       }
     } catch (e) {
       console.error("Deployment Error:", e);
-      notify('error', e.message);
+      notify('error', t(e.message || "") || e.message);
     } finally {
       setIsSaving(false);
     }
@@ -154,12 +156,12 @@ export default function KnowledgeBank() {
       });
       
       if (res.ok) {
-        notify('success', 'Node and assets updated successfully.');
+        notify('success', t("adminMisc.knowledge.updatedSuccessfully"));
         setEditingNote(null);
         fetchNotes();
       }
     } catch (e) {
-      notify('error', 'Failed to update node.');
+      notify('error', t("adminMisc.knowledge.updateFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -173,12 +175,12 @@ export default function KnowledgeBank() {
         body: JSON.stringify({ action: 'archive', id, is_archived: !currentArchiveState })
       });
       if (res.ok) {
-        notify('success', currentArchiveState ? 'Node restored from archive.' : 'Node moved to archive.');
+        notify('success', currentArchiveState ? t("adminMisc.knowledge.restoredFromArchive") : t("adminMisc.knowledge.movedToArchive"));
         if (viewingNote?.id === id) setViewingNote(null);
         fetchNotes();
       }
     } catch (e) {
-      notify('error', 'Sync failure.');
+      notify('error', t("adminMisc.knowledge.syncFailure"));
     }
   };
 
@@ -190,12 +192,12 @@ export default function KnowledgeBank() {
         body: JSON.stringify({ id })
       });
       if (res.ok) {
-        notify('success', 'Node decommissioned permanently.');
+        notify('success', t("adminMisc.knowledge.decommissioned"));
         if (viewingNote?.id === id) setViewingNote(null);
         fetchNotes();
       }
     } catch (e) {
-      notify('error', 'Deletion failed.');
+      notify('error', t("adminMisc.knowledge.deletionFailed"));
     }
   };
 
@@ -229,9 +231,9 @@ export default function KnowledgeBank() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Library className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">Operational Intelligence</span>
+              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">{t("adminMisc.knowledge.operationalIntelligence")}</span>
             </div>
-            <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">Knowledge Bank</h1>
+            <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">{t("adminMisc.knowledge.title")}</h1>
           </div>
           
           <div className="flex gap-3">
@@ -239,10 +241,10 @@ export default function KnowledgeBank() {
                 onClick={() => setLibraryTab(activeTab === 'active' ? 'archive' : 'active')}
                 className={`btn btn-secondary gap-2 ${activeTab === 'archive' ? 'border-[var(--brand-orange)] text-[var(--brand-orange)]' : ''}`}
              >
-                <Archive className="w-4 h-4" /> {activeTab === 'archive' ? 'Active Records' : 'Archive'}
+                <Archive className="w-4 h-4" /> {activeTab === 'archive' ? t("adminMisc.knowledge.activeRecords") : t("adminMisc.knowledge.archive")}
              </button>
              <button onClick={() => setShowUploadModal(true)} className="btn btn-primary gap-2">
-               <Plus className="w-4 h-4" /> Create New Node
+               <Plus className="w-4 h-4" /> {t("adminMisc.knowledge.createNode")}
              </button>
           </div>
         </header>
@@ -270,13 +272,13 @@ export default function KnowledgeBank() {
                       </div>
                    </div>
                    <div className="card !p-0 h-[800px] overflow-hidden rounded-3xl border-[var(--border-primary)]">
-                      <iframe src={`${activeFileUrl}#toolbar=0`} className="w-full h-full" title="Viewer" />
+                      <iframe src={`${activeFileUrl}#toolbar=0`} className="w-full h-full" title={t("adminMisc.knowledge.viewer")} />
                    </div>
                 </div>
              ) : (
                 <div className="card py-40 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
                    <BookOpen className="w-16 h-16 mb-4" />
-                   <h3 className="text-xl font-bold uppercase">Select an Operational Node</h3>
+                   <h3 className="text-xl font-bold uppercase">{t("adminMisc.knowledge.selectNode")}</h3>
                 </div>
              )}
           </div>
@@ -285,19 +287,19 @@ export default function KnowledgeBank() {
              <div className="card space-y-4">
                 <div className="relative">
                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Filter library..." className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-xs font-bold" />
+                   <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t("adminMisc.knowledge.filterLibrary")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 text-xs font-bold" />
                 </div>
                 <div className="space-y-3">
                    {loading ? <TableSkeleton rows={5} /> : filteredNotes.length === 0 ? (
                       <div className="text-center py-10 opacity-40">
                          <Library className="w-8 h-8 mx-auto mb-2" />
-                         <p className="text-[10px] font-bold uppercase">Library Empty</p>
+                         <p className="text-[10px] font-bold uppercase">{t("adminMisc.knowledge.libraryEmpty")}</p>
                       </div>
                    ) : filteredNotes.map(n => (
                       <div key={n.id} onClick={() => setViewingNote(n)} className={`p-4 rounded-xl border transition-all cursor-pointer ${viewingNote?.id === n.id ? 'border-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'border-[var(--border-primary)] bg-primary hover:border-[var(--brand-orange)]'}`}>
                          <div className="flex justify-between items-start gap-2">
                             <p className="text-[11px] font-bold text-white uppercase truncate flex-1">{n.title}</p>
-                            {n.is_archived && <span className="text-[8px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">ARCHIVE</span>}
+                            {n.is_archived && <span className="text-[8px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">{t("adminMisc.knowledge.archive")}</span>}
                          </div>
                          <p className="text-[9px] text-slate-500 line-clamp-1 mt-1">{n.description}</p>
                       </div>
@@ -314,18 +316,18 @@ export default function KnowledgeBank() {
           <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">New Knowledge Node</h3>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Operational Intelligence Deployment</p>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight">{t("adminMisc.knowledge.newKnowledgeNode")}</h3>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">{t("adminMisc.knowledge.operationalIntelligenceDeployment")}</p>
               </div>
               <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-primary rounded-lg"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-6">
-              <input value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} placeholder="Node Title" className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
-              <textarea value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} placeholder="Strategic Description..." rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
+              <input value={newNote.title} onChange={e => setNewNote({...newNote, title: e.target.value})} placeholder={t("adminMisc.knowledge.nodeTitle")} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
+              <textarea value={newNote.description} onChange={e => setNewNote({...newNote, description: e.target.value})} placeholder={t("adminMisc.knowledge.strategicDescriptionPlaceholder")} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
 
               <div className="space-y-4">
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">Asset Staging Area ({newNote.stagedFiles.length})</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">{t("adminMisc.knowledge.assetStagingArea", { count: newNote.stagedFiles.length })}</label>
                 <div className="grid grid-cols-1 gap-3">
                   {newNote.stagedFiles.map((f, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
@@ -339,13 +341,13 @@ export default function KnowledgeBank() {
                   <label className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-[var(--border-primary)] rounded-2xl cursor-pointer hover:border-[var(--brand-orange)] transition-all">
                     <input type="file" accept=".pdf" multiple className="hidden" onChange={handleFileSelection} disabled={isSaving} />
                     <Files className="w-6 h-6 mb-2 text-[var(--brand-orange)]" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Stage PDFs</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.knowledge.stagePdfs")}</span>
                   </label>
                 </div>
               </div>
 
               <button onClick={handleCreateNote} disabled={isSaving || !newNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em]">
-                {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Deploying to Supabase...</span></div> : 'Deploy Operational Node'}
+                {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>{t("adminMisc.knowledge.deploying")}</span></div> : t("adminMisc.knowledge.deployNode")}
               </button>
             </div>
           </div>
@@ -357,27 +359,27 @@ export default function KnowledgeBank() {
           <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">Edit Intelligence Node</h3>
-                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">Operational ID: {editingNote.id}</p>
+                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">{t("adminMisc.knowledge.editIntelligenceNode")}</h3>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">{t("adminMisc.knowledge.operationalId", { id: editingNote.id })}</p>
               </div>
               <button onClick={() => setEditingNote(null)} className="p-2 hover:bg-primary rounded-lg text-slate-500"><X className="w-6 h-6" /></button>
             </div>
             
             <div className="space-y-6">
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Mission Title</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">{t("adminMisc.knowledge.missionTitle")}</label>
                 <input value={editingNote.title} onChange={e => setEditingNote({...editingNote, title: e.target.value})} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)]" />
               </div>
               
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">Strategic Description</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] ml-2">{t("adminMisc.knowledge.strategicDescription")}</label>
                 <textarea value={editingNote.description} onChange={e => setEditingNote({...editingNote, description: e.target.value})} rows={3} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-white outline-none focus:border-[var(--brand-orange)] resize-none" />
               </div>
 
               {/* EXISTING FILES */}
               {editingNote.files?.length > 0 && (
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 ml-2">Existing Resources</label>
+                   <label className="text-[10px] font-black uppercase tracking-widest text-emerald-500 ml-2">{t("adminMisc.knowledge.existingResources")}</label>
                    <div className="space-y-2">
                       {editingNote.files.map(f => (
                         <div key={f.id} className="flex items-center justify-between p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
@@ -385,7 +387,7 @@ export default function KnowledgeBank() {
                             <FileCheck className="w-4 h-4 text-emerald-500" />
                             <span className="text-[10px] font-bold text-white uppercase truncate max-w-[250px]">{f.name}</span>
                           </div>
-                          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded">Active</span>
+                          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-2 py-1 rounded">{t("adminMisc.knowledge.active")}</span>
                         </div>
                       ))}
                    </div>
@@ -394,7 +396,7 @@ export default function KnowledgeBank() {
 
               {/* NEW ASSET STAGING */}
               <div className="space-y-4">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] ml-2">Stage New Resources ({editingNote.stagedFiles?.length || 0})</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] ml-2">{t("adminMisc.knowledge.stageNewResources", { count: editingNote.stagedFiles?.length || 0 })}</label>
                 <div className="grid grid-cols-1 gap-3">
                   {(editingNote.stagedFiles || []).map((f, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20 rounded-xl">
@@ -419,13 +421,13 @@ export default function KnowledgeBank() {
                       disabled={isSaving} 
                     />
                     <Paperclip className="w-6 h-6 mb-2 text-[var(--brand-orange)]" />
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Attach PDF Resources</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.knowledge.attachPdfResources")}</span>
                   </label>
                 </div>
               </div>
 
               <button onClick={handleUpdateNote} disabled={isSaving || !editingNote.title} className="btn btn-primary w-full py-5 uppercase font-bold tracking-[0.2em] italic shadow-xl shadow-orange-500/20">
-                {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>Syncing Intelligence Node...</span></div> : 'Update Intelligence Node'}
+                {isSaving ? <div className="flex items-center justify-center gap-3"><Loader2 className="w-5 h-5 animate-spin" /> <span>{t("adminMisc.knowledge.syncing")}</span></div> : t("adminMisc.knowledge.updateNode")}
               </button>
             </div>
           </div>

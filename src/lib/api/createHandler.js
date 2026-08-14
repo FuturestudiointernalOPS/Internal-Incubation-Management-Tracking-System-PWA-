@@ -23,7 +23,7 @@ import { NextResponse } from "next/server";
  * Behavior:
  *   - Handles initDb + requireAuth before the handler runs.
  *   - Handler's return value is passed through directly (NextResponse or plain object).
- *   - Uncaught errors → 500 { success: false, error: message }.
+ *   - Uncaught errors → 500 { success: false, error: "errors.somethingWrong" } (stable i18n key; the real message is logged server-side only).
  *   - Auth errors (401/403) are returned directly from requireAuth.
  */
 
@@ -58,7 +58,7 @@ export function createHandler(handlerOrOptions, maybeHandler) {
     } catch (e) {
       console.error("API Error:", e.message);
       return NextResponse.json(
-        { success: false, error: e.message },
+        { success: false, error: "errors.somethingWrong" },
         { status: 500 },
       );
     }

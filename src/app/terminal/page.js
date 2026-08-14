@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Shield, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPACTOS TERMINAL — Redirect to unified /login
@@ -14,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 export default function TerminalRedirectPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
@@ -39,14 +41,13 @@ export default function TerminalRedirectPage() {
 
         <div className="space-y-4">
           <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
-            Terminal Unification
+            {t("rootMisc.terminal.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            The Future Studio platform now uses a single unified login
-            experience. All users authenticate through the main login page.
+            {t("rootMisc.terminal.unifiedLogin")}
           </p>
           <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.3em]">
-            Redirecting in {countdown} seconds...
+            {t("rootMisc.terminal.redirectingIn", { countdown })}
           </p>
         </div>
 
@@ -54,7 +55,7 @@ export default function TerminalRedirectPage() {
           onClick={() => router.push("/login")}
           className="inline-flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
         >
-          Continue to Login <ArrowRight className="w-4 h-4" />
+          {t("rootMisc.terminal.continueToLogin")} <ArrowRight className="w-4 h-4" />
         </button>
       </div>
     </div>

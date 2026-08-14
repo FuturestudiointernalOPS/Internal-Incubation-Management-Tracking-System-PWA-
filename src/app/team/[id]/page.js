@@ -42,11 +42,15 @@ import AppBadge from "@/components/ui/AppBadge";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
   const { id: teamId } = unwrappedParams;
   const router = useRouter();
+  const goBack = useSafeBack("/");
+  const { t } = useI18n();
 
   // — State —
   const [activeTab, setActiveTab] = useState("overview");
@@ -224,11 +228,11 @@ export default function TeamDashboardPage({ params }) {
       } else {
         setToast({
           type: "error",
-          message: "Upload failed. Please try again.",
+          message: t("rootMisc.team.uploadFailed"),
         });
       }
     } catch (_) {
-      setToast({ type: "error", message: "Upload error." });
+      setToast({ type: "error", message: t("rootMisc.team.uploadError") });
     } finally {
       setUploading(false);
     }
@@ -239,7 +243,7 @@ export default function TeamDashboardPage({ params }) {
     if (!selectedDeliverable) return;
     const fileUrl = submitFileUrl || submitLink;
     if (!fileUrl) {
-      setToast({ type: "error", message: "Please provide a file or link." });
+      setToast({ type: "error", message: t("rootMisc.team.provideFileOrLink") });
       return;
     }
 
@@ -258,7 +262,7 @@ export default function TeamDashboardPage({ params }) {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Submission successful!" });
+        setToast({ type: "success", message: t("rootMisc.team.submissionSuccess") });
         setShowSubmitModal(false);
         setSelectedDeliverable(null);
         setSubmitFileUrl("");
@@ -267,11 +271,11 @@ export default function TeamDashboardPage({ params }) {
       } else {
         setToast({
           type: "error",
-          message: data.error || "Submission failed.",
+          message: t((data.error || t("rootMisc.team.submissionFailed")) || "") || (data.error || t("rootMisc.team.submissionFailed")),
         });
       }
     } catch (_) {
-      setToast({ type: "error", message: "Network error." });
+      setToast({ type: "error", message: t("rootMisc.team.networkError") });
     } finally {
       setSubmitting(false);
     }
@@ -314,7 +318,7 @@ export default function TeamDashboardPage({ params }) {
       if (data.success) {
         setToast({
           type: "success",
-          message: `Submission ${status.replace(/_/g, " ")}`,
+          message: `${t("rootMisc.team.submissionToast")} ${status.replace(/_/g, " ")}`,
         });
         setShowReviewModal(false);
         setReviewSubData(null);
@@ -322,10 +326,10 @@ export default function TeamDashboardPage({ params }) {
         setFollowUpDate("");
         fetchTeamData();
       } else {
-        setToast({ type: "error", message: data.error || "Review failed" });
+        setToast({ type: "error", message: t((data.error || t("rootMisc.team.reviewFailed")) || "") || (data.error || t("rootMisc.team.reviewFailed")) });
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setReviewing(false);
   };
@@ -342,7 +346,7 @@ export default function TeamDashboardPage({ params }) {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Task created" });
+        setToast({ type: "success", message: t("rootMisc.team.taskCreated") });
         setShowTaskModal(false);
         setTaskForm({
           title: "",
@@ -353,7 +357,7 @@ export default function TeamDashboardPage({ params }) {
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
     setSavingTask(false);
   };
@@ -379,11 +383,11 @@ export default function TeamDashboardPage({ params }) {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Task deleted" });
+        setToast({ type: "success", message: t("rootMisc.team.taskDeleted") });
         fetchTasks();
       }
     } catch (e) {
-      setToast({ type: "error", message: e.message });
+      setToast({ type: "error", message: t(e.message || "") || e.message });
     }
   };
 
@@ -409,11 +413,11 @@ export default function TeamDashboardPage({ params }) {
 
   // — Tab definitions —
   const tabs = [
-    { id: "overview", label: "Overview", icon: FolderKanban },
-    { id: "deliverables", label: "Deliverables", icon: FileText },
-    { id: "tasks", label: "Tasks", icon: ListTodo },
-    { id: "files", label: "Files", icon: BookOpen },
-    { id: "calendar", label: "Calendar", icon: Calendar },
+    { id: "overview", label: t("rootMisc.team.tabOverview"), icon: FolderKanban },
+    { id: "deliverables", label: t("rootMisc.team.tabDeliverables"), icon: FileText },
+    { id: "tasks", label: t("rootMisc.team.tabTasks"), icon: ListTodo },
+    { id: "files", label: t("rootMisc.team.tabFiles"), icon: BookOpen },
+    { id: "calendar", label: t("rootMisc.team.tabCalendar"), icon: Calendar },
   ];
 
   // — Empty state renderer —
@@ -476,7 +480,7 @@ export default function TeamDashboardPage({ params }) {
           <div className="flex items-center gap-3 text-[var(--text-secondary)]">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="text-sm font-bold uppercase tracking-wider">
-              Loading workspace...
+              {t("rootMisc.team.loading")}
             </span>
           </div>
         </div>
@@ -491,14 +495,13 @@ export default function TeamDashboardPage({ params }) {
         <div className="max-w-6xl mx-auto p-6">
           <div className="text-center py-20">
             <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">
-              Team Not Found
+              {t("rootMisc.team.notFound")}
             </h2>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              The team you are looking for does not exist or you do not have
-              access.
+              {t("rootMisc.team.notFoundDesc")}
             </p>
             <AppButton variant="secondary" onClick={() => router.push("/")}>
-              Go Home
+              {t("rootMisc.team.goHome")}
             </AppButton>
           </div>
         </div>
@@ -515,17 +518,17 @@ export default function TeamDashboardPage({ params }) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <button
-              onClick={() => router.back()}
+              onClick={goBack}
               className="flex items-center gap-2 text-xs font-bold text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors mb-2 uppercase tracking-wider"
             >
               <ArrowLeft className="w-3.5 h-3.5" />
-              Back
+              {t("rootMisc.team.back")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tight">
               {team.name}
             </h1>
             <p className="text-xs text-[var(--text-secondary)] font-bold mt-1">
-              {program ? program.name : ""} — Team Workspace
+              {program ? program.name : ""} — {t("rootMisc.team.workspace")}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -537,7 +540,7 @@ export default function TeamDashboardPage({ params }) {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] text-xs font-bold text-[var(--text-primary)] hover:border-[var(--brand-orange)] transition-all"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                Demo
+                {t("rootMisc.team.demo")}
               </a>
             )}
             {program?.pitch_deck_url && (
@@ -548,7 +551,7 @@ export default function TeamDashboardPage({ params }) {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] text-xs font-bold text-[var(--text-primary)] hover:border-[var(--brand-orange)] transition-all"
               >
                 <Globe className="w-3.5 h-3.5" />
-                Pitch Deck
+                {t("rootMisc.team.pitchDeck")}
               </a>
             )}
           </div>
@@ -571,7 +574,7 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Progress
+                      {t("rootMisc.team.progress")}
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {progressPct}%
@@ -597,7 +600,7 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Completed
+                      {t("rootMisc.team.completed")}
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {
@@ -622,7 +625,7 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Pending
+                      {t("rootMisc.team.pending")}
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {
@@ -643,7 +646,7 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Members
+                      {t("rootMisc.team.members")}
                     </p>
                     <p className="text-lg font-black text-[var(--text-primary)]">
                       {members.length}
@@ -658,12 +661,12 @@ export default function TeamDashboardPage({ params }) {
               {/* Team Info */}
               <AppCard padding="lg" className="lg:col-span-2">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4">
-                  Team Information
+                  {t("rootMisc.team.teamInfo")}
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between py-2 border-b border-[var(--border-primary)]">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Team Name
+                      {t("rootMisc.team.teamName")}
                     </span>
                     <span className="text-xs font-bold text-[var(--text-primary)]">
                       {team.name}
@@ -671,7 +674,7 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div className="flex justify-between py-2 border-b border-[var(--border-primary)]">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Program
+                      {t("rootMisc.team.program")}
                     </span>
                     <span className="text-xs font-bold text-[var(--text-primary)]">
                       {program?.name || "—"}
@@ -679,15 +682,15 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div className="flex justify-between py-2 border-b border-[var(--border-primary)]">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Handler
+                      {t("rootMisc.team.handler")}
                     </span>
                     <span className="text-xs font-bold text-[var(--text-primary)]">
-                      {team.handler_name || "Unassigned"}
+                      {team.handler_name || t("rootMisc.team.unassigned")}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-[var(--border-primary)]">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Project
+                      {t("rootMisc.team.project")}
                     </span>
                     <span className="text-xs font-bold text-[var(--text-primary)]">
                       {program?.project_description || "—"}
@@ -695,25 +698,25 @@ export default function TeamDashboardPage({ params }) {
                   </div>
                   <div className="flex justify-between py-2">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Status
+                      {t("rootMisc.team.status")}
                     </span>
                     <span className="text-xs font-bold text-emerald-500 uppercase">
-                      Active
+                      {t("rootMisc.team.active")}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-t border-[var(--border-primary)]">
                     <span className="text-xs font-bold text-[var(--text-secondary)]">
-                      Venture Ready
+                      {t("rootMisc.team.ventureReady")}
                     </span>
                     <span
                       className={`text-xs font-bold uppercase ${team.is_venture_ready ? "text-emerald-500" : "text-[var(--text-tertiary)]"}`}
                     >
                       {team.is_venture_ready ? (
                         <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3" /> Ready
+                          <Star className="w-3 h-3" /> {t("rootMisc.team.ready")}
                         </span>
                       ) : (
-                        "Not Ready"
+                        t("rootMisc.team.notReady")
                       )}
                     </span>
                   </div>
@@ -743,8 +746,8 @@ export default function TeamDashboardPage({ params }) {
                         }}
                       >
                         {team.is_venture_ready
-                          ? "Unmark"
-                          : "Mark as Venture Ready"}
+                          ? t("rootMisc.team.unmark")
+                          : t("rootMisc.team.markAsVentureReady")}
                       </AppButton>
                     </div>
                   )}
@@ -754,11 +757,11 @@ export default function TeamDashboardPage({ params }) {
               {/* Members */}
               <AppCard padding="lg">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4">
-                  Team Members
+                  {t("rootMisc.team.teamMembers")}
                 </h3>
                 {members.length === 0 ? (
                   <p className="text-xs text-[var(--text-tertiary)] font-bold">
-                    No members linked yet.
+                    {t("rootMisc.team.noMembersYet")}
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -772,7 +775,7 @@ export default function TeamDashboardPage({ params }) {
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {m.name || "Unnamed"}
+                            {m.name || t("rootMisc.team.unnamed")}
                           </p>
                           <p className="text-[9px] text-[var(--text-tertiary)] truncate">
                             {m.email || ""}
@@ -790,7 +793,7 @@ export default function TeamDashboardPage({ params }) {
               <AppCard padding="lg">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
                   <Flag className="w-4 h-4 text-[var(--brand-orange)]" />
-                  Upcoming Deadlines
+                  {t("rootMisc.team.upcomingDeadlines")}
                 </h3>
                 <div className="space-y-2">
                   {upcomingDeadlines.slice(0, 5).map((d) => (
@@ -803,7 +806,7 @@ export default function TeamDashboardPage({ params }) {
                           {d.title}
                         </p>
                         <p className="text-[9px] text-[var(--text-tertiary)]">
-                          Week {d.week_number || "?"}
+                          {t("rootMisc.team.week")} {d.week_number || "?"}
                         </p>
                       </div>
                       <span className="text-[10px] font-black text-amber-500 uppercase">
@@ -825,8 +828,8 @@ export default function TeamDashboardPage({ params }) {
             {deliverables.length === 0
               ? renderEmpty(
                   <FileText className="w-6 h-6 text-[var(--text-tertiary)]" />,
-                  "No Deliverables Yet",
-                  "Deliverables will appear here once they are assigned to your program.",
+                  t("rootMisc.team.noDeliverables"),
+                  t("rootMisc.team.noDeliverablesDesc"),
                 )
               : deliverables.map((d) => {
                   const sub = getSubmissionStatus(d.id);
@@ -846,7 +849,7 @@ export default function TeamDashboardPage({ params }) {
                             </h4>
                             {isOverdue && (
                               <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-[9px] font-black text-rose-500 uppercase">
-                                Overdue
+                                {t("rootMisc.team.overdue")}
                               </span>
                             )}
                           </div>
@@ -857,11 +860,11 @@ export default function TeamDashboardPage({ params }) {
                           )}
                           <div className="flex items-center gap-4 mt-3">
                             <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">
-                              Week {d.week_number || "?"}
+                              {t("rootMisc.team.week")} {d.week_number || "?"}
                             </span>
                             {d.due_date && (
                               <span className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase">
-                                Due: {fmtDate(d.due_date)}
+                                {t("rootMisc.team.dueDate")}: {fmtDate(d.due_date)}
                               </span>
                             )}
                           </div>
@@ -880,12 +883,12 @@ export default function TeamDashboardPage({ params }) {
                                   className="inline-flex items-center gap-1 ml-3 text-[10px] font-bold text-[var(--brand-blue)] hover:underline"
                                 >
                                   <ExternalLink className="w-3 h-3" />
-                                  View Submission
+                                  {t("rootMisc.team.viewSubmission")}
                                 </a>
                               )}
                               {sub.feedback && (
                                 <p className="text-[10px] text-[var(--text-secondary)] mt-2 italic">
-                                  Feedback: {sub.feedback}
+                                  {t("rootMisc.team.feedback")}: {sub.feedback}
                                 </p>
                               )}
                             </div>
@@ -897,7 +900,7 @@ export default function TeamDashboardPage({ params }) {
                               <details className="mt-3">
                                 <summary className="text-[10px] font-bold text-[var(--text-tertiary)] cursor-pointer hover:text-[var(--brand-orange)] transition-colors uppercase tracking-wider flex items-center gap-1">
                                   <History className="w-3 h-3" />
-                                  Version History ({submissions[d.id].length})
+                                  {t("rootMisc.team.versionHistory")} ({submissions[d.id].length})
                                 </summary>
                                 <div className="mt-2 space-y-1.5 pl-2 border-l-2 border-[var(--border-primary)]">
                                   {submissions[d.id].map((v, vi) => (
@@ -916,7 +919,7 @@ export default function TeamDashboardPage({ params }) {
                                           rel="noopener noreferrer"
                                           className="text-[var(--brand-blue)] hover:underline"
                                         >
-                                          View
+                                          {t("rootMisc.team.view")}
                                         </a>
                                       )}
                                     </div>
@@ -940,7 +943,7 @@ export default function TeamDashboardPage({ params }) {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => openReviewModal(d)}
-                                title="Review submission"
+                                title={t("rootMisc.team.reviewSubmissionTitle")}
                               >
                                 <ClipboardCheck className="w-3.5 h-3.5" />
                               </AppButton>
@@ -950,7 +953,7 @@ export default function TeamDashboardPage({ params }) {
                             size="sm"
                             onClick={() => openSubmitModal(d)}
                           >
-                            {sub ? "Resubmit" : "Submit"}
+                            {sub ? t("rootMisc.team.resubmit") : t("rootMisc.team.submit")}
                           </AppButton>
                         </div>
                       </div>
@@ -969,7 +972,7 @@ export default function TeamDashboardPage({ params }) {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
                 <ListTodo className="w-4 h-4 text-[var(--brand-orange)]" />
-                Team Tasks
+                {t("rootMisc.team.teamTasks")}
               </h3>
               <AppButton
                 variant="primary"
@@ -986,7 +989,7 @@ export default function TeamDashboardPage({ params }) {
                   setShowTaskModal(true);
                 }}
               >
-                Add Task
+                {t("rootMisc.team.addTask")}
               </AppButton>
             </div>
 
@@ -995,7 +998,7 @@ export default function TeamDashboardPage({ params }) {
               <AppCard padding="md">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Progress ({tasks.filter((t) => t.status === "done").length}/
+                    {t("rootMisc.team.progress")} ({tasks.filter((t) => t.status === "done").length}/
                     {tasks.length})
                   </span>
                   <span className="text-[10px] font-black text-[var(--brand-orange)]">
@@ -1029,27 +1032,27 @@ export default function TeamDashboardPage({ params }) {
             ) : tasks.length === 0 ? (
               renderEmpty(
                 <ListTodo className="w-6 h-6 text-[var(--text-tertiary)]" />,
-                "No Tasks Yet",
-                "Create tasks to track your team's work.",
+                t("rootMisc.team.noTasksYet"),
+                t("rootMisc.team.noTasksDesc"),
               )
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {[
                   {
                     status: "todo",
-                    label: "To Do",
+                    label: t("rootMisc.team.taskToDo"),
                     icon: AlertCircle,
                     accent: "amber",
                   },
                   {
                     status: "in_progress",
-                    label: "In Progress",
+                    label: t("rootMisc.team.taskInProgress"),
                     icon: Activity,
                     accent: "indigo",
                   },
                   {
                     status: "done",
-                    label: "Done",
+                    label: t("rootMisc.team.taskDone"),
                     icon: CheckCircle2,
                     accent: "emerald",
                   },
@@ -1113,8 +1116,8 @@ export default function TeamDashboardPage({ params }) {
                                         className="p-1 rounded hover:bg-[var(--surface-3)] transition-colors text-[var(--text-tertiary)] hover:text-emerald-500"
                                         title={
                                           task.status === "todo"
-                                            ? "Move to In Progress"
-                                            : "Mark Done"
+                                            ? t("rootMisc.team.moveToInProgress")
+                                            : t("rootMisc.team.markDone")
                                         }
                                       >
                                         <ChevronRight className="w-3 h-3" />
@@ -1123,7 +1126,7 @@ export default function TeamDashboardPage({ params }) {
                                     <button
                                       onClick={() => handleDeleteTask(task.id)}
                                       className="p-1 rounded hover:bg-rose-500/10 transition-colors text-[var(--text-tertiary)] hover:text-rose-500"
-                                      title="Delete task"
+                                      title={t("rootMisc.team.deleteTaskTitle")}
                                     >
                                       <Trash2 className="w-3 h-3" />
                                     </button>
@@ -1153,7 +1156,7 @@ export default function TeamDashboardPage({ params }) {
                         {colTasks.length === 0 && (
                           <div className="p-4 rounded-xl border border-dashed border-[var(--border-primary)] text-center">
                             <p className="text-[10px] text-[var(--text-tertiary)] font-bold">
-                              No tasks
+                              {t("rootMisc.team.noTasks")}
                             </p>
                           </div>
                         )}
@@ -1173,7 +1176,7 @@ export default function TeamDashboardPage({ params }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                Shared Files & Resources
+                {t("rootMisc.team.sharedFiles")}
               </h3>
             </div>
             {!program?.resources_link &&
@@ -1181,8 +1184,8 @@ export default function TeamDashboardPage({ params }) {
             !program?.demo_link ? (
               renderEmpty(
                 <BookOpen className="w-6 h-6 text-[var(--text-tertiary)]" />,
-                "No Files Yet",
-                "Shared files and resources will appear here.",
+                t("rootMisc.team.noFiles"),
+                t("rootMisc.team.noFilesDesc"),
               )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1199,10 +1202,10 @@ export default function TeamDashboardPage({ params }) {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">
-                          Pitch Deck
+                          {t("rootMisc.team.pitchDeck")}
                         </p>
                         <p className="text-[9px] text-[var(--text-tertiary)]">
-                          View presentation
+                          {t("rootMisc.team.viewPresentation")}
                         </p>
                       </div>
                       <ExternalLink className="w-3.5 h-3.5 text-[var(--text-tertiary)] ml-auto" />
@@ -1222,10 +1225,10 @@ export default function TeamDashboardPage({ params }) {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">
-                          Live Demo
+                          {t("rootMisc.team.liveDemo")}
                         </p>
                         <p className="text-[9px] text-[var(--text-tertiary)]">
-                          Open application
+                          {t("rootMisc.team.openApplication")}
                         </p>
                       </div>
                       <ExternalLink className="w-3.5 h-3.5 text-[var(--text-tertiary)] ml-auto" />
@@ -1245,10 +1248,10 @@ export default function TeamDashboardPage({ params }) {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-[var(--text-primary)]">
-                          Resources
+                          {t("rootMisc.team.resources")}
                         </p>
                         <p className="text-[9px] text-[var(--text-tertiary)]">
-                          Shared materials
+                          {t("rootMisc.team.sharedMaterials")}
                         </p>
                       </div>
                       <ExternalLink className="w-3.5 h-3.5 text-[var(--text-tertiary)] ml-auto" />
@@ -1264,7 +1267,7 @@ export default function TeamDashboardPage({ params }) {
               .some((s) => s.file_url) && (
               <div className="mt-6">
                 <h4 className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                  Submitted Files
+                  {t("rootMisc.team.submittedFiles")}
                 </h4>
                 <div className="space-y-2">
                   {Object.entries(submissions).map(([delId, subs]) =>
@@ -1280,7 +1283,7 @@ export default function TeamDashboardPage({ params }) {
                             <div>
                               <p className="text-xs font-bold text-[var(--text-primary)]">
                                 {deliverables.find((d) => d.id === delId)
-                                  ?.title || "File"}
+                                  ?.title || t("rootMisc.team.file")}
                               </p>
                               <p className="text-[9px] text-[var(--text-tertiary)]">
                                 {fmtDate(s.created_at)}
@@ -1294,7 +1297,7 @@ export default function TeamDashboardPage({ params }) {
                             className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-blue)] hover:underline"
                           >
                             <Download className="w-3 h-3" />
-                            Download
+                            {t("rootMisc.team.download")}
                           </a>
                         </div>
                       )),
@@ -1314,11 +1317,11 @@ export default function TeamDashboardPage({ params }) {
             <AppCard padding="lg">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
                 <Flag className="w-4 h-4 text-[var(--brand-orange)]" />
-                Upcoming Deadlines
+                {t("rootMisc.team.upcomingDeadlines")}
               </h3>
               {upcomingDeadlines.length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)] font-bold">
-                  No upcoming deadlines.
+                  {t("rootMisc.team.noUpcomingDeadlines")}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -1343,7 +1346,7 @@ export default function TeamDashboardPage({ params }) {
                               {d.title}
                             </p>
                             <p className="text-[9px] text-[var(--text-tertiary)]">
-                              Week {d.week_number || "?"}
+                              {t("rootMisc.team.week")} {d.week_number || "?"}
                               {d.description ? ` — ${d.description}` : ""}
                             </p>
                           </div>
@@ -1356,7 +1359,7 @@ export default function TeamDashboardPage({ params }) {
                             />
                           ) : (
                             <span className="text-[10px] font-black text-amber-500 uppercase">
-                              Pending
+                              {t("rootMisc.team.pending")}
                             </span>
                           )}
                           <span className="text-[10px] font-black text-[var(--text-primary)]">
@@ -1374,11 +1377,11 @@ export default function TeamDashboardPage({ params }) {
             <AppCard padding="lg">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4 flex items-center gap-2">
                 <History className="w-4 h-4 text-[var(--text-secondary)]" />
-                Past Activity
+                {t("rootMisc.team.pastActivity")}
               </h3>
               {Object.values(submissions).flat().length === 0 ? (
                 <p className="text-xs text-[var(--text-tertiary)] font-bold">
-                  No submission activity yet.
+                  {t("rootMisc.team.noSubmissionsYet")}
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -1400,7 +1403,7 @@ export default function TeamDashboardPage({ params }) {
                           <div>
                             <p className="text-xs font-bold text-[var(--text-primary)]">
                               {deliverables.find((d) => d.id === s._delId)
-                                ?.title || "Submission"}
+                                ?.title || t("rootMisc.team.submission")}
                             </p>
                             <p className="text-[9px] text-[var(--text-tertiary)]">
                               {fmtDate(s.created_at)}
@@ -1432,7 +1435,7 @@ export default function TeamDashboardPage({ params }) {
               {/* Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                  Submit Deliverable
+                  {t("rootMisc.team.submitDeliverable")}
                 </h3>
                 <button
                   onClick={() => setShowSubmitModal(false)}
@@ -1458,7 +1461,7 @@ export default function TeamDashboardPage({ params }) {
                 {/* File Upload */}
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Upload File
+                    {t("rootMisc.team.uploadFile")}
                   </label>
                   <div className="relative">
                     <input
@@ -1472,21 +1475,21 @@ export default function TeamDashboardPage({ params }) {
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="w-4 h-4 animate-spin text-[var(--brand-orange)]" />
                           <span className="text-xs font-bold text-[var(--text-secondary)]">
-                            Uploading...
+                            {t("rootMisc.team.uploading")}
                           </span>
                         </div>
                       ) : submitFileUrl ? (
                         <div className="flex items-center justify-center gap-2">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                           <span className="text-xs font-bold text-emerald-500">
-                            File uploaded
+                            {t("rootMisc.team.fileUploaded")}
                           </span>
                         </div>
                       ) : (
                         <div>
                           <Upload className="w-5 h-5 text-[var(--text-tertiary)] mx-auto mb-1" />
                           <span className="text-xs font-bold text-[var(--text-tertiary)]">
-                            Click to upload
+                            {t("rootMisc.team.clickToUpload")}
                           </span>
                         </div>
                       )}
@@ -1497,7 +1500,7 @@ export default function TeamDashboardPage({ params }) {
                 {/* Or Link */}
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Or Paste Link
+                    {t("rootMisc.team.orPasteLink")}
                   </label>
                   <input
                     type="url"
@@ -1515,7 +1518,7 @@ export default function TeamDashboardPage({ params }) {
                   onClick={() => setShowSubmitModal(false)}
                   className="px-5 py-2.5 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest rounded-xl hover:bg-[var(--surface-3)] transition-colors"
                 >
-                  Cancel
+                  {t("rootMisc.team.cancel")}
                 </button>
                 <button
                   onClick={handleSubmitDeliverable}
@@ -1525,12 +1528,12 @@ export default function TeamDashboardPage({ params }) {
                   {submitting ? (
                     <>
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      Submitting...
+                      {t("rootMisc.team.submitting")}
                     </>
                   ) : (
                     <>
                       <Save className="w-3.5 h-3.5" />
-                      Submit
+                      {t("rootMisc.team.submit")}
                     </>
                   )}
                 </button>
@@ -1554,7 +1557,7 @@ export default function TeamDashboardPage({ params }) {
             <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                  Review Submission
+                  {t("rootMisc.team.reviewSubmission")}
                 </h3>
                 <button
                   onClick={() => {
@@ -1569,7 +1572,7 @@ export default function TeamDashboardPage({ params }) {
               <div className="p-6 space-y-4">
                 <div>
                   <p className="text-xs font-bold text-[var(--text-primary)]">
-                    {reviewSubData._deliverable?.title || "Deliverable"}
+                    {reviewSubData._deliverable?.title || t("rootMisc.team.deliverable")}
                   </p>
                   <div className="flex items-center gap-2 mt-1">
                     <AppStatusBadge
@@ -1583,7 +1586,7 @@ export default function TeamDashboardPage({ params }) {
                         rel="noopener noreferrer"
                         className="text-[10px] font-bold text-[var(--brand-blue)] hover:underline"
                       >
-                        View File <ExternalLink className="w-3 h-3 inline" />
+                        {t("rootMisc.team.viewFile")} <ExternalLink className="w-3 h-3 inline" />
                       </a>
                     )}
                   </div>
@@ -1591,12 +1594,12 @@ export default function TeamDashboardPage({ params }) {
 
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Feedback
+                    {t("rootMisc.team.feedback")}
                   </label>
                   <textarea
                     value={reviewFeedback}
                     onChange={(e) => setReviewFeedback(e.target.value)}
-                    placeholder="Write feedback for the team..."
+                    placeholder={t("rootMisc.team.feedbackPlaceholder")}
                     rows={3}
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors resize-none"
                   />
@@ -1605,7 +1608,7 @@ export default function TeamDashboardPage({ params }) {
                 {showFollowUpModal && (
                   <div className="space-y-2 p-3 rounded-xl bg-[var(--surface-3)]">
                     <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Schedule Follow-up
+                      {t("rootMisc.team.scheduleFollowUp")}
                     </label>
                     <input
                       type="datetime-local"
@@ -1625,7 +1628,7 @@ export default function TeamDashboardPage({ params }) {
                   onClick={() => handleReviewAction("approved")}
                   disabled={reviewing}
                 >
-                  Accept
+                  {t("rootMisc.team.accept")}
                 </AppButton>
                 <AppButton
                   variant="secondary"
@@ -1634,7 +1637,7 @@ export default function TeamDashboardPage({ params }) {
                   onClick={() => handleReviewAction("revision_requested")}
                   disabled={reviewing}
                 >
-                  Request Revision
+                  {t("rootMisc.team.requestRevision")}
                 </AppButton>
                 <AppButton
                   variant="secondary"
@@ -1644,7 +1647,7 @@ export default function TeamDashboardPage({ params }) {
                   disabled={reviewing}
                   style={{ color: "var(--chart-danger)" }}
                 >
-                  Reject
+                  {t("rootMisc.team.reject")}
                 </AppButton>
                 {showFollowUpModal ? (
                   <AppButton
@@ -1656,10 +1659,10 @@ export default function TeamDashboardPage({ params }) {
                   >
                     {reviewing ? (
                       <>
-                        <Loader2 className="w-3 h-3 animate-spin" /> Saving...
+                        <Loader2 className="w-3 h-3 animate-spin" /> {t("rootMisc.team.saving")}
                       </>
                     ) : (
-                      "Confirm Follow-up"
+                      t("rootMisc.team.confirmFollowUp")
                     )}
                   </AppButton>
                 ) : (
@@ -1670,7 +1673,7 @@ export default function TeamDashboardPage({ params }) {
                     onClick={() => setShowFollowUpModal(true)}
                     disabled={reviewing}
                   >
-                    Schedule Follow-up
+                    {t("rootMisc.team.scheduleFollowUp")}
                   </AppButton>
                 )}
               </div>
@@ -1690,7 +1693,7 @@ export default function TeamDashboardPage({ params }) {
             <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                  {editingTask ? "Edit Task" : "New Task"}
+                  {editingTask ? t("rootMisc.team.editTask") : t("rootMisc.team.newTask")}
                 </h3>
                 <button
                   onClick={() => setShowTaskModal(false)}
@@ -1702,27 +1705,27 @@ export default function TeamDashboardPage({ params }) {
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Title
+                    {t("rootMisc.team.title")}
                   </label>
                   <input
                     value={taskForm.title}
                     onChange={(e) =>
                       setTaskForm({ ...taskForm, title: e.target.value })
                     }
-                    placeholder="Task title..."
+                    placeholder={t("rootMisc.team.taskTitlePlaceholder")}
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                    Description
+                    {t("rootMisc.team.description")}
                   </label>
                   <textarea
                     value={taskForm.description}
                     onChange={(e) =>
                       setTaskForm({ ...taskForm, description: e.target.value })
                     }
-                    placeholder="Optional description..."
+                    placeholder={t("rootMisc.team.descriptionPlaceholder")}
                     rows={2}
                     className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors resize-none"
                   />
@@ -1730,7 +1733,7 @@ export default function TeamDashboardPage({ params }) {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Priority
+                      {t("rootMisc.team.priority")}
                     </label>
                     <select
                       value={taskForm.priority}
@@ -1739,15 +1742,15 @@ export default function TeamDashboardPage({ params }) {
                       }
                       className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
                     >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                      <option value="critical">Critical</option>
+                      <option value="low">{t("rootMisc.team.priorityLow")}</option>
+                      <option value="medium">{t("rootMisc.team.priorityMedium")}</option>
+                      <option value="high">{t("rootMisc.team.priorityHigh")}</option>
+                      <option value="critical">{t("rootMisc.team.priorityCritical")}</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                      Assign To
+                      {t("rootMisc.team.assignTo")}
                     </label>
                     <select
                       value={taskForm.assigned_to}
@@ -1759,7 +1762,7 @@ export default function TeamDashboardPage({ params }) {
                       }
                       className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60 transition-colors appearance-none cursor-pointer"
                     >
-                      <option value="">Anyone</option>
+                      <option value="">{t("rootMisc.team.anyone")}</option>
                       {members.map((m) => (
                         <option key={m.cid || m.id} value={m.cid || m.id}>
                           {m.name || m.email}
@@ -1774,7 +1777,7 @@ export default function TeamDashboardPage({ params }) {
                   onClick={() => setShowTaskModal(false)}
                   className="px-5 py-2.5 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest rounded-xl hover:bg-[var(--surface-3)] transition-colors"
                 >
-                  Cancel
+                  {t("rootMisc.team.cancel")}
                 </button>
                 <button
                   onClick={handleCreateTask}
@@ -1783,11 +1786,11 @@ export default function TeamDashboardPage({ params }) {
                 >
                   {savingTask ? (
                     <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t("rootMisc.team.saving")}
                     </>
                   ) : (
                     <>
-                      <Save className="w-3.5 h-3.5" /> Create
+                      <Save className="w-3.5 h-3.5" /> {t("rootMisc.team.create")}
                     </>
                   )}
                 </button>

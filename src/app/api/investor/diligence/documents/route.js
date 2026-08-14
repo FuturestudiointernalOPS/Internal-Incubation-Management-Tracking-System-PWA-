@@ -63,7 +63,7 @@ export async function GET(req) {
 
     if (download && docId) {
       const result = await db.execute({ sql: "SELECT * FROM dd_documents WHERE id = ?", args: [docId] });
-      if (result.rows.length === 0) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      if (result.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
       const session = await getSession();
       try {

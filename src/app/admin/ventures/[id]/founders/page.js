@@ -26,6 +26,7 @@ import {
   Edit3,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const VENTURE_ROLES = [
   "founder",
@@ -61,6 +62,7 @@ const ROLE_COLORS = {
 export default function VentureFoundersPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [venture, setVenture] = useState(null);
   const [founders, setFounders] = useState([]);
@@ -110,13 +112,13 @@ export default function VentureFoundersPage() {
       const ventureData = await ventureRes.json();
       const foundersData = await foundersRes.json();
 
-      if (!ventureData.success) throw new Error(ventureData.error || "Failed to load venture");
-      if (!foundersData.success) throw new Error(foundersData.error || "Failed to load founders");
+      if (!ventureData.success) throw new Error(t((ventureData.error || t("vadmin.founders.loadVentureFailed")) || "") || (ventureData.error || t("vadmin.founders.loadVentureFailed")));
+      if (!foundersData.success) throw new Error(t((foundersData.error || t("vadmin.founders.loadFoundersFailed")) || "") || (foundersData.error || t("vadmin.founders.loadFoundersFailed")));
 
       setVenture(ventureData.venture);
       setFounders(foundersData.founders || []);
     } catch (e) {
-      setError(e.message);
+      setError(t(e.message || "") || e.message);
     } finally {
       setLoading(false);
     }
@@ -124,7 +126,7 @@ export default function VentureFoundersPage() {
 
   const handleInvite = async () => {
     if (!inviteForm.email.trim() || !inviteForm.name.trim() || !inviteForm.role) {
-      notify("Please fill in all required fields", "error");
+      notify(t("vadmin.founders.fillRequiredFields"), "error");
       return;
     }
 
@@ -139,15 +141,15 @@ export default function VentureFoundersPage() {
       const data = await res.json();
 
       if (data.success) {
-        notify(`Invitation sent to ${inviteForm.name}`);
+        notify(t("vadmin.founders.inviteSent", { name: inviteForm.name }));
         setShowInviteModal(false);
         setInviteForm({ email: "", name: "", role: "co-founder" });
         fetchData();
       } else {
-        notify(data.error || "Failed to send invitation", "error");
+        notify(t((data.error || t("vadmin.founders.inviteFailed")) || "") || (data.error || t("vadmin.founders.inviteFailed")), "error");
       }
     } catch (e) {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     } finally {
       setInviting(false);
     }
@@ -166,17 +168,17 @@ export default function VentureFoundersPage() {
       const data = await res.json();
 
       if (data.success) {
-        notify("Ownership transferred successfully");
+        notify(t("vadmin.founders.ownershipTransferredSuccess"));
         setShowTransferModal(false);
         setTransferTarget("");
         setConfirmAction(null);
         fetchData();
       } else {
-        notify(data.error || "Transfer failed", "error");
+        notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
         setConfirmAction(null);
       }
     } catch (e) {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     } finally {
       setTransferring(false);
     }
@@ -189,14 +191,14 @@ export default function VentureFoundersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("User suspended");
+        notify(t("vadmin.founders.userSuspended"));
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || "Failed to suspend", "error");
+        notify(t((data.error || t("vadmin.founders.suspendFailed")) || "") || (data.error || t("vadmin.founders.suspendFailed")), "error");
       }
     } catch {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     }
   };
 
@@ -207,14 +209,14 @@ export default function VentureFoundersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("User reactivated");
+        notify(t("vadmin.founders.userReactivated"));
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || "Failed to reactivate", "error");
+        notify(t((data.error || t("vadmin.founders.reactivateFailed")) || "") || (data.error || t("vadmin.founders.reactivateFailed")), "error");
       }
     } catch {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     }
   };
 
@@ -225,16 +227,16 @@ export default function VentureFoundersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Founder removed");
+        notify(t("vadmin.founders.founderRemoved"));
         setOpenMenuId(null);
         setConfirmAction(null);
         fetchData();
       } else {
-        notify(data.error || "Failed to remove", "error");
+        notify(t((data.error || t("vadmin.founders.removeFailed")) || "") || (data.error || t("vadmin.founders.removeFailed")), "error");
         setConfirmAction(null);
       }
     } catch {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     }
   };
 
@@ -247,14 +249,14 @@ export default function VentureFoundersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Role updated");
+        notify(t("vadmin.founders.roleUpdated"));
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || "Failed to update role", "error");
+        notify(t((data.error || t("vadmin.founders.roleUpdateFailed")) || "") || (data.error || t("vadmin.founders.roleUpdateFailed")), "error");
       }
     } catch {
-      notify("Network error", "error");
+      notify(t("vadmin.founders.networkError"), "error");
     }
   };
 
@@ -291,10 +293,10 @@ export default function VentureFoundersPage() {
       <DashboardLayout role="super_admin">
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Error</h2>
-          <p className="text-slate-500 mb-6">{error || "Venture not found"}</p>
+          <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.founders.errorTitle")}</h2>
+          <p className="text-slate-500 mb-6">{error || t("vadmin.founders.ventureNotFound")}</p>
           <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">
-            Back to Ventures
+            {t("vadmin.founders.backToVentures")}
           </button>
         </div>
       </DashboardLayout>
@@ -323,7 +325,7 @@ export default function VentureFoundersPage() {
               onClick={() => router.push(`/admin/ventures/${id}`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-3"
             >
-              <ArrowLeft className="w-3 h-3" /> Back to {venture.company_name}
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.founders.backToVenture", { name: venture.company_name })}
             </button>
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
@@ -331,10 +333,10 @@ export default function VentureFoundersPage() {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-[var(--text-primary)] tracking-tight">
-                  Founder Management
+                  {t("vadmin.founders.title")}
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {venture.company_name} · {founders.length} member{founders.length !== 1 ? "s" : ""}
+                  {venture.company_name} · {t("vadmin.founders.memberCount", { count: founders.length })}
                 </p>
               </div>
             </div>
@@ -345,13 +347,13 @@ export default function VentureFoundersPage() {
               disabled={!owner}
               className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-30 flex items-center gap-2"
             >
-              <Crown className="w-3.5 h-3.5" /> Transfer Ownership
+              <Crown className="w-3.5 h-3.5" /> {t("vadmin.founders.transferOwnership")}
             </button>
             <button
               onClick={() => setShowInviteModal(true)}
               className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
             >
-              <UserPlus className="w-3.5 h-3.5" /> Invite Member
+              <UserPlus className="w-3.5 h-3.5" /> {t("vadmin.founders.inviteMember")}
             </button>
           </div>
         </div>
@@ -366,7 +368,7 @@ export default function VentureFoundersPage() {
               <p className="text-xs font-bold text-[var(--text-primary)]">
                 {owner.name} · {owner.email}
               </p>
-              <p className="text-[9px] text-slate-500">Current Owner — Can transfer ownership</p>
+              <p className="text-[9px] text-slate-500">{t("vadmin.founders.ownerHint")}</p>
             </div>
           </div>
         )}
@@ -376,7 +378,7 @@ export default function VentureFoundersPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="Search founders by name, email, or role..."
+            placeholder={t("vadmin.founders.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-3 bg-secondary border border-[var(--border-primary)] rounded-xl text-sm text-[var(--text-primary)] placeholder-slate-500 focus:outline-none focus:border-[var(--brand-orange)]/50 transition-all"
@@ -388,14 +390,14 @@ export default function VentureFoundersPage() {
           <div className="text-center py-20">
             <User className="w-16 h-16 text-slate-600 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
-              {searchQuery ? "No matches" : "No founders yet"}
+              {searchQuery ? t("vadmin.founders.noMatches") : t("vadmin.founders.noFounders")}
             </h3>
             <p className="text-sm text-slate-500 mb-6">
-              {searchQuery ? "Try a different search" : "Invite your first team member"}
+              {searchQuery ? t("vadmin.founders.tryDifferentSearch") : t("vadmin.founders.inviteFirstMember")}
             </p>
             {!searchQuery && (
               <button onClick={() => setShowInviteModal(true)} className="btn btn-primary gap-2">
-                <UserPlus className="w-4 h-4" /> Invite Member
+                <UserPlus className="w-4 h-4" /> {t("vadmin.founders.inviteMember")}
               </button>
             )}
           </div>
@@ -436,17 +438,17 @@ export default function VentureFoundersPage() {
                           </p>
                           {isOwner && (
                             <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 flex items-center gap-1">
-                              <Crown className="w-2.5 h-2.5" /> Owner
+                              <Crown className="w-2.5 h-2.5" /> {t("vadmin.founders.owner")}
                             </span>
                           )}
                           {isSuspended && (
                             <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400">
-                              Suspended
+                              {t("vadmin.founders.suspended")}
                             </span>
                           )}
                           {founder.status === "pending" && (
                             <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400">
-                              Pending
+                              {t("vadmin.founders.pending")}
                             </span>
                           )}
                         </div>
@@ -464,7 +466,7 @@ export default function VentureFoundersPage() {
                           )}
                         </div>
                         {founder.invitation_expired && founder.status === "pending" && (
-                          <p className="text-[8px] text-rose-400 mt-1">Invitation expired</p>
+                          <p className="text-[8px] text-rose-400 mt-1">{t("vadmin.founders.invitationExpired")}</p>
                         )}
                       </div>
                     </div>
@@ -485,15 +487,19 @@ export default function VentureFoundersPage() {
                             <div className="p-2 space-y-0.5">
                               {/* Role selector */}
                               <div className="px-3 py-2">
-                                <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Change Role</p>
+                                <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider mb-1.5">{t("vadmin.founders.changeRole")}</p>
                                 <select
                                   value={founder.role}
                                   onChange={(e) => {
                                     if (e.target.value !== founder.role) {
                                       setConfirmAction({
-                                        title: "Update Role",
-                                        message: `Change ${founder.name}'s role from "${founder.role}" to "${e.target.value}"?`,
-                                        confirmLabel: "Update Role",
+                                        title: t("vadmin.founders.updateRole"),
+                                        message: t("vadmin.founders.updateRoleMessage", {
+                                          name: founder.name,
+                                          current: founder.role,
+                                          new: e.target.value,
+                                        }),
+                                        confirmLabel: t("vadmin.founders.updateRole"),
                                         onConfirm: () => handleRoleUpdate(founder.id, e.target.value),
                                       });
                                     }
@@ -512,9 +518,9 @@ export default function VentureFoundersPage() {
                                 <button
                                   onClick={() => {
                                     setConfirmAction({
-                                      title: "Transfer Ownership",
-                                      message: `Transfer ownership to ${founder.name}? This cannot be undone without another transfer.`,
-                                      confirmLabel: "Transfer",
+                                      title: t("vadmin.founders.transferOwnership"),
+                                      message: t("vadmin.founders.transferConfirmMessage", { name: founder.name }),
+                                      confirmLabel: t("vadmin.founders.transfer"),
                                       onConfirm: async () => {
                                         setTransferTarget(String(founder.id));
                                         setOpenMenuId(null);
@@ -529,21 +535,21 @@ export default function VentureFoundersPage() {
                                           });
                                           const data = await res.json();
                                           if (data.success) {
-                                            notify("Ownership transferred");
+                                            notify(t("vadmin.founders.ownershipTransferred"));
                                             setConfirmAction(null);
                                             fetchData();
                                           } else {
-                                            notify(data.error || "Transfer failed", "error");
+                                            notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                                             setConfirmAction(null);
                                           }
-                                        } catch { notify("Network error", "error"); setConfirmAction(null); }
+                                        } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }
                                         setTransferring(false);
                                       },
                                     });
                                   }}
                                   className="w-full text-left px-3 py-2 text-[9px] font-bold text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-2"
                                 >
-                                  <Crown className="w-3 h-3" /> Transfer Ownership
+                                  <Crown className="w-3 h-3" /> {t("vadmin.founders.transferOwnership")}
                                 </button>
                               )}
 
@@ -552,7 +558,7 @@ export default function VentureFoundersPage() {
                                   onClick={() => handleReactivate(founder.id)}
                                   className="w-full text-left px-3 py-2 text-[9px] font-bold text-emerald-400 hover:bg-emerald-500/10 rounded-lg transition-all flex items-center gap-2"
                                 >
-                                  <RefreshCw className="w-3 h-3" /> Reactivate
+                                  <RefreshCw className="w-3 h-3" /> {t("vadmin.founders.reactivate")}
                                 </button>
                               ) : (
                                 !isOwner && (
@@ -560,7 +566,7 @@ export default function VentureFoundersPage() {
                                     onClick={() => handleSuspend(founder.id)}
                                     className="w-full text-left px-3 py-2 text-[9px] font-bold text-amber-400 hover:bg-amber-500/10 rounded-lg transition-all flex items-center gap-2"
                                   >
-                                    <Ban className="w-3 h-3" /> Suspend
+                                    <Ban className="w-3 h-3" /> {t("vadmin.founders.suspend")}
                                   </button>
                                 )
                               )}
@@ -571,9 +577,12 @@ export default function VentureFoundersPage() {
                                   <button
                                     onClick={() => {
                                       setConfirmAction({
-                                        title: "Remove Founder",
-                                        message: `Are you sure you want to remove ${founder.name} from ${venture.company_name}? This action cannot be undone.`,
-                                        confirmLabel: "Remove",
+                                        title: t("vadmin.founders.removeFounder"),
+                                        message: t("vadmin.founders.removeConfirmMessage", {
+                                          name: founder.name,
+                                          company: venture.company_name,
+                                        }),
+                                        confirmLabel: t("vadmin.founders.remove"),
                                         variant: "danger",
                                         onConfirm: () => handleRemove(founder.id),
                                       });
@@ -581,7 +590,7 @@ export default function VentureFoundersPage() {
                                     }}
                                     className="w-full text-left px-3 py-2 text-[9px] font-bold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all flex items-center gap-2"
                                   >
-                                    <Trash2 className="w-3 h-3" /> Remove
+                                    <Trash2 className="w-3 h-3" /> {t("vadmin.founders.remove")}
                                   </button>
                                 </>
                               )}
@@ -608,8 +617,8 @@ export default function VentureFoundersPage() {
                   <UserPlus className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">Invite Member</h2>
-                  <p className="text-[9px] text-slate-500">Add a founder, co-founder, or executive</p>
+                  <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.founders.inviteMember")}</h2>
+                  <p className="text-[9px] text-slate-500">{t("vadmin.founders.inviteModalSubtitle")}</p>
                 </div>
               </div>
               <button onClick={() => setShowInviteModal(false)} className="p-2 hover:bg-white/5 rounded-lg">
@@ -619,29 +628,29 @@ export default function VentureFoundersPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Email *</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.emailLabel")}</label>
                 <input
                   type="email"
                   value={inviteForm.email}
                   onChange={(e) => setInviteForm((p) => ({ ...p, email: e.target.value }))}
-                  placeholder="co-founder@example.com"
+                  placeholder={t("vadmin.founders.emailPlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Name *</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.nameLabel")}</label>
                 <input
                   type="text"
                   value={inviteForm.name}
                   onChange={(e) => setInviteForm((p) => ({ ...p, name: e.target.value }))}
-                  placeholder="Full name"
+                  placeholder={t("vadmin.founders.namePlaceholder")}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
 
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Role *</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.founders.roleLabel")}</label>
                 <select
                   value={inviteForm.role}
                   onChange={(e) => setInviteForm((p) => ({ ...p, role: e.target.value }))}
@@ -659,7 +668,7 @@ export default function VentureFoundersPage() {
                 onClick={() => setShowInviteModal(false)}
                 className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("vadmin.founders.cancel")}
               </button>
               <button
                 onClick={handleInvite}
@@ -667,7 +676,7 @@ export default function VentureFoundersPage() {
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                {inviting ? "Sending..." : "Send Invitation"}
+                {inviting ? t("vadmin.founders.sending") : t("vadmin.founders.sendInvitation")}
               </button>
             </div>
           </div>
@@ -684,8 +693,8 @@ export default function VentureFoundersPage() {
                   <Crown className="w-5 h-5 text-amber-400" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-black text-[var(--text-primary)]">Transfer Ownership</h2>
-                  <p className="text-[9px] text-slate-500">Select the new owner</p>
+                  <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.founders.transferOwnership")}</h2>
+                  <p className="text-[9px] text-slate-500">{t("vadmin.founders.selectNewOwner")}</p>
                 </div>
               </div>
               <button onClick={() => setShowTransferModal(false)} className="p-2 hover:bg-white/5 rounded-lg">
@@ -701,9 +710,9 @@ export default function VentureFoundersPage() {
                     key={f.id}
                     onClick={() => {
                       setConfirmAction({
-                        title: "Transfer Ownership",
-                        message: `Transfer ownership to ${f.name} (${f.email})? The current owner will lose owner privileges.`,
-                        confirmLabel: "Transfer Ownership",
+                        title: t("vadmin.founders.transferOwnership"),
+                        message: t("vadmin.founders.transferConfirmDetailed", { name: f.name, email: f.email }),
+                        confirmLabel: t("vadmin.founders.transferOwnership"),
                         onConfirm: async () => {
                           setTransferTarget(String(f.id));
                           setShowTransferModal(false);
@@ -716,14 +725,14 @@ export default function VentureFoundersPage() {
                             });
                             const data = await res.json();
                             if (data.success) {
-                              notify(`Ownership transferred to ${f.name}`);
+                              notify(t("vadmin.founders.ownershipTransferredTo", { name: f.name }));
                               setConfirmAction(null);
                               fetchData();
                             } else {
-                              notify(data.error || "Transfer failed", "error");
+                              notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                               setConfirmAction(null);
                             }
-                          } catch { notify("Network error", "error"); setConfirmAction(null); }
+                          } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }
                           setTransferring(false);
                         },
                       });
@@ -742,7 +751,7 @@ export default function VentureFoundersPage() {
                 ))}
               {founders.filter((f) => !f.is_owner && !f.suspended_at && f.status === "accepted").length === 0 && (
                 <p className="text-sm text-slate-500 text-center py-8">
-                  No eligible founders. All active, non-suspended founders can receive ownership.
+                  {t("vadmin.founders.noEligibleFounders")}
                 </p>
               )}
             </div>
@@ -751,7 +760,7 @@ export default function VentureFoundersPage() {
               onClick={() => setShowTransferModal(false)}
               className="w-full py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
-              Cancel
+              {t("vadmin.founders.cancel")}
             </button>
           </div>
         </div>
@@ -779,7 +788,7 @@ export default function VentureFoundersPage() {
                 onClick={() => setConfirmAction(null)}
                 className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("vadmin.founders.cancel")}
               </button>
               <button
                 onClick={() => {
@@ -793,7 +802,7 @@ export default function VentureFoundersPage() {
                 }`}
               >
                 {transferring ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                {transferring ? "Processing..." : confirmAction.confirmLabel}
+                {transferring ? t("vadmin.founders.processing") : confirmAction.confirmLabel}
               </button>
             </div>
           </div>

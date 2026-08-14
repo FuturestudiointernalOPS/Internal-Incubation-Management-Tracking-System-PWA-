@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Send, DollarSign, Calendar, Building2, FileText, CheckCircle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function FinanceEntryPage() {
+  const { t } = useI18n();
   const [form, setForm] = useState({
     project: "",
     budgetLine: "",
@@ -57,7 +59,7 @@ export default function FinanceEntryPage() {
         setLineSearch("");
         setTimeout(() => setSuccess(false), 4000);
       } else {
-        setError(data.error || "Submission failed.");
+        setError(t((data.error || "Submission failed.") || "") || (data.error || "Submission failed."));
       }
     } catch (e) {
       setError("Network error.");
@@ -72,15 +74,15 @@ export default function FinanceEntryPage() {
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <DollarSign className="w-6 h-6 text-emerald-500" />
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">Transaction Entry</h1>
-            <p className="text-[10px] text-[var(--text-secondary)]">Log a new financial transaction</p>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">{t("rootMisc.finance.title")}</h1>
+            <p className="text-[10px] text-[var(--text-secondary)]">{t("rootMisc.finance.subtitle")}</p>
           </div>
         </header>
 
         {success && (
           <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
             <CheckCircle className="w-5 h-5" />
-            <span className="text-xs font-bold">Transaction logged successfully</span>
+            <span className="text-xs font-bold">{t("rootMisc.finance.transactionLogged")}</span>
           </div>
         )}
 
@@ -92,14 +94,14 @@ export default function FinanceEntryPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Project */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Project *</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.projectLabel")}</label>
               <select
                 required
                 value={form.project}
                 onChange={(e) => setForm({ ...form, project: e.target.value, budgetLine: "" })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
               >
-                <option value="">Select Project...</option>
+                <option value="">{t("rootMisc.finance.selectProject")}</option>
                 <option value="Future Studio">Future Studio</option>
                 <option value="MTN Innovation Lab">MTN Innovation Lab</option>
                 <option value="Sème City">Sème City</option>
@@ -108,7 +110,7 @@ export default function FinanceEntryPage() {
 
             {/* Date */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Date *</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.dateLabel")}</label>
               <input
                 type="date"
                 required
@@ -120,11 +122,11 @@ export default function FinanceEntryPage() {
 
             {/* Budget Line */}
             <div className="space-y-2 md:col-span-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Budget Line *</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.budgetLineLabel")}</label>
               <input
                 type="text"
                 required
-                placeholder="Search or type budget line..."
+                placeholder={t("rootMisc.finance.searchBudgetLine")}
                 value={lineSearch}
                 onChange={(e) => setLineSearch(e.target.value)}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
@@ -147,10 +149,10 @@ export default function FinanceEntryPage() {
 
             {/* Supplier */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Supplier</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.supplierLabel")}</label>
               <input
                 type="text"
-                placeholder="Supplier name..."
+                placeholder={t("rootMisc.finance.supplierPlaceholder")}
                 value={form.supplier}
                 onChange={(e) => setForm({ ...form, supplier: e.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
@@ -159,7 +161,7 @@ export default function FinanceEntryPage() {
 
             {/* Amount */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Amount (FCFA) *</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.amountLabel")}</label>
               <input
                 type="number"
                 required
@@ -173,23 +175,23 @@ export default function FinanceEntryPage() {
 
             {/* Type */}
             <div className="space-y-2">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Type</label>
+              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.typeLabel")}</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none"
               >
-                <option value="expense">Expense</option>
-                <option value="income">Income</option>
+                <option value="expense">{t("rootMisc.finance.expense")}</option>
+                <option value="income">{t("rootMisc.finance.income")}</option>
               </select>
             </div>
           </div>
 
           {/* Description */}
           <div className="space-y-2">
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Description</label>
+            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("rootMisc.finance.descriptionLabel")}</label>
             <textarea
-              placeholder="Transaction details..."
+              placeholder={t("rootMisc.finance.descriptionPlaceholder")}
               rows={3}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -202,7 +204,7 @@ export default function FinanceEntryPage() {
             disabled={submitting}
             className="w-full py-4 bg-emerald-500 text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {submitting ? "Submitting..." : <><Send className="w-4 h-4" /> Log Transaction</>}
+            {submitting ? t("rootMisc.finance.submitting") : <><Send className="w-4 h-4" /> {t("rootMisc.finance.logTransaction")}</>}
           </button>
         </form>
       </div>

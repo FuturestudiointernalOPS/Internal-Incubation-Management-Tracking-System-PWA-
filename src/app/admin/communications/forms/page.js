@@ -1,7 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import Link from "next/link";
 import {
+  ArrowLeft,
   Plus,
   CheckSquare,
   AlignLeft,
@@ -16,8 +18,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { IMPACT_CACHE } from "@/utils/impactCache";
+import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
+import { formatLocaleDate } from "@/lib/constants";
 
 export default function FormsPage() {
+  const { t, lang } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
+
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -79,7 +87,7 @@ export default function FormsPage() {
     const newField = {
       id: Date.now().toString(),
       type,
-      label: type === "text" ? "Enter question text..." : "Yes/No choice...",
+      label: type === "text" ? t("crm.forms.questionTextPlaceholder") : t("crm.forms.questionYesNoPlaceholder"),
       required: true,
     };
     setSchema([...schema, newField]);
@@ -97,7 +105,7 @@ export default function FormsPage() {
     if (!formName) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Form needs a name." },
+          detail: { type: "error", message: t("crm.forms.formNeedsName") },
         }),
       );
       return;
@@ -105,7 +113,7 @@ export default function FormsPage() {
     if (schema.length === 0) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Add at least one question." },
+          detail: { type: "error", message: t("crm.forms.addAtLeastOneQuestion") },
         }),
       );
       return;
@@ -147,13 +155,13 @@ export default function FormsPage() {
         fetchForms();
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Saved" },
+            detail: { type: "success", message: t("crm.forms.saved") },
           }),
         );
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error },
+            detail: { type: "error", message: t(data.error || "") || data.error },
           }),
         );
       }
@@ -176,7 +184,7 @@ export default function FormsPage() {
         fetchForms();
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Archived" },
+            detail: { type: "success", message: t("crm.forms.archived") },
           }),
         );
       } else {
@@ -184,7 +192,7 @@ export default function FormsPage() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || "Failed to archive form.",
+              message: t((data.error || t("crm.forms.archiveFailed")) || "") || (data.error || t("crm.forms.archiveFailed")),
             },
           }),
         );
@@ -232,7 +240,7 @@ export default function FormsPage() {
     setCopiedLink(formId);
     window.dispatchEvent(
       new CustomEvent("impactos:notify", {
-        detail: { type: "success", message: "Public link copied." },
+        detail: { type: "success", message: t("crm.forms.publicLinkCopied") },
       }),
     );
     setTimeout(() => setCopiedLink(""), 2000);
@@ -247,13 +255,30 @@ export default function FormsPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        {/* Back navigation */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button
+            onClick={goBack}
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToPrevious")}
+          </button>
+          <Link
+            href="/admin/crm"
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToCrm")}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">
-              Forms
+              {t("crm.forms.forms")}
             </h2>
             <p className="text-slate-400 font-bold tracking-tight">
-              Create forms to collect information from people.
+              {t("crm.forms.formsSubtitle")}
             </p>
           </div>
           <div className="flex gap-4">
@@ -266,7 +291,7 @@ export default function FormsPage() {
               }}
               className="btn-prime !py-4 shadow-[#FF6600]/10"
             >
-              <Plus className="w-5 h-5 mr-2" /> New Form
+              <Plus className="w-5 h-5 mr-2" /> {t("crm.forms.newForm")}
             </button>
           </div>
         </header>
@@ -276,7 +301,7 @@ export default function FormsPage() {
             <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search forms..."
+              placeholder={t("crm.forms.searchForms")}
               value={searchForms}
               onChange={(e) => setSearchForms(e.target.value)}
               className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-14 pr-6 text-white outline-none focus:border-[#FF6600]/80/30 transition-colors font-bold placeholder:text-slate-600"
@@ -292,10 +317,10 @@ export default function FormsPage() {
           <div className="p-20 text-center bg-white/5 border border-dashed border-white/10 rounded-[3rem]">
             <CheckSquare className="w-16 h-16 text-slate-500 mx-auto mb-6 opacity-50" />
             <h4 className="text-xl font-black text-white uppercase tracking-tighter mb-2">
-              No Forms
+              {t("crm.forms.noForms")}
             </h4>
             <p className="text-slate-400 text-sm font-bold">
-              Build your first form to start collecting responses.
+              {t("crm.forms.noFormsHint")}
             </p>
           </div>
         ) : (
@@ -310,19 +335,19 @@ export default function FormsPage() {
                     <button
                       onClick={() => handleEdit(f)}
                       className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-[#FF6600] transition-all"
-                      title="Edit Structure"
+                      title={t("crm.forms.editStructure")}
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => deleteForm(f.form_id)}
                       className="p-2 rounded-lg bg-white/5 border border-white/5 text-slate-500 hover:text-rose-500 transition-all"
-                      title="Archive Form"
+                      title={t("crm.forms.archiveForm")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                     <span className="badge badge-glow-success uppercase text-[8px] font-black h-fit ml-2">
-                      ACTIVE
+                      {t("crm.forms.active")}
                     </span>
                   </div>
                 </div>
@@ -331,13 +356,13 @@ export default function FormsPage() {
                   {f.name}
                 </h3>
                 <p className="text-xs text-slate-500 font-bold mb-6 italic">
-                  ID: {f.form_id}
+                  {t("crm.forms.idLabel")} {f.form_id}
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col">
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                      Questions
+                      {t("crm.forms.questions")}
                     </p>
                     <p className="text-lg font-black text-white">
                       {f.schema.length}
@@ -348,9 +373,9 @@ export default function FormsPage() {
                     className="bg-[#FF6600]/10 border border-[#FF6600]/20 rounded-2xl p-4 flex flex-col hover:bg-[#FF6600]/20 transition-all group/resp"
                   >
                     <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/resp:text-[#FF6600]">
-                      Responses
+                      {t("crm.forms.responses")}
                     </p>
-                    <p className="text-lg font-black text-white">View List</p>
+                    <p className="text-lg font-black text-white">{t("crm.forms.viewList")}</p>
                   </button>
                 </div>
 
@@ -363,7 +388,9 @@ export default function FormsPage() {
                   ) : (
                     <Copy className="w-4 h-4" />
                   )}
-                  {copiedLink === f.form_id ? "Link Copied" : "Copy Form Link"}
+                  {copiedLink === f.form_id
+                    ? t("crm.forms.linkCopied")
+                    : t("crm.forms.copyFormLink")}
                 </button>
               </div>
             ))}
@@ -382,10 +409,10 @@ export default function FormsPage() {
                 </button>
                 <div>
                   <h3 className="text-xl font-black text-white uppercase tracking-tighter">
-                    {selectedForm.name} — Responses
+                    {selectedForm.name} — {t("crm.forms.responses")}
                   </h3>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
-                    {responses.length} Submissions Found
+                    {t("crm.forms.submissionsFound", { count: responses.length })}
                   </p>
                 </div>
               </div>
@@ -396,16 +423,16 @@ export default function FormsPage() {
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
                     <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
-                      Respondent
+                      {t("crm.forms.respondent")}
                     </th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
-                      Origin Group
+                      {t("crm.forms.originGroup")}
                     </th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
-                      Submission Date
+                      {t("crm.forms.submissionDate")}
                     </th>
                     <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
-                      Action
+                      {t("crm.forms.action")}
                     </th>
                   </tr>
                 </thead>
@@ -417,20 +444,20 @@ export default function FormsPage() {
                     >
                       <td className="px-8 py-6">
                         <p className="font-black text-white uppercase italic">
-                          {r.name || "Anonymous"}
+                          {r.name || t("crm.forms.anonymous")}
                         </p>
                         <p className="text-[10px] font-bold text-slate-500 font-mono">
-                          {r.email || r.cid || "N/A"}
+                          {r.email || r.cid || t("crm.forms.na")}
                         </p>
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-[10px] font-black text-white uppercase italic">
-                          {r.group_name || "Individual"}
+                          {r.group_name || t("crm.forms.individual")}
                         </p>
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-xs font-bold text-slate-400">
-                          {new Date(r.created_at).toLocaleString()}
+                          {formatLocaleDate(r.created_at, { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }, lang)}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-right">
@@ -441,7 +468,7 @@ export default function FormsPage() {
                           }}
                           className="px-4 py-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-400 hover:text-[#FF6600] transition-all border border-white/5 text-[10px] font-black uppercase tracking-widest"
                         >
-                          View Details
+                          {t("crm.forms.viewDetails")}
                         </button>
                       </td>
                     </tr>
@@ -452,7 +479,7 @@ export default function FormsPage() {
                         colSpan="3"
                         className="px-8 py-20 text-center text-slate-500 font-bold uppercase text-sm tracking-widest"
                       >
-                        No responses yet for this form.
+                        {t("crm.forms.noResponsesYet")}
                       </td>
                     </tr>
                   )}
@@ -472,10 +499,10 @@ export default function FormsPage() {
               <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
                 <div>
                   <h4 className="text-xl font-black text-white uppercase italic">
-                    Response Details
+                    {t("crm.forms.responseDetails")}
                   </h4>
                   <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">
-                    {selectedResponse.name || "Anonymous Respondent"}
+                    {selectedResponse.name || t("crm.forms.anonymousRespondent")}
                   </p>
                 </div>
                 <button
@@ -490,7 +517,7 @@ export default function FormsPage() {
                   ([key, val], idx) => (
                     <div key={idx} className="space-y-2">
                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        Question {idx + 1}
+                        {t("crm.forms.questionNumber", { n: idx + 1 })}
                       </p>
                       <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
                         <p className="text-sm font-bold text-white leading-relaxed">
@@ -515,12 +542,12 @@ export default function FormsPage() {
               <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-[#0d0d18] flex-shrink-0">
                 <div>
                   <h3 className="text-2xl font-black text-white uppercase tracking-tighter">
-                    {editFormId ? "Modify Form" : "New Form"}
+                    {editFormId ? t("crm.forms.modifyForm") : t("crm.forms.newForm")}
                   </h3>
                   <p className="text-sm text-slate-400 font-bold">
                     {editFormId
-                      ? "Update question nodes and logic."
-                      : "Add questions to your new form."}
+                      ? t("crm.forms.updateQuestionNodes")
+                      : t("crm.forms.addQuestionsToNewForm")}
                   </p>
                 </div>
                 <button
@@ -535,11 +562,11 @@ export default function FormsPage() {
                 <div className="max-w-2xl mx-auto space-y-8">
                   <div>
                     <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-3">
-                      Form Name
+                      {t("crm.forms.formNameLabel")}
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Feedback Form..."
+                      placeholder={t("crm.forms.formNamePlaceholder")}
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                       className="w-full bg-transparent border-b-2 border-white/10 py-2 text-3xl font-black text-white outline-none focus:border-[#FF6600]/80/50 transition-colors placeholder:text-slate-700 mb-6"
@@ -548,7 +575,7 @@ export default function FormsPage() {
 
                   <div className="space-y-4">
                     <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">
-                      Deployment Context (Target Group)
+                      {t("crm.forms.deploymentContext")}
                     </label>
                     <div className="flex gap-4">
                       <select
@@ -564,7 +591,7 @@ export default function FormsPage() {
                         }}
                       >
                         <option value="" className="bg-[#0f0f1a]">
-                          General / No Specific Group
+                          {t("crm.forms.generalNoSpecificGroup")}
                         </option>
                         {families.map((f) => (
                           <option
@@ -579,13 +606,13 @@ export default function FormsPage() {
                           value="NEW"
                           className="bg-[#0f0f1a] text-[#FF6600] font-black"
                         >
-                          + Create New Group
+                          {t("crm.forms.createNewGroup")}
                         </option>
                       </select>
 
                       {showNewGroupInput && (
                         <input
-                          placeholder="Enter new group name..."
+                          placeholder={t("crm.forms.newGroupNamePlaceholder")}
                           className="flex-1 bg-[#FF6600]/5 border border-[#FF6600]/20 rounded-2xl px-6 py-4 text-white outline-none font-bold"
                           value={newGroupName}
                           onChange={(e) => setNewGroupName(e.target.value)}
@@ -594,18 +621,17 @@ export default function FormsPage() {
                       )}
                     </div>
                     <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60">
-                      Linking a form to a group will automatically tag all
-                      submissions from that group.
+                      {t("crm.forms.linkGroupHint")}
                     </p>
                   </div>
 
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                        Questions
+                        {t("crm.forms.questions")}
                       </h4>
                       <span className="badge bg-white/5 text-white">
-                        {schema.length} Total
+                        {t("crm.forms.totalCount", { count: schema.length })}
                       </span>
                     </div>
 
@@ -613,7 +639,7 @@ export default function FormsPage() {
                       {schema.length === 0 && (
                         <div className="p-10 border border-dashed border-white/10 rounded-2xl text-center">
                           <p className="text-slate-500 font-bold text-sm">
-                            No questions yet. Use the buttons below to add some.
+                            {t("crm.forms.noQuestionsYet")}
                           </p>
                         </div>
                       )}
@@ -638,7 +664,9 @@ export default function FormsPage() {
                             </div>
                             <div className="flex items-center gap-4">
                               <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 bg-white/5 px-2 py-1 rounded">
-                                {field.type === "text" ? "Free Text" : "Yes/No"}
+                                {field.type === "text"
+                                  ? t("crm.forms.freeText")
+                                  : t("crm.forms.yesNo")}
                               </span>
                               <button
                                 onClick={() => removeField(field.id)}
@@ -662,7 +690,7 @@ export default function FormsPage() {
                                 }
                                 className="accent-[#FF6600]/80"
                               />
-                              Required Field
+                              {t("crm.forms.requiredField")}
                             </label>
                           </div>
                         </div>
@@ -674,13 +702,13 @@ export default function FormsPage() {
                         onClick={() => addField("text")}
                         className="flex items-center justify-center gap-2 py-4 bg-[#FF6600]/80/10 hover:bg-[#FF6600]/80 text-indigo-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors border border-[#FF6600]/80/20"
                       >
-                        <AlignLeft className="w-4 h-4" /> Add Text Question
+                        <AlignLeft className="w-4 h-4" /> {t("crm.forms.addTextQuestion")}
                       </button>
                       <button
                         onClick={() => addField("yes_no")}
                         className="flex items-center justify-center gap-2 py-4 bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 rounded-2xl font-black text-xs uppercase tracking-widest transition-colors border border-emerald-500/20"
                       >
-                        <CheckSquare className="w-4 h-4" /> Add Yes/No Question
+                        <CheckSquare className="w-4 h-4" /> {t("crm.forms.addYesNoQuestion")}
                       </button>
                     </div>
                   </div>
@@ -692,7 +720,7 @@ export default function FormsPage() {
                   onClick={() => setView("list")}
                   className="btn-ghost !px-8 text-sm"
                 >
-                  Discard
+                  {t("crm.forms.discard")}
                 </button>
                 <button
                   onClick={submitForm}
@@ -704,7 +732,7 @@ export default function FormsPage() {
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  {isSubmitting ? "Saving..." : "Save Form"}
+                  {isSubmitting ? t("crm.forms.saving") : t("crm.forms.saveForm")}
                 </button>
               </div>
             </div>

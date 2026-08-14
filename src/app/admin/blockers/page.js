@@ -43,9 +43,17 @@ const SEVERITY_CONFIG = {
   critical: { label: "Critical", color: "text-red-600", bg: "bg-red-600/10" },
 };
 
-function formatSeverity(severity) {
+// Translation keys keyed by raw severity value (raw values stay for API/comparisons)
+const SEVERITY_LABEL_KEYS = {
+  low: "adminMisc.blockers.severityLow",
+  medium: "adminMisc.blockers.severityMedium",
+  high: "adminMisc.blockers.severityHigh",
+  critical: "adminMisc.blockers.severityCritical",
+};
+
+function formatSeverity(severity, t) {
   const config = SEVERITY_CONFIG[severity];
-  return config ? config.label : severity;
+  return t(SEVERITY_LABEL_KEYS[severity] || "") || config?.label || severity;
 }
 
 function getSeverityColor(severity) {
@@ -155,7 +163,9 @@ export default function AdminBlockers() {
 
   const getTaskTitle = (taskId) => {
     const task = taskMap[taskId];
-    return task ? task.title : `Task #${taskId}`;
+    return task
+      ? task.title
+      : t("adminMisc.blockers.taskFallback", { id: taskId });
   };
 
   return (
@@ -169,7 +179,7 @@ export default function AdminBlockers() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              Dashboard
+              {t("adminMisc.blockers.backToDashboard")}
             </button>
             <div className="flex items-center gap-2 mt-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -270,7 +280,7 @@ export default function AdminBlockers() {
               onChange={(e) => setFilterUser(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option>All Users</option>
+              <option value="All Users">{t("adminMisc.blockers.allUsers")}</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name}
@@ -289,7 +299,7 @@ export default function AdminBlockers() {
               onChange={(e) => setFilterStatus(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option value="all">All Statuses</option>
+              <option value="all">{t("adminMisc.blockers.allStatuses")}</option>
               <option value="active">{t("status.active")}</option>
               <option value="resolved">{t("status.resolved")}</option>
             </select>
@@ -309,7 +319,7 @@ export default function AdminBlockers() {
               className="text-[9px] mt-2"
               style={{ color: "var(--text-secondary)" }}
             >
-              Blockers will appear here once tied to tasks.
+              {t("adminMisc.blockers.emptyStateHint")}
             </p>
           </div>
         ) : (
@@ -322,31 +332,31 @@ export default function AdminBlockers() {
                       className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Blocker
+                      {t("adminMisc.blockers.colBlocker")}
                     </th>
                     <th
                       className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Owner
+                      {t("adminMisc.blockers.owner")}
                     </th>
                     <th
                       className="text-left p-4 text-[8px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Linked Task
+                      {t("adminMisc.blockers.linkedTask")}
                     </th>
                     <th
                       className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Severity
+                      {t("adminMisc.blockers.severity")}
                     </th>
                     <th
                       className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Status
+                      {t("adminMisc.blockers.status")}
                     </th>
                     <th
                       className="text-center p-4 text-[8px] font-black uppercase tracking-widest"
@@ -396,7 +406,7 @@ export default function AdminBlockers() {
                             {blocker.user_name?.charAt(0) || "?"}
                           </div>
                           <span className="text-[10px] font-bold uppercase tracking-tight">
-                            {blocker.user_name || "Unknown"}
+                            {blocker.user_name || t("adminMisc.blockers.unknown")}
                           </span>
                         </div>
                       </td>
@@ -414,7 +424,7 @@ export default function AdminBlockers() {
                         <span
                           className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${getSeverityBg(blocker.severity)} ${getSeverityColor(blocker.severity)}`}
                         >
-                          {formatSeverity(blocker.severity)}
+                          {formatSeverity(blocker.severity, t)}
                         </span>
                       </td>
                       <td className="text-center p-4">
@@ -466,7 +476,7 @@ export default function AdminBlockers() {
             <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-                  Blocker Details
+                  {t("adminMisc.blockers.detailsTitle")}
                 </h3>
                 <button
                   onClick={() => setViewingBlocker(null)}
@@ -482,7 +492,7 @@ export default function AdminBlockers() {
                     className="text-[8px] font-black uppercase tracking-widest mb-1"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Title
+                    {t("adminMisc.blockers.title")}
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
                     {viewingBlocker.title}
@@ -495,7 +505,7 @@ export default function AdminBlockers() {
                       className="text-[8px] font-black uppercase tracking-widest mb-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Description
+                      {t("adminMisc.blockers.description")}
                     </p>
                     <p className="text-xs text-[var(--text-secondary)]">
                       {viewingBlocker.description}
@@ -509,10 +519,10 @@ export default function AdminBlockers() {
                       className="text-[8px] font-black uppercase tracking-widest mb-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Owner
+                      {t("adminMisc.blockers.owner")}
                     </p>
                     <p className="text-xs font-bold text-[var(--text-primary)]">
-                      {viewingBlocker.user_name || "Unknown"}
+                      {viewingBlocker.user_name || t("adminMisc.blockers.unknown")}
                     </p>
                   </div>
                   <div>
@@ -520,7 +530,7 @@ export default function AdminBlockers() {
                       className="text-[8px] font-black uppercase tracking-widest mb-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Linked Task
+                      {t("adminMisc.blockers.linkedTask")}
                     </p>
                     <p
                       className="text-xs font-bold"
@@ -537,12 +547,12 @@ export default function AdminBlockers() {
                       className="text-[8px] font-black uppercase tracking-widest mb-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Severity
+                      {t("adminMisc.blockers.severity")}
                     </p>
                     <span
                       className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${getSeverityBg(viewingBlocker.severity)} ${getSeverityColor(viewingBlocker.severity)}`}
                     >
-                      {formatSeverity(viewingBlocker.severity)}
+                      {formatSeverity(viewingBlocker.severity, t)}
                     </span>
                   </div>
                   <div>
@@ -550,7 +560,7 @@ export default function AdminBlockers() {
                       className="text-[8px] font-black uppercase tracking-widest mb-1"
                       style={{ color: "var(--text-secondary)" }}
                     >
-                      Status
+                      {t("adminMisc.blockers.status")}
                     </p>
                     <span
                       className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${
@@ -584,7 +594,7 @@ export default function AdminBlockers() {
                         className="text-[8px] font-black uppercase tracking-widest mb-1"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        Resolved At
+                        {t("adminMisc.blockers.resolvedAt")}
                       </p>
                       <p className="text-[10px] font-bold text-emerald-500">
                         {new Date(
@@ -597,18 +607,18 @@ export default function AdminBlockers() {
 
                 <div className="pt-4 border-t border-[var(--border-primary)] bg-amber-500/5 p-4 rounded-xl">
                   <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">
-                    Super Admin Notice
+                    {t("adminMisc.blockers.superAdminNotice")}
                   </p>
                   <p
                     className="text-[10px] mt-1"
                     style={{ color: "var(--text-secondary)" }}
                   >
-                    Only{" "}
+                    {t("adminMisc.blockers.resolutionNoticePrefix")}{" "}
                     <span className="font-bold text-white">
-                      {viewingBlocker.user_name || "the blocker creator"}
+                      {viewingBlocker.user_name ||
+                        t("adminMisc.blockers.theBlockerCreator")}
                     </span>{" "}
-                    can mark this blocker as resolved. Super Admins can view and
-                    monitor but cannot resolve blockers.
+                    {t("adminMisc.blockers.resolutionNoticeSuffix")}
                   </p>
                 </div>
               </div>

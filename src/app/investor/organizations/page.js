@@ -5,14 +5,16 @@ import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
   Save, UserPlus, Crown, Shield, Mail, X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function InvestorOrganizationsPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
+  const { t } = useI18n();
   const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -54,7 +56,7 @@ export default function InvestorOrganizationsPage() {
 
   const handleCreate = async () => {
     if (!newOrg.name.trim()) {
-      setToast({ type: "error", message: "Organization name is required" });
+      setToast({ type: "error", message: t("investorMisc.organizations.nameRequired") });
       return;
     }
     setSaving(true);
@@ -66,12 +68,12 @@ export default function InvestorOrganizationsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: "Organization created" });
+        setToast({ type: "success", message: t("investorMisc.organizations.created") });
         setShowCreate(false);
         setNewOrg({ name: "", description: "", website: "" });
         fetchOrgs();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (_) {}
     setSaving(false);
@@ -85,20 +87,20 @@ export default function InvestorOrganizationsPage() {
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]">
+            <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
               <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-                Organizations
+                {t("investorMisc.organizations.title")}
               </h1>
               <p className="text-xs text-[var(--text-secondary)]">
-                Manage your investor organizations and representatives
+                {t("investorMisc.organizations.subtitle")}
               </p>
             </div>
           </div>
           <AppButton variant="primary" icon={Plus} onClick={() => setShowCreate(true)}>
-            New Organization
+            {t("investorMisc.organizations.newOrganization")}
           </AppButton>
         </div>
 
@@ -111,7 +113,7 @@ export default function InvestorOrganizationsPage() {
           <div className="space-y-4">
             <button onClick={() => setSelectedOrg(null)}
               className="text-xs font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wider flex items-center gap-1">
-              <ArrowLeft className="w-3 h-3" /> Back to list
+              <ArrowLeft className="w-3 h-3" /> {t("investorMisc.organizations.backToList")}
             </button>
 
             <AppCard padding="lg">
@@ -139,13 +141,13 @@ export default function InvestorOrganizationsPage() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
                   <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-                  Members ({orgMembers.length})
+                  {t("investorMisc.organizations.membersCount", { count: orgMembers.length })}
                 </h3>
               </div>
               {detailLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : orgMembers.length === 0 ? (
-                <p className="text-xs text-[var(--text-tertiary)]">No members yet</p>
+                <p className="text-xs text-[var(--text-tertiary)]">{t("investorMisc.organizations.noMembersYet")}</p>
               ) : (
                 <div className="space-y-2">
                   {orgMembers.map(m => (
@@ -175,12 +177,12 @@ export default function InvestorOrganizationsPage() {
           /* EMPTY STATE */
           <div className="text-center py-20">
             <Building2 className="w-16 h-16 text-[var(--text-tertiary)] mx-auto mb-4" />
-            <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">No Organizations</h2>
+            <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">{t("investorMisc.organizations.emptyTitle")}</h2>
             <p className="text-sm text-[var(--text-secondary)] max-w-sm mx-auto mb-6">
-              Create an organization to represent your VC firm, family office, or investment group.
+              {t("investorMisc.organizations.emptyDesc")}
             </p>
             <AppButton variant="primary" icon={Plus} onClick={() => setShowCreate(true)}>
-              Create Organization
+              {t("investorMisc.organizations.createOrganization")}
             </AppButton>
           </div>
         ) : (
@@ -195,7 +197,7 @@ export default function InvestorOrganizationsPage() {
                   <div className="flex-1">
                     <p className="text-sm font-bold text-[var(--text-primary)]">{org.name}</p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      Role: <span className="text-[var(--brand-orange)]">{org.member_role || "member"}</span>
+                      {t("investorMisc.organizations.role")}: <span className="text-[var(--brand-orange)]">{org.member_role || t("investorMisc.organizations.member")}</span>
                     </p>
                   </div>
                   {org.member_role === "admin" && (
@@ -213,7 +215,7 @@ export default function InvestorOrganizationsPage() {
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
             <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Create Organization</h3>
+                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">{t("investorMisc.organizations.createOrganization")}</h3>
                 <button onClick={() => setShowCreate(false)}
                   className="p-1.5 rounded-lg hover:bg-[var(--surface-3)] text-[var(--text-secondary)]">
                   <X className="w-4 h-4" />
@@ -221,19 +223,19 @@ export default function InvestorOrganizationsPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Name *</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.organizations.name")}</label>
                   <input value={newOrg.name} onChange={e => setNewOrg({...newOrg, name: e.target.value})}
-                    placeholder="e.g. Future Capital Partners"
+                    placeholder={t("investorMisc.organizations.namePlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Description</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.organizations.description")}</label>
                   <textarea value={newOrg.description} onChange={e => setNewOrg({...newOrg, description: e.target.value})}
-                    rows={2} placeholder="Brief description of the organization..."
+                    rows={2} placeholder={t("investorMisc.organizations.descriptionPlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Website</label>
+                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.organizations.website")}</label>
                   <input value={newOrg.website} onChange={e => setNewOrg({...newOrg, website: e.target.value})}
                     placeholder="https://..."
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
@@ -242,10 +244,10 @@ export default function InvestorOrganizationsPage() {
               <div className="flex justify-end gap-3 px-6 pb-5">
                 <button onClick={() => setShowCreate(false)}
                   className="px-4 py-2 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest rounded-xl hover:bg-[var(--surface-3)]">
-                  Cancel
+                  {t("investorMisc.organizations.cancel")}
                 </button>
                 <AppButton variant="primary" icon={Save} onClick={handleCreate} disabled={saving}>
-                  {saving ? "Creating..." : "Create"}
+                  {saving ? t("investorMisc.organizations.creating") : t("investorMisc.organizations.create")}
                 </AppButton>
               </div>
             </div>

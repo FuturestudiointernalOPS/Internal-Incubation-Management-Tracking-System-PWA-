@@ -15,12 +15,14 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 export default function SuperAdminProgressHub() {
   const [programs, setPrograms] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [search, setSearch] = useState("");
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     async function checkAuth() {
@@ -67,10 +69,10 @@ export default function SuperAdminProgressHub() {
               </div>
               <div>
                 <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
-                  Global Progress Hub
+                  {t("adminMisc.progress.title")}
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
-                  Enterprise-wide tactical fulfillment auditing
+                  {t("adminMisc.progress.subtitle")}
                 </p>
               </div>
             </div>
@@ -81,7 +83,7 @@ export default function SuperAdminProgressHub() {
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
               <input
                 type="text"
-                placeholder="Search Programs..."
+                placeholder={t("adminMisc.progress.searchPlaceholder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
@@ -113,10 +115,10 @@ export default function SuperAdminProgressHub() {
                         {prog.name}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-2">
-                        {prog.sessions_count || 0} Tactical Nodes •{" "}
-                        {prog.participants_count || 0} Personnel •{" "}
-                        {prog.reports_count || 0} Reports • Lead:{" "}
-                        {prog.pm_name || "Unassigned"}
+                        {prog.sessions_count || 0} {t("adminMisc.progress.tacticalNodes")} •{" "}
+                        {prog.participants_count || 0} {t("adminMisc.progress.personnel")} •{" "}
+                        {prog.reports_count || 0} {t("adminMisc.progress.reports")} • {t("adminMisc.progress.lead")}{" "}
+                        {prog.pm_name || t("adminMisc.progress.unassigned")}
                       </p>
                     </div>
                   </div>
@@ -125,7 +127,7 @@ export default function SuperAdminProgressHub() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
                       <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
-                        Global Velocity
+                        {t("adminMisc.progress.globalVelocity")}
                       </p>
                       <p className="text-sm font-black text-[#FF6600] italic leading-none">
                         {progress.toFixed(1)}%
@@ -146,7 +148,7 @@ export default function SuperAdminProgressHub() {
                 <div className="flex items-center gap-8 px-12 border-l border-white/5 hidden lg:flex">
                   <div className="text-center">
                     <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                      Deliverables
+                      {t("adminMisc.progress.deliverables")}
                     </p>
                     <p className="text-xl font-black text-white italic">
                       {prog.docs_completed || 0}/{prog.docs_total || 0}
@@ -155,7 +157,7 @@ export default function SuperAdminProgressHub() {
                   <div className="w-px h-8 bg-white/5" />
                   <div className="text-center">
                     <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                      Status
+                      {t("adminMisc.progress.status")}
                     </p>
                     <p className="text-xs font-black text-[#FF6600] uppercase tracking-tighter italic">
                       {prog.status || "Active"}
@@ -174,7 +176,7 @@ export default function SuperAdminProgressHub() {
             <div className="ios-card bg-white/[0.01] border-dashed border-white/10 !p-24 flex flex-col items-center justify-center gap-6 opacity-40">
               <Target className="w-16 h-16 text-slate-800" />
               <p className="text-sm font-black text-slate-800 uppercase tracking-widest italic text-center leading-relaxed">
-                No programs detected in the global repository.
+                {t("adminMisc.progress.emptyState")}
               </p>
             </div>
           )}

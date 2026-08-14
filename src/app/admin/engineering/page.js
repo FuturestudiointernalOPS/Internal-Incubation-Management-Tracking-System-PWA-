@@ -23,9 +23,21 @@ import {
   BarChart3,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
+
+// Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
+const SEV_KEYS = {
+  critical: "engineering.overview.severityValues.critical",
+  fatal: "engineering.overview.severityValues.fatal",
+  warning: "engineering.overview.severityValues.warning",
+  high: "engineering.overview.severityValues.high",
+  medium: "engineering.overview.severityValues.medium",
+  low: "engineering.overview.severityValues.low",
+};
 
 export default function EngineeringOperations() {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
@@ -52,7 +64,7 @@ export default function EngineeringOperations() {
   const statsCards = data
     ? [
         {
-          label: "Active Developers",
+          label: t("engineering.overview.activeDevelopers"),
           value:
             data.developers?.filter((d) => d.role === "developer").length || 0,
           icon: Users,
@@ -61,7 +73,7 @@ export default function EngineeringOperations() {
           onClick: () => setActiveTab("developers"),
         },
         {
-          label: "Interns",
+          label: t("engineering.overview.interns"),
           value:
             data.developers?.filter((d) => d.role === "intern").length || 0,
           icon: UserPlus,
@@ -70,7 +82,7 @@ export default function EngineeringOperations() {
           onClick: () => setActiveTab("developers"),
         },
         {
-          label: "Active Tasks",
+          label: t("engineering.overview.activeTasks"),
           value: data.activeTasks?.length || 0,
           icon: ListTodo,
           color: "var(--chart-warning, #f59e0b)",
@@ -78,7 +90,7 @@ export default function EngineeringOperations() {
           onClick: () => {},
         },
         {
-          label: "Unresolved Errors",
+          label: t("engineering.overview.unresolvedErrors"),
           value: data.unresolvedErrors?.length || 0,
           icon: Bug,
           color: "var(--chart-danger, #ef4444)",
@@ -86,7 +98,7 @@ export default function EngineeringOperations() {
           onClick: () => router.push("/admin/engineering/error-logs"),
         },
         {
-          label: "Overdue Tasks",
+          label: t("engineering.overview.overdueTasks"),
           value: data.overdueTasks?.length || 0,
           icon: Clock,
           color:
@@ -98,7 +110,7 @@ export default function EngineeringOperations() {
           onClick: () => {},
         },
         {
-          label: "Active Blockers",
+          label: t("engineering.overview.activeBlockers"),
           value: data.activeBlockers?.length || 0,
           icon: AlertTriangle,
           color:
@@ -123,21 +135,21 @@ export default function EngineeringOperations() {
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Engineering Operations
+                {t("engineering.overview.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Engineering Operations
+              {t("engineering.overview.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Manage developers, errors, and development tasks
+              {t("engineering.overview.subtitle")}
             </p>
           </div>
           <button
             onClick={fetchDashboard}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> {t("engineering.overview.refresh")}
           </button>
         </header>
 
@@ -196,10 +208,10 @@ export default function EngineeringOperations() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    Error Logs
+                    {t("engineering.overview.errorLogs")}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    {data?.unresolvedErrors?.length || 0} unresolved
+                    {t("engineering.overview.unresolvedCount", { count: data?.unresolvedErrors?.length || 0 })}
                   </p>
                 </div>
               </button>
@@ -212,10 +224,10 @@ export default function EngineeringOperations() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    Developers
+                    {t("engineering.overview.developers")}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    {data?.developers?.length || 0} team members
+                    {t("engineering.overview.teamMembersCount", { count: data?.developers?.length || 0 })}
                   </p>
                 </div>
               </button>
@@ -228,10 +240,10 @@ export default function EngineeringOperations() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    Dev Tasks
+                    {t("engineering.overview.devTasks")}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    {data?.activeTasks?.length || 0} active tasks
+                    {t("engineering.overview.activeTasksCount", { count: data?.activeTasks?.length || 0 })}
                   </p>
                 </div>
               </button>
@@ -244,10 +256,10 @@ export default function EngineeringOperations() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    Reports
+                    {t("engineering.overview.reports")}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    Error trends, resolution metrics, dev velocity
+                    {t("engineering.overview.reportsSubtitle")}
                   </p>
                 </div>
               </button>
@@ -260,10 +272,10 @@ export default function EngineeringOperations() {
                 </div>
                 <div>
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    Permissions
+                    {t("engineering.overview.permissions")}
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    Manage roles, groups, and capabilities
+                    {t("engineering.overview.permissionsSubtitle")}
                   </p>
                 </div>
               </button>
@@ -276,14 +288,14 @@ export default function EngineeringOperations() {
                   <div className="flex items-center gap-2">
                     <Bug className="w-4 h-4 text-red-400" />
                     <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                      Recent Unresolved Errors
+                      {t("engineering.overview.recentUnresolvedErrors")}
                     </h2>
                   </div>
                   <button
                     onClick={() => router.push("/admin/engineering/error-logs")}
                     className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest hover:underline"
                   >
-                    View All
+                    {t("engineering.overview.viewAll")}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -307,16 +319,16 @@ export default function EngineeringOperations() {
                                     : "bg-amber-500/10 text-amber-400"
                               }`}
                             >
-                              {err.severity}
+                              {t(SEV_KEYS[err.severity] || "") || err.severity}
                             </span>
                             {err.task_id && (
                               <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider">
-                                Task #{err.task_id}
+                                {t("engineering.overview.taskNumber", { taskId: err.task_id })}
                               </span>
                             )}
                           </div>
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
-                            {err.message}
+                            {t(err.message || "") || err.message}
                           </p>
                           <p className="text-[8px] font-bold text-slate-500 mt-0.5">
                             {err.page && `${err.page}`}
@@ -339,7 +351,7 @@ export default function EngineeringOperations() {
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-red-400" />
                   <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                    Overdue Tasks
+                    {t("engineering.overview.overdueTasks")}
                   </h2>
                   <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider">
                     {data.overdueTasks.length}
@@ -358,9 +370,9 @@ export default function EngineeringOperations() {
                           </p>
                           <p className="text-[8px] font-bold text-slate-500 mt-0.5">
                             {task.assignee_name &&
-                              `Assigned to: ${task.assignee_name}`}
+                              t("engineering.overview.assignedTo", { name: task.assignee_name })}
                             {task.end_date &&
-                              ` — Due: ${new Date(task.end_date).toLocaleDateString()}`}
+                              ` — ${t("engineering.overview.due", { date: new Date(task.end_date).toLocaleDateString() })}`}
                           </p>
                         </div>
                         <span
@@ -372,7 +384,7 @@ export default function EngineeringOperations() {
                                 : "bg-slate-500/10 text-slate-400"
                           }`}
                         >
-                          {task.priority || "medium"}
+                          {t(SEV_KEYS[task.priority] || "") || task.priority || t("engineering.overview.severityValues.medium")}
                         </span>
                       </div>
                     </div>
@@ -387,7 +399,7 @@ export default function EngineeringOperations() {
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                   <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                    Active Blockers
+                    {t("engineering.overview.activeBlockers")}
                   </h2>
                 </div>
                 <div className="space-y-2">
@@ -402,9 +414,9 @@ export default function EngineeringOperations() {
                             {blocker.title}
                           </p>
                           <p className="text-[8px] font-bold text-slate-500 mt-0.5">
-                            Task: {blocker.task_title}
+                            {t("engineering.overview.taskTitle", { title: blocker.task_title })}
                             {blocker.reported_by_name &&
-                              ` — Reported by: ${blocker.reported_by_name}`}
+                              ` — ${t("engineering.overview.reportedBy", { name: blocker.reported_by_name })}`}
                           </p>
                         </div>
                         <span
@@ -414,7 +426,7 @@ export default function EngineeringOperations() {
                               : "bg-amber-500/10 text-amber-400"
                           }`}
                         >
-                          {blocker.severity}
+                          {t(SEV_KEYS[blocker.severity] || "") || blocker.severity}
                         </span>
                       </div>
                     </div>

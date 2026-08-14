@@ -16,8 +16,10 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function DevelopersPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [developers, setDevelopers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,14 +65,14 @@ export default function DevelopersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg(`User promoted to ${newRole} successfully`);
+        setActionMsg(t("engineering.developers.promoteSuccess", { role: newRole }));
         setShowPromoteModal(null);
         fetchDevelopers();
       } else {
-        setActionMsg(data.error || "Failed to update");
+        setActionMsg(t((data.error || t("engineering.developers.promoteFailed")) || "") || (data.error || t("engineering.developers.promoteFailed")));
       }
     } catch (e) {
-      setActionMsg("Network error");
+      setActionMsg(t("engineering.developers.networkError"));
     } finally {
       setActionLoading(false);
     }
@@ -105,21 +107,24 @@ export default function DevelopersPage() {
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Engineering Operations
+                {t("engineering.developers.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Developers
+              {t("engineering.developers.pageTitle")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {developers.length} team members — Manage developers and interns
+              {t("engineering.developers.teamMembers", {
+                count: developers.length,
+              })}
             </p>
           </div>
           <button
             onClick={fetchDevelopers}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" />{" "}
+            {t("engineering.developers.refresh")}
           </button>
         </header>
 
@@ -129,7 +134,7 @@ export default function DevelopersPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search developers..."
+            placeholder={t("engineering.developers.searchPlaceholder")}
             className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
           />
         </div>
@@ -149,12 +154,14 @@ export default function DevelopersPage() {
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <Users className="w-16 h-16 text-slate-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              {search ? "No matches" : "No developers yet"}
+              {search
+                ? t("engineering.developers.noMatches")
+                : t("engineering.developers.noDevelopersYet")}
             </p>
             <p className="text-xs font-bold text-slate-500 mt-1">
               {search
-                ? "Try a different search"
-                : "Developers will appear here after they register via invite"}
+                ? t("engineering.developers.tryDifferentSearch")
+                : t("engineering.developers.developersAppearHint")}
             </p>
           </div>
         ) : (
@@ -208,7 +215,9 @@ export default function DevelopersPage() {
                       <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                         {dev.email}
                         {dev.active_tasks > 0 &&
-                          ` · ${dev.active_tasks} active tasks`}
+                          t("engineering.developers.activeTasksSuffix", {
+                            count: dev.active_tasks,
+                          })}
                         {dev.group_name && ` · ${dev.group_name}`}
                       </p>
                     </div>
@@ -220,7 +229,8 @@ export default function DevelopersPage() {
                         disabled={actionLoading}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-50"
                       >
-                        <CheckCircle2 className="w-3 h-3" /> Approve
+                        <CheckCircle2 className="w-3 h-3" />{" "}
+                        {t("engineering.developers.approve")}
                       </button>
                     )}
                     {dev.role === "intern" && (
@@ -228,7 +238,8 @@ export default function DevelopersPage() {
                         onClick={() => setShowPromoteModal(dev)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/10 text-[var(--brand-orange)] text-[8px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all"
                       >
-                        <ShieldCheck className="w-3 h-3" /> Promote
+                        <ShieldCheck className="w-3 h-3" />{" "}
+                        {t("engineering.developers.promote")}
                       </button>
                     )}
                   </div>
@@ -246,7 +257,9 @@ export default function DevelopersPage() {
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 text-[var(--brand-orange)]" />
                   <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
-                    Promote {showPromoteModal.name}
+                    {t("engineering.developers.promoteModalTitle", {
+                      name: showPromoteModal.name,
+                    })}
                   </h2>
                 </div>
                 <button
@@ -258,11 +271,11 @@ export default function DevelopersPage() {
               </div>
 
               <p className="text-xs font-bold text-[var(--text-secondary)]">
-                Select a new role for{" "}
+                {t("engineering.developers.selectRoleFor")}{" "}
                 <strong className="text-[var(--text-primary)]">
                   {showPromoteModal.name}
                 </strong>
-                :
+                {t("engineering.developers.colon")}
               </p>
 
               <div className="space-y-3">
@@ -274,11 +287,10 @@ export default function DevelopersPage() {
                   className="w-full p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-left"
                 >
                   <p className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-tight">
-                    Developer
+                    {t("engineering.developers.developerRole")}
                   </p>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
-                    Full developer access. Can standup, manage tasks, view
-                    projects.
+                    {t("engineering.developers.developerRoleDesc")}
                   </p>
                 </button>
                 <button
@@ -287,11 +299,10 @@ export default function DevelopersPage() {
                   className="w-full p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-left"
                 >
                   <p className="text-xs font-black text-blue-400 uppercase tracking-tight">
-                    Intern
+                    {t("engineering.developers.internRole")}
                   </p>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
-                    Restricted view. Can only see their tasks and submit
-                    standups.
+                    {t("engineering.developers.internRoleDesc")}
                   </p>
                 </button>
               </div>
@@ -308,7 +319,7 @@ export default function DevelopersPage() {
                 onClick={() => setShowPromoteModal(null)}
                 className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:bg-tertiary transition-all"
               >
-                Cancel
+                {t("engineering.developers.cancel")}
               </button>
             </div>
           </div>

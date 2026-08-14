@@ -20,6 +20,7 @@ import {
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { useI18n } from "@/lib/i18n";
 
 // Helper: formats snake_case labels to Title Case
 function formatLabel(val) {
@@ -49,6 +50,7 @@ function InfoBlock({ label, value }) {
 
 export default function ReportResponses() {
   const router = useRouter();
+  const { t } = useI18n();
   const [reports, setReports] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,17 +119,17 @@ export default function ReportResponses() {
               className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              Dashboard
+              {t("adminMisc.reportsResponses.dashboard")}
             </button>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.4em]">
-                  Intelligence Feed
+                  {t("adminMisc.reportsResponses.intelligenceFeed")}
                 </span>
               </div>
               <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
-                Report Responses
+                {t("adminMisc.reportsResponses.reportResponses")}
               </h1>
             </div>
           </div>
@@ -135,7 +137,7 @@ export default function ReportResponses() {
           <div className="flex gap-3">
             <div className="p-4 bg-secondary border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
               <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
-                Total Signals
+                {t("adminMisc.reportsResponses.totalSignals")}
               </span>
               <span className="text-[var(--text-primary)] font-black text-2xl leading-none tracking-tighter">
                 {filteredReports.length}
@@ -151,7 +153,7 @@ export default function ReportResponses() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search notes or authors..."
+              placeholder={t("adminMisc.reportsResponses.searchPlaceholder")}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
@@ -163,7 +165,9 @@ export default function ReportResponses() {
               onChange={(e) => setSelectedProgram(e.target.value)}
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
-              <option>All Programs</option>
+              <option value="All Programs">
+                {t("adminMisc.reportsResponses.allPrograms")}
+              </option>
               {programs.map((p) => (
                 <option key={p.id}>{p.name}</option>
               ))}
@@ -179,7 +183,7 @@ export default function ReportResponses() {
             <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
               <FileText className="w-16 h-16 mb-4" />
               <p className="text-[10px] font-bold uppercase tracking-widest">
-                No Intelligence Signals Recorded
+                {t("adminMisc.reportsResponses.noSignalsRecorded")}
               </p>
             </div>
           ) : (
@@ -196,7 +200,7 @@ export default function ReportResponses() {
                       <div className="flex gap-5">
                         <div className="w-14 h-14 rounded-2xl bg-tertiary border border-[var(--border-secondary)] flex flex-col items-center justify-center group-hover:border-[var(--brand-orange)]/50 transition-colors">
                           <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">
-                            Wk
+                            {t("adminMisc.reportsResponses.weekAbbrev")}
                           </span>
                           <span className="text-xl font-bold text-[var(--text-primary)] leading-none">
                             {report.week_number}
@@ -204,7 +208,7 @@ export default function ReportResponses() {
                         </div>
                         <div className="space-y-1">
                           <h4 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                            {prog?.name || "Program Asset"}
+                            {prog?.name || t("adminMisc.reportsResponses.programAsset")}
                           </h4>
                           <div className="flex items-center gap-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
                             <User className="w-3 h-3" /> {report.teacher_name}
@@ -218,7 +222,7 @@ export default function ReportResponses() {
                       <div className="flex items-center gap-8">
                         <div className="text-center">
                           <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.2em] mb-1">
-                            Reception
+                            {t("adminMisc.reportsResponses.reception")}
                           </p>
                           <div className="flex gap-1 justify-center">
                             {[...Array(10)].map((_, i) => (
@@ -263,11 +267,13 @@ export default function ReportResponses() {
             <div className="flex justify-between items-start print:hidden">
               <div>
                 <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                  Report Detail · Week {viewingReport.week_number}
+                  {t("adminMisc.reportsResponses.reportDetailWeek", {
+                    week: viewingReport.week_number,
+                  })}
                 </span>
                 <h3 className="text-2xl font-bold text-white uppercase tracking-tight mt-1">
                   {programs.find((p) => p.id === viewingReport.program_id)
-                    ?.name || "Program"}
+                    ?.name || t("adminMisc.reportsResponses.program")}
                 </h3>
               </div>
               <div className="flex items-center gap-2">
@@ -281,7 +287,8 @@ export default function ReportResponses() {
                   }}
                   className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
                 >
-                  <Download className="w-4 h-4" /> Export PDF
+                  <Download className="w-4 h-4" />{" "}
+                  {t("adminMisc.reportsResponses.exportPdf")}
                 </button>
                 <button
                   onClick={() => setViewingReport(null)}
@@ -296,10 +303,12 @@ export default function ReportResponses() {
             <div className="hidden print:!block print:mb-6 print:pb-4 print:border-b print:border-gray-300">
               <h1 className="text-2xl font-bold text-black">
                 {programs.find((p) => p.id === viewingReport.program_id)
-                  ?.name || "Program"}
+                  ?.name || t("adminMisc.reportsResponses.program")}
               </h1>
               <p className="text-sm text-gray-600 mt-1">
-                Weekly Report — Week {viewingReport.week_number}
+                {t("adminMisc.reportsResponses.weeklyReportWeek", {
+                  week: viewingReport.week_number,
+                })}
               </p>
             </div>
 
@@ -307,7 +316,7 @@ export default function ReportResponses() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-                  Program Manager
+                  {t("adminMisc.reportsResponses.programManager")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                   {viewingReport.teacher_name}
@@ -315,7 +324,7 @@ export default function ReportResponses() {
               </div>
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-                  Week
+                  {t("adminMisc.reportsResponses.week")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                   {viewingReport.week_number}
@@ -323,7 +332,7 @@ export default function ReportResponses() {
               </div>
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-                  Submitted
+                  {t("adminMisc.reportsResponses.submitted")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                   {new Date(viewingReport.created_at).toLocaleDateString()}
@@ -331,7 +340,7 @@ export default function ReportResponses() {
               </div>
               <div className="space-y-0.5">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
-                  Health Status
+                  {t("adminMisc.reportsResponses.healthStatus")}
                 </p>
                 <p
                   className={`text-xs font-bold uppercase tracking-wide ${
@@ -343,12 +352,12 @@ export default function ReportResponses() {
                   } print:text-black`}
                 >
                   {viewingReport.reception_score >= 8
-                    ? "Optimal"
+                    ? t("adminMisc.reportsResponses.optimal")
                     : viewingReport.reception_score >= 5
-                      ? "Stable"
+                      ? t("adminMisc.reportsResponses.stable")
                       : viewingReport.reception_score >= 3
-                        ? "At Risk"
-                        : "Critical"}
+                        ? t("adminMisc.reportsResponses.atRisk")
+                        : t("adminMisc.reportsResponses.critical")}
                 </p>
               </div>
             </div>
@@ -359,19 +368,19 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[7px] print:bg-orange-100 print:text-orange-600">
                   1
                 </span>
-                Weekly Overview
+                {t("adminMisc.reportsResponses.weeklyOverview")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <InfoBlock
-                  label="Week Status"
+                  label={t("adminMisc.reportsResponses.weekStatus")}
                   value={formatLabel(viewingReport.week_status) || "—"}
                 />
                 <InfoBlock
-                  label="Overall Rating"
+                  label={t("adminMisc.reportsResponses.overallRating")}
                   value={formatLabel(viewingReport.week_rating) || "—"}
                 />
                 <InfoBlock
-                  label="Main Topic"
+                  label={t("adminMisc.reportsResponses.mainTopic")}
                   value={viewingReport.main_topic || "—"}
                 />
               </div>
@@ -383,14 +392,14 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-violet-500/10 flex items-center justify-center text-[7px] print:bg-violet-100 print:text-violet-600">
                   +
                 </span>
-                KPI-Linked Assignment Tracking
+                {t("adminMisc.reportsResponses.kpiAssignmentTracking")}
               </h5>
               {viewingReport.assignment_given ? (
                 <div className="space-y-3 p-4 bg-violet-500/5 rounded-xl border border-violet-500/20 print:bg-violet-50 print:border-violet-200 print:rounded print:p-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <InfoBlock label="Assignment Given" value="Yes" />
+                    <InfoBlock label={t("adminMisc.reportsResponses.assignmentGiven")} value={t("adminMisc.reportsResponses.yes")} />
                     <InfoBlock
-                      label="Linked KPIs"
+                      label={t("adminMisc.reportsResponses.linkedKpis")}
                       value={(() => {
                         try {
                           const ids =
@@ -411,12 +420,12 @@ export default function ReportResponses() {
                     />
                   </div>
                   <InfoBlock
-                    label="Assignment Objective"
+                    label={t("adminMisc.reportsResponses.assignmentObjective")}
                     value={viewingReport.assignment_objective || "—"}
                   />
                   {viewingReport.assignment_outcome && (
                     <InfoBlock
-                      label="Expected Outcome"
+                      label={t("adminMisc.reportsResponses.expectedOutcome")}
                       value={viewingReport.assignment_outcome}
                     />
                   )}
@@ -424,7 +433,7 @@ export default function ReportResponses() {
               ) : (
                 <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
                   <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
-                    No assignment was given this week.
+                    {t("adminMisc.reportsResponses.noAssignmentThisWeek")}
                   </p>
                 </div>
               )}
@@ -436,30 +445,30 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-[7px] print:bg-indigo-100 print:text-indigo-600">
                   2
                 </span>
-                Participation
+                {t("adminMisc.reportsResponses.participation")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoBlock
-                  label="Attendance Level"
+                  label={t("adminMisc.reportsResponses.attendanceLevel")}
                   value={formatLabel(viewingReport.attendance_level) || "—"}
                 />
                 <InfoBlock
-                  label="Participation Level"
+                  label={t("adminMisc.reportsResponses.participationLevel")}
                   value={formatLabel(viewingReport.participation_level) || "—"}
                 />
               </div>
               {viewingReport.participants_need_attention ? (
                 <InfoBlock
-                  label="Participants Needing Attention"
+                  label={t("adminMisc.reportsResponses.participantsNeedingAttention")}
                   value={
-                    viewingReport.participants_attention_notes || "Flagged"
+                    viewingReport.participants_attention_notes || t("adminMisc.reportsResponses.flagged")
                   }
                 />
               ) : null}
               {viewingReport.standout_participants ? (
                 <InfoBlock
-                  label="Standout Participants"
-                  value={viewingReport.standout_notes || "Recognized"}
+                  label={t("adminMisc.reportsResponses.standoutParticipants")}
+                  value={viewingReport.standout_notes || t("adminMisc.reportsResponses.recognized")}
                 />
               ) : null}
             </section>
@@ -470,15 +479,15 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-blue-500/10 flex items-center justify-center text-[7px] print:bg-blue-100 print:text-blue-600">
                   3
                 </span>
-                Delivery Feedback
+                {t("adminMisc.reportsResponses.deliveryFeedback")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoBlock
-                  label="Delivery Quality"
+                  label={t("adminMisc.reportsResponses.deliveryQuality")}
                   value={formatLabel(viewingReport.delivery_quality) || "—"}
                 />
                 <InfoBlock
-                  label="Participant Understanding"
+                  label={t("adminMisc.reportsResponses.participantUnderstanding")}
                   value={
                     formatLabel(viewingReport.participant_understanding) || "—"
                   }
@@ -486,8 +495,8 @@ export default function ReportResponses() {
               </div>
               {viewingReport.delivery_challenges ? (
                 <InfoBlock
-                  label="Delivery Challenges"
-                  value={viewingReport.delivery_challenge_note || "Noted"}
+                  label={t("adminMisc.reportsResponses.deliveryChallenges")}
+                  value={viewingReport.delivery_challenge_note || t("adminMisc.reportsResponses.noted")}
                 />
               ) : null}
             </section>
@@ -498,16 +507,16 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-rose-500/10 flex items-center justify-center text-[7px] print:bg-rose-100 print:text-rose-600">
                   4
                 </span>
-                Issues & Support
+                {t("adminMisc.reportsResponses.issuesAndSupport")}
               </h5>
               {viewingReport.had_issues ? (
                 <div className="space-y-3 p-4 bg-rose-500/5 rounded-xl border border-rose-500/20 print:bg-rose-50 print:border-rose-200 print:rounded print:p-3">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <InfoBlock label="Issues Reported" value="Yes" />
+                    <InfoBlock label={t("adminMisc.reportsResponses.issuesReported")} value={t("adminMisc.reportsResponses.yes")} />
                     <InfoBlock
-                      label="Requires Admin Attention"
+                      label={t("adminMisc.reportsResponses.requiresAdminAttention")}
                       value={
-                        viewingReport.requires_admin_attention ? "Yes" : "No"
+                        viewingReport.requires_admin_attention ? t("adminMisc.reportsResponses.yes") : t("adminMisc.reportsResponses.no")
                       }
                     />
                   </div>
@@ -522,7 +531,7 @@ export default function ReportResponses() {
                               : [];
                         return types.length > 0 ? (
                           <InfoBlock
-                            label="Issue Types"
+                            label={t("adminMisc.reportsResponses.issueTypes")}
                             value={types.join(", ")}
                           />
                         ) : null;
@@ -532,7 +541,7 @@ export default function ReportResponses() {
                     })()}
                   {viewingReport.additional_issue_note && (
                     <InfoBlock
-                      label="Additional Note"
+                      label={t("adminMisc.reportsResponses.additionalNote")}
                       value={viewingReport.additional_issue_note}
                     />
                   )}
@@ -540,7 +549,7 @@ export default function ReportResponses() {
               ) : (
                 <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
                   <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
-                    No issues reported.
+                    {t("adminMisc.reportsResponses.noIssuesReported")}
                   </p>
                 </div>
               )}
@@ -552,17 +561,17 @@ export default function ReportResponses() {
                 <span className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center text-[7px] print:bg-emerald-100 print:text-emerald-600">
                   5
                 </span>
-                Next Week Planning
+                {t("adminMisc.reportsResponses.nextWeekPlanning")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoBlock
-                  label="Program On Track"
-                  value={viewingReport.program_on_track ? "Yes" : "No"}
+                  label={t("adminMisc.reportsResponses.programOnTrack")}
+                  value={viewingReport.program_on_track ? t("adminMisc.reportsResponses.yes") : t("adminMisc.reportsResponses.no")}
                 />
               </div>
               {viewingReport.planned_adjustments && (
                 <InfoBlock
-                  label="Planned Adjustments"
+                  label={t("adminMisc.reportsResponses.plannedAdjustments")}
                   value={viewingReport.planned_adjustments}
                 />
               )}
@@ -571,27 +580,31 @@ export default function ReportResponses() {
             {/* ───────── NOTES (fallback from old system) ───────── */}
             <section className="space-y-3">
               <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-slate-500/20 pb-2 print:text-gray-600 print:border-gray-200">
-                Notes &amp; Reception
+                {t("adminMisc.reportsResponses.notesAndReception")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <InfoBlock
-                  label="Student Reception"
+                  label={t("adminMisc.reportsResponses.studentReception")}
                   value={viewingReport.student_reception || "—"}
                 />
                 <InfoBlock
-                  label="Action Taken"
+                  label={t("adminMisc.reportsResponses.actionTaken")}
                   value={viewingReport.action_taken || "—"}
                 />
               </div>
               <InfoBlock
-                label="Progress Notes"
-                value={viewingReport.progress_notes || "No notes provided."}
+                label={t("adminMisc.reportsResponses.progressNotes")}
+                value={viewingReport.progress_notes || t("adminMisc.reportsResponses.noNotesProvided")}
               />
             </section>
 
             {/* Print Footer */}
             <div className="hidden print:!block print:mt-8 print:pt-4 print:border-t print:border-gray-300 print:text-xs print:text-gray-400">
-              <p>Generated from ImpactOS — {new Date().toLocaleDateString()}</p>
+              <p>
+                {t("adminMisc.reportsResponses.generatedFromImpactOs", {
+                  date: new Date().toLocaleDateString(),
+                })}
+              </p>
             </div>
 
             {/* Close Button — hidden on print */}
@@ -599,7 +612,7 @@ export default function ReportResponses() {
               onClick={() => setViewingReport(null)}
               className="btn btn-primary w-full py-4 font-bold uppercase tracking-widest print:hidden"
             >
-              Close Report
+              {t("adminMisc.reportsResponses.closeReport")}
             </button>
           </div>
         </div>

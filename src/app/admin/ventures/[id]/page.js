@@ -132,7 +132,7 @@ export default function VentureDetailPage({ params }) {
       const res = await fetch(`/api/ventures/${id}`);
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Venture not found");
+        setError(t((data.error || "Venture not found") || "") || (data.error || "Venture not found"));
         return;
       }
       setVenture(data.venture);

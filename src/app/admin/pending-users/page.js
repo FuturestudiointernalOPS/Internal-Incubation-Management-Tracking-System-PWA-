@@ -21,9 +21,11 @@ import {
   Archive,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function PendingUsersPage() {
   const router = useRouter();
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
   const [grouped, setGrouped] = useState({});
@@ -76,17 +78,25 @@ export default function PendingUsersPage() {
       if (data.success) {
         setActionMsg({
           type: "success",
-          text: `${userName} approved. Setup email ${data.emailSent ? "sent" : "queued"}.`,
+          text: t("adminMisc.pendingUsers.approvedToast", {
+            name: userName,
+            emailStatus: data.emailSent
+              ? t("adminMisc.pendingUsers.emailSent")
+              : t("adminMisc.pendingUsers.emailQueued"),
+          }),
         });
         fetchPendingUsers();
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || "Failed to approve.",
+          text: t((data.error || t("adminMisc.pendingUsers.failApprove")) || "") || (data.error || t("adminMisc.pendingUsers.failApprove")),
         });
       }
     } catch (err) {
-      setActionMsg({ type: "error", text: "Network error during approval." });
+      setActionMsg({
+        type: "error",
+        text: t("adminMisc.pendingUsers.networkApproveError"),
+      });
     } finally {
       setProcessingId(null);
     }
@@ -103,13 +113,22 @@ export default function PendingUsersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg({ type: "success", text: `${userName} archived.` });
+        setActionMsg({
+          type: "success",
+          text: t("adminMisc.pendingUsers.archivedToast", { name: userName }),
+        });
         fetchPendingUsers();
       } else {
-        setActionMsg({ type: "error", text: data.error || "Failed to archive." });
+        setActionMsg({
+          type: "error",
+          text: t((data.error || t("adminMisc.pendingUsers.failArchive")) || "") || (data.error || t("adminMisc.pendingUsers.failArchive")),
+        });
       }
     } catch (err) {
-      setActionMsg({ type: "error", text: "Network error." });
+      setActionMsg({
+        type: "error",
+        text: t("adminMisc.pendingUsers.networkError"),
+      });
     } finally {
       setProcessingId(null);
     }
@@ -124,12 +143,23 @@ export default function PendingUsersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg({ type: "success", text: `Invite resent to ${userName}.` });
+        setActionMsg({
+          type: "success",
+          text: t("adminMisc.pendingUsers.inviteResentToast", {
+            name: userName,
+          }),
+        });
       } else {
-        setActionMsg({ type: "error", text: data.error || "Failed to resend." });
+        setActionMsg({
+          type: "error",
+          text: t((data.error || t("adminMisc.pendingUsers.failResend")) || "") || (data.error || t("adminMisc.pendingUsers.failResend")),
+        });
       }
     } catch (err) {
-      setActionMsg({ type: "error", text: "Network error." });
+      setActionMsg({
+        type: "error",
+        text: t("adminMisc.pendingUsers.networkError"),
+      });
     } finally {
       setProcessingId(null);
     }
@@ -146,16 +176,22 @@ export default function PendingUsersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setActionMsg({ type: "info", text: `${userName} rejected.` });
+        setActionMsg({
+          type: "info",
+          text: t("adminMisc.pendingUsers.rejectedToast", { name: userName }),
+        });
         fetchPendingUsers();
       } else {
         setActionMsg({
           type: "error",
-          text: data.error || "Failed to reject.",
+          text: t((data.error || t("adminMisc.pendingUsers.failReject")) || "") || (data.error || t("adminMisc.pendingUsers.failReject")),
         });
       }
     } catch (err) {
-      setActionMsg({ type: "error", text: "Network error during rejection." });
+      setActionMsg({
+        type: "error",
+        text: t("adminMisc.pendingUsers.networkRejectError"),
+      });
     } finally {
       setProcessingId(null);
     }
@@ -190,22 +226,21 @@ export default function PendingUsersPage() {
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-                User Management
+                {t("adminMisc.pendingUsers.userManagement")}
               </span>
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-              Pending Users
+              {t("adminMisc.pendingUsers.title")}
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
-              Review and approve users who have registered but not yet been
-              activated.
+              {t("adminMisc.pendingUsers.subtitle")}
             </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={fetchPendingUsers}
               className="btn p-3"
-              title="Refresh"
+              title={t("adminMisc.pendingUsers.refresh")}
             >
               <RefreshCw
                 className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
@@ -215,7 +250,7 @@ export default function PendingUsersPage() {
               onClick={() => router.push("/admin/bulk-upload")}
               className="btn btn-primary text-[10px] font-black uppercase tracking-wider px-4 py-3"
             >
-              Bulk Upload
+              {t("adminMisc.pendingUsers.bulkUpload")}
             </button>
           </div>
         </div>
@@ -226,7 +261,7 @@ export default function PendingUsersPage() {
             <Users className="w-6 h-6 text-[var(--brand-orange)]" />
             <div>
               <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                Total Pending
+                {t("adminMisc.pendingUsers.totalPending")}
               </p>
               <p className="text-2xl font-black">{total}</p>
             </div>
@@ -235,7 +270,7 @@ export default function PendingUsersPage() {
             <Shield className="w-6 h-6 text-emerald-500" />
             <div>
               <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                Groups
+                {t("adminMisc.pendingUsers.groups")}
               </p>
               <p className="text-2xl font-black">
                 {Object.keys(grouped).length}
@@ -246,7 +281,7 @@ export default function PendingUsersPage() {
             <Clock className="w-6 h-6 text-amber-500" />
             <div>
               <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                Awaiting Review
+                {t("adminMisc.pendingUsers.awaitingReview")}
               </p>
               <p className="text-2xl font-black">{total}</p>
             </div>
@@ -258,7 +293,7 @@ export default function PendingUsersPage() {
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
           <input
             type="text"
-            placeholder="Search by name or email..."
+            placeholder={t("adminMisc.pendingUsers.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg py-3 pl-12 pr-4 text-sm font-medium outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -306,11 +341,10 @@ export default function PendingUsersPage() {
           <div className="card p-16 text-center">
             <UserCheck className="w-16 h-16 text-emerald-500/30 mx-auto mb-4" />
             <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase tracking-tight">
-              No Pending Users
+              {t("adminMisc.pendingUsers.emptyTitle")}
             </h3>
             <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md mx-auto">
-              All users have been reviewed. New registrations will appear here
-              for approval.
+              {t("adminMisc.pendingUsers.emptyDesc")}
             </p>
           </div>
         )}
@@ -332,7 +366,7 @@ export default function PendingUsersPage() {
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-[var(--brand-orange)]" />
                   <span className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)]">
-                    {groupName}
+                    {groupName === "UNASSIGNED" ? t("adminMisc.pendingUsers.unassigned") : groupName}
                   </span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                     {users.length}
@@ -357,19 +391,19 @@ export default function PendingUsersPage() {
                       <thead>
                         <tr className="border-b border-[var(--border-primary)]/50">
                           <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                            Name
+                            {t("adminMisc.pendingUsers.colName")}
                           </th>
                           <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                            Email
+                            {t("adminMisc.pendingUsers.colEmail")}
                           </th>
                           <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest hidden md:table-cell">
-                            Role
+                            {t("adminMisc.pendingUsers.colRole")}
                           </th>
                           <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest hidden md:table-cell">
-                            Registered
+                            {t("adminMisc.pendingUsers.colRegistered")}
                           </th>
                           <th className="text-right p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                            Actions
+                            {t("adminMisc.pendingUsers.colActions")}
                           </th>
                         </tr>
                       </thead>
@@ -424,10 +458,10 @@ export default function PendingUsersPage() {
                                   id={"role-" + user.cid}
                                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
                                 >
-                                  <option value="participant">Participant</option>
-                                  <option value="staff">Staff</option>
-                                  <option value="intern">Intern</option>
-                                  <option value="developer">Developer</option>
+                                  <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
+                                  <option value="staff">{t("adminMisc.pendingUsers.roleStaff")}</option>
+                                  <option value="intern">{t("adminMisc.pendingUsers.roleIntern")}</option>
+                                  <option value="developer">{t("adminMisc.pendingUsers.roleDeveloper")}</option>
                                 </select>
                                 <button
                                   onClick={() =>
@@ -435,7 +469,7 @@ export default function PendingUsersPage() {
                                   }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-rose-500/10 hover:!bg-rose-500/20 border border-rose-500/20 text-rose-500 p-2 rounded-lg transition-all"
-                                  title="Reject"
+                                  title={t("adminMisc.pendingUsers.reject")}
                                 >
                                   <XCircle className="w-4 h-4" />
                                 </button>
@@ -445,7 +479,7 @@ export default function PendingUsersPage() {
                                                                   }
                                                                   disabled={processingId === user.cid}
                                                                   className="btn !bg-amber-500/10 hover:!bg-amber-500/20 border border-amber-500/20 text-amber-500 p-2 rounded-lg transition-all"
-                                                                  title="Archive"
+                                                                  title={t("adminMisc.pendingUsers.archive")}
                                                                 >
                                                                   <Archive className="w-4 h-4" />
                                                                 </button>
@@ -455,10 +489,10 @@ export default function PendingUsersPage() {
                                                                   }
                                                                   disabled={processingId === user.cid}
                                                                   className="btn !bg-blue-500/10 hover:!bg-blue-500/20 border border-blue-500/20 text-blue-500 p-2 rounded-lg transition-all flex items-center gap-1"
-                                                                  title="Resend Invite"
+                                                                  title={t("adminMisc.pendingUsers.resendInvite")}
                                                                 >
                                                                   <Mail className="w-4 h-4" />
-                                                                  <span className="text-[8px] font-black uppercase hidden lg:inline">Resend</span>
+                                                                  <span className="text-[8px] font-black uppercase hidden lg:inline">{t("adminMisc.pendingUsers.resend")}</span>
                                                                 </button>
                                                                 <button
                                                                   onClick={() =>
@@ -466,7 +500,7 @@ export default function PendingUsersPage() {
                                                                   }
                                   disabled={processingId === user.cid}
                                   className="btn !bg-emerald-500 hover:!bg-emerald-600 border-none text-white p-2 rounded-lg transition-all flex items-center gap-2"
-                                  title="Approve"
+                                  title={t("adminMisc.pendingUsers.approve")}
                                 >
                                   {processingId === user.cid ? (
                                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -474,7 +508,7 @@ export default function PendingUsersPage() {
                                     <>
                                       <CheckCircle className="w-4 h-4" />
                                       <span className="text-[8px] font-black uppercase hidden lg:inline">
-                                        Approve
+                                        {t("adminMisc.pendingUsers.approve")}
                                       </span>
                                     </>
                                   )}

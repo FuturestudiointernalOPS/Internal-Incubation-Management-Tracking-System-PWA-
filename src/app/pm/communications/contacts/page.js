@@ -15,6 +15,7 @@ import {
   Layers,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -36,6 +37,7 @@ export default function PMGroups() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("participants"); // 'participants' | 'teams' | 'staff'
   const router = useRouter();
+  const { t } = useI18n();
 
   useEffect(() => {
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -138,17 +140,18 @@ export default function PMGroups() {
           <div className="flex items-center gap-3">
             <Users className="w-4 h-4 text-[var(--brand-orange)]" />
             <h1 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
-              My Groups
+              {t("pmMisc.contacts.myGroups")}
             </h1>
             <span className="px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)] text-[8px] font-black">
-              {programs.length} programs · {totalAcrossAll} contacts
+              {programs.length} {t("pmMisc.contacts.programs")} · {totalAcrossAll}{" "}
+              {t("pmMisc.contacts.contacts")}
             </span>
           </div>
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder={t("pmMisc.contacts.searchPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)] transition-all"
@@ -161,13 +164,13 @@ export default function PMGroups() {
           <div className="w-56 lg:w-64 flex-shrink-0 border-r border-[var(--border-primary)] bg-tertiary/20 flex flex-col">
             <div className="p-3 border-b border-[var(--border-primary)]">
               <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                My Programs
+                {t("pmMisc.contacts.myPrograms")}
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {programs.length === 0 ? (
                 <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
-                  No programs assigned
+                  {t("pmMisc.contacts.noProgramsAssigned")}
                 </p>
               ) : (
                 programs.map((prog) => {
@@ -209,7 +212,10 @@ export default function PMGroups() {
                           {prog.name}
                         </p>
                         <p className="text-[7px] text-[var(--text-secondary)] mt-0.5">
-                          {count} contact{count !== 1 ? "s" : ""}
+                          {count}{" "}
+                          {count !== 1
+                            ? t("pmMisc.contacts.contacts")
+                            : t("pmMisc.contacts.contact")}
                         </p>
                       </div>
                     </button>
@@ -230,11 +236,10 @@ export default function PMGroups() {
                 <div className="text-center px-6">
                   <Users className="w-16 h-16 text-[var(--text-secondary)] mx-auto mb-4 opacity-20" />
                   <p className="text-sm font-bold text-[var(--text-secondary)]">
-                    Select a program
+                    {t("pmMisc.contacts.selectProgram")}
                   </p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1 opacity-50">
-                    Choose a program from the sidebar to view its groups and
-                    contacts
+                    {t("pmMisc.contacts.selectProgramHint")}
                   </p>
                 </div>
               </div>
@@ -246,12 +251,14 @@ export default function PMGroups() {
                     <div className="flex items-center gap-3">
                       <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
                       <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                        {currentProgram?.name || "Program"}
+                        {currentProgram?.name || t("pmMisc.contacts.program")}
                       </h2>
                     </div>
                     <span className="text-[9px] text-[var(--text-secondary)]">
-                      {filteredItems.length} item
-                      {filteredItems.length !== 1 ? "s" : ""}
+                      {filteredItems.length}{" "}
+                      {filteredItems.length !== 1
+                        ? t("pmMisc.contacts.items")
+                        : t("pmMisc.contacts.item")}
                     </span>
                   </div>
 
@@ -260,28 +267,36 @@ export default function PMGroups() {
                     {[
                       {
                         id: "participants",
-                        label: "Participants",
+                        label: t("pmMisc.contacts.tabParticipants"),
                         icon: Users,
                       },
-                      { id: "teams", label: "Teams", icon: Layers },
-                      { id: "staff", label: "Staff", icon: Shield },
-                    ].map((t) => (
+                      {
+                        id: "teams",
+                        label: t("pmMisc.contacts.tabTeams"),
+                        icon: Layers,
+                      },
+                      {
+                        id: "staff",
+                        label: t("pmMisc.contacts.tabStaff"),
+                        icon: Shield,
+                      },
+                    ].map((tabItem) => (
                       <button
-                        key={t.id}
-                        onClick={() => setTab(t.id)}
+                        key={tabItem.id}
+                        onClick={() => setTab(tabItem.id)}
                         className={cn(
                           "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
-                          tab === t.id
+                          tab === tabItem.id
                             ? "bg-[var(--brand-orange)] text-black"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary",
                         )}
                       >
-                        <t.icon className="w-3 h-3" />
-                        {t.label}
+                        <tabItem.icon className="w-3 h-3" />
+                        {tabItem.label}
                         <span className="opacity-50">
-                          {t.id === "participants"
+                          {tabItem.id === "participants"
                             ? groups[selectedProgram]?.length || 0
-                            : t.id === "teams"
+                            : tabItem.id === "teams"
                               ? teams[selectedProgram]?.length || 0
                               : staff[selectedProgram]?.length || 0}
                         </span>
@@ -296,28 +311,40 @@ export default function PMGroups() {
                     <div className="flex flex-col items-center justify-center h-full text-center">
                       <Users className="w-12 h-12 text-[var(--text-secondary)] mb-3 opacity-20" />
                       <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                        No {tab} found
+                        {tab === "participants"
+                          ? t("pmMisc.contacts.noParticipantsFound")
+                          : tab === "teams"
+                            ? t("pmMisc.contacts.noTeamsFound")
+                            : t("pmMisc.contacts.noStaffFound")}
                       </p>
                       <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
                         {search
-                          ? "Try a different search term"
-                          : "This program has no assigned " + tab}
+                          ? t("pmMisc.contacts.tryDifferentSearch")
+                          : tab === "participants"
+                            ? t("pmMisc.contacts.noAssignedParticipants")
+                            : tab === "teams"
+                              ? t("pmMisc.contacts.noAssignedTeams")
+                              : t("pmMisc.contacts.noAssignedStaff")}
                       </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                       {filteredItems.map((item) => {
                         const name =
-                          item.name || item.handler_name || "Unnamed";
+                          item.name ||
+                          item.handler_name ||
+                          t("pmMisc.contacts.unnamed");
                         const email = item.email || "";
                         const role =
                           tab === "participants"
-                            ? item.group_name || "Participant"
+                            ? item.group_name || t("pmMisc.contacts.participant")
                             : tab === "teams"
                               ? item.handler_name
-                                ? `Lead: ${item.handler_name}`
-                                : "Team"
-                              : item.role || "Staff";
+                                ? t("pmMisc.contacts.leadWithName", {
+                                    name: item.handler_name,
+                                  })
+                                : t("pmMisc.contacts.team")
+                              : item.role || t("pmMisc.contacts.staff");
                         const identifier = item.cid || item.id;
                         const phone = item.phone || "";
 
@@ -359,7 +386,7 @@ export default function PMGroups() {
                                   className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/20 transition-all text-[8px] font-black uppercase tracking-widest"
                                 >
                                   <Mail className="w-3 h-3" />
-                                  Email
+                                  {t("pmMisc.contacts.email")}
                                 </a>
                               )}
                               {phone && (
@@ -368,7 +395,7 @@ export default function PMGroups() {
                                   className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-emerald-400 hover:border-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest"
                                 >
                                   <Phone className="w-3 h-3" />
-                                  Call
+                                  {t("pmMisc.contacts.call")}
                                 </a>
                               )}
                             </div>

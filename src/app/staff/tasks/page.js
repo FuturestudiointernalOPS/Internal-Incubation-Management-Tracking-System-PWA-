@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
+import { useI18n } from "@/lib/i18n";
 
 export default function StaffTasksPage() {
+  const { t } = useI18n();
   const [user, setUser] = useState({});
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function StaffTasksPage() {
       <StandupRetroView
         user={user}
         context={{ context_type: "staff", context_id: null }}
-        contextLabel="Future Studio — My Tasks"
+        contextLabel={t("staffMisc.standupRetro.contextLabel")}
       />
     </DashboardLayout>
   );

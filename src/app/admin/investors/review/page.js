@@ -6,13 +6,15 @@ import {
   Target, DollarSign, MapPin, FileText, CheckCircle2, XCircle, MessageSquare,
   TrendingUp, Clock,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
 export default function InvestorReviewPage() {
-  const router = useRouter();
+  const goBack = useSafeBack("/admin/investors");
+  const { t } = useI18n();
   const [investors, setInvestors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
@@ -51,7 +53,7 @@ export default function InvestorReviewPage() {
         }),
       });
       window.dispatchEvent(new CustomEvent("impactos:notify", {
-        detail: { type: "success", message: action === "recommend" ? "Recommended for approval" : "Rejected" }
+        detail: { type: "success", message: action === "recommend" ? t("investorAdmin.review.recommendedForApproval") : t("investorAdmin.review.rejected") }
       }));
       setSelected(null);
       fetchInvestors();
@@ -67,7 +69,7 @@ export default function InvestorReviewPage() {
     return (
       <DashboardLayout role="super_admin">
         <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
-          <button onClick={() => setSelected(null)} className="text-xs font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"><ArrowLeft className="w-3 h-3"/> Back to list</button>
+          <button onClick={() => setSelected(null)} className="text-xs font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"><ArrowLeft className="w-3 h-3"/>{t("investorAdmin.review.backToList")}</button>
 
           <AppCard padding="lg">
             <div className="flex items-start gap-4 mb-6">
@@ -82,11 +84,11 @@ export default function InvestorReviewPage() {
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
               {[
-                { label: "Status", value: selected.qualification_status || selected.approval_status, icon: Clock },
-                { label: "Website", value: selected.website || "—", icon: Globe },
-                { label: "LinkedIn", value: selected.linkedin || "—", icon: Link },
-                { label: "Investment Experience", value: selected.investment_experience || "—", icon: FileText },
-                { label: "Completion", value: `${selected.profile_completion || 0}%`, icon: Target },
+                { label: t("investorAdmin.review.status"), value: selected.qualification_status || selected.approval_status, icon: Clock },
+                { label: t("investorAdmin.review.website"), value: selected.website || "—", icon: Globe },
+                { label: t("investorAdmin.review.linkedin"), value: selected.linkedin || "—", icon: Link },
+                { label: t("investorAdmin.review.investmentExperience"), value: selected.investment_experience || "—", icon: FileText },
+                { label: t("investorAdmin.review.completion"), value: `${selected.profile_completion || 0}%`, icon: Target },
               ].map((m, i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
                   <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1"><m.icon className="w-3 h-3"/>{m.label}</p>
@@ -97,25 +99,25 @@ export default function InvestorReviewPage() {
 
             {selected.biography && (
               <div className="mb-6">
-                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Biography</p>
+                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">{t("investorAdmin.review.biography")}</p>
                 <p className="text-xs text-[var(--text-primary)]">{selected.biography}</p>
               </div>
             )}
 
             <div>
-              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1"><MessageSquare className="w-3 h-3"/>Review Notes</p>
+              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1"><MessageSquare className="w-3 h-3"/>{t("investorAdmin.review.reviewNotes")}</p>
               <textarea value={reviewNotes} onChange={e => setReviewNotes(e.target.value)}
-                rows={3} placeholder="Add internal review notes..."
+                rows={3} placeholder={t("investorAdmin.review.reviewNotesPlaceholder")}
                 className="w-full px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
             </div>
           </AppCard>
 
           <div className="flex gap-3 justify-end">
             <AppButton variant="secondary" icon={XCircle} onClick={() => handleReview("reject")} disabled={saving} style={{color:"var(--chart-danger)"}}>
-              Reject
+              {t("investorAdmin.review.reject")}
             </AppButton>
             <AppButton variant="primary" icon={CheckCircle2} onClick={() => handleReview("recommend")} disabled={saving}>
-              {saving ? "Saving..." : "Recommend Approval"}
+              {saving ? t("investorAdmin.review.saving") : t("investorAdmin.review.recommendApproval")}
             </AppButton>
           </div>
         </div>
@@ -127,17 +129,17 @@ export default function InvestorReviewPage() {
     <DashboardLayout role="super_admin">
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
+          <button onClick={goBack} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
           <div>
-            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase">Investor Qualification Review</h1>
-            <p className="text-xs text-[var(--text-secondary)]">Review pending investor applications</p>
+            <h1 className="text-xl font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.review.title")}</h1>
+            <p className="text-xs text-[var(--text-secondary)]">{t("investorAdmin.review.subtitle")}</p>
           </div>
         </div>
 
         {investors.length === 0 ? (
           <div className="text-center py-20">
             <Shield className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4"/>
-            <p className="text-sm font-bold text-[var(--text-secondary)]">No pending reviews</p>
+            <p className="text-sm font-bold text-[var(--text-secondary)]">{t("investorAdmin.review.noPendingReviews")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -150,10 +152,10 @@ export default function InvestorReviewPage() {
                     </div>
                     <div>
                       <p className="text-sm font-bold text-[var(--text-primary)]">{inv.organization_name || inv.name}</p>
-                      <p className="text-[10px] text-[var(--text-secondary)]">{inv.email} · {inv.profile_completion || 0}% complete</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{inv.email} · {inv.profile_completion || 0}% {t("investorAdmin.review.complete")}</p>
                     </div>
                   </div>
-                  <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-amber-500/10 text-amber-400">Pending Review</span>
+                  <span className="px-3 py-1 rounded-full text-[9px] font-black uppercase bg-amber-500/10 text-amber-400">{t("investorAdmin.review.pendingReview")}</span>
                 </div>
               </AppCard>
             ))}

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getRegisteredModules } from "@/lib/platform/registry";
+import { useI18n } from "@/lib/i18n";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -22,6 +23,7 @@ const ICON_MAP = {
 };
 
 export default function ModulesPage() {
+  const { t } = useI18n();
   const [modules, setModules] = useState([]);
 
   useEffect(() => {
@@ -33,10 +35,10 @@ export default function ModulesPage() {
     <div className="p-6 space-y-6 animate-in">
       <div>
         <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">
-          Platform Modules
+          {t("platformMisc.modules.title")}
         </h1>
         <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-          All registered platform modules. Future modules will be built here.
+          {t("platformMisc.modules.subtitle")}
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -72,7 +74,7 @@ export default function ModulesPage() {
               </p>
               {mod.future && (
                 <span className="inline-block mt-3 px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase tracking-wider">
-                  Coming Soon
+                  {t("platformMisc.modules.comingSoon")}
                 </span>
               )}
               {!mod.future && mod.href && (
@@ -80,7 +82,7 @@ export default function ModulesPage() {
                   href={mod.href}
                   className="inline-block mt-3 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
                 >
-                  Open →
+                  {t("platformMisc.modules.open")}
                 </a>
               )}
             </div>

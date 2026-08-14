@@ -4,6 +4,34 @@
     "programs": "My Programs",
     "teamOverview": "Team Overview",
     "weeklyReports": "Weekly Reports",
-    "deliverables": "Deliverables"
+    "deliverables": "Deliverables",
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "submissions": {
+      "eyebrow": "Reviews & Grading",
+      "title": "Submissions",
+      "totalPending": "{total} total · {pending} pending review",
+      "searchPlaceholder": "Search by participant or deliverable...",
+      "tryDifferentFilters": "Try different filters",
+      "emptyDesc": "Submissions from participants will appear here.",
+      "groupLabel": "Group: {group}",
+      "deliverableNumber": "Deliverable #{number}",
+      "programNumber": "Program #{number}",
+      "viewFile": "View File",
+      "review": "Review",
+      "feedback": "Feedback",
+      "scheduleReview": "Schedule Review",
+      "reviewed": "Reviewed",
+      "reviewSubmission": "Review Submission",
+      "participant": "Participant",
+      "deliverable": "Deliverable",
+      "viewSubmissionFile": "View Submission File",
+      "feedbackPlaceholder": "Provide feedback to the participant...",
+      "submitFeedback": "Submit Feedback",
+      "eventTitle": "Event Title",
+      "location": "Location",
+      "locationPlaceholder": "e.g. Room 301, Zoom link...",
+      "schedule": "Schedule"
+    }
   }
 }

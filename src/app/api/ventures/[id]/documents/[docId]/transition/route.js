@@ -30,12 +30,12 @@ export async function PATCH(req, { params }) {
     if (authError) return authError;
     const { id, docId } = await params;
     const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = (await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id=?", args: [id] })).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const doc = await db.execute({ sql: "SELECT id FROM venture_documents WHERE id = ? AND venture_id = ?", args: [docId, dbId] });
-    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+    if (!doc.rows?.length) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Founders/privileged only — not advisors, not team members.
     if (!PRIVILEGED.includes(session.role)) {

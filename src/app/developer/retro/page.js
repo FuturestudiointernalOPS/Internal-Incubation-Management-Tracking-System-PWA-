@@ -12,8 +12,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperRetro() {
+  const { t } = useI18n();
   const [userRole, setUserRole] = useState("developer");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -62,7 +64,7 @@ export default function DeveloperRetro() {
       const s = await fetch("/api/auth/session");
       const sd = await s.json();
       if (!sd.authenticated) {
-        setError("Session expired");
+        setError(t("developerMisc.retro.sessionExpired"));
         setSubmitting(false);
         return;
       }
@@ -104,9 +106,9 @@ export default function DeveloperRetro() {
         setLessonsLearned("");
         setRetroNotes("");
         setTimeout(() => setSubmitted(false), 3000);
-      } else setError(d.error || "Failed");
+      } else setError(t((d.error || t("developerMisc.retro.submitFailed")) || "") || (d.error || t("developerMisc.retro.submitFailed")));
     } catch (e) {
-      setError("Network error");
+      setError(t("developerMisc.retro.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -125,14 +127,17 @@ export default function DeveloperRetro() {
             <div className="flex items-center gap-2">
               <Trophy className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Weekly Retro
+                {t("developerMisc.retro.weeklyRetro")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Retro
+              {t("developerMisc.retro.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              Week {weekInfo.week}, {weekInfo.year}
+              {t("developerMisc.retro.weekLabel", {
+                week: weekInfo.week,
+                year: weekInfo.year,
+              })}
             </p>
           </div>
         </header>
@@ -147,14 +152,16 @@ export default function DeveloperRetro() {
             <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <p className="text-[10px] font-bold text-emerald-400">
-                Retro submitted!
+                {t("developerMisc.retro.submitted")}
               </p>
             </div>
           )}
 
           {/* Completed Work */}
           <div className="space-y-3">
-            <label className={lC}>What did you complete this week?</label>
+            <label className={lC}>
+              {t("developerMisc.retro.completedLabel")}
+            </label>
             <div className="space-y-2">
               {completedWork.map((item, i) => (
                 <div
@@ -191,7 +198,7 @@ export default function DeveloperRetro() {
                     setNewCompleted,
                   ))
                 }
-                placeholder="Add completed item..."
+                placeholder={t("developerMisc.retro.addCompletedPlaceholder")}
                 className={iC}
               />
               <button
@@ -213,7 +220,9 @@ export default function DeveloperRetro() {
 
           {/* Unfinished Tasks */}
           <div className="space-y-3">
-            <label className={lC}>What tasks remain unfinished?</label>
+            <label className={lC}>
+              {t("developerMisc.retro.unfinishedLabel")}
+            </label>
             <div className="space-y-2">
               {unfinishedTasks.map((item, i) => (
                 <div
@@ -250,7 +259,7 @@ export default function DeveloperRetro() {
                     setNewUnfinished,
                   ))
                 }
-                placeholder="Add unfinished task..."
+                placeholder={t("developerMisc.retro.addUnfinishedPlaceholder")}
                 className={iC}
               />
               <button
@@ -272,9 +281,11 @@ export default function DeveloperRetro() {
 
           {/* Carryover */}
           <div className="space-y-3">
-            <label className={lC}>What carries over to next week?</label>
+            <label className={lC}>
+              {t("developerMisc.retro.carryoverLabel")}
+            </label>
             <p className="text-[8px] font-bold text-slate-500 -mt-1">
-              These will appear in next week's standup
+              {t("developerMisc.retro.carryoverHint")}
             </p>
             <div className="space-y-2">
               {carryoverItems.map((item, i) => (
@@ -312,7 +323,7 @@ export default function DeveloperRetro() {
                     setNewCarryover,
                   ))
                 }
-                placeholder="Add carryover..."
+                placeholder={t("developerMisc.retro.addCarryoverPlaceholder")}
                 className={iC}
               />
               <button
@@ -334,24 +345,28 @@ export default function DeveloperRetro() {
 
           {/* Major Achievement */}
           <div className="space-y-3">
-            <label className={lC}>Major achievement this week</label>
+            <label className={lC}>
+              {t("developerMisc.retro.achievementLabel")}
+            </label>
             <textarea
               value={majorAchievement}
               onChange={(e) => setMajorAchievement(e.target.value)}
               rows={2}
-              placeholder="Your biggest accomplishment..."
+              placeholder={t("developerMisc.retro.achievementPlaceholder")}
               className={iC + " resize-none"}
             />
           </div>
 
           {/* Week Status */}
           <div className="space-y-3">
-            <label className={lC}>How was your week?</label>
+            <label className={lC}>
+              {t("developerMisc.retro.weekStatusLabel")}
+            </label>
             <textarea
               value={weekStatus}
               onChange={(e) => setWeekStatus(e.target.value)}
               rows={2}
-              placeholder="Overall reflection..."
+              placeholder={t("developerMisc.retro.weekStatusPlaceholder")}
               className={iC + " resize-none"}
             />
           </div>
@@ -359,16 +374,16 @@ export default function DeveloperRetro() {
           {/* Blockers + Lessons (both optional, inside same section) */}
           <div className="ios-card !p-5 border-[var(--border-primary)] space-y-5">
             <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-              Challenges & Learnings
+              {t("developerMisc.retro.challengesTitle")}
             </h3>
 
             {/* Blockers */}
             <div className="space-y-3">
               <label className={lC + " text-red-400"}>
-                Blockers — what didn't work?
+                {t("developerMisc.retro.blockersLabel")}
               </label>
               <p className="text-[8px] font-bold text-slate-500 -mt-1">
-                Optional — issues, problems, or obstacles you encountered
+                {t("developerMisc.retro.blockersHint")}
               </p>
               <div className="flex items-center gap-4">
                 <button
@@ -376,7 +391,7 @@ export default function DeveloperRetro() {
                   onClick={() => setHadBlockers(true)}
                   className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === true ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
-                  Yes
+                  {t("developerMisc.retro.yes")}
                 </button>
                 <button
                   type="button"
@@ -386,7 +401,7 @@ export default function DeveloperRetro() {
                   }}
                   className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === false ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
-                  No
+                  {t("developerMisc.retro.no")}
                 </button>
               </div>
               {hadBlockers === true && (
@@ -394,7 +409,7 @@ export default function DeveloperRetro() {
                   value={blockerDesc}
                   onChange={(e) => setBlockerDesc(e.target.value)}
                   rows={2}
-                  placeholder="Describe the blockers..."
+                  placeholder={t("developerMisc.retro.blockersPlaceholder")}
                   className={iC + " resize-none"}
                 />
               )}
@@ -405,16 +420,16 @@ export default function DeveloperRetro() {
             {/* Lessons (inside blockers section) */}
             <div className="space-y-3">
               <label className={lC + " text-emerald-400"}>
-                Lessons learned — what worked or surprised you?
+                {t("developerMisc.retro.lessonsLabel")}
               </label>
               <p className="text-[8px] font-bold text-slate-500 -mt-1">
-                Optional — insights, discoveries, techniques that helped
+                {t("developerMisc.retro.lessonsHint")}
               </p>
               <textarea
                 value={lessonsLearned}
                 onChange={(e) => setLessonsLearned(e.target.value)}
                 rows={3}
-                placeholder="e.g. Breaking PRs into smaller pieces sped up reviews. The new API approach saved time..."
+                placeholder={t("developerMisc.retro.lessonsPlaceholder")}
                 className={iC + " resize-none"}
               />
             </div>
@@ -422,12 +437,14 @@ export default function DeveloperRetro() {
 
           {/* Retro Notes */}
           <div className="space-y-3">
-            <label className={lC}>Additional notes</label>
+            <label className={lC}>
+              {t("developerMisc.retro.notesLabel")}
+            </label>
             <textarea
               value={retroNotes}
               onChange={(e) => setRetroNotes(e.target.value)}
               rows={3}
-              placeholder="Anything else..."
+              placeholder={t("developerMisc.retro.notesPlaceholder")}
               className={iC + " resize-none"}
             />
           </div>
@@ -439,11 +456,13 @@ export default function DeveloperRetro() {
           >
             {submitting ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Submitting...
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />{" "}
+                {t("developerMisc.retro.submitting")}
               </>
             ) : (
               <>
-                <Send className="w-3.5 h-3.5" /> Submit Retro
+                <Send className="w-3.5 h-3.5" />{" "}
+                {t("developerMisc.retro.submit")}
               </>
             )}
           </button>

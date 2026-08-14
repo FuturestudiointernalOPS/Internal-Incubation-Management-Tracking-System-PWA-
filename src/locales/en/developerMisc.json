@@ -1,0 +1,66 @@
+{
+  "developerMisc": {
+    "myTasks": {
+      "eyebrow": "Developer Workspace",
+      "title": "My Tasks",
+      "subtitle": "{count} tasks — Tasks you have created",
+      "refresh": "Refresh",
+      "noTasks": "No tasks",
+      "noTasksHint": "Tasks you create will appear here",
+      "assignedTo": "Assigned to someone"
+    },
+    "notifications": {
+      "eyebrow": "Notifications",
+      "title": "Notifications",
+      "noNotifications": "No notifications"
+    },
+    "projects": {
+      "eyebrow": "Developer Workspace",
+      "title": "My Projects",
+      "subtitle": "Projects you are working on",
+      "invitations": "Project Invitations ({count})",
+      "defaultProject": "Project",
+      "invitedYou": "Invited you to join this project",
+      "decline": "Decline",
+      "accept": "Accept",
+      "failedToRespond": "Failed to respond",
+      "networkError": "Network error",
+      "noProjects": "No projects",
+      "noProjectsHint": "Projects assigned to you will appear here",
+      "untitledProject": "Untitled Project"
+    },
+    "retro": {
+      "sessionExpired": "Session expired",
+      "submitFailed": "Failed",
+      "networkError": "Network error",
+      "weeklyRetro": "Weekly Retro",
+      "title": "Retro",
+      "weekLabel": "Week {week}, {year}",
+      "submitted": "Retro submitted!",
+      "completedLabel": "What did you complete this week?",
+      "addCompletedPlaceholder": "Add completed item...",
+      "unfinishedLabel": "What tasks remain unfinished?",
+      "addUnfinishedPlaceholder": "Add unfinished task...",
+      "carryoverLabel": "What carries over to next week?",
+      "carryoverHint": "These will appear in next week's standup",
+      "addCarryoverPlaceholder": "Add carryover...",
+      "achievementLabel": "Major achievement this week",
+      "achievementPlaceholder": "Your biggest accomplishment...",
+      "weekStatusLabel": "How was your week?",
+      "weekStatusPlaceholder": "Overall reflection...",
+      "challengesTitle": "Challenges & Learnings",
+      "blockersLabel": "Blockers — what didn't work?",
+      "blockersHint": "Optional — issues, problems, or obstacles you encountered",
+      "yes": "Yes",
+      "no": "No",
+      "blockersPlaceholder": "Describe the blockers...",
+      "lessonsLabel": "Lessons learned — what worked or surprised you?",
+      "lessonsHint": "Optional — insights, discoveries, techniques that helped",
+      "lessonsPlaceholder": "e.g. Breaking PRs into smaller pieces sped up reviews. The new API approach saved time...",
+      "notesLabel": "Additional notes",
+      "notesPlaceholder": "Anything else...",
+      "submitting": "Submitting...",
+      "submit": "Submit Retro"
+    }
+  }
+}

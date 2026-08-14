@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { Bell, RefreshCw, CheckCircle2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperNotifications() {
+  const { t } = useI18n();
   const [userRole, setUserRole] = useState("developer");
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,11 +53,11 @@ export default function DeveloperNotifications() {
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Notifications
+                {t("developerMisc.notifications.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Notifications
+              {t("developerMisc.notifications.title")}
             </h1>
           </div>
         </header>
@@ -74,7 +76,7 @@ export default function DeveloperNotifications() {
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <Bell className="w-16 h-16 text-slate-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
-              No notifications
+              {t("developerMisc.notifications.noNotifications")}
             </p>
           </div>
         ) : (

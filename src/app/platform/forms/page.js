@@ -10,6 +10,7 @@ import {
   Clock, Star, FileUp, Link, DollarSign, PenTool, AlignLeft,
   Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, LogIn, XCircle,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +44,51 @@ const FIELD_TYPES = [
   { value: "richtext", label: "Rich Text", icon: PenTool },
 ];
 
+// i18n key suffixes for display-only labels — `value` attributes and stored values stay as-is
+const FIELD_TYPE_KEYS = {
+  text: "fieldTypeShortText",
+  textarea: "fieldTypeLongText",
+  number: "fieldTypeNumber",
+  email: "fieldTypeEmail",
+  phone: "fieldTypePhone",
+  date: "fieldTypeDate",
+  time: "fieldTypeTime",
+  select: "fieldTypeDropdown",
+  radio: "fieldTypeRadio",
+  checkbox: "fieldTypeCheckbox",
+  multiselect: "fieldTypeMultiSelect",
+  file: "fieldTypeFileUpload",
+  url: "fieldTypeUrl",
+  currency: "fieldTypeCurrency",
+  rating: "fieldTypeRating",
+  richtext: "fieldTypeRichText",
+};
+
+const FORM_STATUS_KEYS = {
+  published: "statusPublished",
+  draft: "statusDraft",
+  archived: "statusArchived",
+};
+
+const DECISION_DEFAULT_KEYS = {
+  approved: "decisionDefaultApprove",
+  rejected: "decisionDefaultReject",
+  revision_requested: "decisionDefaultRequestRevision",
+};
+
+const WORKFLOW_STATUS_LABEL_KEYS = {
+  submitted: "statusDefaultSubmitted",
+  approved: "statusDefaultApproved",
+  rejected: "statusDefaultRejected",
+  revision_requested: "statusDefaultRevision",
+  draft: "statusDefaultDraft",
+};
+
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 export default function PlatformForms() {
   const router = useRouter();
+  const { t } = useI18n();
   const [forms, setForms] = useState([]);
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -200,7 +242,7 @@ export default function PlatformForms() {
       });
       const data = await res.json();
       if (data.success) {
-        notify("Form created");
+        notify(t("platformMisc.forms.notifyFormCreated"));
         setShowCreate(false);
         setCreateForm({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
         fetchForms();
@@ -239,7 +281,7 @@ export default function PlatformForms() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(`Published version ${data.version}`);
+        notify(t("platformMisc.forms.notifyPublishedVersion", { version: data.version }));
         setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
         fetchForms();
       }
@@ -284,14 +326,14 @@ export default function PlatformForms() {
         _tmpId: tempId,
         section_id: targetSectionId,
         field_type: fieldType,
-        label: typeInfo.label,
+        label: t("platformMisc.forms." + (FIELD_TYPE_KEYS[fieldType] || "")) || typeInfo.label,
         placeholder: "",
         help_text: "",
         required: false,
         options: fieldType === "rating"
           ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
           : ["select", "radio", "checkbox", "multiselect"].includes(fieldType)
-            ? [{ label: "Option 1", value: "option-1" }]
+            ? [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]
             : fieldType === "rating"
             ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }]
             : null,
@@ -328,7 +370,7 @@ export default function PlatformForms() {
   const addOption = (tmpId) => {
     setFields((prev) => prev.map((f) => {
       if (f._tmpId !== tmpId || !f.options) return f;
-      return { ...f, options: [...f.options, { label: `Option ${f.options.length + 1}`, value: `option-${f.options.length + 1}` }] };
+      return { ...f, options: [...f.options, { label: t("platformMisc.forms.optionDefault", { n: f.options.length + 1 }), value: `option-${f.options.length + 1}` }] };
     }));
   };
 
@@ -414,9 +456,9 @@ export default function PlatformForms() {
         // If republishing, also create a new version snapshot
         if (isRepublishing) {
           await handlePublish({ skipSave: true });
-          notify("Form republished — live URL updated");
+          notify(t("platformMisc.forms.notifyFormRepublished"));
         } else {
-          notify("Form saved");
+          notify(t("platformMisc.forms.notifyFormSaved"));
         }
         
         // Reload to get real DB IDs for new sections/fields
@@ -429,13 +471,13 @@ export default function PlatformForms() {
             setEditingForm(fresh.form || editingForm);
           }
         } catch (_) {}
-      } else notify(data.error || "Save failed");
+      } else notify(t((data.error || t("platformMisc.forms.saveFailed")) || "") || (data.error || t("platformMisc.forms.saveFailed")));
     } catch (_) {}
     setSaving(false);
   };
 
   const handleDuplicate = async (form) => {
-    if (!confirm(`Duplicate "${form.name}"?`)) return;
+    if (!confirm(t("platformMisc.forms.confirmDuplicate", { name: form.name }))) return;
     try {
       const res = await fetch("/api/platform/forms", {
         method: "POST",
@@ -464,7 +506,7 @@ export default function PlatformForms() {
             }),
           });
         }
-        notify("Form duplicated");
+        notify(t("platformMisc.forms.notifyFormDuplicated"));
         fetchForms();
       }
     } catch (_) {}
@@ -495,7 +537,7 @@ export default function PlatformForms() {
           body: JSON.stringify({ id, status: "draft" }),
         });
       }
-      notify(action === "archive" ? "Form archived" : "Form restored");
+      notify(action === "archive" ? t("platformMisc.forms.notifyFormArchived") : t("platformMisc.forms.notifyFormRestored"));
       fetchForms();
     } catch (_) {}
     setArchiveConfirm(null);
@@ -520,11 +562,11 @@ export default function PlatformForms() {
             <Icon className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                {fld.label || "Untitled"}
+                {fld.label || t("platformMisc.forms.untitled")}
                 {fld.required && <span className="text-rose-500 ml-1">*</span>}
               </p>
               <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                {fld.field_type}
+                {FIELD_TYPE_KEYS[fld.field_type] ? t("platformMisc.forms." + FIELD_TYPE_KEYS[fld.field_type]) : fld.field_type}
               </p>
             </div>
           </div>
@@ -540,7 +582,7 @@ export default function PlatformForms() {
           <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-3" onClick={(e) => e.stopPropagation()}>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Label</label>
+                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorLabel")}</label>
                 <input
                   value={fld.label}
                   onChange={(e) => updateField(tmpId, { label: e.target.value })}
@@ -548,37 +590,37 @@ export default function PlatformForms() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Type</label>
+                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorType")}</label>
                 <select
                   value={fld.field_type}
                   onChange={(e) => {
                     const newType = e.target.value;
                     const needsOptions = ["select", "radio", "checkbox", "multiselect", "rating"].includes(newType);
-                    updateField(tmpId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: "Option 1", value: "option-1" }]) : null });
+                    updateField(tmpId, { field_type: newType, options: needsOptions ? (newType === "rating" ? [{ label: "1", value: "1" }, { label: "2", value: "2" }, { label: "3", value: "3" }, { label: "4", value: "4" }, { label: "5", value: "5" }] : [{ label: t("platformMisc.forms.optionDefault", { n: 1 }), value: "option-1" }]) : null });
                   }}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                 >
-                  {FIELD_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {FIELD_TYPES.map((type) => (
+                    <option key={type.value} value={type.value}>{t("platformMisc.forms." + FIELD_TYPE_KEYS[type.value])}</option>
                   ))}
                 </select>
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Section</label>
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorSection")}</label>
               <select
                 value={fld.section_id || ""}
                 onChange={(e) => updateField(tmpId, { section_id: e.target.value || null })}
                 className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
               >
-                <option value="">None (unassigned)</option>
+                <option value="">{t("platformMisc.forms.fieldSectionNone")}</option>
                 {sections.map((s) => (
                   <option key={s.id} value={s.id}>{s.title}</option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Placeholder</label>
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorPlaceholder")}</label>
               <input
                 value={fld.placeholder || ""}
                 onChange={(e) => updateField(tmpId, { placeholder: e.target.value })}
@@ -586,7 +628,7 @@ export default function PlatformForms() {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Help Text</label>
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldEditorHelpText")}</label>
               <input
                 value={fld.help_text || ""}
                 onChange={(e) => updateField(tmpId, { help_text: e.target.value })}
@@ -595,13 +637,13 @@ export default function PlatformForms() {
             </div>
             <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)]">
               <input type="checkbox" checked={fld.required} onChange={(e) => updateField(tmpId, { required: e.target.checked })} />
-              Required
+              {t("platformMisc.forms.fieldRequired")}
             </label>
 
             {/* Options editor */}
             {fld.options && (
               <div className="space-y-2">
-                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Options</label>
+                <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.fieldOptions")}</label>
                 {fld.options.map((opt, oIdx) => (
                   <div key={oIdx} className="flex items-center gap-2">
                     <input
@@ -612,22 +654,22 @@ export default function PlatformForms() {
                     <button onClick={() => removeOption(tmpId, oIdx)} className="text-rose-500"><Trash2 className="w-3 h-3" /></button>
                   </div>
                 ))}
-                <button onClick={() => addOption(tmpId)} className="text-[9px] font-black text-[var(--brand-orange)] hover:underline">+ Add option</button>
+                <button onClick={() => addOption(tmpId)} className="text-[9px] font-black text-[var(--brand-orange)] hover:underline">{t("platformMisc.forms.addOption")}</button>
               </div>
             )}
 
             {/* Validation Rules */}
             <div className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Validation</p>
+              <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.validationTitle")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {["text", "textarea"].includes(fld.field_type) && (
                   <>
                     <div className="space-y-1">
-                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">Min Length</label>
+                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationMinLength")}</label>
                       <input type="number" value={fld.validation?.minLength || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), minLength: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">Max Length</label>
+                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxLength")}</label>
                       <input type="number" value={fld.validation?.maxLength || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), maxLength: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                   </>
@@ -635,42 +677,42 @@ export default function PlatformForms() {
                 {["number", "currency"].includes(fld.field_type) && (
                   <>
                     <div className="space-y-1">
-                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">Min Value</label>
+                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationMinValue")}</label>
                       <input type="number" value={fld.validation?.min || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), min: e.target.value ? parseFloat(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">Max Value</label>
+                      <label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxValue")}</label>
                       <input type="number" value={fld.validation?.max || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), max: e.target.value ? parseFloat(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" />
                     </div>
                   </>
                 )}
                 {["file"].includes(fld.field_type) && (
                   <>
-                    <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Max Size (MB)</label><input type="number" value={fld.validation?.maxSize || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), maxSize: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
-                    <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Allowed Types</label><input value={fld.validation?.acceptedFiles || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), acceptedFiles: e.target.value } })} placeholder=".pdf,.jpg" className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                    <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationMaxSizeMb")}</label><input type="number" value={fld.validation?.maxSize || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), maxSize: e.target.value ? parseInt(e.target.value) : undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                    <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationAllowedTypes")}</label><input value={fld.validation?.acceptedFiles || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), acceptedFiles: e.target.value } })} placeholder=".pdf,.jpg" className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
                   </>
                 )}
-                <div className="col-span-2 space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Error Message</label><input value={fld.validation?.errorMessage || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), errorMessage: e.target.value } })} placeholder="Custom error message" className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                <div className="col-span-2 space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.validationErrorMessage")}</label><input value={fld.validation?.errorMessage || ""} onChange={(e) => updateField(tmpId, { validation: { ...(fld.validation || {}), errorMessage: e.target.value } })} placeholder={t("platformMisc.forms.validationErrorMessagePlaceholder")} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
               </div>
             </div>
 
             {/* Conditional Logic */}
             <div className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Conditional Logic</p>
-              <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Show only when</label>
+              <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.conditionalLogicTitle")}</p>
+              <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalShowOnlyWhen")}</label>
                 <select value={fld.conditional_logic?.field_id || ""} onChange={(e) => updateField(tmpId, { conditional_logic: { ...(fld.conditional_logic || {}), field_id: e.target.value || undefined } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none">
-                  <option value="">Always visible</option>
+                  <option value="">{t("platformMisc.forms.conditionalAlwaysVisible")}</option>
                   {fields.filter((f) => f !== fld).slice(0, 20).map((f) => <option key={f.label} value={f.label}>{f.label}</option>)}
                 </select>
               </div>
               {fld.conditional_logic?.field_id && (
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Operator</label>
+                  <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalOperator")}</label>
                     <select value={fld.conditional_logic?.operator || "equals"} onChange={(e) => updateField(tmpId, { conditional_logic: { ...fld.conditional_logic, operator: e.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none">
-                      <option value="equals">Equals</option><option value="not_equals">Not Equals</option><option value="contains">Contains</option><option value="greater_than">Greater Than</option><option value="less_than">Less Than</option>
+                      <option value="equals">{t("platformMisc.forms.operatorEquals")}</option><option value="not_equals">{t("platformMisc.forms.operatorNotEquals")}</option><option value="contains">{t("platformMisc.forms.operatorContains")}</option><option value="greater_than">{t("platformMisc.forms.operatorGreaterThan")}</option><option value="less_than">{t("platformMisc.forms.operatorLessThan")}</option>
                     </select>
                   </div>
-                  <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">Value</label><input value={fld.conditional_logic?.value || ""} onChange={(e) => updateField(tmpId, { conditional_logic: { ...fld.conditional_logic, value: e.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
+                  <div className="space-y-1"><label className="text-[7px] font-bold text-[var(--text-secondary)]">{t("platformMisc.forms.conditionalValue")}</label><input value={fld.conditional_logic?.value || ""} onChange={(e) => updateField(tmpId, { conditional_logic: { ...fld.conditional_logic, value: e.target.value } })} className="w-full px-2 py-1.5 rounded bg-primary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none" /></div>
                 </div>
               )}
             </div>
@@ -687,15 +729,15 @@ export default function PlatformForms() {
         {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase">{notification}</div>}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">Forms</h1>
-            <p className="text-[10px] text-[var(--text-secondary)] mt-1">Design configurable forms with AI evaluation, scoring, and review.</p>
+            <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.listTitle")}</h1>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.forms.listSubtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <NextLink href="/platform/collections" className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase hover:text-[var(--text-primary)] transition-all">
-              <FolderKanban className="w-3.5 h-3.5" /> Collections
+              <FolderKanban className="w-3.5 h-3.5" /> {t("platformMisc.forms.collectionsLink")}
             </NextLink>
             <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
-              <Plus className="w-3.5 h-3.5" /> New Form
+              <Plus className="w-3.5 h-3.5" /> {t("platformMisc.forms.newForm")}
             </button>
           </div>
         </div>
@@ -703,13 +745,13 @@ export default function PlatformForms() {
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
-            <input type="text" placeholder="Search forms..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]" />
+            <input type="text" placeholder={t("platformMisc.forms.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]" />
           </div>
           <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
+            <option value="all">{t("platformMisc.forms.statusAll")}</option>
+            <option value="draft">{t("platformMisc.forms.statusDraft")}</option>
+            <option value="published">{t("platformMisc.forms.statusPublished")}</option>
+            <option value="archived">{t("platformMisc.forms.statusArchived")}</option>
           </select>
         </div>
 
@@ -729,17 +771,17 @@ export default function PlatformForms() {
                       <button onClick={() => openBuilder(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:bg-tertiary"><Edit3 className="w-3 h-3" /></button>
                       <button onClick={() => handleDuplicate(f)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-blue-500 hover:bg-tertiary"><Copy className="w-3 h-3" /></button>
                       {f.status !== "archived" ? (
-                        <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title="Archive this form"><Archive className="w-3 h-3" /></button>
+                        <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.archiveTitle")}><Archive className="w-3 h-3" /></button>
                       ) : (
-                        <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title="Restore this form"><RotateCcw className="w-3 h-3" /></button>
+                        <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
                       )}
                     </div>
                   </div>
                   <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">{f.name}</h3>
                   {f.description && <p className="text-[10px] text-[var(--text-secondary)] mt-1">{f.description}</p>}
-                  {col && <p className="text-[9px] text-[var(--text-secondary)] mt-2 opacity-50">in {col.name}</p>}
+                  {col && <p className="text-[9px] text-[var(--text-secondary)] mt-2 opacity-50">{t("platformMisc.forms.inCollection", { name: col.name })}</p>}
                   <div className="flex items-center gap-2 mt-3">
-                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${f.status === "published" ? "text-emerald-500 bg-emerald-500/10" : f.status === "draft" ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10"}`}>{f.status}</span>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${f.status === "published" ? "text-emerald-500 bg-emerald-500/10" : f.status === "draft" ? "text-amber-500 bg-amber-500/10" : "text-rose-500 bg-rose-500/10"}`}>{FORM_STATUS_KEYS[f.status] ? t("platformMisc.forms." + FORM_STATUS_KEYS[f.status]) : f.status}</span>
                     <span className="text-[9px] text-[var(--text-secondary)]">v{f.version || 1}</span>
                   </div>
 
@@ -754,51 +796,51 @@ export default function PlatformForms() {
           <div className="fixed inset-0 z-[400] bg-black/40 flex items-center justify-center p-6" onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}>
             <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center">
-                <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">New Form</h3>
+                <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.newForm")}</h3>
                 <button onClick={() => { setShowCreate(false); setCreateMode("manual"); setAiGenText(""); }}><X className="w-5 h-5" /></button>
               </div>
 
               {/* Mode Switcher */}
               <div className="flex gap-2 p-1 rounded-xl bg-tertiary">
-                <button onClick={() => setCreateMode("manual")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "manual" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}>Create Manually</button>
-                <button onClick={() => setCreateMode("ai")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "ai" ? "bg-indigo-500 text-white" : "text-[var(--text-secondary)]"}`}>Generate with AI</button>
+                <button onClick={() => setCreateMode("manual")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "manual" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.forms.createManual")}</button>
+                <button onClick={() => setCreateMode("ai")} className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all ${createMode === "ai" ? "bg-indigo-500 text-white" : "text-[var(--text-secondary)]"}`}>{t("platformMisc.forms.createGenerateAi")}</button>
               </div>
 
               {createMode === "manual" ? (
                 <>
                   <div className="space-y-4">
-                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Name</label><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. Founder Application" /></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Description</label><textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder="What is this form for?" /></div>
-                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.name")}</label><input value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.namePlaceholder")} /></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.description")}</label><textarea value={createForm.description} onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none" placeholder={t("platformMisc.forms.descriptionPlaceholder")} /></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.collection")}</label>
                       <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
-                        <option value="">None</option>
-                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? " (archived)" : ""}</option>)}
+                        <option value="">{t("platformMisc.forms.none")}</option>
+                        {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}{c.status === "archived" ? t("platformMisc.forms.archivedSuffix") : ""}</option>)}
                       </select>
                     </div>
-                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Tags</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder="e.g. application, onboarding" /></div>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.tags")}</label><input value={createForm.tags} onChange={(e) => setCreateForm({ ...createForm, tags: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]" placeholder={t("platformMisc.forms.tagsPlaceholder")} /></div>
                   </div>
-                  <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">Cancel</button><button onClick={handleCreateForm} disabled={saving || !createForm.name.trim()} className="flex-1 btn btn-primary">{saving ? "Creating..." : "Create & Edit"}</button></div>
+                  <div className="flex gap-3"><button onClick={() => setShowCreate(false)} className="flex-1 btn btn-secondary">{t("platformMisc.forms.cancel")}</button><button onClick={handleCreateForm} disabled={saving || !createForm.name.trim()} className="flex-1 btn btn-primary">{saving ? t("platformMisc.forms.creating") : t("platformMisc.forms.createAndEdit")}</button></div>
                 </>
               ) : (
                 <>
                   <div className="space-y-4">
-                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">Paste your assessment document, concept note, or application guidelines below. AI will generate a complete form with sections, questions, field types, and validation.</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.forms.aiGenHint")}</p>
                     <textarea
                       value={aiGenText}
                       onChange={(e) => setAiGenText(e.target.value)}
                       rows={8}
-                      placeholder="Paste your assessment guide, rubric, concept note, or application requirements here..."
+                      placeholder={t("platformMisc.forms.aiGenTextPlaceholder")}
                       className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
                     />
-                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Collection</label>
+                    <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.collection")}</label>
                       <select value={createForm.collection_id} onChange={(e) => setCreateForm({ ...createForm, collection_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)]">
-                        <option value="">None</option>
+                        <option value="">{t("platformMisc.forms.none")}</option>
                         {collections.filter((c) => c.status !== "archived" || String(c.id) === createForm.collection_id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                       </select>
                     </div>
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => { setCreateMode("manual"); setAiGenText(""); }} className="flex-1 btn btn-secondary">Back</button>
+                    <button onClick={() => { setCreateMode("manual"); setAiGenText(""); }} className="flex-1 btn btn-secondary">{t("platformMisc.forms.back")}</button>
                     <button
                       onClick={async () => {
                         if (!aiGenText.trim()) return;
@@ -808,10 +850,10 @@ export default function PlatformForms() {
                           const data = await res.json();
                           if (data.success) {
                             const parts = [];
-                            if (data.sections) parts.push(`${data.sections} sections`);
-                            if (data.fields) parts.push(`${data.fields} questions`);
-                            if (data.evaluation_dimensions) parts.push(`${data.evaluation_dimensions} eval dimensions`);
-                            notify(`✓ AI created "${data.title}" — ${parts.join(", ")}`);
+                            if (data.sections) parts.push(t("platformMisc.forms.aiPartsSections", { count: data.sections }));
+                            if (data.fields) parts.push(t("platformMisc.forms.aiPartsQuestions", { count: data.fields }));
+                            if (data.evaluation_dimensions) parts.push(t("platformMisc.forms.aiPartsEvalDimensions", { count: data.evaluation_dimensions }));
+                            notify(t("platformMisc.forms.aiCreated", { title: data.title, parts: parts.join(", ") }));
                             setShowCreate(false);
                             setCreateMode("manual");
                             setAiGenText("");
@@ -821,15 +863,15 @@ export default function PlatformForms() {
                               setTimeout(() => openBuilder(data.form), 400);
                             }
                           } else {
-                            notify(data.error || "Generation failed — try a longer document with more detail");
+                            notify(t((data.error || t("platformMisc.forms.aiGenFailed")) || "") || (data.error || t("platformMisc.forms.aiGenFailed")));
                           }
-                        } catch (_) { notify("AI generation failed — check your connection"); }
+                        } catch (_) { notify(t("platformMisc.forms.aiGenFailedConnection")); }
                         setAiGenLoading(false);
                       }}
                       disabled={aiGenLoading || !aiGenText.trim()}
                       className="flex-1 px-4 py-3 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-600 disabled:opacity-50 transition-all"
                     >
-                      {aiGenLoading ? "Generating..." : "Generate Form"}
+                      {aiGenLoading ? t("platformMisc.forms.generating") : t("platformMisc.forms.generateForm")}
                     </button>
                   </div>
                 </>
@@ -849,40 +891,40 @@ export default function PlatformForms() {
               </div>
               <div>
                 <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">
-                  {archiveConfirm.action === 'archive' ? 'Archive Form' : 'Restore Form'}
+                  {archiveConfirm.action === 'archive' ? t("platformMisc.forms.archiveModalTitle") : t("platformMisc.forms.restoreModalTitle")}
                 </h3>
                 <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
                   {archiveConfirm.action === 'archive'
-                    ? 'Are you sure you want to archive '
-                    : 'Are you sure you want to restore '}
+                    ? t("platformMisc.forms.archiveConfirmArchive")
+                    : t("platformMisc.forms.archiveConfirmRestore")}
                   <strong className="text-[var(--text-primary)]">&quot;{archiveConfirm.name}&quot;</strong>?
                 </p>
               </div>
             </div>
             {archiveConfirm.action === 'archive' ? (
               <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-                <p className="text-[9px] font-bold text-amber-500 uppercase">What happens when you archive:</p>
+                <p className="text-[9px] font-bold text-amber-500 uppercase">{t("platformMisc.forms.archiveWhatHappens")}</p>
                 <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
-                  <li>The form will be hidden from active views</li>
-                  <li>Existing runs using this form continue to work</li>
-                  <li>You can restore it at any time</li>
+                  <li>{t("platformMisc.forms.archiveBulletHidden")}</li>
+                  <li>{t("platformMisc.forms.archiveBulletRuns")}</li>
+                  <li>{t("platformMisc.forms.archiveBulletRestore")}</li>
                 </ul>
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-                <p className="text-[9px] font-bold text-emerald-500 uppercase">What happens when you restore:</p>
+                <p className="text-[9px] font-bold text-emerald-500 uppercase">{t("platformMisc.forms.restoreWhatHappens")}</p>
                 <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
-                  <li>The form will return to draft status</li>
-                  <li>It will reappear in the forms list</li>
-                  <li>All previous data and runs remain unchanged</li>
+                  <li>{t("platformMisc.forms.restoreBulletDraft")}</li>
+                  <li>{t("platformMisc.forms.restoreBulletReappear")}</li>
+                  <li>{t("platformMisc.forms.restoreBulletData")}</li>
                 </ul>
               </div>
             )}
             <div className="flex gap-3">
-              <button onClick={() => setArchiveConfirm(null)} className="flex-1 btn btn-secondary">Cancel</button>
+              <button onClick={() => setArchiveConfirm(null)} className="flex-1 btn btn-secondary">{t("platformMisc.forms.cancel")}</button>
               <button onClick={confirmArchiveAction}
                 className={archiveConfirm.action === 'archive' ? 'flex-1 px-4 py-2.5 rounded-xl bg-rose-500 text-white text-[10px] font-black uppercase hover:bg-rose-600 transition-all' : 'flex-1 px-4 py-2.5 rounded-xl bg-emerald-500 text-white text-[10px] font-black uppercase hover:bg-emerald-600 transition-all'}>
-                {archiveConfirm.action === 'archive' ? 'Archive' : 'Restore'}
+                {archiveConfirm.action === 'archive' ? t("platformMisc.forms.archiveAction") : t("platformMisc.forms.restoreAction")}
               </button>
             </div>
           </div>
@@ -903,32 +945,32 @@ export default function PlatformForms() {
       {/* Builder header */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-[var(--border-primary)] bg-secondary shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => { setShowBuilder(false); setEditingForm(null); }} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">← Back</button>
+          <button onClick={() => { setShowBuilder(false); setEditingForm(null); }} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">← {t("platformMisc.forms.back")}</button>
           <span className="text-[var(--text-secondary)] opacity-30">|</span>
           <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{editingForm?.name}</h2>
-          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${editingForm?.status === "published" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"}`}>{editingForm?.status || "draft"}</span>
+          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${editingForm?.status === "published" ? "text-emerald-500 bg-emerald-500/10" : "text-amber-500 bg-amber-500/10"}`}>{editingForm?.status ? (FORM_STATUS_KEYS[editingForm.status] ? t("platformMisc.forms." + FORM_STATUS_KEYS[editingForm.status]) : editingForm.status) : t("platformMisc.forms.statusDraft")}</span>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => { setShowAiEval(!showAiEval); setShowScoring(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showAiEval ? "bg-purple-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
-            <Sparkles className="w-3 h-3 inline mr-1.5" />AI Eval {aiEvalFramework && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+            <Sparkles className="w-3 h-3 inline mr-1.5" />{t("platformMisc.forms.builderAiEval")} {aiEvalFramework && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => { setShowScoring(!showScoring); setShowAiEval(false); setShowWorkflow(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showScoring ? "bg-indigo-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
-            <BarChart3 className="w-3 h-3 inline mr-1.5" />Scoring {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+            <BarChart3 className="w-3 h-3 inline mr-1.5" />{t("platformMisc.forms.builderScoring")} {scoringConfig?.enabled && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => { setShowWorkflow(!showWorkflow); setShowAiEval(false); setShowScoring(false); setShowTemplates(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showWorkflow ? "bg-amber-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
-            <GitBranch className="w-3 h-3 inline mr-1.5" />Workflow {workflowConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+            <GitBranch className="w-3 h-3 inline mr-1.5" />{t("platformMisc.forms.builderWorkflow")} {workflowConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => { setShowTemplates(!showTemplates); setShowAiEval(false); setShowScoring(false); setShowWorkflow(false); }} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${showTemplates ? "bg-cyan-500 text-white" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
-            <Mail className="w-3 h-3 inline mr-1.5" />Templates {templateConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
+            <Mail className="w-3 h-3 inline mr-1.5" />{t("platformMisc.forms.builderTemplates")} {templateConfig && <span className="ml-1 w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />}
           </button>
           <button onClick={() => setPreviewMode(!previewMode)} className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
-            <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? "Editing" : "Preview"}
+            <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? t("platformMisc.forms.previewEditing") : t("platformMisc.forms.previewPreview")}
           </button>
-          <button onClick={() => saveFields(false)} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? "Saving..." : "Save"}</button>
+          <button onClick={() => saveFields(false)} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? t("platformMisc.forms.saving") : t("platformMisc.forms.save")}</button>
           {editingForm?.status === "published" ? (
             <>
               <button onClick={() => saveFields(true)} disabled={saving} className="px-3 py-2 rounded-xl bg-indigo-500 text-white text-[9px] font-black uppercase hover:bg-indigo-600 transition-all">
-                {saving ? "Publishing..." : "Republish"}
+                {saving ? t("platformMisc.forms.publishing") : t("platformMisc.forms.republish")}
               </button>
               <button onClick={async () => {
                 // Auto-create a run for this form and navigate to it
@@ -941,7 +983,7 @@ export default function PlatformForms() {
                   });
                   const data = await res.json();
                   if (data.success) {
-                    notify("Run created — launching...");
+                    notify(t("platformMisc.forms.runCreated"));
                     // Launch the run
                     await fetch("/api/platform/form-runs?action=launch", {
                       method: "POST",
@@ -955,11 +997,11 @@ export default function PlatformForms() {
                 } catch (_) { router.push("/platform/runs"); }
                 setSaving(false);
               }} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shadow-[0_0_15px_rgba(255,102,0,0.3)] border border-[var(--brand-orange)] flex items-center">
-                <Play className="w-3 h-3 inline mr-1.5" /> {saving ? "Creating..." : "Launch & Collect"}
+                <Play className="w-3 h-3 inline mr-1.5" /> {saving ? t("platformMisc.forms.creating") : t("platformMisc.forms.launchAndCollect")}
               </button>
             </>
           ) : (
-            <button onClick={() => handlePublish()} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? "Publishing..." : "Publish"}</button>
+            <button onClick={() => handlePublish()} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{saving ? t("platformMisc.forms.publishing") : t("platformMisc.forms.publish")}</button>
           )}
         </div>
       </div>
@@ -970,7 +1012,7 @@ export default function PlatformForms() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Scoring Configuration</h3>
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.scoringConfigTitle")}</h3>
             </div>
             <button onClick={() => setShowScoring(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
           </div>
@@ -980,16 +1022,16 @@ export default function PlatformForms() {
             <label className="flex items-center gap-3 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)] cursor-pointer">
               <input type="checkbox" checked={scoringConfig.enabled} onChange={(e) => setScoringConfig({ ...scoringConfig, enabled: e.target.checked })} className="w-4 h-4 rounded accent-indigo-500" />
               <div>
-                <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">Enable Scoring</p>
-                <p className="text-[8px] text-[var(--text-secondary)]">Auto-calculate on submission</p>
+                <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">{t("platformMisc.forms.scoringEnable")}</p>
+                <p className="text-[8px] text-[var(--text-secondary)]">{t("platformMisc.forms.scoringAutoCalc")}</p>
               </div>
             </label>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Max Per Question</label>
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.scoringMaxPerQuestion")}</label>
               <input type="number" min={0} value={scoringConfig.max_per_question ?? ""} onChange={(e) => { const v = e.target.value; setScoringConfig({ ...scoringConfig, max_per_question: v === "" ? 0 : parseInt(v) || 0 }); }} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none" placeholder="0" />
             </div>
             <div className="space-y-1 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">Total Section Weight</label>
+              <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.scoringTotalWeight")}</label>
               <p className={`text-xl font-black ${Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0) === 100 ? "text-emerald-400" : "text-rose-400"}`}>
                 {Object.values(scoringConfig.sections || {}).reduce((s, sec) => s + (sec.weight || 0), 0)}%
               </p>
@@ -999,14 +1041,14 @@ export default function PlatformForms() {
           {/* Section weights */}
           {scoringConfig.enabled && (
             <div className="space-y-3">
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Section Weights &amp; Scored Fields</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("platformMisc.forms.scoringSectionWeights")}</h4>
               <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                 <table className="w-full text-left">
                   <thead className="bg-tertiary">
                     <tr className="text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
-                      <th className="px-3 py-2">Section</th>
-                      <th className="px-3 py-2">Weight (%)</th>
-                      <th className="px-3 py-2">Scored Fields</th>
+                      <th className="px-3 py-2">{t("platformMisc.forms.scoringTableSection")}</th>
+                      <th className="px-3 py-2">{t("platformMisc.forms.scoringTableWeight")}</th>
+                      <th className="px-3 py-2">{t("platformMisc.forms.scoringTableScoredFields")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border-primary)]">
@@ -1052,7 +1094,7 @@ export default function PlatformForms() {
                                   </button>
                                 );
                               })}
-                              {ratingFields.length === 0 && <span className="text-[8px] text-[var(--text-secondary)] italic">No rating fields in this section</span>}
+                              {ratingFields.length === 0 && <span className="text-[8px] text-[var(--text-secondary)] italic">{t("platformMisc.forms.scoringNoRatingFields")}</span>}
                             </div>
                           </td>
                         </tr>
@@ -1063,7 +1105,7 @@ export default function PlatformForms() {
               </div>
 
               {/* Rankings */}
-              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">Ranking Thresholds</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">{t("platformMisc.forms.scoringRankingThresholds")}</h4>
               <div className="space-y-2">
                 {(scoringConfig.rankings || []).map((rank, idx) => (
                   <div key={idx} className="flex items-center gap-2 p-2 rounded-xl bg-tertiary border border-[var(--border-primary)]">
@@ -1079,7 +1121,7 @@ export default function PlatformForms() {
                         setScoringConfig({ ...scoringConfig, rankings: next });
                       }}
                       className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
-                      placeholder="Min"
+                      placeholder={t("platformMisc.forms.rankingMin")}
                     />
                     <span className="text-[var(--text-secondary)] text-[9px]">–</span>
                     <input
@@ -1093,7 +1135,7 @@ export default function PlatformForms() {
                         setScoringConfig({ ...scoringConfig, rankings: next });
                       }}
                       className="w-14 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
-                      placeholder="Max"
+                      placeholder={t("platformMisc.forms.rankingMax")}
                     />
                     <input
                       type="text"
@@ -1104,7 +1146,7 @@ export default function PlatformForms() {
                         setScoringConfig({ ...scoringConfig, rankings: next });
                       }}
                       className="flex-1 px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
-                      placeholder="Label"
+                      placeholder={t("platformMisc.forms.rankingLabel")}
                     />
                     <input
                       type="text"
@@ -1127,7 +1169,7 @@ export default function PlatformForms() {
                 <button onClick={() => setScoringConfig({
                   ...scoringConfig,
                   rankings: [...(scoringConfig.rankings || []), { min: 0, max: 100, label: "New Tier", color: "#64748b" }],
-                })} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"><PlusCircle className="w-3 h-3" /> Add Ranking Tier</button>
+                })} className="flex items-center gap-1 text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"><PlusCircle className="w-3 h-3" /> {t("platformMisc.forms.scoringAddRankingTier")}</button>
               </div>
             </div>
           )}
@@ -1140,7 +1182,7 @@ export default function PlatformForms() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <GitBranch className="w-4 h-4 text-amber-400" />
-              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Workflow Configuration</h3>
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.workflowConfigTitle")}</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1154,20 +1196,20 @@ export default function PlatformForms() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), workflow: workflowConfig, automation: automationConfig || DEFAULT_AUTOMATION } }),
                     });
-                    notify("Workflow saved");
+                    notify(t("platformMisc.forms.notifyWorkflowSaved"));
                   } catch (_) {}
                   setSaving(false);
                 }}
                 className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-[9px] font-black uppercase hover:bg-amber-600 transition-all"
               >
-                Save Workflow
+                {t("platformMisc.forms.workflowSave")}
               </button>
               <button onClick={() => setShowWorkflow(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
             </div>
           </div>
 
           <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-            Customize the decision labels and status names for this form's review workflow. Leave empty to use defaults (Approve / Reject / Request Revision).
+            {t("platformMisc.forms.workflowHint")}
           </p>
 
           {(() => {
@@ -1184,12 +1226,12 @@ export default function PlatformForms() {
 
             return (
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">Decision Buttons</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("platformMisc.forms.workflowDecisionButtons")}</h4>
                 <div className="grid grid-cols-3 gap-3">
                   {decisions.map((d, i) => (
                     <div key={d.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                       <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
-                        {d.id === "approved" ? "Positive" : d.id === "rejected" ? "Negative" : "Needs Work"}
+                        {d.id === "approved" ? t("platformMisc.forms.decisionPositive") : d.id === "rejected" ? t("platformMisc.forms.decisionNegative") : t("platformMisc.forms.decisionNeedsWork")}
                       </label>
                       <input
                         value={d.label}
@@ -1198,14 +1240,14 @@ export default function PlatformForms() {
                           next[i] = { ...next[i], label: e.target.value };
                           setWorkflowConfig({ ...wf, decisions: next });
                         }}
-                        placeholder={d.defaultLabel}
+                        placeholder={t("platformMisc.forms." + DECISION_DEFAULT_KEYS[d.id])}
                         className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                       />
                     </div>
                   ))}
                 </div>
 
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">Status Labels</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-2">{t("platformMisc.forms.workflowStatusLabels")}</h4>
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { id: "submitted", defaultLabel: "Submitted" },
@@ -1217,11 +1259,11 @@ export default function PlatformForms() {
                     const val = (wf.statusLabels || {})[st.id] || "";
                     return (
                       <div key={st.id} className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                        <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{st.defaultLabel} →</label>
+                        <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[st.id])} →</label>
                         <input
                           value={val}
                           onChange={e => setWorkflowConfig({ ...wf, statusLabels: { ...(wf.statusLabels || {}), [st.id]: e.target.value } })}
-                          placeholder={st.defaultLabel}
+                          placeholder={t("platformMisc.forms." + WORKFLOW_STATUS_LABEL_KEYS[st.id])}
                           className="w-full px-2 py-1.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
                         />
                       </div>
@@ -1229,8 +1271,8 @@ export default function PlatformForms() {
                   })}
                 </div>
 
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">Automation Actions</h4>
-                <p className="text-[9px] text-[var(--text-secondary)] mb-3">What happens automatically after form events. Defaults to full Program Application workflow.</p>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">{t("platformMisc.forms.workflowAutomationActions")}</h4>
+                <p className="text-[9px] text-[var(--text-secondary)] mb-3">{t("platformMisc.forms.workflowAutomationHint")}</p>
 
                 {(() => {
                   const autoCfg = automationConfig || DEFAULT_AUTOMATION;
@@ -1255,19 +1297,19 @@ export default function PlatformForms() {
                   };
                   return (
                     <div className="space-y-2 pl-1">
-                      <p className="text-[8px] font-black text-amber-400 uppercase">On Submit</p>
-                      <Toggle path="on_submit.send_acknowledgement" label="Send acknowledgement email" desc="Confirmation on form submission" />
-                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-1">On Approval</p>
-                      <Toggle path="on_approve.send_approval_email" label="Send approval email" desc="Notify applicant of acceptance" />
-                      <Toggle path="on_approve.create_platform_user" label="Create platform user" desc="Generate user account" />
-                      <Toggle path="on_approve.send_activation_email" label="Send activation email" desc="Password setup link" />
-                      <Toggle path="on_approve.enroll_in_program" label="Enroll in program" desc="Add to linked program" />
-                      <Toggle path="on_approve.assign_to_group" label="Assign to group" desc="Add to form run group" />
-                      <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">Tip: The group defines the member's role. Configure this in the group settings.</p>
-                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-2">Auto-Approval</p>
-                      <Toggle path="auto_approve" label="Auto-approve by score" desc="Approve applicants whose AI score meets the cutoff" />
+                      <p className="text-[8px] font-black text-amber-400 uppercase">{t("platformMisc.forms.automationOnSubmit")}</p>
+                      <Toggle path="on_submit.send_acknowledgement" label={t("platformMisc.forms.autoSendAckLabel")} desc={t("platformMisc.forms.autoSendAckDesc")} />
+                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-1">{t("platformMisc.forms.automationOnApproval")}</p>
+                      <Toggle path="on_approve.send_approval_email" label={t("platformMisc.forms.autoSendApprovalLabel")} desc={t("platformMisc.forms.autoSendApprovalDesc")} />
+                      <Toggle path="on_approve.create_platform_user" label={t("platformMisc.forms.autoCreateUserLabel")} desc={t("platformMisc.forms.autoCreateUserDesc")} />
+                      <Toggle path="on_approve.send_activation_email" label={t("platformMisc.forms.autoSendActivationLabel")} desc={t("platformMisc.forms.autoSendActivationDesc")} />
+                      <Toggle path="on_approve.enroll_in_program" label={t("platformMisc.forms.autoEnrollLabel")} desc={t("platformMisc.forms.autoEnrollDesc")} />
+                      <Toggle path="on_approve.assign_to_group" label={t("platformMisc.forms.autoAssignGroupLabel")} desc={t("platformMisc.forms.autoAssignGroupDesc")} />
+                      <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">{t("platformMisc.forms.autoGroupTip")}</p>
+                      <p className="text-[8px] font-black text-emerald-400 uppercase pt-2">{t("platformMisc.forms.automationAutoApproval")}</p>
+                      <Toggle path="auto_approve" label={t("platformMisc.forms.autoApproveScoreLabel")} desc={t("platformMisc.forms.autoApproveScoreDesc")} />
                       <div className="flex items-center gap-3 pt-1">
-                        <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase">Cutoff Score</label>
+                        <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase">{t("platformMisc.forms.autoCutoffScore")}</label>
                         <input
                           type="number"
                           min="0"
@@ -1278,24 +1320,24 @@ export default function PlatformForms() {
                         />
                         <span className="text-[10px] font-black text-[var(--text-secondary)]">%</span>
                       </div>
-                      <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">Applicants scoring ≥ cutoff are automatically approved and sent through group assignment + activation. Below-cutoff applicants remain for manual review.</p>
-                      <p className="text-[8px] font-black text-rose-400 uppercase pt-1">On Rejection</p>
-                      <Toggle path="on_reject.send_rejection_email" label="Send rejection email" desc="Notify applicant of decision" />
+                      <p className="text-[7px] text-[var(--text-secondary)] italic mt-1">{t("platformMisc.forms.autoCutoffHint")}</p>
+                      <p className="text-[8px] font-black text-rose-400 uppercase pt-1">{t("platformMisc.forms.automationOnRejection")}</p>
+                      <Toggle path="on_reject.send_rejection_email" label={t("platformMisc.forms.autoSendRejectionLabel")} desc={t("platformMisc.forms.autoSendRejectionDesc")} />
                     </div>
                   );
                 })()}
 
-                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">Success Message</h4>
-                <p className="text-[9px] text-[var(--text-secondary)] mb-3">Shown to the respondent after successful form submission. Supports HTML and placeholders like {"{{name}}"}, {"{{form_name}}"}, {"{{submitter_name}}"}, {"{{group_name}}"}.</p>
+                <h4 className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] pt-4">{t("platformMisc.forms.workflowSuccessMessage")}</h4>
+                <p className="text-[9px] text-[var(--text-secondary)] mb-3">{t("platformMisc.forms.workflowSuccessHint")}</p>
                 <textarea
                   value={automationConfig?.success_message || DEFAULT_AUTOMATION.success_message || ""}
                   onChange={(e) => setAutomationConfig({ ...(automationConfig || DEFAULT_AUTOMATION), success_message: e.target.value })}
                   rows={4}
-                  placeholder="<p>Thank you <strong>{{submitter_name}}</strong>!</p><p>Your response to <strong>{{form_name}}</strong> has been recorded. Our team will review your submission.</p>"
+                  placeholder={t("platformMisc.forms.successMessagePlaceholder")}
                   className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-amber-500 resize-y font-mono"
                 />
                 <div className="space-y-1">
-                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Redirect After Submit (optional URL)</label>
+                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.redirectAfterSubmitLabel")}</label>
                   <input
                     type="url"
                     value={automationConfig?.redirect_after_submit || ""}
@@ -1304,13 +1346,13 @@ export default function PlatformForms() {
                     className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-amber-500"
                   />
                 </div>
-                <p className="text-[7px] text-[var(--text-secondary)] italic">Available placeholders: {"{{submitter_name}}"}, {"{{submitter_email}}"}, {"{{form_name}}"}, {"{{group_name}}"}, {"{{organization}}"}, plus any form field label (e.g. {"{{full_name}}"}, {"{{email_address}}"}).</p>
+                <p className="text-[7px] text-[var(--text-secondary)] italic">{t("platformMisc.forms.workflowPlaceholdersHint")}</p>
 
                 <button
                   onClick={() => setWorkflowConfig(null)}
                   className="text-[9px] font-bold text-rose-500 hover:text-rose-400 uppercase"
                 >
-                  Reset to defaults
+                  {t("platformMisc.forms.workflowResetDefaults")}
                 </button>
               </div>
             );
@@ -1324,7 +1366,7 @@ export default function PlatformForms() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Mail className="w-4 h-4 text-cyan-400" />
-              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Email Templates</h3>
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.templatesTitle")}</h3>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -1340,20 +1382,20 @@ export default function PlatformForms() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ id: editingForm.id, settings: { ...currentSettings, automation: { ...currentAuto, templates: templateConfig } } }),
                     });
-                    notify("Templates saved");
+                    notify(t("platformMisc.forms.notifyTemplatesSaved"));
                   } catch (_) {}
                   setSaving(false);
                 }}
                 className="px-3 py-1.5 rounded-lg bg-cyan-500 text-white text-[9px] font-black uppercase hover:bg-cyan-600 transition-all"
               >
-                Save Templates
+                {t("platformMisc.forms.templatesSave")}
               </button>
               <button onClick={() => setShowTemplates(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
             </div>
           </div>
 
           <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-            Customize the email messages sent to applicants. Use <code className="px-1 bg-tertiary rounded text-[var(--brand-orange)]">{`{{variable}}`}</code> placeholders.
+            {t("platformMisc.forms.templatesHintPrefix")} <code className="px-1 bg-tertiary rounded text-[var(--brand-orange)]">{`{{variable}}`}</code> {t("platformMisc.forms.templatesHintSuffix")}
           </p>
 
           {(() => {
@@ -1386,105 +1428,108 @@ export default function PlatformForms() {
                 if (data.success) {
                   update(tKey, "subject", data.subject);
                   update(tKey, "body", data.body);
-                  notify(`${label} personalized with AI`);
+                  notify(t("platformMisc.forms.templatePersonalized", { label }));
                 } else {
-                  notify(data.error || "AI personalization failed");
+                  notify(data.error || t("platformMisc.forms.templatePersonalizeFailed"));
                 }
               } catch (_) {
-                notify("AI personalization failed — network error");
+                notify(t("platformMisc.forms.templatePersonalizeNetworkError"));
               }
               setPersonalizing(null);
             };
 
-            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => (
-              <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className="w-3.5 h-3.5 text-cyan-400" />
-                  <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
-                  <button
-                    type="button"
-                    disabled={personalizingKey === tKey}
-                    onClick={() => onPersonalize(tKey, label)}
-                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
-                  >
-                    <Sparkles className="w-2.5 h-2.5" />
-                    {personalizingKey === tKey ? "Writing..." : "Personalize with AI"}
-                  </button>
+            const TemplateEditor = ({ label, icon: Icon, tKey, desc, defaultSubject, defaultBody, vars, onPersonalize, personalizingKey }) => {
+              const { t } = useI18n();
+              return (
+                <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Icon className="w-3.5 h-3.5 text-cyan-400" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                    <button
+                      type="button"
+                      disabled={personalizingKey === tKey}
+                      onClick={() => onPersonalize(tKey, label)}
+                      className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                    >
+                      <Sparkles className="w-2.5 h-2.5" />
+                      {personalizingKey === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
+                    </button>
+                  </div>
+                  <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
+                    <input
+                      value={tmpl[tKey]?.subject || ""}
+                      onChange={(e) => update(tKey, "subject", e.target.value)}
+                      placeholder={defaultSubject}
+                      className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
+                    <textarea
+                      value={tmpl[tKey]?.body || ""}
+                      onChange={(e) => update(tKey, "body", e.target.value)}
+                      rows={4}
+                      placeholder={defaultBody}
+                      className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+                    />
+                  </div>
+                  {vars && (
+                    <p className="text-[7px] text-[var(--text-secondary)] italic">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+                  )}
                 </div>
-                <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
-                <div className="space-y-1">
-                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Subject</label>
-                  <input
-                    value={tmpl[tKey]?.subject || ""}
-                    onChange={(e) => update(tKey, "subject", e.target.value)}
-                    placeholder={defaultSubject}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">Body (HTML)</label>
-                  <textarea
-                    value={tmpl[tKey]?.body || ""}
-                    onChange={(e) => update(tKey, "body", e.target.value)}
-                    rows={4}
-                    placeholder={defaultBody}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
-                  />
-                </div>
-                {vars && (
-                  <p className="text-[7px] text-[var(--text-secondary)] italic">Variables: {vars.join(", ")}</p>
-                )}
-              </div>
-            );
+              );
+            };
 
             return (
               <div className="space-y-3">
                 <TemplateEditor
-                  label="Submission Confirmation" icon={Send}
+                  label={t("platformMisc.forms.templateSubmissionLabel")} icon={Send}
                   tKey="acknowledgement"
-                  desc="Sent immediately after the applicant submits the form."
-                  defaultSubject="Thank you for your submission — {{form_name}}"
-                  defaultBody='<p>Hi {{name}},</p><p>We received your submission for <strong>{{form_name}}</strong>.</p><p>Our team will review it soon.</p>'
+                  desc={t("platformMisc.forms.templateSubmissionDesc")}
+                  defaultSubject={t("platformMisc.forms.templateSubmissionSubject")}
+                  defaultBody={t("platformMisc.forms.templateSubmissionBody")}
                   vars={["name", "form_name", "organization"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
                 <TemplateEditor
-                  label="Approval Message" icon={CheckCircle2}
+                  label={t("platformMisc.forms.templateApprovalLabel")} icon={CheckCircle2}
                   tKey="approval"
-                  desc="Sent when the reviewer approves the submission."
-                  defaultSubject="Your {{form_name}} application has been approved"
-                  defaultBody='<p>Congratulations {{name}}!</p><p>Your application for <strong>{{form_name}}</strong> has been approved.</p><p>We are excited to welcome you.</p>'
+                  desc={t("platformMisc.forms.templateApprovalDesc")}
+                  defaultSubject={t("platformMisc.forms.templateApprovalSubject")}
+                  defaultBody={t("platformMisc.forms.templateApprovalBody")}
                   vars={["name", "form_name", "program_name", "group_name", "organization"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
                 <TemplateEditor
-                  label="Activation Email" icon={Key}
+                  label={t("platformMisc.forms.templateActivationLabel")} icon={Key}
                   tKey="activation"
-                  desc="Sent with the password setup link when a platform account is created."
-                  defaultSubject="Welcome to {{organization}} — Set Your Password"
-                  defaultBody='<p>Hello {{name}},</p><p>Your account has been created on <strong>{{organization}}</strong>.</p><p>Click the button below to set your password.</p>'
+                  desc={t("platformMisc.forms.templateActivationDesc")}
+                  defaultSubject={t("platformMisc.forms.templateActivationSubject")}
+                  defaultBody={t("platformMisc.forms.templateActivationBody")}
                   vars={["name", "organization", "activation_link"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
                 <TemplateEditor
-                  label="Existing User Access Email" icon={LogIn}
+                  label={t("platformMisc.forms.templateExistingUserLabel")} icon={LogIn}
                   tKey="existing_user"
-                  desc="Sent when the applicant already has an account — they log in with existing credentials."
-                  defaultSubject="Welcome back to {{organization}} — Log In"
-                  defaultBody='<p>Hello {{name}},</p><p>You already have an account with us. Use your existing credentials to log in and access the platform.</p>'
+                  desc={t("platformMisc.forms.templateExistingUserDesc")}
+                  defaultSubject={t("platformMisc.forms.templateExistingUserSubject")}
+                  defaultBody={t("platformMisc.forms.templateExistingUserBody")}
                   vars={["name", "organization", "login_url"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
                 />
                 <TemplateEditor
-                  label="Rejection Message" icon={XCircle}
+                  label={t("platformMisc.forms.templateRejectionLabel")} icon={XCircle}
                   tKey="rejection"
-                  desc="Sent when the application is not accepted."
-                  defaultSubject="Update on your {{form_name}} application"
-                  defaultBody='<p>Dear {{name}},</p><p>Thank you for your interest in <strong>{{form_name}}</strong>.</p><p>Unfortunately, you were not selected this time.</p><p>We encourage you to apply again.</p>'
+                  desc={t("platformMisc.forms.templateRejectionDesc")}
+                  defaultSubject={t("platformMisc.forms.templateRejectionSubject")}
+                  defaultBody={t("platformMisc.forms.templateRejectionBody")}
                   vars={["name", "form_name", "organization"]}
                   onPersonalize={personalize}
                   personalizingKey={personalizing}
@@ -1501,7 +1546,7 @@ export default function PlatformForms() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Sparkles className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">AI Evaluation</h3>
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.forms.aiEvalTitle")}</h3>
             </div>
             <div className="flex items-center gap-2">
               <button 
@@ -1513,15 +1558,15 @@ export default function PlatformForms() {
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ form_id: editingForm.id, framework: aiEvalFramework })
                     });
-                    if (res.ok) notify("Evaluation framework saved");
-                    else notify("Failed to save framework");
+                    if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+                    else notify(t("platformMisc.forms.aiEvalSaveFailed"));
                   } catch (e) {}
                   setSaving(false);
                 }}
                 disabled={saving}
                 className="px-3 py-1.5 rounded-lg bg-purple-500 text-white text-[9px] font-black uppercase hover:bg-purple-600 transition-all"
               >
-                Save Framework
+                {t("platformMisc.forms.aiEvalSaveFramework")}
               </button>
               <button onClick={() => setShowAiEval(false)}><X className="w-4 h-4 text-[var(--text-secondary)]" /></button>
             </div>
@@ -1538,14 +1583,14 @@ export default function PlatformForms() {
                 setEditingForm(prev => ({ ...prev, settings: updatedSettings }));
                 try {
                   await fetch("/api/platform/forms", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, settings: updatedSettings }) });
-                  notify(enabled ? "AI evaluation enabled" : "AI evaluation disabled");
+                  notify(enabled ? t("platformMisc.forms.aiEvalEnabled") : t("platformMisc.forms.aiEvalDisabled"));
                 } catch (_) {}
               }}
               className="w-4 h-4 rounded accent-purple-500"
             />
             <div>
-              <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">Enable AI Evaluation</p>
-              <p className="text-[8px] text-[var(--text-secondary)]">Automatically evaluate submissions using the framework below</p>
+              <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">{t("platformMisc.forms.aiEvalEnable")}</p>
+              <p className="text-[8px] text-[var(--text-secondary)]">{t("platformMisc.forms.aiEvalEnableHint")}</p>
             </div>
           </label>
 
@@ -1556,11 +1601,11 @@ export default function PlatformForms() {
                 const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
                 return total !== 100 ? (
                   <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[9px] font-bold text-amber-400">
-                    ⚠️ Weights total {total}% — must equal 100% before publishing
+                    {t("platformMisc.forms.aiEvalWeightsWarning", { total })}
                   </div>
                 ) : (
                   <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[9px] font-bold text-emerald-400">
-                    ✓ Weights total 100% — ready to save
+                    {t("platformMisc.forms.aiEvalWeightsReady")}
                   </div>
                 );
               })()}
@@ -1570,9 +1615,9 @@ export default function PlatformForms() {
                 <table className="w-full text-left">
                   <thead className="bg-tertiary">
                     <tr className="text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
-                      <th className="px-2 py-2">Dimension</th>
-                      <th className="px-2 py-2 w-16">Weight</th>
-                      <th className="px-2 py-2">Criteria</th>
+                      <th className="px-2 py-2">{t("platformMisc.forms.aiEvalTableDimension")}</th>
+                      <th className="px-2 py-2 w-16">{t("platformMisc.forms.aiEvalTableWeight")}</th>
+                      <th className="px-2 py-2">{t("platformMisc.forms.aiEvalTableCriteria")}</th>
                       <th className="px-2 py-2 w-10"></th>
                     </tr>
                   </thead>
@@ -1613,7 +1658,7 @@ export default function PlatformForms() {
                               setAiEvalFramework({ ...aiEvalFramework, dimensions: dims });
                             }}
                             className="w-full px-2 py-1 rounded bg-primary border border-[var(--border-primary)] text-[10px] text-[var(--text-primary)] outline-none"
-                            placeholder="criterion 1, criterion 2"
+                            placeholder={t("platformMisc.forms.aiEvalCriteriaPlaceholder")}
                           />
                         </td>
                         <td className="px-2 py-1.5">
@@ -1642,7 +1687,7 @@ export default function PlatformForms() {
                   }}
                   className="text-[9px] font-black text-indigo-400 hover:text-indigo-300 uppercase"
                 >
-                  + Add Dimension
+                  {t("platformMisc.forms.aiEvalAddDimension")}
                 </button>
               </div>
 
@@ -1650,45 +1695,45 @@ export default function PlatformForms() {
                 <button
                   onClick={async () => {
                     const total = (aiEvalFramework.dimensions || []).reduce((s, d) => s + (parseInt(d.weight) || 0), 0);
-                    if (total !== 100) { notify("Weights must total 100%"); return; }
-                    if (!editingForm?.id) { notify("No form selected"); return; }
+                    if (total !== 100) { notify(t("platformMisc.forms.aiEvalWeightsMustTotal")); return; }
+                    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
                     setAiEvalLoading(true);
                     try {
                       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
                       const res = await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-                      if (res.ok) notify("Framework saved");
-                      else { const err = await res.json(); notify(err.error || "Save failed"); }
-                    } catch (_) { notify("Save failed"); }
+                      if (res.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+                      else { const err = await res.json(); notify(t((err.error || t("platformMisc.forms.saveFailed")) || "") || (err.error || t("platformMisc.forms.saveFailed"))); }
+                    } catch (_) { notify(t("platformMisc.forms.saveFailed")); }
                     setAiEvalLoading(false);
                   }}
                   disabled={aiEvalLoading}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-purple-500 text-white text-[10px] font-black uppercase hover:bg-purple-600 disabled:opacity-50 transition-all"
                 >
-                  Save Framework
+                  {t("platformMisc.forms.aiEvalSaveFramework")}
                 </button>
                 <button
                   onClick={async () => {
-                    if (!confirm("Remove evaluation framework?")) return;
+                    if (!confirm(t("platformMisc.forms.aiEvalRemoveConfirm"))) return;
                     await fetch(`/api/platform/ai/evaluation-config?form_id=${editingForm?.id}`, { method: "DELETE" });
                     setAiEvalFramework(null);
-                    notify("Evaluation framework removed");
+                    notify(t("platformMisc.forms.aiEvalFrameworkRemoved"));
                   }}
                   className="px-4 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-rose-500 hover:text-rose-400"
                 >
-                  Remove
+                  {t("platformMisc.forms.remove")}
                 </button>
               </div>
             </>
           ) : (
             <>
               <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                Upload an evaluation rubric, assessment guide, or selection policy. AI will generate evaluation dimensions, criteria, weights, and evaluation prompts.
+                {t("platformMisc.forms.aiEvalEmptyHint")}
               </p>
               <textarea
                 value={aiEvalText}
                 onChange={(e) => setAiEvalText(e.target.value)}
                 rows={6}
-                placeholder="Paste your evaluation rubric, assessment guide, or selection criteria here..."
+                placeholder={t("platformMisc.forms.aiEvalTextPlaceholder")}
                 className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] focus:border-[var(--brand-orange)] resize-none"
               />
               <button
@@ -1704,18 +1749,18 @@ export default function PlatformForms() {
                       if (editingForm?.id) {
                         await fetch("/api/platform/ai/evaluation-config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ form_id: Number(editingForm.id), framework: data.framework, source_document: aiEvalText.substring(0, 500) }) });
                       }
-                      notify(`Framework generated — ${data.framework.dimensions?.length || 0} dimensions`);
+                      notify(t("platformMisc.forms.aiEvalGenerated", { count: data.framework.dimensions?.length || 0 }));
                       setAiEvalText("");
                     } else {
-                      notify(data.error || "Generation failed");
+                      notify(t((data.error || t("platformMisc.forms.aiEvalGenerationFailed")) || "") || (data.error || t("platformMisc.forms.aiEvalGenerationFailed")));
                     }
-                  } catch (_) { notify("AI generation failed"); }
+                  } catch (_) { notify(t("platformMisc.forms.aiEvalGenerationFailedConnection")); }
                   setAiEvalLoading(false);
                 }}
                 disabled={aiEvalLoading || !aiEvalText.trim()}
                 className="w-full px-4 py-3 rounded-xl bg-purple-500 text-white text-[10px] font-black uppercase hover:bg-purple-600 disabled:opacity-50 transition-all"
               >
-                {aiEvalLoading ? "Analyzing..." : "Generate Evaluation Framework"}
+                {aiEvalLoading ? t("platformMisc.forms.analyzing") : t("platformMisc.forms.aiEvalGenerate")}
               </button>
             </>
           )}
@@ -1727,11 +1772,11 @@ export default function PlatformForms() {
         {/* Field palette (left) */}
         {!previewMode && (
           <div className="w-56 shrink-0 bg-secondary border-r border-[var(--border-primary)] p-3 space-y-3 overflow-y-auto">
-            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">Add Field</p>
-            <button onClick={addSection} className="w-full p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">+ Add Section</button>
-            {FIELD_TYPES.map((t) => (
-              <button key={t.value} onClick={() => addField(t.value)} className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all">
-                <t.icon className="w-3.5 h-3.5" />{t.label}
+            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.paletteAddField")}</p>
+            <button onClick={addSection} className="w-full p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.forms.paletteAddSection")}</button>
+            {FIELD_TYPES.map((type) => (
+              <button key={type.value} onClick={() => addField(type.value)} className="w-full flex items-center gap-2 p-2 rounded-lg text-left text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all">
+                <type.icon className="w-3.5 h-3.5" />{t("platformMisc.forms." + FIELD_TYPE_KEYS[type.value])}
               </button>
             ))}
             {/* Per-section quick-add */}
@@ -1741,11 +1786,11 @@ export default function PlatformForms() {
                   onClick={() => setActiveSectionId(sec.id)}
                   className={`w-full text-left p-1 rounded text-[7px] font-black uppercase mb-1 transition-all ${activeSectionId === sec.id ? 'text-[var(--brand-orange)] bg-[var(--brand-orange)]/10' : 'text-[var(--text-secondary)] opacity-50'}`}
                 >
-                  Into: {sec.title} {activeSectionId === sec.id && '✓'}
+                  {t("platformMisc.forms.paletteInto", { title: sec.title })} {activeSectionId === sec.id && '✓'}
                 </button>
-                {FIELD_TYPES.slice(0, 6).map((t) => (
-                  <button key={t.value} onClick={() => addField(t.value, sec.id)} className="w-full flex items-center gap-2 p-1.5 rounded text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
-                    <t.icon className="w-3 h-3" />{t.label}
+                {FIELD_TYPES.slice(0, 6).map((type) => (
+                  <button key={type.value} onClick={() => addField(type.value, sec.id)} className="w-full flex items-center gap-2 p-1.5 rounded text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary">
+                    <type.icon className="w-3 h-3" />{t("platformMisc.forms." + FIELD_TYPE_KEYS[type.value])}
                   </button>
                 ))}
               </div>
@@ -1788,7 +1833,7 @@ export default function PlatformForms() {
             {orphanFields.length > 0 && (
               <div className="space-y-3 pt-4 border-t-2 border-dashed border-amber-500/30">
                 <p className="text-[9px] font-black uppercase text-amber-500/70 tracking-wider">
-                  Unassigned ({orphanFields.length}) — click field to assign a section
+                  {t("platformMisc.forms.orphanFieldsTitle", { count: orphanFields.length })}
                 </p>
                 <div className="space-y-2">
                   {orphanFields.map((fld) => <div key={fld._tmpId}>{renderFieldPreview(fld)}</div>)}
@@ -1796,7 +1841,7 @@ export default function PlatformForms() {
               </div>
             )}
 
-            {fields.length === 0 && <div className="py-16 text-center"><FileText className="w-12 h-12 mx-auto text-[var(--text-secondary)] opacity-20" /><p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">Add fields from the left palette</p><p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">Drag, reorder, and configure each field</p></div>}
+            {fields.length === 0 && <div className="py-16 text-center"><FileText className="w-12 h-12 mx-auto text-[var(--text-secondary)] opacity-20" /><p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">{t("platformMisc.forms.emptyCanvasTitle")}</p><p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">{t("platformMisc.forms.emptyCanvasHint")}</p></div>}
           </div>
         </div>
       </div>
@@ -1810,9 +1855,9 @@ export default function PlatformForms() {
                 <AlertTriangle className="w-5 h-5 text-indigo-500" />
               </div>
               <div>
-                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">This form is live</h3>
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.forms.republishModalTitle")}</h3>
                 <p className="text-[10px] text-[var(--text-secondary)] mt-1 leading-relaxed">
-                  <strong className="text-[var(--text-primary)]">&quot;{editingForm?.name}&quot;</strong> is currently published and accepting submissions.
+                  <strong className="text-[var(--text-primary)]">&quot;{editingForm?.name}&quot;</strong>{t("platformMisc.forms.republishModalText")}
                 </p>
               </div>
             </div>
@@ -1821,23 +1866,23 @@ export default function PlatformForms() {
                 onClick={() => { setShowRepublishConfirm(false); saveFields(true); }}
                 className="w-full px-4 py-3 rounded-xl bg-indigo-500 text-white text-[10px] font-black uppercase hover:bg-indigo-600 transition-all flex items-center justify-center gap-2"
               >
-                <Sparkles className="w-3.5 h-3.5" /> Save &amp; Republish — Update the live form
+                <Sparkles className="w-3.5 h-3.5" /> {t("platformMisc.forms.republishSaveAndRepublish")}
               </button>
               <button
                 onClick={() => { setShowRepublishConfirm(false); saveFields("draft"); }}
                 className="w-full px-4 py-3 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
               >
-                Save Draft Only — Don't change the live version
+                {t("platformMisc.forms.republishSaveDraftOnly")}
               </button>
               <button
                 onClick={() => setShowRepublishConfirm(false)}
                 className="w-full px-4 py-3 text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase"
               >
-                Cancel
+                {t("platformMisc.forms.cancel")}
               </button>
             </div>
             <p className="text-[8px] text-[var(--text-secondary)] text-center opacity-50">
-              Republishing creates a new version snapshot. Existing runs using older versions are unaffected.
+              {t("platformMisc.forms.republishFootnote")}
             </p>
           </div>
         </div>

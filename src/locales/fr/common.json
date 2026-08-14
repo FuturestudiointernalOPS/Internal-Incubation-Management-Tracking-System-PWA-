@@ -97,7 +97,8 @@
     "task created": "Tâche créée",
     "task completed": "Tâche terminée",
     "blocker resolved": "Bloqueur résolu",
-    "task assigned": "Tâche assignée"
+    "task assigned": "Tâche assignée",
+    "assigned": "Assigné"
   },
   "announcements": {
     "title": "Annonces",

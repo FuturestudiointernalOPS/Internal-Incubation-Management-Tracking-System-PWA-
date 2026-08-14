@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import { FileText, BarChart3, FolderKanban, CheckCircle2, Clock, Activity } from "lucide-react";
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 export default function PlatformDashboard() {
+  const { t } = useI18n();
   const [operationalStats, setOperationalStats] = useState(null);
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,8 +31,8 @@ export default function PlatformDashboard() {
   if (loading) {
     return (
       <div className="p-6 space-y-8">
-        <h1 className="text-xl font-black uppercase">Forms Dashboard</h1>
-        <p className="text-sm text-[var(--text-secondary)]">Loading...</p>
+        <h1 className="text-xl font-black uppercase">{t("platformMisc.dashboard.title")}</h1>
+        <p className="text-sm text-[var(--text-secondary)]">{t("platformMisc.dashboard.loading")}</p>
       </div>
     );
   }
@@ -38,28 +40,28 @@ export default function PlatformDashboard() {
   return (
     <div className="p-6 space-y-8 animate-in">
       <div>
-        <h1 className="text-xl font-black uppercase tracking-tight text-[var(--text-primary)]">Forms Dashboard</h1>
-        <p className="text-[10px] text-[var(--text-secondary)] mt-1">Build forms, launch runs, collect and review submissions.</p>
+        <h1 className="text-xl font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.dashboard.title")}</h1>
+        <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.dashboard.subtitle")}</p>
       </div>
 
       <div className="space-y-3">
         <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
-          <Activity className="w-4 h-4 text-[var(--brand-orange)]" /> Overview
+          <Activity className="w-4 h-4 text-[var(--brand-orange)]" /> {t("platformMisc.dashboard.overview")}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {[
-            { label: "Active Runs", value: operationalStats?.active_runs ?? 0, icon: FileText, color: "text-emerald-500" },
-            { label: "Assigned", value: operationalStats?.total_assignments ?? 0, icon: FolderKanban, color: "text-blue-500" },
-            { label: "Submissions", value: operationalStats?.total_submissions ?? 0, icon: CheckCircle2, color: "text-indigo-500" },
-            { label: "Pending", value: operationalStats?.pending_reviews ?? 0, icon: Clock, color: "text-amber-500" },
-            { label: "Approval", value: (operationalStats?.approval_rate != null ? Math.round(operationalStats.approval_rate) + "%" : "\u2014"), icon: BarChart3, color: (operationalStats?.approval_rate || 0) > 50 ? "text-emerald-500" : "text-rose-500" },
-            { label: "Overdue", value: operationalStats?.overdue ?? 0, icon: Clock, color: (operationalStats?.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
+            { label: "platformMisc.dashboard.activeRuns", value: operationalStats?.active_runs ?? 0, icon: FileText, color: "text-emerald-500" },
+            { label: "platformMisc.dashboard.assigned", value: operationalStats?.total_assignments ?? 0, icon: FolderKanban, color: "text-blue-500" },
+            { label: "platformMisc.dashboard.submissions", value: operationalStats?.total_submissions ?? 0, icon: CheckCircle2, color: "text-indigo-500" },
+            { label: "platformMisc.dashboard.pending", value: operationalStats?.pending_reviews ?? 0, icon: Clock, color: "text-amber-500" },
+            { label: "platformMisc.dashboard.approval", value: (operationalStats?.approval_rate != null ? Math.round(operationalStats.approval_rate) + "%" : "\u2014"), icon: BarChart3, color: (operationalStats?.approval_rate || 0) > 50 ? "text-emerald-500" : "text-rose-500" },
+            { label: "platformMisc.dashboard.overdue", value: operationalStats?.overdue ?? 0, icon: Clock, color: (operationalStats?.overdue ?? 0) > 0 ? "text-rose-500" : "text-slate-500" },
           ].map((s) => (
             <div key={s.label} className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] text-center">
               <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
               <div className="flex items-center justify-center gap-1 mt-1">
                 <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p>
+                <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{t(s.label)}</p>
               </div>
             </div>
           ))}
@@ -68,7 +70,7 @@ export default function PlatformDashboard() {
 
       <div className="space-y-3">
         <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] flex items-center gap-2">
-          <Clock className="w-4 h-4 text-[var(--brand-orange)]" /> Recent Activity
+          <Clock className="w-4 h-4 text-[var(--brand-orange)]" /> {t("platformMisc.dashboard.recentActivity")}
         </h2>
         {recentActivity.length > 0 ? (
           <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl overflow-hidden">
@@ -88,7 +90,7 @@ export default function PlatformDashboard() {
           </div>
         ) : (
           <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-center">
-            <p className="text-[10px] text-[var(--text-secondary)] font-bold">No activity yet \u2014 launch a form run to get started</p>
+            <p className="text-[10px] text-[var(--text-secondary)] font-bold">{t("platformMisc.dashboard.noActivity")}</p>
           </div>
         )}
       </div>

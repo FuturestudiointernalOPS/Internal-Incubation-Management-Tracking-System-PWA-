@@ -7,10 +7,12 @@ import {
   Globe, Linkedin, BookOpen, Clock, Star, Calendar,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function VentureCoachesPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [coaches, setCoaches] = useState([]);
@@ -59,7 +61,7 @@ export default function VentureCoachesPage() {
   };
 
   const handleAssign = async () => {
-    if (!selectedCoachId) { notify("Select a coach", "error"); return; }
+    if (!selectedCoachId) { notify(t("vadmin.coaches.selectCoach"), "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/ventures/${id}/coaches`, {
@@ -67,9 +69,9 @@ export default function VentureCoachesPage() {
         body: JSON.stringify({ action: assignType === "advisor" ? "assign_advisor" : "assign_coach", coach_id: selectedCoachId, is_primary: true }),
       });
       const d = await res.json();
-      if (d.success) { notify(`${assignType === "advisor" ? "Advisor" : "Coach"} assigned`); setShowAssignModal(false); setSelectedCoachId(""); fetchAssignments(); }
-      else notify(d.error || "Failed", "error");
-    } catch { notify("Network error", "error"); }
+      if (d.success) { notify(t(assignType === "advisor" ? "vadmin.coaches.advisorAssigned" : "vadmin.coaches.coachAssigned")); setShowAssignModal(false); setSelectedCoachId(""); fetchAssignments(); }
+      else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
+    } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
   };
 
@@ -79,13 +81,13 @@ export default function VentureCoachesPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "remove_assignment", assignment_id: assignmentId }),
       });
-      notify("Assignment removed");
+      notify(t("vadmin.coaches.assignmentRemoved"));
       fetchAssignments();
-    } catch { notify("Failed to remove", "error"); }
+    } catch { notify(t("vadmin.coaches.failedToRemove"), "error"); }
   };
 
   const handleCreateCoach = async () => {
-    if (!cForm.full_name.trim() || !cForm.email.trim()) { notify("Name and email required", "error"); return; }
+    if (!cForm.full_name.trim() || !cForm.email.trim()) { notify(t("vadmin.coaches.nameEmailRequired"), "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/ventures/${id}/coaches`, {
@@ -93,9 +95,9 @@ export default function VentureCoachesPage() {
         body: JSON.stringify(cForm),
       });
       const d = await res.json();
-      if (d.success) { notify("Coach created"); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(); }
-      else notify(d.error || "Failed", "error");
-    } catch { notify("Network error", "error"); }
+      if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(); }
+      else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
+    } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
   };
 
@@ -122,22 +124,22 @@ export default function VentureCoachesPage() {
           <div>
             <button onClick={()=>router.push(`/admin/ventures/${id}/dashboard`)}
               className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
+              <ArrowLeft className="w-3 h-3" /> {t("vadmin.coaches.backToDashboard")}
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
-              <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" /> Coaches & Advisors
+              <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.coaches.title")}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name||""}</p>
           </div>
           <div className="flex gap-2">
             <button onClick={()=>setShowCreateModal(true)} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
-              <Plus className="w-3 h-3" /> New Coach
+              <Plus className="w-3 h-3" /> {t("vadmin.coaches.newCoach")}
             </button>
             <button onClick={()=>{setAssignType("coach"); setShowAssignModal(true);}} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
-              <Plus className="w-3 h-3" /> Assign Coach
+              <Plus className="w-3 h-3" /> {t("vadmin.coaches.assignCoach")}
             </button>
             <button onClick={()=>{setAssignType("advisor"); setShowAssignModal(true);}} className="px-3 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
-              <Plus className="w-3 h-3" /> Assign Advisor
+              <Plus className="w-3 h-3" /> {t("vadmin.coaches.assignAdvisor")}
             </button>
           </div>
         </div>
@@ -145,9 +147,9 @@ export default function VentureCoachesPage() {
         {/* Tabs */}
         <div className="flex gap-4 border-b border-[var(--border-primary)] pb-2">
           {[
-            { id: "assigned", label: `Assigned (${assignments.length})` },
-            { id: "coaches", label: `Coaches (${coachesList.length})` },
-            { id: "advisors", label: `Advisors (${advisorsList.length})` },
+            { id: "assigned", label: t("vadmin.coaches.tabAssigned", { count: assignments.length }) },
+            { id: "coaches", label: t("vadmin.coaches.tabCoaches", { count: coachesList.length }) },
+            { id: "advisors", label: t("vadmin.coaches.tabAdvisors", { count: advisorsList.length }) },
           ].map((tab) => (
             <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
               className={`text-[9px] font-black uppercase tracking-wider pb-2 border-b-2 transition-all ${
@@ -160,7 +162,7 @@ export default function VentureCoachesPage() {
         {activeTab === "assigned" && (
           <div className="space-y-4">
             {assignments.length === 0 ? (
-              <div className="text-center py-16"><BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No coaches assigned yet</p></div>
+              <div className="text-center py-16"><BookOpen className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("vadmin.coaches.noCoachesAssignedYet")}</p></div>
             ) : (
               assignments.map((a) => (
                 <div key={a.id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
@@ -182,7 +184,7 @@ export default function VentureCoachesPage() {
                         <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-500 flex-wrap">
                           <span className="flex items-center gap-1"><Mail className="w-3 h-3"/>{a.email}</span>
                           {a.organization && <span>{a.organization}</span>}
-                          {a.years_experience && <span>{a.years_experience}yr exp</span>}
+                          {a.years_experience && <span>{a.years_experience}{t("vadmin.coaches.yearsExperience")}</span>}
                           {a.availability && <span className={`text-[7px] font-bold uppercase ${a.availability==="available"?"text-emerald-400":a.availability==="busy"?"text-amber-400":"text-slate-500"}`}>{a.availability}</span>}
                         </div>
                         {(a.areas_of_expertise||[]).length>0 && (
@@ -206,7 +208,7 @@ export default function VentureCoachesPage() {
         {/* Coaches Tab */}
         {activeTab === "coaches" && (
           <div className="space-y-2">
-            {coachesList.length===0 ? <p className="text-sm text-slate-500 text-center py-8">No coaches assigned</p> : (
+            {coachesList.length===0 ? <p className="text-sm text-slate-500 text-center py-8">{t("vadmin.coaches.noCoachesAssigned")}</p> : (
               coachesList.map((a) => (
                 <div key={a.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-3">
@@ -223,7 +225,7 @@ export default function VentureCoachesPage() {
         {/* Advisors Tab */}
         {activeTab === "advisors" && (
           <div className="space-y-2">
-            {advisorsList.length===0 ? <p className="text-sm text-slate-500 text-center py-8">No advisors assigned</p> : (
+            {advisorsList.length===0 ? <p className="text-sm text-slate-500 text-center py-8">{t("vadmin.coaches.noAdvisorsAssigned")}</p> : (
               advisorsList.map((a) => (
                 <div key={a.id} className="flex items-center justify-between p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <div className="flex items-center gap-3">
@@ -243,24 +245,24 @@ export default function VentureCoachesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">Assign {assignType==="advisor"?"Advisor":"Coach"}</h2>
+              <h2 className="text-sm font-black text-[var(--text-primary)]">{t(assignType === "advisor" ? "vadmin.coaches.assignAdvisor" : "vadmin.coaches.assignCoach")}</h2>
               <button onClick={()=>setShowAssignModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
             </div>
             <div>
-              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Select {assignType==="advisor"?"Advisor":"Coach"}</label>
+              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t(assignType === "advisor" ? "vadmin.coaches.selectAdvisorLabel" : "vadmin.coaches.selectCoachLabel")}</label>
               <select value={selectedCoachId} onChange={(e)=>setSelectedCoachId(e.target.value)}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                <option value="">Choose...</option>
+                <option value="">{t("vadmin.coaches.choose")}</option>
                 {(coaches||[]).filter((c)=>c.coach_type===assignType||!assignType).map((c)=>(
                   <option key={c.id} value={c.id}>{c.full_name} ({c.email})</option>
                 ))}
               </select>
             </div>
             <div className="flex gap-3">
-              <button onClick={()=>setShowAssignModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={()=>setShowAssignModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.coaches.cancel")}</button>
               <button onClick={handleAssign} disabled={saving}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : null} Assign
+                {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : null} {t("vadmin.coaches.assign")}
               </button>
             </div>
           </div>
@@ -272,42 +274,42 @@ export default function VentureCoachesPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)]">New Coach</h2>
+              <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.coaches.newCoach")}</h2>
               <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
             </div>
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Name *</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.coaches.name")}</label>
                   <input value={cForm.full_name} onChange={(e)=>setCForm((p)=>({...p,full_name:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Email *</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.coaches.email")}</label>
                   <input type="email" value={cForm.email} onChange={(e)=>setCForm((p)=>({...p,email:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Type</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.coaches.type")}</label>
                   <select value={cForm.coach_type} onChange={(e)=>setCForm((p)=>({...p,coach_type:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
-                    <option value="coach">Coach</option><option value="advisor">Advisor</option>
+                    <option value="coach">{t("vadmin.coaches.coach")}</option><option value="advisor">{t("vadmin.coaches.advisor")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Organization</label>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.coaches.organization")}</label>
                   <input value={cForm.organization} onChange={(e)=>setCForm((p)=>({...p,organization:e.target.value}))} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none" />
                 </div>
               </div>
               <div>
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">Biography</label>
+                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.coaches.biography")}</label>
                 <textarea value={cForm.biography} onChange={(e)=>setCForm((p)=>({...p,biography:e.target.value}))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={()=>setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">Cancel</button>
+              <button onClick={()=>setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.coaches.cancel")}</button>
               <button onClick={handleCreateCoach} disabled={saving}
                 className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-30 flex items-center justify-center gap-2">
-                {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4"/>} Create
+                {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4"/>} {t("vadmin.coaches.create")}
               </button>
             </div>
           </div>
