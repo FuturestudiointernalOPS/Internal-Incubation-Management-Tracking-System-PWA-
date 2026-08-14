@@ -207,6 +207,9 @@
       "duplicateFlagDismissed": "Duplicate flag dismissed.",
       "failedToDismiss": "Failed to dismiss flag.",
       "failedToPreviewMerge": "Failed to preview merge.",
+      "fieldProgramEnrollments": "Program Enrollments",
+      "fieldTimelineEvents": "Timeline Events",
+      "fieldVentureMemberships": "Venture Memberships",
       "mergedSuccess": "Merge complete. {summary}",
       "mergeFailed": "Merge failed."
     },
@@ -265,8 +268,18 @@
       "addTextQuestion": "Add Text Question",
       "addYesNoQuestion": "Add Yes/No Question",
       "discard": "Discard",
+      "questionTextPlaceholder": "Enter question text...",
+      "questionYesNoPlaceholder": "Yes/No choice...",
       "saving": "Saving...",
       "saveForm": "Save Form"
+    },
+    "modules": {
+      "forms": "Forms",
+      "programs": "Programs",
+      "ventures": "Ventures",
+      "investors": "Investors",
+      "communications": "Communications",
+      "system": "System"
     },
     "overview": {
       "title": "CRM Dashboard",
@@ -298,6 +311,7 @@
       "panelInvestors": "Investors",
       "panelComms": "Comms",
       "all": "All",
+      "attached": "Attached:",
       "noEvents": "No events yet",
       "noEventsHint": "Events will appear as {name} interacts with the platform.",
       "notePlaceholder": "Add a note...",
@@ -348,6 +362,7 @@
       "sendFollowUp": "Send Follow-up",
       "name": "Name",
       "status": "Status",
+      "statusPendingResponse": "Pending Response",
       "approved": "Approved",
       "declined": "Declined",
       "noResultsForFilter": "No results found for this filter.",
@@ -357,6 +372,18 @@
       "campaignName": "Campaign Name",
       "campaignNamePlaceholder": "e.g. Second Outreach",
       "startFollowUpList": "Start Follow-up List"
+    },
+    "roles": {
+      "participant": "Participant",
+      "staff": "Staff",
+      "teacher": "Teacher",
+      "investor": "Investor",
+      "finance": "Finance",
+      "developer": "Developer",
+      "unassigned": "Unassigned",
+      "team": "Team",
+      "founder": "Founder",
+      "pm": "Program Manager"
     },
     "segments": {
       "title": "Segments",
@@ -370,6 +397,8 @@
       "segmentName": "Segment Name",
       "segmentNamePlaceholder": "e.g. VIP List...",
       "filters": "Filters",
+      "filterKeyCampaign": "Campaign",
+      "filterKeyStatus": "Status",
       "fromCampaign": "From Campaign",
       "anyCampaign": "Any Campaign",
       "status": "Status",

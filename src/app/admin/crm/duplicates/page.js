@@ -6,6 +6,12 @@ import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw } from "lucide-rea
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 
+const MERGE_FIELD_LABELS = {
+  program_enrollments: "crm.duplicates.fieldProgramEnrollments",
+  venture_memberships: "crm.duplicates.fieldVentureMemberships",
+  timeline_events: "crm.duplicates.fieldTimelineEvents",
+};
+
 export default function DuplicatesPage() {
   const { t } = useI18n();
   const [flags, setFlags] = useState([]);
@@ -148,7 +154,7 @@ export default function DuplicatesPage() {
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
                         {Object.entries(preview.summary).map(([k, v]) => (
                           <div key={k} className="bg-tertiary rounded-lg p-2">
-                            <span className="font-bold">{v}</span> <span className="text-[var(--text-secondary)]">{k}</span>
+                            <span className="font-bold">{v}</span> <span className="text-[var(--text-secondary)]">{t(MERGE_FIELD_LABELS[k] || "") || k}</span>
                           </div>
                         ))}
                       </div>

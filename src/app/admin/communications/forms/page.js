@@ -20,9 +20,10 @@ import {
 import { IMPACT_CACHE } from "@/utils/impactCache";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { formatLocaleDate } from "@/lib/constants";
 
 export default function FormsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const goBack = useSafeBack("/admin/crm");
 
   const [forms, setForms] = useState([]);
@@ -86,7 +87,7 @@ export default function FormsPage() {
     const newField = {
       id: Date.now().toString(),
       type,
-      label: type === "text" ? "Enter question text..." : "Yes/No choice...",
+      label: type === "text" ? t("crm.forms.questionTextPlaceholder") : t("crm.forms.questionYesNoPlaceholder"),
       required: true,
     };
     setSchema([...schema, newField]);
@@ -456,7 +457,7 @@ export default function FormsPage() {
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-xs font-bold text-slate-400">
-                          {new Date(r.created_at).toLocaleString()}
+                          {formatLocaleDate(r.created_at, { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }, lang)}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-right">

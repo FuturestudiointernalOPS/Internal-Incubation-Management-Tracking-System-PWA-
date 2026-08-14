@@ -17,6 +17,10 @@ import { useRouter } from "next/navigation";
 import { IMPACT_CACHE } from "@/utils/impactCache";
 import { useI18n } from "@/lib/i18n";
 
+const RESPONSE_STATUS_LABELS = {
+  pending_response: "crm.responses.statusPendingResponse",
+};
+
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
@@ -425,7 +429,7 @@ export default function ResponsesPage() {
                                 )}
                                 {!["yes", "no", "sent"].includes(c.status) && (
                                   <span className="text-[10px] font-black px-2 py-1 rounded bg-white/10 text-slate-400 border border-white/20 uppercase">
-                                    {c.status}
+                                    {t(RESPONSE_STATUS_LABELS[c.status] || "") || c.status}
                                   </span>
                                 )}
                               </td>

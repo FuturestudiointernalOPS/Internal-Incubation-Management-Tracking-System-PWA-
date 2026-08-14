@@ -4,9 +4,12 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Plus, Send, CheckCircle, Search, Rocket, X, Users, Loader2, List, Trash2, Calendar, MailOpen, Clock, Settings2, ArrowRight, Save, ChevronRight, Power } from 'lucide-react';
 import { IMPACT_CACHE } from '@/utils/impactCache';
 import { useI18n } from '@/lib/i18n';
+import { formatLocaleDate } from '@/lib/constants';
+
+const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 
 export default function CampaignsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [campaigns, setCampaigns] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -485,7 +488,7 @@ export default function CampaignsPage() {
                           <div key={c.cid} onClick={() => toggleContact(c.cid)} className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${form.cids.includes(c.cid) ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
                              <div>
                                 <p className="text-xs font-black text-white">{c.name}</p>
-                                <p className="text-[9px] text-slate-500 font-bold uppercase">{c.group_name || t('crm.campaigns.individual')}</p>
+                                <p className="text-[9px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
                              </div>
                              {form.cids.includes(c.cid) && <CheckCircle className="w-4 h-4 text-indigo-400" />}
                           </div>
@@ -602,7 +605,7 @@ export default function CampaignsPage() {
                                    }} className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isPicked ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80/50' : 'bg-white/5 border-white/5 hover:bg-white/10'} ${selectedCampaign.sent_contacts >= selectedCampaign.total_contacts ? 'cursor-default' : ''}`}>
                                       <div>
                                          <p className="text-[10px] font-black text-white truncate">{c.name}</p>
-                                         <p className="text-[8px] text-slate-500 font-bold uppercase">{c.group_name || t('crm.campaigns.individual')}</p>
+                                         <p className="text-[8px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
                                       </div>
                                       {isPicked && <CheckCircle className="w-3.5 h-3.5 text-indigo-400" />}
                                    </div>
@@ -623,7 +626,7 @@ export default function CampaignsPage() {
                              </div>
                              <div className="flex justify-between items-center text-xs font-bold">
                                 <span className="text-slate-500 uppercase tracking-widest">{t('crm.campaigns.createdOn')}</span>
-                                <span className="text-white opacity-40 uppercase tracking-widest text-[10px]">{new Date(selectedCampaign.created_at).toLocaleDateString()}</span>
+                                <span className="text-white opacity-40 uppercase tracking-widest text-[10px]">{formatLocaleDate(selectedCampaign.created_at, {}, lang)}</span>
                              </div>
                           </div>
                        </section>

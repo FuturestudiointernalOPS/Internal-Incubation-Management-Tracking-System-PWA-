@@ -5,6 +5,17 @@ import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus } from 'lucide-re
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/lib/i18n';
 
+const SEGMENT_KEY_LABELS = {
+  campaign_id: 'crm.segments.filterKeyCampaign',
+  status: 'crm.segments.filterKeyStatus',
+};
+
+const SEGMENT_VALUE_LABELS = {
+  yes: 'crm.segments.statusYes',
+  no: 'crm.segments.statusNo',
+  NOT_RESPONDED: 'crm.segments.statusWaiting',
+};
+
 export default function SegmentsPage() {
   const { t } = useI18n();
   const router = useRouter();
@@ -198,7 +209,7 @@ export default function SegmentsPage() {
                   <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 group-hover:text-indigo-400 transition-colors uppercase">{s.name}</h3>
                   <div className="text-xs text-slate-400 font-bold flex flex-wrap gap-2 mb-6">
                     {Object.entries(s.filters).map(([k, v]) => v && (
-                      <span key={k} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{k}: {v}</span>
+                      <span key={k} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{t(SEGMENT_KEY_LABELS[k] || '') || k}: {t(SEGMENT_VALUE_LABELS[v] || '') || v}</span>
                     ))}
                   </div>
                 </div>

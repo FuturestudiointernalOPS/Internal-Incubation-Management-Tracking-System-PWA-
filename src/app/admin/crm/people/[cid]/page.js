@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -17,10 +18,32 @@ const MODULE_COLORS = {
   system: "bg-slate-500/10 text-slate-400 border-slate-500/20",
 };
 
+const ROLE_LABELS = {
+  participant: "crm.roles.participant",
+  staff: "crm.roles.staff",
+  teacher: "crm.roles.teacher",
+  investor: "crm.roles.investor",
+  finance: "crm.roles.finance",
+  developer: "crm.roles.developer",
+  unassigned: "crm.roles.unassigned",
+  team: "crm.roles.team",
+  founder: "crm.roles.founder",
+  pm: "crm.roles.pm",
+};
+
+const MODULE_LABELS = {
+  forms: "crm.modules.forms",
+  programs: "crm.modules.programs",
+  ventures: "crm.modules.ventures",
+  investors: "crm.modules.investors",
+  communications: "crm.modules.communications",
+  system: "crm.modules.system",
+};
+
 export default function CrmDetailPage({ params }) {
   const { cid } = use(params);
   const router = useRouter();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
@@ -143,7 +166,7 @@ export default function CrmDetailPage({ params }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event_type: "document_attached",
-            description: `Attached: ${file.name}`,
+            description: `${t("crm.people.attached")} ${file.name}`,
             metadata: { file_url: uploadData.url, file_name: file.name },
           }),
         });
@@ -193,7 +216,7 @@ export default function CrmDetailPage({ params }) {
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {currentRoles.map(r => (
                   <span key={r.id} className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
-                    {r.role}
+                    {t(ROLE_LABELS[r.role] || "") || r.role}
                   </span>
                 ))}
                 {pastRoles.length > 0 && (
@@ -266,7 +289,7 @@ export default function CrmDetailPage({ params }) {
                     moduleFilter === f ? "bg-[var(--brand-orange)] text-black border-orange-600" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
                   }`}
                 >
-                  {f || t("crm.people.all")}
+                  {t(MODULE_LABELS[f] || "") || f || t("crm.people.all")}
                 </button>
               ))}
             </div>
@@ -297,12 +320,12 @@ export default function CrmDetailPage({ params }) {
                               <p className="text-sm font-bold">{ev.description}</p>
                               {ev.context_module && (
                                 <span className={`shrink-0 text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
-                                  {ev.context_module}
+                                  {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
                                 </span>
                               )}
                             </div>
                             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                              {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                              {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                             </p>
                           </div>
                         </div>
@@ -340,7 +363,7 @@ export default function CrmDetailPage({ params }) {
                 <div key={ev.id} className="bg-primary border border-[var(--border-primary)] rounded-xl p-3">
                   <p className="text-sm">{ev.description}</p>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                   </p>
                 </div>
               ))}
@@ -417,7 +440,7 @@ export default function CrmDetailPage({ params }) {
                     </div>
                   )}
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                    {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                   </p>
                 </div>
               ))}
@@ -442,7 +465,7 @@ export default function CrmDetailPage({ params }) {
                   <div>
                     <p className="text-sm font-bold">{ev.description}</p>
                     <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
-                      {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {formatLocaleDate(ev.created_at, { month: "short", day: "numeric" }, lang)}
                     </p>
                   </div>
                   {ev.metadata?.file_url && (

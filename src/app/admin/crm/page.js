@@ -6,6 +6,19 @@ import { Users, Clock, UserPlus, Activity } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 
+const ROLE_LABELS = {
+  participant: "crm.roles.participant",
+  staff: "crm.roles.staff",
+  teacher: "crm.roles.teacher",
+  investor: "crm.roles.investor",
+  finance: "crm.roles.finance",
+  developer: "crm.roles.developer",
+  unassigned: "crm.roles.unassigned",
+  team: "crm.roles.team",
+  founder: "crm.roles.founder",
+  pm: "crm.roles.pm",
+};
+
 export default function CrmDashboardPage() {
   const { t } = useI18n();
   const [stats, setStats] = useState(null);
@@ -116,7 +129,7 @@ export default function CrmDashboardPage() {
                     <p className="text-[10px] text-[var(--text-secondary)]">{c.email}</p>
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-tertiary">
-                    {c.role || "unassigned"}
+                    {t(ROLE_LABELS[c.role] || "") || c.role || t("crm.roles.unassigned")}
                   </span>
                 </Link>
               ))}
