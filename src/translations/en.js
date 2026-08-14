@@ -61,7 +61,7 @@ const en = {
       credentialsRequired: 'Credentials required.',
       invalidCredentials: 'Invalid credentials or unauthorized access.',
       invalidCredentialsNode: 'Invalid credentials node.',
-      accountSuspended: 'Access Denied: Your account has been suspended.',
+      accountSuspended: 'Access Denied: Your account is inactive.',
       accountPending: 'Access Denied: Your account is currently pending verification.',
       noProgram: 'Access Denied: You must be assigned to an active Program to log in.',
       systemFailure: 'Authentication system failure.',

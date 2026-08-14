@@ -42,13 +42,13 @@ const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
   Active: "status.active",
   Inactive: "crm.contacts.filterInactive",
-  Pending: "status.pending",
+  Pending: "crm.contacts.pendingApproval",
   Archived: "status.archived",
 };
 
 const CONTACT_STATUS_LABELS = {
   active: "status.active",
-  pending: "status.pending",
+  pending: "crm.contacts.pendingApproval",
   inactive: "crm.contacts.statusInactive",
   approved: "crm.contacts.statusApproved",
   unassigned: "crm.contacts.unassigned",
