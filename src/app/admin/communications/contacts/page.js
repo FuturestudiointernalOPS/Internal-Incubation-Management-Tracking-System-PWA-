@@ -638,7 +638,7 @@ function ContactsPageContent() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="communication">
+    <DashboardLayout role="super_admin" activeTab="communication" fullWidth>
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -680,12 +680,12 @@ function ContactsPageContent() {
                   {t("crm.contacts.contact")}
                 </span>
               </div>
-              <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)]">
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text-primary)]">
                 {t("crm.contacts.contactsTitle")}
               </h1>
             </div>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             {statusFilter !== "Archived" && (
               <>
                 <div className="relative">
@@ -817,12 +817,12 @@ function ContactsPageContent() {
 
           <div className="xl:col-span-3 space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex bg-secondary p-1 rounded-xl border border-[var(--border-primary)]">
+              <div className="flex flex-wrap bg-secondary p-1 rounded-xl border border-[var(--border-primary)]">
                 {["All", "Active", "Inactive", "Pending", "Archived"].map((status) => (
                   <button
                     key={status}
                     onClick={() => setStatusFilter(status)}
-                    className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                    className={`px-3 sm:px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   >
                     {t(STATUS_FILTER_LABELS[status] || "") || status}
                   </button>
