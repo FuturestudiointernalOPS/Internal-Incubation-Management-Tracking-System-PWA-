@@ -500,7 +500,6 @@ export async function GET(req) {
         sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";
         args.push(groupFilter);
       }
-      }
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     } else {
