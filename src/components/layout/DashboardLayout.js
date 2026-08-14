@@ -33,6 +33,7 @@ import {
   UserCheck,
   UploadCloud,
   ListTodo,
+  ClipboardList,
   Wrench,
   CheckSquare,
   Megaphone,
@@ -653,6 +654,32 @@ const NAVIGATION_MATRIX = {
           href: "/staff/projects",
         },
       ],
+    },
+  ],
+  facilitator: [
+    {
+      id: "dashboard",
+      name: "DASHBOARD",
+      icon: LayoutDashboard,
+      href: "/facilitator",
+    },
+    {
+      id: "my_programs",
+      name: "MY PROGRAMS",
+      icon: Briefcase,
+      href: "/facilitator",
+    },
+    {
+      id: "reviews",
+      name: "MY REVIEWS",
+      icon: ClipboardList,
+      href: "/facilitator/reviews",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/facilitator/profile",
     },
   ],
   developer: [

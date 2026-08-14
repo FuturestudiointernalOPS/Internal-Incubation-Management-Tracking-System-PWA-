@@ -28,6 +28,21 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 import { uploadFile } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 
+const FACILITATOR_CAPS = [
+  { key: "participants.view", label: "View participants" },
+  { key: "participants.manage", label: "Manage participants" },
+  { key: "attendance.view", label: "View attendance" },
+  { key: "attendance.record", label: "Record attendance" },
+  { key: "assignments.view", label: "View assignments" },
+  { key: "assignments.review", label: "Review assignments" },
+  { key: "assignments.grade", label: "Grade assignments" },
+  { key: "sessions.conduct", label: "Conduct sessions" },
+  { key: "sessions.record", label: "Record sessions" },
+  { key: "progress.view", label: "View progress" },
+  { key: "groups.view", label: "View groups" },
+  { key: "groups.manage", label: "Manage groups" },
+];
+
 export default function ProgramManagement() {
   const { t } = useI18n();
   const [programs, setPrograms] = useState([]);
@@ -59,6 +74,130 @@ export default function ProgramManagement() {
   });
   const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
   const [groupRegLinks, setGroupRegLinks] = useState({});
+
+  // ── Facilitator management state ──
+  const [facilitatorPool, setFacilitatorPool] = useState([]);
+  const [facilitatorSearch, setFacilitatorSearch] = useState("");
+  const [facBusy, setFacBusy] = useState(false);
+
+  useEffect(() => {
+    if (!editingProgram?.id) return;
+    fetch(`/api/contacts?group=Facilitators`)
+      .then((r) => r.json())
+      .then((d) => setFacilitatorPool(d.success ? d.contacts || [] : []))
+      .catch(() => setFacilitatorPool([]));
+  }, [editingProgram?.id]);
+
+  const addFacilitator = async (contact) => {
+    if (!editingProgram?.id || !contact?.cid) return;
+    setFacBusy(true);
+    try {
+      const res = await fetch("/api/program-staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          program_id: editingProgram.id,
+          staff_id: contact.cid,
+          role: "facilitator",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingProgram({
+          ...editingProgram,
+          facilitators: [
+            ...(editingProgram.facilitators || []),
+            {
+              id: data.id,
+              cid: contact.cid,
+              role: "facilitator",
+              permissions: {},
+              name: contact.name,
+              email: contact.email,
+            },
+          ],
+        });
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "success", message: "Facilitator added" },
+          }),
+        );
+      }
+    } catch (_) {
+    } finally {
+      setFacBusy(false);
+    }
+  };
+
+  const removeFacilitator = async (f) => {
+    if (!f?.id) return;
+    const res = await fetch("/api/program-staff", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: f.id }),
+    });
+    if ((await res.json()).success) {
+      setEditingProgram({
+        ...editingProgram,
+        facilitators: (editingProgram.facilitators || []).filter(
+          (x) => x.id !== f.id,
+        ),
+      });
+    }
+  };
+
+  const toggleFacOverride = async (f, capKey) => {
+    const current = f.permissions || {};
+    const next = { ...current };
+    if (next[capKey]) delete next[capKey];
+    else next[capKey] = capKey.startsWith("view") ? 1 : 2;
+    const res = await fetch("/api/program-staff", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: f.id, permissions: next }),
+    });
+    if ((await res.json()).success) {
+      setEditingProgram({
+        ...editingProgram,
+        facilitators: (editingProgram.facilitators || []).map((x) =>
+          x.id === f.id ? { ...x, permissions: next } : x,
+        ),
+      });
+    }
+  };
+
+  const toggleFacDefault = (capKey) => {
+    const current = editingProgram.facilitator_default_permissions || {};
+    const next = { ...current };
+    if (next[capKey]) delete next[capKey];
+    else next[capKey] = capKey.startsWith("view") ? 1 : 2;
+    setEditingProgram({
+      ...editingProgram,
+      facilitator_default_permissions: next,
+    });
+  };
+
+  const setLeadFacilitator = async (familyId, cid) => {
+    try {
+      const res = await fetch("/api/families", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: familyId, lead_facilitator_id: cid || null }),
+      });
+      if ((await res.json()).success) {
+        setNotes((prev) =>
+          (prev || []).map((n) =>
+            n.id === familyId ? { ...n, lead_facilitator_id: cid || null } : n,
+          ),
+        );
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "success", message: "Lead facilitator updated" },
+          }),
+        );
+      }
+    } catch (_) {}
+  };
 
   // Pre-fetch form run URLs for assigned groups when edit modal opens
   useEffect(() => {
@@ -1410,6 +1549,156 @@ export default function ProgramManagement() {
                   >
                     {isCreatingGroup ? t?.("common.cancel") || "Cancel" : t?.("admin.createNewGroup") || "+ Create New Group"}
                   </button>
+                </div>
+
+                {/* ═══ PROGRAM FACILITATORS (EXTERNAL PERSONNEL) ═══ */}
+                <div className="space-y-3 mt-4 pt-4 border-t border-[var(--border-primary)]/40">
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                    PROGRAM FACILITATORS (EXTERNAL)
+                  </label>
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
+                    Sourced from the CRM Facilitators group. Not Future Studio staff — they only access this program.
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "assigned_groups" })}
+                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+                    >
+                      <p className={`text-[8px] font-black uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>Assigned Groups Only</p>
+                      <p className="text-[7px] text-[var(--text-secondary)] mt-1">Facilitators see only their assigned participant groups.</p>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "all" })}
+                      className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
+                    >
+                      <p className={`text-[8px] font-black uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>All Participants</p>
+                      <p className="text-[7px] text-[var(--text-secondary)] mt-1">Facilitators see the entire program.</p>
+                    </button>
+                  </div>
+
+                  <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
+                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">DEFAULT FACILITATOR PERMISSIONS — APPLIES TO ALL</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {FACILITATOR_CAPS.map((cap) => {
+                        const active = !!(editingProgram?.facilitator_default_permissions || {})[cap.key];
+                        return (
+                          <button
+                            key={cap.key}
+                            type="button"
+                            onClick={() => toggleFacDefault(cap.key)}
+                            className={`text-[7px] font-bold uppercase px-1.5 py-1.5 rounded-lg border text-left truncate transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"}`}
+                          >
+                            {cap.label}{active ? " ✓" : ""}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
+                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ASSIGNED FACILITATORS</p>
+                    {(editingProgram?.facilitators || []).length === 0 && (
+                      <p className="text-[9px] italic text-[var(--text-secondary)]">No facilitators assigned yet.</p>
+                    )}
+                    {(editingProgram?.facilitators || []).map((f) => (
+                      <div key={f.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[9px] font-black uppercase truncate">{f.name}</p>
+                            <p className="text-[8px] text-[var(--text-secondary)] truncate">{f.email}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFacilitator(f)}
+                            className="text-[8px] font-black uppercase text-rose-400 hover:underline shrink-0"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <p className="text-[7px] font-black uppercase text-[var(--text-secondary)]">INDIVIDUAL OVERRIDES (THIS FACILITATOR ONLY)</p>
+                        <div className="grid grid-cols-2 gap-1">
+                          {FACILITATOR_CAPS.map((cap) => {
+                            const active = !!(f.permissions || {})[cap.key];
+                            return (
+                              <button
+                                key={cap.key}
+                                type="button"
+                                onClick={() => toggleFacOverride(f, cap.key)}
+                                className={`text-[7px] font-bold uppercase px-1.5 py-1 rounded-lg border text-left truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                              >
+                                {cap.label}{active ? " ✓" : ""}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
+                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ADD FROM CRM — FACILITATORS GROUP</p>
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+                      <input
+                        value={facilitatorSearch}
+                        onChange={(e) => setFacilitatorSearch(e.target.value)}
+                        placeholder="Search by name or email…"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      />
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-1">
+                      {facilitatorPool
+                        .filter((c) => !(editingProgram?.facilitators || []).some((f) => f.cid === c.cid))
+                        .filter((c) => !facilitatorSearch || (c.name || "").toLowerCase().includes(facilitatorSearch.toLowerCase()) || (c.email || "").toLowerCase().includes(facilitatorSearch.toLowerCase()))
+                        .map((c) => (
+                          <button
+                            key={c.cid}
+                            type="button"
+                            disabled={facBusy}
+                            onClick={() => addFacilitator(c)}
+                            className="w-full flex items-center justify-between gap-2 p-2 rounded-lg border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
+                          >
+                            <span className="text-[9px] font-black uppercase truncate">{c.name}</span>
+                            <span className="text-[8px] text-[var(--text-secondary)] truncate">{c.email}</span>
+                            <Plus className="w-3 h-3 shrink-0 text-emerald-400" />
+                          </button>
+                        ))}
+                      {facilitatorPool.length === 0 && (
+                        <p className="text-[8px] italic text-[var(--text-secondary)]">
+                          No contacts in the CRM "Facilitators" group yet. Add them via the CRM (bulk upload or contact edit).
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
+                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">LEAD FACILITATOR PER PARTICIPANT GROUP</p>
+                    {(editingProgram?.assigned_segments || []).map((segId) => {
+                      const family = (Array.isArray(notes) ? notes : []).find((n) => String(n.id) === String(segId));
+                      if (!family) return null;
+                      return (
+                        <div key={segId} className="flex items-center justify-between gap-2">
+                          <span className="text-[9px] font-black uppercase truncate">{family.name}</span>
+                          <select
+                            value={family.lead_facilitator_id || ""}
+                            onChange={(e) => setLeadFacilitator(family.id, e.target.value || null)}
+                            className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none cursor-pointer max-w-[45%]"
+                          >
+                            <option value="">— None —</option>
+                            {(editingProgram?.facilitators || []).map((f) => (
+                              <option key={f.cid} value={f.cid}>{f.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      );
+                    })}
+                    {(editingProgram?.assigned_segments || []).length === 0 && (
+                      <p className="text-[8px] italic text-[var(--text-secondary)]">Assign participant groups above to set a lead facilitator per group.</p>
+                    )}
+                  </div>
                 </div>
 
                 {isCreatingGroup && (

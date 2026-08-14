@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -146,6 +146,44 @@ export async function PATCH(req) {
         { success: false, error: "Missing ID or status" },
         { status: 400 },
       );
+    }
+
+    // Server-side enforcement: facilitators must be assigned to the program
+    // and hold assignments.grade to review submissions.
+    const session = await getSession();
+    if (session?.role === "facilitator") {
+      const subRow = await db.execute({
+        sql: "SELECT program_id FROM v2_submissions WHERE id::text = ?",
+        args: [String(id)],
+      });
+      const progId = subRow.rows[0]?.program_id;
+      if (!progId) {
+        return NextResponse.json(
+          { success: false, error: "Submission not found" },
+          { status: 404 },
+        );
+      }
+      const facError = await enforceFacilitatorProgramAccess(
+        progId,
+        "assignments.grade",
+        1,
+      );
+      if (facError) return facError;
+      const scope = await getFacilitatorParticipantScope(progId, session.cid);
+      if (scope.scope === "groups" && scope.groupNames.length > 0) {
+        const inScope = await db.execute({
+          sql: "SELECT 1 FROM v2_submissions s JOIN v2_participants p ON s.participant_id::text = p.id::text JOIN contacts c ON p.email = c.email WHERE s.id::text = ? AND UPPER(TRIM(c.group_name)) IN (" +
+            scope.groupNames.map(() => "?").join(",") +
+            ")",
+          args: [String(id), ...scope.groupNames.map((n) => n.toUpperCase())],
+        });
+        if (inScope.rows.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "errors.insufficientPermissions" },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     // ─── Business Rules ──────────────────────────────────────────────
@@ -334,6 +372,16 @@ export async function PATCH(req) {
 export async function GET(req) {
   try {
     await initDb();
+    const authError = await requireAuth([
+      "staff",
+      "super_admin",
+      "program_manager",
+      "teacher",
+      "participant",
+      "team",
+      "facilitator",
+    ]);
+    if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const participant_id = searchParams.get("participant_id");
     const team_id = searchParams.get("team_id");
@@ -344,6 +392,33 @@ export async function GET(req) {
     const status = searchParams.get("status");
     const include_versions = searchParams.get("include_versions") === "true";
     const latest_only = searchParams.get("latest_only") === "true";
+
+    // Server-side enforcement: facilitators must be assigned to the program
+    // and hold assignments.view. Scope restricts to their assigned groups.
+    const session = await getSession();
+    let facScopeFilter = null;
+    let facScopeArgs = [];
+    let scopeGroupNames = [];
+    if (session?.role === "facilitator" && program_id) {
+      const facError = await enforceFacilitatorProgramAccess(
+        program_id,
+        "assignments.view",
+        1,
+      );
+      if (facError) return facError;
+      const scope = await getFacilitatorParticipantScope(program_id, session.cid);
+      if (scope.scope === "groups") {
+        if (scope.groupNames.length === 0) {
+          return NextResponse.json({ success: true, submissions: [] });
+        }
+        facScopeFilter =
+          "s.participant_id IN (SELECT p.id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
+          scope.groupNames.map(() => "?").join(",") +
+          "))";
+        facScopeArgs = scope.groupNames.map((n) => n.toUpperCase());
+        scopeGroupNames = facScopeArgs;
+      }
+    }
 
     let sql = `
        SELECT s.*,
@@ -418,6 +493,13 @@ export async function GET(req) {
       if (deliverable_id) {
         sql += " AND (deliverable_id::text = ? OR document_id = ?)";
         innerArgs.push(deliverable_id, Number(deliverable_id) || 0);
+      }
+      if (facScopeFilter) {
+        sql +=
+          " AND participant_id IN (SELECT p.id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
+          scopeGroupNames.map(() => "?").join(",") +
+          "))";
+        innerArgs.push(...scopeGroupNames);
       }
       sql += " GROUP BY participant_id::text, COALESCE(deliverable_id::text, document_id::text)";
       sql += " ) s2";

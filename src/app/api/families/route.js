@@ -99,7 +99,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const body = await req.json();
     if (!body.id)
@@ -112,6 +112,7 @@ export async function PUT(req) {
     if (body.type !== undefined) { updates.push("type = ?"); args.push(body.type); }
     if (body.description !== undefined) { updates.push("description = ?"); args.push(body.description); }
     if (body.default_role !== undefined) { updates.push("default_role = ?"); args.push(body.default_role || null); }
+    if (body.lead_facilitator_id !== undefined) { updates.push("lead_facilitator_id = ?"); args.push(body.lead_facilitator_id || null); }
 
     if (updates.length === 0)
       return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
