@@ -101,7 +101,7 @@ export async function POST(req) {
 
     // Update contact: set password, mark as active and verified
     await db.execute({
-      sql: "UPDATE contacts SET password = ?, status = 'active' WHERE cid = ?",
+      sql: "UPDATE contacts SET password = ?, status = 'active', activated_at = NOW() WHERE cid = ?",
       args: [hashedPassword, record.contact_cid],
     });
 
