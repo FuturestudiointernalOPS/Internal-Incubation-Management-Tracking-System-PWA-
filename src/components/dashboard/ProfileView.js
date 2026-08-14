@@ -95,27 +95,33 @@ export default function ProfileView() {
       const cid = u.cid;
       const email = u.email;
 
-      // Fetch contact, programs, submissions, and group info in parallel
-      const [contactRes, progRes, subRes] = await Promise.all([
-        fetch("/api/contacts"),
+      // Fetch own profile (session-based — no CRM-wide capability required),
+      // plus participant programs/submissions in parallel.
+      const [profileRes, progRes, subRes] = await Promise.all([
+        fetch("/api/profile"),
         fetch("/api/participant/programs"),
         cid
           ? fetch(`/api/participant/submissions?participant_id=${cid}`)
           : fetch(`/api/participant/submissions?participant_id=${email}`),
       ]);
 
-      const contactData = await contactRes.json();
+      const profileData = await profileRes.json();
       const progData = await progRes.json();
       const subData = await subRes.json();
 
-      if (contactData.success) {
-        const found = contactData.contacts?.find(
-          (c) => c.cid === cid || c.email === email,
-        );
-        if (found) {
-          setContact(found);
-          setEditedName(found.name || "");
-        }
+      if (profileData.success && profileData.profile) {
+        const p = profileData.profile;
+        setContact({
+          cid: p.cid || cid,
+          name: p.name || "",
+          email: p.email || email,
+          phone: p.phone || "",
+          address: p.address || "",
+          language: p.language || "",
+          role: p.role || "",
+          group_name: p.group_name || "",
+        });
+        setEditedName(p.name || "");
       }
 
       if (progData.success) {
@@ -152,11 +158,10 @@ export default function ProfileView() {
     setSaving(true);
     setSaveMessage(null);
     try {
-      const res = await fetch("/api/contacts", {
+      const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cid: contact.cid,
           name: editedName || contact.name,
         }),
       });
@@ -205,13 +210,11 @@ export default function ProfileView() {
     setPasswordSaving(true);
     setPasswordMessage(null);
     try {
-      const res = await fetch("/api/contacts", {
+      const res = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          cid: contact.cid,
           password: newPass,
-          name: contact.name,
         }),
       });
       const data = await res.json();
