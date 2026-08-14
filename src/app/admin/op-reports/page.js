@@ -716,7 +716,7 @@ export default function AdminOpReports() {
                                 {task.user_name?.charAt(0) || "?"}
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-tight">
-                                {task.user_name || t("common.unknown")}
+                                {task.user_name || task.user_id || t("common.unknown")}
                               </span>
                             </div>
                           </td>

@@ -434,8 +434,8 @@ export default function ProgramFacilitators({ params }) {
               <div key={f.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase truncate">{f.name}</p>
-                    <p className="text-[9px] text-[var(--text-secondary)] truncate">{f.email}</p>
+                    <p className="text-[11px] font-black uppercase truncate">{f.name || f.email || f.cid}</p>
+                    <p className="text-[9px] text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
                   </div>
                   <button
                     onClick={() => removeFacilitator(f)}
