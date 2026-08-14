@@ -380,6 +380,24 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create", "edit", "delete", "export"],
   },
   settings: { name: "System Settings", capabilities: ["view", "edit"] },
+  facilitator: {
+    name: "Program Facilitator",
+    capabilities: [
+      "participants.view",
+      "participants.manage",
+      "attendance.view",
+      "attendance.record",
+      "assignments.view",
+      "assignments.review",
+      "assignments.grade",
+      "sessions.conduct",
+      "sessions.record",
+      "progress.view",
+      "groups.view",
+      "groups.manage",
+      "reviews.submit",
+    ],
+  },
 };
 
 export const ACCESS_LEVELS = {
@@ -560,6 +578,215 @@ export async function logPermissionAudit({
     });
   } catch (e) {
     console.error("logPermissionAudit error:", e.message);
+  }
+}
+
+// =============================================================================
+// PROGRAM FACILITATOR AUTHORIZATION
+// -----------------------------------------------------------------------------
+// External facilitators are assigned per program via v2_program_staff rows with
+// role = 'facilitator'. They are NOT Future Studio staff (group_name stays
+// 'Facilitators' / anything other than 'FUTURE STUDIO').
+//
+// Permission resolution per program:
+//   1. Individual override (v2_program_staff.permissions JSON map) wins
+//   2. Otherwise program default (v2_programs.facilitator_default_permissions)
+//   3. Otherwise denied
+//
+// Participant scope:
+//   v2_programs.facilitator_scope = 'all'  -> whole program
+//   'assigned_groups' -> groups where the facilitator is the lead
+//     (families.lead_facilitator_id)
+// =============================================================================
+
+const FACILITATOR_BYPASS_ROLES = ["super_admin", "staff", "program_manager", "teacher"];
+
+/**
+ * Returns the facilitator assignment row for (program, user) or null.
+ */
+export async function getProgramFacilitatorAssignment(programId, userCid) {
+  try {
+    await initDb();
+    const res = await db.execute({
+      sql: "SELECT * FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND staff_id = ? AND role = 'facilitator'",
+      args: [String(programId), userCid],
+    });
+    return res.rows[0] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the effective access level for a capability within a program.
+ * Individual override beats the program default. Returns 0 when denied.
+ */
+export async function getFacilitatorPermissionLevel(programId, assignment, capability) {
+  let level = 0;
+  try {
+    await initDb();
+    if (assignment?.permissions) {
+      let ov = assignment.permissions;
+      if (typeof ov === "string") {
+        try { ov = JSON.parse(ov); } catch { ov = null; }
+      }
+      if (ov && typeof ov[capability] === "number") level = ov[capability];
+    }
+    if (level === 0) {
+      const prog = await db.execute({
+        sql: "SELECT facilitator_default_permissions FROM v2_programs WHERE id = ?",
+        args: [programId],
+      });
+      let def = prog.rows[0]?.facilitator_default_permissions;
+      if (typeof def === "string") {
+        try { def = JSON.parse(def); } catch { def = null; }
+      }
+      if (def && typeof def[capability] === "number") level = def[capability];
+    }
+  } catch {
+    level = 0;
+  }
+  return level;
+}
+
+/**
+ * Returns the facilitator's participant scope for a program.
+ * { scope: 'all' } or { scope: 'groups', groupIds, groupNames }
+ */
+export async function getFacilitatorParticipantScope(programId, userCid) {
+  try {
+    await initDb();
+    const prog = await db.execute({
+      sql: "SELECT facilitator_scope FROM v2_programs WHERE id = ?",
+      args: [programId],
+    });
+    if (prog.rows[0]?.facilitator_scope === "all") {
+      return { scope: "all", groupIds: [], groupNames: [] };
+    }
+    const fam = await db.execute({
+      sql: "SELECT CAST(id AS TEXT) AS id, name FROM families WHERE CAST(program_id AS TEXT) = ? AND lead_facilitator_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
+      args: [String(programId), userCid],
+    });
+    return {
+      scope: "groups",
+      groupIds: fam.rows.map((r) => r.id),
+      groupNames: fam.rows.map((r) => r.name),
+    };
+  } catch {
+    return { scope: "groups", groupIds: [], groupNames: [] };
+  }
+}
+
+/**
+ * Guard: requires the session user to be a facilitator assigned to the program.
+ * Super admin / staff / PM / teacher keep their existing access.
+ */
+export async function requireProgramFacilitator(programId) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "errors.authRequired" },
+        { status: 401 },
+      );
+    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
+    if (session.role !== "facilitator")
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    if (!assignment)
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    return null;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "errors.authzSystemFailure" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Guard: facilitator must be assigned AND have the capability at the required
+ * level (individual override > program default). Bypass roles pass through.
+ */
+export async function requireFacilitatorCapability(programId, capability, minLevel = 1) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "errors.authRequired" },
+        { status: 401 },
+      );
+    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
+    if (session.role !== "facilitator")
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    if (!assignment)
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    const level = await getFacilitatorPermissionLevel(programId, assignment, capability);
+    if (level < minLevel)
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    return null;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "errors.authzSystemFailure" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Convenience guard for delivery APIs (participants, attendance, submissions,
+ * sessions). Bypass roles are unaffected — existing access is preserved.
+ */
+export async function enforceFacilitatorProgramAccess(programId, capability = null, minLevel = 1) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "errors.authRequired" },
+        { status: 401 },
+      );
+    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
+    if (session.role !== "facilitator")
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    if (!assignment)
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    if (capability) {
+      const level = await getFacilitatorPermissionLevel(programId, assignment, capability);
+      if (level < minLevel)
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+    }
+    return null;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "errors.authzSystemFailure" },
+      { status: 500 },
+    );
   }
 }
 

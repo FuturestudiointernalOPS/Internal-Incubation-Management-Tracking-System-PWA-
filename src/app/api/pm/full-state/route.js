@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, requireProgramFacilitator } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +13,21 @@ export async function GET(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "facilitator",
     ]);
     if (authError) return authError;
+    // Facilitators must be assigned to this program before seeing its data
+    if (requireProgramFacilitator) {
+      const { searchParams: sp } = new URL(req.url);
+      const progId = sp.get("id");
+      if (progId) {
+        const session = await getSession();
+        if (session?.role === "facilitator") {
+          const guardError = await requireProgramFacilitator(progId);
+          if (guardError) return guardError;
+        }
+      }
+    }
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     const includeMetrics = searchParams.get("metrics") === "true";
@@ -232,6 +245,18 @@ export async function GET(req) {
     }
 
     let assignedStaff = assignedStaffRes.rows;
+    let programFacilitators = [];
+
+    // External facilitators (role='facilitator') are NOT internal staff —
+    // keep them out of staffList so they never appear in staff workflows.
+    if (Array.isArray(assignedStaff)) {
+      programFacilitators = assignedStaff.filter(
+        (r) => String(r.role || "").toLowerCase() === "facilitator",
+      );
+      assignedStaff = assignedStaff.filter(
+        (r) => String(r.role || "").toLowerCase() !== "facilitator",
+      );
+    }
 
     if (program?.assigned_assistant_id) {
       try {
@@ -456,6 +481,7 @@ export async function GET(req) {
       documents: docRes.rows,
       followups: folRes.rows,
       assignedStaff,
+      facilitators: programFacilitators,
       submissions: subRes.rows,
       reports: repRes.rows,
       families: famRes.rows,

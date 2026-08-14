@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -103,10 +103,19 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth(["staff", "super_admin", "program_manager", "teacher", "facilitator"]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
+
+    // Server-side enforcement: facilitators must be assigned to the program
+    // and hold participants.view at level >= 1.
+    const facError = await enforceFacilitatorProgramAccess(
+      program_id,
+      "participants.view",
+      1,
+    );
+    if (facError) return facError;
 
     let sql = "SELECT * FROM v2_participants";
     let args = [];
@@ -114,6 +123,21 @@ export async function GET(req) {
     if (program_id) {
       sql += " WHERE program_id = ?";
       args.push(program_id);
+    }
+
+    // Scope enforcement: facilitators with 'assigned_groups' scope only see
+    // participants belonging to their assigned groups (group membership is
+    // tracked via contacts.group_name matching the family name).
+    const session = await getSession();
+    if (session?.role === "facilitator" && program_id) {
+      const scope = await getFacilitatorParticipantScope(program_id, session.cid);
+      if (scope.scope === "groups") {
+        if (scope.groupNames.length === 0) {
+          return NextResponse.json({ success: true, participants: [] });
+        }
+        sql += " AND email IN (SELECT email FROM contacts WHERE UPPER(TRIM(group_name)) IN (" + scope.groupNames.map(() => "?").join(",") + "))";
+        args.push(...scope.groupNames.map((n) => n.toUpperCase()));
+      }
     }
 
     sql += " ORDER BY created_at DESC";

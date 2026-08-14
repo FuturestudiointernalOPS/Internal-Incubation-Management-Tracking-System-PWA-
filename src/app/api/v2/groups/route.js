@@ -61,10 +61,10 @@ export async function GET(req) {
 
     // Query families table
     try {
-      let famSql = "SELECT CAST(id AS TEXT) as id, program_id, name, description as project_description, created_at FROM families";
+      let famSql = "SELECT CAST(f.id AS TEXT) as id, f.program_id, f.name, f.description as project_description, f.lead_facilitator_id, c.name as lead_facilitator_name, f.created_at FROM families f LEFT JOIN contacts c ON f.lead_facilitator_id = c.cid";
       let famArgs = [];
       if (program_id) {
-        famSql += " WHERE program_id = ?";
+        famSql += " WHERE f.program_id = ?";
         famArgs.push(program_id);
       }
       const famRes = await db.execute({ sql: famSql, args: famArgs });
