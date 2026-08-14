@@ -427,10 +427,9 @@ const RULES = [
           accountExists = true;
           // Preserve an explicitly assigned privileged role; otherwise participant.
           targetRole = resolveDefaultRole(contact.role);
-          // Existing source of truth for completed activation: the password
-          // column — empty means never activated, a bcrypt hash means the
-          // user completed password setup.
-          accountActivated = !!(contact.password && String(contact.password).trim() !== "");
+          // Completed activation is signalled by status='active' (set only by
+          // the activate endpoint), never by password existence alone.
+          accountActivated = String(contact.status || "").toLowerCase() === "active";
           if (!accountActivated) {
             await db.execute({
               sql: `UPDATE contacts SET role = ?, status = 'approved',

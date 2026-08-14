@@ -124,20 +124,19 @@ async function enrichAssignments(assignments) {
  */
 /**
  * Derives the standardized account status for a submission from its matched
- * Contact row. Mirrors the login gate: 'active'/'approved' with a password can
- * log in; everything else maps to the account lifecycle stages.
+ * Contact row. Status-based only: password existence is NOT treated as proof
+ * of activation — 'approved' remains approved until the account is 'active'.
  */
 function deriveAccountStatus(contactRow) {
   if (!contactRow) return "not_created";
   if (Number(contactRow.deleted) === 1 || contactRow.deleted_at) return "deleted";
   if (contactRow.archived_at) return "archived";
   const st = String(contactRow.status || "").toLowerCase();
-  const hasPassword = String(contactRow.password || "").trim() !== "";
   if (st === "inactive") return "inactive";
   if (st === "active") return "active";
-  if (st === "approved") return hasPassword ? "active" : "activation_pending";
+  if (st === "approved") return "approved";
   if (st === "pending") return "pending_approval";
-  return hasPassword ? "active" : "pending_approval";
+  return "pending_approval";
 }
 
 async function calculateSubmissionScores(runId, submissionData) {
@@ -548,10 +547,7 @@ export async function GET(req) {
           (resolvedEmails[i] ? accountMap.get(String(resolvedEmails[i]).toLowerCase()) : null) ||
           (email ? accountMap.get(String(email).toLowerCase()) : null);
         const account_created = !!contactRow;
-        const account_activated =
-          account_created &&
-          (String(contactRow.password || "").trim() !== "" ||
-            String(contactRow.status || "").toLowerCase() === "active");
+        const account_activated = account_created && String(contactRow.status || "").toLowerCase() === "active";
         const account_status = deriveAccountStatus(contactRow);
         return { ...s, email, display_name: displayName, account_created, account_activated, account_status };
       });

@@ -118,6 +118,25 @@ export async function POST(req) {
           { status: 403 },
         );
       }
+      if (user.status === "approved") {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Access Denied: Your account has been approved, but you have not completed account activation. Please check your email and complete the activation process before logging in.",
+          },
+          { status: 403 },
+        );
+      }
+      if (user.status === "archived" || user.archived_at != null) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Access Denied: Your account has been archived.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     // Check Assignments using CID
@@ -216,6 +235,22 @@ export async function POST(req) {
 
     if (isTeamLogin) {
       responseUser.team_id = user.id;
+    }
+
+    // --- LOGIN ACTIVITY TRACKING (successful login only) ---
+    // Record the successful authentication AFTER all access gates have passed.
+    // Failed logins, activation emails, approval emails, and password-reset
+    // emails must never update these fields.
+    if (!isTeamLogin && !isFamilyLogin && user.cid) {
+      try {
+        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ");
+        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ");
+        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0");
+        await db.execute({
+          sql: "UPDATE contacts SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE cid = ?",
+          args: [user.cid],
+        });
+      } catch (_) {}
     }
 
     // Create session (DB insert) and get token
