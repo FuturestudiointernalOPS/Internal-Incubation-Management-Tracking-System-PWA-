@@ -87,7 +87,9 @@
     "noProjects": "Aucun projet assigné",
     "noActiveBlockers": "Aucun bloqueur actif",
     "thisWeek": "Cette Semaine",
-    "moreTasks": "tâches supplémentaires"
+    "moreTasks": "tâches supplémentaires",
+    "operations": "Opérations",
+    "weeklyOpsStatus": "Statut du point hebdomadaire et de la rétrospective"
   },
   "roles": {
     "owner": "Propriétaire",

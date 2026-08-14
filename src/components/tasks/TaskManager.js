@@ -220,6 +220,39 @@ export default function TaskManager({
     link: "",
   });
 
+  // New-task file attachment + date validation
+  const [taskFile, setTaskFile] = useState(null);
+  const [subTaskFile, setSubTaskFile] = useState(null);
+
+  const validateTaskDates = (start, due) => {
+    const today = new Date().toISOString().split("T")[0];
+    if (start && start < today)
+      return "Start date cannot be in the past.";
+    if (start && due && due < start)
+      return "Due date cannot be earlier than the start date.";
+    return null;
+  };
+
+  const attachFileToTask = async (taskId, file) => {
+    const path = `${taskId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
+    const upload = await uploadFile("knowledge", path, file);
+    if (!upload.success)
+      return { success: false, error: upload.error || "Upload failed" };
+    const res = await fetch("/api/tasks/resources", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        task_id: taskId,
+        name: file.name,
+        url: upload.url,
+        type: "file",
+        file_name: file.name,
+        file_size: file.size,
+      }),
+    });
+    return { success: res.ok };
+  };
+
   // Auto-populate project_id from prop when in project mode
   useEffect(() => {
     if (mode === "project" && projectId && showTaskForm) {
@@ -584,6 +617,11 @@ export default function TaskManager({
     if (creating) return;
     if (!form.name.trim()) return;
     if (!form.project_id && !form.category) return;
+    const dateError = validateTaskDates(form.start_date, form.due_date);
+    if (dateError) {
+      notify("error", dateError);
+      return;
+    }
 
     setCreating(true);
     const data = await createTask({
@@ -599,6 +637,17 @@ export default function TaskManager({
     });
 
     if (data.success) {
+      if (taskFile && data.id) {
+        const attach = await attachFileToTask(data.id, taskFile);
+        if (!attach.success) {
+          notify(
+            "error",
+            t((attach.error || "Upload failed") || "") ||
+              (attach.error || "Upload failed"),
+          );
+        }
+      }
+      setTaskFile(null);
       setForm((p) => ({
         ...p,
         name: "",
@@ -618,7 +667,7 @@ export default function TaskManager({
       alert(t((data.error || "Failed to create task.") || "") || (data.error || "Failed to create task."));
     }
     setCreating(false);
-  }, [form, pendingParentTaskId, createTask, onTasksChange, creating]);
+  }, [form, pendingParentTaskId, createTask, onTasksChange, creating, taskFile, t]);
 
   const handleCloseForm = useCallback(() => {
     setShowTaskForm(false);
@@ -655,6 +704,11 @@ export default function TaskManager({
   const addSubTaskFromModal = useCallback(async () => {
     const name = subTaskInput.trim();
     if (!name || !subTaskModal) return;
+    const dateError = validateTaskDates(subTaskStartDate, subTaskEndDate);
+    if (dateError) {
+      notify("error", dateError);
+      return;
+    }
     const data = await createTask({
       title: name,
       description: subTaskDescription || null,
@@ -669,6 +723,17 @@ export default function TaskManager({
     });
 
     if (data.success) {
+      if (subTaskFile && data.id) {
+        const attach = await attachFileToTask(data.id, subTaskFile);
+        if (!attach.success) {
+          notify(
+            "error",
+            t((attach.error || "Upload failed") || "") ||
+              (attach.error || "Upload failed"),
+          );
+        }
+      }
+      setSubTaskFile(null);
       setSubTaskInput("");
       setSubTaskDescription("");
       setSubTaskAssignedTo("");
@@ -693,8 +758,10 @@ export default function TaskManager({
     subTaskStartDate,
     subTaskEndDate,
     subTaskLink,
+    subTaskFile,
     createTask,
     onTasksChange,
+    t,
   ]);
 
   // ── Available projects / categories ──
@@ -1549,6 +1616,10 @@ export default function TaskManager({
               onChange={(e) =>
                 setForm((p) => ({ ...p, start_date: e.target.value }))
               }
+              min={(() => {
+                const today = new Date().toISOString().split("T")[0];
+                return today;
+              })()}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none"
             />
             <input
@@ -1557,6 +1628,7 @@ export default function TaskManager({
               onChange={(e) =>
                 setForm((p) => ({ ...p, due_date: e.target.value }))
               }
+              min={form.start_date || (() => { const t = new Date().toISOString().split("T")[0]; return t; })()}
               className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none"
             />
           </div>
@@ -1573,6 +1645,23 @@ export default function TaskManager({
               placeholder="https://..."
               className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
             />
+          </div>
+
+          {/* Attachment (file upload) */}
+          <div>
+            <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              Attachment (optional)
+            </label>
+            <input
+              type="file"
+              onChange={(e) => setTaskFile(e.target.files?.[0] || null)}
+              className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+            />
+            {taskFile && (
+              <p className="text-[8px] text-slate-500 mt-1 truncate">
+                {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
+              </p>
+            )}
           </div>
 
           {/* Actions */}
@@ -1783,12 +1872,14 @@ export default function TaskManager({
                   type="date"
                   value={subTaskStartDate}
                   onChange={(e) => setSubTaskStartDate(e.target.value)}
+                  min={new Date().toISOString().split("T")[0]}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
                 <input
                   type="date"
                   value={subTaskEndDate}
                   onChange={(e) => setSubTaskEndDate(e.target.value)}
+                  min={subTaskStartDate || new Date().toISOString().split("T")[0]}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
@@ -1799,6 +1890,21 @@ export default function TaskManager({
                 placeholder="Link (optional)..."
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
               />
+              <div>
+                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Attachment (optional)
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => setSubTaskFile(e.target.files?.[0] || null)}
+                  className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                />
+                {subTaskFile && (
+                  <p className="text-[8px] text-slate-500 mt-1 truncate">
+                    {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
+                  </p>
+                )}
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={addSubTaskFromModal}
@@ -1980,6 +2086,14 @@ export default function TaskManager({
               <button
                 onClick={async () => {
                   if (!editForm.name.trim()) return;
+                  const dateError = validateTaskDates(
+                    editForm.start_date,
+                    editForm.due_date,
+                  );
+                  if (dateError) {
+                    notify("error", dateError);
+                    return;
+                  }
                   try {
                     const res = await fetch("/api/tasks", {
                       method: "PUT",

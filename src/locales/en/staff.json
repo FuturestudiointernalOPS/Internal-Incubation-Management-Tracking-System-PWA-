@@ -109,7 +109,22 @@
       "priorityLow": "Low",
       "priorityMedium": "Medium",
       "priorityHigh": "High",
-      "priorityCritical": "Critical"
+      "priorityCritical": "Critical",
+      "topPriorities": "Top Priorities",
+      "topPrioritiesPlaceholder": "e.g. Ship onboarding flow, prepare Q3 budget...",
+      "expectedDeliverablesTitle": "Expected Deliverables",
+      "deliverablesPlaceholder": "e.g. Onboarding flow v1 deployed",
+      "addItem": "Add",
+      "retroForWeek": "Retro — Week {week}",
+      "wins": "Wins",
+      "winsPlaceholder": "What went well this week?",
+      "challenges": "Challenges",
+      "challengesPlaceholder": "What didn't go well?",
+      "carryoverItems": "Carry-over Items",
+      "carryoverPlaceholder": "What will carry over to next week?",
+      "retroNotes": "Retro Notes",
+      "retroNotesPlaceholder": "Any additional notes?",
+      "submitRetro": "Submit Retro"
     },
     "categories": {
       "operations": "Operations",

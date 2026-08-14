@@ -36,6 +36,24 @@ function getWeekNumber(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
+// ── Date validation helpers ──
+function isValidDateStr(v) {
+  return (
+    typeof v === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(v) &&
+    !isNaN(new Date(v + "T00:00:00Z").getTime())
+  );
+}
+
+function todayStr() {
+  return new Date().toISOString().split("T")[0];
+}
+
+function isCurrentWeek(w, y) {
+  const now = new Date();
+  return Number(w) === getWeekNumber(now) && Number(y) === now.getFullYear();
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -416,7 +434,43 @@ export async function POST(req) {
     }
 
     // Phase 5: Auto-generate start_date from created_at if not provided
-    const finalStartDate = start_date || new Date().toISOString().split("T")[0];
+    // ─── DATE VALIDATION (Phase 13) ───
+    if (start_date && !isValidDateStr(start_date)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid start_date. Expected format YYYY-MM-DD." },
+        { status: 400 },
+      );
+    }
+    if (end_date && !isValidDateStr(end_date)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid end_date. Expected format YYYY-MM-DD." },
+        { status: 400 },
+      );
+    }
+    if (start_date && end_date && end_date < start_date) {
+      return NextResponse.json(
+        { success: false, error: "Due date cannot be earlier than the start date." },
+        { status: 400 },
+      );
+    }
+    // New tasks for the current reporting week cannot start in the past
+    // (backfilled tasks for previous weeks and subtasks are exempt).
+    const isCurrentWeekTask = isCurrentWeek(created_week, created_year);
+    if (
+      isCurrentWeekTask &&
+      !parent_task_id &&
+      !carried_over_from_task_id &&
+      start_date &&
+      start_date < todayStr()
+    ) {
+      return NextResponse.json(
+        { success: false, error: "Start date cannot be in the past." },
+        { status: 400 },
+      );
+    }
+
+    const finalStartDate =
+      start_date || (isCurrentWeekTask ? todayStr() : null);
     const finalEndDate = end_date || null;
     let finalAssignedTo = assigned_to || null;
 
@@ -519,6 +573,36 @@ export async function POST(req) {
     });
 
     const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
+
+    // ─── SUBTASK ⇄ PARENT CASCADE on creation (Phase 13) ───
+    // Keep parent/subtask completion consistent:
+    //   - All non-archived subtasks complete → parent completes (respecting blockers)
+    //   - Any incomplete subtask exists → completed parent reopens to in_progress
+    if (parent_task_id) {
+      try {
+        const incompleteSubs = await db.execute({
+          sql: "SELECT COUNT(*) AS total FROM tasks WHERE parent_task_id = ? AND status NOT IN ('completed', 'archived')",
+          args: [parseInt(parent_task_id)],
+        });
+        if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
+          const parentBlockerRes = await db.execute({
+            sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active'",
+            args: [parseInt(parent_task_id)],
+          });
+          if (parentBlockerRes.rows.length === 0) {
+            await db.execute({
+              sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived' AND status != 'completed'`,
+              args: [parseInt(parent_task_id)],
+            });
+          }
+        } else {
+          await db.execute({
+            sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'completed'`,
+            args: [parseInt(parent_task_id)],
+          });
+        }
+      } catch (_) {}
+    }
 
     // Audit log: Task Created
     await logAuditEvent({
@@ -1093,6 +1177,29 @@ export async function PUT(req) {
       }
     }
 
+    // ─── DATE VALIDATION (Phase 13) ───
+    if (start_date !== undefined && start_date && !isValidDateStr(start_date)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid start_date. Expected format YYYY-MM-DD." },
+        { status: 400 },
+      );
+    }
+    if (end_date !== undefined && end_date && !isValidDateStr(end_date)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid end_date. Expected format YYYY-MM-DD." },
+        { status: 400 },
+      );
+    }
+    const effStartDate =
+      start_date !== undefined ? start_date || null : task.start_date;
+    const effEndDate = end_date !== undefined ? end_date || null : task.end_date;
+    if (effStartDate && effEndDate && effEndDate < effStartDate) {
+      return NextResponse.json(
+        { success: false, error: "Due date cannot be earlier than the start date." },
+        { status: 400 },
+      );
+    }
+
     if (updateFields.length === 0 && !pendingAssignmentCreated) {
       return NextResponse.json(
         { success: false, error: "No fields to update" },
@@ -1194,6 +1301,72 @@ export async function PUT(req) {
           if (ancestorTask.rows.length === 0) break;
           ancestorId = ancestorTask.rows[0].carried_over_from_task_id;
         }
+      } catch (_) {}
+    }
+
+    // ─── SUBTASK ⇄ PARENT CASCADE (Phase 13) ───
+    // Keep parent/subtask completion consistent:
+    //   - All non-archived subtasks complete → parent completes (respecting blockers)
+    //   - Any incomplete subtask exists → completed parent reopens to in_progress
+    if (task.parent_task_id) {
+      try {
+        const incompleteSubs = await db.execute({
+          sql: "SELECT COUNT(*) AS total FROM tasks WHERE parent_task_id = ? AND status NOT IN ('completed', 'archived')",
+          args: [parseInt(task.parent_task_id)],
+        });
+        if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
+          // All subtasks complete → auto-complete the parent (unless it has active blockers)
+          const parentBlockerRes = await db.execute({
+            sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active'",
+            args: [parseInt(task.parent_task_id)],
+          });
+          if (parentBlockerRes.rows.length === 0) {
+            const parentRes = await db.execute({
+              sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived' AND status != 'completed'`,
+              args: [parseInt(task.parent_task_id)],
+            });
+            if (parentRes.rowsAffected > 0) {
+              try {
+                const pTitle =
+                  (await getTaskTitleById(task.parent_task_id)) ||
+                  `Task #${task.parent_task_id}`;
+                await logAuditEvent({
+                  entity_type: "task",
+                  entity_id: parseInt(task.parent_task_id),
+                  user_id: user_id || task.user_id,
+                  user_name: user_name || task.user_name,
+                  action: "completed",
+                  details: `Parent task "${pTitle}" auto-completed (all subtasks completed)`,
+                  metadata: { status: "completed", auto: true },
+                });
+              } catch (_) {}
+            }
+          }
+        } else {
+          // Some subtasks incomplete → reopen parent if it was completed
+          await db.execute({
+            sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'completed'`,
+            args: [parseInt(task.parent_task_id)],
+          });
+        }
+      } catch (_) {}
+    }
+
+    // Reopening a parent task reopens its completed subtasks (keeps state consistent)
+    if (
+      !task.parent_task_id &&
+      status !== undefined &&
+      status !== task.status &&
+      task.status === "completed" &&
+      status !== "completed" &&
+      status !== "archived" &&
+      status !== "carried_over"
+    ) {
+      try {
+        await db.execute({
+          sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE parent_task_id = ? AND status = 'completed'`,
+          args: [parseInt(id)],
+        });
       } catch (_) {}
     }
 

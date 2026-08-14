@@ -87,7 +87,9 @@
     "noProjects": "No projects assigned",
     "noActiveBlockers": "No active blockers",
     "thisWeek": "This Week",
-    "moreTasks": "more tasks"
+    "moreTasks": "more tasks",
+    "operations": "Operations",
+    "weeklyOpsStatus": "Weekly stand-up & retro status"
   },
   "roles": {
     "owner": "Owner",

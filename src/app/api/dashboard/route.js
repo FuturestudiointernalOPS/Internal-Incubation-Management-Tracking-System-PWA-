@@ -82,7 +82,8 @@ export async function GET(req) {
       db.execute({
         sql: `SELECT id, title, description, start_date, end_date, status, priority, category, project_id, user_id, user_name, assigned_to, link
               FROM tasks
-              WHERE (user_id = ? OR assigned_to = ?)`,
+              WHERE (user_id = ? OR assigned_to = ?)
+                AND status != 'archived'`,
         args: [userId, userId],
       }),
 
@@ -127,10 +128,13 @@ export async function GET(req) {
       }),
 
       // 7. Task stats (summary + overdue + due today)
+      // Only top-level tasks count as tasks — subtasks are tracked via their parent.
       db.execute({
         sql: `SELECT id, title, end_date, status, priority, project_id
               FROM tasks
-              WHERE (user_id = ? OR assigned_to = ?)`,
+              WHERE (user_id = ? OR assigned_to = ?)
+                AND parent_task_id IS NULL
+                AND status != 'archived'`,
         args: [userId, userId],
       }),
 
@@ -223,6 +227,8 @@ export async function GET(req) {
       db.execute({
         sql: `SELECT id, title, status, end_date, priority, project_id
               FROM tasks WHERE user_id::text = ?::text
+                AND parent_task_id IS NULL
+                AND status != 'archived'
               ORDER BY
                 CASE status
                   WHEN 'in_progress' THEN 0 WHEN 'pending' THEN 1

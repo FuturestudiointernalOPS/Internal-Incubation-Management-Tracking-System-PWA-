@@ -68,10 +68,17 @@ export async function POST(req) {
     }
 
     // Upsert standup report
-    const existing = await db.execute({
-      sql: "SELECT id FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'standup'",
-      args: [user_id, week_number, year],
-    });
+    let existingSql =
+      "SELECT id FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'standup'";
+    const existingArgs = [user_id, week_number, year];
+    if (context_id) {
+      existingSql += " AND context_id = ?";
+      existingArgs.push(context_id);
+    } else {
+      existingSql += " AND context_type = ?";
+      existingArgs.push(context_type || "staff");
+    }
+    const existing = await db.execute({ sql: existingSql, args: existingArgs });
 
     let reportId;
     if (existing.rows.length > 0) {

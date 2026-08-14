@@ -109,7 +109,22 @@
       "priorityLow": "Faible",
       "priorityMedium": "Moyenne",
       "priorityHigh": "Élevée",
-      "priorityCritical": "Critique"
+      "priorityCritical": "Critique",
+      "topPriorities": "Priorités principales",
+      "topPrioritiesPlaceholder": "ex. Livrer le flux d'onboarding, préparer le budget T3...",
+      "expectedDeliverablesTitle": "Livrables attendus",
+      "deliverablesPlaceholder": "ex. Déploiement v1 du flux d'onboarding",
+      "addItem": "Ajouter",
+      "retroForWeek": "Rétrospective — Semaine {week}",
+      "wins": "Succès",
+      "winsPlaceholder": "Qu'est-ce qui s'est bien passé cette semaine ?",
+      "challenges": "Difficultés",
+      "challengesPlaceholder": "Qu'est-ce qui ne s'est pas bien passé ?",
+      "carryoverItems": "Éléments à reporter",
+      "carryoverPlaceholder": "Que reporterez-vous la semaine prochaine ?",
+      "retroNotes": "Notes de rétrospective",
+      "retroNotesPlaceholder": "Notes supplémentaires ?",
+      "submitRetro": "Soumettre la rétrospective"
     },
     "categories": {
       "operations": "Opérations",
