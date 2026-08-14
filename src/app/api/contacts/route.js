@@ -471,6 +471,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
     const roleFilter = searchParams.get("role");
+    const groupFilter = searchParams.get("group");
 
     let result;
     if (session.role === "participant" || session.role === "founder") {
@@ -495,13 +496,24 @@ export async function GET(req) {
         sql += " AND status = ?";
         args.push(statusFilter);
       }
+      if (groupFilter) {
+        sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";
+        args.push(groupFilter);
+      }
+      }
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     } else {
       // Staff/PM/Teacher: active only
-      result = await db.execute(
-        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND status = 'active' ORDER BY name ASC",
-      );
+      let sql =
+        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND status = 'active'";
+      const args = [];
+      if (groupFilter) {
+        sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";
+        args.push(groupFilter);
+      }
+      sql += " ORDER BY name ASC";
+      result = await db.execute({ sql, args });
     }
     return NextResponse.json({ success: true, contacts: result.rows });
   } catch (error) {

@@ -1,8 +1,9 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { getSession, enforceFacilitatorProgramAccess } from "@/lib/auth";
 
-export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "teacher", "facilitator"] }, async (req) => {
   const body = await req.json();
   const { program_id, title, week_number, type, teacher_id, start_at } = body;
 
@@ -11,6 +12,17 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
       { success: false, error: "Missing required fields" },
       { status: 400 },
     );
+  }
+
+  // Server-side enforcement: facilitators must be assigned and hold sessions.conduct
+  const session = await getSession();
+  if (session?.role === "facilitator") {
+    const facError = await enforceFacilitatorProgramAccess(
+      program_id,
+      "sessions.conduct",
+      1,
+    );
+    if (facError) return facError;
   }
 
   const res = await db.execute({
@@ -39,9 +51,22 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
   });
 });
 
-export const GET = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+export const GET = createHandler({ roles: ["staff", "super_admin", "program_manager", "teacher", "facilitator"] }, async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
+
+  // Server-side enforcement for facilitators
+  if (program_id) {
+    const session = await getSession();
+    if (session?.role === "facilitator") {
+      const facError = await enforceFacilitatorProgramAccess(
+        program_id,
+        "sessions.conduct",
+        1,
+      );
+      if (facError) return facError;
+    }
+  }
 
   let sql = "SELECT * FROM v2_sessions";
   let args = [];

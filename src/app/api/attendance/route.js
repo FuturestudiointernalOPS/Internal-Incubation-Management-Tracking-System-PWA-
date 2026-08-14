@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export async function POST(req) {
@@ -11,6 +11,7 @@ export async function POST(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "facilitator",
     ]);
     if (authError) return authError;
 
@@ -35,6 +36,25 @@ export async function POST(req) {
     const body = await req.json();
     const records = Array.isArray(body) ? body : [body];
     const valid = records.filter((r) => r.session_id && r.participant_id);
+
+    // Server-side enforcement: facilitators must be assigned to the program
+    // and hold attendance.record at level >= 1.
+    const session = await getSession();
+    if (session?.role === "facilitator") {
+      const progId = records[0]?.program_id || null;
+      if (!progId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const facError = await enforceFacilitatorProgramAccess(
+        progId,
+        "attendance.record",
+        1,
+      );
+      if (facError) return facError;
+    }
 
     if (valid.length === 0) {
       return NextResponse.json({ success: true, upserted: 0 });
@@ -87,8 +107,35 @@ export async function GET(req) {
       "program_manager",
       "teacher",
       "participant",
+      "facilitator",
     ]);
     if (authError) return authError;
+
+    const session = await getSession();
+
+    // Facilitator scope: assigned-groups facilitators only see attendance for
+    // participants in their groups.
+    let facGroupFilter = null;
+    let facGroupArgs = [];
+    if (session?.role === "facilitator" && programId) {
+      const facError = await enforceFacilitatorProgramAccess(
+        programId,
+        "attendance.view",
+        1,
+      );
+      if (facError) return facError;
+      const scope = await getFacilitatorParticipantScope(programId, session.cid);
+      if (scope.scope === "groups") {
+        if (scope.groupNames.length === 0) {
+          return NextResponse.json({ success: true, attendance: [] });
+        }
+        facGroupFilter =
+          "a.participant_id IN (SELECT p.user_id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
+          scope.groupNames.map(() => "?").join(",") +
+          "))";
+        facGroupArgs = scope.groupNames.map((n) => n.toUpperCase());
+      }
+    }
 
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
@@ -113,7 +160,7 @@ export async function GET(req) {
             , 1) as attendance_rate
           FROM v2_attendance a
           LEFT JOIN v2_participants p ON a.participant_id::text = p.user_id::text
-          WHERE a.program_id = ?
+          WHERE a.program_id = ? AND ${facGroupFilter ? facGroupFilter.replace(/^a\./, "") : "1=1"}
           GROUP BY a.participant_id, p.name
           ORDER BY attendance_rate DESC
         `,
@@ -140,6 +187,10 @@ export async function GET(req) {
     if (participantId) {
       sql += " AND a.participant_id = ?";
       args.push(participantId);
+    }
+    if (facGroupFilter) {
+      sql += " AND " + facGroupFilter;
+      args.push(...facGroupArgs);
     }
     sql += " ORDER BY date DESC, created_at DESC";
 

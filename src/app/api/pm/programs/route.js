@@ -18,8 +18,10 @@ export async function GET(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "facilitator",
     ]);
     if (authError) return authError;
+    const session = await getSession();
     const url = new URL(req.url);
     const assignedPmId = url.searchParams.get("assigned_pm_id");
     const showArchivedRaw = url.searchParams.get("show_archived");
@@ -62,6 +64,12 @@ export async function GET(req) {
       baseQuery +=
         " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?))";
       args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);
+    }
+    // Facilitators only see programs they are assigned to
+    if (session?.role === "facilitator") {
+      baseQuery +=
+        " AND p.id IN (SELECT program_id FROM v2_program_staff WHERE staff_id = ? AND role = 'facilitator')";
+      args.push(session.cid);
     }
     baseQuery += " ORDER BY p.created_at DESC";
 
@@ -124,7 +132,8 @@ export async function GET(req) {
     };
 
     // 3. Assemble Final Data
-    const enrichedPrograms = programs.map((p) => {
+    const enrichedPrograms = await Promise.all(
+      programs.map(async (p) => {
       const s = metrics.sessions[p.id] || { count: 0, completed: 0 };
       const d = metrics.docs[p.id] || { count: 0, completed: 0 };
       const r_weeks = metrics.reports[p.id] || 0;
@@ -149,6 +158,38 @@ export async function GET(req) {
             100
           : 0;
 
+      // Program facilitators (external personnel, role='facilitator')
+      let facilitators = [];
+      try {
+        const facRes = await db.execute({
+          sql: `SELECT ps.id, ps.staff_id, ps.role, ps.permissions, c.name, c.email
+                FROM v2_program_staff ps
+                LEFT JOIN contacts c ON ps.staff_id = c.cid
+                WHERE CAST(ps.program_id AS TEXT) = ? AND ps.role = 'facilitator'`,
+          args: [String(p.id)],
+        });
+        facilitators = facRes.rows.map((r) => {
+          let perms = r.permissions || {};
+          if (typeof perms === "string") {
+            try { perms = JSON.parse(perms); } catch { perms = {}; }
+          }
+          return {
+            id: r.id,
+            cid: r.staff_id,
+            role: r.role || "facilitator",
+            permissions: perms,
+            name: r.name || r.staff_id,
+            email: r.email || "",
+          };
+        });
+      } catch (_) {}
+
+      // Parse facilitator default permissions defensively
+      let fdp = p.facilitator_default_permissions || {};
+      if (typeof fdp === "string") {
+        try { fdp = JSON.parse(fdp); } catch { fdp = {}; }
+      }
+
       return {
         ...p,
         sessions_count: s.count,
@@ -160,8 +201,12 @@ export async function GET(req) {
         assigned_segments: metrics.segments[p.id] || [],
         submissions_total: sub.total,
         submissions_approved: sub.approved,
+        facilitators,
+        facilitator_default_permissions: fdp,
+        facilitator_scope: p.facilitator_scope || "assigned_groups",
       };
-    });
+    }),
+    );
 
     return NextResponse.json({ success: true, programs: enrichedPrograms });
   } catch (error) {
@@ -360,6 +405,8 @@ export async function PUT(req) {
       end_date,
       grading_mode,
       is_archived,
+      facilitator_default_permissions,
+      facilitator_scope,
     } = await req.json();
 
     if (!id)
@@ -403,7 +450,7 @@ export async function PUT(req) {
 
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, banner_url = ?, program_type = ?, visibility = ?, participant_limit = ?, registration_window = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?
+                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, banner_url = ?, program_type = ?, visibility = ?, participant_limit = ?, registration_window = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?, facilitator_default_permissions = ?, facilitator_scope = ?
                 WHERE id = ?`,
       args: [
         name,
@@ -429,6 +476,8 @@ export async function PUT(req) {
         start_date || null,
         end_date || null,
         grading_mode || "graded",
+        JSON.stringify(facilitator_default_permissions || {}),
+        facilitator_scope || "assigned_groups",
         id,
       ],
     });
