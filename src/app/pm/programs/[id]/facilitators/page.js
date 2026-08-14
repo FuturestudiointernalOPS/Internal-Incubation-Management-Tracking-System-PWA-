@@ -9,6 +9,8 @@ import {
   Save,
   UserCheck,
   ClipboardList,
+  ShieldCheck,
+  Mail,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -17,10 +19,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * PM — PROGRAM FACILITATORS
- * Manage external facilitators for this program: assign from the CRM
- * Facilitators pool, configure program-level permissions and participant
- * scope, individual overrides, lead facilitator per participant group,
- * and facilitator reviews (with PM decisions).
+ * The program's system-defined Facilitators group. The system maintains the
+ * group; the PM manages the people inside it: search any contact by name or
+ * email, invite people without accounts, configure program-level permissions,
+ * participant scope, individual overrides, lead facilitator per participant
+ * group, and facilitator reviews (with PM decisions).
  */
 
 const FACILITATOR_CAPS = [
@@ -50,6 +53,8 @@ export default function ProgramFacilitators({ params }) {
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [decisionInputs, setDecisionInputs] = useState({});
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "" });
+  const [facilitatorsGroup, setFacilitatorsGroup] = useState(null);
 
   const load = async () => {
     try {
@@ -59,7 +64,12 @@ export default function ProgramFacilitators({ params }) {
 
       const gRes = await fetch(`/api/v2/groups?program_id=${id}`);
       const gData = await gRes.json();
-      if (gData.success) setGroups(gData.groups || []);
+      if (gData.success) {
+        setGroups(gData.groups || []);
+        setFacilitatorsGroup(
+          (gData.groups || []).find((g) => g.type === "facilitators" || String(g.name).toUpperCase() === "FACILITATORS") || null,
+        );
+      }
 
       const rRes = await fetch(`/api/facilitator-reviews?program_id=${id}`);
       const rData = await rRes.json();
@@ -71,7 +81,8 @@ export default function ProgramFacilitators({ params }) {
 
   useEffect(() => {
     load();
-    fetch(`/api/contacts?group=Facilitators`)
+    // Search ALL contacts (the CRM is the source of people — no global group required)
+    fetch(`/api/contacts`)
       .then((r) => r.json())
       .then((d) => setPool(d.success ? d.contacts || [] : []))
       .catch(() => setPool([]));
@@ -118,13 +129,50 @@ export default function ProgramFacilitators({ params }) {
       });
       const data = await res.json();
       if (data.success) {
-        notify("success", "Facilitator added");
+        notify("success", "Facilitator added to this program");
         const progRes = await fetch(`/api/pm/programs/${id}`);
         const progData = await progRes.json();
         if (progData.success) setProgram(progData.program);
       } else {
         notify("error", data.error || "Failed");
       }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const createAndInviteFacilitator = async () => {
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+      notify("error", "Name and email are required");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteForm.email.trim(),
+          name: inviteForm.name.trim(),
+          role: "facilitator",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.cid) {
+          await addFacilitator({
+            cid: data.cid,
+            name: inviteForm.name.trim(),
+            email: inviteForm.email.trim(),
+          });
+        }
+        setInviteForm({ name: "", email: "" });
+        notify("success", "Invitation sent — facilitator added to this program");
+      } else {
+        notify("error", data.error || "Invite failed");
+      }
+    } catch (e) {
+      notify("error", "Invite failed");
     } finally {
       setBusy(false);
     }
@@ -141,7 +189,7 @@ export default function ProgramFacilitators({ params }) {
         ...p,
         facilitators: (p.facilitators || []).filter((x) => x.id !== f.id),
       }));
-      notify("success", "Facilitator removed (CRM record untouched)");
+      notify("success", "Facilitator removed from program (CRM record untouched)");
     }
   };
 
@@ -218,6 +266,7 @@ export default function ProgramFacilitators({ params }) {
 
   const defaultPerms = program.facilitator_default_permissions || {};
   const families = groups.filter((g) => g.source === "family");
+  const assignedCids = (program.facilitators || []).map((f) => f.cid);
 
   return (
     <DashboardLayout role="program_manager" activeTab="v2">
@@ -234,8 +283,8 @@ export default function ProgramFacilitators({ params }) {
               Facilitators — {program.name}
             </h1>
             <p className="text-[10px] text-[var(--text-secondary)] font-bold mt-1">
-              External personnel sourced from the CRM. They are not Future
-              Studio staff and only access this program.
+              Program-level personnel. Being a facilitator here gives access to
+              this program only — never to internal staff functions.
             </p>
           </div>
           <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2 border border-[var(--border-primary)]">
@@ -246,6 +295,87 @@ export default function ProgramFacilitators({ params }) {
           </div>
         </header>
 
+        {/* System-defined group banner */}
+        <div className="flex items-center gap-3 p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5">
+          <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
+          <div>
+            <p className="text-[10px] font-black uppercase text-blue-400">
+              {facilitatorsGroup ? "Facilitators group" : "Facilitators group"} — system-defined
+            </p>
+            <p className="text-[9px] text-[var(--text-secondary)]">
+              This group is created automatically for every program and is
+              protected by the system: it cannot be renamed, deleted, or treated
+              as a participant group. You manage the people inside it here.
+            </p>
+          </div>
+        </div>
+
+        {/* Add facilitator */}
+        <section className="space-y-3">
+          <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            + Add Facilitator — Search All Contacts
+          </h2>
+          <div className="relative">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name or email…"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-10 pr-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
+            />
+          </div>
+          <div className="max-h-48 overflow-y-auto space-y-1.5">
+            {pool
+              .filter((c) => !assignedCids.includes(c.cid))
+              .filter(
+                (c) =>
+                  !search ||
+                  (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
+                  (c.email || "").toLowerCase().includes(search.toLowerCase()),
+              )
+              .map((c) => (
+                <button
+                  key={c.cid}
+                  disabled={busy}
+                  onClick={() => addFacilitator(c)}
+                  className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
+                >
+                  <span className="text-[10px] font-black uppercase truncate">{c.name}</span>
+                  <span className="text-[9px] text-[var(--text-secondary)] truncate">{c.email}</span>
+                  <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                </button>
+              ))}
+            {pool.length === 0 && (
+              <p className="text-[9px] italic text-[var(--text-secondary)]">
+                No contacts found yet.
+              </p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              value={inviteForm.name}
+              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+              placeholder="New facilitator name…"
+              className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+            />
+            <input
+              value={inviteForm.email}
+              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+              placeholder="New facilitator email…"
+              className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+            />
+          </div>
+          <button
+            disabled={busy}
+            onClick={createAndInviteFacilitator}
+            className="flex items-center gap-2 text-[9px] font-black uppercase px-4 py-2.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
+          >
+            <Mail className="w-3.5 h-3.5" /> Create &amp; invite (sends activation email)
+          </button>
+        </section>
+
+        {/* Participant scope */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             Participant Scope
@@ -272,6 +402,7 @@ export default function ProgramFacilitators({ params }) {
           </div>
         </section>
 
+        {/* Default permissions */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             Default Facilitator Permissions
@@ -293,6 +424,7 @@ export default function ProgramFacilitators({ params }) {
           </div>
         </section>
 
+        {/* Assigned facilitators */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             Assigned Facilitators
@@ -336,54 +468,13 @@ export default function ProgramFacilitators({ params }) {
             ))}
             {(program.facilitators || []).length === 0 && (
               <p className="text-[10px] italic text-[var(--text-secondary)] py-4 text-center">
-                No facilitators assigned yet.
+                No facilitators assigned yet — add people above.
               </p>
             )}
           </div>
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Add From CRM — Facilitators Group
-          </h2>
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or email…"
-              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-10 pr-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
-            />
-          </div>
-          <div className="max-h-48 overflow-y-auto space-y-1.5">
-            {pool
-              .filter((c) => !(program.facilitators || []).some((f) => f.cid === c.cid))
-              .filter(
-                (c) =>
-                  !search ||
-                  (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
-                  (c.email || "").toLowerCase().includes(search.toLowerCase()),
-              )
-              .map((c) => (
-                <button
-                  key={c.cid}
-                  disabled={busy}
-                  onClick={() => addFacilitator(c)}
-                  className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
-                >
-                  <span className="text-[10px] font-black uppercase truncate">{c.name}</span>
-                  <span className="text-[9px] text-[var(--text-secondary)] truncate">{c.email}</span>
-                  <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                </button>
-              ))}
-            {pool.length === 0 && (
-              <p className="text-[9px] italic text-[var(--text-secondary)]">
-                No contacts in the CRM "Facilitators" group yet.
-              </p>
-            )}
-          </div>
-        </section>
-
+        {/* Lead facilitator per group */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             Lead Facilitator Per Participant Group
@@ -412,6 +503,7 @@ export default function ProgramFacilitators({ params }) {
           </div>
         </section>
 
+        {/* Reviews */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             Facilitator Reviews
