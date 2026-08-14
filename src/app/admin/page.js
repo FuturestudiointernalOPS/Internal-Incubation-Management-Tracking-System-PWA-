@@ -233,6 +233,7 @@ export default function AdminDashboard() {
   });
   const [activity, setActivity] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [pendingApprovalsTotal, setPendingApprovalsTotal] = useState(0);
   const [activePrograms, setActivePrograms] = useState([]);
   const [opStats, setOpStats] = useState({
     standups: 0,
@@ -305,12 +306,13 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes, opRes, blockerRes, kpiRes] = await Promise.all([
+      const [stateRes, notifRes, opRes, blockerRes, kpiRes, pendingRes] = await Promise.all([
         fetch("/api/superadmin/full-state"),
         fetch("/api/notifications?recipient_id=sa"),
         fetch("/api/op-reports"),
         fetch("/api/blockers?status=active"),
         fetch("/api/dashboard?summary=true"),
+        fetch("/api/admin/pending-users"),
       ]);
 
       const stateData = await stateRes.json();
@@ -318,6 +320,7 @@ export default function AdminDashboard() {
       const opData = await opRes.json();
       const blockerData = await blockerRes.json();
       const kpiData = await kpiRes.json();
+      const pendingData = await pendingRes.json();
 
       if (stateData.success) {
         setStats(stateData.stats || {});
@@ -402,6 +405,9 @@ export default function AdminDashboard() {
       }
       if (kpiData.success) {
         setKpiSummary(kpiData.programs || []);
+      }
+      if (pendingData.success) {
+        setPendingApprovalsTotal(pendingData.total || 0);
       }
     } catch (err) {
       console.error("Dashboard sync failure:", err);
@@ -631,7 +637,7 @@ export default function AdminDashboard() {
         </header>
 
         {/* ──────── PENDING APPROVALS ──────── */}
-        {notifications.filter((n) => !n.is_read && n.type === "verification").length > 0 && (
+        {pendingApprovalsTotal > 0 && (
           <div className="card border-orange-500/20 bg-orange-500/[0.02] !p-0 overflow-hidden">
             <div className="px-5 py-4 border-b border-orange-500/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -644,9 +650,7 @@ export default function AdminDashboard() {
                   </h3>
                   <p className="text-[10px] text-[var(--text-secondary)]">
                     {t("adminMisc.dashboard.pendingReviewCount", {
-                      count: notifications.filter(
-                        (n) => !n.is_read && n.type === "verification",
-                      ).length,
+                      count: pendingApprovalsTotal,
                     })}
                   </p>
                 </div>
@@ -696,15 +700,19 @@ export default function AdminDashboard() {
                   </div>
                 );
               })}
-              {notifications.filter((n) => !n.is_read && n.type === "verification").length > 5 && (
+              {notifications.filter((n) => !n.is_read && n.type === "verification").length === 0 && (
+                <div className="px-5 py-4">
+                  <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
+                    {t("adminMisc.dashboard.viewAll")} →
+                  </button>
+                </div>
+              )}
+              {pendingApprovalsTotal > 5 && (
                 <div className="px-5 py-3 text-center">
                   <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
                     +
                     {t("adminMisc.dashboard.morePendingViewAll", {
-                      count:
-                        notifications.filter(
-                          (n) => !n.is_read && n.type === "verification",
-                        ).length - 5,
+                      count: Math.max(pendingApprovalsTotal - 5, 0),
                     })}
                   </button>
                 </div>

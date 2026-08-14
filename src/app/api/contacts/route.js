@@ -491,6 +491,10 @@ export async function GET(req) {
         sql += " AND (" + roles.map(() => "role = ?").join(" OR ") + ")";
         args.push(...roles);
       }
+      if (statusFilter && statusFilter !== "all") {
+        sql += " AND status = ?";
+        args.push(statusFilter);
+      }
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     } else {
