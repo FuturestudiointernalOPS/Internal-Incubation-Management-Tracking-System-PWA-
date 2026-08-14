@@ -31,6 +31,23 @@ const SUB_STATUS = {
   revision_requested: { color: "text-amber-500", bg: "bg-amber-500/10", label: "Revision" },
 };
 
+// Email lifecycle statuses (Resend events) — success states are delivered/
+// opened/clicked; failed/bounced/cancelled remain manually retryable.
+const EMAIL_STATUS_CONFIG = {
+  sent: { color: "text-emerald-500", bg: "bg-emerald-500/10", label: "Sent" },
+  delivered: { color: "text-emerald-400", bg: "bg-emerald-500/10", label: "Delivered" },
+  opened: { color: "text-sky-500", bg: "bg-sky-500/10", label: "Opened" },
+  clicked: { color: "text-indigo-500", bg: "bg-indigo-500/10", label: "Clicked" },
+  delayed: { color: "text-amber-500", bg: "bg-amber-500/10", label: "Delayed" },
+  complained: { color: "text-rose-500", bg: "bg-rose-500/10", label: "Complained" },
+  failed: { color: "text-rose-500", bg: "bg-rose-500/10", label: "Failed" },
+  bounced: { color: "text-amber-500", bg: "bg-amber-500/10", label: "Bounced" },
+  cancelled: { color: "text-slate-400", bg: "bg-slate-500/10", label: "Cancelled" },
+  skipped: { color: "text-slate-500", bg: "bg-slate-500/10", label: "Skipped" },
+};
+
+const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed", "complained", "failed", "bounced", "cancelled", "skipped"];
+
 const TARGET_LABELS = {
   user: "User", group: "Group", program: "Program", cohort: "Cohort",
   team: "Team", organization: "Organization", all: "Everyone",
@@ -1120,18 +1137,20 @@ export default function FormRunsPage() {
   const emailSummary = useMemo(() => {
     const latest = new Map();
     for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
-    const stats = {
-      approval: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
-      activation: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
-    };
+    const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0 });
+    const stats = { approval: empty(), activation: empty() };
     const notDelivered = [];
     for (const e of latest.values()) {
       const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
-      if (e.status === "sent") bucket.sent++;
-      else if (["failed", "bounced", "cancelled"].includes(e.status)) {
-        bucket[e.status]++;
+      const status = e.status;
+      if (status === "sent") bucket.sent++;
+      else if (["delivered", "opened", "clicked"].includes(status)) bucket[status]++;
+      else if (status === "delayed") bucket.delayed++;
+      else if (status === "complained") bucket.complained++;
+      else if (["failed", "bounced", "cancelled"].includes(status)) {
+        bucket[status]++;
         notDelivered.push(e);
-      } else if (e.status === "skipped") bucket.skipped++;
+      } else if (status === "skipped") bucket.skipped++;
     }
     return { stats, notDelivered };
   }, [emailLog]);
@@ -1845,19 +1864,14 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3">
                               {activationEmail ? (
-                                activationEmail.status === "sent" ? (
-                                  <span title={activationEmail.error || "Sent successfully"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Sent</span>
-                                ) : activationEmail.status === "failed" ? (
-                                  <span title={activationEmail.error || "Failed to send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">Failed</span>
-                                ) : activationEmail.status === "bounced" ? (
-                                  <span title={activationEmail.error || "Bounced by provider"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Bounced</span>
-                                ) : activationEmail.status === "cancelled" ? (
-                                  <span title={activationEmail.error || "Cancelled before send"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Cancelled</span>
-                                ) : activationEmail.status === "skipped" ? (
-                                  <span title={activationEmail.error || "Skipped"} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Skipped</span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Pending</span>
-                                )
+                                (() => {
+                                  const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "Pending" };
+                                  return (
+                                    <span title={activationEmail.error || cfg.label} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                      {cfg.label}
+                                    </span>
+                                  );
+                                })()
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
                               )}
@@ -1997,21 +2011,23 @@ export default function FormRunsPage() {
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Approval / Decision emails</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-emerald-500 text-[11px] font-black">{s.approval.sent} sent</span>
-                      <span className="text-rose-500 text-[11px] font-black">{s.approval.failed} failed</span>
-                      <span className="text-amber-500 text-[11px] font-black">{s.approval.bounced} bounced</span>
-                      <span className="text-slate-400 text-[11px] font-black">{s.approval.cancelled} cancelled</span>
-                      <span className="text-slate-500 text-[11px] font-black">{s.approval.skipped} skipped</span>
+                      {EMAIL_STATUS_ORDER.map((k) => {
+                        const cfg = EMAIL_STATUS_CONFIG[k];
+                        return (
+                          <span key={k} className={`${cfg.color} text-[11px] font-black`}>{s.approval[k]} {cfg.label.toLowerCase()}</span>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">Activation / Access emails</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-emerald-500 text-[11px] font-black">{s.activation.sent} sent</span>
-                      <span className="text-rose-500 text-[11px] font-black">{s.activation.failed} failed</span>
-                      <span className="text-amber-500 text-[11px] font-black">{s.activation.bounced} bounced</span>
-                      <span className="text-slate-400 text-[11px] font-black">{s.activation.cancelled} cancelled</span>
-                      <span className="text-slate-500 text-[11px] font-black">{s.activation.skipped} skipped</span>
+                      {EMAIL_STATUS_ORDER.map((k) => {
+                        const cfg = EMAIL_STATUS_CONFIG[k];
+                        return (
+                          <span key={k} className={`${cfg.color} text-[11px] font-black`}>{s.activation[k]} {cfg.label.toLowerCase()}</span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
