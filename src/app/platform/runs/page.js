@@ -1766,7 +1766,9 @@ export default function FormRunsPage() {
                         ))}
                         <th className="px-4 py-3">Status</th>
                         <th className="px-4 py-3">AI Score</th>
-                        <th className="px-4 py-3">Activation</th>
+                        <th className="px-4 py-3">Approval Email</th>
+                        <th className="px-4 py-3">Activation Email</th>
+                        <th className="px-4 py-3">Account Status</th>
                         <th className="px-4 py-3">Submitted</th>
                         <th className="px-4 py-3">Review</th>
                         <th className="px-4 py-3">Actions</th>
@@ -1787,6 +1789,14 @@ export default function FormRunsPage() {
                         const activationEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "activation")
                           .slice(-1)[0];
+                        const approvalEmail = emailLog
+                          .filter((e) => e.submission_id === s.id && e.email_type === "approval")
+                          .slice(-1)[0];
+                        const accountStatus = s.account_activated
+                          ? "activated"
+                          : s.account_created
+                            ? "pending"
+                            : "not_created";
                         // The address the system actually sent to (from the
                         // delivery log) — falls back to the resolved respondent
                         // email when nothing has been sent yet.
@@ -1863,6 +1873,20 @@ export default function FormRunsPage() {
                               )}
                             </td>
                             <td className="px-4 py-3">
+                              {approvalEmail ? (
+                                (() => {
+                                  const cfg = EMAIL_STATUS_CONFIG[approvalEmail.status] || { color: "text-slate-500", bg: "bg-slate-500/10", label: approvalEmail.status };
+                                  return (
+                                    <span title={approvalEmail.error || cfg.label} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                      {cfg.label}
+                                    </span>
+                                  );
+                                })()
+                              ) : (
+                                <span title="No approval email sent" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Not sent</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
                               {activationEmail ? (
                                 (() => {
                                   const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "Pending" };
@@ -1874,6 +1898,15 @@ export default function FormRunsPage() {
                                 })()
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {accountStatus === "activated" ? (
+                                <span title="User completed account setup" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">Activated</span>
+                              ) : accountStatus === "pending" ? (
+                                <span title="Account created but not yet activated" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">Pending Activation</span>
+                              ) : (
+                                <span title="No platform account yet" className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">Not Created</span>
                               )}
                             </td>
                             <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>

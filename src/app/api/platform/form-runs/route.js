@@ -374,15 +374,17 @@ export async function GET(req) {
       const cids = [...new Set(rawSubs.map((s) => s.submitter_id).filter(Boolean))];
       const emailMap = new Map();
       const nameMap = new Map();
+      const accountMap = new Map();
       if (cids.length > 0) {
         try {
           const cres = await db.execute({
-            sql: "SELECT cid, email, name FROM contacts WHERE cid = ANY(?)",
+            sql: "SELECT cid, email, name, password, status FROM contacts WHERE cid = ANY(?)",
             args: [cids],
           });
           for (const row of cres.rows) {
             emailMap.set(row.cid, row.email || "");
             nameMap.set(row.cid, row.name || "");
+            accountMap.set(row.cid, row);
           }
         } catch (_) {}
       }
@@ -406,7 +408,16 @@ export async function GET(req) {
           // is missing — prefer the submitter id over "Unknown"/"Anonymous".
           (!isGenericName(s.submitter_name) ? s.submitter_name : "") ||
           s.submitter_id;
-        return { ...s, email, display_name: displayName };
+        // Account activation is independent of email delivery. A non-empty
+        // password means the user completed account setup (the activate route
+        // sets both password and status = 'active').
+        const contactRow = accountMap.get(s.submitter_id);
+        const account_created = !!contactRow;
+        const account_activated =
+          account_created &&
+          !!contactRow.password &&
+          String(contactRow.password).trim() !== "";
+        return { ...s, email, display_name: displayName, account_created, account_activated };
       });
 
       return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
