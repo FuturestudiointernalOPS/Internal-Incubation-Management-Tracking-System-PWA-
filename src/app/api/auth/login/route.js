@@ -103,7 +103,7 @@ export async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Access Denied: Your account has been suspended.",
+            error: "Access Denied: Your account is inactive.",
           },
           { status: 403 },
         );

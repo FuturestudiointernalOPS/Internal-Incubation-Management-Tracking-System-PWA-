@@ -38,6 +38,24 @@ function logTimeline(submissionId, action, actorId, actorName, meta = {}) {
  * Expects submissionData to contain rating field values keyed by field label.
  * Returns { sections, overall, ranking } or null if scoring is not configured.
  */
+/**
+ * Derives the standardized account status for a submission from its matched
+ * Contact row. Mirrors the login gate: 'active'/'approved' with a password can
+ * log in; everything else maps to the account lifecycle stages.
+ */
+function deriveAccountStatus(contactRow) {
+  if (!contactRow) return "not_created";
+  if (Number(contactRow.deleted) === 1 || contactRow.deleted_at) return "deleted";
+  if (contactRow.archived_at) return "archived";
+  const st = String(contactRow.status || "").toLowerCase();
+  const hasPassword = String(contactRow.password || "").trim() !== "";
+  if (st === "inactive") return "inactive";
+  if (st === "active") return "active";
+  if (st === "approved") return hasPassword ? "active" : "activation_pending";
+  if (st === "pending") return "pending_approval";
+  return hasPassword ? "active" : "pending_approval";
+}
+
 async function calculateSubmissionScores(runId, submissionData) {
   try {
     const run = await db.execute({
@@ -391,7 +409,7 @@ export async function GET(req) {
       if (cids.length > 0) {
         try {
           const cres = await db.execute({
-            sql: "SELECT cid, email, name, password, status FROM contacts WHERE cid = ANY(?)",
+            sql: "SELECT cid, email, name, password, status, archived_at, deleted, deleted_at FROM contacts WHERE cid = ANY(?)",
             args: [cids],
           });
           for (const row of cres.rows) {
@@ -405,7 +423,7 @@ export async function GET(req) {
       if (emailKeys.length > 0) {
         try {
           const cres = await db.execute({
-            sql: "SELECT cid, email, name, password, status FROM contacts WHERE LOWER(email) = ANY(?)",
+            sql: "SELECT cid, email, name, password, status, archived_at, deleted, deleted_at FROM contacts WHERE LOWER(email) = ANY(?)",
             args: [emailKeys],
           });
           for (const row of cres.rows) {
@@ -450,7 +468,8 @@ export async function GET(req) {
           account_created &&
           (String(contactRow.password || "").trim() !== "" ||
             String(contactRow.status || "").toLowerCase() === "active");
-        return { ...s, email, display_name: displayName, account_created, account_activated };
+        const account_status = deriveAccountStatus(contactRow);
+        return { ...s, email, display_name: displayName, account_created, account_activated, account_status };
       });
 
       return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });

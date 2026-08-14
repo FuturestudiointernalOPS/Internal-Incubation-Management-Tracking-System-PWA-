@@ -108,7 +108,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account has been suspended. Contact your administrator.",
+              "Your account is inactive. Contact your administrator.",
           },
           { status: 403 },
         );

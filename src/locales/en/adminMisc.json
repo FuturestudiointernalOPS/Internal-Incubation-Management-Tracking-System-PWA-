@@ -63,7 +63,7 @@
       "administration": "Administration",
       "title": "Bulk User Upload",
       "description": "Upload a CSV file to create multiple user accounts at once. All users will be created in",
-      "pending": "Pending",
+      "pending": "Pending Approval",
       "statusSuffix": "status.",
       "csvTemplate": "CSV Template",
       "templateHint": "Download the template to see the required columns.",
@@ -834,10 +834,10 @@
       "reopen": "Reopen"
     },
     "platformScores": {
-      "statusSubmitted": "Pending Review",
+      "statusSubmitted": "Under Review",
       "statusApproved": "Approved",
       "statusRejected": "Rejected",
-      "statusRevision": "Revision",
+      "statusRevision": "Revision Requested",
       "statusDraft": "Draft",
       "errorSelectForm": "Please select a form.",
       "errorSelectRun": "Please select a run.",

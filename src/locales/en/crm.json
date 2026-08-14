@@ -165,6 +165,7 @@
       "selectAll": "Select All",
       "clear": "Clear",
       "unknown": "Unknown",
+      "pendingApproval": "Pending Approval",
       "noParticipantsFound": "No participants found.",
       "processing": "Processing...",
       "assignToProgram": "Assign {count} Participant(s) to Program",

@@ -53,8 +53,17 @@ const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed",
 const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed", "bounced", "failed", "cancelled", "skipped", "not_sent"];
 const REVIEW_FILTER_OPTIONS = ["approved", "rejected", "revision_requested"];
 const STATUS_FILTER_OPTIONS = ["submitted", "approved", "rejected", "revision_requested", "draft"];
-const ACCOUNT_STATUS_OPTIONS = ["activated", "pending", "not_created"];
-const ACCOUNT_STATUS_LABELS = { activated: "Activated", pending: "Pending Activation", not_created: "Not Created" };
+const ACCOUNT_STATUS_OPTIONS = ["active", "inactive", "activation_pending", "pending_approval", "archived", "deleted", "not_created"];
+const ACCOUNT_STATUS_LABELS = { active: "Active", inactive: "Inactive", activation_pending: "Activation Pending", pending_approval: "Pending Approval", archived: "Archived", deleted: "Deleted", not_created: "Not Created" };
+const ACCOUNT_STATUS_STYLES = {
+  not_created: { cls: "bg-slate-500/10 text-slate-400", label: "platformMisc.runs.accountNotCreated", title: "platformMisc.runs.accountNotCreatedTitle" },
+  pending_approval: { cls: "bg-orange-500/10 text-orange-400", label: "platformMisc.runs.accountPendingApproval", title: "platformMisc.runs.accountPendingApprovalTitle" },
+  activation_pending: { cls: "bg-amber-500/10 text-amber-500", label: "platformMisc.runs.accountPendingActivation", title: "platformMisc.runs.accountPendingActivationTitle" },
+  active: { cls: "bg-emerald-500/10 text-emerald-500", label: "platformMisc.runs.accountActivated", title: "platformMisc.runs.accountActivatedTitle" },
+  inactive: { cls: "bg-rose-500/10 text-rose-400", label: "platformMisc.runs.accountInactive", title: "platformMisc.runs.accountInactiveTitle" },
+  archived: { cls: "bg-slate-500/10 text-slate-400", label: "platformMisc.runs.accountArchived", title: "platformMisc.runs.accountArchivedTitle" },
+  deleted: { cls: "bg-rose-500/10 text-rose-400", label: "platformMisc.runs.accountDeleted", title: "platformMisc.runs.accountDeletedTitle" },
+};
 
 const TARGET_LABELS = {
   user: "platformMisc.runs.targetUser", group: "platformMisc.runs.targetGroup", program: "platformMisc.runs.targetProgram", cohort: "platformMisc.runs.targetCohort",
@@ -899,7 +908,7 @@ export default function FormRunsPage() {
     return e ? e.status : "not_sent";
   };
   const accountStatusOf = (s) =>
-    s.account_activated ? "activated" : s.account_created ? "pending" : "not_created";
+    s.account_status || (s.account_activated ? "active" : s.account_created ? "activation_pending" : "not_created");
 
   const filteredSubmissions = useMemo(() => {
     if (!selectedRun) return [];
@@ -1930,11 +1939,11 @@ export default function FormRunsPage() {
                         const approvalEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "approval")
                           .slice(-1)[0];
-                        const accountStatus = s.account_activated
-                          ? "activated"
+                        const accountStatus = s.account_status || (s.account_activated
+                          ? "active"
                           : s.account_created
-                            ? "pending"
-                            : "not_created";
+                            ? "activation_pending"
+                            : "not_created");
                         // The address the system actually sent to (from the
                         // delivery log) — falls back to the resolved respondent
                         // email when nothing has been sent yet.
@@ -2043,13 +2052,14 @@ export default function FormRunsPage() {
                               )}
                             </td>
                             <td className="px-4 py-3">
-                              {accountStatus === "activated" ? (
-                                <span title={t("platformMisc.runs.accountActivatedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">{t("platformMisc.runs.accountActivated")}</span>
-                              ) : accountStatus === "pending" ? (
-                                <span title={t("platformMisc.runs.accountPendingActivationTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.accountPendingActivation")}</span>
-                              ) : (
-                                <span title={t("platformMisc.runs.accountNotCreatedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.accountNotCreated")}</span>
-                              )}
+                              {(() => {
+                                const cfg = ACCOUNT_STATUS_STYLES[accountStatus] || ACCOUNT_STATUS_STYLES.not_created;
+                                return (
+                                  <span title={t(cfg.title)} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.cls)}>
+                                    {t(cfg.label)}
+                                  </span>
+                                );
+                              })()}
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
