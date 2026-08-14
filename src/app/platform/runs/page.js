@@ -32,6 +32,23 @@ const SUB_STATUS = {
   revision_requested: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.statusRevision" },
 };
 
+// Email lifecycle statuses (Resend events) — success states are delivered/
+// opened/clicked; failed/bounced/cancelled remain manually retryable.
+const EMAIL_STATUS_CONFIG = {
+  sent: { color: "text-emerald-500", bg: "bg-emerald-500/10", label: "platformMisc.runs.emailSent" },
+  delivered: { color: "text-emerald-400", bg: "bg-emerald-500/10", label: "platformMisc.runs.emailDelivered" },
+  opened: { color: "text-sky-500", bg: "bg-sky-500/10", label: "platformMisc.runs.emailOpened" },
+  clicked: { color: "text-indigo-500", bg: "bg-indigo-500/10", label: "platformMisc.runs.emailClicked" },
+  delayed: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailDelayed" },
+  complained: { color: "text-rose-500", bg: "bg-rose-500/10", label: "platformMisc.runs.emailComplained" },
+  failed: { color: "text-rose-500", bg: "bg-rose-500/10", label: "platformMisc.runs.emailFailed" },
+  bounced: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailBounced" },
+  cancelled: { color: "text-slate-400", bg: "bg-slate-500/10", label: "platformMisc.runs.emailCancelled" },
+  skipped: { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailSkipped" },
+};
+
+const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed", "complained", "failed", "bounced", "cancelled", "skipped"];
+
 const TARGET_LABELS = {
   user: "platformMisc.runs.targetUser", group: "platformMisc.runs.targetGroup", program: "platformMisc.runs.targetProgram", cohort: "platformMisc.runs.targetCohort",
   team: "platformMisc.runs.targetTeam", organization: "platformMisc.runs.targetOrganization", all: "platformMisc.runs.targetAll",
@@ -1123,18 +1140,20 @@ export default function FormRunsPage() {
   const emailSummary = useMemo(() => {
     const latest = new Map();
     for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
-    const stats = {
-      approval: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
-      activation: { sent: 0, failed: 0, skipped: 0, bounced: 0, cancelled: 0 },
-    };
+    const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0 });
+    const stats = { approval: empty(), activation: empty() };
     const notDelivered = [];
     for (const e of latest.values()) {
       const bucket = e.email_type === "activation" ? stats.activation : stats.approval;
-      if (e.status === "sent") bucket.sent++;
-      else if (["failed", "bounced", "cancelled"].includes(e.status)) {
-        bucket[e.status]++;
+      const status = e.status;
+      if (status === "sent") bucket.sent++;
+      else if (["delivered", "opened", "clicked"].includes(status)) bucket[status]++;
+      else if (status === "delayed") bucket.delayed++;
+      else if (status === "complained") bucket.complained++;
+      else if (["failed", "bounced", "cancelled"].includes(status)) {
+        bucket[status]++;
         notDelivered.push(e);
-      } else if (e.status === "skipped") bucket.skipped++;
+      } else if (status === "skipped") bucket.skipped++;
     }
     return { stats, notDelivered };
   }, [emailLog]);
@@ -1848,19 +1867,14 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3">
                               {activationEmail ? (
-                                activationEmail.status === "sent" ? (
-                                  <span title={activationEmail.error || t("platformMisc.runs.emailSentTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-500">{t("platformMisc.runs.emailSent")}</span>
-                                ) : activationEmail.status === "failed" ? (
-                                  <span title={activationEmail.error || t("platformMisc.runs.emailFailedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-rose-500/10 text-rose-500">{t("platformMisc.runs.emailFailed")}</span>
-                                ) : activationEmail.status === "bounced" ? (
-                                  <span title={activationEmail.error || t("platformMisc.runs.emailBouncedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.emailBounced")}</span>
-                                ) : activationEmail.status === "cancelled" ? (
-                                  <span title={activationEmail.error || t("platformMisc.runs.emailCancelledTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailCancelled")}</span>
-                                ) : activationEmail.status === "skipped" ? (
-                                  <span title={activationEmail.error || t("platformMisc.runs.emailSkippedTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailSkipped")}</span>
-                                ) : (
-                                  <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-500">{t("platformMisc.runs.emailPending")}</span>
-                                )
+                                (() => {
+                                  const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
+                                  return (
+                                    <span title={activationEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                      {t(cfg.label)}
+                                    </span>
+                                  );
+                                })()
                               ) : (
                                 <span className="text-[10px] text-[var(--text-secondary)]">—</span>
                               )}
@@ -2000,21 +2014,23 @@ export default function FormRunsPage() {
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.emailSummaryApproval")}</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-emerald-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSent", { count: s.approval.sent })}</span>
-                      <span className="text-rose-500 text-[11px] font-black">{t("platformMisc.runs.emailCountFailed", { count: s.approval.failed })}</span>
-                      <span className="text-amber-500 text-[11px] font-black">{t("platformMisc.runs.emailCountBounced", { count: s.approval.bounced })}</span>
-                      <span className="text-slate-400 text-[11px] font-black">{t("platformMisc.runs.emailCountCancelled", { count: s.approval.cancelled })}</span>
-                      <span className="text-slate-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSkipped", { count: s.approval.skipped })}</span>
+                      {EMAIL_STATUS_ORDER.map((k) => {
+                        const cfg = EMAIL_STATUS_CONFIG[k];
+                        return (
+                          <span key={k} className={`${cfg.color} text-[11px] font-black`}>{s.approval[k]} {t(cfg.label).toLowerCase()}</span>
+                        );
+                      })}
                     </div>
                   </div>
                   <div className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
                     <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.emailSummaryActivation")}</p>
                     <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-emerald-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSent", { count: s.activation.sent })}</span>
-                      <span className="text-rose-500 text-[11px] font-black">{t("platformMisc.runs.emailCountFailed", { count: s.activation.failed })}</span>
-                      <span className="text-amber-500 text-[11px] font-black">{t("platformMisc.runs.emailCountBounced", { count: s.activation.bounced })}</span>
-                      <span className="text-slate-400 text-[11px] font-black">{t("platformMisc.runs.emailCountCancelled", { count: s.activation.cancelled })}</span>
-                      <span className="text-slate-500 text-[11px] font-black">{t("platformMisc.runs.emailCountSkipped", { count: s.activation.skipped })}</span>
+                      {EMAIL_STATUS_ORDER.map((k) => {
+                        const cfg = EMAIL_STATUS_CONFIG[k];
+                        return (
+                          <span key={k} className={`${cfg.color} text-[11px] font-black`}>{s.activation[k]} {t(cfg.label).toLowerCase()}</span>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

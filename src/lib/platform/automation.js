@@ -466,6 +466,17 @@ const RULES = [
             fieldLabels,
           }) || "Participant";
 
+        // Persist the resolved name on the contact so every LATER email
+        // (welcome, login, etc.) reuses this SAME identity instead of doing
+        // a fresh, weaker lookup. This is what stops the Welcome email from
+        // showing "UNKNOWN" when the real name is known.
+        try {
+          await db.execute({
+            sql: "UPDATE contacts SET name = ? WHERE cid = ?",
+            args: [contactName, contact.cid],
+          });
+        } catch (_) {}
+
         // 3. Workflow toggle for the email itself
         if (!shouldSendActivation) {
           await recordEmailStatus({
