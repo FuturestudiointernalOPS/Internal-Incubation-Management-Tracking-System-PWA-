@@ -160,7 +160,7 @@ function ProgramCard({ program, onSelect }) {
       </div>
 
       {/* Mini metrics grid */}
-      <div className="grid grid-cols-3 gap-3 pt-4 border-t border-[var(--border-primary)]">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[var(--border-primary)]">
         <MiniMetric
           icon={Target}
           label={t("participantMisc.programListing.progress")}

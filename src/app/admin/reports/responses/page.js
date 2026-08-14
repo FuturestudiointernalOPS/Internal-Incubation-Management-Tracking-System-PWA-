@@ -128,7 +128,7 @@ export default function ReportResponses() {
                   {t("adminMisc.reportsResponses.intelligenceFeed")}
                 </span>
               </div>
-              <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">
                 {t("adminMisc.reportsResponses.reportResponses")}
               </h1>
             </div>

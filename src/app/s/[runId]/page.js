@@ -237,7 +237,7 @@ export default function PublicSubmitPage() {
         else { const m = raw.match(/^(\+\d{1,4})\s?(.*)/); phoneData = { country: "", code: m ? m[1] : "", number: m ? m[2] : raw }; }
         const updatePhone = (updates) => { updateField(field.id, JSON.stringify({ ...phoneData, ...updates })); };
         return (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <select value={phoneData.code} onChange={(e) => { const cnt = COUNTRY_CODES.find(c => c.code === e.target.value); updatePhone({ country: cnt?.name || "", code: e.target.value }); }} disabled={isDisabled} className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-sm font-medium outline-none bg-slate-800 border border-slate-600 text-slate-100">
               <option value="">{t("forms.noPrefix")}</option>
               {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>)}

@@ -1068,7 +1068,7 @@ function ContactsPageContent() {
       {/* MODALS */}
       {showManualModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-xl space-y-6 border-[var(--brand-orange)]/30">
+          <div className="card w-full max-w-xl space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">{t("crm.contacts.identityProfile")}</h3>
               <button onClick={() => setShowManualModal(false)}>
@@ -1166,7 +1166,7 @@ function ContactsPageContent() {
 
       {showGroupModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30">
+          <div className="card w-full max-w-sm space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">
                 {typeof showGroupModal === "object"
@@ -1217,7 +1217,7 @@ function ContactsPageContent() {
 
       {showGroupKeysModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-sm space-y-6 border-blue-500/30">
+          <div className="card w-full max-w-sm space-y-6 border-blue-500/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold uppercase">{t("crm.contacts.keyManagement")}</h3>
               <button onClick={() => setShowGroupKeysModal(null)}>
@@ -1395,7 +1395,7 @@ function ContactsPageContent() {
       {/* BULK PROGRAM ASSIGNMENT MODAL */}
       {showBulkProgramModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30">
+          <div className="card w-full max-w-2xl space-y-6 border-[var(--brand-orange)]/30 max-h-[85vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-bold uppercase">
                 {t("crm.contacts.bulkProgramAssignment")}

@@ -158,7 +158,7 @@ export default function PMSubmissions() {
                 {t("pmMisc.submissions.reviewsGrading")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("pmMisc.submissions.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">

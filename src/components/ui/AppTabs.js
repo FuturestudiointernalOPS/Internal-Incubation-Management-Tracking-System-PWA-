@@ -38,11 +38,11 @@ export default function AppTabs({
   const variants = useMemo(
     () => ({
       underline: {
-        container: `flex ${scrollable ? "overflow-x-auto scrollbar-none" : ""} border-b`,
+        container: `flex overflow-x-auto border-b`,
         containerBorder: "var(--border-primary)",
         tab: (isActive) => `
           relative px-4 py-3 text-[10px] font-bold uppercase tracking-wider
-          whitespace-nowrap transition-all duration-150 cursor-pointer
+          whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer
           ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
         `,
         indicator: (isActive) =>
@@ -51,10 +51,10 @@ export default function AppTabs({
             : "",
       },
       pills: {
-        container: `flex gap-1 ${scrollable ? "overflow-x-auto scrollbar-none" : ""}`,
+        container: `flex gap-1 overflow-x-auto`,
         tab: (isActive) => `
           px-4 py-2 text-[10px] font-bold uppercase tracking-wider
-          whitespace-nowrap rounded-[var(--radius-sm)] transition-all duration-150 cursor-pointer
+          whitespace-nowrap shrink-0 rounded-[var(--radius-sm)] transition-all duration-150 cursor-pointer
           ${
             isActive
               ? "bg-[var(--brand-orange)] text-white"

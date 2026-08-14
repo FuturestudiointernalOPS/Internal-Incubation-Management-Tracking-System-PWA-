@@ -127,7 +127,7 @@ export default function SuperAdminStandardization() {
                     <Shield className="w-5 h-5 text-[#FF6600]" />
                     <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">{t("adminMisc.standardization.operationalGovernance")}</span>
                  </div>
-                 <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic leading-none">{t("adminMisc.standardization.operationalStandards")}</h2>
+                 <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tighter uppercase italic leading-none">{t("adminMisc.standardization.operationalStandards")}</h2>
               </div>
               <button 
                  onClick={() => router.push('/admin/programs')}

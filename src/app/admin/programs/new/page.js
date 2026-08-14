@@ -432,7 +432,7 @@ export default function NewProgram() {
                 {t("adminMisc.newProgram.administration")}
               </span>
             </div>
-            <h1 className="text-6xl font-black tracking-tighter text-[var(--text-primary)]">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-primary)]">
               {t("adminMisc.newProgram.title")}
             </h1>
           </div>

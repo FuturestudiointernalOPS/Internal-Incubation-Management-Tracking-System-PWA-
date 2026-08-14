@@ -126,7 +126,8 @@ export default function TeacherCalendar() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           {/* CALENDAR GRID */}
           <div className="lg:col-span-3 space-y-6">
-            <div className="grid grid-cols-7 gap-px bg-[var(--border-secondary)] border border-[var(--border-secondary)] rounded-3xl overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <div className="grid grid-cols-7 min-w-[700px] gap-px bg-[var(--border-secondary)] border border-[var(--border-secondary)] rounded-3xl overflow-hidden shadow-2xl">
               {[t("teacherMisc.sessions.daySun"), t("teacherMisc.sessions.dayMon"), t("teacherMisc.sessions.dayTue"), t("teacherMisc.sessions.dayWed"), t("teacherMisc.sessions.dayThu"), t("teacherMisc.sessions.dayFri"), t("teacherMisc.sessions.daySat")].map((d) => (
                 <div key={d} className="bg-secondary py-4 text-center">
                   <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
@@ -172,6 +173,7 @@ export default function TeacherCalendar() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
 

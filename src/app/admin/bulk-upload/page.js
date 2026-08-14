@@ -222,7 +222,7 @@ export default function BulkUploadPage() {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="card p-4 text-center border-l-4 border-emerald-500">
                     <p className="text-2xl font-black text-emerald-500">
                       {result.created}

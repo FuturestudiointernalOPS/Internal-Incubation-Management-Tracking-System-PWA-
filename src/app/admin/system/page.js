@@ -332,7 +332,7 @@ export default function SystemMonitoringPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                   <h3 className="text-sm font-medium mb-4">{t("adminMisc.system.summary")}</h3>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.total_requests || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.requests")}</p></div>
                     <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold text-red-400">{apiMonitor?.errors || 0}</p><p className="text-xs text-gray-500">{t("adminMisc.system.errors")}</p></div>
                     <div className="bg-[#020617] rounded-lg p-3"><p className="text-2xl font-bold">{apiMonitor?.error_rate || 0}%</p><p className="text-xs text-gray-500">{t("adminMisc.system.errorRate")}</p></div>

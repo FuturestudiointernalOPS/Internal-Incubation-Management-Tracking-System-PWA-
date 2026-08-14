@@ -262,7 +262,7 @@ export default function CalendarPanel({
           onClick={closePopup}
         >
           <div
-            className="bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-sm space-y-4 shadow-2xl"
+            className="bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-sm space-y-4 shadow-2xl max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}

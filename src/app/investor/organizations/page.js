@@ -213,7 +213,7 @@ export default function InvestorOrganizationsPage() {
         {showCreate && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-            <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">{t("investorMisc.organizations.createOrganization")}</h3>
                 <button onClick={() => setShowCreate(false)}

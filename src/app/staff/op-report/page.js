@@ -1072,7 +1072,7 @@ function StaffOpReport() {
                 {t("reports.companyReports")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("reports.weeklyReport")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
@@ -1291,7 +1291,8 @@ function StaffOpReport() {
 
                 {/* Standups Table */}
                 <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
-                  <table className="w-full">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -1498,7 +1499,8 @@ function StaffOpReport() {
                                           </p>
                                         ) : (
                                           <div className="overflow-hidden rounded-lg border border-[var(--border-primary)]">
-                                            <table className="w-full">
+                                            <div className="overflow-x-auto">
+                                              <table className="w-full">
                                               <thead>
                                                 <tr className="bg-primary border-b border-[var(--border-primary)]">
                                                   <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -1698,7 +1700,8 @@ function StaffOpReport() {
                                                   );
                                                 })()}
                                               </tbody>
-                                            </table>
+                                              </table>
+                                            </div>
                                           </div>
                                         )}
                                         {(() => {
@@ -1776,7 +1779,8 @@ function StaffOpReport() {
                         </tr>
                       )}
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
                 </div>
               </div>
             ) : reportType === "retro" ? (
@@ -1973,7 +1977,8 @@ function StaffOpReport() {
 
                 {/* Week history table */}
                 <div className="overflow-hidden rounded-xl border border-[var(--border-primary)]">
-                  <table className="w-full">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
                         <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
@@ -2085,6 +2090,7 @@ function StaffOpReport() {
                                         </p>
                                       ) : (
                                         <div className="overflow-hidden rounded-lg border border-[var(--border-primary)]">
+                                          <div className="overflow-x-auto">
                                           <table className="w-full">
                                             <thead>
                                               <tr className="bg-primary border-b border-[var(--border-primary)]">
@@ -2626,7 +2632,8 @@ function StaffOpReport() {
                                                   );
                                                 })}
                                             </tbody>
-                                          </table>
+                                            </table>
+                                          </div>
                                         </div>
                                       )}
                                     </div>
@@ -2654,7 +2661,8 @@ function StaffOpReport() {
                         </tr>
                       )}
                     </tbody>
-                  </table>
+                    </table>
+                  </div>
                 </div>
               </div>
             ) : (

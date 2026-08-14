@@ -69,7 +69,7 @@ export default function MyTasks() {
                 {t("developerMisc.myTasks.eyebrow")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("developerMisc.myTasks.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">

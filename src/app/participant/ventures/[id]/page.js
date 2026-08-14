@@ -1446,7 +1446,7 @@ export default function VentureDetail() {
           {/* Add Interview Modal */}
         {showAddInterview && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddInterview(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addInterview')}</h2><button onClick={()=>setShowAddInterview(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/interviews`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...interviewForm,created_by:user.cid})});setShowAddInterview(false);setInterviewForm({});fetchInterviews();}} className="space-y-3">
                 <input placeholder={t('venture.interviewee')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interviewee_name||''} onChange={e=>setInterviewForm({...interviewForm,interviewee_name:e.target.value})} />
@@ -1463,7 +1463,7 @@ export default function VentureDetail() {
         {/* Add Validation Modal */}
         {showAddValidation && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddValidation(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addEntry')}</h2><button onClick={()=>setShowAddValidation(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/validations`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({validation_type:validationForm.type,notes:validationForm.notes,status:validationForm.status})});setShowAddValidation(false);setValidationForm({type:'problem'});fetchValidations();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.type} onChange={e=>setValidationForm({...validationForm,type:e.target.value})}>
@@ -1482,7 +1482,7 @@ export default function VentureDetail() {
         {/* Add PMF Modal */}
         {showAddPmf && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddPmf(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAssessment')}</h2><button onClick={()=>setShowAddPmf(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/pmf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pmfForm)});setShowAddPmf(false);setPmfForm({});fetchPmf();}} className="space-y-3">
                 <textarea placeholder={t('venture.feedback')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.customer_feedback||''} onChange={e=>setPmfForm({...pmfForm,customer_feedback:e.target.value})} />
@@ -1497,7 +1497,7 @@ export default function VentureDetail() {
         {/* Add Milestone Modal */}
         {showAddMilestone && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddMilestone(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addMilestone')}</h2><button onClick={()=>setShowAddMilestone(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/milestones`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(milestoneForm)});setShowAddMilestone(false);setMilestoneForm({});fetchMilestones();}} className="space-y-3">
                 <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={milestoneForm.title||''} onChange={e=>setMilestoneForm({...milestoneForm,title:e.target.value})} required />
@@ -1512,7 +1512,7 @@ export default function VentureDetail() {
         {/* Add Action Plan Modal */}
         {showAddAction && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAction(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAction')}</h2><button onClick={()=>setShowAddAction(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/action-plans`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(actionForm)});setShowAddAction(false);setActionForm({});fetchActionPlans();}} className="space-y-3">
                 <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.title||''} onChange={e=>setActionForm({...actionForm,title:e.target.value})} required />
@@ -1533,7 +1533,7 @@ export default function VentureDetail() {
         {/* Add Task Modal */}
         {showAddTask && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddTask(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addTask')}</h2><button onClick={()=>setShowAddTask(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(taskForm)});setShowAddTask(false);setTaskForm({});fetchTasks();}} className="space-y-3">
                 <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.title||''} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} required />
@@ -1556,7 +1556,7 @@ export default function VentureDetail() {
         {/* Add Standup Modal */}
         {showAddStandup && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddStandup(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addStandup')}</h2><button onClick={()=>setShowAddStandup(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
@@ -1571,7 +1571,7 @@ export default function VentureDetail() {
         {/* Add Retro Modal */}
         {showAddRetro && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddRetro(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addRetro')}</h2><button onClick={()=>setShowAddRetro(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
@@ -1586,7 +1586,7 @@ export default function VentureDetail() {
         {/* Add Blocker Modal */}
         {showAddBlocker && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddBlocker(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addBlocker')}</h2><button onClick={()=>setShowAddBlocker(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.venture_retro_id||''} onChange={e=>setBlockerForm({...blockerForm,venture_retro_id:e.target.value})} required>
@@ -1609,7 +1609,7 @@ export default function VentureDetail() {
         {/* Add Document Modal */}
         {showAddDocument && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddDocument(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.upload')}</h2><button onClick={()=>setShowAddDocument(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const r=await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload',title:documentForm.name,file_name:documentForm.name+'.pdf',file_url:documentForm.file_url,category:documentForm.category})});const d=await r.json();if(!d.success)notifyMsg(t((d.error||'Upload failed') || "") || (d.error||'Upload failed'));setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
                 <input placeholder="Document name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.name||''} onChange={e=>setDocumentForm({...documentForm,name:e.target.value})} required />
@@ -1626,7 +1626,7 @@ export default function VentureDetail() {
         {/* Add Advisor Modal */}
         {showAddAdvisor && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAdvisor(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={()=>setShowAddAdvisor(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
                 <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
@@ -1639,7 +1639,7 @@ export default function VentureDetail() {
         {/* Add Coaching Session Modal */}
         {showAddCoaching && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddCoaching(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addSession')}</h2><button onClick={()=>setShowAddCoaching(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/coaching`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(coachingForm)});setShowAddCoaching(false);setCoachingForm({});fetchCoaching();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.advisor_contact_id||''} onChange={e=>setCoachingForm({...coachingForm,advisor_contact_id:e.target.value})}>
@@ -1663,7 +1663,7 @@ export default function VentureDetail() {
         {/* Review Modal */}
         {showReview && reviewDoc && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowReview(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.review')}</h2><button onClick={()=>{setShowReview(false);setReviews([]);}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               {/* Existing reviews */}
               {reviews.length>0&&<div className="mb-4 space-y-2 max-h-40 overflow-y-auto">{reviews.map((rv,i)=>(<div key={i} className="text-xs p-2 rounded-lg border" style={{borderColor:'rgb(255 255 255 / 0.08)'}}><span className={`${rv.decision==='approved'?'text-green-400':rv.decision==='revision_requested'?'text-amber-400':'text-blue-400'}`}>{rv.decision}</span>{rv.comment&&<span className="block" style={{color:'var(--text-secondary)'}}>{rv.comment}</span>}</div>))}</div>}
@@ -1680,7 +1680,7 @@ export default function VentureDetail() {
         {/* Permissions Modal */}
         {showPermissions && permissionsDoc && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowPermissions(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.permissions')||'Permissions'}</h2><button onClick={()=>setShowPermissions(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <p className="text-sm mb-4" style={{color:'var(--text-secondary)'}}>{t('venture.permissionsDesc')||'Configure who can access this document'}</p>
               <div className="space-y-3">
@@ -1710,7 +1710,7 @@ export default function VentureDetail() {
         {/* Versions Modal */}
         {showVersions && versionsDoc && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowVersions(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-lg mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-lg mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.versions')}: {versionsDoc.name}</h2><button onClick={()=>setShowVersions(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               {versions.length===0?(<p className="text-sm" style={{color:'var(--text-secondary)'}}>No versions</p>):versions.map((v,i)=>(
                 <div key={i} className="flex items-center justify-between py-3 border-b last:border-0" style={{borderColor:'rgb(255 255 255 / 0.05)'}}>
@@ -1732,7 +1732,7 @@ export default function VentureDetail() {
         {/* Create KPI Definition Modal */}
         {showAddKpiDefinition && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpiDefinition(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{editingKpiDef?t('venture.edit'):t('venture.create')} KPI</h2><button onClick={()=>{setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const method=editingKpiDef?'PATCH':'POST';const url=editingKpiDef?'/api/venture-kpi-definitions':'/api/venture-kpi-definitions';const body=editingKpiDef?{...kpiDefForm,id:editingKpiDef.id}:kpiDefForm;await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});fetchKpiDefinitions();fetchKpis();}} className="space-y-3">
                 <input placeholder="KPI Name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.name||''} onChange={e=>setKpiDefForm({...kpiDefForm,name:e.target.value})} required />
@@ -1752,7 +1752,7 @@ export default function VentureDetail() {
         {/* Edit Coaching Session Modal */}
         {showEditCoaching && editingCoaching && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.edit')} Session</h2><button onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const body={...coachingForm,session_date:coachingForm.session_date||editingCoaching.session_date,start_time:coachingForm.start_time||editingCoaching.start_time,location:coachingForm.location||editingCoaching.location,meeting_link:coachingForm.meeting_link||editingCoaching.meeting_link,notes:coachingForm.notes||editingCoaching.notes,observations:coachingForm.observations||editingCoaching.observations,recommendations:coachingForm.recommendations||editingCoaching.recommendations,follow_up_date:coachingForm.follow_up_date||editingCoaching.follow_up_date};await fetch(`/api/ventures/${params.id}/coaching?id=${editingCoaching.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowEditCoaching(false);setEditingCoaching(null);setCoachingForm({});fetchCoaching();}} className="space-y-3">
                 <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date||editingCoaching.session_date||''} onChange={e=>setCoachingForm({...coachingForm,session_date:e.target.value})} />
@@ -1771,7 +1771,7 @@ export default function VentureDetail() {
         {/* Assign KPI Modal */}
         {showAddKpi && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpi(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.assignKpi')}</h2><button onClick={()=>setShowAddKpi(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
               <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddKpi(false);setKpiForm({});fetchKpis();}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.kpi_definition_id||''} onChange={e=>setKpiForm({...kpiForm,kpi_definition_id:e.target.value})} required>
@@ -1788,7 +1788,7 @@ export default function VentureDetail() {
         {/* Add Member Modal */}
         {showAddMember && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setShowAddMember(false)}>
-            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold">{addMemberType === "founder" ? t("venture.addFounder") : t("venture.addTeamMember")}</h2>
                 <button onClick={() => setShowAddMember(false)} style={{ color: "var(--text-secondary)" }}><X size={20} /></button>
@@ -1818,7 +1818,7 @@ export default function VentureDetail() {
         {/* Remove Confirm Modal */}
         {removeConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setRemoveConfirm(null)}>
-            <div className="rounded-2xl p-6 w-full max-w-sm mx-4 border shadow-xl" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
+            <div className="rounded-2xl p-6 w-full max-w-sm mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={e => e.stopPropagation()}>
               <h2 className="text-lg font-bold mb-2">{t("venture.confirmRemove")}</h2>
               <p className="text-sm mb-4" style={{ color: "var(--text-secondary)" }}>
                 {removeConfirm.contact_name || removeConfirm.contact_id}

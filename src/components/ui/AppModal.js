@@ -39,7 +39,7 @@ export default function AppModal({ isOpen, onClose, title, children, size = "md"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative w-full ${widthMap[size] || widthMap.md} rounded-2xl p-8 shadow-2xl overflow-hidden`}
+            className={`relative w-full ${widthMap[size] || widthMap.md} rounded-2xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto`}
             style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
           >
             {/* Header */}

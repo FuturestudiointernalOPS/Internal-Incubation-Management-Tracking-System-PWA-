@@ -1230,7 +1230,7 @@ export default function MessagingChat({ role = "super_admin" }) {
           onClick={() => setShowCompose(false)}
         >
           <div
-            className="w-full max-w-lg rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] p-6 space-y-4"
+            className="w-full max-w-lg rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] p-6 space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -1522,7 +1522,7 @@ export default function MessagingChat({ role = "super_admin" }) {
       {/* Confirm Dialog */}
       {confirmTarget && (
         <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
-          <div className="card w-full max-w-sm space-y-6" onClick={(e) => e.stopPropagation()}>
+          <div className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
               <div>
