@@ -68,22 +68,6 @@ function ProgramWorkspace() {
   const [reports, setReports] = useState([]);
   const [activeSubTab, setActiveSubTab] = useState("individuals");
   const [selectedParticipants, setSelectedParticipants] = useState([]);
-  // Assigned registration form (public link) - resolved from the Form assigned to the program group
-  const [regForm, setRegForm] = useState(null);
-
-  useEffect(() => {
-    const fam = families[0];
-    if (!fam) { setRegForm(null); return; }
-    const gid = fam.registration_id || fam.id;
-    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
-      .then((r) => r.json())
-      .then((d) => {
-        const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
-        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" } : null);
-      })
-      .catch(() => setRegForm(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [families]);
   const [newTeam, setNewTeam] = useState({
     name: "",
     group_name: "",
@@ -119,6 +103,22 @@ function ProgramWorkspace() {
   };
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
+  // Assigned registration form (public link) - resolved from the Form assigned to the program group
+  const [regForm, setRegForm] = useState(null);
+
+  useEffect(() => {
+    const fam = families[0];
+    if (!fam) { setRegForm(null); return; }
+    const gid = fam.registration_id || fam.id;
+    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" } : null);
+      })
+      .catch(() => setRegForm(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [families]);
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const programTeamMembers = React.useMemo(() => {
