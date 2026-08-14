@@ -142,7 +142,7 @@ export default function FinanceDashboard() {
 
       if (res.status === 429) {
         const json = await res.json();
-        setSyncError(json.error || t("finance.dashboard.syncRateLimited", { seconds: 60 }));
+        setSyncError(t((json.error || t("finance.dashboard.syncRateLimited", { seconds: 60 })) || "") || (json.error || t("finance.dashboard.syncRateLimited", { seconds: 60 })));
         return;
       }
 

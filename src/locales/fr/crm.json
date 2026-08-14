@@ -1,5 +1,7 @@
 {
   "crm": {
+    "backToPrevious": "Retour au menu précédent",
+    "backToCrm": "Retour au CRM",
     "campaigns": {
       "title": "Campagnes",
       "subtitle": "Diffusez des messages et suivez les métriques d'engagement.",
@@ -87,6 +89,13 @@
       "launchFailed": "Échec du lancement de la campagne."
     },
     "contacts": {
+      "allContacts": "Tous les contacts",
+      "allTeams": "Toutes les équipes",
+      "filterAll": "Tous",
+      "filterInactive": "Inactifs",
+      "statusInactive": "Inactif",
+      "statusApproved": "Approuvé",
+      "unassigned": "Non attribué",
       "dashboard": "Tableau de bord",
       "contact": "Contact",
       "contactsTitle": "CONTACTS",
@@ -200,10 +209,15 @@
       "duplicateFlagDismissed": "Signalement de doublon ignoré.",
       "failedToDismiss": "Impossible d'ignorer le signalement.",
       "failedToPreviewMerge": "Impossible d'afficher l'aperçu de la fusion.",
+      "fieldProgramEnrollments": "Inscriptions aux programmes",
+      "fieldTimelineEvents": "Événements de la chronologie",
+      "fieldVentureMemberships": "Adhésions aux entreprises",
       "mergedSuccess": "Fusion terminée. {summary}",
       "mergeFailed": "Échec de la fusion."
     },
     "forms": {
+      "backToPrevious": "Retour au menu précédent",
+      "backToCrm": "Retour au CRM",
       "formNeedsName": "Le formulaire doit avoir un nom.",
       "addAtLeastOneQuestion": "Ajoutez au moins une question.",
       "saved": "Enregistré",
@@ -256,8 +270,18 @@
       "addTextQuestion": "Ajouter une question texte",
       "addYesNoQuestion": "Ajouter une question Oui/Non",
       "discard": "Annuler",
+      "questionTextPlaceholder": "Saisir le texte de la question...",
+      "questionYesNoPlaceholder": "Choix Oui/Non...",
       "saving": "Enregistrement...",
       "saveForm": "Enregistrer le formulaire"
+    },
+    "modules": {
+      "forms": "Formulaires",
+      "programs": "Programmes",
+      "ventures": "Entreprises",
+      "investors": "Investisseurs",
+      "communications": "Communications",
+      "system": "Système"
     },
     "overview": {
       "title": "Tableau de bord CRM",
@@ -285,10 +309,11 @@
       "tabDocuments": "Documents",
       "panelForms": "Formulaires",
       "panelPrograms": "Programmes",
-      "panelVentures": "Ventures",
+      "panelVentures": "Entreprises",
       "panelInvestors": "Investisseurs",
       "panelComms": "Communications",
       "all": "Tout",
+      "attached": "Pièce jointe :",
       "noEvents": "Aucun événement pour l'instant",
       "noEventsHint": "Les événements apparaîtront à mesure que {name} interagira avec la plateforme.",
       "notePlaceholder": "Ajouter une note...",
@@ -339,6 +364,7 @@
       "sendFollowUp": "Envoyer la relance",
       "name": "Nom",
       "status": "Statut",
+      "statusPendingResponse": "Réponse en attente",
       "approved": "Approuvé",
       "declined": "Refusé",
       "noResultsForFilter": "Aucun résultat pour ce filtre.",
@@ -348,6 +374,18 @@
       "campaignName": "Nom de la campagne",
       "campaignNamePlaceholder": "ex. Deuxième campagne",
       "startFollowUpList": "Lancer la liste de relance"
+    },
+    "roles": {
+      "participant": "Participant",
+      "staff": "Personnel",
+      "teacher": "Enseignant",
+      "investor": "Investisseur",
+      "finance": "Finance",
+      "developer": "Développeur",
+      "unassigned": "Non attribué",
+      "team": "Équipe",
+      "founder": "Fondateur",
+      "pm": "Responsable de programme"
     },
     "segments": {
       "title": "Segments",
@@ -361,6 +399,8 @@
       "segmentName": "Nom du segment",
       "segmentNamePlaceholder": "p. ex. Liste VIP...",
       "filters": "Filtres",
+      "filterKeyCampaign": "Campagne",
+      "filterKeyStatus": "Statut",
       "fromCampaign": "Depuis une campagne",
       "anyCampaign": "Toutes les campagnes",
       "status": "Statut",
@@ -399,7 +439,7 @@
       "filterAll": "Tous",
       "filterForms": "Formulaires",
       "filterPrograms": "Programmes",
-      "filterVentures": "Ventures",
+      "filterVentures": "Entreprises",
       "filterInvestors": "Investisseurs",
       "filterComms": "Communications",
       "filterSystem": "Système",

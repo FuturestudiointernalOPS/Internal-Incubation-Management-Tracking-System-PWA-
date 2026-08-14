@@ -3,9 +3,11 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Clock, Filter, User, Search } from "lucide-react";
+import { Clock, Filter, User, Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { formatLocaleDate } from "@/lib/constants";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -17,11 +19,34 @@ const MODULE_COLORS = {
   system: "bg-slate-500/10 text-slate-400 border-slate-500/20",
 };
 
+const ROLE_LABELS = {
+  participant: "crm.roles.participant",
+  staff: "crm.roles.staff",
+  teacher: "crm.roles.teacher",
+  investor: "crm.roles.investor",
+  finance: "crm.roles.finance",
+  developer: "crm.roles.developer",
+  unassigned: "crm.roles.unassigned",
+  team: "crm.roles.team",
+  founder: "crm.roles.founder",
+  pm: "crm.roles.pm",
+};
+
+const MODULE_LABELS = {
+  forms: "crm.modules.forms",
+  programs: "crm.modules.programs",
+  ventures: "crm.modules.ventures",
+  investors: "crm.modules.investors",
+  communications: "crm.modules.communications",
+  system: "crm.modules.system",
+};
+
 function TimelinePageContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const cid = searchParams.get("cid");
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
 
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
@@ -129,7 +154,11 @@ function TimelinePageContent() {
       <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <Link href="/admin/crm" className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)]">
+            <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              {t("crm.backToPrevious")}
+            </button>
+            <Link href="/admin/crm" className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] mt-2">
               ← {t("crm.timeline.breadcrumbCrm")}
             </Link>
             <h1 className="text-xl font-black uppercase tracking-tight mt-1">
@@ -137,7 +166,7 @@ function TimelinePageContent() {
             </h1>
             {contact && (
               <p className="text-xs text-[var(--text-secondary)]">
-                {contact.email} · {contact.role || t("crm.timeline.unassigned")}
+                {contact.email} · {t(ROLE_LABELS[contact.role] || "") || contact.role || t("crm.timeline.unassigned")}
               </p>
             )}
           </div>
@@ -198,12 +227,12 @@ function TimelinePageContent() {
                           <p className="text-sm font-bold">{ev.description}</p>
                           {ev.context_module && (
                             <span className={`shrink-0 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
-                              {ev.context_module}
+                              {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
                             </span>
                           )}
                         </div>
                         <p className="text-[10px] text-[var(--text-secondary)] mt-1.5">
-                          {new Date(ev.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                          {formatLocaleDate(ev.created_at, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)}
                         </p>
                       </div>
                     </div>

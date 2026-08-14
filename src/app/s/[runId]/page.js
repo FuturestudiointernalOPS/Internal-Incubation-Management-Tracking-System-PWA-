@@ -119,7 +119,7 @@ export default function PublicSubmitPage() {
     try {
       const res = await fetch(`/api/s/public-run?slug=${runId}`);
       const data = await res.json();
-      if (!data.success) throw new Error(data.error || "Run not found");
+      if (!data.success) throw new Error(t((data.error || "Run not found") || "") || (data.error || "Run not found"));
       const loadedForm = { name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description };
       setRun(data.run);
       setSections(data.sections || []);
@@ -163,7 +163,7 @@ export default function PublicSubmitPage() {
         translateFormContent(savedLang);
       }
     } catch (e) {
-      setError(e.message);
+      setError(t(e.message || "") || e.message);
     }
     setLoading(false);
   };
@@ -211,7 +211,7 @@ export default function PublicSubmitPage() {
         }
         notify(t("forms.submissionReceived"));
       } else {
-        notify(data.error || t("forms.submitFailed"));
+        notify(t((data.error || t("forms.submitFailed")) || "") || (data.error || t("forms.submitFailed")));
       }
     } catch (_) { notify(t("forms.submitFailed")); }
     setSaving(false);

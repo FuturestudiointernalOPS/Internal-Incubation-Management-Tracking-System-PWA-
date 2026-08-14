@@ -112,13 +112,13 @@ export default function VentureFoundersPage() {
       const ventureData = await ventureRes.json();
       const foundersData = await foundersRes.json();
 
-      if (!ventureData.success) throw new Error(ventureData.error || t("vadmin.founders.loadVentureFailed"));
-      if (!foundersData.success) throw new Error(foundersData.error || t("vadmin.founders.loadFoundersFailed"));
+      if (!ventureData.success) throw new Error(t((ventureData.error || t("vadmin.founders.loadVentureFailed")) || "") || (ventureData.error || t("vadmin.founders.loadVentureFailed")));
+      if (!foundersData.success) throw new Error(t((foundersData.error || t("vadmin.founders.loadFoundersFailed")) || "") || (foundersData.error || t("vadmin.founders.loadFoundersFailed")));
 
       setVenture(ventureData.venture);
       setFounders(foundersData.founders || []);
     } catch (e) {
-      setError(e.message);
+      setError(t(e.message || "") || e.message);
     } finally {
       setLoading(false);
     }
@@ -146,7 +146,7 @@ export default function VentureFoundersPage() {
         setInviteForm({ email: "", name: "", role: "co-founder" });
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.inviteFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.inviteFailed")) || "") || (data.error || t("vadmin.founders.inviteFailed")), "error");
       }
     } catch (e) {
       notify(t("vadmin.founders.networkError"), "error");
@@ -174,7 +174,7 @@ export default function VentureFoundersPage() {
         setConfirmAction(null);
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.transferFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
         setConfirmAction(null);
       }
     } catch (e) {
@@ -195,7 +195,7 @@ export default function VentureFoundersPage() {
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.suspendFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.suspendFailed")) || "") || (data.error || t("vadmin.founders.suspendFailed")), "error");
       }
     } catch {
       notify(t("vadmin.founders.networkError"), "error");
@@ -213,7 +213,7 @@ export default function VentureFoundersPage() {
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.reactivateFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.reactivateFailed")) || "") || (data.error || t("vadmin.founders.reactivateFailed")), "error");
       }
     } catch {
       notify(t("vadmin.founders.networkError"), "error");
@@ -232,7 +232,7 @@ export default function VentureFoundersPage() {
         setConfirmAction(null);
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.removeFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.removeFailed")) || "") || (data.error || t("vadmin.founders.removeFailed")), "error");
         setConfirmAction(null);
       }
     } catch {
@@ -253,7 +253,7 @@ export default function VentureFoundersPage() {
         setOpenMenuId(null);
         fetchData();
       } else {
-        notify(data.error || t("vadmin.founders.roleUpdateFailed"), "error");
+        notify(t((data.error || t("vadmin.founders.roleUpdateFailed")) || "") || (data.error || t("vadmin.founders.roleUpdateFailed")), "error");
       }
     } catch {
       notify(t("vadmin.founders.networkError"), "error");
@@ -539,7 +539,7 @@ export default function VentureFoundersPage() {
                                             setConfirmAction(null);
                                             fetchData();
                                           } else {
-                                            notify(data.error || t("vadmin.founders.transferFailed"), "error");
+                                            notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                                             setConfirmAction(null);
                                           }
                                         } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }
@@ -729,7 +729,7 @@ export default function VentureFoundersPage() {
                               setConfirmAction(null);
                               fetchData();
                             } else {
-                              notify(data.error || t("vadmin.founders.transferFailed"), "error");
+                              notify(t((data.error || t("vadmin.founders.transferFailed")) || "") || (data.error || t("vadmin.founders.transferFailed")), "error");
                               setConfirmAction(null);
                             }
                           } catch { notify(t("vadmin.founders.networkError"), "error"); setConfirmAction(null); }

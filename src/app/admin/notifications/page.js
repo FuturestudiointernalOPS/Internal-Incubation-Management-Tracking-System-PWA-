@@ -7,6 +7,7 @@ import {
   X, Send, Filter, RefreshCw,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 const TYPE_COLORS = {
   system: "text-slate-400 bg-slate-500/10",
@@ -21,6 +22,7 @@ const TYPE_COLORS = {
 };
 
 export default function NotificationsPage() {
+  const { t } = useI18n();
   const router = useRouter();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -63,7 +65,7 @@ export default function NotificationsPage() {
     });
     setNotifications((prev) => prev.map((n) => n.status === "unread" ? { ...n, status: "read" } : n));
     setUnreadCount(0);
-    notify("All marked as read");
+    notify(t("adminMisc.notifications.allMarkedRead"));
   };
 
   const archiveNotif = async (id) => {
@@ -87,7 +89,7 @@ export default function NotificationsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "send_test" }),
     });
-    notify("Test notification sent");
+    notify(t("adminMisc.notifications.testNotificationSent"));
     fetchAll();
   };
 
@@ -122,21 +124,21 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Bell className="w-6 h-6 text-[var(--brand-orange)]" /></div>
             <div>
-              <h1 className="text-2xl font-black text-[var(--text-primary)]">Notifications</h1>
-              <p className="text-xs text-slate-500">{unreadCount} unread · {notifications.length} total</p>
+              <h1 className="text-2xl font-black text-[var(--text-primary)]">{t("adminMisc.notifications.title")}</h1>
+              <p className="text-xs text-slate-500">{t("adminMisc.notifications.unreadTotal", { unread: unreadCount, total: notifications.length })}</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={sendTest} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary flex items-center gap-1.5"><Send className="w-3 h-3" /> Test</button>
-            <button onClick={markAllRead} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> Mark All Read</button>
+            <button onClick={sendTest} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary flex items-center gap-1.5"><Send className="w-3 h-3" /> {t("adminMisc.notifications.test")}</button>
+            <button onClick={markAllRead} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> {t("adminMisc.notifications.markAllRead")}</button>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-[var(--border-primary)]">
           {[
-            { id: "inbox", label: `Inbox (${unreadCount})`, icon: Bell },
-            { id: "preferences", label: "Preferences", icon: Settings },
+            { id: "inbox", label: t("adminMisc.notifications.inboxWithCount", { count: unreadCount }), icon: Bell },
+            { id: "preferences", label: t("adminMisc.notifications.preferences"), icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -153,7 +155,7 @@ export default function NotificationsPage() {
           <>
             {/* Filter */}
             <div className="flex gap-1 overflow-x-auto pb-1">
-              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wider whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-slate-500"}`}>All</button>
+              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wider whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-slate-500"}`}>{t("adminMisc.notifications.all")}</button>
               {Object.keys(TYPE_COLORS).map((t) => (
                 <button key={t} onClick={() => setFilterType(t)} className={`px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wider whitespace-nowrap ${filterType===t?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-slate-500"}`}>{t}</button>
               ))}
@@ -161,7 +163,7 @@ export default function NotificationsPage() {
 
             {/* List */}
             {filtered.length === 0 ? (
-              <div className="text-center py-16"><Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">No notifications</p></div>
+              <div className="text-center py-16"><Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("adminMisc.notifications.noNotifications")}</p></div>
             ) : (
               <div className="space-y-2">
                 {filtered.map((n) => (
@@ -173,7 +175,7 @@ export default function NotificationsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[n.type] || TYPE_COLORS.system}`}>{n.type}</span>
-                          {n.priority === "urgent" && <span className="text-[7px] font-black text-rose-400">URGENT</span>}
+                          {n.priority === "urgent" && <span className="text-[7px] font-black text-rose-400">{t("adminMisc.notifications.urgent")}</span>}
                           <span className="text-[8px] text-slate-500 ml-auto">{new Date(n.created_at).toLocaleString()}</span>
                         </div>
                         <p className={`text-xs mt-1 ${n.status==="unread" ? "font-bold text-[var(--text-primary)]" : "font-medium text-[var(--text-secondary)]"}`}>{n.title}</p>
@@ -204,25 +206,25 @@ export default function NotificationsPage() {
                       className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-wider border transition-all ${
                         channels[channel] ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-primary text-slate-500 border-[var(--border-primary)]"
                       }`}>
-                      {channel === "in_app" ? "In-App" : channel.charAt(0).toUpperCase() + channel.slice(1)}
+                      {channel === "in_app" ? t("adminMisc.notifications.inApp") : channel.charAt(0).toUpperCase() + channel.slice(1)}
                     </button>
                   ))}
                 </div>
               </div>
             ))}
             <div className="card">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Delivery Settings</h3>
+              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t("adminMisc.notifications.deliverySettings")}</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                  <span className="text-[10px] font-bold text-[var(--text-primary)]">Digest Frequency</span>
+                  <span className="text-[10px] font-bold text-[var(--text-primary)]">{t("adminMisc.notifications.digestFrequency")}</span>
                   <select value={preferences.digest_frequency || "realtime"}
                     onChange={async (e) => {
                       await fetch(`/api/notifications/venture`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "update_preferences", updates: { digest_frequency: e.target.value } }) });
                       setPreferences((p) => ({ ...p, digest_frequency: e.target.value }));
-                      notify("Updated");
+                      notify(t("adminMisc.notifications.updated"));
                     }}
                     className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold outline-none">
-                    <option value="realtime">Real-time</option><option value="hourly">Hourly</option><option value="daily">Daily</option><option value="weekly">Weekly</option>
+                    <option value="realtime">{t("adminMisc.notifications.realtime")}</option><option value="hourly">{t("adminMisc.notifications.hourly")}</option><option value="daily">{t("adminMisc.notifications.daily")}</option><option value="weekly">{t("adminMisc.notifications.weekly")}</option>
                   </select>
                 </div>
               </div>

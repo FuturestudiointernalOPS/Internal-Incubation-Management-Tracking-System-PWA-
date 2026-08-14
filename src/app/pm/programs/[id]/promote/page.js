@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export const dynamic = "force-dynamic";
 export default function PromoteToVenture() {
   const { id } = useParams();
   const router = useRouter();
+  const goBack = useSafeBack(`/pm/programs/${id}`);
   const { t } = useI18n();
 
   const [user, setUser] = useState({});
@@ -72,10 +74,10 @@ export default function PromoteToVenture() {
           // Pre-fill company name from program name
           setCompanyName(data.program.name || "");
         } else {
-          notify("Failed to load program data", "error");
+          notify(t("pmMisc.promote.failedToLoadProgram"), "error");
         }
       } catch (e) {
-        notify("Network error loading program", "error");
+        notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
       } finally {
         setLoading(false);
       }
@@ -86,19 +88,19 @@ export default function PromoteToVenture() {
   const handlePromote = async () => {
     // Validate
     if (!companyName.trim()) {
-      notify("Company name is required", "error");
+      notify(t("pmMisc.promote.companyNameRequired"), "error");
       return;
     }
     if (!industry.trim()) {
-      notify("Industry is required", "error");
+      notify(t("pmMisc.promote.industryRequired"), "error");
       return;
     }
     if (!businessStage.trim()) {
-      notify("Business stage is required", "error");
+      notify(t("pmMisc.promote.businessStageRequired"), "error");
       return;
     }
     if (!program) {
-      notify("Program data not loaded", "error");
+      notify(t("pmMisc.promote.programDataNotLoaded"), "error");
       return;
     }
 
@@ -126,7 +128,9 @@ export default function PromoteToVenture() {
       if (data.success) {
         setPromotionResult(data);
         notify(
-          `"${data.venture.company_name}" promoted successfully! Redirecting...`,
+          t("pmMisc.promote.promotedSuccessfully", {
+            name: data.venture.company_name,
+          }),
           "success",
         );
         // Redirect after 2 seconds
@@ -134,16 +138,16 @@ export default function PromoteToVenture() {
           router.push(data.redirect);
         }, 2000);
       } else {
-        setPromotionError(data.error || "Promotion failed");
+        setPromotionError(t((data.error || t("pmMisc.promote.promotionFailed")) || "") || (data.error || t("pmMisc.promote.promotionFailed")));
         if (data.conflicts) {
           notify(data.conflicts.join(", "), "error");
         } else {
-          notify(data.error || "Promotion failed", "error");
+          notify(t((data.error || t("pmMisc.promote.promotionFailed")) || "") || (data.error || t("pmMisc.promote.promotionFailed")), "error");
         }
       }
     } catch (e) {
-      notify("Network error during promotion", "error");
-      setPromotionError(e.message);
+      notify(t("pmMisc.promote.networkErrorDuringPromotion"), "error");
+      setPromotionError(t(e.message || "") || e.message);
     } finally {
       setSubmitting(false);
       setShowConfirmModal(false);
@@ -186,27 +190,28 @@ export default function PromoteToVenture() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => router.back()}
+              onClick={goBack}
               className="p-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all"
-              title="Go back"
+              title={t("pmMisc.promote.goBack")}
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
               <div className="flex items-center gap-2">
                 <span className="status-badge bg-purple-500/10 text-purple-500 border border-purple-500/20">
-                  WORKFLOW A
+                  {t("pmMisc.promote.workflowA")}
                 </span>
                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   {program?.id}
                 </span>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)] mt-1">
-                Promote to Venture OS
+                {t("pmMisc.promote.promoteToVentureOS")}
               </h1>
               <p className="text-[var(--text-secondary)] text-sm max-w-2xl mt-1">
-                Promote &ldquo;{program?.name}&rdquo; from Program OS into Venture OS.
-                This will create a full Venture profile with founders and team members.
+                {t("pmMisc.promote.headerDescription", {
+                  name: program?.name,
+                })}
               </p>
             </div>
           </div>
@@ -220,11 +225,14 @@ export default function PromoteToVenture() {
             </div>
             <div>
               <h3 className="text-sm font-black uppercase tracking-tight">
-                Program Summary
+                {t("pmMisc.promote.programSummary")}
               </h3>
               <p className="text-[10px] font-bold text-[var(--text-secondary)] tracking-wider">
-                {program?.status} · {program?.duration_weeks || "?"} weeks ·{" "}
-                {program?.participants_count || 0} participants
+                {t("pmMisc.promote.programMeta", {
+                  status: program?.status || "",
+                  weeks: program?.duration_weeks || "?",
+                  participants: program?.participants_count || 0,
+                })}
               </p>
             </div>
           </div>
@@ -232,7 +240,7 @@ export default function PromoteToVenture() {
             <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
               <AlertCircle className="w-4 h-4 text-amber-500" />
               <span className="text-[10px] font-black uppercase text-amber-500">
-                This program has already been promoted to Venture{" "}
+                {t("pmMisc.promote.alreadyPromoted")}{" "}
                 <span className="text-[var(--brand-orange)]">
                   {program.venture_id}
                 </span>
@@ -248,24 +256,32 @@ export default function PromoteToVenture() {
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
             <h2 className="text-2xl font-black uppercase tracking-tighter">
-              Promotion Successful
+              {t("pmMisc.promote.promotionSuccessful")}
             </h2>
             <p className="text-[var(--text-secondary)]">
-              {promotionResult.venture.company_name} has been promoted to Venture OS
-              as <span className="font-bold text-[var(--brand-orange)]">{promotionResult.venture.venture_id}</span>
+              {t("pmMisc.promote.promotionSuccessDetail", {
+                name: promotionResult.venture.company_name,
+              })}{" "}
+              <span className="font-bold text-[var(--brand-orange)]">
+                {promotionResult.venture.venture_id}
+              </span>
             </p>
             <div className="flex justify-center gap-4 mt-4">
               <div className="text-center p-4 bg-primary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-lg font-black text-[var(--brand-orange)]">{promotionResult.founders?.length || 0}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Founders</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("pmMisc.promote.founders")}
+                </p>
               </div>
               <div className="text-center p-4 bg-primary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-lg font-black text-[var(--brand-orange)]">{promotionResult.members?.length || 0}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">Members</p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("pmMisc.promote.members")}
+                </p>
               </div>
             </div>
             <p className="text-[10px] text-[var(--text-secondary)]">
-              Redirecting to Venture Dashboard...
+              {t("pmMisc.promote.redirecting")}
             </p>
           </div>
         ) : (
@@ -276,38 +292,39 @@ export default function PromoteToVenture() {
               <div className="card space-y-6">
                 <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-[var(--brand-orange)]" />
-                  Company Information
+                  {t("pmMisc.promote.companyInformation")}
                 </h3>
 
                 <div className="space-y-4">
                   {/* Company Name */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Company Name <span className="text-rose-500">*</span>
+                      {t("pmMisc.promote.companyName")}{" "}
+                      <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="e.g., TechFlow Inc."
+                      placeholder={t("pmMisc.promote.companyNamePlaceholder")}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                       disabled={submitting}
                     />
                     <p className="text-[8px] font-bold text-[var(--text-secondary)]">
-                      Pre-filled from program name. You can edit it.
+                      {t("pmMisc.promote.prefillHint")}
                     </p>
                   </div>
 
                   {/* Registration Number */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Registration Number
+                      {t("pmMisc.promote.registrationNumber")}
                     </label>
                     <input
                       type="text"
                       value={registrationNumber}
                       onChange={(e) => setRegistrationNumber(e.target.value)}
-                      placeholder="e.g., RC-2024-001"
+                      placeholder={t("pmMisc.promote.registrationNumberPlaceholder")}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                       disabled={submitting}
                     />
@@ -317,7 +334,8 @@ export default function PromoteToVenture() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Industry <span className="text-rose-500">*</span>
+                        {t("pmMisc.promote.industry")}{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
                       <select
                         value={industry}
@@ -325,23 +343,48 @@ export default function PromoteToVenture() {
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}
                       >
-                        <option value="">Select industry</option>
-                        <option value="fintech">Fintech</option>
-                        <option value="healthtech">Healthtech</option>
-                        <option value="cleantech">Cleantech</option>
-                        <option value="edtech">Edtech</option>
-                        <option value="agritech">Agritech</option>
-                        <option value="ecommerce">E-commerce</option>
-                        <option value="saas">SaaS</option>
-                        <option value="ai-ml">AI / Machine Learning</option>
-                        <option value="blockchain">Blockchain / Web3</option>
-                        <option value="social-impact">Social Impact</option>
-                        <option value="other">Other</option>
+                        <option value="">
+                          {t("pmMisc.promote.selectIndustry")}
+                        </option>
+                        <option value="fintech">
+                          {t("pmMisc.promote.industryFintech")}
+                        </option>
+                        <option value="healthtech">
+                          {t("pmMisc.promote.industryHealthtech")}
+                        </option>
+                        <option value="cleantech">
+                          {t("pmMisc.promote.industryCleantech")}
+                        </option>
+                        <option value="edtech">
+                          {t("pmMisc.promote.industryEdtech")}
+                        </option>
+                        <option value="agritech">
+                          {t("pmMisc.promote.industryAgritech")}
+                        </option>
+                        <option value="ecommerce">
+                          {t("pmMisc.promote.industryEcommerce")}
+                        </option>
+                        <option value="saas">
+                          {t("pmMisc.promote.industrySaaS")}
+                        </option>
+                        <option value="ai-ml">
+                          {t("pmMisc.promote.industryAIML")}
+                        </option>
+                        <option value="blockchain">
+                          {t("pmMisc.promote.industryBlockchain")}
+                        </option>
+                        <option value="social-impact">
+                          {t("pmMisc.promote.industrySocialImpact")}
+                        </option>
+                        <option value="other">
+                          {t("pmMisc.promote.industryOther")}
+                        </option>
                       </select>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Business Stage <span className="text-rose-500">*</span>
+                        {t("pmMisc.promote.businessStage")}{" "}
+                        <span className="text-rose-500">*</span>
                       </label>
                       <select
                         value={businessStage}
@@ -349,12 +392,24 @@ export default function PromoteToVenture() {
                         className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                         disabled={submitting}
                       >
-                        <option value="idea">Idea</option>
-                        <option value="pre-seed">Pre-Seed</option>
-                        <option value="seed">Seed</option>
-                        <option value="early">Early Stage</option>
-                        <option value="growth">Growth</option>
-                        <option value="scale">Scale</option>
+                        <option value="idea">
+                          {t("pmMisc.promote.stageIdea")}
+                        </option>
+                        <option value="pre-seed">
+                          {t("pmMisc.promote.stagePreSeed")}
+                        </option>
+                        <option value="seed">
+                          {t("pmMisc.promote.stageSeed")}
+                        </option>
+                        <option value="early">
+                          {t("pmMisc.promote.stageEarly")}
+                        </option>
+                        <option value="growth">
+                          {t("pmMisc.promote.stageGrowth")}
+                        </option>
+                        <option value="scale">
+                          {t("pmMisc.promote.stageScale")}
+                        </option>
                       </select>
                     </div>
                   </div>
@@ -362,12 +417,12 @@ export default function PromoteToVenture() {
                   {/* Description */}
                   <div className="space-y-1">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                      Description
+                      {t("pmMisc.promote.description")}
                     </label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Brief description of the startup..."
+                      placeholder={t("pmMisc.promote.descriptionPlaceholder")}
                       rows={3}
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
                       disabled={submitting}
@@ -378,7 +433,7 @@ export default function PromoteToVenture() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Website
+                        {t("pmMisc.promote.website")}
                       </label>
                       <input
                         type="url"
@@ -391,7 +446,7 @@ export default function PromoteToVenture() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                        Logo URL
+                        {t("pmMisc.promote.logoUrl")}
                       </label>
                       <input
                         type="url"
@@ -412,28 +467,28 @@ export default function PromoteToVenture() {
               <div className="card space-y-4">
                 <h4 className="text-[10px] font-black uppercase tracking-widest flex items-center gap-2">
                   <Shield className="w-3 h-3 text-[var(--brand-orange)]" />
-                  What happens
+                  {t("pmMisc.promote.whatHappens")}
                 </h4>
                 <ul className="space-y-2">
                   <li className="flex items-start gap-2 text-[11px] text-[var(--text-secondary)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    Venture record created
+                    {t("pmMisc.promote.whatVentureRecord")}
                   </li>
                   <li className="flex items-start gap-2 text-[11px] text-[var(--text-secondary)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    Participants become founders
+                    {t("pmMisc.promote.whatParticipantsFounders")}
                   </li>
                   <li className="flex items-start gap-2 text-[11px] text-[var(--text-secondary)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    Contacts become team members
+                    {t("pmMisc.promote.whatContactsMembers")}
                   </li>
                   <li className="flex items-start gap-2 text-[11px] text-[var(--text-secondary)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    Program relationship preserved
+                    {t("pmMisc.promote.whatProgramRelationship")}
                   </li>
                   <li className="flex items-start gap-2 text-[11px] text-[var(--text-secondary)]">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                    Activity logs & notifications
+                    {t("pmMisc.promote.whatActivityLogs")}
                   </li>
                 </ul>
               </div>
@@ -444,7 +499,7 @@ export default function PromoteToVenture() {
                   <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
                   <div>
                     <p className="text-[10px] font-black uppercase text-rose-500">
-                      Promotion Failed
+                      {t("pmMisc.promote.promotionFailedTitle")}
                     </p>
                     <p className="text-[11px] text-[var(--text-secondary)] mt-1">
                       {promotionError}
@@ -463,12 +518,12 @@ export default function PromoteToVenture() {
                   {submitting ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Promoting...
+                      {t("pmMisc.promote.promoting")}
                     </>
                   ) : (
                     <>
                       <Rocket className="w-5 h-5" />
-                      Promote to Venture OS
+                      {t("pmMisc.promote.promoteToVentureOS")}
                     </>
                   )}
                 </button>
@@ -477,7 +532,7 @@ export default function PromoteToVenture() {
               {program?.venture_id && (
                 <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl">
                   <p className="text-[10px] font-black uppercase text-amber-500 text-center">
-                    Already promoted
+                    {t("pmMisc.promote.alreadyPromotedBanner")}
                   </p>
                 </div>
               )}
@@ -494,30 +549,36 @@ export default function PromoteToVenture() {
                   <Rocket className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <h3 className="text-lg font-black uppercase tracking-tight">
-                  Confirm Promotion
+                  {t("pmMisc.promote.confirmPromotion")}
                 </h3>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Are you sure you want to promote &ldquo;{companyName}&rdquo; to Venture OS?
-                  This action will create a new venture with founders and members
-                  from the current program.
+                  {t("pmMisc.promote.confirmModalText", { name: companyName })}
                 </p>
               </div>
 
               <div className="bg-tertiary p-4 rounded-xl space-y-1">
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-[var(--text-secondary)] font-bold">Company:</span>
+                  <span className="text-[var(--text-secondary)] font-bold">
+                    {t("pmMisc.promote.confirmCompany")}
+                  </span>
                   <span className="font-bold">{companyName}</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-[var(--text-secondary)] font-bold">Industry:</span>
+                  <span className="text-[var(--text-secondary)] font-bold">
+                    {t("pmMisc.promote.confirmIndustry")}
+                  </span>
                   <span className="font-bold">{industry}</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-[var(--text-secondary)] font-bold">Stage:</span>
+                  <span className="text-[var(--text-secondary)] font-bold">
+                    {t("pmMisc.promote.confirmStage")}
+                  </span>
                   <span className="font-bold">{businessStage}</span>
                 </div>
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-[var(--text-secondary)] font-bold">Program:</span>
+                  <span className="text-[var(--text-secondary)] font-bold">
+                    {t("pmMisc.promote.confirmProgram")}
+                  </span>
                   <span className="font-bold">{program?.name}</span>
                 </div>
               </div>
@@ -528,7 +589,7 @@ export default function PromoteToVenture() {
                   className="flex-1 btn btn-secondary"
                   disabled={submitting}
                 >
-                  Cancel
+                  {t("pmMisc.promote.cancel")}
                 </button>
                 <button
                   onClick={handlePromote}
@@ -538,12 +599,12 @@ export default function PromoteToVenture() {
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Promoting...
+                      {t("pmMisc.promote.promoting")}
                     </>
                   ) : (
                     <>
                       <Rocket className="w-4 h-4" />
-                      Confirm Promotion
+                      {t("pmMisc.promote.confirmPromotion")}
                     </>
                   )}
                 </button>

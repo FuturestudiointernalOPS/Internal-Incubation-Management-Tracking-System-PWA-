@@ -3,10 +3,12 @@
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 function ResponsesContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const formParam = searchParams.get("form_id");
@@ -150,11 +152,11 @@ function ResponsesContent() {
       <div className="px-6 py-4 border-b border-[var(--border-primary)] bg-secondary shrink-0 space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">Responses</h1>
+            <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.responses.title")}</h1>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1">
               {selectedForm
-                ? `${filtered.length} submissions for "${selectedForm.name}"`
-                : `${allSubs.length} submissions across ${runs.filter(r => !["draft","cancelled"].includes(r.status)).length} runs`}
+                ? t("platformMisc.responses.submissionsForForm", { count: filtered.length, name: selectedForm.name })
+                : t("platformMisc.responses.submissionsAcrossRuns", { count: allSubs.length, runs: runs.filter(r => !["draft","cancelled"].includes(r.status)).length })}
             </p>
           </div>
         </div>
@@ -166,7 +168,7 @@ function ResponsesContent() {
             onChange={e => { setSelectedFormId(e.target.value); setStatusFilter("all"); }}
             className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
           >
-            <option value="">All Forms</option>
+            <option value="">{t("platformMisc.responses.allForms")}</option>
             {forms.filter(f => f.status === "published").map(f => (
               <option key={f.id} value={f.id}>{f.name}</option>
             ))}
@@ -181,17 +183,17 @@ function ResponsesContent() {
           <div className="relative flex-1 max-w-xs">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <input
-              type="text" placeholder="Search..." value={search}
+              type="text" placeholder={t("platformMisc.responses.searchPlaceholder")} value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none"
             />
           </div>
 
           {[
-            { id: "all", label: "All", count: subCounts.all },
-            { id: "submitted", label: "Pending", count: subCounts.submitted },
-            { id: "approved", label: "Approved", count: subCounts.approved },
-            { id: "rejected", label: "Rejected", count: subCounts.rejected },
+            { id: "all", label: t("platformMisc.responses.filterAll"), count: subCounts.all },
+            { id: "submitted", label: t("platformMisc.responses.filterPending"), count: subCounts.submitted },
+            { id: "approved", label: t("platformMisc.responses.filterApproved"), count: subCounts.approved },
+            { id: "rejected", label: t("platformMisc.responses.filterRejected"), count: subCounts.rejected },
           ].map(f => (
             <button key={f.id} onClick={() => setStatusFilter(f.id)}
               className={cn("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
@@ -205,11 +207,11 @@ function ResponsesContent() {
         {selectedFormId && formFields.length > 0 && (
           <div className="flex items-center gap-2 text-[8px] text-[var(--text-secondary)] relative">
             <button onClick={() => setShowColumnPicker(!showColumnPicker)} className="flex items-center gap-1 px-2 py-1 rounded bg-tertiary border border-[var(--border-primary)] hover:text-[var(--text-primary)]">
-              <Filter className="w-3 h-3" /> Columns ({visibleFields.length}/{formFields.length})
+              <Filter className="w-3 h-3" /> {t("platformMisc.responses.columns", { visible: visibleFields.length, total: formFields.length })}
             </button>
             {showColumnPicker && (
               <div className="absolute top-full left-0 mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg p-2 space-y-1" onClick={e => e.stopPropagation()}>
-                <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] px-2 py-1">Select Columns</p>
+                <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] px-2 py-1">{t("platformMisc.responses.selectColumns")}</p>
                 {formFields.map(f => (
                   <label key={f.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-tertiary cursor-pointer">
                     <input
@@ -223,13 +225,13 @@ function ResponsesContent() {
                   </label>
                 ))}
                 <div className="flex gap-2 px-2 pt-1 border-t border-[var(--border-primary)]">
-                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Reset</button>
-                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Select All</button>
-                  <button onClick={() => setVisibleFieldIds([])} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Clear</button>
+                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
+                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
+                  <button onClick={() => setVisibleFieldIds([])} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
                 </div>
               </div>
             )}
-            <span>{visibleFields.map(f => f.label).join(" · ") || "No columns selected"}</span>
+            <span>{visibleFields.map(f => f.label).join(" · ") || t("platformMisc.responses.noColumnsSelected")}</span>
           </div>
         )}
         {showColumnPicker && <div className="fixed inset-0 z-40" onClick={() => setShowColumnPicker(false)} />}
@@ -242,9 +244,9 @@ function ResponsesContent() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <FileText className="w-12 h-12 text-[var(--text-secondary)] opacity-20 mb-4" />
-            <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">No submissions</p>
+            <p className="text-xs font-bold text-[var(--text-secondary)] uppercase">{t("platformMisc.responses.noSubmissions")}</p>
             <p className="text-[10px] text-[var(--text-secondary)] mt-1 opacity-50">
-              {selectedFormId ? "No responses for this form yet" : "Launch a run and share the link"}
+              {selectedFormId ? t("platformMisc.responses.noResponsesForForm") : t("platformMisc.responses.launchRunPrompt")}
             </p>
           </div>
         ) : (
@@ -253,7 +255,7 @@ function ResponsesContent() {
               <thead className="sticky top-0 bg-secondary z-10">
                 <tr className="text-[9px] font-black uppercase text-[var(--text-secondary)] border-b border-[var(--border-primary)]">
                   <th className="px-3 py-3 sticky left-0 bg-secondary z-20">#</th>
-                  <th className="px-3 py-3 sticky left-[40px] bg-secondary z-20">Applicant</th>
+                  <th className="px-3 py-3 sticky left-[40px] bg-secondary z-20">{t("platformMisc.responses.applicant")}</th>
                   {/* Dynamic form field columns */}
                   {selectedFormId && visibleFields.map(f => (
                     <th key={f.id} className="px-3 py-3 max-w-[130px]" title={f.label}>
@@ -262,13 +264,13 @@ function ResponsesContent() {
                   ))}
                   {!selectedFormId && (
                     <>
-                      <th className="px-3 py-3 hidden md:table-cell">Form</th>
-                      <th className="px-3 py-3 hidden md:table-cell">Run</th>
+                      <th className="px-3 py-3 hidden md:table-cell">{t("platformMisc.responses.form")}</th>
+                      <th className="px-3 py-3 hidden md:table-cell">{t("platformMisc.responses.run")}</th>
                     </>
                   )}
-                  <th className="px-3 py-3 w-16 text-center">Score</th>
-                  <th className="px-3 py-3 w-20">Status</th>
-                  <th className="px-3 py-3 w-24 hidden lg:table-cell">Date</th>
+                  <th className="px-3 py-3 w-16 text-center">{t("platformMisc.responses.score")}</th>
+                  <th className="px-3 py-3 w-20">{t("platformMisc.responses.status")}</th>
+                  <th className="px-3 py-3 w-24 hidden lg:table-cell">{t("platformMisc.responses.date")}</th>
                   <th className="px-3 py-3 w-10"></th>
                 </tr>
               </thead>
@@ -288,7 +290,7 @@ function ResponsesContent() {
                       <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] sticky left-0 bg-primary group-hover:bg-tertiary/30">{idx + 1}</td>
                       <td className="px-3 py-3 sticky left-[40px] bg-primary group-hover:bg-tertiary/30">
                         <span className="text-xs font-bold text-[var(--text-primary)] whitespace-nowrap">
-                          {s.submitter_name || s.submitter_id || "Anonymous"}
+                          {s.submitter_name || s.submitter_id || t("platformMisc.responses.anonymous")}
                         </span>
                       </td>
                       {/* Dynamic cell values */}

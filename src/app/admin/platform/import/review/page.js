@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * IMPORT IDENTITY REVIEW
@@ -22,6 +23,7 @@ import Link from "next/link";
  */
 
 function ImportReviewContent() {
+  const { t } = useI18n();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [flags, setFlags] = useState([]);
@@ -57,7 +59,7 @@ function ImportReviewContent() {
       });
       const data = await res.json();
       if (data.success) {
-        notify(status === "resolved" ? "Flag resolved" : "Flag reopened");
+        notify(status === "resolved" ? t("adminMisc.platformImportReview.flagResolved") : t("adminMisc.platformImportReview.flagReopened"));
         fetchFlags();
       }
     } catch (_) {}
@@ -78,7 +80,7 @@ function ImportReviewContent() {
             href="/admin/platform/import"
             className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)] flex items-center gap-1"
           >
-            <ArrowLeft className="w-3 h-3" /> Back to Import
+            <ArrowLeft className="w-3 h-3" /> {t("adminMisc.platformImportReview.backToImport")}
           </Link>
         </div>
 
@@ -86,24 +88,23 @@ function ImportReviewContent() {
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-amber-500" />
             <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
-              Import
+              {t("adminMisc.platformImportReview.eyebrow")}
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-            Identity Review
+            {t("adminMisc.platformImportReview.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Rows where the importer found only a name match. Verify each identity
-            before running AI evaluation to avoid merging two different people.
+            {t("adminMisc.platformImportReview.subtitle")}
           </p>
         </div>
 
         {/* Filter tabs */}
         <div className="flex items-center gap-2">
           {[
-            { key: "pending", label: `Pending (${filter === "pending" ? flags.length : ""})` },
-            { key: "resolved", label: "Resolved" },
-            { key: "all", label: "All" },
+            { key: "pending", label: `${t("adminMisc.platformImportReview.tabPending")} (${filter === "pending" ? flags.length : ""})` },
+            { key: "resolved", label: t("adminMisc.platformImportReview.tabResolved") },
+            { key: "all", label: t("adminMisc.platformImportReview.tabAll") },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -120,7 +121,7 @@ function ImportReviewContent() {
           <button
             onClick={fetchFlags}
             className="ml-auto p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
-            title="Refresh"
+            title={t("adminMisc.platformImportReview.refresh")}
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -134,12 +135,12 @@ function ImportReviewContent() {
           <div className="card p-16 text-center">
             <UserCheck className="w-12 h-12 mx-auto text-emerald-500 mb-4" />
             <h3 className="text-lg font-bold text-[var(--text-primary)] uppercase">
-              Nothing to review
+              {t("adminMisc.platformImportReview.nothingToReview")}
             </h3>
             <p className="text-[11px] text-[var(--text-secondary)] mt-2">
               {filter === "pending"
-                ? "No pending identity flags. The import resolved all contacts confidently."
-                : "No flags in this view."}
+                ? t("adminMisc.platformImportReview.noPendingFlags")
+                : t("adminMisc.platformImportReview.noFlagsInView")}
             </p>
           </div>
         ) : (
@@ -164,17 +165,17 @@ function ImportReviewContent() {
                     </div>
                     <div>
                       <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-                        {f.applicant_name || "Unknown"}
+                        {f.applicant_name || t("adminMisc.platformImportReview.unknown")}
                       </p>
                       <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                        {f.applicant_email || "no email"} · Row {f.row_number} · Method: {f.method}
+                        {f.applicant_email || t("adminMisc.platformImportReview.noEmail")} · {t("adminMisc.platformImportReview.rowPrefix")} {f.row_number} · {t("adminMisc.platformImportReview.methodLabel")} {f.method}
                       </p>
                       <p className="text-[10px] text-amber-500 font-bold mt-2">
                         {f.reason}
                       </p>
                       {f.matched_cid && (
                         <p className="text-[9px] text-[var(--text-secondary)] mt-1 font-mono">
-                          Linked to: {f.matched_name || f.matched_cid} ({f.matched_cid})
+                          {t("adminMisc.platformImportReview.linkedTo")} {f.matched_name || f.matched_cid} ({f.matched_cid})
                         </p>
                       )}
                     </div>
@@ -185,14 +186,14 @@ function ImportReviewContent() {
                         href={`/admin/crm/timeline?cid=${f.matched_cid}`}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                       >
-                        <Eye className="w-3 h-3" /> View CRM
+                        <Eye className="w-3 h-3" /> {t("adminMisc.platformImportReview.viewCrm")}
                       </Link>
                     )}
                     <Link
                       href="/admin/crm/duplicates"
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                     >
-                      <User className="w-3 h-3" /> Duplicates
+                      <User className="w-3 h-3" /> {t("adminMisc.platformImportReview.duplicates")}
                     </Link>
                     {f.status === "pending" ? (
                       <button
@@ -200,7 +201,7 @@ function ImportReviewContent() {
                         disabled={resolving === f.id}
                         className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
                       >
-                        {resolving === f.id ? "..." : "Mark Resolved"}
+                        {resolving === f.id ? "..." : t("adminMisc.platformImportReview.markResolved")}
                       </button>
                     ) : (
                       <button
@@ -208,7 +209,7 @@ function ImportReviewContent() {
                         disabled={resolving === f.id}
                         className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                       >
-                        Reopen
+                        {t("adminMisc.platformImportReview.reopen")}
                       </button>
                     )}
                   </div>

@@ -4,11 +4,13 @@ import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, Users, Building2, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
+import { useI18n } from "@/lib/i18n";
 
-const STAGE_LABELS = { interested: "Interested", watching: "Watching", meeting_requested: "Intro Requested", due_diligence: "Due Diligence", negotiation: "Negotiation", invested: "Invested", declined: "Declined" };
 const STAGE_COLORS = { interested: "bg-slate-500/10 text-slate-400", watching: "bg-blue-500/10 text-blue-400", meeting_requested: "bg-amber-500/10 text-amber-400", due_diligence: "bg-purple-500/10 text-purple-400", negotiation: "bg-orange-500/10 text-orange-400", invested: "bg-emerald-500/10 text-emerald-400", declined: "bg-rose-500/10 text-rose-400" };
 
 export default function ExecutiveDashboardPage() {
+  const { t } = useI18n();
+  const STAGE_LABELS = { interested: t("investorAdmin.dashboard.stageInterested"), watching: t("investorAdmin.dashboard.stageWatching"), meeting_requested: t("investorAdmin.dashboard.stageIntroRequested"), due_diligence: t("investorAdmin.dashboard.stageDueDiligence"), negotiation: t("investorAdmin.dashboard.stageNegotiation"), invested: t("investorAdmin.dashboard.invested"), declined: t("investorAdmin.dashboard.stageDeclined") };
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -26,17 +28,17 @@ export default function ExecutiveDashboardPage() {
     <DashboardLayout role="super_admin">
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
-          <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">Executive Dashboard</h1>
-          <p className="text-xs text-[var(--text-secondary)] mt-1">Investment analytics & portfolio intelligence</p>
+          <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorAdmin.dashboard.title")}</h1>
+          <p className="text-xs text-[var(--text-secondary)] mt-1">{t("investorAdmin.dashboard.subtitle")}</p>
         </div>
 
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: "Verified Investors", value: inv.total_verified || 0, icon: Users, color: "text-blue-400" },
-            { label: "Active Campaigns", value: ven.active_campaigns || 0, icon: Megaphone, color: "text-amber-400" },
-            { label: "Total Committed", value: `$${((fund.total_committed || 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400" },
-            { label: "Invested Deals", value: rel.total_invested || 0, icon: Target, color: "text-[var(--brand-orange)]" },
+            { label: t("investorAdmin.dashboard.verifiedInvestors"), value: inv.total_verified || 0, icon: Users, color: "text-blue-400" },
+            { label: t("investorAdmin.dashboard.activeCampaigns"), value: ven.active_campaigns || 0, icon: Megaphone, color: "text-amber-400" },
+            { label: t("investorAdmin.dashboard.totalCommitted"), value: `$${((fund.total_committed || 0) / 1000).toFixed(0)}K`, icon: DollarSign, color: "text-emerald-400" },
+            { label: t("investorAdmin.dashboard.investedDeals"), value: rel.total_invested || 0, icon: Target, color: "text-[var(--brand-orange)]" },
           ].map((k, i) => (
             <AppCard key={i} padding="md">
               <div className="flex items-center gap-3">
@@ -53,13 +55,13 @@ export default function ExecutiveDashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Fundraising KPIs */}
           <AppCard padding="lg">
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" /> Fundraising</h3>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.fundraising")}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
-                ["Capital Sought", `$${((fund.total_sought || 0) / 1000).toFixed(0)}K`],
-                ["Capital Raised", `$${((fund.total_raised || 0) / 1000).toFixed(0)}K`],
-                ["Capital Committed", `$${((fund.total_committed || 0) / 1000).toFixed(0)}K`],
-                ["Conv. Rate", fund.total_sought > 0 ? `${Math.round((fund.total_committed / fund.total_sought) * 100)}%` : "—"],
+                [t("investorAdmin.dashboard.capitalSought"), `$${((fund.total_sought || 0) / 1000).toFixed(0)}K`],
+                [t("investorAdmin.dashboard.capitalRaised"), `$${((fund.total_raised || 0) / 1000).toFixed(0)}K`],
+                [t("investorAdmin.dashboard.capitalCommitted"), `$${((fund.total_committed || 0) / 1000).toFixed(0)}K`],
+                [t("investorAdmin.dashboard.conversionRate"), fund.total_sought > 0 ? `${Math.round((fund.total_committed / fund.total_sought) * 100)}%` : "—"],
               ].map(([l, v], i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
                   <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{l}</p>
@@ -71,13 +73,13 @@ export default function ExecutiveDashboardPage() {
 
           {/* Relationships */}
           <AppCard padding="lg">
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-purple-400" /> Relationships</h3>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Briefcase className="w-4 h-4 text-purple-400" /> {t("investorAdmin.dashboard.relationships")}</h3>
             <div className="grid grid-cols-2 gap-3">
               {[
-                ["Active", rel.active_relationships || 0],
-                ["Meetings Done", rel.meetings_completed || 0],
-                ["Invested", rel.total_invested || 0],
-                ["Pipeline Total", (d.pipeline || []).reduce((s, p) => s + p.count, 0)],
+                [t("investorAdmin.dashboard.active"), rel.active_relationships || 0],
+                [t("investorAdmin.dashboard.meetingsDone"), rel.meetings_completed || 0],
+                [t("investorAdmin.dashboard.invested"), rel.total_invested || 0],
+                [t("investorAdmin.dashboard.pipelineTotal"), (d.pipeline || []).reduce((s, p) => s + p.count, 0)],
               ].map(([l, v], i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
                   <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{l}</p>
@@ -90,7 +92,7 @@ export default function ExecutiveDashboardPage() {
 
         {/* Pipeline Funnel */}
         <AppCard padding="lg">
-          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" /> Investment Pipeline</h3>
+          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" /> {t("investorAdmin.dashboard.investmentPipeline")}</h3>
           <div className="flex flex-wrap gap-2">
             {(d.pipeline || []).map(p => (
               <div key={p.stage} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface-2)]">
@@ -98,16 +100,16 @@ export default function ExecutiveDashboardPage() {
                 <span className="text-sm font-black text-[var(--text-primary)]">{p.count}</span>
               </div>
             ))}
-            {(d.pipeline || []).length === 0 && <p className="text-xs text-[var(--text-tertiary)]">No pipeline activity yet</p>}
+            {(d.pipeline || []).length === 0 && <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noPipelineActivity")}</p>}
           </div>
         </AppCard>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Campaign Performance */}
           <AppCard padding="lg">
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> Campaign Performance</h3>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-emerald-400" /> {t("investorAdmin.dashboard.campaignPerformance")}</h3>
             {(d.campaignPerformance || []).length === 0 ? (
-              <p className="text-xs text-[var(--text-tertiary)]">No active campaigns</p>
+              <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noActiveCampaigns")}</p>
             ) : (
               <div className="space-y-2">
                 {(d.campaignPerformance || []).map((c, i) => (
@@ -130,15 +132,15 @@ export default function ExecutiveDashboardPage() {
 
           {/* Sector Demand */}
           <AppCard padding="lg">
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-400" /> Sector Demand</h3>
+            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Activity className="w-4 h-4 text-blue-400" /> {t("investorAdmin.dashboard.sectorDemand")}</h3>
             {(d.sectorDemand || []).length === 0 ? (
-              <p className="text-xs text-[var(--text-tertiary)]">No data</p>
+              <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noData")}</p>
             ) : (
               <div className="space-y-2">
                 {(d.sectorDemand || []).map((s, i) => (
                   <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--surface-2)]">
-                    <span className="text-[10px] font-bold text-[var(--text-primary)]">{s.industry || "Unknown"}</span>
-                    <span className="text-[10px] font-black text-[var(--brand-orange)]">{s.interest_count} interested</span>
+                    <span className="text-[10px] font-bold text-[var(--text-primary)]">{s.industry || t("investorAdmin.dashboard.unknown")}</span>
+                    <span className="text-[10px] font-black text-[var(--brand-orange)]">{t("investorAdmin.dashboard.interestCount", { count: s.interest_count })}</span>
                   </div>
                 ))}
               </div>
@@ -148,17 +150,17 @@ export default function ExecutiveDashboardPage() {
 
         {/* Top Investors */}
         <AppCard padding="lg">
-          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-amber-400" /> Top Investors</h3>
+          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase mb-4 flex items-center gap-2"><Users className="w-4 h-4 text-amber-400" /> {t("investorAdmin.dashboard.topInvestors")}</h3>
           {(d.topInvestors || []).length === 0 ? (
-            <p className="text-xs text-[var(--text-tertiary)]">No investor activity yet</p>
+            <p className="text-xs text-[var(--text-tertiary)]">{t("investorAdmin.dashboard.noInvestorActivity")}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {(d.topInvestors || []).map((inv, i) => (
                 <AppCard key={i} padding="md">
                   <p className="text-sm font-bold text-[var(--text-primary)]">{inv.organization_name || inv.name}</p>
                   <div className="flex gap-3 mt-2 text-[10px]">
-                    <span className="text-[var(--text-secondary)]">Pipeline: <b className="text-[var(--text-primary)]">{inv.pipeline_count}</b></span>
-                    <span className="text-[var(--text-secondary)]">Invested: <b className="text-emerald-400">{inv.invested_count}</b></span>
+                    <span className="text-[var(--text-secondary)]">{t("investorAdmin.dashboard.pipelineLabel")}: <b className="text-[var(--text-primary)]">{inv.pipeline_count}</b></span>
+                    <span className="text-[var(--text-secondary)]">{t("investorAdmin.dashboard.invested")}: <b className="text-emerald-400">{inv.invested_count}</b></span>
                   </div>
                 </AppCard>
               ))}

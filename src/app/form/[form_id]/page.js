@@ -4,7 +4,9 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
+import { useI18n } from "@/lib/i18n";
 function PublicFormContent() {
+  const { t } = useI18n();
   const params = useParams();
   const searchParams = useSearchParams();
   const form_id = params.form_id;
@@ -32,10 +34,10 @@ function PublicFormContent() {
       if (data.success) {
         setForm(data.form);
       } else {
-        setError(data.error || 'Form not found');
+        setError(t((data.error || t("rootMisc.form.formNotFound")) || "") || (data.error || t("rootMisc.form.formNotFound")));
       }
     } catch (err) {
-      setError('Connection error');
+      setError(t("rootMisc.form.connectionError"));
     } finally {
       setLoading(false);
     }
@@ -48,7 +50,7 @@ function PublicFormContent() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!cid && (!publicData.name || !publicData.email)) {
-      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: 'Public forms require Name and Email to process correctly.' } }));
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'warning', message: t("rootMisc.form.publicFormsRequire") } }));
       return;
     }
     setSubmitting(true);
@@ -63,10 +65,10 @@ function PublicFormContent() {
       if (data.success) {
         setSubmitted(true);
       } else {
-        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error } }));
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
     } catch (err) {
-      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: 'Error submitting form' } }));
+      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t("rootMisc.form.errorSubmitting") } }));
     } finally {
       setSubmitting(false);
     }
@@ -81,8 +83,8 @@ function PublicFormContent() {
   if (error || !form) return (
     <div className="min-h-screen bg-[#080810] flex items-center justify-center p-6">
        <div className="text-center max-w-sm">
-         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">Form Not Found</h1>
-         <p className="text-slate-400 font-bold">{error || "This form may have been disabled or deleted."}</p>
+         <h1 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">{t("rootMisc.form.formNotFoundTitle")}</h1>
+         <p className="text-slate-400 font-bold">{error || t("rootMisc.form.formDisabledOrDeleted")}</p>
        </div>
     </div>
   );
@@ -91,8 +93,8 @@ function PublicFormContent() {
     <div className="min-h-screen bg-[#080810] flex items-center justify-center p-6 bg-mesh">
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="ios-card text-center max-w-md w-full !p-12 !rounded-[3rem] border border-emerald-500/20 shadow-[0_0_50px_rgba(16,185,129,0.1)]">
         <CheckCircle className="w-20 h-20 text-emerald-500 mx-auto mb-6 drop-shadow-[0_0_15px_rgba(16,185,129,0.5)]" />
-        <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">Response Captured</h2>
-        <p className="text-slate-400 font-bold tracking-tight">Thank you for submitting your response. Your data has been securely recorded.</p>
+        <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-4">{t("rootMisc.form.responseCaptured")}</h2>
+        <p className="text-slate-400 font-bold tracking-tight">{t("rootMisc.form.responseThankYou")}</p>
       </motion.div>
     </div>
   );
@@ -102,7 +104,7 @@ function PublicFormContent() {
        <div className="max-w-2xl w-full mx-auto my-auto animation-reveal py-10">
           <header className="mb-10 text-center">
              <h1 className="text-4xl md:text-5xl font-black text-white uppercase tracking-tighter mb-4 leading-none">{form.name}</h1>
-             <p className="text-slate-400 font-bold tracking-tight">Please complete the required details below.</p>
+             <p className="text-slate-400 font-bold tracking-tight">{t("rootMisc.form.completeDetailsBelow")}</p>
           </header>
 
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -111,23 +113,23 @@ function PublicFormContent() {
                  <div className="flex items-center gap-3 mb-6 pb-4 border-b border-white/5">
                     <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500"><AlertCircle className="w-5 h-5" /></div>
                     <div>
-                      <h3 className="text-white font-black uppercase text-sm">Public Identity Required</h3>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">You accessed this without a tracking ID.</p>
+                      <h3 className="text-white font-black uppercase text-sm">{t("rootMisc.form.publicIdentityRequired")}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{t("rootMisc.form.noTrackingId")}</p>
                     </div>
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Full Name <span className="text-rose-500">*</span></label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.fullName")} <span className="text-rose-500">*</span></label>
                       <input required type="text" value={publicData.name} onChange={e => setPublicData({...publicData, name: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                     </div>
                     <div>
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Email <span className="text-rose-500">*</span></label>
+                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.email")} <span className="text-rose-500">*</span></label>
                       <input required type="email" value={publicData.email} onChange={e => setPublicData({...publicData, email: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                     </div>
                  </div>
                  <div>
-                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Phone</label>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.phone")}</label>
                     <input type="tel" value={publicData.phone} onChange={e => setPublicData({...publicData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
                  </div>
               </motion.div>
@@ -145,18 +147,18 @@ function PublicFormContent() {
                      rows={3}
                      value={answers[field.id] || ''}
                      onChange={e => handleChange(field.id, e.target.value)}
-                     placeholder="Type your answer here..."
+                     placeholder={t("rootMisc.form.answerPlaceholder")}
                      className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-indigo-500/50 focus:bg-white/10 transition-colors font-bold custom-scrollbar resize-none"
                    />
                  ) : field.type === 'yes_no' ? (
                    <div className="flex items-center gap-4">
                      <label className={`flex-1 flex items-center justify-center py-4 rounded-xl border cursor-pointer font-black uppercase text-sm tracking-widest transition-all ${answers[field.id] === 'Yes' ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}>
                        <input type="radio" name={field.id} value="Yes" required={field.required} checked={answers[field.id] === 'Yes'} onChange={() => handleChange(field.id, 'Yes')} className="hidden" />
-                       Yes
+                       {t("rootMisc.form.yes")}
                      </label>
                      <label className={`flex-1 flex items-center justify-center py-4 rounded-xl border cursor-pointer font-black uppercase text-sm tracking-widest transition-all ${answers[field.id] === 'No' ? 'bg-rose-500/20 border-rose-500 text-rose-400' : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'}`}>
                        <input type="radio" name={field.id} value="No" required={field.required} checked={answers[field.id] === 'No'} onChange={() => handleChange(field.id, 'No')} className="hidden" />
-                       No
+                       {t("rootMisc.form.no")}
                      </label>
                    </div>
                  ) : null}
@@ -166,7 +168,7 @@ function PublicFormContent() {
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: form.schema.length * 0.1 + 0.2 }} className="pt-8">
               <button disabled={submitting} type="submit" className="w-full btn-prime !py-5 shadow-[0_10px_40px_rgba(99,102,241,0.2)] text-lg disabled:opacity-50 flex items-center justify-center gap-3">
                  {submitting ? <Loader2 className="w-6 h-6 animate-spin" /> : <CheckCircle className="w-6 h-6" />}
-                 {submitting ? 'Authenticating...' : 'Submit Final Response'}
+                 {submitting ? t("rootMisc.form.authenticating") : t("rootMisc.form.submitFinalResponse")}
               </button>
             </motion.div>
           </form>

@@ -51,7 +51,7 @@ export async function GET(req) {
         args: [parseInt(id)],
       });
       if (result.rows.length === 0) {
-        return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
       return NextResponse.json({ success: true, collection: result.rows[0] });
     }
@@ -177,7 +177,7 @@ export async function PUT(req) {
       args: [parseInt(id)],
     });
     if (existing.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     // Build update fields
@@ -235,7 +235,7 @@ export async function DELETE(req) {
     });
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ success: false, error: "Not found" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     logAudit(id, "archived", session.cid, session.cid);

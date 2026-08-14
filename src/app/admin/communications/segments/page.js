@@ -1,13 +1,27 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus } from 'lucide-react';
+import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
+import { useSafeBack } from '@/lib/useSafeBack';
+
+const SEGMENT_KEY_LABELS = {
+  campaign_id: 'crm.segments.filterKeyCampaign',
+  status: 'crm.segments.filterKeyStatus',
+};
+
+const SEGMENT_VALUE_LABELS = {
+  yes: 'crm.segments.statusYes',
+  no: 'crm.segments.statusNo',
+  NOT_RESPONDED: 'crm.segments.statusWaiting',
+};
 
 export default function SegmentsPage() {
   const { t } = useI18n();
   const router = useRouter();
+  const goBack = useSafeBack('/admin/crm');
   const [segments, setSegments] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [forms, setForms] = useState([]);
@@ -151,7 +165,7 @@ export default function SegmentsPage() {
         router.push('/admin/communications/campaigns');
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
-           detail: { type: 'error', message: data.error } 
+           detail: { type: 'error', message: t(data.error || "") || data.error } 
         }));
       }
     } catch (err) { console.error(err); } finally {
@@ -162,6 +176,16 @@ export default function SegmentsPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('crm.backToPrevious')}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t('crm.backToCrm')}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">{t("crm.segments.title")}</h2>
@@ -195,10 +219,10 @@ export default function SegmentsPage() {
                       <Filter className="w-6 h-6" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 group-hover:text-indigo-400 transition-colors uppercase">{s.name}</h3>
+                  <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-2 group-hover:text-indigo-400 transition-colors">{s.name}</h3>
                   <div className="text-xs text-slate-400 font-bold flex flex-wrap gap-2 mb-6">
                     {Object.entries(s.filters).map(([k, v]) => v && (
-                      <span key={k} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{k}: {v}</span>
+                      <span key={k} className="px-2 py-1 bg-white/5 rounded-md border border-white/10 uppercase tracking-widest">{t(SEGMENT_KEY_LABELS[k] || '') || k}: {t(SEGMENT_VALUE_LABELS[v] || '') || v}</span>
                     ))}
                   </div>
                 </div>

@@ -70,7 +70,7 @@ export default function VentureCoachesPage() {
       });
       const d = await res.json();
       if (d.success) { notify(t(assignType === "advisor" ? "vadmin.coaches.advisorAssigned" : "vadmin.coaches.coachAssigned")); setShowAssignModal(false); setSelectedCoachId(""); fetchAssignments(); }
-      else notify(d.error || t("vadmin.coaches.failed"), "error");
+      else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
     } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
   };
@@ -96,7 +96,7 @@ export default function VentureCoachesPage() {
       });
       const d = await res.json();
       if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(); }
-      else notify(d.error || t("vadmin.coaches.failed"), "error");
+      else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
     } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
   };

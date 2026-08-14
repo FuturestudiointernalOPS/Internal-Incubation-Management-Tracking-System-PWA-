@@ -7,6 +7,11 @@
     "passwordTooShort": "Password must be at least 4 characters.",
     "passwordsDontMatch": "Passwords do not match.",
     "networkError": "Network error. Please try again.",
-    "somethingWrong": "Something went wrong. Please try again."
+    "somethingWrong": "Something went wrong. Please try again.",
+    "authRequired": "Authentication required.",
+    "insufficientPermissions": "Insufficient permissions.",
+    "authSystemFailure": "Authentication system failure.",
+    "authzSystemFailure": "Authorization system failure.",
+    "notFound": "Not found."
   }
 }

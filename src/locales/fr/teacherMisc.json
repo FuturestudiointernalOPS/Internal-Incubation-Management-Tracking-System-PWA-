@@ -1,0 +1,18 @@
+{
+  "teacherMisc": {
+    "sessions": {
+      "tacticalTimeline": "Chronologie tactique",
+      "session": "Séance",
+      "calendar": "Calendrier",
+      "daySun": "Dim",
+      "dayMon": "Lun",
+      "dayTue": "Mar",
+      "dayWed": "Mer",
+      "dayThu": "Jeu",
+      "dayFri": "Ven",
+      "daySat": "Sam",
+      "quickInsight": "Aperçu rapide",
+      "quickInsightText": "Synchronisez votre présence physique avec ces fenêtres tactiques. Les vecteurs de présence sont enregistrés en temps réel."
+    }
+  }
+}

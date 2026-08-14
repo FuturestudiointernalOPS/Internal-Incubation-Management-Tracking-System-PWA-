@@ -1,7 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import Link from "next/link";
 import {
+  ArrowLeft,
   Plus,
   CheckSquare,
   AlignLeft,
@@ -17,9 +19,12 @@ import {
 } from "lucide-react";
 import { IMPACT_CACHE } from "@/utils/impactCache";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
+import { formatLocaleDate } from "@/lib/constants";
 
 export default function FormsPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
 
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +87,7 @@ export default function FormsPage() {
     const newField = {
       id: Date.now().toString(),
       type,
-      label: type === "text" ? "Enter question text..." : "Yes/No choice...",
+      label: type === "text" ? t("crm.forms.questionTextPlaceholder") : t("crm.forms.questionYesNoPlaceholder"),
       required: true,
     };
     setSchema([...schema, newField]);
@@ -156,7 +161,7 @@ export default function FormsPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error },
+            detail: { type: "error", message: t(data.error || "") || data.error },
           }),
         );
       }
@@ -187,7 +192,7 @@ export default function FormsPage() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.forms.archiveFailed"),
+              message: t((data.error || t("crm.forms.archiveFailed")) || "") || (data.error || t("crm.forms.archiveFailed")),
             },
           }),
         );
@@ -250,6 +255,23 @@ export default function FormsPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        {/* Back navigation */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button
+            onClick={goBack}
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToPrevious")}
+          </button>
+          <Link
+            href="/admin/crm"
+            className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.forms.backToCrm")}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">
@@ -435,7 +457,7 @@ export default function FormsPage() {
                       </td>
                       <td className="px-8 py-6">
                         <p className="text-xs font-bold text-slate-400">
-                          {new Date(r.created_at).toLocaleString()}
+                          {formatLocaleDate(r.created_at, { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }, lang)}
                         </p>
                       </td>
                       <td className="px-8 py-6 text-right">

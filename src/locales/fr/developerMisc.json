@@ -1,0 +1,66 @@
+{
+  "developerMisc": {
+    "myTasks": {
+      "eyebrow": "Espace développeur",
+      "title": "Mes tâches",
+      "subtitle": "{count} tâches — Tâches que vous avez créées",
+      "refresh": "Actualiser",
+      "noTasks": "Aucune tâche",
+      "noTasksHint": "Les tâches que vous créez apparaîtront ici",
+      "assignedTo": "Assignée à quelqu'un"
+    },
+    "notifications": {
+      "eyebrow": "Notifications",
+      "title": "Notifications",
+      "noNotifications": "Aucune notification"
+    },
+    "projects": {
+      "eyebrow": "Espace développeur",
+      "title": "Mes projets",
+      "subtitle": "Projets sur lesquels vous travaillez",
+      "invitations": "Invitations de projet ({count})",
+      "defaultProject": "Projet",
+      "invitedYou": "Vous a invité à rejoindre ce projet",
+      "decline": "Refuser",
+      "accept": "Accepter",
+      "failedToRespond": "Échec de la réponse",
+      "networkError": "Erreur réseau",
+      "noProjects": "Aucun projet",
+      "noProjectsHint": "Les projets qui vous sont assignés apparaîtront ici",
+      "untitledProject": "Projet sans titre"
+    },
+    "retro": {
+      "sessionExpired": "Session expirée",
+      "submitFailed": "Échec",
+      "networkError": "Erreur réseau",
+      "weeklyRetro": "Rétro hebdomadaire",
+      "title": "Rétro",
+      "weekLabel": "Semaine {week}, {year}",
+      "submitted": "Rétro envoyée !",
+      "completedLabel": "Qu'avez-vous accompli cette semaine ?",
+      "addCompletedPlaceholder": "Ajouter un élément accompli...",
+      "unfinishedLabel": "Quelles tâches restent inachevées ?",
+      "addUnfinishedPlaceholder": "Ajouter une tâche inachevée...",
+      "carryoverLabel": "Qu'est-ce qui est reporté à la semaine prochaine ?",
+      "carryoverHint": "Ces éléments apparaîtront dans le point hebdomadaire de la semaine prochaine",
+      "addCarryoverPlaceholder": "Ajouter un report...",
+      "achievementLabel": "Réussite majeure de la semaine",
+      "achievementPlaceholder": "Votre plus grande réalisation...",
+      "weekStatusLabel": "Comment s'est passée votre semaine ?",
+      "weekStatusPlaceholder": "Réflexion générale...",
+      "challengesTitle": "Défis et apprentissages",
+      "blockersLabel": "Bloqueurs — qu'est-ce qui n'a pas fonctionné ?",
+      "blockersHint": "Facultatif — problèmes ou obstacles rencontrés",
+      "yes": "Oui",
+      "no": "Non",
+      "blockersPlaceholder": "Décrivez les bloqueurs...",
+      "lessonsLabel": "Leçons apprises — qu'est-ce qui a fonctionné ou vous a surpris ?",
+      "lessonsHint": "Facultatif — idées, découvertes, techniques qui ont aidé",
+      "lessonsPlaceholder": "ex. Diviser les PR en petites parties a accéléré les revues. La nouvelle approche API a fait gagner du temps...",
+      "notesLabel": "Notes supplémentaires",
+      "notesPlaceholder": "Autre chose...",
+      "submitting": "Envoi...",
+      "submit": "Envoyer la rétro"
+    }
+  }
+}

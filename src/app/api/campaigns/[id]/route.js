@@ -23,7 +23,7 @@ export async function GET(req, { params }) {
 
     if (!campaignRes.rows[0])
       return NextResponse.json(
-        { success: false, error: "Not found" },
+        { success: false, error: "errors.notFound" },
         { status: 404 },
       );
     const campaign = campaignRes.rows[0];

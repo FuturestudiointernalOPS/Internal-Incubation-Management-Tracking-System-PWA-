@@ -48,7 +48,7 @@
     "effortAnalysis": "Analyse d'effort — Temps de résolution moyen",
     "hoursAvg": "{hours}h moyenne",
     "nActive": "{count} actif(s)",
-    "nTotal": "{count} total",
+    "nTotal": "{count} au total",
     "avgResolution": "Résolution moyenne",
     "monthlyActivity": "Activité mensuelle",
     "standup": "Point",

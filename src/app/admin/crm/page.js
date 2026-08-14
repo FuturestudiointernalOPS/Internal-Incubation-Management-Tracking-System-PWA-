@@ -2,12 +2,27 @@
 
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Users, Clock, UserPlus, Activity } from "lucide-react";
+import { Users, Clock, UserPlus, Activity, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
+
+const ROLE_LABELS = {
+  participant: "crm.roles.participant",
+  staff: "crm.roles.staff",
+  teacher: "crm.roles.teacher",
+  investor: "crm.roles.investor",
+  finance: "crm.roles.finance",
+  developer: "crm.roles.developer",
+  unassigned: "crm.roles.unassigned",
+  team: "crm.roles.team",
+  founder: "crm.roles.founder",
+  pm: "crm.roles.pm",
+};
 
 export default function CrmDashboardPage() {
   const { t } = useI18n();
+  const goBack = useSafeBack("/admin");
   const [stats, setStats] = useState(null);
   const [recentContacts, setRecentContacts] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -42,6 +57,14 @@ export default function CrmDashboardPage() {
   return (
     <DashboardLayout role="super_admin" activeTab="crm">
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+        {/* Back nav */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+        </nav>
+
         {/* Header */}
         <div>
           <h1 className="text-2xl font-black uppercase tracking-tight">
@@ -116,7 +139,7 @@ export default function CrmDashboardPage() {
                     <p className="text-[10px] text-[var(--text-secondary)]">{c.email}</p>
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-tertiary">
-                    {c.role || "unassigned"}
+                    {t(ROLE_LABELS[c.role] || "") || c.role || t("crm.roles.unassigned")}
                   </span>
                 </Link>
               ))}

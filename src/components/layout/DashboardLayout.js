@@ -55,6 +55,7 @@ const NAV_KEY_MAP = {
   create_program: "navigation.createProgram",
   create_project: "navigation.createProject",
   progress_hub: "navigation.progress",
+  progress: "navigation.progress",
   internal_ops: "navigation.internalOps",
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
@@ -63,6 +64,8 @@ const NAV_KEY_MAP = {
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
+  knowledge_base: "navigation.knowledgeBase",
+  intelligence: "navigation.intelligence",
   reports: "navigation.reports",
   report_responses: "navigation.reportResponses",
   internal_reports: "navigation.internalReports",
@@ -70,6 +73,10 @@ const NAV_KEY_MAP = {
   profile: "navigation.profile",
   logout: "navigation.logout",
   projects: "navigation.projects",
+  all_projects: "navigation.allProjects",
+  my_projects: "navigation.myProjects",
+  my_tasks: "navigation.myTasks",
+  assigned_tasks: "navigation.assignedTasks",
   sessions: "navigation.sessions",
   reviews: "navigation.reviews",
   assignments: "navigation.assignments",
@@ -80,12 +87,121 @@ const NAV_KEY_MAP = {
   intel_feed: "navigation.intelFeed",
   announcements: "navigation.announcements",
   followups: "navigation.followups",
+  notifications: "navigation.notifications",
+  timeline: "navigation.timeline",
+  certificates: "navigation.certificates",
+  activity: "navigation.activity",
+  pipeline: "navigation.pipeline",
+  portfolio: "navigation.portfolio",
+  watchlist: "navigation.watchlist",
+  ventures: "navigation.ventures",
+  all_ventures: "navigation.allVentures",
+  register_venture: "navigation.registerVenture",
+  investors: "navigation.investors",
+  investors_manage: "navigation.investorsManage",
+  investors_dashboard: "navigation.investorsDashboard",
+  investors_review: "navigation.investorsReview",
+  investors_overview: "navigation.investorsOverview",
+  investors_campaigns: "navigation.investorsCampaigns",
+  investors_relationships: "navigation.investorsRelationships",
+  operations: "navigation.operations",
+  standup: "navigation.standup",
+  retro: "navigation.retro",
+  standups_retros: "navigation.standupsRetros",
+  finance: "navigation.finance",
+  metrics: "navigation.metrics",
+  program_reports: "navigation.programReports",
+  audit_logs: "navigation.auditLogs",
+  security: "navigation.security",
+  integrations: "navigation.integrations",
+  access_summary: "navigation.accessSummary",
+  permissions: "navigation.permissions",
+  engineering_dashboard: "navigation.engineering",
+  system: "navigation.system",
+  personnel: "navigation.personnel",
+  logs: "navigation.logs",
+  groups: "navigation.groups",
+  crm: "navigation.crm",
+  crm_dashboard: "navigation.crmDashboard",
+  crm_timeline: "navigation.crmTimeline",
+  crm_duplicates: "navigation.crmDuplicates",
+  pending_users: "navigation.pendingUsers",
+  bulk_upload: "navigation.bulkUpload",
 };
 
 function tnav(key) {
   const mapped = NAV_KEY_MAP[key];
   if (mapped) return mapped;
   return key;
+}
+
+// Map last path segment -> translation key for the topbar breadcrumb
+const CRUMB_PATH_MAP = {
+  admin: "navigation.dashboard",
+  crm: "navigation.crm",
+  timeline: "navigation.crmTimeline",
+  duplicates: "navigation.crmDuplicates",
+  contacts: "navigation.contacts",
+  communications: "navigation.communication",
+  pending_users: "navigation.pendingUsers",
+  "pending-users": "navigation.pendingUsers",
+  bulk_upload: "navigation.bulkUpload",
+  "bulk-upload": "navigation.bulkUpload",
+  forms: "navigation.forms",
+  announcements: "navigation.announcements",
+  programs: "navigation.programs",
+  progress: "navigation.progress",
+  responses: "navigation.reportResponses",
+  ventures: "navigation.ventures",
+  investors: "navigation.investors",
+  campaigns: "navigation.investorsCampaigns",
+  relationships: "navigation.investorsRelationships",
+  review: "navigation.investorsReview",
+  overview: "navigation.investorsOverview",
+  dashboard: "navigation.dashboard",
+  work: "navigation.internalOpsBoard",
+  projects: "navigation.projects",
+  tasks: "navigation.tasks",
+  blockers: "navigation.blockers",
+  standup: "navigation.standup",
+  retro: "navigation.retro",
+  knowledge: "navigation.knowledgeBase",
+  intelligence: "navigation.intelligence",
+  finance: "navigation.finance",
+  reports: "navigation.reports",
+  metrics: "navigation.metrics",
+  settings: "navigation.settings",
+  security: "navigation.security",
+  integrations: "navigation.integrations",
+  access: "navigation.accessSummary",
+  permissions: "navigation.permissions",
+  engineering: "navigation.engineering",
+  system: "navigation.system",
+  profile: "navigation.profile",
+  messages: "navigation.messages",
+  notifications: "navigation.notifications",
+  sessions: "navigation.sessions",
+  reviews: "navigation.reviews",
+  assignments: "navigation.assignments",
+  rituals: "navigation.rituals",
+  followups: "navigation.followups",
+  certificates: "navigation.certificates",
+  portfolio: "navigation.portfolio",
+  pipeline: "navigation.pipeline",
+  history: "navigation.activity",
+  teams: "navigation.manageTeams",
+  submit: "navigation.forms",
+  runs: "navigation.forms",
+  collections: "navigation.collections",
+  modules: "navigation.modules",
+  responses: "navigation.forms",
+  groups: "navigation.groups",
+  submissions: "navigation.submissions",
+};
+
+function navCrumb(pathname) {
+  const seg = (pathname || "").split("/").filter(Boolean).pop() || "";
+  return CRUMB_PATH_MAP[seg] || (NAV_KEY_MAP[seg] ? NAV_KEY_MAP[seg] : seg);
 }
 
 /**
@@ -108,6 +224,7 @@ const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
+  const { switchLang } = useI18n();
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
@@ -131,7 +248,7 @@ const SidebarContent = ({
       {!collapsed && (
         <div className="px-3 mb-4">
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-40">
-            Main Operations
+            {t("navigation.mainOperations")}
           </p>
         </div>
       )}
@@ -238,7 +355,7 @@ const SidebarContent = ({
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
         {!collapsed && (
           <p className="px-3 mb-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-30">
-            User Protocol
+            {t("navigation.userProtocol")}
           </p>
         )}
         <Link
@@ -252,9 +369,7 @@ const SidebarContent = ({
           onClick={() => {
             if (typeof window === "undefined") return;
             const current = localStorage.getItem("impactos_lang") || "en";
-            const next = current === "en" ? "fr" : "en";
-            localStorage.setItem("impactos_lang", next);
-            window.location.reload();
+            switchLang(current === "en" ? "fr" : "en");
           }}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
         >
@@ -1392,13 +1507,7 @@ export default function DashboardLayout({ children, role = "admin", modals }) {
               <span>ImpactOS</span>
               <ChevronRight className="w-3 h-3 opacity-30" />
               <span className="text-[var(--text-primary)]">
-                {pathname
-                  ? pathname
-                      .split("/")
-                      .pop()
-                      .replace(/-/g, " ")
-                      .replace(/\bteacher\b/gi, "Instructor")
-                  : "Dashboard"}
+                {pathname ? t(navCrumb(pathname)) : t("navigation.dashboard")}
               </span>
             </div>
 

@@ -91,7 +91,7 @@ export default function VentureSessionsPage() {
       });
       const d = await res.json();
       if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" }); fetchAll(); }
-      else notify(d.error || t("vadmin.sessions.failed"), "error");
+      else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
   };

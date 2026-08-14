@@ -12,14 +12,22 @@ import {
   X,
   BarChart3,
   Users,
+  ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { IMPACT_CACHE } from "@/utils/impactCache";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
+
+const RESPONSE_STATUS_LABELS = {
+  pending_response: "crm.responses.statusPendingResponse",
+};
 
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
   const [data, setData] = useState({
     campaignStats: [],
     detailedResponses: [],
@@ -91,7 +99,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error },
+            detail: { type: "error", message: t(data.error || "") || data.error },
           }),
         );
       }
@@ -157,7 +165,7 @@ export default function ResponsesPage() {
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: json.error },
+            detail: { type: "error", message: t(json.error || "") || json.error },
           }),
         );
       }
@@ -174,6 +182,16 @@ export default function ResponsesPage() {
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-8 min-h-[60vh]">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToCrm")}
+          </Link>
+        </nav>
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div>
             <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">
@@ -331,7 +349,7 @@ export default function ResponsesPage() {
                       onClick={() => setFilterMode("yes")}
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "yes" ? "border-emerald-500 !bg-emerald-500/10 shadow-lg" : "border-transparent"}`}
                     >
-                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
+                      <p className="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                         {t("crm.responses.yesApproved")}
                       </p>
                       <p className="text-3xl font-black text-white">
@@ -342,7 +360,7 @@ export default function ResponsesPage() {
                       onClick={() => setFilterMode("no")}
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "no" ? "border-rose-500 !bg-rose-500/10 shadow-lg" : "border-transparent"}`}
                     >
-                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
+                      <p className="text-[10px] font-black text-rose-400 uppercase tracking-widest mb-1 flex items-center gap-1">
                         {t("crm.responses.noDeclined")}
                       </p>
                       <p className="text-3xl font-black text-white">
@@ -353,7 +371,7 @@ export default function ResponsesPage() {
                       onClick={() => setFilterMode("pending_response")}
                       className={`ios-card !p-5 cursor-pointer transition-all border-2 ${filterMode === "pending_response" ? "border-amber-500 !bg-amber-500/10 shadow-lg" : "border-transparent"}`}
                     >
-                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-1 font-black">
+                      <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 flex items-center gap-1">
                         {t("crm.responses.waiting")}
                       </p>
                       <p className="text-3xl font-black text-white">
@@ -425,7 +443,7 @@ export default function ResponsesPage() {
                                 )}
                                 {!["yes", "no", "sent"].includes(c.status) && (
                                   <span className="text-[10px] font-black px-2 py-1 rounded bg-white/10 text-slate-400 border border-white/20 uppercase">
-                                    {c.status}
+                                    {t(RESPONSE_STATUS_LABELS[c.status] || "") || c.status}
                                   </span>
                                 )}
                               </td>

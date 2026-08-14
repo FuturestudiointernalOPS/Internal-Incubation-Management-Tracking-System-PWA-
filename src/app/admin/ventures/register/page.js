@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const INDUSTRIES = [
   "Fintech",
@@ -59,6 +60,7 @@ const INITIAL_FORM = {
 
 export default function RegisterVenturePage() {
   const router = useRouter();
+  const goBack = useSafeBack("/admin/ventures");
   const { t } = useI18n();
   const [form, setForm] = useState(INITIAL_FORM);
   const [loading, setLoading] = useState(false);
@@ -164,7 +166,7 @@ export default function RegisterVenturePage() {
         {/* Header */}
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.back()}
+            onClick={goBack}
             className="p-2 rounded-lg hover:bg-tertiary transition-all"
           >
             <ArrowLeft className="w-5 h-5" />
@@ -193,7 +195,7 @@ export default function RegisterVenturePage() {
             </div>
             {errors.map((err, i) => (
               <p key={i} className="text-[11px] text-rose-400 pl-6">
-                • {err}
+                • {t(err || "") || err}
               </p>
             ))}
           </div>
@@ -397,7 +399,7 @@ export default function RegisterVenturePage() {
           <div className="flex items-center justify-end gap-4">
             <button
               type="button"
-              onClick={() => router.back()}
+              onClick={goBack}
               className="px-6 py-3 rounded-xl border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
             >
               {t("vadmin.register.cancel")}

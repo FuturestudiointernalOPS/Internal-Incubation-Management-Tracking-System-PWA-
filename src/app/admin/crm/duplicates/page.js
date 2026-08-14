@@ -2,12 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw } from "lucide-react";
+import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
+
+const MERGE_FIELD_LABELS = {
+  program_enrollments: "crm.duplicates.fieldProgramEnrollments",
+  venture_memberships: "crm.duplicates.fieldVentureMemberships",
+  timeline_events: "crm.duplicates.fieldTimelineEvents",
+};
 
 export default function DuplicatesPage() {
   const { t } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
   const [flags, setFlags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [merging, setMerging] = useState(null);
@@ -58,7 +66,7 @@ export default function DuplicatesPage() {
         setPreview(null);
         fetchFlags();
       } else {
-        notify(data.error || t("crm.duplicates.mergeFailed"), "error");
+        notify(t((data.error || t("crm.duplicates.mergeFailed")) || "") || (data.error || t("crm.duplicates.mergeFailed")), "error");
       }
     } catch (_) { notify(t("crm.duplicates.mergeFailed"), "error"); }
   }
@@ -71,6 +79,18 @@ export default function DuplicatesPage() {
   return (
     <DashboardLayout role="super_admin" activeTab="crm">
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
+        {/* Back nav */}
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToCrm")}
+          </Link>
+        </nav>
+
         {notification && (
           <div className={`px-4 py-3 rounded-xl text-sm font-bold ${notification.type === "success" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
             {notification.msg}
@@ -148,7 +168,7 @@ export default function DuplicatesPage() {
                       <div className="grid grid-cols-2 gap-2 text-[10px]">
                         {Object.entries(preview.summary).map(([k, v]) => (
                           <div key={k} className="bg-tertiary rounded-lg p-2">
-                            <span className="font-bold">{v}</span> <span className="text-[var(--text-secondary)]">{k}</span>
+                            <span className="font-bold">{v}</span> <span className="text-[var(--text-secondary)]">{t(MERGE_FIELD_LABELS[k] || "") || k}</span>
                           </div>
                         ))}
                       </div>

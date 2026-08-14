@@ -7,12 +7,13 @@ import {
   MessageSquare, CheckCircle2, Clock, AlertCircle, ClipboardList,
   Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle, Save, Upload,
 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const REQUEST_CATEGORIES = [
   { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
@@ -23,7 +24,7 @@ const REQUEST_CATEGORIES = [
 ];
 
 function DueDiligenceContent() {
-  const router = useRouter();
+  const goBack = useSafeBack("/investor");
   const searchParams = useSearchParams();
   const pipelineId = searchParams.get("pipeline_id");
   const { t } = useI18n();
@@ -255,7 +256,7 @@ function DueDiligenceContent() {
 
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button onClick={() => router.back()} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
+          <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5" /></button>
           <div className="flex-1">
             <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("dueDiligence")}: {pipeline?.venture_name || "Venture"}

@@ -97,7 +97,8 @@
     "task created": "Task created",
     "task completed": "Task completed",
     "blocker resolved": "Blocker resolved",
-    "task assigned": "Task assigned"
+    "task assigned": "Task assigned",
+    "assigned": "Assigned"
   },
   "announcements": {
     "title": "Announcements",

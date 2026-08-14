@@ -239,18 +239,18 @@ export async function requireAuth(allowedRoles = null) {
   } catch (err) {
     if (err.message === "Unauthorized") {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
     if (err.message === "Forbidden") {
       return NextResponse.json(
-        { success: false, error: "Insufficient permissions." },
+        { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
       );
     }
     return NextResponse.json(
-      { success: false, error: "Authentication system failure." },
+      { success: false, error: "errors.authSystemFailure" },
       { status: 500 },
     );
   }
@@ -299,18 +299,18 @@ export async function requireProjectAccess(projectId) {
 
     // Deny
     return NextResponse.json(
-      { success: false, error: "Insufficient permissions." },
+      { success: false, error: "errors.insufficientPermissions" },
       { status: 403 },
     );
   } catch (err) {
     if (err.message === "Unauthorized") {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
     return NextResponse.json(
-      { success: false, error: "Authentication system failure." },
+      { success: false, error: "errors.authSystemFailure" },
       { status: 500 },
     );
   }
@@ -505,7 +505,7 @@ export async function requireCapability(module, capability, minLevel = 1) {
     const session = await getSession();
     if (!session)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     const has = await hasCapability(
@@ -517,13 +517,13 @@ export async function requireCapability(module, capability, minLevel = 1) {
     );
     if (!has)
       return NextResponse.json(
-        { success: false, error: "Insufficient permissions." },
+        { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
       );
     return null;
   } catch {
     return NextResponse.json(
-      { success: false, error: "Authorization system failure." },
+      { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },
     );
   }
@@ -838,7 +838,7 @@ export async function requireCapabilityV2(module, capability, minLevel = 1) {
     const session = await getSession();
     if (!session)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     const has = await hasCapabilityV2(
@@ -850,13 +850,13 @@ export async function requireCapabilityV2(module, capability, minLevel = 1) {
     );
     if (!has)
       return NextResponse.json(
-        { success: false, error: "Insufficient permissions." },
+        { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
       );
     return null;
   } catch {
     return NextResponse.json(
-      { success: false, error: "Authorization system failure." },
+      { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },
     );
   }

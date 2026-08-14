@@ -31,16 +31,38 @@ import {
   UploadCloud,
   AlertTriangle,
 } from "lucide-react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
+const STATUS_FILTER_LABELS = {
+  All: "crm.contacts.filterAll",
+  Active: "status.active",
+  Inactive: "crm.contacts.filterInactive",
+  Pending: "status.pending",
+  Archived: "status.archived",
+};
+
+const CONTACT_STATUS_LABELS = {
+  active: "status.active",
+  pending: "status.pending",
+  inactive: "crm.contacts.statusInactive",
+  approved: "crm.contacts.statusApproved",
+  unassigned: "crm.contacts.unassigned",
+};
+
+const GROUP_LABELS = {
+  UNASSIGNED: "crm.contacts.unassigned",
+};
+
 function ContactsPageContent() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const roleParam = searchParams.get("role");
   const { t } = useI18n();
+  const goBack = useSafeBack("/admin/crm");
 
   const [contacts, setContacts] = useState([]);
   const [families, setFamilies] = useState([]);
@@ -334,7 +356,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.archiveFailed"),
+              message: t((data.error || t("crm.contacts.archiveFailed")) || "") || (data.error || t("crm.contacts.archiveFailed")),
             },
           }),
         );
@@ -375,7 +397,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.restoreFailed"),
+              message: t((data.error || t("crm.contacts.restoreFailed")) || "") || (data.error || t("crm.contacts.restoreFailed")),
             },
           }),
         );
@@ -418,7 +440,7 @@ function ContactsPageContent() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: data.error || t("crm.contacts.deleteFailed"),
+              message: t((data.error || t("crm.contacts.deleteFailed")) || "") || (data.error || t("crm.contacts.deleteFailed")),
             },
           }),
         );
@@ -484,7 +506,7 @@ function ContactsPageContent() {
           fetchData();
         }
       } catch (err) {
-        setNotification({ type: "error", message: err.message });
+        setNotification({ type: "error", message: t(err.message || "") || err.message });
       } finally {
         setIsCsvUploading(false);
       }
@@ -638,15 +660,19 @@ function ContactsPageContent() {
       </AnimatePresence>
 
       <div className="space-y-10 pb-20 animate-in text-left">
+        <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToPrevious")}
+          </button>
+          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            {t("crm.backToCrm")}
+          </Link>
+        </nav>
+
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div className="space-y-4">
-            <button
-              onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
-            >
-              <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-              {t("crm.contacts.dashboard")}
-            </button>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -743,7 +769,7 @@ function ContactsPageContent() {
                         onClick={() => setSelectedGroup(name)}
                         className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
                       >
-                        {name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
+                        {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
                       </button>
                       {!isAll && (
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -798,7 +824,7 @@ function ContactsPageContent() {
                     onClick={() => setStatusFilter(status)}
                     className={`px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   >
-                    {status}
+                    {t(STATUS_FILTER_LABELS[status] || "") || status}
                   </button>
                 ))}
               </div>
@@ -846,7 +872,7 @@ function ContactsPageContent() {
                   onClick={() => setSelectedTeamTab("All Teams")}
                   className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedTeamTab === "All Teams" ? "bg-blue-500 text-white border-blue-500" : "bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100"}`}
                 >
-                  All Teams
+                  {t("crm.contacts.allTeams")}
                 </button>
                 {teams
                   .filter(
@@ -926,7 +952,7 @@ function ContactsPageContent() {
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="px-2 py-0.5 bg-primary border border-[var(--border-primary)] rounded text-[9px] font-black uppercase text-[var(--brand-orange)]">
-                                {c.group_name || t("crm.contacts.individual")}
+                                {t(GROUP_LABELS[c.group_name] || "") || c.group_name || t("crm.contacts.individual")}
                               </span>
                               {c.v2_team_id && (
                                 <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] font-black uppercase text-blue-500">
@@ -944,7 +970,7 @@ function ContactsPageContent() {
                                     : "bg-emerald-500/10 text-emerald-400"
                               }`}
                             >
-                              {c.status}
+                              {t(CONTACT_STATUS_LABELS[c.status] || "") || c.status}
                             </span>
                           </div>
                         </td>

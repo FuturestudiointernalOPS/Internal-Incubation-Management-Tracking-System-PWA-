@@ -1,7 +1,5 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
-
 const STATUS_COLORS = {
   green: { bg: "rgba(16,185,129,0.12)", text: "var(--green)" },
   amber: { bg: "rgba(245,158,11,0.12)", text: "var(--amber)" },
@@ -20,7 +18,6 @@ const STATUS_COLORS = {
  *   icon        - Optional emoji/icon character
  */
 export default function SummaryCard({ title, value, status = "blue", subtext, icon }) {
-  const { t } = useI18n();
   const colors = STATUS_COLORS[status] || STATUS_COLORS.blue;
 
   return (

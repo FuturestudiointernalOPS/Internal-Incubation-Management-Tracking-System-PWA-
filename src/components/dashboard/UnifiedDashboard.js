@@ -117,6 +117,16 @@ const MONTH_KEYS = [
 ];
 const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
 
+// Recent-activity feed: audit_log actions are open-ended, so map the known
+// actions to keys and fall back to the raw (humanized) action for anything else.
+const ACTIVITY_LABELS = {
+  task_created: "activity.task created",
+  task_completed: "activity.task completed",
+  blocker_resolved: "activity.blocker resolved",
+  task_assigned: "activity.task assigned",
+  assigned: "activity.assigned",
+};
+
 const SEVERITY_SORT = { critical: 0, high: 1, medium: 2, low: 3 };
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -1276,7 +1286,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
-                          {t(`activity.${act.action?.replace(/_/g, " ")}`, act.action?.replace(/_/g, " "))}
+                          {t(ACTIVITY_LABELS[act.action] || "") || act.action?.replace(/_/g, " ")}
                         </p>
                         <p className="text-[8px] text-slate-500 truncate">
                           {act.description}

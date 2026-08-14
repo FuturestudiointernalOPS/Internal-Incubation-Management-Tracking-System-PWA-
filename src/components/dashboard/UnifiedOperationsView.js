@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, Target, Calendar,
   User, ArrowUpRight, Shield,
 } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * UNIFIED OPERATIONS VIEW (Phase 5)
@@ -24,6 +25,7 @@ export default function UnifiedOperationsView({
   context = { context_type: "staff", context_id: null },
   contextLabel = "Internal Operations",
 }) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [report, setReport] = useState(null);
   const [tasks, setTasks] = useState([]);
@@ -89,7 +91,7 @@ export default function UnifiedOperationsView({
         setShowCreateTask(false);
         fetchStandup();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (e) {
       setToast({ type: "error", message: "Failed to create task" });
@@ -113,7 +115,7 @@ export default function UnifiedOperationsView({
       if (data.success) {
         fetchStandup();
       } else {
-        setToast({ type: "error", message: data.error });
+        setToast({ type: "error", message: t(data.error || "") || data.error });
       }
     } catch (e) {
       setToast({ type: "error", message: "Failed to update task" });

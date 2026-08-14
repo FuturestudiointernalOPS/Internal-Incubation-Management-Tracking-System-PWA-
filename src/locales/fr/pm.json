@@ -4,6 +4,34 @@
     "programs": "Mes programmes",
     "teamOverview": "Aperçu de l'équipe",
     "weeklyReports": "Rapports hebdomadaires",
-    "deliverables": "Livrables"
+    "deliverables": "Livrables",
+    "statusApproved": "Approuvé",
+    "statusRejected": "Rejeté",
+    "submissions": {
+      "eyebrow": "Révisions et notation",
+      "title": "Soumissions",
+      "totalPending": "{total} au total · {pending} en attente de révision",
+      "searchPlaceholder": "Rechercher par participant ou livrable...",
+      "tryDifferentFilters": "Essayez d'autres filtres",
+      "emptyDesc": "Les soumissions des participants apparaîtront ici.",
+      "groupLabel": "Groupe : {group}",
+      "deliverableNumber": "Livrable #{number}",
+      "programNumber": "Programme #{number}",
+      "viewFile": "Voir le fichier",
+      "review": "Réviser",
+      "feedback": "Commentaire",
+      "scheduleReview": "Planifier la révision",
+      "reviewed": "Révisé",
+      "reviewSubmission": "Réviser la soumission",
+      "participant": "Participant",
+      "deliverable": "Livrable",
+      "viewSubmissionFile": "Voir le fichier de soumission",
+      "feedbackPlaceholder": "Fournissez un commentaire au participant...",
+      "submitFeedback": "Soumettre le commentaire",
+      "eventTitle": "Titre de l'événement",
+      "location": "Lieu",
+      "locationPlaceholder": "ex. Salle 301, lien Zoom...",
+      "schedule": "Planifier"
+    }
   }
 }

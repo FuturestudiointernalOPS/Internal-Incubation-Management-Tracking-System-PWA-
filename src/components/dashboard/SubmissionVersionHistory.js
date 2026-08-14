@@ -17,6 +17,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * SUBMISSION VERSION HISTORY
@@ -234,6 +235,7 @@ export default function SubmissionVersionHistory({
   deliverableId,
   compact,
 }) {
+  const { t } = useI18n();
   const [groupedData, setGroupedData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -256,7 +258,7 @@ export default function SubmissionVersionHistory({
       if (data.success) {
         setGroupedData(data.grouped || []);
       } else {
-        setError(data.error || "Failed to load version history");
+        setError(t((data.error || "Failed to load version history") || "") || (data.error || "Failed to load version history"));
       }
     } catch (e) {
       setError("Network error");

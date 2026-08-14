@@ -78,7 +78,7 @@ export default function VenturesPage() {
         new CustomEvent("impactos:notify", {
           detail: {
             type: d.success ? "success" : "error",
-            message: d.success ? t("vadmin.list.approveSuccess") : (d.error || t("vadmin.list.approveFailed")),
+            message: d.success ? t("vadmin.list.approveSuccess") : (t((d.error || t("vadmin.list.approveFailed")) || "") || (d.error || t("vadmin.list.approveFailed"))),
             duration: 4000,
           },
         })
@@ -133,7 +133,7 @@ export default function VenturesPage() {
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "error",
-                          message: d.error || t("vadmin.list.inviteFailed"),
+                          message: t((d.error || t("vadmin.list.inviteFailed")) || "") || (d.error || t("vadmin.list.inviteFailed")),
                           duration: 5000,
                         },
                       })

@@ -88,13 +88,13 @@ export default function TeacherCalendar() {
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Tactical Timeline
+                {t("teacherMisc.sessions.tacticalTimeline")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase italic">
-              Session{" "}
+              {t("teacherMisc.sessions.session")}{" "}
               <span className="text-[var(--text-secondary)] opacity-40">
-                Calendar
+                {t("teacherMisc.sessions.calendar")}
               </span>
             </h1>
           </div>
@@ -127,7 +127,7 @@ export default function TeacherCalendar() {
           {/* CALENDAR GRID */}
           <div className="lg:col-span-3 space-y-6">
             <div className="grid grid-cols-7 gap-px bg-[var(--border-secondary)] border border-[var(--border-secondary)] rounded-3xl overflow-hidden shadow-2xl">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              {[t("teacherMisc.sessions.daySun"), t("teacherMisc.sessions.dayMon"), t("teacherMisc.sessions.dayTue"), t("teacherMisc.sessions.dayWed"), t("teacherMisc.sessions.dayThu"), t("teacherMisc.sessions.dayFri"), t("teacherMisc.sessions.daySat")].map((d) => (
                 <div key={d} className="bg-secondary py-4 text-center">
                   <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
                     {d}
@@ -215,11 +215,10 @@ export default function TeacherCalendar() {
 
             <div className="ios-card bg-[var(--brand-orange)]/5 border-[var(--brand-orange)]/10 !p-8">
               <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-widest mb-4 flex items-center gap-2 opacity-80">
-                <Zap className="w-3 h-3" /> Quick Insight
+                <Zap className="w-3 h-3" /> {t("teacherMisc.sessions.quickInsight")}
               </h4>
               <p className="text-[11px] font-bold text-[var(--text-secondary)] leading-relaxed uppercase opacity-70">
-                Synchronize your physical presence with these tactical windows.
-                Attendance vectors are logged in real-time.
+                {t("teacherMisc.sessions.quickInsightText")}
               </p>
             </div>
           </div>

@@ -95,7 +95,7 @@ export default function VentureMilestonesPage() {
       });
       const data = await res.json();
       if (data.success) { notify(t("vadmin.milestones.milestoneCreated")); setShowMilestoneModal(false); setMForm({ title: "", description: "", priority: "medium", due_date: "" }); fetchData(); }
-      else notify(data.error || t("vadmin.milestones.failed"), "error");
+      else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
   };
@@ -107,7 +107,7 @@ export default function VentureMilestonesPage() {
       });
       const data = await res.json();
       if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(); }
-      else notify(data.error || t("vadmin.milestones.failed"), "error");
+      else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
   };
 
@@ -122,7 +122,7 @@ export default function VentureMilestonesPage() {
       });
       const data = await res.json();
       if (data.success) { notify(t("vadmin.milestones.deliverableCreated")); setShowDelModal(false); setDForm({ title: "", description: "", deliverable_type: "document", due_date: "", assigned_cid: "" }); loadDeliverables(selectedMilestone); }
-      else notify(data.error || t("vadmin.milestones.failed"), "error");
+      else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
   };

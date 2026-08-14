@@ -141,7 +141,7 @@ export default function VentureDashboardPage() {
         }
         setWidgetStates(states);
       } else {
-        setError(data.error || "Failed to load dashboard");
+        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
       }
     } catch (e) {
       setError("Failed to load dashboard data");

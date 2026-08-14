@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProgramDetail from "@/components/dashboard/ProgramDetail";
 
@@ -15,7 +14,6 @@ export default function ParticipantProgramDetailPage({ params }) {
   const unwrapped = use(params);
   const programId = unwrapped.id;
   const [user, setUser] = useState(null);
-  const { t } = useI18n();
 
   useEffect(() => {
     const storedUser = JSON.parse(localStorage.getItem("user") || "{}");

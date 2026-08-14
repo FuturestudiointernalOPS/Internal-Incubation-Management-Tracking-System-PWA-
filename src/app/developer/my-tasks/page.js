@@ -15,9 +15,11 @@ import {
   Filter,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { useI18n } from "@/lib/i18n";
 
 export default function MyTasks() {
   const router = useRouter();
+  const { t } = useI18n();
   const [userRole, setUserRole] = useState("developer");
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -64,21 +66,21 @@ export default function MyTasks() {
             <div className="flex items-center gap-2">
               <CheckSquare className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
-                Developer Workspace
+                {t("developerMisc.myTasks.eyebrow")}
               </span>
             </div>
             <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              My Tasks
+              {t("developerMisc.myTasks.title")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
-              {tasks.length} tasks — Tasks you have created
+              {t("developerMisc.myTasks.subtitle", { count: tasks.length })}
             </p>
           </div>
           <button
             onClick={fetchTasks}
             className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
           >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+            <RefreshCw className="w-3.5 h-3.5" /> {t("developerMisc.myTasks.refresh")}
           </button>
         </header>
 
@@ -91,9 +93,9 @@ export default function MyTasks() {
         ) : tasks.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <CheckSquare className="w-16 h-16 text-slate-500 mb-4" />
-            <p className="text-lg font-black text-[var(--text-primary)] uppercase">No tasks</p>
+            <p className="text-lg font-black text-[var(--text-primary)] uppercase">{t("developerMisc.myTasks.noTasks")}</p>
             <p className="text-xs font-bold text-slate-500 mt-1">
-              Tasks you create will appear here
+              {t("developerMisc.myTasks.noTasksHint")}
             </p>
           </div>
         ) : (
@@ -117,7 +119,7 @@ export default function MyTasks() {
                     </div>
                     <p className="text-xs font-bold text-[var(--text-primary)] truncate">{task.title}</p>
                     {task.assigned_to && (
-                      <p className="text-[8px] font-bold text-slate-500 mt-0.5">Assigned to someone</p>
+                      <p className="text-[8px] font-bold text-slate-500 mt-0.5">{t("developerMisc.myTasks.assignedTo")}</p>
                     )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] shrink-0 ml-2" />

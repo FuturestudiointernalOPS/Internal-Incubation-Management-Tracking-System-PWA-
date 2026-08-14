@@ -120,6 +120,36 @@
       "hr": "HR",
       "technology": "Technology",
       "other": "Other"
+    },
+    "welcome": {
+      "eyebrow": "Tactical Faculty Hub",
+      "title": "Command Overview",
+      "subtitle": "Monitor your assigned program clusters and intercept participant submissions for evaluation.",
+      "contextLabel": "Future Studio — Staff Operations"
+    },
+    "tasks": {
+      "upcomingTitle": "Next 5 Upcoming Tasks",
+      "loading": "Loading tasks...",
+      "none": "No upcoming tasks."
+    },
+    "assignments": {
+      "title": "Active Assignments",
+      "clusterCount": "{count} Program Clusters",
+      "statusLabel": "Status: ",
+      "viewLogic": "View Program Logic"
+    },
+    "signals": {
+      "title": "Pending Signals",
+      "newSubmission": "New Submission",
+      "twoMinAgo": "2m ago",
+      "submissionAlert": "Participant CID-{cid} has deployed a tactical node for review.",
+      "intercept": "Intercept & Evaluate",
+      "none": "No Pending Signals detected..."
+    },
+    "roles": {
+      "groupLeader": "Group Leader",
+      "teacher": "Teacher",
+      "staff": "Staff"
     }
   }
 }

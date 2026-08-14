@@ -17,6 +17,7 @@ import {
   Award,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Metric Card (large) ────────────────────────────────────────────
 function MetricCard({ label, value, icon: Icon, color, subtitle }) {
@@ -57,6 +58,7 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }) {
 
 // ─── Milestone Item ─────────────────────────────────────────────────
 function MilestoneItem({ milestone }) {
+  const { t } = useI18n();
   return (
     <div
       className={`flex items-center gap-3 p-3 rounded-lg border ${
@@ -87,8 +89,12 @@ function MilestoneItem({ milestone }) {
           {milestone.title}
         </p>
         <p className="text-[8px] text-[var(--text-tertiary)] mt-0.5">
-          Week {milestone.week || "?"}
-          {milestone.score > 0 ? ` · Score: ${milestone.score}` : ""}
+          {t("participantMisc.progress.week", { week: milestone.week || "?" })}
+          {milestone.score > 0
+            ? t("participantMisc.progress.scoreSuffix", {
+                score: milestone.score,
+              })
+            : ""}
           {milestone.date
             ? ` · ${new Date(milestone.date).toLocaleDateString()}`
             : ""}
@@ -103,6 +109,7 @@ function MilestoneItem({ milestone }) {
 
 // ─── Week History Bar ───────────────────────────────────────────────
 function WeekHistoryBar({ week }) {
+  const { t } = useI18n();
   const delPct =
     week.deliverablesTotal > 0
       ? (week.deliverablesCompleted / week.deliverablesTotal) * 100
@@ -115,12 +122,12 @@ function WeekHistoryBar({ week }) {
   return (
     <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--surface-2)] transition-all">
       <span className="text-[9px] font-black text-[var(--text-secondary)] w-12 shrink-0">
-        Week {week.week}
+        {t("participantMisc.progress.week", { week: week.week })}
       </span>
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
           <span className="text-[7px] font-bold text-[var(--text-tertiary)] w-14">
-            Deliverables
+            {t("participantMisc.progress.deliverables")}
           </span>
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
@@ -134,7 +141,7 @@ function WeekHistoryBar({ week }) {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[7px] font-bold text-[var(--text-tertiary)] w-14">
-            Attendance
+            {t("participantMisc.progress.attendance")}
           </span>
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
             <div
@@ -178,6 +185,7 @@ function ProgressSkeleton() {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProgressView({ programId: filterProgramId }) {
+  const { t } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -192,7 +200,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       const res = await fetch("/api/participant/progress");
       const result = await res.json();
       if (result.success) setData(result);
-      else setError(result.error || "Failed to load");
+      else setError(t((result.error || "Failed to load") || "") || (result.error || "Failed to load"));
     } catch (e) {
       setError("Network error");
     } finally {
@@ -214,7 +222,7 @@ export default function ProgressView({ programId: filterProgramId }) {
           onClick={fetchProgress}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
         >
-          <RefreshCw className="w-3 h-3" /> Retry
+          <RefreshCw className="w-3 h-3" /> {t("participantMisc.progress.retry")}
         </button>
       </div>
     );
@@ -225,7 +233,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <BookOpen className="w-12 h-12 text-[var(--text-tertiary)]" />
         <p className="text-[12px] font-bold text-[var(--text-secondary)]">
-          No progress data available
+          {t("participantMisc.progress.noProgressData")}
         </p>
       </div>
     );
@@ -251,10 +259,10 @@ export default function ProgressView({ programId: filterProgramId }) {
       {/* Header */}
       <div>
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-          My Progress
+          {t("participantMisc.progress.myProgress")}
         </h1>
         <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-          {data.participant.name} · {data.totals.programs} program
+          {data.participant.name} · {t("participantMisc.progress.programCount", { count: data.totals.programs })}
           {data.totals.programs > 1 ? "s" : ""}
         </p>
       </div>
@@ -269,7 +277,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
           }`}
         >
-          All Programs
+          {t("participantMisc.progress.allPrograms")}
         </button>
         {data.programs.map((p) => (
           <button
@@ -289,7 +297,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       {/* Overall Metric Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard
-          label="Program Completion"
+          label={t("participantMisc.progress.programCompletion")}
           value={metrics.programCompletion}
           icon={Target}
           color={{
@@ -299,12 +307,18 @@ export default function ProgressView({ programId: filterProgramId }) {
           }}
           subtitle={
             activeProgram
-              ? `${activeProgram.stats.completedDeliverables}/${activeProgram.stats.totalDeliverables} deliverables`
-              : `${data.totals.completedDeliverables}/${data.totals.deliverables} deliverables`
+              ? t("participantMisc.progress.deliverablesCount", {
+                  completed: activeProgram.stats.completedDeliverables,
+                  total: activeProgram.stats.totalDeliverables,
+                })
+              : t("participantMisc.progress.deliverablesCount", {
+                  completed: data.totals.completedDeliverables,
+                  total: data.totals.deliverables,
+                })
           }
         />
         <MetricCard
-          label="Attendance"
+          label={t("participantMisc.progress.attendance")}
           value={metrics.attendanceRate}
           icon={Users}
           color={{
@@ -314,12 +328,18 @@ export default function ProgressView({ programId: filterProgramId }) {
           }}
           subtitle={
             activeProgram
-              ? `${activeProgram.stats.attendedSessions}/${activeProgram.stats.totalSessions} sessions`
-              : `${data.totals.attended}/${data.totals.sessions} sessions`
+              ? t("participantMisc.progress.sessionsCount", {
+                  attended: activeProgram.stats.attendedSessions,
+                  total: activeProgram.stats.totalSessions,
+                })
+              : t("participantMisc.progress.sessionsCount", {
+                  attended: data.totals.attended,
+                  total: data.totals.sessions,
+                })
           }
         />
         <MetricCard
-          label="Assignments"
+          label={t("participantMisc.progress.assignments")}
           value={metrics.assignmentCompletion}
           icon={FileText}
           color={{
@@ -329,12 +349,18 @@ export default function ProgressView({ programId: filterProgramId }) {
           }}
           subtitle={
             activeProgram
-              ? `${activeProgram.stats.approvedSubmissions}/${activeProgram.stats.totalSubmissions} approved`
-              : `${data.totals.approved}/${data.totals.submissions} approved`
+              ? t("participantMisc.progress.approvedCount", {
+                  approved: activeProgram.stats.approvedSubmissions,
+                  total: activeProgram.stats.totalSubmissions,
+                })
+              : t("participantMisc.progress.approvedCount", {
+                  approved: data.totals.approved,
+                  total: data.totals.submissions,
+                })
           }
         />
         <MetricCard
-          label="KPI Achievement"
+          label={t("participantMisc.progress.kpiAchievement")}
           value={metrics.kpiCompletion}
           icon={BarChart3}
           color={{
@@ -344,12 +370,15 @@ export default function ProgressView({ programId: filterProgramId }) {
           }}
           subtitle={
             activeProgram
-              ? `${activeProgram.stats.targetMetKpis}/${activeProgram.stats.totalKpis} KPIs met`
+              ? t("participantMisc.progress.kpisMet", {
+                  met: activeProgram.stats.targetMetKpis,
+                  total: activeProgram.stats.totalKpis,
+                })
               : ""
           }
         />
         <MetricCard
-          label="Ritual Participation"
+          label={t("participantMisc.progress.ritualParticipation")}
           value={metrics.ritualParticipation}
           icon={Zap}
           color={{
@@ -357,7 +386,9 @@ export default function ProgressView({ programId: filterProgramId }) {
             text: "text-amber-400",
             hex: "#FBBF24",
           }}
-          subtitle={`${data.totals.rituals} total submissions`}
+          subtitle={t("participantMisc.progress.submissionsCount", {
+            count: data.totals.rituals,
+          })}
         />
       </div>
 
@@ -369,8 +400,10 @@ export default function ProgressView({ programId: filterProgramId }) {
             className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
           >
             <Award className="w-4 h-4" />
-            Milestones ({milestones.filter((m) => m.achieved).length}/
-            {milestones.length})
+            {t("participantMisc.progress.milestonesCount", {
+              achieved: milestones.filter((m) => m.achieved).length,
+              total: milestones.length,
+            })}
           </button>
           {showMilestones && (
             <div className="space-y-2">
@@ -378,7 +411,7 @@ export default function ProgressView({ programId: filterProgramId }) {
                 <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
                   <Award className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
                   <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                    No milestones yet
+                    {t("participantMisc.progress.noMilestones")}
                   </p>
                 </div>
               ) : (
@@ -399,7 +432,7 @@ export default function ProgressView({ programId: filterProgramId }) {
             className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
           >
             <TrendingUp className="w-4 h-4" />
-            Weekly Breakdown
+            {t("participantMisc.progress.weeklyBreakdown")}
           </button>
           {showHistory && (
             <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-4 space-y-1">
@@ -414,7 +447,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       {/* Stats summary */}
       <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5">
         <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-4">
-          Summary
+          {t("participantMisc.progress.summary")}
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
@@ -422,7 +455,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               {data.totals.submissions}
             </p>
             <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Total Submissions
+              {t("participantMisc.progress.totalSubmissions")}
             </p>
           </div>
           <div>
@@ -430,7 +463,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               {data.totals.approved}
             </p>
             <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Approved
+              {t("participantMisc.progress.approved")}
             </p>
           </div>
           <div>
@@ -438,7 +471,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               {data.totals.sessions}
             </p>
             <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Total Sessions
+              {t("participantMisc.progress.totalSessions")}
             </p>
           </div>
           <div>
@@ -446,7 +479,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               {data.totals.rituals}
             </p>
             <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-              Ritual Submissions
+              {t("participantMisc.progress.ritualSubmissions")}
             </p>
           </div>
         </div>

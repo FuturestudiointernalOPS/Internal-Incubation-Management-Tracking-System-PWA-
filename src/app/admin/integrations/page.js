@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Plug,
@@ -36,6 +37,32 @@ const PROVIDER_ICONS = {
   microsoft_teams: "👥",
 };
 
+// Lookup maps keyed by provider_key (keep raw DB values as fallback)
+const PROVIDER_NAME_KEYS = {
+  google_calendar: "adminMisc.integrations.providerNames.google_calendar",
+  google_drive: "adminMisc.integrations.providerNames.google_drive",
+  microsoft_outlook: "adminMisc.integrations.providerNames.microsoft_outlook",
+  slack: "adminMisc.integrations.providerNames.slack",
+  zoom: "adminMisc.integrations.providerNames.zoom",
+  microsoft_teams: "adminMisc.integrations.providerNames.microsoft_teams",
+};
+
+const PROVIDER_DESC_KEYS = {
+  google_calendar: "adminMisc.integrations.providerDescriptions.google_calendar",
+  google_drive: "adminMisc.integrations.providerDescriptions.google_drive",
+  microsoft_outlook: "adminMisc.integrations.providerDescriptions.microsoft_outlook",
+  slack: "adminMisc.integrations.providerDescriptions.slack",
+  zoom: "adminMisc.integrations.providerDescriptions.zoom",
+  microsoft_teams: "adminMisc.integrations.providerDescriptions.microsoft_teams",
+};
+
+// Lookup map keyed by integration status value (keep raw value as fallback)
+const STATUS_KEYS = {
+  connected: "adminMisc.integrations.statusValues.connected",
+  error: "adminMisc.integrations.statusValues.error",
+  disconnected: "adminMisc.integrations.statusValues.disconnected",
+};
+
 const WEBHOOK_EVENT_OPTIONS = [
   "startup.created",
   "project.updated",
@@ -65,6 +92,7 @@ function formatDate(d) {
 }
 
 export default function IntegrationsPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("integrations");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -94,9 +122,9 @@ export default function IntegrationsPage() {
   const [confirmAction, setConfirmAction] = useState(null);
 
   const tabs = [
-    { id: "integrations", label: "Integrations", icon: Plug },
-    { id: "api_keys", label: "API Keys", icon: Key },
-    { id: "webhooks", label: "Webhooks", icon: Webhook },
+    { id: "integrations", label: t("adminMisc.integrations.tabIntegrations"), icon: Plug },
+    { id: "api_keys", label: t("adminMisc.integrations.apiKeys"), icon: Key },
+    { id: "webhooks", label: t("adminMisc.integrations.webhooks"), icon: Webhook },
   ];
 
   const fetchData = useCallback(async () => {
@@ -117,7 +145,7 @@ export default function IntegrationsPage() {
       if (keysData.success) setApiKeys(keysData.keys || []);
       if (webData.success) setWebhooks(webData.webhooks || []);
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     } finally {
       setLoading(false);
     }
@@ -248,12 +276,12 @@ export default function IntegrationsPage() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Plug className="text-[var(--brand-orange)]" size={24} />
-              External Integrations
+              {t("adminMisc.integrations.title")}
             </h1>
-            <p className="text-gray-400 mt-1">Manage API keys, webhooks, and third-party integrations</p>
+            <p className="text-gray-400 mt-1">{t("adminMisc.integrations.subtitle")}</p>
           </div>
           <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
-            <RefreshCw size={14} /> Refresh
+            <RefreshCw size={14} /> {t("adminMisc.integrations.refresh")}
           </button>
         </div>
 
@@ -290,20 +318,20 @@ export default function IntegrationsPage() {
             {activeTab === "integrations" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">Connected Integrations</h2>
+                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.connectedIntegrations")}</h2>
                   <button
                     onClick={() => setShowAddIntegration(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
                   >
-                    <Plus size={14} /> Add Integration
+                    <Plus size={14} /> {t("adminMisc.integrations.addIntegration")}
                   </button>
                 </div>
 
                 {integrations.length === 0 ? (
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                     <Plug className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">No integrations connected yet.</p>
-                    <p className="text-gray-600 text-sm mt-2">Connect Google Calendar, Slack, Zoom, and more.</p>
+                    <p className="text-gray-400">{t("adminMisc.integrations.noIntegrations")}</p>
+                    <p className="text-gray-600 text-sm mt-2">{t("adminMisc.integrations.noIntegrationsHint")}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -313,7 +341,7 @@ export default function IntegrationsPage() {
                           <div className="flex items-center gap-3">
                             <span className="text-2xl">{PROVIDER_ICONS[integ.provider] || "🔌"}</span>
                             <div>
-                              <p className="font-medium">{integ.label || integ.provider_name || integ.provider}</p>
+                              <p className="font-medium">{integ.label || t(PROVIDER_NAME_KEYS[integ.provider] || "") || integ.provider_name || integ.provider}</p>
                               <p className="text-xs text-gray-500">{integ.provider}</p>
                             </div>
                           </div>
@@ -322,15 +350,15 @@ export default function IntegrationsPage() {
                             integ.status === "error" ? "bg-red-500/10 text-red-400" :
                             "bg-gray-500/10 text-gray-400"
                           }`}>
-                            {integ.status || "disconnected"}
+                            {t(STATUS_KEYS[integ.status] || "") || integ.status || t(STATUS_KEYS.disconnected)}
                           </span>
                         </div>
                         {integ.last_sync_at && (
-                          <p className="text-xs text-gray-500">Last sync: {formatDate(integ.last_sync_at)}</p>
+                          <p className="text-xs text-gray-500">{t("adminMisc.integrations.lastSync", { date: formatDate(integ.last_sync_at) })}</p>
                         )}
                         <div className="flex gap-2 mt-3">
                           <button
-                            onClick={() => setConfirmAction({ type: "remove_integration", id: integ.id, name: integ.label || integ.provider })}
+                            onClick={() => setConfirmAction({ type: "remove_integration", id: integ.id, name: integ.label || t(PROVIDER_NAME_KEYS[integ.provider] || "") || integ.provider })}
                             className="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
                           >
                             <Trash2 size={14} />
@@ -344,13 +372,13 @@ export default function IntegrationsPage() {
                 {/* Available Providers */}
                 {providers.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-medium text-gray-400 mb-3">Available Providers</h3>
+                    <h3 className="text-sm font-medium text-gray-400 mb-3">{t("adminMisc.integrations.availableProviders")}</h3>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                       {providers.map((p) => (
                         <div key={p.id} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4 text-center hover:border-gray-700 transition-colors cursor-pointer" onClick={() => { setNewIntegration({ provider: p.provider_key, label: p.name }); setShowAddIntegration(true); }}>
                           <span className="text-3xl block mb-2">{PROVIDER_ICONS[p.provider_key] || "🔌"}</span>
-                          <p className="text-xs font-medium">{p.name}</p>
-                          <p className="text-[10px] text-gray-500 mt-1">{p.description?.substring(0, 40)}</p>
+                          <p className="text-xs font-medium">{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name}</p>
+                          <p className="text-[10px] text-gray-500 mt-1">{t(PROVIDER_DESC_KEYS[p.provider_key] || "") || p.description?.substring(0, 40)}</p>
                         </div>
                       ))}
                     </div>
@@ -363,36 +391,36 @@ export default function IntegrationsPage() {
             {activeTab === "api_keys" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">API Keys</h2>
+                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.apiKeys")}</h2>
                   <button
                     onClick={() => setShowAddKey(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
                   >
-                    <Plus size={14} /> Generate Key
+                    <Plus size={14} /> {t("adminMisc.integrations.generateKey")}
                   </button>
                 </div>
 
                 {newKeyResult && (
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-sm font-bold text-emerald-400">API Key Generated</h3>
+                      <h3 className="text-sm font-bold text-emerald-400">{t("adminMisc.integrations.apiKeyGenerated")}</h3>
                       <button onClick={() => setNewKeyResult(null)}><X size={14} /></button>
                     </div>
-                    <p className="text-xs text-gray-400 mb-2">Copy this key now. You won't be able to see it again.</p>
+                    <p className="text-xs text-gray-400 mb-2">{t("adminMisc.integrations.copyKeyWarning")}</p>
                     <div className="flex items-center gap-2 bg-[#020617] rounded-lg p-3">
                       <code className="text-sm text-emerald-300 flex-1 break-all">{newKeyResult.secret}</code>
                       <button onClick={() => copyToClipboard(newKeyResult.secret)} className="p-1.5 hover:bg-white/5 rounded-lg">
                         <Copy size={14} className="text-gray-400" />
                       </button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">Key ID: {newKeyResult.key_id}</p>
+                    <p className="text-xs text-gray-500 mt-2">{t("adminMisc.integrations.keyId", { id: newKeyResult.key_id })}</p>
                   </div>
                 )}
 
                 {apiKeys.length === 0 ? (
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                     <Key className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">No API keys created yet.</p>
+                    <p className="text-gray-400">{t("adminMisc.integrations.noApiKeys")}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -404,7 +432,7 @@ export default function IntegrationsPage() {
                               <Key size={16} className="text-[var(--brand-orange)]" />
                               <p className="font-medium">{key.name}</p>
                               <span className={`text-xs px-2 py-0.5 rounded-full ${key.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
-                                {key.is_active ? "Active" : "Revoked"}
+                                {key.is_active ? t("adminMisc.integrations.active") : t("adminMisc.integrations.revoked")}
                               </span>
                             </div>
                             <p className="text-xs font-mono text-gray-500">{key.key_id}</p>
@@ -415,7 +443,7 @@ export default function IntegrationsPage() {
                               <button
                                 onClick={() => setConfirmAction({ type: "revoke_key", keyId: key.key_id, name: key.name })}
                                 className="p-2 hover:bg-red-500/10 rounded-lg text-gray-400 hover:text-red-400 transition-colors"
-                                title="Revoke key"
+                                title={t("adminMisc.integrations.revokeKey")}
                               >
                                 <XCircle size={14} />
                               </button>
@@ -423,10 +451,10 @@ export default function IntegrationsPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-500">
-                          {key.scopes && <span>Scopes: {(typeof key.scopes === "string" ? JSON.parse(key.scopes) : key.scopes || []).join(", ")}</span>}
-                          {key.expires_at && <span>Expires: {formatDate(key.expires_at)}</span>}
-                          {key.last_used_at && <span>Last used: {formatDate(key.last_used_at)}</span>}
-                          <span>Rate limit: {key.rate_limit || 100}/min</span>
+                          {key.scopes && <span>{t("adminMisc.integrations.scopes", { value: (typeof key.scopes === "string" ? JSON.parse(key.scopes) : key.scopes || []).join(", ") })}</span>}
+                          {key.expires_at && <span>{t("adminMisc.integrations.expires", { date: formatDate(key.expires_at) })}</span>}
+                          {key.last_used_at && <span>{t("adminMisc.integrations.lastUsed", { date: formatDate(key.last_used_at) })}</span>}
+                          <span>{t("adminMisc.integrations.rateLimit", { value: key.rate_limit || 100 })}</span>
                         </div>
                       </div>
                     ))}
@@ -439,12 +467,12 @@ export default function IntegrationsPage() {
             {activeTab === "webhooks" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">Webhooks</h2>
+                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.webhooks")}</h2>
                   <button
                     onClick={() => setShowAddWebhook(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
                   >
-                    <Plus size={14} /> Create Webhook
+                    <Plus size={14} /> {t("adminMisc.integrations.createWebhook")}
                   </button>
                 </div>
 
@@ -454,7 +482,7 @@ export default function IntegrationsPage() {
                     {webhooks.length === 0 ? (
                       <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                         <Webhook className="mx-auto mb-3 text-gray-500" size={40} />
-                        <p className="text-gray-400">No webhooks configured.</p>
+                        <p className="text-gray-400">{t("adminMisc.integrations.noWebhooks")}</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -505,7 +533,7 @@ export default function IntegrationsPage() {
                   {selectedWebhook && (
                     <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-sm font-bold">Delivery Logs</h3>
+                        <h3 className="text-sm font-bold">{t("adminMisc.integrations.deliveryLogs")}</h3>
                         <button onClick={() => setSelectedWebhook(null)} className="text-gray-400 hover:text-white">
                           <X size={14} />
                         </button>
@@ -513,7 +541,7 @@ export default function IntegrationsPage() {
                       {logsLoading ? (
                         <div className="flex justify-center py-8"><Loader2 className="animate-spin text-[var(--brand-orange)]" size={20} /></div>
                       ) : webhookLogs.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-8">No deliveries yet.</p>
+                        <p className="text-gray-500 text-sm text-center py-8">{t("adminMisc.integrations.noDeliveries")}</p>
                       ) : (
                         <div className="space-y-2 max-h-[500px] overflow-y-auto">
                           {webhookLogs.map((log) => (
@@ -524,7 +552,7 @@ export default function IntegrationsPage() {
                                   log.status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                                 }`}>{log.status}</span>
                               </div>
-                              <p className="text-gray-500">HTTP {log.response_status || "N/A"} · {log.duration_ms}ms</p>
+                              <p className="text-gray-500">{t("adminMisc.integrations.deliveryMeta", { status: log.response_status || "N/A", duration: log.duration_ms })}</p>
                               {log.error_message && <p className="text-red-400 mt-1">{log.error_message.substring(0, 100)}</p>}
                               <p className="text-gray-600 mt-1">{formatDate(log.created_at)}</p>
                             </div>
@@ -546,29 +574,29 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddIntegration(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">Add Integration</h2>
+                <h2 className="text-lg font-bold">{t("adminMisc.integrations.addIntegration")}</h2>
                 <button onClick={() => setShowAddIntegration(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Provider</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.provider")}</label>
                   <select value={newIntegration.provider} onChange={(e) => setNewIntegration((p) => ({ ...p, provider: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]">
-                    <option value="">Select provider...</option>
+                    <option value="">{t("adminMisc.integrations.selectProvider")}</option>
                     {providers.map((p) => (
-                      <option key={p.provider_key} value={p.provider_key}>{p.name} ({p.provider_key})</option>
+                      <option key={p.provider_key} value={p.provider_key}>{t(PROVIDER_NAME_KEYS[p.provider_key] || "") || p.name} ({p.provider_key})</option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Label (optional)</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.labelOptional")}</label>
                   <input type="text" value={newIntegration.label} onChange={(e) => setNewIntegration((p) => ({ ...p, label: e.target.value }))}
-                    placeholder="My Calendar Integration"
+                    placeholder={t("adminMisc.integrations.labelPlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <button onClick={handleAddIntegration} disabled={!newIntegration.provider}
                   className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity">
-                  Connect
+                  {t("adminMisc.integrations.connect")}
                 </button>
               </div>
             </div>
@@ -580,25 +608,25 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddKey(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">Generate API Key</h2>
+                <h2 className="text-lg font-bold">{t("adminMisc.integrations.generateApiKey")}</h2>
                 <button onClick={() => setShowAddKey(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Name *</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
                   <input type="text" value={newKey.name} onChange={(e) => setNewKey((k) => ({ ...k, name: e.target.value }))}
-                    placeholder="Production API Key"
+                    placeholder={t("adminMisc.integrations.apiKeyNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Description</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.description")}</label>
                   <textarea value={newKey.description} onChange={(e) => setNewKey((k) => ({ ...k, description: e.target.value }))}
-                    placeholder="What is this key used for?"
+                    placeholder={t("adminMisc.integrations.descriptionPlaceholder")}
                     rows={2}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Scopes *</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.scopesRequired")}</label>
                   <div className="flex flex-wrap gap-2">
                     {API_SCOPES.map((scope) => (
                       <button key={scope} onClick={() => setNewKey((k) => ({
@@ -615,13 +643,13 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Expires At (optional)</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.expiresAtOptional")}</label>
                   <input type="datetime-local" value={newKey.expires_at} onChange={(e) => setNewKey((k) => ({ ...k, expires_at: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <button onClick={handleCreateApiKey} disabled={!newKey.name || newKey.scopes.length === 0}
                   className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity">
-                  Generate Key
+                  {t("adminMisc.integrations.generateKey")}
                 </button>
               </div>
             </div>
@@ -633,30 +661,30 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddWebhook(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">Create Webhook</h2>
+                <h2 className="text-lg font-bold">{t("adminMisc.integrations.createWebhook")}</h2>
                 <button onClick={() => setShowAddWebhook(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Name *</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
                   <input type="text" value={newWebhook.name} onChange={(e) => setNewWebhook((w) => ({ ...w, name: e.target.value }))}
-                    placeholder="Slack Notifications"
+                    placeholder={t("adminMisc.integrations.webhookNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Callback URL * (HTTPS only)</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.callbackUrlRequired")}</label>
                   <input type="url" value={newWebhook.url} onChange={(e) => setNewWebhook((w) => ({ ...w, url: e.target.value }))}
                     placeholder="https://hooks.example.com/notify"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Secret (optional — for HMAC signature)</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.secretOptional")}</label>
                   <input type="text" value={newWebhook.secret} onChange={(e) => setNewWebhook((w) => ({ ...w, secret: e.target.value }))}
                     placeholder="webhook_secret_123"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">Events *</label>
+                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.eventsRequired")}</label>
                   <div className="flex flex-wrap gap-2">
                     {WEBHOOK_EVENT_OPTIONS.map((evt) => (
                       <button key={evt} onClick={() => setNewWebhook((w) => ({
@@ -674,7 +702,7 @@ export default function IntegrationsPage() {
                 </div>
                 <button onClick={handleCreateWebhook} disabled={!newWebhook.name || !newWebhook.url || newWebhook.events.length === 0}
                   className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity">
-                  Create Webhook
+                  {t("adminMisc.integrations.createWebhook")}
                 </button>
               </div>
             </div>
@@ -690,11 +718,11 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Trash2 size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">Remove Integration</h3><p className="text-sm text-gray-400">Disconnect "{confirmAction.name}"?</p></div>
+                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.removeIntegration")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.disconnectConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">Cancel</button>
-                      <button onClick={() => handleRemoveIntegration(confirmAction.id)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">Remove</button>
+                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>
+                      <button onClick={() => handleRemoveIntegration(confirmAction.id)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">{t("adminMisc.integrations.remove")}</button>
                     </div>
                   </>
                 )}
@@ -702,11 +730,11 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Key size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">Revoke API Key</h3><p className="text-sm text-gray-400">Revoke "{confirmAction.name}"? This cannot be undone.</p></div>
+                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.revokeApiKey")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.revokeConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">Cancel</button>
-                      <button onClick={() => handleRevokeKey(confirmAction.keyId)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">Revoke</button>
+                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>
+                      <button onClick={() => handleRevokeKey(confirmAction.keyId)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">{t("adminMisc.integrations.revoke")}</button>
                     </div>
                   </>
                 )}
@@ -714,11 +742,11 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Webhook size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">Delete Webhook</h3><p className="text-sm text-gray-400">Delete "{confirmAction.name}"?</p></div>
+                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.deleteWebhook")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.deleteConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
-                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">Cancel</button>
-                      <button onClick={() => handleDeleteWebhook(confirmAction.id)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">Delete</button>
+                      <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>
+                      <button onClick={() => handleDeleteWebhook(confirmAction.id)} className="flex-1 px-4 py-2.5 bg-red-500 rounded-lg text-sm font-medium hover:bg-red-600">{t("adminMisc.integrations.delete")}</button>
                     </div>
                   </>
                 )}

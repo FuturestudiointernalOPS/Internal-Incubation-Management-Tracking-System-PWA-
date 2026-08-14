@@ -66,7 +66,7 @@ export default function ParticipantVentures() {
         const reloadData = await reload.json();
         if (reloadData.success) setVentures(reloadData.ventures);
       } else {
-        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: data.error || t("venture.createError"), duration: 4000 } }));
+        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t((data.error || t("venture.createError")) || "") || (data.error || t("venture.createError")), duration: 4000 } }));
       }
     } catch (e) {
       console.error("Create venture error", e);

@@ -102,10 +102,10 @@ export default function AnnouncementsPage() {
         setShowForm(false);
         fetchAnnouncements();
       } else {
-        setError(data.error || "Failed to create announcement.");
+        setError(t((data.error || "Failed to create announcement.") || "") || (data.error || "Failed to create announcement."));
       }
     } catch (err) {
-      setError(err.message);
+      setError(t(err.message || "") || err.message);
     } finally {
       setSaving(false);
     }

@@ -1,10 +1,12 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import { BarChart3, TrendingUp, Users, Target, Activity, CheckCircle2 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function AdminMetricsDashboard() {
+  const { t } = useI18n();
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,9 +35,9 @@ export default function AdminMetricsDashboard() {
   };
 
   const getHealthLabel = (val) => {
-    if (val >= 80) return "Healthy";
-    if (val >= 50) return "At Risk";
-    return "Critical";
+    if (val >= 80) return t("adminMisc.metrics.healthy");
+    if (val >= 50) return t("adminMisc.metrics.atRisk");
+    return t("adminMisc.metrics.critical");
   };
 
   if (loading) return (
@@ -52,14 +54,14 @@ export default function AdminMetricsDashboard() {
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" />
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">Program Health Dashboard</h1>
-            <p className="text-[10px] text-[var(--text-secondary)]">Operational execution vs student performance — side by side</p>
+            <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">{t("adminMisc.metrics.title")}</h1>
+            <p className="text-[10px] text-[var(--text-secondary)]">{t("adminMisc.metrics.subtitle")}</p>
           </div>
         </header>
 
         {programs.length === 0 && (
           <div className="p-12 text-center">
-            <p className="text-[10px] text-[var(--text-secondary)] italic">No programs found</p>
+            <p className="text-[10px] text-[var(--text-secondary)] italic">{t("adminMisc.metrics.noProgramsFound")}</p>
           </div>
         )}
 
@@ -75,7 +77,7 @@ export default function AdminMetricsDashboard() {
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{prog.name}</h3>
                     <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-widest mt-1">
-                      {prog.pm_name ? `PM: ${prog.pm_name}` : "No PM assigned"} · Status: {prog.status || "Active"}
+                      {prog.pm_name ? t("adminMisc.metrics.pmLabel", { name: prog.pm_name }) : t("adminMisc.metrics.noPmAssigned")} · {t("adminMisc.metrics.statusLabel", { status: prog.status || "Active" })}
                     </p>
                   </div>
                   <div className={`text-right ${getHealthColor(health)}`}>
@@ -88,7 +90,7 @@ export default function AdminMetricsDashboard() {
                   <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 space-y-3">
                     <div className="flex items-center gap-2">
                       <Target className="w-4 h-4 text-blue-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">Operational Execution</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">{t("adminMisc.metrics.operationalExecution")}</span>
                     </div>
                     <div className="flex items-end justify-between">
                       <span className="text-3xl font-black text-blue-400">{formatPct(opPct)}</span>
@@ -101,7 +103,7 @@ export default function AdminMetricsDashboard() {
                   <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-3">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Student Engagement</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">{t("adminMisc.metrics.studentEngagement")}</span>
                     </div>
                     <div className="flex items-end justify-between">
                       <span className="text-3xl font-black text-emerald-400">{formatPct(stdSubRate)}</span>
@@ -115,15 +117,15 @@ export default function AdminMetricsDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-[var(--border-primary)]">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className={`w-3 h-3 ${health >= 80 ? 'text-emerald-500' : health >= 50 ? 'text-amber-500' : 'text-rose-500'}`} />
-                    <span className="text-[8px] font-bold text-[var(--text-secondary)]">Overall Health: {formatPct(health)}</span>
+                    <span className="text-[8px] font-bold text-[var(--text-secondary)]">{t("adminMisc.metrics.overallHealth", { value: formatPct(health) })}</span>
                   </div>
                   <div className={`flex items-center gap-2 ${opPct >= 80 ? 'text-emerald-500' : opPct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
                     <Activity className="w-3 h-3" />
-                    <span className="text-[8px] font-bold">Execution: {getHealthLabel(opPct)}</span>
+                    <span className="text-[8px] font-bold">{t("adminMisc.metrics.executionLabel", { value: getHealthLabel(opPct) })}</span>
                   </div>
                   <div className={`flex items-center gap-2 ${stdSubRate >= 80 ? 'text-emerald-500' : stdSubRate >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
                     <Users className="w-3 h-3" />
-                    <span className="text-[8px] font-bold">Engagement: {getHealthLabel(stdSubRate)}</span>
+                    <span className="text-[8px] font-bold">{t("adminMisc.metrics.engagementLabel", { value: getHealthLabel(stdSubRate) })}</span>
                   </div>
                 </div>
               </div>

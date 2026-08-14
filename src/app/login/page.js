@@ -120,7 +120,10 @@ export default function LoginPage() {
         else target = "/participant";
         window.location.href = target;
       } else {
-        setImpersonateError(data.error || "Impersonation failed.");
+        setImpersonateError(
+          t((data.error || "Impersonation failed.") || "") ||
+            (data.error || "Impersonation failed."),
+        );
         setImpersonateLoading(false);
       }
     } catch (err) {
@@ -170,7 +173,10 @@ export default function LoginPage() {
           window.location.href = target;
         }, 800);
       } else {
-        setErrorMsg(data.error || t("auth.login.error"));
+        setErrorMsg(
+          t((data.error || t("auth.login.error")) || "") ||
+            (data.error || t("auth.login.error")),
+        );
         setLoading(false);
       }
     } catch (err) {
