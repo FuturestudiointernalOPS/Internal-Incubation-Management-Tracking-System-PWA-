@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
 
     const body = await req.json();

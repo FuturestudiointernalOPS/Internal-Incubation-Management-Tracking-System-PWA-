@@ -140,6 +140,18 @@ export async function POST(req) {
         ],
       });
 
+      // Auto-create the system-defined Facilitators group for this program
+      try {
+        await db.execute({
+          sql: `INSERT INTO v2_groups (program_id, name, type, is_system)
+                SELECT ?, 'Facilitators', 'facilitators', 1
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM v2_groups WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'
+                )`,
+          args: [newId, newId],
+        });
+      } catch (_) {}
+
       return NextResponse.json({ success: true, id: newId });
     }
 

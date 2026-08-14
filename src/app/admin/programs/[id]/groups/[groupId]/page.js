@@ -41,9 +41,24 @@ export default function GroupWorkspaceV2({ params }) {
   const handleUpdate = async () => {
     setLoading(true);
     try {
-      // In a real scenario, we'd have a PATCH /api/v2/groups/[id]
-      // For now, we'll just mock the update or use the same route if supported
-      window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t('adminMisc.programGroups.anchorMetricsSuccess') } }));
+      const res = await fetch('/api/v2/groups', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: groupId,
+          name: group.name,
+          project_description: group.project_description,
+          demo_link: group.demo_link,
+          resources_link: group.resources_link,
+          pitch_deck_url: group.pitch_deck_url,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t('adminMisc.programGroups.anchorMetricsSuccess') } }));
+      } else {
+        window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: data.error || t('adminMisc.programGroups.updateFailed') } }));
+      }
     } catch (e) {
       window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t('adminMisc.programGroups.updateFailed') } }));
     } finally {
@@ -77,7 +92,14 @@ export default function GroupWorkspaceV2({ params }) {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
            <div className="lg:col-span-2 space-y-10">
               <div className="animation-reveal">
-                 <h1 className="text-5xl font-black text-white tracking-tighter uppercase mb-4">{group.name}</h1>
+                 <h1 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 flex items-center gap-3">
+                    {group.name}
+                    {group.type === 'facilitators' || Number(group.is_system) === 1 ? (
+                      <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400">
+                        SYSTEM GROUP
+                      </span>
+                    ) : null}
+                 </h1>
                  <p className="text-slate-500 font-bold text-sm tracking-tight leading-relaxed max-w-xl">
                     {t('adminMisc.programGroups.incubationSubtitle', { programId })}
                  </p>

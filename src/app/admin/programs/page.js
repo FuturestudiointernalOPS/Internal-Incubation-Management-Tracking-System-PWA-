@@ -82,7 +82,7 @@ export default function ProgramManagement() {
 
   useEffect(() => {
     if (!editingProgram?.id) return;
-    fetch(`/api/contacts?group=Facilitators`)
+    fetch(`/api/contacts`)
       .then((r) => r.json())
       .then((d) => setFacilitatorPool(d.success ? d.contacts || [] : []))
       .catch(() => setFacilitatorPool([]));
@@ -175,6 +175,64 @@ export default function ProgramManagement() {
       ...editingProgram,
       facilitator_default_permissions: next,
     });
+  };
+
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "" });
+
+  const createAndInviteFacilitator = async () => {
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Name and email are required" },
+        }),
+      );
+      return;
+    }
+    setFacBusy(true);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteForm.email.trim(),
+          name: inviteForm.name.trim(),
+          role: "facilitator",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.cid) {
+          await addFacilitator({
+            cid: data.cid,
+            name: inviteForm.name.trim(),
+            email: inviteForm.email.trim(),
+          });
+        }
+        setInviteForm({ name: "", email: "" });
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "success",
+              message: "Invitation sent — facilitator added to program",
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: data.error || "Invite failed" },
+          }),
+        );
+      }
+    } catch (_) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: "Invite failed" },
+        }),
+      );
+    } finally {
+      setFacBusy(false);
+    }
   };
 
   const setLeadFacilitator = async (familyId, cid) => {
@@ -1557,7 +1615,7 @@ export default function ProgramManagement() {
                     PROGRAM FACILITATORS (EXTERNAL)
                   </label>
                   <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
-                    Sourced from the CRM Facilitators group. Not Future Studio staff — they only access this program.
+                    Program-level group — created automatically for every program. Not Future Studio staff; access is limited to this program.
                   </p>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -1639,7 +1697,32 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ADD FROM CRM — FACILITATORS GROUP</p>
+                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ADD FACILITATOR — SEARCH ALL CONTACTS</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        value={inviteForm.name}
+                        onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
+                        placeholder="New facilitator name…"
+                        className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      />
+                      <input
+                        value={inviteForm.email}
+                        onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                        placeholder="New facilitator email…"
+                        className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      disabled={facBusy}
+                      onClick={createAndInviteFacilitator}
+                      className="w-full text-[8px] font-black uppercase px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
+                    >
+                      CREATE &amp; INVITE NEW FACILITATOR (sends activation email)
+                    </button>
+                    <p className="text-[7px] italic text-[var(--text-secondary)]">
+                      Not in the system? Enter name + email — an activation link is emailed, then they are added to this program's Facilitators group.
+                    </p>
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
                       <input
