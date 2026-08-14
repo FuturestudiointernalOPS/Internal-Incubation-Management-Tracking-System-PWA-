@@ -283,7 +283,8 @@ export default function EngineeringReports() {
             {data.topPages?.length > 0 && (
               <div className="space-y-4">
                 <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">{t("engineering.reports.mostErrorPronePages")}</h2>
-                <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
+                <div className="ios-card !p-0 border-[var(--border-primary)]">
+                  <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="border-b border-[var(--border-primary)] bg-tertiary/30">
@@ -304,6 +305,7 @@ export default function EngineeringReports() {
                       ))}
                     </tbody>
                   </table>
+                  </div>
                 </div>
               </div>
             )}

@@ -469,7 +469,7 @@ export default function ScoresPage() {
               className="space-y-6"
             >
               {/* Stats cards */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="card p-4 text-center border-l-4 border-[var(--brand-orange)]">
                   <Users className="w-4 h-4 text-[var(--brand-orange)] mx-auto mb-1" />
                   <p className="text-2xl font-black text-[var(--brand-orange)]">
@@ -692,8 +692,10 @@ export default function ScoresPage() {
                   <span className="w-4" />
                   <span className="flex-1 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.colApplicant")}</span>
                   <span className="hidden md:block w-56 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvEmail")}</span>
-                  <span className="flex-shrink-0 w-20 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvStatus")}</span>
-                  <span className="w-16 text-right text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvScore")}</span>
+                  <span className="flex-shrink-0 w-16 sm:w-20 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                    <span className="hidden sm:inline">{t("adminMisc.platformScores.csvStatus")}</span>
+                  </span>
+                  <span className="flex-shrink-0 w-12 sm:w-16 text-right text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvScore")}</span>
                   <span className="w-4" />
                 </div>
                 {filteredRespondents.length === 0 ? (
@@ -746,14 +748,14 @@ export default function ScoresPage() {
                             {r.email || "—"}
                           </p>
                         </div>
-                        <div className="flex-shrink-0 w-20 flex items-center justify-center">
+                        <div className="flex-shrink-0 w-16 sm:w-20 flex items-center justify-center">
                           {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
                             <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
                               {t(STATUS_CONFIG[r.status].label)}
                             </span>
                           )}
                         </div>
-                        <div className="text-right flex-shrink-0 w-16">
+                        <div className="text-right flex-shrink-0 w-12 sm:w-16">
                           <p
                             className={`text-sm font-black ${
                               r.score >= 70
