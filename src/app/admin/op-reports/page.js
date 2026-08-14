@@ -1235,7 +1235,7 @@ export default function AdminOpReports() {
               }
 
               return (
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] text-center">
                     <p className="text-lg font-black text-emerald-500">
                       {reliability}%

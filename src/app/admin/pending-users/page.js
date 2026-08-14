@@ -387,6 +387,7 @@ export default function PendingUsersPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
+                    <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-[var(--border-primary)]/50">
@@ -433,7 +434,7 @@ export default function PendingUsersPage() {
                             <td className="p-4">
                               <div className="flex items-center gap-2">
                                 <Mail className="w-3 h-3 text-[var(--text-secondary)]" />
-                                <span className="text-[11px] text-[var(--text-secondary)]">
+                                <span className="text-[11px] text-[var(--text-secondary)] truncate max-w-[160px]">
                                   {user.email}
                                 </span>
                               </div>
@@ -519,6 +520,7 @@ export default function PendingUsersPage() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

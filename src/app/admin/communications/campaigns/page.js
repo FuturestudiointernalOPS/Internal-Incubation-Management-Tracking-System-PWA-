@@ -525,8 +525,8 @@ export default function CampaignsPage() {
         {showDetailsModal && selectedCampaign && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center pointer-events-auto p-4">
             <div onClick={() => setShowDetailsModal(false)} className="absolute inset-0 bg-black/95 backdrop-blur-md cursor-pointer" />
-            <div className="relative w-full max-w-6xl ios-card !p-0 shadow-2xl bg-[#080810] border border-white/10 flex flex-col h-[90vh] text-left overflow-hidden">
-              <header className="px-10 py-8 border-b border-white/5 flex items-center justify-between bg-[#0d0d18] flex-shrink-0">
+            <div className="relative w-full max-w-6xl ios-card !p-0 shadow-2xl bg-[#080810] border border-white/10 flex flex-col h-[90vh] text-left overflow-y-auto">
+              <header className="px-4 md:px-10 py-4 md:py-8 border-b border-white/5 flex flex-wrap items-center justify-between gap-3 bg-[#0d0d18] flex-shrink-0">
                 <div className="flex items-center gap-6">
                    <div className="w-16 h-16 rounded-2xl bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400">
                      <Rocket className="w-8 h-8" />
@@ -544,7 +544,7 @@ export default function CampaignsPage() {
                    </div>
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-3 mr-4 pr-6 border-r border-white/5">
+                    <div className="hidden sm:flex items-center gap-3 mr-4 pr-6 border-r border-white/5">
                         <div className="flex flex-col items-end">
                            <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none mb-1">{t('crm.campaigns.masterSwitch')}</span>
                            <span className={`text-[10px] font-black uppercase tracking-widest ${selectedCampaign.status === 'paused' ? 'text-rose-400' : 'text-emerald-400'}`}>
@@ -583,7 +583,7 @@ export default function CampaignsPage() {
 
               <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
                  {/* Sidebar */}
-                 <div className="w-full md:w-1/3 p-10 overflow-y-auto border-r border-white/5 bg-white/[0.01]">
+                 <div className="w-full md:w-1/3 p-4 md:p-10 overflow-y-auto border-r border-white/5 bg-white/[0.01]">
                     <div className="space-y-12">
                        <section className="space-y-6">
                           <div className="flex items-center justify-between border-b border-white/5 pb-4">
@@ -647,7 +647,7 @@ export default function CampaignsPage() {
                  </div>
 
                  {/* Main Pipeline */}
-                 <div className="flex-1 p-10 overflow-y-auto bg-transparent custom-scrollbar">
+                 <div className="flex-1 p-4 md:p-10 overflow-y-auto bg-transparent custom-scrollbar">
                     <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-8 flex items-center gap-3">
                        <Settings2 className="w-5 h-5" /> {t('crm.campaigns.pipelineSequenceModification')}
                     </h4>
