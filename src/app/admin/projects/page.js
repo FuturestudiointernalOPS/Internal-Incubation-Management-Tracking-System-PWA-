@@ -1249,28 +1249,38 @@ export default function AdminProjects() {
       {/* CREATE PROJECT MODAL */}
       {showCreateModal && canCreate && (
         <div
-          className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[500] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-sm overflow-y-auto"
           onClick={() => setShowCreateModal(false)}
         >
           <div
-            className="card w-full max-w-lg space-y-5"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-project-title"
+            className="card w-full max-w-lg flex flex-col max-h-[90vh] my-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+            {/* Sticky header */}
+            <div className="flex items-center justify-between shrink-0 px-5 pt-5 pb-3 border-b border-[var(--border-primary)]">
+              <h2 id="create-project-title" className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
                 {t("adminMisc.projectsList.createProject")}
               </h2>
-              <button onClick={() => setShowCreateModal(false)}>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                aria-label={t("common.close")}
+                className="p-1 rounded-lg hover:bg-tertiary transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            {/* Scrollable body */}
+            <div className="space-y-4 overflow-y-auto flex-1 px-5 py-4">
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-name" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   {t("adminMisc.projectsList.projectNameRequired")}
                 </label>
                 <input
+                  id="project-name"
                   value={newProject.name}
                   onChange={(e) =>
                     setNewProject((p) => ({ ...p, name: e.target.value }))
@@ -1281,10 +1291,11 @@ export default function AdminProjects() {
               </div>
 
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-description" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   {t("adminMisc.projectsList.description")}
                 </label>
                 <textarea
+                  id="project-description"
                   value={newProject.description}
                   onChange={(e) =>
                     setNewProject((p) => ({
@@ -1301,10 +1312,11 @@ export default function AdminProjects() {
               {/* Start / End Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label htmlFor="project-start-date" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     {t("adminMisc.projectsList.startDate")}
                   </label>
                   <input
+                    id="project-start-date"
                     type="date"
                     value={newProject.start_date}
                     onChange={(e) =>
@@ -1317,10 +1329,11 @@ export default function AdminProjects() {
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label htmlFor="project-end-date" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                     {t("adminMisc.projectsList.endDate")}
                   </label>
                   <input
+                    id="project-end-date"
                     type="date"
                     value={newProject.end_date}
                     onChange={(e) =>
@@ -1332,7 +1345,7 @@ export default function AdminProjects() {
               </div>
 
               <div>
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-concept-url" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   {t("adminMisc.projectsList.conceptNote")}{" "}
                   <span className="text-slate-600 font-normal">
                     {t("adminMisc.projectsList.optional")}
@@ -1345,6 +1358,7 @@ export default function AdminProjects() {
                   {/* Upload option */}
                   <div className="flex gap-2 items-center">
                     <input
+                      id="project-concept-file"
                       type="file"
                       accept=".pdf,.doc,.docx,.txt,.png,.jpg"
                       onChange={(e) => setConceptNoteFile(e.target.files[0])}
@@ -1395,6 +1409,7 @@ export default function AdminProjects() {
                   </div>
                   {/* URL option */}
                   <input
+                    id="project-concept-url"
                     type="url"
                     value={newProject.conceptNoteUrlInput}
                     onChange={(e) =>
@@ -1499,7 +1514,8 @@ export default function AdminProjects() {
               </div>
             </div>
 
-            <div className="flex gap-3">
+            {/* Sticky footer */}
+            <div className="flex gap-3 shrink-0 px-5 pb-5 pt-3 border-t border-[var(--border-primary)] bg-secondary/80 backdrop-blur">
               <button
                 onClick={() => setShowCreateModal(false)}
                 className="flex-1 btn btn-secondary py-3 text-[10px] font-black uppercase tracking-widest"

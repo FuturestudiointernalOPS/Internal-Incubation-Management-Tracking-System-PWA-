@@ -6,6 +6,15 @@
       "comingSoon": "Coming Soon",
       "open": "Open →"
     },
+    "nav": {
+      "dashboard": "Dashboard",
+      "forms": "Forms",
+      "runs": "Runs",
+      "historicalImport": "Historical Import",
+      "identityReview": "Identity Review",
+      "scores": "Scores",
+      "soon": "Soon"
+    },
     "dashboard": {
       "title": "Forms Dashboard",
       "loading": "Loading...",

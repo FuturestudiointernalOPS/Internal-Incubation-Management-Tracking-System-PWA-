@@ -6,6 +6,15 @@
       "comingSoon": "Bientôt disponible",
       "open": "Ouvrir →"
     },
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "forms": "Formulaires",
+      "runs": "Exécutions",
+      "historicalImport": "Import historique",
+      "identityReview": "Révision d'identité",
+      "scores": "Scores",
+      "soon": "Bientôt"
+    },
     "dashboard": {
       "title": "Tableau de bord des formulaires",
       "loading": "Chargement...",
