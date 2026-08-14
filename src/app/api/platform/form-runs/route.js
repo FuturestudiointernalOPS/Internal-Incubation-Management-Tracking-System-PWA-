@@ -372,9 +372,22 @@ export async function GET(req) {
       // Emails: batch contact lookup, falling back to the submission data
       const rawSubs = submissions.rows;
       const cids = [...new Set(rawSubs.map((s) => s.submitter_id).filter(Boolean))];
+
+      // Pre-resolve each applicant's real email so we can look up contacts by
+      // BOTH submitter_id AND email — anonymous/imported submissions often
+      // have a null/mismatched submitter_id while the contact exists by email.
+      const resolvedEmails = rawSubs.map((s) =>
+        resolveSubmissionEmail({
+          submissionData: s.data || {},
+          fieldLabels,
+          contactEmail: "",
+        }),
+      );
+      const emailKeys = [...new Set(resolvedEmails.map((e) => (e ? String(e).toLowerCase() : "")).filter(Boolean))];
+
       const emailMap = new Map();
       const nameMap = new Map();
-      const accountMap = new Map();
+      const accountMap = new Map(); // keyed by BOTH cid and lower(email)
       if (cids.length > 0) {
         try {
           const cres = await db.execute({
@@ -385,10 +398,26 @@ export async function GET(req) {
             emailMap.set(row.cid, row.email || "");
             nameMap.set(row.cid, row.name || "");
             accountMap.set(row.cid, row);
+            if (row.email) accountMap.set(String(row.email).toLowerCase(), row);
           }
         } catch (_) {}
       }
-      const enrichedSubmissions = rawSubs.map((s) => {
+      if (emailKeys.length > 0) {
+        try {
+          const cres = await db.execute({
+            sql: "SELECT cid, email, name, password, status FROM contacts WHERE LOWER(email) = ANY(?)",
+            args: [emailKeys],
+          });
+          for (const row of cres.rows) {
+            accountMap.set(row.cid, row);
+            if (row.email) accountMap.set(String(row.email).toLowerCase(), row);
+            if (!emailMap.has(row.cid)) emailMap.set(row.cid, row.email || "");
+            if (!nameMap.has(row.cid)) nameMap.set(row.cid, row.name || "");
+          }
+        } catch (_) {}
+      }
+
+      const enrichedSubmissions = rawSubs.map((s, i) => {
         // Real applicant email: the form's actual email answer first, then any
         // real email in the submission, then the CRM email — placeholder
         // import addresses are NEVER shown.
@@ -410,13 +439,17 @@ export async function GET(req) {
           s.submitter_id;
         // Account activation is independent of email delivery. A non-empty
         // password means the user completed account setup (the activate route
-        // sets both password and status = 'active').
-        const contactRow = accountMap.get(s.submitter_id);
+        // sets both password and status = 'active'). Resolve by submitter_id
+        // first, then by the real applicant email.
+        const contactRow =
+          accountMap.get(s.submitter_id) ||
+          (resolvedEmails[i] ? accountMap.get(String(resolvedEmails[i]).toLowerCase()) : null) ||
+          (email ? accountMap.get(String(email).toLowerCase()) : null);
         const account_created = !!contactRow;
         const account_activated =
           account_created &&
-          !!contactRow.password &&
-          String(contactRow.password).trim() !== "";
+          (String(contactRow.password || "").trim() !== "" ||
+            String(contactRow.status || "").toLowerCase() === "active");
         return { ...s, email, display_name: displayName, account_created, account_activated };
       });
 
