@@ -324,6 +324,7 @@ export default function FormRunsPage() {
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -418,6 +419,14 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
+  const fetchPrograms = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pm/programs");
+      const data = await res.json();
+      if (data.success) setPrograms(data.programs || []);
+    } catch (_) {}
+  }, []);
+
   const handleCreateGroupInline = async (onDone) => {
     const name = inlineGroupName.trim();
     if (!name) return;
@@ -453,7 +462,7 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchDashboardStats(); }, [fetchRuns]);
+  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchPrograms(); fetchDashboardStats(); }, [fetchRuns]);
 
   const openRun = useCallback(async (run, opts = {}) => {
     if (!opts.keepTab) {
@@ -2485,7 +2494,7 @@ export default function FormRunsPage() {
                       {assignments.map((a) => {
                         const g = a.target_type === "group" ? groups.find((x) => (x.registration_id || x.id) === a.target_id) : null;
                         const c = a.target_type === "user" ? contacts.find((x) => x.cid === a.target_id) : null;
-                        const targetName = g ? g.name : c ? (c.name || c.email) : a.target_id;
+                        const targetName = a.target_name || (g ? g.name : c ? (c.name || c.email) : a.target_id);
                         return (
                           <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase">{t(TARGET_LABELS[a.target_type]) || a.target_type}</span></td>
@@ -2507,7 +2516,7 @@ export default function FormRunsPage() {
                     <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addAssignment")}</h3><button onClick={() => setShowAssign(false)}><X className="w-5 h-5" /></button></div>
                     <div className="space-y-3">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetType")}</label>
+                        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.assignTo")}</label>
                         <select value={assignTarget} onChange={(e) => { setAssignTarget(e.target.value); setAssignUserId(""); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                           {Object.entries(TARGET_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
                         </select>
@@ -2556,6 +2565,14 @@ export default function FormRunsPage() {
                               <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
                             </div>
                           )}
+                        </div>
+                      ) : assignTarget === "program" ? (
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetProgram")}</label>
+                          <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                            <option value="">{t("platformMisc.runs.selectProgram")}</option>
+                            {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
                         </div>
                       ) : (
                         <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetId")}</label><input value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} /></div>

@@ -16,6 +16,7 @@ export async function GET(req) {
     const authError = await requireAuth([
       "staff",
       "super_admin",
+      "admin",
       "program_manager",
       "teacher",
       "facilitator",
