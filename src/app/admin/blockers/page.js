@@ -473,7 +473,7 @@ export default function AdminBlockers() {
               className="absolute inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setViewingBlocker(null)}
             />
-            <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl">
+            <div className="relative bg-secondary border border-[var(--border-primary)] rounded-2xl w-full max-w-lg p-8 shadow-2xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                   {t("adminMisc.blockers.detailsTitle")}

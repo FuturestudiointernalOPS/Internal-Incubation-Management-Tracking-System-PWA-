@@ -148,7 +148,7 @@ export default function PublicApplicationRegistration() {
             </span>
           </div>
           <h1
-            className="text-6xl font-black tracking-tighter"
+            className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tighter"
             style={{ color: "var(--text-primary)" }}
           >
             {t("rootMisc.registerStaff.titleOnboarding")}

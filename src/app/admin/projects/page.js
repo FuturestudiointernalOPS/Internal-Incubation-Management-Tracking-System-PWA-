@@ -897,7 +897,7 @@ export default function AdminProjects() {
           onClick={() => setShowMemberModal(null)}
         >
           <div
-            className="card w-full max-w-lg space-y-4"
+            className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

@@ -136,7 +136,7 @@ function RegisterVentureContent() {
             </div>
             <div className="border-t pt-4" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
               <p className="text-sm font-medium mb-3">{t("rootMisc.registerVenture.founderInformation")}</p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.fullName")}</label>
                   <input required value={form.founder_name} onChange={(e) => setForm({ ...form, founder_name: e.target.value })}
@@ -148,7 +148,7 @@ function RegisterVentureContent() {
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("rootMisc.registerVenture.password")}</label>
                   <input required type="password" minLength={6} value={form.founder_password} onChange={(e) => setForm({ ...form, founder_password: e.target.value })}

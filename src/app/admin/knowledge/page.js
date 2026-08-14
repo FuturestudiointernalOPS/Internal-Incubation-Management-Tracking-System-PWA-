@@ -233,7 +233,7 @@ export default function KnowledgeBank() {
               <Library className="w-4 h-4 text-[var(--brand-orange)]" />
               <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">{t("adminMisc.knowledge.operationalIntelligence")}</span>
             </div>
-            <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">{t("adminMisc.knowledge.title")}</h1>
+            <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text-primary)] uppercase">{t("adminMisc.knowledge.title")}</h1>
           </div>
           
           <div className="flex gap-3">

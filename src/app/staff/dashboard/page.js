@@ -79,7 +79,7 @@ export default function StaffDashboard() {
               {t("staffMisc.dashboard.tacticalFacultyHub")}
             </span>
           </div>
-          <h2 className="text-6xl font-black text-white tracking-tighter uppercase italic leading-none">
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter uppercase italic leading-none">
             {t("staffMisc.dashboard.commandOverview")}
           </h2>
           <p className="text-slate-400 font-bold max-w-xl opacity-70">

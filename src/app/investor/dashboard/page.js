@@ -646,7 +646,7 @@ export default function InvestorDashboard() {
                         </div>
 
                         {/* Stats row */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {/* Readiness */}
                           <div className="p-2 rounded-lg bg-[var(--surface-2)]">
                             <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Readiness</p>
@@ -714,7 +714,7 @@ export default function InvestorDashboard() {
         {showIntroModal && introVenture && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowIntroModal(false)} />
-            <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
+            <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">Request Introduction</h3>
                 <button onClick={() => setShowIntroModal(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
@@ -788,7 +788,7 @@ export default function InvestorDashboard() {
                           </div>
                         </div>
                       )}
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {[
                           { label: "Min Investment", value: c.min_investment ? `$${Number(c.min_investment).toLocaleString()}` : "—" },
                           { label: "Investors", value: `${c.investor_count || 0} interested` },

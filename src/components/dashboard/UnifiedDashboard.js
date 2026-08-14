@@ -459,7 +459,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 Dashboard
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
+            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
               {user?.name || "Loading"}
               <span className="text-[var(--text-secondary)] opacity-30 text-2xl ml-2">
                 · {effectiveRole?.replace(/_/g, " ") || ""}
@@ -1552,7 +1552,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           onClick={() => setSelectedEvent(null)}
         >
           <div
-            className="card w-full max-w-sm space-y-4"
+            className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

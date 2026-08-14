@@ -484,7 +484,7 @@ export default function TeamManagementPage({ params }) {
           />
 
           {/* Modal card */}
-          <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl overflow-hidden">
+          <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
             {/* Modal header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">

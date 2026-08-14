@@ -450,7 +450,7 @@ export default function VentureVerificationPage() {
             <div className="space-y-4">
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.verification.decision")}</label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
                     { value: "verified", label: "vadmin.verification.approve", icon: CheckCircle2, color: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20" },
                     { value: "rejected", label: "vadmin.verification.reject", icon: X, color: "bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20" },

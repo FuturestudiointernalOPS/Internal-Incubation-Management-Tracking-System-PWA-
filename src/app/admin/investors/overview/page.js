@@ -59,7 +59,7 @@ export default function AdminInvestorOverview() {
     {detail && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setDetail(null)}/>
-        <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">
+        <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorAdmin.overview.introductionRequest")}</h3>
             <button onClick={()=>setDetail(null)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>

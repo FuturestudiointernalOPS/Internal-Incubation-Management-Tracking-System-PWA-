@@ -1072,12 +1072,12 @@ function ProgramWorkspace() {
         </header>
 
         {/* TAB NAVIGATION */}
-        <div className="flex gap-1 border-b border-[var(--border-primary)]">
+        <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 ${activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 whitespace-nowrap shrink-0 ${activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {tab.name}
             </button>

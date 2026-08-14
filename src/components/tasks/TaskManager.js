@@ -1620,7 +1620,7 @@ export default function TaskManager({
           onClick={() => setSubTaskModal(null)}
         >
           <div
-            className="card w-full max-w-md space-y-4"
+            className="card w-full max-w-md space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -1829,7 +1829,7 @@ export default function TaskManager({
           onClick={() => setEditTaskModal(null)}
         >
           <div
-            className="card w-full max-w-lg space-y-4"
+            className="card w-full max-w-lg space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -2033,7 +2033,7 @@ export default function TaskManager({
           }}
         >
           <div
-            className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4"
+            className="w-full max-w-sm bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -2273,7 +2273,7 @@ export default function TaskManager({
           onClick={() => setConfirmAction(null)}
         >
           <div
-            className="card w-full max-w-sm space-y-4"
+            className="card w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3">

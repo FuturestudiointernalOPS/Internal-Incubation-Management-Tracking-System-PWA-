@@ -146,7 +146,7 @@ export default function SuperAdminExecutiveView({ params }) {
                    <Briefcase className="w-6 h-6" />
                 </div>
                 <div>
-                   <h2 className="text-4xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter leading-none">{program.name}</h2>
+                   <h2 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter leading-none">{program.name}</h2>
                    <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mt-2 italic">{t("adminMisc.programDetail.programOverviewLabel", { id: program.id })}</p>
                 </div>
              </div>

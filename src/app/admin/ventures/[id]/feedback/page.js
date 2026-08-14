@@ -185,7 +185,7 @@ export default function VentureFeedbackPage() {
                       <p className="text-[9px] font-bold text-slate-500">{c.average_rating?.toFixed(1) || "—"}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-4 gap-3 mb-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
                     <div><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.feedback.sessions")}</p><p className="text-sm font-bold">{c.sessions_completed||0}</p></div>
                     <div><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.feedback.attendanceAbbr")}</p><p className="text-sm font-bold text-emerald-400">{c.attendance_rate||0}%</p></div>
                     <div><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.feedback.cancelRate")}</p><p className="text-sm font-bold text-rose-400">{c.cancellation_rate||0}%</p></div>

@@ -116,7 +116,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5"
+        className="w-full max-w-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl p-6 space-y-5 max-h-[85vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

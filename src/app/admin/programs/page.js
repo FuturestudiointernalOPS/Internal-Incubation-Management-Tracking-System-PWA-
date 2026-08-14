@@ -573,7 +573,7 @@ export default function ProgramManagement() {
                   {t("adminMisc.programs.administration")}
                 </span>
               </div>
-              <h1 className="text-5xl font-bold tracking-tight text-[var(--text-primary)]">
+              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text-primary)]">
                 {t("admin.programsList")}
               </h1>
             </div>

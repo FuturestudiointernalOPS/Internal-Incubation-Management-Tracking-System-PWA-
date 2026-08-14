@@ -110,7 +110,7 @@ export default function PMProgramsRegistry() {
                 {t("status.active")}
               </span>
             </div>
-            <h2 className="text-5xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-none italic">
+            <h2 className="text-3xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-none italic">
               {t("pm.programs")}
             </h2>
             <p className="text-[var(--text-secondary)] font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60 italic">

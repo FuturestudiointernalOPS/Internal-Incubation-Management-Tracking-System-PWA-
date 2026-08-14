@@ -151,7 +151,7 @@ export default function AssignedTasks() {
                 {t("developer.assignedWork")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
               {t("developer.assignedTasks")}
             </h1>
             <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">

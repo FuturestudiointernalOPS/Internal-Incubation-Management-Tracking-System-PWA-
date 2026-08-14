@@ -1096,7 +1096,7 @@ export default function ProgramDetail({ programId }) {
           onClick={() => setSubmitModal(null)}
         >
           <div
-            className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-md space-y-5 p-6"
+            className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-md space-y-5 p-6 max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
