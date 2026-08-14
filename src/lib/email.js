@@ -9,7 +9,14 @@ import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
-const rawAppUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+const rawAppUrl =
+  process.env.APP_URL ||
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_ENV === "production"
+    ? "https://impactos.futurestudio.bj"
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "http://localhost:3000");
 const APP_URL = (typeof rawAppUrl === "string" ? rawAppUrl : "http://localhost:3000").replace(/\/login.*$/i, "").replace(/\/$/, "");
 
 // ─── GMAIL WORKSPACE TRANSPORT (decision/approval emails) ─────────────
@@ -342,6 +349,9 @@ export async function sendLoginEmail({ to, name, role, template, templateVars })
  * Send a welcome email after activation
  */
 export async function sendWelcomeEmail({ to, name, role }) {
+  // Never render placeholder identities (UNKNOWN / Anonymous / empty) when a
+  // resolved name is unavailable — use a neutral greeting instead.
+  const displayName = isGenericName(name) ? "there" : (name || "there").trim();
   const html = `
     <!DOCTYPE html>
     <html>
@@ -356,7 +366,7 @@ export async function sendWelcomeEmail({ to, name, role }) {
               </h1>
               <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
 
-              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Welcome, ${name}! 👋</h2>
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Welcome, ${displayName}! 👋</h2>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
                 Your account is now active. You can log in and start using ImpactOS.
               </p>
@@ -384,7 +394,7 @@ export async function sendWelcomeEmail({ to, name, role }) {
     </html>
   `;
 
-  return sendEmail({ to, subject: "Welcome to ImpactOS — Your account is active", html });
+  return sendEmail({ to, subject: "Welcome to ImpactOS — Your account is active", html, provider: "gmail" });
 }
 
 /**
