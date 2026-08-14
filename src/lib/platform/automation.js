@@ -326,6 +326,7 @@ const RULES = [
           resolveRecipientEmail,
           resolvePersonName,
           decideEmailKind,
+          detectLanguage,
           sendInviteEmail,
           sendLoginEmail,
           getTemplate,
@@ -334,6 +335,10 @@ const RULES = [
           hasSentEmailToRecipientInRun,
           ensurePasswordSetupTokensSchema,
         } = await import("@/lib/email");
+
+        // Infer the workflow language from the form's question labels so a
+        // new contact gets the right Welcome-email language.
+        const formLanguage = detectLanguage(fieldLabels);
 
         // 1. Resolve the recipient email with strict priority:
         //    existing valid contact email → valid email in form answers → fail.
@@ -437,9 +442,12 @@ const RULES = [
           }
         } else {
           const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
+          // Self-heal the language column (idempotent) so the detected
+          // workflow language can be stored for the Welcome email.
+          try { await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'en'"); } catch (_) {}
           await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, password) VALUES (?, ?, ?, ?, 'approved', ?, ?, '')`,
-            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', groupProgramId || null],
+            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, password, language) VALUES (?, ?, ?, ?, 'approved', ?, ?, '', ?)`,
+            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', groupProgramId || null, formLanguage],
           });
           contact = { cid, name: contactName || "Participant", email: contactEmail, role: targetRole };
         }
