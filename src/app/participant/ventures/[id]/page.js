@@ -1197,7 +1197,7 @@ export default function VentureDetail() {
             {calendarEvents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               calendarEvents.map((ev,i)=>{
                 const typeIcon = ev.type==='milestone'?'🗓':ev.type==='task'?'📋':ev.type==='action'?'📌':ev.type==='coaching'?'🎯':ev.type==='followup'?'📅':'📅';
-                const statusMap = {not_started:'notStarted',in_progress:'inProgress',completed:'completed',done:'completed'};
+                const statusMap = {not_started:'notStarted',in_progress:'inProgress',completed:'completed',done:'completed',pending_review:'pendingReview',revision_requested:'revisionRequested'};
                 const statusClass = ev.status==='completed'||ev.status==='done'?'bg-green-500/20 text-green-400':ev.status==='in_progress'?'bg-amber-500/20 text-amber-400':'bg-white/10 text-slate-400';
                 return (
                   <div key={i} className="rounded-xl p-4 border" style={cardStyle}>
@@ -1336,7 +1336,7 @@ export default function VentureDetail() {
                           s.status==='pending_review' ? 'bg-blue-500/20 text-blue-400' :
                           'bg-gray-500/20 text-gray-400'
                         }`}
-                        >{t(`venture.${s.status==='revision_requested'?'requestRevision':s.status}`)||s.status}</span>
+                        >{t(`venture.${s.status==='revision_requested'?'requestRevision':s.status==='pending_review'?'pendingReview':s.status}`)||s.status}</span>
                       )}
                       <button onClick={()=>{setEditingCoaching(s);setShowEditCoaching(true);setCoachingForm({});}} className="text-xs px-2 py-0.5 rounded" style={{color:'var(--brand-orange)',border:'1px solid var(--brand-orange)'}}>{t('venture.edit')}</button>
                     </div>
