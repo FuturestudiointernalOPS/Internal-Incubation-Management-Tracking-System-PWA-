@@ -62,6 +62,10 @@ const TEMPLATE_SPECS = {
     label: "polite rejection notification",
     placeholders: ["{{name}}", "{{form_name}}", "{{organization}}"],
   },
+  manual: {
+    label: "manual ad-hoc message to selected participants",
+    placeholders: ["{{name}}", "{{group_name}}", "{{organization}}"],
+  },
 };
 
 function parseJsonObject(raw) {

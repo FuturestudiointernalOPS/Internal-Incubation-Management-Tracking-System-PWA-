@@ -10,6 +10,8 @@
     "somethingWrong": "Something went wrong. Please try again.",
     "authRequired": "Authentication required.",
     "insufficientPermissions": "Insufficient permissions.",
+    "roleConflictParticipantFacilitator": "Role conflict: this person is already a participant in this program and cannot also be assigned as a facilitator.",
+    "roleConflictFacilitatorParticipant": "Role conflict: this person is already assigned as a facilitator for this program and cannot also be added as a participant.",
     "programCompletedViewOnly": "This program is completed and is view-only. Submissions are closed.",
     "authSystemFailure": "Authentication system failure.",
     "authzSystemFailure": "Authorization system failure.",

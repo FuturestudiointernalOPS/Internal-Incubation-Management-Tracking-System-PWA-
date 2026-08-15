@@ -60,6 +60,21 @@ export async function POST(req) {
     if (authError) return authError;
     const { program_id, staff_id, role } = await req.json();
 
+    if (String(role || "").toLowerCase() === "facilitator") {
+      const contactRes = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [staff_id] });
+      const contactEmail = contactRes.rows[0]?.email || "";
+      const conflict = await db.execute({
+        sql: `SELECT 1 FROM participant_programs WHERE participant_id::text = ? AND program_id::text = ?
+              UNION
+              SELECT 1 FROM v2_participants WHERE program_id::text = ? AND (email = ? OR user_id = ?)
+              LIMIT 1`,
+        args: [String(staff_id), String(program_id), String(program_id), contactEmail, String(staff_id)],
+      });
+      if (conflict.rows.length > 0) {
+        return NextResponse.json({ success: false, error: "errors.roleConflictParticipantFacilitator" }, { status: 409 });
+      }
+    }
+
     const res = await db.execute({
       sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW() RETURNING id",
       args: [program_id, staff_id, role || "staff"],

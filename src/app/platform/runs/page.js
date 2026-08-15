@@ -520,7 +520,7 @@ export default function FormRunsPage() {
         const formRes = await fetch(`/api/platform/forms?id=${run.form_id}`);
         const formData = await formRes.json();
         if (formData.success) {
-          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)).slice(0, 5));
+          setRunFormFields((formData.fields || []).filter(f => !["hidden"].includes(f.field_type)));
           setRunFormSettings(formData.form?.settings || {});
         }
       } catch (_) {}
@@ -842,6 +842,19 @@ export default function FormRunsPage() {
   const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
   const retryAbortRef = useRef(false); // stops issuing new retry batches when true
 
+  // Manual message composer (Room Overview → selected participants)
+  const [showMessageComposer, setShowMessageComposer] = useState(false);
+  const [messageSubject, setMessageSubject] = useState("");
+  const [messageBody, setMessageBody] = useState("");
+  const [messageSending, setMessageSending] = useState(false);
+  const [messageResult, setMessageResult] = useState(null); // { recipients, sent, failed }
+  const [aiPersonalizing, setAiPersonalizing] = useState(false);
+
+  // Export options (format + scope)
+  const [showExportOptions, setShowExportOptions] = useState(false);
+  const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
+  const [exportScope, setExportScope] = useState("filtered"); // selected | filtered
+
   const fetchEvalProgress = async (formId) => {
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", {
@@ -939,6 +952,13 @@ export default function FormRunsPage() {
   // Runs against ONLY this run's submissions + their AI evaluations.
   const fmtAnswer = (v) => {
     if (v === undefined || v === null) return "";
+    if (Array.isArray(v)) {
+      return v.map((item) => {
+        if (item === undefined || item === null) return "";
+        if (typeof item === "object") return item.label || item.value || JSON.stringify(item);
+        return String(item);
+      }).filter(Boolean).join(", ");
+    }
     if (typeof v === "string") {
       try {
         if (v.startsWith("{") && v.includes('"code"')) {
@@ -948,7 +968,11 @@ export default function FormRunsPage() {
       } catch (_) {}
       return v;
     }
-    if (typeof v === "object") return JSON.stringify(v);
+    if (typeof v === "object") {
+      if (v.label) return String(v.label);
+      if (v.value) return String(v.value);
+      return JSON.stringify(v);
+    }
     return String(v);
   };
 
@@ -1401,55 +1425,168 @@ export default function FormRunsPage() {
   const toggleRetrySelect = (key) =>
     setRetrySelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
 
-  // Manual retry: batches of 10 through the same tracked senders (approval
-  // re-sends via sendDecisionEmailForSubmission; activation re-fires the
-  // REVIEW_COMPLETED automation). No automatic retries anywhere.
-  // Export the CURRENTLY FILTERED respondents to CSV (respects search,
-  // filters, score and the duplicates view). Presentation-level export.
-  const exportRespondentsCSV = () => {
-    if (!visibleSubmissions.length) return;
-    const esc = (v) => {
-      const s = v == null ? "" : String(v);
-      return `"${s.replace(/"/g, '""')}"`;
-    };
-    const headers = [t("platformMisc.runs.colSn"), t("platformMisc.runs.colName"), t("platformMisc.runs.colEmail")];
-    const fieldCols = Object.entries(fieldLabels)
-      .filter(([, label]) => label)
-      .map(([id, label]) => ({ id, label }));
-    for (const c of fieldCols) headers.push(c.label);
-    headers.push(t("platformMisc.runs.colStatus"), t("platformMisc.runs.colAiScore"), t("platformMisc.runs.colActivation"), t("platformMisc.runs.statusSubmitted"), t("platformMisc.runs.review"));
+  // ─── Export (shared dataset: Overview = Messaging = Export) ───
+  // Always one row per participant. Each form question becomes a COLUMN;
+  // answers stay in the participant's row. No joins/arrays/events may ever
+  // duplicate a participant.
+  const buildExportRows = (subs) => {
+    const seen = new Set();
+    const unique = subs.filter((s) => {
+      if (seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
 
-    const rows = visibleSubmissions.map((s, i) => {
+    // Form questions as ordered columns (hidden fields already excluded).
+    // Fall back to fieldLabels when the field list has not loaded yet.
+    const questionFields = runFormFields.length > 0
+      ? runFormFields.map((f) => ({ id: String(f.id), label: f.label }))
+      : Object.entries(fieldLabels)
+          .filter(([, label]) => label)
+          .map(([id, label]) => ({ id, label }));
+
+    const headers = [
+      t("platformMisc.runs.colSn"),
+      t("platformMisc.runs.colName"),
+      t("platformMisc.runs.colEmail"),
+      ...questionFields.map((q) => q.label),
+      t("platformMisc.runs.colAiScore"),
+      t("platformMisc.runs.colApprovalEmail"),
+      t("platformMisc.runs.colActivationEmail"),
+      t("platformMisc.runs.colAccountStatus"),
+    ];
+
+    const rows = unique.map((s, i) => {
       const evalRow = evaluations.find((e) => e.submission_id === s.id);
       const activationEmail = emailLog
         .filter((e) => e.submission_id === s.id && e.email_type === "activation")
         .slice(-1)[0];
-      const subReviews = reviews.filter((r) => r.submission_id === s.id);
-      const lastReview = subReviews[subReviews.length - 1];
+      const approvalEmail = emailLog
+        .filter((e) => e.submission_id === s.id && e.email_type === "approval")
+        .slice(-1)[0];
+      const accountStatus = s.account_status || (s.account_activated
+        ? "active"
+        : s.account_created
+          ? "activation_pending"
+          : "not_created");
+      const answers = submissionAnswers(s);
       const cells = [
         i + 1,
         s.display_name || s.submitter_name || s.submitter_id,
         s.email || "",
       ];
-      for (const c of fieldCols) cells.push((s.data || {})[c.id] ?? "");
+      for (const q of questionFields) cells.push(answers[q.label] ?? "");
       cells.push(
-        s.status || "",
         evalRow != null ? evalRow.overall_score : (s.data?._scores?.overall ?? ""),
+        approvalEmail ? approvalEmail.status : "",
         activationEmail ? activationEmail.status : "",
-        s.submitted_at ? new Date(s.submitted_at).toLocaleString() : "",
-        lastReview ? `${lastReview.decision} by ${lastReview.reviewer_name || lastReview.reviewer_id}` : ""
+        accountStatus,
       );
-      return cells.map(esc).join(",");
+      return cells;
     });
+    return { headers, rows };
+  };
 
-    const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedRun?.name || "run"}-respondents.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const exportParticipants = async (format, scope) => {
+    const source = scope === "selected"
+      ? visibleSubmissions.filter((s) => selectedSet.has(s.id))
+      : visibleSubmissions;
+    if (!source.length) return;
+
+    const { headers, rows } = buildExportRows(source);
+    const baseName = `${selectedRun?.name || "run"}-participants`;
+
+    if (format === "xlsx") {
+      try {
+        const XLSX = await import("xlsx");
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Participants");
+        XLSX.writeFile(wb, `${baseName}.xlsx`);
+      } catch (_) {
+        notify("Excel export failed");
+      }
+    } else {
+      const esc = (v) => {
+        const s = v == null ? "" : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      };
+      const csv = "\uFEFF" + [headers.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${baseName}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    setShowExportOptions(false);
+  };
+
+  // ─── Manual message (Room Overview → selected participants) ───
+  const openMessageComposer = () => {
+    setMessageSubject("");
+    setMessageBody("");
+    setMessageResult(null);
+    setBulkMenuOpen(false);
+    setShowMessageComposer(true);
+  };
+
+  const personalizeMessage = async () => {
+    setAiPersonalizing(true);
+    try {
+      const res = await fetch("/api/platform/ai/personalize-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_key: "manual",
+          existing_subject: messageSubject,
+          existing_body: messageBody,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (data.subject) setMessageSubject(data.subject);
+        if (data.body) setMessageBody(data.body);
+        notify(t("platformMisc.runs.aiPersonalized"));
+      } else {
+        notify(data.error || t("platformMisc.runs.personalizeFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.personalizeFailed"));
+    }
+    setAiPersonalizing(false);
+  };
+
+  const sendManualMessages = async () => {
+    if (!selectedRun || selectedIds.length === 0 || messageSending) return;
+    if (!messageSubject.trim() || !messageBody.trim()) {
+      notify(t("platformMisc.runs.messageSubjectBodyRequired"));
+      return;
+    }
+    setMessageSending(true);
+    setMessageResult(null);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=send_manual_message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          run_id: selectedRun.id,
+          submission_ids: selectedIds,
+          subject: messageSubject,
+          body: messageBody,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessageResult(data);
+      } else {
+        notify(data.error || t("platformMisc.runs.messageSendFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.messageSendFailed"));
+    }
+    setMessageSending(false);
   };
 
   const runRetryEmails = async () => {
@@ -1933,13 +2070,13 @@ export default function FormRunsPage() {
                     </button>
                   )}
 
-                  {/* Export the CURRENTLY FILTERED set to CSV */}
+                  {/* Export the CURRENTLY FILTERED set (or selection) */}
                   {visibleSubmissions.length > 0 && (
                     <button
-                      onClick={exportRespondentsCSV}
+                      onClick={() => { setShowExportOptions(true); setExportScope("filtered"); }}
                       className="ml-auto px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"
                     >
-                      <Download className="w-3 h-3" /> Export CSV ({visibleSubmissions.length})
+                      <Download className="w-3 h-3" /> {t("platformMisc.runs.exportBtn")} ({visibleSubmissions.length})
                     </button>
                   )}
                 </div>
@@ -1992,6 +2129,12 @@ export default function FormRunsPage() {
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
                             >
                               Approve
+                            </button>
+                            <button
+                              onClick={openMessageComposer}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
+                            >
+                              <Send className="w-3 h-3" /> {t("platformMisc.runs.messageSend")}
                             </button>
                           </div>
                         )}
@@ -3304,6 +3447,102 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 </button>
                 <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.submitReview")}</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── MESSAGE COMPOSER MODAL ─── */}
+        {showMessageComposer && (
+          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowMessageComposer(false)}>
+            <div className="w-full max-w-lg max-h-[90vh] flex flex-col rounded-2xl bg-secondary border border-[var(--border-primary)] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
+                <div>
+                  <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.messageSend")}</h3>
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.messageRecipients", { count: selectedIds.length })}</p>
+                </div>
+                <button onClick={() => setShowMessageComposer(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4" /></button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                {messageResult ? (
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                      <p className="text-sm font-black text-emerald-400">{t("platformMisc.runs.messageSentTitle")}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.messageRecipientsCount", { count: messageResult.recipients })}</p>
+                      <p className="text-[10px] font-bold text-emerald-400 mt-1">{t("platformMisc.runs.messageSentCount", { count: messageResult.sent })}</p>
+                      {messageResult.failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: messageResult.failed })}</p>}
+                    </div>
+                    <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.messageSubject")}</label>
+                      <input value={messageSubject} onChange={(e) => setMessageSubject(e.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.messageBody")}</label>
+                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
+                    </div>
+                    <button
+                      onClick={personalizeMessage}
+                      disabled={aiPersonalizing}
+                      className="px-3 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 disabled:opacity-40 flex items-center gap-1.5"
+                    >
+                      <Sparkles className="w-3 h-3" /> {aiPersonalizing ? t("platformMisc.runs.messagePersonalizing") : t("platformMisc.runs.messageAiPersonalize")}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {!messageResult && (
+                <div className="flex gap-3 px-6 py-4 border-t border-[var(--border-primary)] bg-secondary shrink-0">
+                  <button onClick={() => setShowMessageComposer(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
+                  <button onClick={sendManualMessages} disabled={messageSending || selectedIds.length === 0} className="flex-1 btn btn-primary">{messageSending ? t("platformMisc.runs.messageSending") : t("platformMisc.runs.messageSendTo", { count: selectedIds.length })}</button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── EXPORT OPTIONS MODAL ─── */}
+        {showExportOptions && (
+          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowExportOptions(false)}>
+            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.exportTitle")}</h3>
+                <button onClick={() => setShowExportOptions(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.exportFormat")}</label>
+                <div className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
+                    <input type="radio" name="exportFormat" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportCsv")}
+                  </label>
+                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
+                    <input type="radio" name="exportFormat" checked={exportFormat === "xlsx"} onChange={() => setExportFormat("xlsx")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportXlsx")}
+                  </label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.exportScope")}</label>
+                <div className="space-y-1.5">
+                  {selectedIds.length > 0 && (
+                    <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
+                      <input type="radio" name="exportScope" checked={exportScope === "selected"} onChange={() => setExportScope("selected")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportSelected", { count: selectedIds.length })}
+                    </label>
+                  )}
+                  <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
+                    <input type="radio" name="exportScope" checked={exportScope === "filtered"} onChange={() => setExportScope("filtered")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportFiltered", { count: visibleSubmissions.length })}
+                  </label>
+                </div>
+              </div>
+              <button
+                onClick={() => exportParticipants(exportFormat, exportScope)}
+                className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase"
+              >
+                {t("platformMisc.runs.exportAction")}
+              </button>
             </div>
           </div>
         )}
