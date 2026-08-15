@@ -113,6 +113,8 @@ export async function GET(req) {
           title: d.title,
           description: d.description,
           allowedFormat: d.allowed_format,
+          resourceUrl: d.resource_url || null,
+          resourceLabel: d.resource_label || null,
           weight: d.weight,
           programId: pid,
           programName: program.name,

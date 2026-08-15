@@ -15,6 +15,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 
+function isSafeUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url.trim());
+}
+
 function StatusBadge({ status }) {
   const { t } = useI18n();
   const config = {
@@ -52,6 +56,7 @@ export default function AssignmentsView() {
   const [submitUrl, setSubmitUrl] = useState("");
   const [submitFile, setSubmitFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [feedback, setFeedback] = useState(null);
 
   const fetchAssignments = useCallback(async () => {
     try {
@@ -88,19 +93,46 @@ export default function AssignmentsView() {
   }, [fetchAssignments]);
 
   const handleSubmit = async () => {
-    if ((!submitUrl && !submitFile) || !showSubmitModal) return;
+    if (!showSubmitModal) return;
+    if (!submitUrl && !submitFile) {
+      setFeedback({
+        type: "error",
+        text: t("participantMisc.assignments.requiredError"),
+      });
+      return;
+    }
+
     setSubmitting(true);
+    setFeedback(null);
     try {
       let fileUrl = submitUrl;
-      // If file is selected, read as base64
+
+      // Upload files through the validated upload endpoint instead of
+      // base64-encoding them into the JSON request body.
       if (submitFile) {
-        fileUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(submitFile);
+        const formData = new FormData();
+        formData.append("file", submitFile);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
         });
+        const uploadData = await uploadRes.json();
+        if (!uploadData.success) {
+          setFeedback({
+            type: "error",
+            text: uploadData.error || t("participantMisc.assignments.submitError"),
+          });
+          return;
+        }
+        fileUrl = uploadData.url;
+      } else if (!isSafeUrl(fileUrl)) {
+        setFeedback({
+          type: "error",
+          text: t("participantMisc.assignments.invalidUrl"),
+        });
+        return;
       }
+
       const res = await fetch("/api/participant/assignments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -115,12 +147,22 @@ export default function AssignmentsView() {
         setShowSubmitModal(null);
         setSubmitUrl("");
         setSubmitFile(null);
+        setFeedback(null);
         fetchAssignments();
+      } else {
+        setFeedback({
+          type: "error",
+          text: data.error || t("participantMisc.assignments.submitError"),
+        });
       }
     } catch (e) {
-      /* ignore */
+      setFeedback({
+        type: "error",
+        text: t("participantMisc.assignments.submitError"),
+      });
+    } finally {
+      setSubmitting(false);
     }
-    setSubmitting(false);
   };
 
   const filtered = assignments.filter((a) => {
@@ -282,6 +324,22 @@ export default function AssignmentsView() {
                         })
                       : ""}
                   </p>
+                  {a.description && (
+                    <p className="text-[9px] text-[var(--text-secondary)] mt-1 line-clamp-2">
+                      {a.description}
+                    </p>
+                  )}
+                  {a.resourceUrl && isSafeUrl(a.resourceUrl) && (
+                    <a
+                      href={a.resourceUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      {a.resourceLabel || t("participantMisc.assignments.openResource")}
+                    </a>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {a.submission?.fileUrl && (
@@ -295,7 +353,12 @@ export default function AssignmentsView() {
                   )}
                   {!a.submission && (
                     <button
-                      onClick={() => setShowSubmitModal(a)}
+                      onClick={() => {
+                        setShowSubmitModal(a);
+                        setSubmitUrl("");
+                        setSubmitFile(null);
+                        setFeedback(null);
+                      }}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
                     >
                       {t("participantMisc.assignments.submit")}
@@ -340,6 +403,22 @@ export default function AssignmentsView() {
                   })}
                 </p>
               )}
+              {showSubmitModal.description && (
+                <p className="text-[9px] text-[var(--text-secondary)] whitespace-pre-wrap">
+                  {showSubmitModal.description}
+                </p>
+              )}
+              {showSubmitModal.resourceUrl && isSafeUrl(showSubmitModal.resourceUrl) && (
+                <a
+                  href={showSubmitModal.resourceUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  {showSubmitModal.resourceLabel || t("participantMisc.assignments.openResource")}
+                </a>
+              )}
               <input
                 type="text"
                 placeholder={t("participantMisc.assignments.urlPlaceholder")}
@@ -363,6 +442,17 @@ export default function AssignmentsView() {
                   })}
                 </p>
               )}
+              {feedback && (
+                <p
+                  className={`text-[9px] font-bold ${
+                    feedback.type === "error"
+                      ? "text-rose-400"
+                      : "text-emerald-400"
+                  }`}
+                >
+                  {feedback.text}
+                </p>
+              )}
               <button
                 onClick={handleSubmit}
                 disabled={(!submitUrl && !submitFile) || submitting}
@@ -373,7 +463,9 @@ export default function AssignmentsView() {
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
-                {t("participantMisc.assignments.submit")}
+                {submitting
+                  ? t("participantMisc.assignments.uploading")
+                  : t("participantMisc.assignments.submit")}
               </button>
             </motion.div>
           </div>

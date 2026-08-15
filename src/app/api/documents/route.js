@@ -18,10 +18,10 @@ export const GET = createHandler(
 export const POST = createHandler(
   { roles: ["staff", "super_admin"] },
   async (req) => {
-    const { program_id, title, description } = await req.json();
+    const { program_id, title, description, resource_url, resource_label } = await req.json();
     const result = await db.execute({
-      sql: "INSERT INTO v2_document_requirements (program_id, title, description) VALUES (?, ?, ?) RETURNING *",
-      args: [program_id, title, description],
+      sql: "INSERT INTO v2_document_requirements (program_id, title, description, resource_url, resource_label) VALUES (?, ?, ?, ?, ?) RETURNING *",
+      args: [program_id, title, description, resource_url || null, resource_label || null],
     });
     return NextResponse.json({ success: true, document: result.rows[0] });
   },
