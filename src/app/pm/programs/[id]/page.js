@@ -50,6 +50,7 @@ export const dynamic = "force-dynamic";
 
 function ProgramWorkspace() {
   const { id } = useParams();
+  const router = useRouter();
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState(
