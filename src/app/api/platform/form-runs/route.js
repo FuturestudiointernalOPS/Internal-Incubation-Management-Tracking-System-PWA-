@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, hasSentEmailToRecipientInRun } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
@@ -769,13 +770,35 @@ async function processReviewInternal({ submission_id, decision, comment, interna
       const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
       formData = f.rows[0] || null;
     }
-    await onReview(
-      { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
-      result.rows[0],
-      runData.rows[0] || null,
-      session,
-      formData
-    );
+
+    // Record a PENDING activation email BEFORE firing the background task.
+    // If the serverless function is terminated before `after()` completes,
+    // this pending row remains visible in the Emails tab as retryable.
+    if (decision === "approved") {
+      try {
+        const { recordEmailStatus } = await import("@/lib/email");
+        await recordEmailStatus({
+          submission_id: parseInt(submission_id),
+          contact_cid: result.rows[0]?.submitter_id || null,
+          email_type: "activation",
+          status: "pending",
+          error: "Queued — waiting for background automation",
+          to: result.rows[0]?.submitter_id || null,
+        });
+      } catch (_) {}
+    }
+
+    after(() => {
+      onReview(
+        { id: null, submission_id: parseInt(submission_id), decision, comment, reviewer_name: reviewerName },
+        result.rows[0],
+        runData.rows[0] || null,
+        session,
+        formData
+      ).catch((err) => {
+        console.error("[form-runs] Background automation failed:", err.message);
+      });
+    });
 
     // Auto group assignment: when approved, assign participant to all programs linked to families with matching form_id
     if (decision === "approved" && runData.rows[0]) {
@@ -1088,8 +1111,8 @@ export async function POST(req) {
           results.push({ submission_id: id, email_type: type, name, status: "already_sent", error: "Email already sent — not resent" });
           continue;
         }
-        if (!logRow || !["failed", "bounced", "cancelled"].includes(logRow.status)) {
-          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed/bounced/cancelled send to retry" });
+        if (!logRow || !["failed", "bounced", "cancelled", "pending"].includes(logRow.status)) {
+          results.push({ submission_id: id, email_type: type, name, status: "skipped", error: "No failed/bounced/cancelled/pending send to retry" });
           continue;
         }
 

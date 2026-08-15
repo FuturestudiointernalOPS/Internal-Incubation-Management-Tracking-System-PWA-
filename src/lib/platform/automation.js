@@ -12,11 +12,13 @@
 import {
   audit,
   sendSubmissionConfirmation,
-  sendReviewDecision,
   summarizeSubmission,
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
+
+// ─── Module-level DDL caches (avoid running ALTER/CREATE on every request) ───
+let contactsLanguageColumnEnsured = false;
 
 // ─── EVENT DEFINITIONS ─────────────────────────────────────────────
 
@@ -154,27 +156,6 @@ const RULES = [
         details: `Review ${review.decision} for submission #${submission.id} in "${run?.name || run?.id}"`,
         meta: { run_id: submission.run_id, comment: review.comment?.substring(0, 100) },
       });
-
-      try {
-        const { default: db, initDb } = await import("@/lib/db");
-        await initDb();
-        const contact = await db.execute({
-          sql: "SELECT name, email FROM contacts WHERE cid = ?",
-          args: [submission.submitter_id],
-        });
-        if (contact.rows.length > 0 && contact.rows[0].email) {
-          await sendReviewDecision({
-            to: contact.rows[0].email,
-            participantName: contact.rows[0].name || submission.submitter_id,
-            runName: run?.name || "Form Run",
-            decision: review.decision,
-            comment: review.comment,
-            reviewerName: review.reviewer_name || "Reviewer",
-          });
-        }
-      } catch (e) {
-        console.error("[Automation] Decision email failed:", e.message);
-      }
 
       const decisionLabel =
         review.decision === "approved" ? "approved" :
@@ -443,7 +424,12 @@ const RULES = [
           const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
           // Self-heal the language column (idempotent) so the detected
           // workflow language can be stored for the Welcome email.
-          try { await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'en'"); } catch (_) {}
+          if (!contactsLanguageColumnEnsured) {
+            try {
+              await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS language VARCHAR(5) DEFAULT 'en'");
+              contactsLanguageColumnEnsured = true;
+            } catch (_) {}
+          }
           await db.execute({
             sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, password, language) VALUES (?, ?, ?, ?, 'approved', ?, ?, '', ?)`,
             args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', groupProgramId || null, formLanguage],

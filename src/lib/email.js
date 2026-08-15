@@ -609,31 +609,38 @@ async function sendEmail({ to, subject, html, provider }) {
 // never sends the same email type twice for the same submission, and
 // failed sends are distinguishable from successful ones.
 
+let emailLogTablePromise = null;
+
 async function ensureEmailLogTable() {
-  try {
-    const { default: db, initDb } = await import("@/lib/db");
-    await initDb();
-    await db.execute(`CREATE TABLE IF NOT EXISTS platform_email_log (
-      id SERIAL PRIMARY KEY,
-      submission_id INTEGER,
-      contact_cid TEXT,
-      email_type TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      error TEXT,
-      sent_at TIMESTAMP,
-      created_at TIMESTAMP DEFAULT NOW()
-    )`);
-    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
-    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS recipient TEXT`);
-    await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS email_id TEXT`);
-    await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
-      ON platform_email_log (submission_id, email_type)
-      WHERE status = 'sent'`);
-    return true;
-  } catch (e) {
-    console.warn("[EmailLog] Could not ensure table:", e.message);
-    return false;
-  }
+  if (emailLogTablePromise) return emailLogTablePromise;
+  emailLogTablePromise = (async () => {
+    try {
+      const { default: db, initDb } = await import("@/lib/db");
+      await initDb();
+      await db.execute(`CREATE TABLE IF NOT EXISTS platform_email_log (
+        id SERIAL PRIMARY KEY,
+        submission_id INTEGER,
+        contact_cid TEXT,
+        email_type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        error TEXT,
+        sent_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`);
+      await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
+      await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS recipient TEXT`);
+      await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS email_id TEXT`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
+        ON platform_email_log (submission_id, email_type)
+        WHERE status = 'sent'`);
+      return true;
+    } catch (e) {
+      console.warn("[EmailLog] Could not ensure table:", e.message);
+      emailLogTablePromise = null; // allow retry on transient failure
+      return false;
+    }
+  })();
+  return emailLogTablePromise;
 }
 
 export async function getEmailLogRow(submissionId, emailType) {
@@ -686,46 +693,53 @@ export async function hasSentEmailToRecipientInRun({ run_id, email_type, recipie
  * what makes activation emails fail while approval emails still work.
  * Idempotent: safe to call on every activation send.
  */
+let passwordSetupTokensSchemaPromise = null;
+
 export async function ensurePasswordSetupTokensSchema() {
-  try {
-    const { default: db } = await import("@/lib/db");
-    await db.execute(`CREATE TABLE IF NOT EXISTS password_setup_tokens (
-      id SERIAL PRIMARY KEY,
-      contact_cid TEXT NOT NULL,
-      token TEXT NOT NULL UNIQUE,
-      expires_at TIMESTAMP NOT NULL,
-      used INTEGER NOT NULL DEFAULT 0,
-      created_at TIMESTAMP DEFAULT NOW()
-    )`);
-    // Repair tables created by the LEGACY script (user_cid/user_email NOT NULL,
-    // used BOOLEAN). The app writes contact_cid + integer used; legacy NOT NULL
-    // columns without defaults otherwise break every insert.
-    await db.execute(`ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS contact_cid TEXT`);
+  if (passwordSetupTokensSchemaPromise) return passwordSetupTokensSchemaPromise;
+  passwordSetupTokensSchemaPromise = (async () => {
     try {
-      await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_cid DROP NOT NULL`);
-    } catch (_) {}
-    try {
-      await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_email DROP NOT NULL`);
-    } catch (_) {}
-    try {
-      await db.execute(`UPDATE password_setup_tokens SET contact_cid = user_cid WHERE contact_cid IS NULL AND user_cid IS NOT NULL`);
-    } catch (_) {}
-    await db.execute(`DO $$
-    BEGIN
-      IF EXISTS (
-        SELECT 1 FROM information_schema.columns
-        WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
-      ) THEN
-        ALTER TABLE password_setup_tokens ALTER COLUMN used DROP DEFAULT;
-        ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
-        ALTER TABLE password_setup_tokens ALTER COLUMN used SET DEFAULT 0;
-      END IF;
-    END $$`);
-    return true;
-  } catch (e) {
-    console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", e.message);
-    return false;
-  }
+      const { default: db } = await import("@/lib/db");
+      await db.execute(`CREATE TABLE IF NOT EXISTS password_setup_tokens (
+        id SERIAL PRIMARY KEY,
+        contact_cid TEXT NOT NULL,
+        token TEXT NOT NULL UNIQUE,
+        expires_at TIMESTAMP NOT NULL,
+        used INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`);
+      // Repair tables created by the LEGACY script (user_cid/user_email NOT NULL,
+      // used BOOLEAN). The app writes contact_cid + integer used; legacy NOT NULL
+      // columns without defaults otherwise break every insert.
+      await db.execute(`ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS contact_cid TEXT`);
+      try {
+        await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_cid DROP NOT NULL`);
+      } catch (_) {}
+      try {
+        await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_email DROP NOT NULL`);
+      } catch (_) {}
+      try {
+        await db.execute(`UPDATE password_setup_tokens SET contact_cid = user_cid WHERE contact_cid IS NULL AND user_cid IS NOT NULL`);
+      } catch (_) {}
+      await db.execute(`DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'password_setup_tokens' AND column_name = 'used' AND data_type = 'boolean'
+        ) THEN
+          ALTER TABLE password_setup_tokens ALTER COLUMN used DROP DEFAULT;
+          ALTER TABLE password_setup_tokens ALTER COLUMN used TYPE INTEGER USING CASE WHEN used THEN 1 ELSE 0 END;
+          ALTER TABLE password_setup_tokens ALTER COLUMN used SET DEFAULT 0;
+        END IF;
+      END $$`);
+      return true;
+    } catch (e) {
+      console.warn("[TokenSchema] Could not ensure password_setup_tokens schema:", e.message);
+      passwordSetupTokensSchemaPromise = null; // allow retry on transient failure
+      return false;
+    }
+  })();
+  return passwordSetupTokensSchemaPromise;
 }
 
 /**
@@ -951,7 +965,7 @@ export async function recordEmailStatus({ submission_id, contact_cid, email_type
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
-    const ALLOWED = ["skipped", "failed", "bounced", "cancelled"];
+    const ALLOWED = ["pending", "skipped", "failed", "bounced", "cancelled"];
     const safeStatus = ALLOWED.includes(status) ? status : "failed";
     if (submission_id) {
       const latest = await db.execute({
