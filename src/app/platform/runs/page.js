@@ -2202,6 +2202,7 @@ export default function FormRunsPage() {
                       </span>
                       <div className="relative">
                         <button
+                          type="button"
                           onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
                           disabled={bulkProcessing}
                           className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
@@ -2211,12 +2212,14 @@ export default function FormRunsPage() {
                         {bulkMenuOpen && (
                           <div className="absolute right-0 mt-1 w-56 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
                             <button
+                              type="button"
                               onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
                             >
                               {t("platformMisc.runs.approve")}
                             </button>
                             <button
+                              type="button"
                               onClick={runSendApprovalMessages}
                               disabled={approvalProcessing}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5 disabled:opacity-50"
@@ -2224,12 +2227,14 @@ export default function FormRunsPage() {
                               <Send className="w-3 h-3" /> {t("platformMisc.runs.sendApprovalMessage")}
                             </button>
                             <button
+                              type="button"
                               onClick={openActivationConfirm}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
                               <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
                             </button>
                             <button
+                              type="button"
                               onClick={openMessageComposer}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
