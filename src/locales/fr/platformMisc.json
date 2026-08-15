@@ -505,6 +505,8 @@
       "accountActivatedTitle": "L'utilisateur a terminé la configuration du compte",
       "accountNotCreated": "Non créé",
       "accountNotCreatedTitle": "Pas encore de compte plateforme",
+      "accountPendingApproval": "Non activé",
+      "accountPendingApprovalTitle": "Formulaire approuvé — compte pas encore activé",
       "accountPendingActivation": "Activation en attente",
       "accountPendingActivationTitle": "Compte créé mais pas encore activé",
       "activationSent": "Activations envoyées",

@@ -57,7 +57,6 @@ const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed
 const REVIEW_FILTER_OPTIONS = ["approved", "rejected", "revision_requested"];
 const STATUS_FILTER_OPTIONS = ["submitted", "approved", "rejected", "revision_requested", "draft"];
 const ACCOUNT_STATUS_OPTIONS = ["active", "inactive", "activation_pending", "pending_approval", "archived", "deleted", "not_created"];
-const ACCOUNT_STATUS_LABELS = { active: "Active", inactive: "Inactive", activation_pending: "Activation Pending", pending_approval: "Pending Approval", archived: "Archived", deleted: "Deleted", not_created: "Not Created" };
 const ACCOUNT_STATUS_STYLES = {
   not_created: { cls: "bg-slate-500/10 text-slate-400", label: "platformMisc.runs.accountNotCreated", title: "platformMisc.runs.accountNotCreatedTitle" },
   pending_approval: { cls: "bg-orange-500/10 text-orange-400", label: "platformMisc.runs.accountPendingApproval", title: "platformMisc.runs.accountPendingApprovalTitle" },
@@ -1143,7 +1142,10 @@ export default function FormRunsPage() {
     return [];
   };
   const trackingFilterOptionLabel = (key, val) => {
-    if (key === "account_status") return ACCOUNT_STATUS_LABELS[val] || val;
+    if (key === "account_status") {
+      const cfg = ACCOUNT_STATUS_STYLES[val];
+      return cfg ? t(cfg.label) : val;
+    }
     if (key === "approval_email" || key === "activation_email") {
       if (val === "not_sent") return "Not Sent";
       return EMAIL_STATUS_CONFIG[val]?.label || val;
@@ -1600,9 +1602,12 @@ export default function FormRunsPage() {
   }, [selectedIds, submissions]);
 
   const eligibleActivationIds = useMemo(() => {
+    const blocked = new Set(["active", "inactive", "archived", "deleted"]);
     return selectedIds.filter((id) => {
       const s = submissions.find((x) => x.id === id);
-      return s && String(s.status || "").toLowerCase() === "approved" && s.account_status === "approved";
+      if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
+      const accountStatus = s.account_status || "not_created";
+      return !blocked.has(accountStatus);
     });
   }, [selectedIds, submissions]);
 
