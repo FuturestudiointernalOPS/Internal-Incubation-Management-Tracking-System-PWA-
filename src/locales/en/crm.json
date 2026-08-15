@@ -334,7 +334,13 @@
       "uploading": "Uploading...",
       "uploadFile": "Upload File",
       "download": "Download",
-      "noDocuments": "No documents attached."
+      "noDocuments": "No documents attached.",
+      "tabPrograms": "Programs",
+      "noPrograms": "No program engagements found.",
+      "activeEngagements": "Current",
+      "pastEngagements": "Past",
+      "activeStatus": "Active",
+      "completedStatus": "View Only"
     },
     "responses": {
       "matched": "Matched",
@@ -386,6 +392,8 @@
       "unassigned": "Unassigned",
       "team": "Team",
       "founder": "Founder",
+      "facilitator": "Facilitator",
+      "assistant": "Assistant",
       "pm": "Program Manager"
     },
     "segments": {

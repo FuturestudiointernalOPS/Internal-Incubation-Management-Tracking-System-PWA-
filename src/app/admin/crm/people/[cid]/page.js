@@ -32,6 +32,14 @@ const ROLE_LABELS = {
   pm: "crm.roles.pm",
 };
 
+const PROGRAM_ROLE_LABELS = {
+  participant: "crm.roles.participant",
+  facilitator: "crm.roles.facilitator",
+  program_manager: "crm.roles.pm",
+  assistant: "crm.roles.assistant",
+  staff: "crm.roles.staff",
+};
+
 const MODULE_LABELS = {
   forms: "crm.modules.forms",
   programs: "crm.modules.programs",
@@ -50,6 +58,7 @@ export default function CrmDetailPage({ params }) {
   const [contact, setContact] = useState(null);
   const [events, setEvents] = useState([]);
   const [roles, setRoles] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [moduleFilter, setModuleFilter] = useState("");
   const [tab, setTab] = useState("timeline");
@@ -74,14 +83,16 @@ export default function CrmDetailPage({ params }) {
     async function load() {
       setLoading(true);
       try {
-        const [contactRes, timelineRes, rolesRes] = await Promise.all([
+        const [contactRes, timelineRes, rolesRes, programsRes] = await Promise.all([
           fetch("/api/contacts?cid=" + cid).then(r => r.json()),
           fetch(`/api/contacts/${cid}/timeline?limit=200${moduleFilter ? "&module=" + moduleFilter : ""}`).then(r => r.json()),
           fetch(`/api/contacts/${cid}/roles`).then(r => r.json()),
+          fetch(`/api/contacts/${cid}/programs`).then(r => r.json()),
         ]);
         if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
         if (timelineRes.success) setEvents(timelineRes.events || []);
         if (rolesRes.success) setRoles(rolesRes.roles || []);
+        if (programsRes.success) setPrograms(programsRes.history || []);
       } catch (e) {
         console.error(e);
       }
@@ -242,6 +253,7 @@ export default function CrmDetailPage({ params }) {
         <div className="flex gap-1 border-b border-[var(--border-primary)] pb-0">
           {[
             { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
+            { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket },
             { key: "notes", label: t("crm.people.tabNotes"), icon: FileText },
             { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase },
             { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload },
@@ -488,6 +500,44 @@ export default function CrmDetailPage({ params }) {
                 <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noDocuments")}</p>
               )}
             </div>
+          </div>
+        )}
+
+        {/* Programs Tab */}
+        {tab === "programs" && (
+          <div className="space-y-6">
+            {programs.length === 0 ? (
+              <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
+                <Rocket className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
+                <p className="text-sm font-bold">{t("crm.people.noPrograms")}</p>
+              </div>
+            ) : (
+              <>
+                {[
+                  { title: t("crm.people.activeEngagements"), rows: programs.filter(p => p.status === "active") },
+                  { title: t("crm.people.pastEngagements"), rows: programs.filter(p => p.status !== "active") },
+                ].map(group => group.rows.length === 0 ? null : (
+                  <div key={group.title} className="space-y-2">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">{group.title}</h3>
+                    <div className="space-y-2">
+                      {group.rows.map((p) => (
+                        <div key={`${p.program_id}-${p.role}`} className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold truncate">{p.program_name}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
+                              {t(PROGRAM_ROLE_LABELS[p.role] || "") || p.role}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${p.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"}`}>
+                            {p.status === "active" ? t("crm.people.activeStatus") : t("crm.people.completedStatus")}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
         )}
 

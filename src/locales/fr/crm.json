@@ -333,7 +333,13 @@
       "uploading": "Téléchargement...",
       "uploadFile": "Télécharger un fichier",
       "download": "Télécharger",
-      "noDocuments": "Aucun document joint."
+      "noDocuments": "Aucun document joint.",
+      "tabPrograms": "Programmes",
+      "noPrograms": "Aucun engagement de programme trouvé.",
+      "activeEngagements": "Actuels",
+      "pastEngagements": "Passés",
+      "activeStatus": "Actif",
+      "completedStatus": "Lecture seule"
     },
     "responses": {
       "matched": "Correspondance établie",
@@ -385,6 +391,8 @@
       "unassigned": "Non attribué",
       "team": "Équipe",
       "founder": "Fondateur",
+      "facilitator": "Facilitateur",
+      "assistant": "Assistant",
       "pm": "Responsable de programme"
     },
     "segments": {
