@@ -780,6 +780,7 @@
       "messageSentTitle": "Message sent",
       "messageRecipientsCount": "{count} recipients",
       "messageSentCount": "{count} sent successfully",
+      "messageSkippedCount": "{count} skipped",
       "messageFailedCount": "{count} failed",
       "messageSubjectBodyRequired": "Subject and message are required",
       "messageSendFailed": "Send failed",
