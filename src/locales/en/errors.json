@@ -10,6 +10,7 @@
     "somethingWrong": "Something went wrong. Please try again.",
     "authRequired": "Authentication required.",
     "insufficientPermissions": "Insufficient permissions.",
+    "programCompletedViewOnly": "This program is completed and is view-only. Submissions are closed.",
     "authSystemFailure": "Authentication system failure.",
     "authzSystemFailure": "Authorization system failure.",
     "notFound": "Not found."

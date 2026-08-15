@@ -285,7 +285,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
   );
 }
 
-function SubmitForm({ programId, deliverableId, onDone, t }) {
+function SubmitForm({ programId, deliverableId, onDone, t, readOnly }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -345,6 +345,16 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
 
   return (
     <div className="space-y-4">
+      {readOnly && (
+        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <p className="text-[9px] font-black uppercase tracking-wider text-amber-400">
+            {t("participantMisc.programListing.viewOnly")}
+          </p>
+          <p className="text-[8px] text-[var(--text-secondary)] mt-1">
+            {t("errors.programCompletedViewOnly")}
+          </p>
+        </div>
+      )}
       {/* Deliverable Info */}
       {deliverable && (
         <div className="bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border-primary)] space-y-1">
@@ -380,7 +390,8 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
         <input
           type="file"
           onChange={(e) => setFile(e.target.files[0])}
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer"
+          disabled={readOnly}
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer disabled:opacity-40"
         />
       </div>
       <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest">
@@ -394,8 +405,9 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
           type="url"
           value={url}
           onChange={(e) => setUrl(e.target.value)}
+          disabled={readOnly}
           placeholder="https://..."
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)]"
+          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)] disabled:opacity-40"
         />
       </div>
       {submitError && (
@@ -405,7 +417,7 @@ function SubmitForm({ programId, deliverableId, onDone, t }) {
       )}
       <button
         onClick={handleSubmit}
-        disabled={submitting || (!file && !url.trim())}
+        disabled={submitting || readOnly || (!file && !url.trim())}
         className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
       >
         {submitting ? (
@@ -600,6 +612,10 @@ export default function ProgramDetail({ programId }) {
     followups,
   } = data;
   const { metrics } = program;
+
+  // Completed / archived programs are view-only for participants.
+  const isViewOnlyProgram =
+    !!program?.status && String(program.status).toLowerCase() !== "active";
 
   // Resources grouped by week for display
   const resourcesByWeek = resources?.byWeek || {};
@@ -1114,8 +1130,9 @@ export default function ProgramDetail({ programId }) {
                 setSubmitModal(null);
                 fetchDetail();
               }}
-                      deliverable={submitModal.deliverable}
-                    />
+              readOnly={isViewOnlyProgram}
+              deliverable={submitModal.deliverable}
+            />
           </div>
         </div>
       )}

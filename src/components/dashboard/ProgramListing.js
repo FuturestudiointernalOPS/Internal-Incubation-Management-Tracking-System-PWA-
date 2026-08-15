@@ -86,6 +86,11 @@ function ProgramCard({ program, onSelect }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
             <StatusBadge status={program.status} />
+            {program.status && String(program.status).toLowerCase() !== "active" && (
+              <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                {t("participantMisc.programListing.viewOnly")}
+              </span>
+            )}
             {program.programMode && (
               <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
                 {program.programMode}

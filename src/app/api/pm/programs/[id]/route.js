@@ -21,6 +21,52 @@ export const GET = createHandler(
         { status: 404 },
       );
     }
-    return NextResponse.json({ success: true, program: result.rows[0] });
+
+    // Lazy-ensure the program-level Facilitators group exists (system-defined,
+    // non-participant representation of the people in v2_program_staff).
+    try {
+      await db.execute({
+        sql: `INSERT INTO v2_groups (program_id, name, type, is_system)
+              SELECT ?, 'Facilitators', 'facilitators', 1
+              WHERE NOT EXISTS (
+                SELECT 1 FROM v2_groups
+                WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'
+              )`,
+        args: [String(id), String(id)],
+      });
+    } catch (_) {}
+
+    // Program facilitators (external personnel, role='facilitator') — same
+    // enrichment as the list endpoint so the PM facilitator management UI
+    // can render assigned facilitators and prevent duplicates client-side.
+    let facilitators = [];
+    try {
+      const facRes = await db.execute({
+        sql: `SELECT ps.id, ps.staff_id, ps.role, ps.permissions, c.name, c.email
+              FROM v2_program_staff ps
+              LEFT JOIN contacts c ON ps.staff_id = c.cid OR LOWER(TRIM(c.email)) = LOWER(TRIM(ps.staff_id))
+              WHERE CAST(ps.program_id AS TEXT) = ? AND ps.role = 'facilitator'`,
+        args: [String(id)],
+      });
+      facilitators = facRes.rows.map((r) => {
+        let perms = r.permissions || {};
+        if (typeof perms === "string") {
+          try { perms = JSON.parse(perms); } catch { perms = {}; }
+        }
+        return {
+          id: r.id,
+          cid: r.staff_id,
+          role: r.role || "facilitator",
+          permissions: perms,
+          name: r.name || r.email || r.staff_id,
+          email: r.email || r.staff_id,
+        };
+      });
+    } catch (_) {}
+
+    return NextResponse.json({
+      success: true,
+      program: { ...result.rows[0], facilitators },
+    });
   },
 );
