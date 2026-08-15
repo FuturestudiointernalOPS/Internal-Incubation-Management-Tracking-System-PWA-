@@ -593,7 +593,7 @@ export async function GET(req) {
  *
  * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
  */
-async function sendDecisionEmailForSubmission({ submission_id, decision, comment }) {
+async function sendDecisionEmailForSubmission({ submission_id, decision, comment, force }) {
   const subRes = await db.execute({
     sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
     args: [parseInt(submission_id)],
@@ -638,22 +638,25 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     if (!applicantEmail) return { status: "failed", error: "No real email address found in the submission data" };
 
     // Duplicate-recipient guard: when the same email address appears in
-    // multiple submissions of this run, only ONE decision email is ever sent.
-    const alreadyEmailed = await hasSentEmailToRecipientInRun({
-      run_id: row.run_id,
-      email_type: decision === "approved" ? "approval" : "rejection",
-      recipient: applicantEmail,
-    });
-    if (alreadyEmailed) {
-      await recordEmailStatus({
-        submission_id: parseInt(submission_id),
-        contact_cid: row.submitter_id || null,
+    // multiple submissions of this run, only ONE decision email is ever sent
+    // (unless this is an explicit manual resend).
+    if (!force) {
+      const alreadyEmailed = await hasSentEmailToRecipientInRun({
+        run_id: row.run_id,
         email_type: decision === "approved" ? "approval" : "rejection",
-        status: "skipped",
-        error: "Skipped — duplicate recipient: an email was already sent to this address for this run",
-        to: applicantEmail,
+        recipient: applicantEmail,
       });
-      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+      if (alreadyEmailed) {
+        await recordEmailStatus({
+          submission_id: parseInt(submission_id),
+          contact_cid: row.submitter_id || null,
+          email_type: decision === "approved" ? "approval" : "rejection",
+          status: "skipped",
+          error: "Skipped — duplicate recipient: an email was already sent to this address for this run",
+          to: applicantEmail,
+        });
+        return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+      }
     }
 
     // Best real name — resolved deterministically with the form's actual
@@ -744,6 +747,7 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
       email_type: emailType,
       provider: "gmail",
       to: applicantEmail,
+      batch_id: force ? `manual_resend_${submission_id}_${Date.now()}` : undefined,
       sendFn: () => sendDecisionEmail({
         to: applicantEmail,
         applicantName,
@@ -1144,6 +1148,132 @@ export async function POST(req) {
             name: row.submitter_name || "",
             error: e?.message || "Unknown error",
           });
+        }
+      }
+
+      return NextResponse.json({ success: true, results });
+    }
+
+    // ─── SEND APPROVAL MESSAGES ACTION ───
+    // Explicitly resends the approval decision email to already-approved
+    // respondents. Unlike retry_emails (which only retries FAILED sends), this
+    // is a manual resend for people who may not have received it.
+    if (action === "send_approval_messages") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { run_id, submission_ids } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 25) {
+        return NextResponse.json({ success: false, error: "A batch can process at most 25 submissions" }, { status: 400 });
+      }
+
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const valRes = await db.execute({
+        sql: `SELECT id, status, submitter_name FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
+        args: [idList, parseInt(run_id)],
+      });
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      const results = [];
+      for (const id of idList) {
+        const row = validMap.get(id);
+        if (!row) {
+          results.push({ submission_id: id, status: "not_found", name: "" });
+          continue;
+        }
+        if (String(row.status || "").toLowerCase() !== "approved") {
+          results.push({ submission_id: id, status: "not_approved", name: row.submitter_name || "" });
+          continue;
+        }
+        const r = await sendDecisionEmailForSubmission({
+          submission_id: id,
+          decision: "approved",
+          comment: "Approval message resent",
+          force: true,
+        });
+        results.push({ submission_id: id, status: r.status, name: row.submitter_name || "", error: r.error, to: r.to });
+      }
+
+      return NextResponse.json({ success: true, results });
+    }
+
+    // ─── SEND ACTIVATION MESSAGES ACTION ───
+    // Resends the activation/access email for approved-but-not-active
+    // respondents. It bypasses the "already sent" idempotency guard but never
+    // sends to already-active accounts.
+    if (action === "send_activation_messages") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { run_id, submission_ids } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 25) {
+        return NextResponse.json({ success: false, error: "A batch can process at most 25 submissions" }, { status: 400 });
+      }
+
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const results = [];
+
+      for (const id of idList) {
+        const sub = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE id = ? AND run_id = ?", args: [id, parseInt(run_id)] });
+        const row = sub.rows[0];
+        if (!row) {
+          results.push({ submission_id: id, status: "not_found", name: "" });
+          continue;
+        }
+        if (String(row.status || "").toLowerCase() !== "approved") {
+          results.push({ submission_id: id, status: "not_approved", name: row.submitter_name || "" });
+          continue;
+        }
+
+        let contactRow = null;
+        if (row.submitter_id) {
+          const c = await db.execute({ sql: "SELECT * FROM contacts WHERE cid = ? LIMIT 1", args: [row.submitter_id] });
+          contactRow = c.rows[0] || null;
+        }
+        const accountStatus = deriveAccountStatus(contactRow);
+        if (accountStatus === "active") {
+          results.push({ submission_id: id, status: "already_active", name: row.submitter_name || "" });
+          continue;
+        }
+        if (accountStatus !== "approved") {
+          results.push({ submission_id: id, status: "not_approved", name: row.submitter_name || "" });
+          continue;
+        }
+
+        const forced = { ...row, _forceActivationResend: true };
+        const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [row.run_id] });
+        let formData = null;
+        if (runData.rows[0]) {
+          const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+          formData = f.rows[0] || null;
+        }
+        try {
+          await onReview(
+            { id: null, submission_id: id, decision: "approved", comment: "Manual activation resend", reviewer_name: session.cid },
+            forced,
+            runData.rows[0] || null,
+            session,
+            formData
+          );
+          const { getEmailLogRow } = await import("@/lib/email");
+          const after = await getEmailLogRow(id, "activation");
+          results.push({
+            submission_id: id,
+            status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
+            name: row.submitter_name || "",
+            error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
+            to: after?.recipient,
+          });
+        } catch (e) {
+          results.push({ submission_id: id, status: "failed", name: row.submitter_name || "", error: e?.message || "Resend error" });
         }
       }
 

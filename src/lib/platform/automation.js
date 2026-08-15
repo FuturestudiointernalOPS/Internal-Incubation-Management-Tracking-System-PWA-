@@ -483,35 +483,39 @@ const RULES = [
           return;
         }
 
-        // 4. Idempotency: never re-send automatically after a successful send.
-        const priorSend = ctx.submission?.id
-          ? await getEmailLogRow(ctx.submission.id, "activation")
-          : null;
-        if (priorSend && priorSend.status === "sent") {
-          console.log("[Automation] Activation/access email already sent — skipped", contactEmail);
-          return;
-        }
+        const forceResend = !!ctx.submission?._forceActivationResend;
 
-        // Duplicate-recipient guard: when the same email appears in multiple
-        // submissions of this run, only ONE activation/access email is ever
-        // sent to that address (the highest-scored approval reaches this
-        // point; lower-scored duplicates are skipped earlier).
-        const recipientAlreadyEmailed = await hasSentEmailToRecipientInRun({
-          run_id: ctx.run?.id || null,
-          email_type: "activation",
-          recipient: contactEmail,
-        });
-        if (recipientAlreadyEmailed) {
-          console.log("[Automation] Duplicate recipient — activation already sent", contactEmail);
-          await recordEmailStatus({
-            submission_id: ctx.submission?.id || null,
-            contact_cid: contact.cid,
+        // 4. Idempotency: never re-send automatically after a successful send
+        //    (unless an administrator explicitly requests a manual resend).
+        if (!forceResend) {
+          const priorSend = ctx.submission?.id
+            ? await getEmailLogRow(ctx.submission.id, "activation")
+            : null;
+          if (priorSend && priorSend.status === "sent") {
+            console.log("[Automation] Activation/access email already sent — skipped", contactEmail);
+            return;
+          }
+
+          // Duplicate-recipient guard: when the same email appears in multiple
+          // submissions of this run, only ONE activation/access email is ever
+          // sent to that address.
+          const recipientAlreadyEmailed = await hasSentEmailToRecipientInRun({
+            run_id: ctx.run?.id || null,
             email_type: "activation",
-            status: "skipped",
-            error: "Skipped — duplicate recipient: an activation email was already sent to this address for this run",
-            to: contactEmail,
+            recipient: contactEmail,
           });
-          return;
+          if (recipientAlreadyEmailed) {
+            console.log("[Automation] Duplicate recipient — activation already sent", contactEmail);
+            await recordEmailStatus({
+              submission_id: ctx.submission?.id || null,
+              contact_cid: contact.cid,
+              email_type: "activation",
+              status: "skipped",
+              error: "Skipped — duplicate recipient: an activation email was already sent to this address for this run",
+              to: contactEmail,
+            });
+            return;
+          }
         }
 
         // 5. Send the RIGHT email for the account state:
@@ -553,6 +557,7 @@ const RULES = [
           email_type: "activation",
           note: KIND_NOTES[emailKind],
           to: contactEmail,
+          batch_id: forceResend ? `manual_resend_${ctx.submission?.id || "bulk"}_${Date.now()}` : undefined,
           sendFn: async () => {
             if (emailKind === "login_existing") {
               return sendLoginEmail({
