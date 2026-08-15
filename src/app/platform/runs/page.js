@@ -841,6 +841,9 @@ export default function FormRunsPage() {
   const [retryProgress, setRetryProgress] = useState({ done: 0, total: 0 });
   const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
   const retryAbortRef = useRef(false); // stops issuing new retry batches when true
+  const [activationConfirmOpen, setActivationConfirmOpen] = useState(false);
+  const [activationProcessing, setActivationProcessing] = useState(false);
+  const [approvalProcessing, setApprovalProcessing] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1589,6 +1592,69 @@ export default function FormRunsPage() {
     setMessageSending(false);
   };
 
+  const eligibleActivationIds = useMemo(() => {
+    return selectedIds.filter((id) => {
+      const s = submissions.find((x) => x.id === id);
+      return s && String(s.status || "").toLowerCase() === "approved" && s.account_status === "approved";
+    });
+  }, [selectedIds, submissions]);
+
+  const runSendApprovalMessages = async () => {
+    if (!selectedRun || selectedIds.length === 0 || approvalProcessing) return;
+    setBulkMenuOpen(false);
+    setApprovalProcessing(true);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=send_approval_messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: selectedIds }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const results = data.results || [];
+        const sent = results.filter((r) => r.status === "sent").length;
+        const skipped = results.length - sent;
+        notify(t("platformMisc.runs.approvalMessagesSent", { sent, skipped }));
+        setSelectedIds([]);
+        await openRun(selectedRun);
+      } else {
+        notify(data.error || t("platformMisc.runs.messageSendFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.messageSendFailed"));
+    } finally {
+      setApprovalProcessing(false);
+    }
+  };
+
+  const runSendActivationMessages = async () => {
+    if (!selectedRun || eligibleActivationIds.length === 0 || activationProcessing) return;
+    setActivationConfirmOpen(false);
+    setActivationProcessing(true);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=send_activation_messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: eligibleActivationIds }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const results = data.results || [];
+        const sent = results.filter((r) => r.status === "sent").length;
+        const skipped = results.length - sent;
+        notify(t("platformMisc.runs.activationMessagesSent", { sent, skipped }));
+        setSelectedIds([]);
+        await openRun(selectedRun);
+      } else {
+        notify(data.error || t("platformMisc.runs.messageSendFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.messageSendFailed"));
+    } finally {
+      setActivationProcessing(false);
+    }
+  };
+
   const runRetryEmails = async () => {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
     setRetryProcessing(true);
@@ -2123,18 +2189,31 @@ export default function FormRunsPage() {
                           Actions <ChevronDown className="w-3 h-3" />
                         </button>
                         {bulkMenuOpen && (
-                          <div className="absolute right-0 mt-1 w-44 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
+                          <div className="absolute right-0 mt-1 w-56 rounded-lg border border-[var(--border-primary)] bg-secondary shadow-xl z-30">
                             <button
                               onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
                             >
-                              Approve
+                              {t("platformMisc.runs.approve")}
+                            </button>
+                            <button
+                              onClick={runSendApprovalMessages}
+                              disabled={approvalProcessing}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                              <Send className="w-3 h-3" /> {t("platformMisc.runs.sendApprovalMessage")}
+                            </button>
+                            <button
+                              onClick={() => { setBulkMenuOpen(false); setActivationConfirmOpen(true); }}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
+                            >
+                              <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
                             </button>
                             <button
                               onClick={openMessageComposer}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
-                              <Send className="w-3 h-3" /> {t("platformMisc.runs.messageSend")}
+                              <Mail className="w-3 h-3" /> {t("platformMisc.runs.sendCustomMessage")}
                             </button>
                           </div>
                         )}
@@ -2379,6 +2458,31 @@ export default function FormRunsPage() {
                       <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
                       <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
                         {t("platformMisc.runs.bulkApproveConfirm", { count: selectedIds.length })}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── SEND ACTIVATION MESSAGES CONFIRM ─── */}
+              {activationConfirmOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                      {t("platformMisc.runs.activationConfirmTitle")}
+                    </h4>
+                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                      {t("platformMisc.runs.activationConfirmDesc", { count: eligibleActivationIds.length })}
+                    </p>
+                    {selectedIds.length > eligibleActivationIds.length && (
+                      <p className="text-[10px] font-bold text-amber-500">
+                        {t("platformMisc.runs.activationIneligible", { count: selectedIds.length - eligibleActivationIds.length })}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setActivationConfirmOpen(false)} disabled={activationProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={runSendActivationMessages} disabled={activationProcessing || eligibleActivationIds.length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                        {t("platformMisc.runs.sendActivationConfirm")}
                       </button>
                     </div>
                   </div>
