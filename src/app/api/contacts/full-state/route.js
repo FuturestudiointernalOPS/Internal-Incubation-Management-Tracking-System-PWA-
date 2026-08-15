@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { reconcileProgramGroups } from "@/lib/contact-group-sync";
 
 /**
  * CONTACTS FULL-STATE API — CENTRAL REGISTRY FEED
@@ -17,6 +18,11 @@ export async function GET(req) {
       "teacher",
     ]);
     if (authError) return authError;
+
+    // Self-heal existing records: fill missing group/program links idempotently
+    // so previously-approved participants/facilitators stop showing as UNASSIGNED.
+    await reconcileProgramGroups();
+
     const { searchParams } = new URL(req.url);
     const pmId = searchParams.get("pm_id");
     const statusFilter = searchParams.get("status");
