@@ -11,6 +11,8 @@ import {
   ClipboardList,
   ShieldCheck,
   Mail,
+  X,
+  Send,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -38,6 +40,11 @@ const FACILITATOR_CAPS = [
   { key: "groups.manage", label: "pmMisc.facilitators.caps.manageGroups" },
 ];
 
+const FULL_FACILITATOR_PERMISSIONS = FACILITATOR_CAPS.reduce((acc, cap) => {
+  acc[cap.key] = cap.key.startsWith("view") ? 1 : 2;
+  return acc;
+}, {});
+
 export function FacilitatorsPanel({ programId }) {
   const id = programId;
   const { t } = useI18n();
@@ -49,7 +56,12 @@ export function FacilitatorsPanel({ programId }) {
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
   const [decisionInputs, setDecisionInputs] = useState({});
-  const [inviteForm, setInviteForm] = useState({ name: "", email: "" });
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmails, setInviteEmails] = useState("");
+  const [invitePreview, setInvitePreview] = useState([]);
+  const [inviteResults, setInviteResults] = useState(null);
+  const [inviting, setInviting] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
   const [facilitatorsGroup, setFacilitatorsGroup] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [conflictError, setConflictError] = useState(null);
@@ -130,6 +142,11 @@ export function FacilitatorsPanel({ programId }) {
           program_id: id,
           staff_id: contact.cid,
           role: "facilitator",
+          permissions:
+            program?.facilitator_default_permissions &&
+            Object.keys(program.facilitator_default_permissions).length > 0
+              ? program.facilitator_default_permissions
+              : FULL_FACILITATOR_PERMISSIONS,
         }),
       });
       const data = await res.json();
@@ -151,43 +168,73 @@ export function FacilitatorsPanel({ programId }) {
     }
   };
 
-  const createAndInviteFacilitator = async () => {
-    const email = inviteForm.email.trim();
-    if (!email) {
-      notify("error", t("pmMisc.facilitators.emailRequired"));
-      return;
-    }
-    setBusy(true);
+  const parseInviteEmails = () => {
+    return Array.from(
+      new Set(
+        inviteEmails
+          .split(/[\n,;]+/)
+          .map((s) => s.trim())
+          .filter(Boolean),
+      ),
+    );
+  };
+
+  const openInviteModal = () => {
+    setShowInviteModal(true);
+    setInviteEmails("");
+    setInvitePreview([]);
+    setInviteResults(null);
+  };
+
+  const handlePreviewInvites = async () => {
+    const emails = parseInviteEmails();
+    if (emails.length === 0) return;
+    setPreviewing(true);
     try {
-      const res = await fetch("/api/auth/invite", {
+      const res = await fetch("/api/facilitators/invite-bulk", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          name: inviteForm.name.trim(),
-          role: "facilitator",
           program_id: id,
           program_name: program?.name || "",
+          emails,
+          preview: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) setInvitePreview(data.results || []);
+    } catch (e) {
+      notify("error", t("pmMisc.facilitators.inviteFailed"));
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  const handleInviteAll = async () => {
+    const emails = parseInviteEmails();
+    if (emails.length === 0) return;
+    setInviting(true);
+    try {
+      const res = await fetch("/api/facilitators/invite-bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          program_id: id,
+          program_name: program?.name || "",
+          emails,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        if (data.cid) {
-          await addFacilitator({
-            cid: data.cid,
-            name: inviteForm.name.trim(),
-            email,
-          });
-        }
-        setInviteForm({ name: "", email: "" });
-        notify("success", t("pmMisc.facilitators.invitationSent"));
+        setInviteResults(data.results || []);
+        await load();
       } else {
         notify("error", data.error || t("pmMisc.facilitators.inviteFailed"));
       }
     } catch (e) {
       notify("error", t("pmMisc.facilitators.inviteFailed"));
     } finally {
-      setBusy(false);
+      setInviting(false);
     }
   };
 
@@ -227,7 +274,11 @@ export function FacilitatorsPanel({ programId }) {
   };
 
   const toggleDefault = (capKey) => {
-    const current = program?.facilitator_default_permissions || {};
+    const current =
+      program?.facilitator_default_permissions &&
+      Object.keys(program.facilitator_default_permissions).length > 0
+        ? program.facilitator_default_permissions
+        : FULL_FACILITATOR_PERMISSIONS;
     const next = { ...current };
     if (next[capKey]) delete next[capKey];
     else next[capKey] = capKey.startsWith("view") ? 1 : 2;
@@ -283,7 +334,11 @@ export function FacilitatorsPanel({ programId }) {
     );
   }
 
-  const defaultPerms = program.facilitator_default_permissions || {};
+  const defaultPerms =
+    program.facilitator_default_permissions &&
+    Object.keys(program.facilitator_default_permissions).length > 0
+      ? program.facilitator_default_permissions
+      : FULL_FACILITATOR_PERMISSIONS;
   const families = groups.filter((g) => g.source === "family");
   const assignedCids = (program.facilitators || []).map((f) => f.cid);
   const participantKeys = new Set((participants || []).flatMap((p) => [p.cid, p.email].filter(Boolean)));
@@ -305,11 +360,19 @@ export function FacilitatorsPanel({ programId }) {
               {t("pmMisc.facilitators.subtitle")}
             </p>
           </div>
-          <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2 border border-[var(--border-primary)]">
-            <UserCheck className="w-4 h-4 text-[var(--brand-orange)]" />
-            <span className="text-[10px] font-black uppercase">
-              {t("pmMisc.facilitators.assignedCount", { count: (program.facilitators || []).length })}
-            </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={openInviteModal}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+            >
+              <Send className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.inviteFacilitators")}
+            </button>
+            <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2 border border-[var(--border-primary)]">
+              <UserCheck className="w-4 h-4 text-[var(--brand-orange)]" />
+              <span className="text-[10px] font-black uppercase">
+                {t("pmMisc.facilitators.assignedCount", { count: (program.facilitators || []).length })}
+              </span>
+            </div>
           </div>
         </header>
 
@@ -381,27 +444,9 @@ export function FacilitatorsPanel({ programId }) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <input
-              value={inviteForm.name}
-              onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-              placeholder={t("pmMisc.facilitators.nameOptional")}
-              className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
-            />
-            <input
-              value={inviteForm.email}
-              onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-              placeholder={t("pmMisc.facilitators.emailPlaceholder")}
-              className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
-            />
-          </div>
-          <button
-            disabled={busy}
-            onClick={createAndInviteFacilitator}
-            className="flex items-center gap-2 text-[9px] font-black uppercase px-4 py-2.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
-          >
-            <Mail className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.createInvite")}
-          </button>
+          <p className="text-[9px] text-[var(--text-secondary)]">
+            {t("pmMisc.facilitators.inviteHint")}
+          </p>
         </section>
 
         {/* Participant scope */}
@@ -616,6 +661,85 @@ export function FacilitatorsPanel({ programId }) {
             ))}
           </div>
         </section>
+
+        {/* Invite Facilitators modal */}
+        {showInviteModal && (
+          <div className="fixed inset-0 z-[600] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-base font-black uppercase tracking-tight">{t("pmMisc.facilitators.inviteModalTitle")}</h2>
+                <button onClick={() => setShowInviteModal(false)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)]">{t("pmMisc.facilitators.inviteModalDescription")}</p>
+              <textarea
+                value={inviteEmails}
+                onChange={(e) => setInviteEmails(e.target.value)}
+                placeholder={t("pmMisc.facilitators.inviteEmailsPlaceholder")}
+                rows={5}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)] resize-y"
+              />
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  onClick={handlePreviewInvites}
+                  disabled={previewing || !parseInviteEmails().length}
+                  className="px-3 py-2 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                >
+                  {t("pmMisc.facilitators.review")}
+                </button>
+                <p className="text-[9px] text-[var(--text-secondary)] text-right">
+                  {t("pmMisc.facilitators.defaultAccess")} <strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.fullAccess")}</strong>
+                </p>
+              </div>
+
+              {invitePreview.length > 0 && !inviteResults && (
+                <div className="space-y-2">
+                  {invitePreview.map((r) => (
+                    <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold truncate">{r.email}</p>
+                        {r.name && <p className="text-[9px] text-[var(--text-secondary)]">{r.name}</p>}
+                      </div>
+                      <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "conflict" || r.status === "invalid" || r.status === "already_facilitator" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                        {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {inviteResults && (
+                <div className="space-y-2">
+                  {inviteResults.map((r) => (
+                    <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold truncate">{r.name || r.email}</p>
+                        <p className="text-[9px] text-[var(--text-secondary)] truncate">{r.email}</p>
+                      </div>
+                      <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "invited" || r.status === "activation_sent" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                        {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button onClick={() => setShowInviteModal(false)} className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                  {t("pmMisc.facilitators.cancel")}
+                </button>
+                {!inviteResults && (
+                  <button
+                    onClick={handleInviteAll}
+                    disabled={inviting || !parseInviteEmails().length}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                  >
+                    <Send className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.inviteAll")}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

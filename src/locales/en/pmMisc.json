@@ -637,7 +637,24 @@
       "pmActionNote": "PM action note…",
       "recordDecision": "Record decision",
       "statusSubmitted": "Submitted",
-      "statusDecided": "Decided"
+      "statusDecided": "Decided",
+      "inviteFacilitators": "Invite Facilitators",
+      "inviteModalTitle": "Invite Facilitators",
+      "inviteModalDescription": "Add one or more email addresses. They will receive an invitation to facilitate this program.",
+      "inviteEmailsPlaceholder": "sarah@gmail.com, john@gmail.com, mary@gmail.com",
+      "review": "Review",
+      "defaultAccess": "Default access:",
+      "fullAccess": "Full Facilitator Access",
+      "inviteAll": "Invite All Facilitators",
+      "cancel": "Cancel",
+      "inviteHint": "Use the Invite Facilitators button to add one or more people by email.",
+      "inviteStatus_existing_contact": "Existing contact",
+      "inviteStatus_new_contact": "New contact",
+      "inviteStatus_already_facilitator": "Already a facilitator",
+      "inviteStatus_conflict": "Role conflict — already a participant",
+      "inviteStatus_invalid": "Invalid email",
+      "inviteStatus_invited": "Invited",
+      "inviteStatus_activation_sent": "Activation email sent"
     }
   }
 }

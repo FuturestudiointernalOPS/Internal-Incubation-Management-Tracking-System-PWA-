@@ -58,7 +58,7 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
-    const { program_id, staff_id, role } = await req.json();
+    const { program_id, staff_id, role, permissions } = await req.json();
 
     if (String(role || "").toLowerCase() === "facilitator") {
       const contactRes = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [staff_id] });
@@ -76,8 +76,8 @@ export async function POST(req) {
     }
 
     const res = await db.execute({
-      sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW() RETURNING id",
-      args: [program_id, staff_id, role || "staff"],
+      sql: "INSERT INTO v2_program_staff (program_id, staff_id, role, permissions) VALUES (?, ?, ?, ?::jsonb) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, permissions = COALESCE(EXCLUDED.permissions, v2_program_staff.permissions), updated_at = NOW() RETURNING id",
+      args: [program_id, staff_id, role || "staff", JSON.stringify(permissions || {})],
     });
     if (String(role || "").toLowerCase() === "facilitator") {
       await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
