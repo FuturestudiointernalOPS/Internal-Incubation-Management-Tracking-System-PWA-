@@ -37,13 +37,14 @@ export async function POST(req) {
         sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
         args: [token, contact.cid],
       });
-      await sendInviteEmail({ to: contact.email, name: contact.name || contact.email.split("@")[0], role: contact.role || "participant", token });
+      await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
       return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
     }
 
     // NEW INVITE — name is optional (email alone is sufficient).
-    // An existing contact is reused, never duplicated.
-    const displayName = (name || "").trim() || cleanEmail.split("@")[0];
+    // An existing contact is reused, never duplicated. The email sender applies
+    // a neutral greeting when no real name is available (never the email prefix).
+    const displayName = (name || "").trim();
 
     let contactCid;
     const existingContact = await db.execute({

@@ -157,7 +157,6 @@ export function FacilitatorsPanel({ programId }) {
       notify("error", t("pmMisc.facilitators.emailRequired"));
       return;
     }
-    const fallbackName = email.split("@")[0];
     setBusy(true);
     try {
       const res = await fetch("/api/auth/invite", {
@@ -165,10 +164,10 @@ export function FacilitatorsPanel({ programId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
-          name: inviteForm.name.trim() || fallbackName,
+          name: inviteForm.name.trim(),
           role: "facilitator",
           program_id: id,
-          program_name: program?.name || "", 
+          program_name: program?.name || "",
         }),
       });
       const data = await res.json();
@@ -176,7 +175,7 @@ export function FacilitatorsPanel({ programId }) {
         if (data.cid) {
           await addFacilitator({
             cid: data.cid,
-            name: inviteForm.name.trim() || fallbackName,
+            name: inviteForm.name.trim(),
             email,
           });
         }
