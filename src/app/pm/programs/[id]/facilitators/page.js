@@ -27,18 +27,18 @@ export const dynamic = "force-dynamic";
  */
 
 const FACILITATOR_CAPS = [
-  { key: "participants.view", label: "View participants" },
-  { key: "participants.manage", label: "Manage participants" },
-  { key: "attendance.view", label: "View attendance" },
-  { key: "attendance.record", label: "Record attendance" },
-  { key: "assignments.view", label: "View assignments" },
-  { key: "assignments.review", label: "Review assignments" },
-  { key: "assignments.grade", label: "Grade assignments" },
-  { key: "sessions.conduct", label: "Conduct sessions" },
-  { key: "sessions.record", label: "Record sessions" },
-  { key: "progress.view", label: "View progress" },
-  { key: "groups.view", label: "View groups" },
-  { key: "groups.manage", label: "Manage groups" },
+  { key: "participants.view", label: "pmMisc.facilitators.caps.viewParticipants" },
+  { key: "participants.manage", label: "pmMisc.facilitators.caps.manageParticipants" },
+  { key: "attendance.view", label: "pmMisc.facilitators.caps.viewAttendance" },
+  { key: "attendance.record", label: "pmMisc.facilitators.caps.recordAttendance" },
+  { key: "assignments.view", label: "pmMisc.facilitators.caps.viewAssignments" },
+  { key: "assignments.review", label: "pmMisc.facilitators.caps.reviewAssignments" },
+  { key: "assignments.grade", label: "pmMisc.facilitators.caps.gradeAssignments" },
+  { key: "sessions.conduct", label: "pmMisc.facilitators.caps.conductSessions" },
+  { key: "sessions.record", label: "pmMisc.facilitators.caps.recordSessions" },
+  { key: "progress.view", label: "pmMisc.facilitators.caps.viewProgress" },
+  { key: "groups.view", label: "pmMisc.facilitators.caps.viewGroups" },
+  { key: "groups.manage", label: "pmMisc.facilitators.caps.manageGroups" },
 ];
 
 export default function ProgramFacilitators({ params }) {
@@ -113,12 +113,12 @@ export default function ProgramFacilitators({ params }) {
       const data = await res.json();
       if (data.success) {
         setProgram((p) => ({ ...p, ...patch }));
-        notify("success", "Saved");
+        notify("success", t("pmMisc.facilitators.saved"));
       } else {
-        notify("error", data.error || "Save failed");
+        notify("error", data.error || t("pmMisc.facilitators.saveFailed"));
       }
     } catch (e) {
-      notify("error", "Save failed");
+      notify("error", t("pmMisc.facilitators.saveFailed"));
     } finally {
       setBusy(false);
     }
@@ -139,7 +139,7 @@ export default function ProgramFacilitators({ params }) {
       const data = await res.json();
       if (data.success) {
         setConflictError(null);
-        notify("success", "Facilitator added to this program");
+        notify("success", t("pmMisc.facilitators.addedToProgram"));
         const progRes = await fetch(`/api/pm/programs/${id}`);
         const progData = await progRes.json();
         if (progData.success) setProgram(progData.program);
@@ -147,7 +147,7 @@ export default function ProgramFacilitators({ params }) {
         if (data.error === "errors.roleConflictParticipantFacilitator") {
           setConflictError({ name: contact.name || contact.email, email: contact.email || "" });
         } else {
-          notify("error", t(data.error) || data.error || "Failed");
+          notify("error", t(data.error) || data.error || t("pmMisc.facilitators.failed"));
         }
       }
     } finally {
@@ -158,7 +158,7 @@ export default function ProgramFacilitators({ params }) {
   const createAndInviteFacilitator = async () => {
     const email = inviteForm.email.trim();
     if (!email) {
-      notify("error", "Email is required");
+      notify("error", t("pmMisc.facilitators.emailRequired"));
       return;
     }
     const fallbackName = email.split("@")[0];
@@ -185,12 +185,12 @@ export default function ProgramFacilitators({ params }) {
           });
         }
         setInviteForm({ name: "", email: "" });
-        notify("success", "Invitation sent — facilitator added to this program");
+        notify("success", t("pmMisc.facilitators.invitationSent"));
       } else {
-        notify("error", data.error || "Invite failed");
+        notify("error", data.error || t("pmMisc.facilitators.inviteFailed"));
       }
     } catch (e) {
-      notify("error", "Invite failed");
+      notify("error", t("pmMisc.facilitators.inviteFailed"));
     } finally {
       setBusy(false);
     }
@@ -207,7 +207,7 @@ export default function ProgramFacilitators({ params }) {
         ...p,
         facilitators: (p.facilitators || []).filter((x) => x.id !== f.id),
       }));
-      notify("success", "Facilitator removed from program (CRM record untouched)");
+      notify("success", t("pmMisc.facilitators.removedFromProgram"));
     }
   };
 
@@ -253,7 +253,7 @@ export default function ProgramFacilitators({ params }) {
             : g,
         ),
       );
-      notify("success", "Lead facilitator updated");
+      notify("success", t("pmMisc.facilitators.leadUpdated"));
     }
   };
 
@@ -269,9 +269,15 @@ export default function ProgramFacilitators({ params }) {
       }),
     });
     if ((await res.json()).success) {
-      notify("success", "Decision recorded");
+      notify("success", t("pmMisc.facilitators.decisionRecorded"));
       load();
     }
+  };
+
+  const reviewStatusLabel = (status) => {
+    if (status === "decided") return t("pmMisc.facilitators.statusDecided");
+    if (status === "submitted") return t("pmMisc.facilitators.statusSubmitted");
+    return status || "";
   };
 
   if (!program) {
@@ -296,20 +302,19 @@ export default function ProgramFacilitators({ params }) {
               href={`/pm/programs/${id}`}
               className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] mb-2"
             >
-              <ChevronLeft className="w-3.5 h-3.5" /> Back to program
+              <ChevronLeft className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.backToProgram")}
             </a>
             <h1 className="text-xl font-black uppercase tracking-tight">
-              Facilitators — {program.name}
+              {t("pmMisc.facilitators.title", { name: program.name })}
             </h1>
             <p className="text-[10px] text-[var(--text-secondary)] font-bold mt-1">
-              Program-level personnel. Being a facilitator here gives access to
-              this program only — never to internal staff functions.
+              {t("pmMisc.facilitators.subtitle")}
             </p>
           </div>
           <div className="flex items-center gap-2 bg-secondary rounded-xl px-3 py-2 border border-[var(--border-primary)]">
             <UserCheck className="w-4 h-4 text-[var(--brand-orange)]" />
             <span className="text-[10px] font-black uppercase">
-              {(program.facilitators || []).length} assigned
+              {t("pmMisc.facilitators.assignedCount", { count: (program.facilitators || []).length })}
             </span>
           </div>
         </header>
@@ -319,12 +324,10 @@ export default function ProgramFacilitators({ params }) {
           <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
           <div>
             <p className="text-[10px] font-black uppercase text-blue-400">
-              {facilitatorsGroup ? "Facilitators group" : "Facilitators group"} — system-defined
+              {t("pmMisc.facilitators.systemGroupLabel")}
             </p>
             <p className="text-[9px] text-[var(--text-secondary)]">
-              This group is created automatically for every program and is
-              protected by the system: it cannot be renamed, deleted, or treated
-              as a participant group. You manage the people inside it here.
+              {t("pmMisc.facilitators.systemGroupDescription")}
             </p>
           </div>
         </div>
@@ -332,16 +335,16 @@ export default function ProgramFacilitators({ params }) {
         {/* Add facilitator */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            + Add Facilitator — Search All Contacts
+            {t("pmMisc.facilitators.addSectionTitle")}
           </h2>
           {conflictError && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2">
               <p className="text-[9px] font-black uppercase text-rose-400">{t("errors.roleConflictParticipantFacilitator")}</p>
               <a
-                href={`mailto:info@futurestudio.bj?subject=${encodeURIComponent(`Role conflict — ${program?.name || id}`)}&body=${encodeURIComponent(`Hello Future Studio Team,\n\nI am experiencing a role conflict with my account.\n\nName: ${conflictError.name}\nEmail: ${conflictError.email}\nProgram: ${program?.name || id}\n\nPlease review my program access.\n\nThank you.`)}`}
+                href={`mailto:info@futurestudio.bj?subject=${encodeURIComponent(t("pmMisc.facilitators.conflictSubject", { program: program?.name || id }))}&body=${encodeURIComponent(t("pmMisc.facilitators.conflictBody", { name: conflictError.name, email: conflictError.email, program: program?.name || id }))}`}
                 className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--brand-orange)] hover:underline"
               >
-                <Mail className="w-3.5 h-3.5" /> Contact Support
+                <Mail className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.contactSupport")}
               </a>
             </div>
           )}
@@ -351,7 +354,7 @@ export default function ProgramFacilitators({ params }) {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or email…"
+              placeholder={t("pmMisc.facilitators.searchPlaceholder")}
               className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-10 pr-3 py-3 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
@@ -379,7 +382,7 @@ export default function ProgramFacilitators({ params }) {
               ))}
             {pool.length === 0 && (
               <p className="text-[9px] italic text-[var(--text-secondary)]">
-                No contacts found yet.
+                {t("pmMisc.facilitators.noContacts")}
               </p>
             )}
           </div>
@@ -388,13 +391,13 @@ export default function ProgramFacilitators({ params }) {
             <input
               value={inviteForm.name}
               onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-              placeholder="New facilitator name… (optional)"
+              placeholder={t("pmMisc.facilitators.nameOptional")}
               className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
             />
             <input
               value={inviteForm.email}
               onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-              placeholder="New facilitator email…"
+              placeholder={t("pmMisc.facilitators.emailPlaceholder")}
               className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
@@ -403,32 +406,32 @@ export default function ProgramFacilitators({ params }) {
             onClick={createAndInviteFacilitator}
             className="flex items-center gap-2 text-[9px] font-black uppercase px-4 py-2.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
           >
-            <Mail className="w-3.5 h-3.5" /> Create &amp; invite (sends activation email)
+            <Mail className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.createInvite")}
           </button>
         </section>
 
         {/* Participant scope */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Participant Scope
+            {t("pmMisc.facilitators.participantScope")}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => saveProgramConfig({ facilitator_scope: "assigned_groups" })}
               className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
-              <p className="text-[10px] font-black uppercase">Assigned Groups Only</p>
+              <p className="text-[10px] font-black uppercase">{t("pmMisc.facilitators.assignedGroupsOnly")}</p>
               <p className="text-[9px] text-[var(--text-secondary)] mt-1">
-                Facilitators see participants in their assigned groups only.
+                {t("pmMisc.facilitators.assignedGroupsDesc")}
               </p>
             </button>
             <button
               onClick={() => saveProgramConfig({ facilitator_scope: "all" })}
               className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
-              <p className="text-[10px] font-black uppercase">All Participants</p>
+              <p className="text-[10px] font-black uppercase">{t("pmMisc.facilitators.allParticipants")}</p>
               <p className="text-[9px] text-[var(--text-secondary)] mt-1">
-                Facilitators can see the entire program.
+                {t("pmMisc.facilitators.allParticipantsDesc")}
               </p>
             </button>
           </div>
@@ -437,7 +440,7 @@ export default function ProgramFacilitators({ params }) {
         {/* Default permissions */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Default Facilitator Permissions
+            {t("pmMisc.facilitators.defaultPermissions")}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {FACILITATOR_CAPS.map((cap) => {
@@ -448,7 +451,7 @@ export default function ProgramFacilitators({ params }) {
                   onClick={() => toggleDefault(cap.key)}
                   className={`p-3 rounded-xl border text-left text-[9px] font-black uppercase transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
-                  {cap.label}
+                  {t(cap.label)}
                   {active ? " ✓" : ""}
                 </button>
               );
@@ -459,7 +462,7 @@ export default function ProgramFacilitators({ params }) {
         {/* Assigned facilitators */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Assigned Facilitators
+            {t("pmMisc.facilitators.assignedFacilitators")}
           </h2>
           <div className="space-y-3">
             {(program.facilitators || []).map((f) => (
@@ -473,12 +476,12 @@ export default function ProgramFacilitators({ params }) {
                     onClick={() => removeFacilitator(f)}
                     className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-400 hover:underline shrink-0"
                   >
-                    <Trash2 className="w-3 h-3" /> Remove
+                    <Trash2 className="w-3 h-3" /> {t("pmMisc.facilitators.remove")}
                   </button>
                 </div>
                 <div>
                   <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] mb-2">
-                    Individual overrides (this facilitator only)
+                    {t("pmMisc.facilitators.individualOverrides")}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {FACILITATOR_CAPS.map((cap) => {
@@ -489,7 +492,7 @@ export default function ProgramFacilitators({ params }) {
                           onClick={() => toggleOverride(f, cap.key)}
                           className={`p-2 rounded-lg border text-left text-[8px] font-black uppercase truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                         >
-                          {cap.label}
+                          {t(cap.label)}
                           {active ? " ✓" : ""}
                         </button>
                       );
@@ -500,7 +503,7 @@ export default function ProgramFacilitators({ params }) {
             ))}
             {(program.facilitators || []).length === 0 && (
               <p className="text-[10px] italic text-[var(--text-secondary)] py-4 text-center">
-                No facilitators assigned yet — add people above.
+                {t("pmMisc.facilitators.noneAssigned")}
               </p>
             )}
           </div>
@@ -509,7 +512,7 @@ export default function ProgramFacilitators({ params }) {
         {/* Lead facilitator per group */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Lead Facilitator Per Participant Group
+            {t("pmMisc.facilitators.leadPerGroup")}
           </h2>
           <div className="space-y-2">
             {families.map((g) => (
@@ -520,7 +523,7 @@ export default function ProgramFacilitators({ params }) {
                   onChange={(e) => setLead(g.id, e.target.value || null)}
                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none cursor-pointer max-w-[45%]"
                 >
-                  <option value="">— None —</option>
+                  <option value="">{t("pmMisc.facilitators.noneOption")}</option>
                   {(program.facilitators || []).map((f) => (
                     <option key={f.cid} value={f.cid}>{f.name}</option>
                   ))}
@@ -529,7 +532,7 @@ export default function ProgramFacilitators({ params }) {
             ))}
             {families.length === 0 && (
               <p className="text-[9px] italic text-[var(--text-secondary)]">
-                No participant groups linked to this program yet.
+                {t("pmMisc.facilitators.noGroups")}
               </p>
             )}
           </div>
@@ -538,12 +541,12 @@ export default function ProgramFacilitators({ params }) {
         {/* Reviews */}
         <section className="space-y-3">
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            Facilitator Reviews
+            {t("pmMisc.facilitators.reviews")}
           </h2>
           <div className="space-y-3">
             {reviews.length === 0 && (
               <p className="text-[10px] italic text-[var(--text-secondary)] py-4 text-center">
-                No reviews submitted yet.
+                {t("pmMisc.facilitators.noReviews")}
               </p>
             )}
             {reviews.map((r) => (
@@ -556,21 +559,21 @@ export default function ProgramFacilitators({ params }) {
                     </p>
                   </div>
                   <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "decided" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
-                    {r.status}
+                    {reviewStatusLabel(r.status)}
                   </span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2 text-[9px]">
-                  {r.participant_progress && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Progress:</strong> {r.participant_progress}</p>}
-                  {r.attendance_concerns && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Attendance:</strong> {r.attendance_concerns}</p>}
-                  {r.assignment_performance && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Assignments:</strong> {r.assignment_performance}</p>}
-                  {r.challenges && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Challenges:</strong> {r.challenges}</p>}
-                  {r.participants_needing_intervention && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Intervention:</strong> {r.participants_needing_intervention}</p>}
-                  {r.recommendations && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Recommendations:</strong> {r.recommendations}</p>}
+                  {r.participant_progress && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.progressLabel")}</strong> {r.participant_progress}</p>}
+                  {r.attendance_concerns && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.attendanceLabel")}</strong> {r.attendance_concerns}</p>}
+                  {r.assignment_performance && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.assignmentsLabel")}</strong> {r.assignment_performance}</p>}
+                  {r.challenges && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.challengesLabel")}</strong> {r.challenges}</p>}
+                  {r.participants_needing_intervention && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.interventionLabel")}</strong> {r.participants_needing_intervention}</p>}
+                  {r.recommendations && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.recommendationsLabel")}</strong> {r.recommendations}</p>}
                 </div>
                 {r.pm_decision ? (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                     <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
-                      PM Decision — {r.pm_decision_by || "PM"}
+                      {t("pmMisc.facilitators.pmDecision", { pm: r.pm_decision_by || t("pmMisc.facilitators.pmShort") })}
                     </p>
                     <p className="text-[9px] text-[var(--text-primary)]">{r.pm_decision}</p>
                     {r.pm_decision_note && (
@@ -589,11 +592,11 @@ export default function ProgramFacilitators({ params }) {
                       }
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[9px] font-bold outline-none cursor-pointer"
                     >
-                      <option value="">— Select decision —</option>
-                      <option value="Acknowledged">Acknowledged</option>
-                      <option value="Action taken">Action taken</option>
-                      <option value="Needs follow-up">Needs follow-up</option>
-                      <option value="Escalated to Super Admin">Escalated to Super Admin</option>
+                      <option value="">{t("pmMisc.facilitators.selectDecision")}</option>
+                      <option value="Acknowledged">{t("pmMisc.facilitators.decisionAcknowledged")}</option>
+                      <option value="Action taken">{t("pmMisc.facilitators.decisionActionTaken")}</option>
+                      <option value="Needs follow-up">{t("pmMisc.facilitators.decisionNeedsFollowUp")}</option>
+                      <option value="Escalated to Super Admin">{t("pmMisc.facilitators.decisionEscalated")}</option>
                     </select>
                     <textarea
                       value={decisionInputs[r.id]?.note || ""}
@@ -603,7 +606,7 @@ export default function ProgramFacilitators({ params }) {
                           [r.id]: { ...decisionInputs[r.id], note: e.target.value },
                         })
                       }
-                      placeholder="PM action note…"
+                      placeholder={t("pmMisc.facilitators.pmActionNote")}
                       rows={2}
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
                     />
@@ -611,7 +614,7 @@ export default function ProgramFacilitators({ params }) {
                       onClick={() => recordDecision(r.id)}
                       className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-400 hover:underline"
                     >
-                      <Save className="w-3.5 h-3.5" /> Record decision
+                      <Save className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.recordDecision")}
                     </button>
                   </div>
                 )}
