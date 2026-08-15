@@ -630,8 +630,10 @@ async function ensureEmailLogTable() {
       await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS provider TEXT`);
       await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS recipient TEXT`);
       await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS email_id TEXT`);
+      await db.execute(`ALTER TABLE platform_email_log ADD COLUMN IF NOT EXISTS batch_id TEXT`);
+      await db.execute(`DROP INDEX IF EXISTS idx_email_log_once`);
       await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_email_log_once
-        ON platform_email_log (submission_id, email_type)
+        ON platform_email_log (submission_id, email_type, COALESCE(batch_id, ''))
         WHERE status = 'sent'`);
       return true;
     } catch (e) {
@@ -1073,23 +1075,23 @@ export async function recordResendEvent({ email_id, status, error, createdAt }) 
   }
 }
 
-async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to, emailId }) {
+async function recordEmailResult({ submission_id, contact_cid, email_type, success, error, provider, note, to, emailId, batch_id }) {
   try {
     await ensureEmailLogTable();
     const { default: db } = await import("@/lib/db");
     const recipient = to ? String(to).trim().substring(0, 300) : null;
     if (success) {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, sent_at)
-              VALUES (?, ?, ?, 'sent', ?, ?, ?, ?, NOW())
-              ON CONFLICT (submission_id, email_type) WHERE status = 'sent' DO NOTHING`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null],
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, batch_id, sent_at)
+              VALUES (?, ?, ?, 'sent', ?, ?, ?, ?, ?, NOW())
+              ON CONFLICT (submission_id, email_type, COALESCE(batch_id, '')) WHERE status = 'sent' DO NOTHING`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null, batch_id || null],
       });
     } else {
       await db.execute({
-        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient)
-              VALUES (?, ?, ?, 'failed', ?, ?, ?)`,
-        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500), recipient],
+        sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, batch_id)
+              VALUES (?, ?, ?, 'failed', ?, ?, ?, ?)`,
+        args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, (error || "Unknown error").substring(0, 500), recipient, batch_id || null],
       });
     }
   } catch (e) {
@@ -1103,9 +1105,9 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
  * - Send succeeds → records 'sent' and returns { success: true }
  * - Send fails → records 'failed' and returns { success: false } (retryable)
  */
-export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider, note, to }) {
+export async function sendTrackedEmail({ submission_id, contact_cid, email_type, sendFn, provider, note, to, batch_id }) {
   const existing = await getEmailLogRow(submission_id, email_type);
-  if (existing && existing.status === "sent") {
+  if (existing && existing.status === "sent" && !batch_id) {
     return { skipped: true, already_sent: true, log: existing };
   }
 
@@ -1126,9 +1128,53 @@ export async function sendTrackedEmail({ submission_id, contact_cid, email_type,
     note,
     to,
     emailId: result?.data?.id || null,
+    batch_id,
   });
 
   return { ...result, skipped: false };
+}
+
+/**
+ * Send a manual, ad-hoc message from the Room Overview to a single
+ * participant. Each manual message is tracked under email_type "manual" with
+ * a unique batch_id so the same participant can receive multiple manual
+ * messages without tripping the once-per-email-type dedup.
+ */
+export async function sendManualMessage({
+  to,
+  name,
+  subject,
+  body,
+  submission_id,
+  contact_cid,
+  batch_id,
+  templateVars = {},
+}) {
+  const tv = {
+    name: name || "there",
+    organization: "ImpactOS",
+    ...templateVars,
+  };
+  const personalizedSubject = applyTemplate(subject || "", tv);
+  const rawBody = applyTemplate(body || "", tv);
+  const html = normalizeToHtml(rawBody);
+
+  return sendTrackedEmail({
+    submission_id,
+    contact_cid,
+    email_type: "manual",
+    provider: "resend",
+    note: personalizedSubject || "Manual message",
+    to,
+    batch_id,
+    sendFn: () =>
+      sendEmail({
+        to,
+        subject: personalizedSubject,
+        html,
+        provider: "resend",
+      }),
+  });
 }
 
 /**

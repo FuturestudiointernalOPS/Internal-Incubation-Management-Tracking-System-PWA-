@@ -55,6 +55,8 @@ export default function ProgramFacilitators({ params }) {
   const [decisionInputs, setDecisionInputs] = useState({});
   const [inviteForm, setInviteForm] = useState({ name: "", email: "" });
   const [facilitatorsGroup, setFacilitatorsGroup] = useState(null);
+  const [participants, setParticipants] = useState([]);
+  const [conflictError, setConflictError] = useState(null);
 
   const load = async () => {
     try {
@@ -86,6 +88,13 @@ export default function ProgramFacilitators({ params }) {
       .then((r) => r.json())
       .then((d) => setPool(d.success ? d.contacts || [] : []))
       .catch(() => setPool([]));
+
+    // Participants of THIS program — excluded from the facilitator search to
+    // enforce the "no participant + facilitator in the same program" rule.
+    fetch(`/api/participants?program_id=${id}`)
+      .then((r) => r.json())
+      .then((d) => setParticipants(d.success ? d.participants || [] : []))
+      .catch(() => setParticipants([]));
   }, [id]);
 
   const notify = (type, message) =>
@@ -129,12 +138,17 @@ export default function ProgramFacilitators({ params }) {
       });
       const data = await res.json();
       if (data.success) {
+        setConflictError(null);
         notify("success", "Facilitator added to this program");
         const progRes = await fetch(`/api/pm/programs/${id}`);
         const progData = await progRes.json();
         if (progData.success) setProgram(progData.program);
       } else {
-        notify("error", data.error || "Failed");
+        if (data.error === "errors.roleConflictParticipantFacilitator") {
+          setConflictError({ name: contact.name || contact.email, email: contact.email || "" });
+        } else {
+          notify("error", t(data.error) || data.error || "Failed");
+        }
       }
     } finally {
       setBusy(false);
@@ -267,6 +281,7 @@ export default function ProgramFacilitators({ params }) {
   const defaultPerms = program.facilitator_default_permissions || {};
   const families = groups.filter((g) => g.source === "family");
   const assignedCids = (program.facilitators || []).map((f) => f.cid);
+  const participantKeys = new Set((participants || []).flatMap((p) => [p.cid, p.email].filter(Boolean)));
 
   return (
     <DashboardLayout role="program_manager" activeTab="v2">
@@ -315,6 +330,18 @@ export default function ProgramFacilitators({ params }) {
           <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             + Add Facilitator — Search All Contacts
           </h2>
+          {conflictError && (
+            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2">
+              <p className="text-[9px] font-black uppercase text-rose-400">{t("errors.roleConflictParticipantFacilitator")}</p>
+              <a
+                href={`mailto:info@futurestudio.bj?subject=${encodeURIComponent(`Role conflict — ${program?.name || id}`)}&body=${encodeURIComponent(`Hello Future Studio Team,\n\nI am experiencing a role conflict with my account.\n\nName: ${conflictError.name}\nEmail: ${conflictError.email}\nProgram: ${program?.name || id}\n\nPlease review my program access.\n\nThank you.`)}`}
+                className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--brand-orange)] hover:underline"
+              >
+                <Mail className="w-3.5 h-3.5" /> Contact Support
+              </a>
+            </div>
+          )}
+
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
             <input
@@ -327,6 +354,7 @@ export default function ProgramFacilitators({ params }) {
           <div className="max-h-48 overflow-y-auto space-y-1.5">
             {pool
               .filter((c) => !assignedCids.includes(c.cid))
+              .filter((c) => !participantKeys.has(c.cid) && !participantKeys.has(c.email))
               .filter(
                 (c) =>
                   !search ||

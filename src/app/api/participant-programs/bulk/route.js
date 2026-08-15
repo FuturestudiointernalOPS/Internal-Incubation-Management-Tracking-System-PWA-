@@ -75,6 +75,15 @@ export async function POST(req) {
     for (const participant_id of participant_ids) {
       try {
         if (action === "add") {
+          const facConflict = await db.execute({
+            sql: "SELECT 1 FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
+            args: [String(program_id), participant_id, participant_id],
+          });
+          if (facConflict.rows.length > 0) {
+            errors.push({ participant_id, error: "errors.roleConflictFacilitatorParticipant" });
+            continue;
+          }
+
           await db.execute({
             sql: `INSERT INTO participant_programs (participant_id, program_id)
                   VALUES (?, ?)

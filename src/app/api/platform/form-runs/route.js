@@ -1410,6 +1410,112 @@ export async function POST(req) {
       return NextResponse.json({ success: true, message: "Migration executed" });
     }
 
+    // ─── SEND MANUAL MESSAGE ACTION (Room Overview → selected participants) ───
+    if (action === "send_manual_message") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      if (authError) return authError;
+
+      const { run_id, submission_ids, subject, body: messageBody } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (!subject || !messageBody) {
+        return NextResponse.json({ success: false, error: "subject and body are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 500) {
+        return NextResponse.json({ success: false, error: "A manual message can send to at most 500 recipients" }, { status: 400 });
+      }
+
+      const batchId = "msg_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const valRes = await db.execute({
+        sql: `SELECT * FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
+        args: [idList, parseInt(run_id)],
+      });
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      // Fetch the form's field labels once for identity resolution.
+      let fieldLabels = {};
+      try {
+        const flRes = await db.execute({
+          sql: `SELECT f2.id, f2.label FROM platform_form_fields f2 JOIN platform_form_runs r2 ON f2.form_id = r2.form_id WHERE r2.id = ?`,
+          args: [parseInt(run_id)],
+        });
+        for (const frow of flRes.rows) fieldLabels[String(frow.id)] = frow.label;
+      } catch (_) {}
+
+      let groupName = null;
+      try {
+        const grpRes = await db.execute({
+          sql: `SELECT f.name FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
+          args: [parseInt(run_id)],
+        });
+        if (grpRes.rows.length > 0) groupName = grpRes.rows[0].name;
+      } catch (_) {}
+
+      const { sendManualMessage, resolveSubmissionEmail, resolvePersonName, isPlaceholderEmail } = await import("@/lib/email");
+
+      const results = [];
+      let sent = 0;
+      let failed = 0;
+
+      for (const id of idList) {
+        const sub = validMap.get(id);
+        if (!sub) {
+          results.push({ submission_id: id, status: "failed", error: "Submission is not in this run" });
+          failed++;
+          continue;
+        }
+
+        const subData = sub.data || {};
+        const contactEmail = resolveSubmissionEmail({ submissionData: subData, fieldLabels, contactEmail: "" });
+        if (!contactEmail || isPlaceholderEmail(contactEmail)) {
+          results.push({ submission_id: id, name: sub.submitter_name || "", status: "failed", error: "No usable recipient email" });
+          failed++;
+          continue;
+        }
+
+        const name = resolvePersonName({
+          contactName: "",
+          submitterName: sub.submitter_name || "",
+          submissionData: subData,
+          fieldLabels,
+        }) || sub.submitter_name || "Participant";
+
+        const res = await sendManualMessage({
+          to: contactEmail,
+          name,
+          subject,
+          body: messageBody,
+          submission_id: id,
+          contact_cid: sub.submitter_id || null,
+          batch_id: batchId,
+          templateVars: {
+            form_name: "",
+            group_name: groupName || "",
+          },
+        });
+
+        if (res.success) {
+          sent++;
+          results.push({ submission_id: id, name, status: "sent", to: contactEmail });
+        } else {
+          failed++;
+          results.push({ submission_id: id, name, status: "failed", error: res.error || "Send failed", to: contactEmail });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        batch_id: batchId,
+        recipients: idList.length,
+        sent,
+        failed,
+        results,
+      });
+    }
+
     // ─── CREATE ACTION ───
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     const authError = await requireAuth(["super_admin", "admin"]);

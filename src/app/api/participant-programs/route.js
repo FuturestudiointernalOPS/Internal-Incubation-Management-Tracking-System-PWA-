@@ -107,8 +107,26 @@ export async function POST(req) {
     const results = [];
     const errors = [];
 
+    let participantEmail = "";
+    try {
+      const pc = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [participant_id] });
+      participantEmail = pc.rows[0]?.email || "";
+    } catch (_) {}
+
     for (const program_id of program_ids) {
       try {
+        const facConflict = await db.execute({
+          sql: `SELECT 1 FROM v2_program_staff
+                WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator'
+                  AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?)))
+                LIMIT 1`,
+          args: [String(program_id), participant_id, participantEmail],
+        });
+        if (facConflict.rows.length > 0) {
+          errors.push({ program_id, error: "errors.roleConflictFacilitatorParticipant" });
+          continue;
+        }
+
         await db.execute({
           sql: `INSERT INTO participant_programs (participant_id, program_id)
                 VALUES (?, ?)
