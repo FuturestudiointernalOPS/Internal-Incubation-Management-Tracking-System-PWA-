@@ -768,6 +768,8 @@
       "sendActivationConfirm": "Send Activation Messages",
       "approvalMessagesSent": "Approval messages sent: {sent}. Skipped: {skipped}.",
       "activationMessagesSent": "Activation messages sent: {sent}. Skipped: {skipped}.",
+      "noEligibleApproval": "No approved respondents selected.",
+      "noEligibleActivation": "No approved, non-activated respondents selected.",
       "messageRecipients": "Recipients: {count}",
       "messageSubject": "Subject",
       "messageBody": "Message",

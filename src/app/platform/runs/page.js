@@ -1592,6 +1592,13 @@ export default function FormRunsPage() {
     setMessageSending(false);
   };
 
+  const eligibleApprovalIds = useMemo(() => {
+    return selectedIds.filter((id) => {
+      const s = submissions.find((x) => x.id === id);
+      return s && String(s.status || "").toLowerCase() === "approved";
+    });
+  }, [selectedIds, submissions]);
+
   const eligibleActivationIds = useMemo(() => {
     return selectedIds.filter((id) => {
       const s = submissions.find((x) => x.id === id);
@@ -1599,15 +1606,28 @@ export default function FormRunsPage() {
     });
   }, [selectedIds, submissions]);
 
-  const runSendApprovalMessages = async () => {
-    if (!selectedRun || selectedIds.length === 0 || approvalProcessing) return;
+  const openActivationConfirm = () => {
     setBulkMenuOpen(false);
+    if (eligibleActivationIds.length === 0) {
+      notify(t("platformMisc.runs.noEligibleActivation"));
+      return;
+    }
+    setActivationConfirmOpen(true);
+  };
+
+  const runSendApprovalMessages = async () => {
+    if (!selectedRun || approvalProcessing) return;
+    setBulkMenuOpen(false);
+    if (eligibleApprovalIds.length === 0) {
+      notify(t("platformMisc.runs.noEligibleApproval"));
+      return;
+    }
     setApprovalProcessing(true);
     try {
       const res = await fetch("/api/platform/form-runs?action=send_approval_messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: selectedIds }),
+        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: eligibleApprovalIds }),
       });
       const data = await res.json();
       if (data.success) {
@@ -2204,7 +2224,7 @@ export default function FormRunsPage() {
                               <Send className="w-3 h-3" /> {t("platformMisc.runs.sendApprovalMessage")}
                             </button>
                             <button
-                              onClick={() => { setBulkMenuOpen(false); setActivationConfirmOpen(true); }}
+                              onClick={openActivationConfirm}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
                               <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
