@@ -337,7 +337,20 @@
       "updatePassword": "Update Password",
       "submittedWork": "Submitted Work",
       "noSubmissions": "No submissions yet",
-      "deliverableNumber": "Deliverable #{id}"
+      "deliverableNumber": "Deliverable #{id}",
+      "alternativeEmail": "Alternative Email",
+      "alternativePhone": "Alternative Phone",
+      "country": "Country",
+      "programHistory": "Program History",
+      "currentPrograms": "Current",
+      "pastPrograms": "Past / Completed",
+      "activeStatus": "Active",
+      "completedStatus": "View Only",
+      "noHistory": "No program history",
+      "programManagerRole": "Program Manager",
+      "facilitatorRole": "Facilitator",
+      "assistantRole": "Assistant",
+      "staffRole": "Staff"
     },
     "recycleBin": {
       "title": "Recycle Bin",

@@ -337,7 +337,20 @@
       "updatePassword": "Mettre à jour le mot de passe",
       "submittedWork": "Travaux soumis",
       "noSubmissions": "Aucun travail soumis pour le moment",
-      "deliverableNumber": "Livrable n° {id}"
+      "deliverableNumber": "Livrable n° {id}",
+      "alternativeEmail": "E-mail secondaire",
+      "alternativePhone": "Téléphone secondaire",
+      "country": "Pays",
+      "programHistory": "Historique des programmes",
+      "currentPrograms": "Actuels",
+      "pastPrograms": "Passés / Terminés",
+      "activeStatus": "Actif",
+      "completedStatus": "Lecture seule",
+      "noHistory": "Aucun historique de programme",
+      "programManagerRole": "Gestionnaire de programme",
+      "facilitatorRole": "Facilitateur",
+      "assistantRole": "Assistant",
+      "staffRole": "Personnel"
     },
     "recycleBin": {
       "title": "Corbeille",

@@ -64,6 +64,44 @@ function SectionCard({ title, icon: Icon, children, className = "" }) {
   );
 }
 
+// ─── History Group ──────────────────────────────────────────────────
+function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
+  if (!rows || rows.length === 0) return null;
+  return (
+    <div>
+      <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+        {title}
+      </p>
+      <div className="space-y-2">
+        {rows.map((h) => (
+          <div
+            key={`${h.program_id}-${h.role}`}
+            className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                {h.program_name}
+              </p>
+              <p className="text-[8px] text-[var(--text-tertiary)]">
+                {roleLabel(h.role)}
+              </p>
+            </div>
+            <span
+              className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                h.status === "active"
+                  ? "bg-emerald-500/10 text-emerald-400"
+                  : "bg-white/5 text-[var(--text-tertiary)]"
+              }`}
+            >
+              {h.status === "active" ? activeLabel : completedLabel}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {
   const { t } = useI18n();
@@ -79,6 +117,10 @@ export default function ProfileView() {
   const [showPassword, setShowPassword] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [editedAlternativeEmail, setEditedAlternativeEmail] = useState("");
+  const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
+  const [editedCountry, setEditedCountry] = useState("");
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "{}");
@@ -97,17 +139,19 @@ export default function ProfileView() {
 
       // Fetch own profile (session-based — no CRM-wide capability required),
       // plus participant programs/submissions in parallel.
-      const [profileRes, progRes, subRes] = await Promise.all([
+      const [profileRes, progRes, subRes, histRes] = await Promise.all([
         fetch("/api/profile"),
         fetch("/api/participant/programs"),
         cid
           ? fetch(`/api/participant/submissions?participant_id=${cid}`)
           : fetch(`/api/participant/submissions?participant_id=${email}`),
+        fetch("/api/profile/history"),
       ]);
 
       const profileData = await profileRes.json();
       const progData = await progRes.json();
       const subData = await subRes.json();
+      const histData = await histRes.json();
 
       if (profileData.success && profileData.profile) {
         const p = profileData.profile;
@@ -120,8 +164,14 @@ export default function ProfileView() {
           language: p.language || "",
           role: p.role || "",
           group_name: p.group_name || "",
+          alternative_email: p.alternative_email || "",
+          alternative_phone: p.alternative_phone || "",
+          country: p.country || "",
         });
         setEditedName(p.name || "");
+        setEditedAlternativeEmail(p.alternative_email || "");
+        setEditedAlternativePhone(p.alternative_phone || "");
+        setEditedCountry(p.country || "");
       }
 
       if (progData.success) {
@@ -130,6 +180,10 @@ export default function ProfileView() {
 
       if (subData.success) {
         setSubmissions(subData.submissions || []);
+      }
+
+      if (histData.success) {
+        setHistory(histData.history || []);
       }
 
       // Fetch group info if participant has a group_name
@@ -163,6 +217,9 @@ export default function ProfileView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editedName || contact.name,
+          alternative_email: editedAlternativeEmail,
+          alternative_phone: editedAlternativePhone,
+          country: editedCountry,
         }),
       });
       const data = await res.json();
@@ -245,6 +302,38 @@ export default function ProfileView() {
     }
     setPasswordSaving(false);
     setTimeout(() => setPasswordMessage(null), 3000);
+  };
+
+  const roleLabel = (role) => {
+    switch (role) {
+      case "program_manager":
+        return t("adminMisc.profile.programManagerRole");
+      case "facilitator":
+        return t("adminMisc.profile.facilitatorRole");
+      case "assistant":
+        return t("adminMisc.profile.assistantRole");
+      case "staff":
+        return t("adminMisc.profile.staffRole");
+      case "participant":
+        return t("adminMisc.profile.participantRole");
+      default:
+        return (role || "").replace(/_/g, " ");
+    }
+  };
+
+  const deriveCurrentRole = () => {
+    const active = history.filter((h) => h.status === "active");
+    const order = [
+      "program_manager",
+      "staff",
+      "assistant",
+      "facilitator",
+      "participant",
+    ];
+    for (const role of order) {
+      if (active.some((h) => h.role === role)) return role;
+    }
+    return contact?.role || "participant";
   };
 
   if (loading) {
@@ -355,7 +444,7 @@ export default function ProfileView() {
               {contact.name}
             </h2>
             <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-              {contact.role?.replace(/_/g, " ") || t("adminMisc.profile.participantRole")}
+              {roleLabel(deriveCurrentRole())}
             </p>
             <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-2 text-left">
               <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)]">
@@ -413,11 +502,58 @@ export default function ProfileView() {
               <InfoRow icon={Mail} label={t("adminMisc.profile.email")} value={contact.email} />
               <InfoRow icon={Phone} label={t("adminMisc.profile.phone")} value={contact.phone} />
               <InfoRow
+                icon={Mail}
+                label={t("adminMisc.profile.alternativeEmail")}
+                value={contact.alternative_email}
+                editable
+                onChange={setEditedAlternativeEmail}
+              />
+              <InfoRow
+                icon={Phone}
+                label={t("adminMisc.profile.alternativePhone")}
+                value={contact.alternative_phone}
+                editable
+                onChange={setEditedAlternativePhone}
+              />
+              <InfoRow
+                icon={Globe}
+                label={t("adminMisc.profile.country")}
+                value={contact.country}
+                editable
+                onChange={setEditedCountry}
+              />
+              <InfoRow
                 icon={User}
                 label={t("adminMisc.profile.groupCohort")}
                 value={contact.group_name}
               />
             </div>
+          </SectionCard>
+
+          {/* Program History */}
+          <SectionCard title={t("adminMisc.profile.programHistory")} icon={BookOpen}>
+            {history.length === 0 ? (
+              <p className="text-[10px] text-[var(--text-tertiary)]">
+                {t("adminMisc.profile.noHistory")}
+              </p>
+            ) : (
+              <div className="space-y-5">
+                <HistoryGroup
+                  title={t("adminMisc.profile.currentPrograms")}
+                  rows={history.filter((h) => h.status === "active")}
+                  roleLabel={roleLabel}
+                  activeLabel={t("adminMisc.profile.activeStatus")}
+                  completedLabel={t("adminMisc.profile.completedStatus")}
+                />
+                <HistoryGroup
+                  title={t("adminMisc.profile.pastPrograms")}
+                  rows={history.filter((h) => h.status !== "active")}
+                  roleLabel={roleLabel}
+                  activeLabel={t("adminMisc.profile.activeStatus")}
+                  completedLabel={t("adminMisc.profile.completedStatus")}
+                />
+              </div>
+            )}
           </SectionCard>
 
           {/* Startup / Group Profile */}
