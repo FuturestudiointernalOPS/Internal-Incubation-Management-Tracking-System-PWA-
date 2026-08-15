@@ -774,6 +774,7 @@
       "messageSentTitle": "Message envoyé",
       "messageRecipientsCount": "{count} destinataires",
       "messageSentCount": "{count} envoyés avec succès",
+      "messageSkippedCount": "{count} ignorés",
       "messageFailedCount": "{count} échecs",
       "messageSubjectBodyRequired": "L'objet et le message sont requis",
       "messageSendFailed": "Échec de l'envoi",

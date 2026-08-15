@@ -850,6 +850,7 @@ export default function FormRunsPage() {
   const [messageBody, setMessageBody] = useState("");
   const [messageSending, setMessageSending] = useState(false);
   const [messageResult, setMessageResult] = useState(null); // { recipients, sent, failed }
+  const [messageSummary, setMessageSummary] = useState(null); // { title, sent, skipped }
   const [aiPersonalizing, setAiPersonalizing] = useState(false);
 
   // Export options (format + scope)
@@ -1639,7 +1640,7 @@ export default function FormRunsPage() {
         const results = data.results || [];
         const sent = results.filter((r) => r.status === "sent").length;
         const skipped = results.length - sent;
-        notify(t("platformMisc.runs.approvalMessagesSent", { sent, skipped }));
+        setMessageSummary({ title: t("platformMisc.runs.sendApprovalMessage"), sent, skipped });
         setSelectedIds([]);
         await openRun(selectedRun);
       } else {
@@ -1667,7 +1668,7 @@ export default function FormRunsPage() {
         const results = data.results || [];
         const sent = results.filter((r) => r.status === "sent").length;
         const skipped = results.length - sent;
-        notify(t("platformMisc.runs.activationMessagesSent", { sent, skipped }));
+        setMessageSummary({ title: t("platformMisc.runs.sendActivationMessage"), sent, skipped });
         setSelectedIds([]);
         await openRun(selectedRun);
       } else {
@@ -2563,6 +2564,20 @@ export default function FormRunsPage() {
                       </div>
                     )}
                     <button onClick={() => setBulkSummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── MESSAGE RESULT SUMMARY ─── */}
+              {messageSummary && (
+                <div className="fixed inset-0 z-[300] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{messageSummary.title}</h4>
+                    <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.messageSentCount", { count: messageSummary.sent })}</p>
+                    {messageSummary.skipped > 0 && (
+                      <p className="text-[10px] font-bold text-amber-500">{t("platformMisc.runs.messageSkippedCount", { count: messageSummary.skipped })}</p>
+                    )}
+                    <button onClick={() => setMessageSummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
                   </div>
                 </div>
               )}
