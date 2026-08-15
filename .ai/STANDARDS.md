@@ -35,7 +35,7 @@
 - New strings require entries in BOTH `src/locales/en/` and `src/locales/fr/` with mirrored key structure.
 - English is the source of truth; missing French key → shows English value (graceful fallback).
 - Use existing key namespaces before creating new ones: `common.*`, `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `teacher.*`, `pm.*`, `participant.*`.
-- See `AI_AGENT_INSTRUCTIONS.md` for the full namespace table and file structure.
+- See `AGENTS.md` for the full namespace table and file structure.
 
 ## 5. Design System & Styling
 

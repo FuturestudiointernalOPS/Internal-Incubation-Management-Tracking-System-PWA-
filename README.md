@@ -2,7 +2,7 @@
 
 Internal incubation management & tracking system for FutureStudio: programs, projects, tasks, blockers, weekly reports, and staff/participant management across multiple roles.
 
-> **AI Agents: Read [`AI_AGENT_INSTRUCTIONS.md`](AI_AGENT_INSTRUCTIONS.md) before making any changes.**
+> **AI Agents: Read [`AGENTS.md`](AGENTS.md) before making any changes.**
 > Critical rules for i18n, component usage, and build requirements.
 
 ## Environments
@@ -152,7 +152,7 @@ docs/             Architecture, API reference, module reference, tickets, audits
 - [`docs/MODULES.md`](docs/MODULES.md) — `src/lib`, `src/components`, `src/utils` reference
 - [`docs/AUDIT_DOCUMENT.md`](docs/AUDIT_DOCUMENT.md) — complete audit of every page, route, tab, filter, and action
 - [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) — design tokens, reusable components, styling rules
-- [`AI_AGENT_INSTRUCTIONS.md`](AI_AGENT_INSTRUCTIONS.md) — rules for AI agents editing this codebase (i18n is mandatory, no exceptions)
+- [`AGENTS.md`](AGENTS.md) — rules for AI agents editing this codebase (i18n is mandatory, no exceptions)
 - [`docs/TICKET_*.md`](docs) — feature specs (implemented features archived here; `TICKET_intelligence_module.md` at repo root is still active/pending)
 
 ---

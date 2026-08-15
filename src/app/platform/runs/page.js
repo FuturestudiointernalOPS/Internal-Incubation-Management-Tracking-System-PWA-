@@ -2268,7 +2268,7 @@ export default function FormRunsPage() {
                           onChange={(e) => { setEmailDateFrom(e.target.value); setRetrySelected([]); }}
                           className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                         />
-                        <span className="text-[9px] text-[var(--text-secondary)]">to</span>
+                        <span className="text-[9px] text-[var(--text-secondary)]">{t("platformMisc.runs.emailDateTo")}</span>
                         <input
                           type="date"
                           value={emailDateTo}
@@ -2281,7 +2281,7 @@ export default function FormRunsPage() {
                         onChange={(e) => { setEmailStatusFilter(e.target.value); setRetrySelected([]); }}
                         className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                       >
-                        <option value="all">All statuses</option>
+                        <option value="all">{t("platformMisc.runs.emailAllStatuses")}</option>
                         {EMAIL_STATUS_ORDER.map((k) => (
                           <option key={k} value={k}>{k}</option>
                         ))}
@@ -2310,7 +2310,7 @@ export default function FormRunsPage() {
                           onClick={() => { setEmailStatusFilter("all"); setEmailDateFrom(""); setEmailDateTo(""); setRetrySelected([]); }}
                           className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[8px] font-black uppercase border border-[var(--border-primary)] hover:text-[var(--text-primary)]"
                         >
-                          Reset
+                          {t("platformMisc.runs.emailResetFilters")}
                         </button>
                       )}
                     </div>

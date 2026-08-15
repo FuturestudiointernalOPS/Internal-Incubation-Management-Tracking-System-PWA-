@@ -722,7 +722,11 @@
       "emailRetrySent": "{count} envoyé(s) avec succès",
       "emailRetryAlready": "{count} déjà envoyé(s)",
       "emailRetryFailedCount": "{count} toujours en échec :",
-      "emailFallback": "Email"
+      "emailFallback": "Email",
+      "emailDateFrom": "Du",
+      "emailDateTo": "Au",
+      "emailAllStatuses": "Tous les statuts",
+      "emailResetFilters": "Réinitialiser"
     },
     "runSubmit": {
       "platform": "Plateforme",
