@@ -29,6 +29,20 @@ async function ensureVersioningSchema() {
 }
 
 /**
+ * Ensure the optional PM-provided resource-link columns exist on requirements.
+ * Idempotent and additive — mirrors ensureVersioningSchema() so that session and
+ * requirement creation never depends on a separately-run migration.
+ */
+async function ensureDeliverableResourceSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_url TEXT", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_label TEXT", args: [] });
+  } catch (_) {}
+}
+
+/**
  * Save a version snapshot before updating a session.
  */
 async function saveSessionVersion(sessionId, userId) {
@@ -69,6 +83,7 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureVersioningSchema();
+    await ensureDeliverableResourceSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -454,6 +469,7 @@ export async function PUT(req) {
   try {
     await initDb();
     await ensureVersioningSchema();
+    await ensureDeliverableResourceSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",

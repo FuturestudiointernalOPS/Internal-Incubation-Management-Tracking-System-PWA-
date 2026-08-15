@@ -2,6 +2,15 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 
+async function ensureDeliverableResourceSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_url TEXT", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_label TEXT", args: [] });
+  } catch (_) {}
+}
+
 export const GET = createHandler(
   { roles: ["staff", "super_admin"] },
   async (req) => {
@@ -18,6 +27,7 @@ export const GET = createHandler(
 export const POST = createHandler(
   { roles: ["staff", "super_admin"] },
   async (req) => {
+    await ensureDeliverableResourceSchema();
     const { program_id, title, description, resource_url, resource_label } = await req.json();
     const result = await db.execute({
       sql: "INSERT INTO v2_document_requirements (program_id, title, description, resource_url, resource_label) VALUES (?, ?, ?, ?, ?) RETURNING *",
