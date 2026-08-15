@@ -284,31 +284,40 @@ export default function PublicSubmitPage() {
   if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><Loader2 className="w-6 h-6 animate-spin text-orange-500" /></div>;
   if (error) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="text-center"><AlertTriangle className="w-10 h-10 mx-auto text-red-500 mb-3" /><p className="text-slate-100 font-bold">{error}</p></div></div>;
 
+  const escapeHtml = (value) => {
+    return String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+  };
+
   const resolvePlaceholders = (template) => {
     if (!template) return null;
     let result = template;
-    // Resolve by field label placeholders
+    // Resolve by field label placeholders (values are user input — escape them)
     for (const f of fields) {
       const rawLabel = (f.label || "").toLowerCase();
       const safeKey = rawLabel.replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
-      const value = formData[f.id] != null ? String(formData[f.id]) : "";
+      const value = formData[f.id] != null ? escapeHtml(String(formData[f.id])) : "";
       result = result.replace(new RegExp(`\\{\\{${safeKey}\\}\\}`, "gi"), value);
       result = result.replace(new RegExp(`\\{\\{field_${f.id}\\}\\}`, "gi"), value);
     }
-    // Common special placeholders
+    // Common special placeholders (all dynamic values escaped)
     const nameField = fields.find(f => (f.label || "").toLowerCase().includes("name"));
     const emailField = fields.find(f => (f.label || "").toLowerCase().includes("email"));
     if (nameField) {
-      const nameVal = String(formData[nameField.id] || "");
+      const nameVal = escapeHtml(String(formData[nameField.id] || ""));
       result = result.replace(/\{\{submitter_name\}\}/gi, nameVal);
       result = result.replace(/\{\{name\}\}/gi, nameVal);
     }
     if (emailField) {
-      result = result.replace(/\{\{submitter_email\}\}/gi, String(formData[emailField.id] || ""));
+      result = result.replace(/\{\{submitter_email\}\}/gi, escapeHtml(String(formData[emailField.id] || "")));
     }
-    result = result.replace(/\{\{form_name\}\}/gi, form?.name || "");
-    result = result.replace(/\{\{group_name\}\}/gi, run?.group_name || "");
-    result = result.replace(/\{\{organization\}\}/gi, "ImpactOS");
+    result = result.replace(/\{\{form_name\}\}/gi, escapeHtml(form?.name || ""));
+    result = result.replace(/\{\{group_name\}\}/gi, escapeHtml(run?.group_name || ""));
+    result = result.replace(/\{\{organization\}\}/gi, escapeHtml("ImpactOS"));
     return result;
   };
 
@@ -343,7 +352,7 @@ export default function PublicSubmitPage() {
               </div>
             ) : null}
 
-            {successConfig?.redirect_url && (
+            {successConfig?.redirect_url && /^https?:\/\//i.test(successConfig.redirect_url) && (
               <a href={successConfig.redirect_url} className="inline-block px-8 py-3.5 bg-orange-500 text-black rounded-xl text-sm font-black uppercase tracking-wider hover:bg-orange-400 transition-colors">
                 {t("common.continue")}
               </a>

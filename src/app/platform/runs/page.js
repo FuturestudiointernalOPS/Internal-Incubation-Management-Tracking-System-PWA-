@@ -45,12 +45,13 @@ const EMAIL_STATUS_CONFIG = {
   bounced: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailBounced" },
   cancelled: { color: "text-slate-400", bg: "bg-slate-500/10", label: "platformMisc.runs.emailCancelled" },
   skipped: { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailSkipped" },
+  pending: { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" },
 };
 
-const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed", "complained", "failed", "bounced", "cancelled", "skipped"];
+const EMAIL_STATUS_ORDER = ["sent", "delivered", "opened", "clicked", "delayed", "complained", "failed", "bounced", "cancelled", "skipped", "pending"];
 
 // Filter option lists for the Run Overview tracking columns.
-const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed", "bounced", "failed", "cancelled", "skipped", "not_sent"];
+const EMAIL_FILTER_OPTIONS = ["sent", "delivered", "opened", "clicked", "delayed", "bounced", "failed", "cancelled", "skipped", "pending", "not_sent"];
 const REVIEW_FILTER_OPTIONS = ["approved", "rejected", "revision_requested"];
 const STATUS_FILTER_OPTIONS = ["submitted", "approved", "rejected", "revision_requested", "draft"];
 const ACCOUNT_STATUS_OPTIONS = ["active", "inactive", "activation_pending", "pending_approval", "archived", "deleted", "not_created"];
@@ -1255,7 +1256,7 @@ export default function FormRunsPage() {
   const emailSummary = useMemo(() => {
     const latest = new Map();
     for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
-    const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0 });
+    const empty = () => ({ sent: 0, delivered: 0, opened: 0, clicked: 0, delayed: 0, complained: 0, failed: 0, bounced: 0, cancelled: 0, skipped: 0, pending: 0 });
     const stats = { approval: empty(), activation: empty() };
     const notDelivered = [];
     for (const e of latest.values()) {
@@ -1265,7 +1266,7 @@ export default function FormRunsPage() {
       else if (["delivered", "opened", "clicked"].includes(status)) bucket[status]++;
       else if (status === "delayed") bucket.delayed++;
       else if (status === "complained") bucket.complained++;
-      else if (["failed", "bounced", "cancelled"].includes(status)) {
+      else if (["failed", "bounced", "cancelled", "pending"].includes(status)) {
         bucket[status]++;
         notDelivered.push(e);
       } else if (status === "skipped") bucket.skipped++;
@@ -1273,22 +1274,45 @@ export default function FormRunsPage() {
     return { stats, notDelivered };
   }, [emailLog]);
 
-  // Not-delivered rows (failed / bounced / cancelled) enriched with the
-  // respondent's resolved name + recipient — all three remain retryable.
-  const notDeliveredRows = emailSummary.notDelivered.map((e) => {
-    const sub = submissions.find((s) => s.id === e.submission_id);
-    return {
-      ...e,
-      name: sub?.display_name || sub?.submitter_name || `#${e.submission_id}`,
-      email: e.recipient || sub?.email || "",
-    };
-  });
+  // All email rows (latest per submission:email_type) enriched with the
+  // respondent's resolved name + recipient.
+  const allEmailRows = useMemo(() => {
+    const latest = new Map();
+    for (const e of emailLog) latest.set(`${e.submission_id}:${e.email_type}`, e);
+    return [...latest.values()].map((e) => {
+      const sub = submissions.find((s) => s.id === e.submission_id);
+      return {
+        ...e,
+        name: sub?.display_name || sub?.submitter_name || `#${e.submission_id}`,
+        email: e.recipient || sub?.email || "",
+      };
+    });
+  }, [emailLog, submissions]);
 
-  const [emailStatusFilter, setEmailStatusFilter] = useState("all"); // all | failed | bounced | cancelled
-  const visibleNotDelivered =
-    emailStatusFilter === "all"
-      ? notDeliveredRows
-      : notDeliveredRows.filter((r) => r.status === emailStatusFilter);
+  // Only these statuses are selectable for manual retry.
+  const RETRYABLE_EMAIL_STATUSES = ["failed", "bounced", "cancelled", "pending"];
+
+  const [emailStatusFilter, setEmailStatusFilter] = useState("all");
+  const [emailDateFrom, setEmailDateFrom] = useState("");
+  const [emailDateTo, setEmailDateTo] = useState("");
+
+  const visibleEmailRows = useMemo(() => {
+    return allEmailRows.filter((r) => {
+      if (emailStatusFilter !== "all" && r.status !== emailStatusFilter) return false;
+      const ts = r.sent_at || r.created_at;
+      if (ts) {
+        const d = new Date(ts);
+        if (emailDateFrom && d < new Date(emailDateFrom + "T00:00:00")) return false;
+        if (emailDateTo && d > new Date(emailDateTo + "T23:59:59")) return false;
+      }
+      return true;
+    });
+  }, [allEmailRows, emailStatusFilter, emailDateFrom, emailDateTo]);
+
+  const retryableVisible = useMemo(
+    () => visibleEmailRows.filter((f) => RETRYABLE_EMAIL_STATUSES.includes(f.status)),
+    [visibleEmailRows]
+  );
 
   const retrySelectedSet = useMemo(() => new Set(retrySelected), [retrySelected]);
   const toggleRetrySelect = (key) =>
@@ -2188,11 +2212,19 @@ export default function FormRunsPage() {
           {/* ─── EMAILS TAB ─── */}
           {detailTab === "emails" && (() => {
             const s = emailSummary.stats;
-            const allFailedSelected = visibleNotDelivered.length > 0 && visibleNotDelivered.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
+            const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.every((f) => retrySelectedSet.has(`${f.submission_id}:${f.email_type}`));
             const STATUS_BADGE = {
+              sent: "bg-emerald-500/10 text-emerald-500",
+              delivered: "bg-emerald-400/10 text-emerald-400",
+              opened: "bg-sky-500/10 text-sky-500",
+              clicked: "bg-indigo-500/10 text-indigo-500",
+              delayed: "bg-amber-500/10 text-amber-500",
+              complained: "bg-rose-500/10 text-rose-500",
               failed: "bg-rose-500/10 text-rose-500",
               bounced: "bg-amber-500/10 text-amber-500",
               cancelled: "bg-slate-500/10 text-slate-400",
+              skipped: "bg-slate-500/10 text-slate-400",
+              pending: "bg-amber-500/10 text-amber-400",
             };
             return (
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
@@ -2222,18 +2254,43 @@ export default function FormRunsPage() {
                   </div>
                 </div>
 
-                {/* Not-delivered emails — failed/bounced/cancelled, all selectable + manually retryable */}
+                {/* Email rows — all statuses, filterable by date + status. Failed/bounced/cancelled/pending are selectable + manually retryable */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
-                        {t("platformMisc.runs.emailNotDelivered", { count: notDeliveredRows.length })}
+                        {t("platformMisc.runs.emailNotDelivered", { count: allEmailRows.length })}
                       </p>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="date"
+                          value={emailDateFrom}
+                          onChange={(e) => { setEmailDateFrom(e.target.value); setRetrySelected([]); }}
+                          className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                        />
+                        <span className="text-[9px] text-[var(--text-secondary)]">to</span>
+                        <input
+                          type="date"
+                          value={emailDateTo}
+                          onChange={(e) => { setEmailDateTo(e.target.value); setRetrySelected([]); }}
+                          className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                        />
+                      </div>
+                      <select
+                        value={emailStatusFilter}
+                        onChange={(e) => { setEmailStatusFilter(e.target.value); setRetrySelected([]); }}
+                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                      >
+                        <option value="all">All statuses</option>
+                        {EMAIL_STATUS_ORDER.map((k) => (
+                          <option key={k} value={k}>{k}</option>
+                        ))}
+                      </select>
                       {[
-                        { key: "all", label: t("platformMisc.runs.emailFilterAll", { count: notDeliveredRows.length }) },
-                        { key: "failed", label: t("platformMisc.runs.emailFilterFailed", { count: notDeliveredRows.filter((r) => r.status === "failed").length }) },
-                        { key: "bounced", label: t("platformMisc.runs.emailFilterBounced", { count: notDeliveredRows.filter((r) => r.status === "bounced").length }) },
-                        { key: "cancelled", label: t("platformMisc.runs.emailFilterCancelled", { count: notDeliveredRows.filter((r) => r.status === "cancelled").length }) },
+                        { key: "failed", label: t("platformMisc.runs.emailFilterFailed", { count: allEmailRows.filter((r) => r.status === "failed").length }) },
+                        { key: "bounced", label: t("platformMisc.runs.emailFilterBounced", { count: allEmailRows.filter((r) => r.status === "bounced").length }) },
+                        { key: "cancelled", label: t("platformMisc.runs.emailFilterCancelled", { count: allEmailRows.filter((r) => r.status === "cancelled").length }) },
+                        { key: "pending", label: t("platformMisc.runs.emailFilterPending", { count: allEmailRows.filter((r) => r.status === "pending").length }) },
                       ].map((f) => (
                         <button
                           key={f.key}
@@ -2248,6 +2305,14 @@ export default function FormRunsPage() {
                           {f.label}
                         </button>
                       ))}
+                      {(emailDateFrom || emailDateTo || emailStatusFilter !== "all") && (
+                        <button
+                          onClick={() => { setEmailStatusFilter("all"); setEmailDateFrom(""); setEmailDateTo(""); setRetrySelected([]); }}
+                          className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[8px] font-black uppercase border border-[var(--border-primary)] hover:text-[var(--text-primary)]"
+                        >
+                          Reset
+                        </button>
+                      )}
                     </div>
                     {retrySelected.length > 0 && (
                       <div className="flex items-center gap-2">
@@ -2271,9 +2336,9 @@ export default function FormRunsPage() {
                     )}
                   </div>
 
-                  {visibleNotDelivered.length === 0 ? (
+                  {visibleEmailRows.length === 0 ? (
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      {notDeliveredRows.length === 0 ? t("platformMisc.runs.emailNoneFailed") : t("platformMisc.runs.emailNoneMatchFilter")}
+                      {allEmailRows.length === 0 ? t("platformMisc.runs.emailNoneFailed") : t("platformMisc.runs.emailNoneMatchFilter")}
                     </p>
                   ) : (
                     <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
@@ -2283,9 +2348,9 @@ export default function FormRunsPage() {
                             <th className="px-4 py-3 w-10">
                               <input
                                 type="checkbox"
-                                checked={allFailedSelected}
+                                checked={allRetryableSelected}
                                 onChange={() =>
-                                  setRetrySelected(allFailedSelected ? [] : visibleNotDelivered.map((f) => `${f.submission_id}:${f.email_type}`))
+                                  setRetrySelected(allRetryableSelected ? [] : retryableVisible.map((f) => `${f.submission_id}:${f.email_type}`))
                                 }
                                 className="accent-[var(--brand-orange)] w-3.5 h-3.5"
                               />
@@ -2295,20 +2360,24 @@ export default function FormRunsPage() {
                             <th className="px-3 py-3">{t("platformMisc.runs.colStatus")}</th>
                             <th className="px-3 py-3">{t("platformMisc.runs.emailColRecipient")}</th>
                             <th className="px-3 py-3">{t("platformMisc.runs.emailColReason")}</th>
+                            <th className="px-3 py-3">{t("platformMisc.runs.emailColDate")}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-[var(--border-primary)]">
-                          {visibleNotDelivered.map((f) => {
+                          {visibleEmailRows.map((f) => {
                             const key = `${f.submission_id}:${f.email_type}`;
+                            const isRetryable = RETRYABLE_EMAIL_STATUSES.includes(f.status);
                             return (
                               <tr key={key} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                                 <td className="px-4 py-3 w-10">
-                                  <input
-                                    type="checkbox"
-                                    checked={retrySelectedSet.has(key)}
-                                    onChange={() => toggleRetrySelect(key)}
-                                    className="accent-[var(--brand-orange)] w-3.5 h-3.5"
-                                  />
+                                  {isRetryable && (
+                                    <input
+                                      type="checkbox"
+                                      checked={retrySelectedSet.has(key)}
+                                      onChange={() => toggleRetrySelect(key)}
+                                      className="accent-[var(--brand-orange)] w-3.5 h-3.5"
+                                    />
+                                  )}
                                 </td>
                                 <td className="px-3 py-3">{f.name}</td>
                                 <td className="px-3 py-3">
@@ -2326,6 +2395,9 @@ export default function FormRunsPage() {
                                 </td>
                                 <td className="px-3 py-3 text-[10px] text-rose-400 max-w-[260px] truncate" title={f.error || "Unknown reason"}>
                                   {f.error || "Unknown reason"}
+                                </td>
+                                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">
+                                  {f.sent_at ? new Date(f.sent_at).toLocaleDateString() : (f.created_at ? new Date(f.created_at).toLocaleDateString() : "—")}
                                 </td>
                               </tr>
                             );
