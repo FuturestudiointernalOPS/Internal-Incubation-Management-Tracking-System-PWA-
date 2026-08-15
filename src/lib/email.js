@@ -203,29 +203,34 @@ export function getDefaultTemplate(templateKey) {
 /**
  * Send an invite email with activation link
  */
+function resolveGreetingName(name) {
+  const n = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
+  if (!n || n.includes("@")) return "";
+  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i.test(n)) return "";
+  return n;
+}
+
 export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName }) {
   const activationUrl = `${APP_URL}/activate?token=${token}`;
   const roleLabel = role?.replace(/_/g, " ") || "User";
-  const org = templateVars?.organization || "ImpactOS";
-  const tv = { name: name || "there", role: roleLabel, activation_link: activationUrl, organization: org, programName: programName || null, ...(templateVars || {}) };
+  const org = templateVars?.organization || "Impact OS";
+  const greetingName = resolveGreetingName(name);
+  const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
+  const tv = { name: greetingName || "there", role: roleLabel, activation_link: activationUrl, organization: org, programName: programName || null, ...(templateVars || {}) };
 
-  // Use template subject if provided, otherwise default
+  // Subject states what the email is about; it is not repeated in the body.
   const subject = template?.subject
     ? applyTemplate(template.subject, tv)
     : programName
       ? `You've been invited to facilitate ${programName}`
-      : `You're invited to ${org} — Set Your Password`;
+      : `You're invited to ${org}`;
 
-  // Template body or default
-  const facilitatorLine = programName
-    ? `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">You have been invited to become a <strong style="color: #ff6600;">Facilitator</strong> for <strong style="color: #f8fafc;">${programName}</strong>.</p>`
-    : "";
   const bodyHtml = normalizeToHtml(
     template?.body
       ? applyTemplate(template.body, tv)
-      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hi <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
-       ${facilitatorLine}
-       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You've been invited to join ${org} as a <strong style="color: #ff6600;">${roleLabel}</strong>. Click the button below to set your password and activate your account.</p>`
+      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">${greeting}</p>
+         <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You have been selected to serve as a <strong style="color: #ff6600;">${roleLabel}</strong>${programName ? ` for <strong style="color: #f8fafc;">${programName}</strong>` : ""} on ${org}.</p>
+         <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Please use the button below to activate your account and set your password.</p>`
   );
 
   const html = `
@@ -238,7 +243,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
           <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
             <tr><td style="padding: 40px;">
               <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
-                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;"> OS</span>
               </h1>
               <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
 
@@ -249,7 +254,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
                 <tr>
                   <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
                     <a href="${activationUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
-                      ACTIVATE ACCOUNT
+                      Activate My Account
                     </a>
                   </td>
                 </tr>
@@ -278,7 +283,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject: `You're invited to ImpactOS — ${roleLabel}`, html });
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -287,24 +292,23 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
  */
 export async function sendLoginEmail({ to, name, role, template, templateVars, programName }) {
   const loginUrl = `${APP_URL}/login`;
-  const org = templateVars?.organization || "ImpactOS";
-  const tv = { name: name || "there", role: (role || "").replace(/_/g, " "), organization: org, login_url: loginUrl, programName: programName || null, ...(templateVars || {}) };
+  const org = templateVars?.organization || "Impact OS";
+  const greetingName = resolveGreetingName(name);
+  const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
+  const tv = { name: greetingName || "there", role: (role || "").replace(/_/g, " "), organization: org, login_url: loginUrl, programName: programName || null, ...(templateVars || {}) };
 
   const subject = template?.subject
     ? applyTemplate(template.subject, tv)
     : programName
       ? `You've been invited to facilitate ${programName}`
-      : `Welcome back to ${org} — Log In`;
+      : `Welcome back to ${org}`;
 
-  const facilitatorLine = programName
-    ? `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">You have been invited to become a <strong style="color: #ff6600;">Facilitator</strong> for <strong style="color: #f8fafc;">${programName}</strong>.</p>`
-    : "";
   const bodyHtml = normalizeToHtml(
     template?.body
       ? applyTemplate(template.body, tv)
-      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hello <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
-       ${facilitatorLine}
-       <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You already have an account with us. Use your existing credentials to log in and access the platform.</p>`
+      : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">${greeting}</p>
+         <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You have been selected to serve as a <strong style="color: #ff6600;">${(role || "").replace(/_/g, " ")}</strong>${programName ? ` for <strong style="color: #f8fafc;">${programName}</strong>` : ""} on ${org}.</p>
+         <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">Please use the button below to access your account.</p>`
   );
 
   const html = `
@@ -317,7 +321,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
           <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
             <tr><td style="padding: 40px;">
               <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
-                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;"> OS</span>
               </h1>
               <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
 
@@ -328,7 +332,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
                 <tr>
                   <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
                     <a href="${loginUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
-                      LOGIN TO YOUR ACCOUNT
+                      Access Impact OS
                     </a>
                   </td>
                 </tr>
