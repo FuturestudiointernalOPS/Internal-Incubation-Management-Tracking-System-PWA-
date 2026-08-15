@@ -22,7 +22,7 @@ export async function GET() {
 
     await initDb();
     const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language, role, group_name, profile_completed FROM contacts WHERE cid = ?",
+      sql: "SELECT name, email, phone, address, language, role, group_name FROM contacts WHERE cid = ?",
       args: [session.cid],
     });
 
@@ -67,7 +67,6 @@ export async function GET() {
         alternative_email: extras.alternative_email || null,
         alternative_phone: extras.alternative_phone || null,
         country: extras.country || null,
-        profile_completed: !!user.profile_completed,
       },
       mandatory: { name: !hasName, email: !hasEmail },
       isComplete,
@@ -123,11 +122,6 @@ export async function PUT(req) {
     if (language !== undefined) {
       updates.push("language = ?");
       args.push(language);
-    }
-
-    // Auto-mark profile as completed when at least name is provided
-    if (name !== undefined && name.trim().length > 0) {
-      updates.push("profile_completed = 1");
     }
 
     // Self-service password change (session-scoped — only the logged-in user)
