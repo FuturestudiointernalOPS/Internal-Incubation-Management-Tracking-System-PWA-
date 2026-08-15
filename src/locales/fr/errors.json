@@ -10,6 +10,7 @@
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
     "authRequired": "Authentification requise.",
     "insufficientPermissions": "Permissions insuffisantes.",
+    "programCompletedViewOnly": "Ce programme est terminé et en lecture seule. Les soumissions sont fermées.",
     "authSystemFailure": "Échec du système d'authentification.",
     "authzSystemFailure": "Échec du système d'autorisation.",
     "notFound": "Introuvable."

@@ -43,6 +43,26 @@ export async function POST(req) {
       );
     }
 
+    // View-only gate: participants/teams cannot submit into a program that is
+    // no longer active (completed/archived). Staff/PM/SA manage programs
+    // regardless of its status.
+    const session = await getSession();
+    if (session && ["participant", "team"].includes(session.role)) {
+      try {
+        const progCheck = await db.execute({
+          sql: "SELECT status FROM v2_programs WHERE id::text = ?",
+          args: [String(program_id)],
+        });
+        const progStatus = progCheck.rows[0]?.status;
+        if (progStatus && String(progStatus).toLowerCase() !== "active") {
+          return NextResponse.json(
+            { success: false, error: "errors.programCompletedViewOnly" },
+            { status: 403 },
+          );
+        }
+      } catch (_) {}
+    }
+
     // Resolve file URL
     const resolvedFileUrl = file_url || submission_link || file_path || null;
 
