@@ -171,7 +171,7 @@ export async function POST(req) {
       if (requirements && Array.isArray(requirements)) {
         for (const req of requirements) {
           await db.execute({
-            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             args: [
               program_id,
               req.title,
@@ -183,6 +183,8 @@ export async function POST(req) {
               req.due_date || null,
               req.assignee_type || "all",
               req.assignee_id || null,
+              req.resource_url || null,
+              req.resource_label || null,
             ],
           });
         }
@@ -195,10 +197,10 @@ export async function POST(req) {
     }
 
     if (action === "add_requirement") {
-      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id, weight } =
+      const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id, weight, resource_url, resource_label } =
         payload;
       const result = await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
         args: [
           program_id,
           title,
@@ -210,6 +212,8 @@ export async function POST(req) {
           due_date || null,
           assignee_type || "all",
           assignee_id || null,
+          resource_url || null,
+          resource_label || null,
         ],
       });
       // Recalculate KPI progress after adding a requirement
@@ -604,15 +608,17 @@ export async function PUT(req) {
       });
       recalculateKpiForProgram(program_id);
     } else {
-      const { title, description, allowed_format, kpi_ids, due_date } = payload;
+      const { title, description, allowed_format, kpi_ids, due_date, resource_url, resource_label } = payload;
       await db.execute({
-        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ?, due_date = ? WHERE id = ?",
+        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ?, due_date = ?, resource_url = ?, resource_label = ? WHERE id = ?",
         args: [
           title,
           description,
           allowed_format,
           JSON.stringify(kpi_ids || []),
           due_date || null,
+          resource_url || null,
+          resource_label || null,
           targetId,
         ],
       });

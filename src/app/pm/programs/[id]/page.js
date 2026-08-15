@@ -215,6 +215,8 @@ function ProgramWorkspace() {
     due_date: "",
     assignee_type: "all",
     assignee_id: "",
+    resource_url: "",
+    resource_label: "",
   });
   const [newPMReport, setNewPMReport] = useState({
     summary: "",
@@ -490,6 +492,8 @@ function ProgramWorkspace() {
           due_date: newRequirement.due_date || null,
           assignee_type: newRequirement.assignee_type || "all",
           assignee_id: newRequirement.assignee_id || "",
+          resource_url: newRequirement.resource_url || null,
+          resource_label: newRequirement.resource_label || null,
           weight: avgWeight,
         }),
       });
@@ -505,6 +509,8 @@ function ProgramWorkspace() {
           due_date: "",
           assignee_type: "all",
           assignee_id: "",
+          resource_url: "",
+          resource_label: "",
         });
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.failed")) || "") || (data.error || t("pmMisc.workspace.failed")), "error");
@@ -3798,6 +3804,32 @@ function ProgramWorkspace() {
                       className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
                       style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                     />
+                    <textarea
+                      value={newRequirement.description || ""}
+                      onChange={(e) => setNewRequirement(p => ({ ...p, description: e.target.value }))}
+                      placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
+                      rows={2}
+                      className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
+                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                    />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={newRequirement.resource_url || ""}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, resource_url: e.target.value }))}
+                        placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                      <input
+                        type="text"
+                        value={newRequirement.resource_label || ""}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, resource_label: e.target.value }))}
+                        placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
+                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                      />
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <select
                         value={newRequirement.allowed_format}
@@ -3838,7 +3870,7 @@ function ProgramWorkspace() {
                       disabled={!newRequirement.title.trim()}
                       onClick={() => {
                         setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
-                        setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "" });
+                        setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "", resource_url: "", resource_label: "" });
                       }}
                       className="w-full py-2 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 disabled:opacity-50 transition-colors"
                     >
@@ -4232,6 +4264,33 @@ function ProgramWorkspace() {
                     placeholder={t("pmMisc.workspace.requirementTitleExample")}
                   />
                 </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {t("pmMisc.workspace.instructions")}
+                  </label>
+                  <textarea
+                    value={newRequirement.description || ""}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        description: e.target.value,
+                      }))
+                    }
+                    rows={3}
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
+                  />
+                </div>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label
@@ -4285,6 +4344,61 @@ function ProgramWorkspace() {
                       }}
                     />
                   </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {t("pmMisc.workspace.resourceUrl")}
+                  </label>
+                  <input
+                    type="text"
+                    value={newRequirement.resource_url || ""}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        resource_url: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
+                  />
+                  <p className="text-[8px] text-[var(--text-secondary)]">
+                    {t("pmMisc.workspace.resourceHint")}
+                  </p>
+                </div>
+
+                <div className="space-y-1">
+                  <label
+                    className="text-[10px] font-black uppercase tracking-widest"
+                    style={{ color: "var(--text-secondary)" }}
+                  >
+                    {t("pmMisc.workspace.resourceLabel")}
+                  </label>
+                  <input
+                    type="text"
+                    value={newRequirement.resource_label || ""}
+                    onChange={(e) =>
+                      setNewRequirement((p) => ({
+                        ...p,
+                        resource_label: e.target.value,
+                      }))
+                    }
+                    className="w-full rounded-lg px-4 py-3 text-sm outline-none font-bold"
+                    style={{
+                      background: "var(--bg-primary)",
+                      border: "1px solid var(--border-primary)",
+                      color: "var(--text-primary)",
+                    }}
+                    placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
+                  />
                 </div>
 
                 {/* Grading — derived from linked KPIs */}
