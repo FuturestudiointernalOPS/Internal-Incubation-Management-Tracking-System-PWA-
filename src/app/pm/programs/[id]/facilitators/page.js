@@ -156,19 +156,23 @@ export default function ProgramFacilitators({ params }) {
   };
 
   const createAndInviteFacilitator = async () => {
-    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
-      notify("error", "Name and email are required");
+    const email = inviteForm.email.trim();
+    if (!email) {
+      notify("error", "Email is required");
       return;
     }
+    const fallbackName = email.split("@")[0];
     setBusy(true);
     try {
       const res = await fetch("/api/auth/invite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: inviteForm.email.trim(),
-          name: inviteForm.name.trim(),
+          email,
+          name: inviteForm.name.trim() || fallbackName,
           role: "facilitator",
+          program_id: id,
+          program_name: program?.name || "", 
         }),
       });
       const data = await res.json();
@@ -176,8 +180,8 @@ export default function ProgramFacilitators({ params }) {
         if (data.cid) {
           await addFacilitator({
             cid: data.cid,
-            name: inviteForm.name.trim(),
-            email: inviteForm.email.trim(),
+            name: inviteForm.name.trim() || fallbackName,
+            email,
           });
         }
         setInviteForm({ name: "", email: "" });
@@ -384,7 +388,7 @@ export default function ProgramFacilitators({ params }) {
             <input
               value={inviteForm.name}
               onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-              placeholder="New facilitator name…"
+              placeholder="New facilitator name… (optional)"
               className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
             />
             <input
