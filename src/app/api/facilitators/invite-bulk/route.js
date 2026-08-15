@@ -133,6 +133,28 @@ export async function POST(req) {
         args: [programId, contactCid, JSON.stringify(defaultPerms)],
       });
 
+      // Link the contact to this program (fill-only) and record the contextual
+      // facilitator role without overwriting the person's global role.
+      await db.execute({
+        sql: "UPDATE contacts SET program_id = ? WHERE cid = ? AND (program_id IS NULL OR TRIM(program_id) = '')",
+        args: [programId, contactCid],
+      });
+      try {
+        await db.execute({
+          sql: `INSERT INTO contact_roles (contact_cid, role, context_type, context_id, is_current, assigned_by)
+                SELECT ?, 'facilitator', 'program', ?, true, ?
+                WHERE NOT EXISTS (
+                  SELECT 1 FROM contact_roles cr
+                  WHERE cr.contact_cid = ?
+                    AND cr.role = 'facilitator'
+                    AND cr.context_type = 'program'
+                    AND cr.context_id = ?
+                    AND cr.is_current = true
+                )`,
+          args: [contactCid, programId, session?.cid || "system", contactCid, programId],
+        });
+      } catch (_) {}
+
       // Reuse the existing activation token flow; never duplicate a contact.
       await db.execute({
         sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?",
