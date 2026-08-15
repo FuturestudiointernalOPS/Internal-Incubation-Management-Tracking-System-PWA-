@@ -1319,19 +1319,45 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
       if (authError) return authError;
 
-      const { run_id, target_type, target_id } = body;
-      if (!run_id || !target_id) return NextResponse.json({ success: false, error: "run_id and target_id required" }, { status: 400 });
+      // Accept either the legacy single target (target_type + target_id) or a
+      // list of targets so one action can assign a run to multiple audiences
+      // (e.g. Program AND Group) in a single request.
+      const { run_id, target_type, target_id, targets } = body;
+      const ALLOWED_TARGET_TYPES = ["user", "group", "program", "cohort", "team", "organization", "all"];
+      const list = Array.isArray(targets)
+        ? targets
+        : [{ target_type: target_type || "user", target_id }];
+      const valid = list.filter(
+        (t) => t && ALLOWED_TARGET_TYPES.includes(t.target_type) && t.target_id,
+      );
+      if (!run_id || valid.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and target required" }, { status: 400 });
+      }
 
-      await db.execute({
-        sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
-        args: [parseInt(run_id), target_type || "user", target_id, session.cid],
-      });
+      const runId = parseInt(run_id);
+      let added = 0;
+      let skipped = 0;
+      const createdTargets = [];
+      for (const t of valid) {
+        const insertRes = await db.execute({
+          sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
+          args: [runId, t.target_type, t.target_id, session.cid],
+        });
+        if (insertRes.rowsAffected > 0) {
+          added++;
+          createdTargets.push({ target_type: t.target_type, target_id: t.target_id });
+        } else {
+          skipped++;
+        }
+      }
 
-      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(run_id)] });
-      // Fire automation
-      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
-      onAssignmentAdded({ target_type: target_type || "user", target_id }, fullRun.rows[0] || { id: parseInt(run_id) });
-      return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
+      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [runId] });
+      // Fire automation for each newly created assignment
+      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [runId] });
+      for (const t of createdTargets) {
+        onAssignmentAdded(t, fullRun.rows[0] || { id: runId });
+      }
+      return NextResponse.json({ success: true, added, skipped, assignments: await enrichAssignments(assignments.rows) });
     }
 
     // ─── UNASSIGN ACTION ───
