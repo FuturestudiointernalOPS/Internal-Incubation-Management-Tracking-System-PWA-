@@ -40,6 +40,7 @@ import {
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getWeekNumber } from "@/lib/constants";
+import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -1029,7 +1030,6 @@ function ProgramWorkspace() {
       id: "facilitators",
       name: t("pmMisc.workspace.tabFacilitators"),
       icon: UserPlus,
-      href: `/pm/programs/${id}/facilitators`,
     },
   ];
 
@@ -3060,6 +3060,8 @@ function ProgramWorkspace() {
               </table>
             </div>
           )}
+
+          {activeTab === "facilitators" && <FacilitatorsPanel programId={id} />}
         </div>
 
         {/* PDF VIEWER MODAL */}
