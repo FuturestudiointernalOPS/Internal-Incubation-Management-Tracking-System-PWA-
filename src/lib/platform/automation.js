@@ -437,6 +437,17 @@ const RULES = [
           contact = { cid, name: contactName || "Participant", email: contactEmail, role: targetRole };
         }
 
+        // Link the submission to the resolved contact so the run overview and
+        // every later email read the SAME identity and its latest status.
+        if (ctx.submission?.id && contact?.cid && String(ctx.submission.submitter_id || "") !== String(contact.cid)) {
+          try {
+            await db.execute({
+              sql: "UPDATE platform_form_submissions SET submitter_id = ? WHERE id = ?",
+              args: [contact.cid, ctx.submission.id],
+            });
+          } catch (_) {}
+        }
+
         // Associate with the group's Program when one exists. This provides
         // program ACCESS context — it does NOT change the platform role.
         if (groupProgramId) {

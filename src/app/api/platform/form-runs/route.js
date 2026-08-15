@@ -539,14 +539,13 @@ export async function GET(req) {
           // is missing — prefer the submitter id over "Unknown"/"Anonymous".
           (!isGenericName(s.submitter_name) ? s.submitter_name : "") ||
           s.submitter_id;
-        // Account activation is independent of email delivery. A non-empty
-        // password means the user completed account setup (the activate route
-        // sets both password and status = 'active'). Resolve by submitter_id
-        // first, then by the real applicant email.
+        // Account activation is independent of email delivery. Prefer the
+        // real applicant email (the source the activation flow uses to create
+        // or match the contact) over a possibly-stale submitter_id.
         const contactRow =
+          (email ? accountMap.get(String(email).toLowerCase()) : null) ||
           accountMap.get(s.submitter_id) ||
-          (resolvedEmails[i] ? accountMap.get(String(resolvedEmails[i]).toLowerCase()) : null) ||
-          (email ? accountMap.get(String(email).toLowerCase()) : null);
+          (resolvedEmails[i] ? accountMap.get(String(resolvedEmails[i]).toLowerCase()) : null);
         const account_created = !!contactRow;
         const account_activated = account_created && String(contactRow.status || "").toLowerCase() === "active";
         const account_status = deriveAccountStatus(contactRow);
