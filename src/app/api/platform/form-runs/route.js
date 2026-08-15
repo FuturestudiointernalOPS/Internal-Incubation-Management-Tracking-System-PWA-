@@ -35,6 +35,90 @@ function logTimeline(submissionId, action, actorId, actorName, meta = {}) {
 }
 
 /**
+ * Resolve display names for run assignments server-side so the UI never has
+ * to match against a partial client-side contact list (which previously fell
+ * back to raw target IDs / placeholder names for contacts beyond the first
+ * 200 loaded into the page).
+ *
+ * - user    -> contacts by cid OR email (generic placeholder names such as
+ *              "Unknown" fall back to the contact email, then null)
+ * - group   -> families by registration_id OR id
+ * - program -> v2_programs by id
+ *
+ * Adds target_name / target_email to each assignment row (mutates in place).
+ */
+async function enrichAssignments(assignments) {
+  const rows = Array.isArray(assignments) ? assignments : assignments?.rows || [];
+  if (rows.length === 0) return rows;
+
+  const byType = (t) => rows.filter((r) => r.target_type === t).map((r) => r.target_id).filter(Boolean);
+
+  const userMap = new Map();
+  const groupMap = new Map();
+  const programMap = new Map();
+
+  const userIds = byType('user');
+  if (userIds.length > 0) {
+    try {
+      const emails = userIds.map((u) => String(u).toLowerCase());
+      const res = await db.execute({
+        sql: 'SELECT cid, name, email FROM contacts WHERE cid = ANY(?) OR LOWER(email) = ANY(?)',
+        args: [userIds, emails],
+      });
+      for (const row of res.rows) {
+        userMap.set(row.cid, row);
+        if (row.email) userMap.set(String(row.email).toLowerCase(), row);
+      }
+    } catch (_) {}
+  }
+
+  const groupIds = byType('group');
+  if (groupIds.length > 0) {
+    try {
+      const res = await db.execute({
+        sql: 'SELECT id, registration_id, name FROM families WHERE registration_id = ANY(?) OR CAST(id AS TEXT) = ANY(?)',
+        args: [groupIds, groupIds],
+      });
+      for (const row of res.rows) {
+        if (row.registration_id) groupMap.set(row.registration_id, row);
+        groupMap.set(String(row.id), row);
+      }
+    } catch (_) {}
+  }
+
+  const programIds = byType('program');
+  if (programIds.length > 0) {
+    try {
+      const res = await db.execute({
+        sql: 'SELECT id, name FROM v2_programs WHERE id = ANY(?)',
+        args: [programIds],
+      });
+      for (const row of res.rows) programMap.set(String(row.id), row);
+    } catch (_) {}
+  }
+
+  for (const a of rows) {
+    if (a.target_type === 'user') {
+      const c = userMap.get(a.target_id) || userMap.get(String(a.target_id).toLowerCase());
+      if (c) {
+        a.target_email = c.email || null;
+        a.target_name = c.name && !isGenericName(c.name) ? c.name : c.email || null;
+      } else {
+        a.target_name = null;
+        a.target_email = null;
+      }
+    } else if (a.target_type === 'group') {
+      const g = groupMap.get(a.target_id) || groupMap.get(String(a.target_id).toLowerCase());
+      a.target_name = g ? g.name || null : null;
+    } else if (a.target_type === 'program') {
+      const p = programMap.get(a.target_id) || programMap.get(String(a.target_id).toLowerCase());
+      a.target_name = p ? p.name || null : null;
+    }
+  }
+  return rows;
+}
+
+/**
  * Calculate assessment scores for a submission.
  * Expects submissionData to contain rating field values keyed by field label.
  * Returns { sections, overall, ranking } or null if scoring is not configured.
@@ -270,7 +354,7 @@ export async function GET(req) {
 
     // ─── ASSIGNABLE CONTACTS ───
     if (contacts === "true") {
-      const users = await db.execute({ sql: "SELECT cid, name, email, role FROM contacts WHERE deleted = 0 ORDER BY name ASC LIMIT 200" });
+      const users = await db.execute({ sql: "SELECT cid, name, email, role FROM contacts WHERE deleted = 0 ORDER BY name ASC LIMIT 1000" });
       return NextResponse.json({ success: true, contacts: users.rows });
     }
 
@@ -469,7 +553,7 @@ export async function GET(req) {
         return { ...s, email, display_name: displayName, account_created, account_activated, account_status };
       });
 
-      return NextResponse.json({ success: true, run: run.rows[0], assignments: assignments.rows, submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
+      return NextResponse.json({ success: true, run: run.rows[0], assignments: await enrichAssignments(assignments.rows), submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
     }
 
     // Submissions for a specific user
@@ -1235,19 +1319,45 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
       if (authError) return authError;
 
-      const { run_id, target_type, target_id } = body;
-      if (!run_id || !target_id) return NextResponse.json({ success: false, error: "run_id and target_id required" }, { status: 400 });
+      // Accept either the legacy single target (target_type + target_id) or a
+      // list of targets so one action can assign a run to multiple audiences
+      // (e.g. Program AND Group) in a single request.
+      const { run_id, target_type, target_id, targets } = body;
+      const ALLOWED_TARGET_TYPES = ["user", "group", "program", "cohort", "team", "organization", "all"];
+      const list = Array.isArray(targets)
+        ? targets
+        : [{ target_type: target_type || "user", target_id }];
+      const valid = list.filter(
+        (t) => t && ALLOWED_TARGET_TYPES.includes(t.target_type) && t.target_id,
+      );
+      if (!run_id || valid.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and target required" }, { status: 400 });
+      }
 
-      await db.execute({
-        sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
-        args: [parseInt(run_id), target_type || "user", target_id, session.cid],
-      });
+      const runId = parseInt(run_id);
+      let added = 0;
+      let skipped = 0;
+      const createdTargets = [];
+      for (const t of valid) {
+        const insertRes = await db.execute({
+          sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
+          args: [runId, t.target_type, t.target_id, session.cid],
+        });
+        if (insertRes.rowsAffected > 0) {
+          added++;
+          createdTargets.push({ target_type: t.target_type, target_id: t.target_id });
+        } else {
+          skipped++;
+        }
+      }
 
-      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(run_id)] });
-      // Fire automation
-      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
-      onAssignmentAdded({ target_type: target_type || "user", target_id }, fullRun.rows[0] || { id: parseInt(run_id) });
-      return NextResponse.json({ success: true, assignments: assignments.rows });
+      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [runId] });
+      // Fire automation for each newly created assignment
+      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [runId] });
+      for (const t of createdTargets) {
+        onAssignmentAdded(t, fullRun.rows[0] || { id: runId });
+      }
+      return NextResponse.json({ success: true, added, skipped, assignments: await enrichAssignments(assignments.rows) });
     }
 
     // ─── UNASSIGN ACTION ───
@@ -1266,7 +1376,7 @@ export async function POST(req) {
 
       if (runId) {
         const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(runId)] });
-        return NextResponse.json({ success: true, assignments: assignments.rows });
+        return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
       }
       return NextResponse.json({ success: true, assignments: [] });
     }

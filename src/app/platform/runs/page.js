@@ -325,6 +325,7 @@ export default function FormRunsPage() {
   const [forms, setForms] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("all");
@@ -365,8 +366,12 @@ export default function FormRunsPage() {
 
   // Assignment modal
   const [showAssign, setShowAssign] = useState(false);
-  const [assignTarget, setAssignTarget] = useState("user");
+  const [assignTypes, setAssignTypes] = useState({ user: false, group: false, program: false, other: false });
   const [assignUserId, setAssignUserId] = useState("");
+  const [assignGroupId, setAssignGroupId] = useState("");
+  const [assignProgramId, setAssignProgramId] = useState("");
+  const [assignOtherType, setAssignOtherType] = useState("cohort");
+  const [assignOtherId, setAssignOtherId] = useState("");
 
   // Settings
   const [runSettings, setRunSettings] = useState({});
@@ -419,6 +424,14 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
+  const fetchPrograms = useCallback(async () => {
+    try {
+      const res = await fetch("/api/pm/programs");
+      const data = await res.json();
+      if (data.success) setPrograms(data.programs || []);
+    } catch (_) {}
+  }, []);
+
   const handleCreateGroupInline = async (onDone) => {
     const name = inlineGroupName.trim();
     if (!name) return;
@@ -454,7 +467,7 @@ export default function FormRunsPage() {
     } catch (_) {}
   }, []);
 
-  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchDashboardStats(); }, [fetchRuns]);
+  useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchPrograms(); fetchDashboardStats(); }, [fetchRuns]);
 
   const openRun = useCallback(async (run, opts = {}) => {
     if (!opts.keepTab) {
@@ -660,25 +673,76 @@ export default function FormRunsPage() {
     }
   };
 
-  const handleAssign = async (targetOverride) => {
-    const targetId = targetOverride || assignUserId;
-    if (!targetId || !selectedRun) return;
+  const resetAssignModal = () => {
+    setAssignTypes({ user: false, group: false, program: false, other: false });
+    setAssignUserId("");
+    setAssignGroupId("");
+    setAssignProgramId("");
+    setAssignOtherId("");
+    setAssignOtherType("cohort");
+  };
+
+  const toggleAssignType = (type) => setAssignTypes((prev) => ({ ...prev, [type]: !prev[type] }));
+
+  const handleAssignWithGroup = (grp) => {
+    setAssignGroupId(grp.registration_id || grp.id);
+    setAssignTypes((prev) => ({ ...prev, group: true }));
+    handleAssign();
+  };
+
+  const handleAssign = async () => {
+    if (!selectedRun) return;
+
+    const targets = [];
+    if (assignTypes.user && assignUserId) targets.push({ target_type: "user", target_id: assignUserId });
+    if (assignTypes.group && assignGroupId) targets.push({ target_type: "group", target_id: assignGroupId });
+    if (assignTypes.program && assignProgramId) targets.push({ target_type: "program", target_id: assignProgramId });
+    if (assignTypes.other && assignOtherId.trim()) targets.push({ target_type: assignOtherType, target_id: assignOtherId.trim() });
+
+    const checkedTypes = Object.keys(assignTypes).filter((k) => assignTypes[k]);
+    if (checkedTypes.length === 0) {
+      notify(t("platformMisc.runs.assignErrorNoTargets"));
+      return;
+    }
+    const missing = checkedTypes.find((k) =>
+      k === "user" ? !assignUserId : k === "group" ? !assignGroupId : k === "program" ? !assignProgramId : !assignOtherId.trim(),
+    );
+    if (missing) {
+      const typeLabel =
+        missing === "user" ? t("platformMisc.runs.targetUser")
+        : missing === "group" ? t("platformMisc.runs.targetGroup")
+        : missing === "program" ? t("platformMisc.runs.targetProgram")
+        : t("platformMisc.runs.targetId");
+      notify(t("platformMisc.runs.assignErrorMissing", { type: typeLabel }));
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch("/api/platform/form-runs?action=assign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, target_type: assignTarget, target_id: targetId }),
+        body: JSON.stringify({ run_id: selectedRun.id, targets }),
       });
-      const data = await res.json();
-      if (data.success) {
+      let data = null;
+      try { data = await res.json(); } catch (_) { data = null; }
+      if (data && data.success) {
         setAssignments(data.assignments || []);
-        notify(t("platformMisc.runs.assignmentAdded"));
+        const added = data.added ?? targets.length;
+        const skipped = data.skipped ?? 0;
+        if (added > 0 && skipped > 0) notify(t("platformMisc.runs.assignmentsAddedWithSkipped", { added, skipped }));
+        else if (added > 0) notify(t("platformMisc.runs.assignmentsAdded", { count: added }));
+        else notify(t("platformMisc.runs.assignmentsSkipped", { count: skipped }));
         setShowAssign(false);
         setShowInlineGroup(false);
         setInlineGroupName("");
+        resetAssignModal();
+      } else {
+        notify(t((data?.error || t("platformMisc.runs.assignFailed")) || "") || (data?.error || t("platformMisc.runs.assignFailed")));
       }
-    } catch (_) {}
+    } catch (_) {
+      notify(t("platformMisc.runs.assignFailed"));
+    }
     setSaving(false);
   };
 
@@ -2533,7 +2597,7 @@ export default function FormRunsPage() {
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.assignedAudiences")}</h3>
                   <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.assignedAudiencesDesc")}</p>
                 </div>
-                <button onClick={() => { setShowAssign(true); setAssignTarget("user"); setAssignUserId(""); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110"><Plus className="w-3 h-3" /> {t("platformMisc.runs.add")}</button>
+                <button onClick={() => { setShowAssign(true); resetAssignModal(); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110"><Plus className="w-3 h-3" /> {t("platformMisc.runs.add")}</button>
               </div>
 
               {assignments.length === 0 ? (
@@ -2557,7 +2621,7 @@ export default function FormRunsPage() {
                       {assignments.map((a) => {
                         const g = a.target_type === "group" ? groups.find((x) => (x.registration_id || x.id) === a.target_id) : null;
                         const c = a.target_type === "user" ? contacts.find((x) => x.cid === a.target_id) : null;
-                        const targetName = g ? g.name : c ? (c.name || c.email) : a.target_id;
+                        const targetName = a.target_name || (g ? g.name : c ? (c.name || c.email) : a.target_id);
                         return (
                           <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
                             <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase">{t(TARGET_LABELS[a.target_type]) || a.target_type}</span></td>
@@ -2579,61 +2643,93 @@ export default function FormRunsPage() {
                     <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addAssignment")}</h3><button onClick={() => setShowAssign(false)}><X className="w-5 h-5" /></button></div>
                     <div className="space-y-3">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetType")}</label>
-                        <select value={assignTarget} onChange={(e) => { setAssignTarget(e.target.value); setAssignUserId(""); }} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                          {Object.entries(TARGET_LABELS).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
-                        </select>
-                      </div>
-                      {assignTarget === "user" ? (
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetUser")}</label>
-                          <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
-                            <option value="">{t("platformMisc.runs.selectUser")}</option>
-                            {contacts.map((c) => <option key={c.cid} value={c.cid}>{c.name || c.email || c.cid}</option>)}
-                          </select>
-                        </div>
-                      ) : assignTarget === "group" ? (
-                        <div className="space-y-1">
-                          <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetGroup")}</label>
-                          <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
-                            <option value="">{t("platformMisc.runs.selectGroup")}</option>
-                            {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
-                          </select>
-                          {!showInlineGroup ? (
-                            <button
-                              type="button"
-                              onClick={() => setShowInlineGroup(true)}
-                              className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" /> {t("platformMisc.runs.newGroup")}
-                            </button>
-                          ) : (
+                        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.assignTo")}</label>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runs.assignToHint")}</p>
+                        <div className="space-y-2 pt-1">
+                          {/* User */}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={assignTypes.user} onChange={() => toggleAssignType("user")} className="w-3.5 h-3.5 accent-[var(--brand-orange)]" />
+                            <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetUser")}</span>
+                          </label>
+                          {assignTypes.user && (
+                            <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
+                              <option value="">{t("platformMisc.runs.selectUser")}</option>
+                              {contacts.map((c) => <option key={c.cid} value={c.cid}>{c.name || c.email || c.cid}</option>)}
+                            </select>
+                          )}
+
+                          {/* Group */}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={assignTypes.group} onChange={() => toggleAssignType("group")} className="w-3.5 h-3.5 accent-[var(--brand-orange)]" />
+                            <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetGroup")}</span>
+                          </label>
+                          {assignTypes.group && (
+                            <div className="space-y-1">
+                              <select value={assignGroupId} onChange={(e) => setAssignGroupId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                                <option value="">{t("platformMisc.runs.selectGroup")}</option>
+                                {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
+                              </select>
+                              {!showInlineGroup ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setShowInlineGroup(true)}
+                                  className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
+                                >
+                                  <Plus className="w-3 h-3" /> {t("platformMisc.runs.newGroup")}
+                                </button>
+                              ) : (
+                                <div className="flex gap-2 items-center">
+                                  <input
+                                    autoFocus
+                                    value={inlineGroupName}
+                                    onChange={(e) => setInlineGroupName(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline(handleAssignWithGroup); }}
+                                    placeholder={t("platformMisc.runs.groupNamePlaceholder")}
+                                    className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCreateGroupInline(handleAssignWithGroup)}
+                                    disabled={creatingGroup || !inlineGroupName.trim()}
+                                    className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                                  >
+                                    {creatingGroup ? "..." : t("platformMisc.runs.createAndAssign")}
+                                  </button>
+                                  <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Program */}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={assignTypes.program} onChange={() => toggleAssignType("program")} className="w-3.5 h-3.5 accent-[var(--brand-orange)]" />
+                            <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetProgram")}</span>
+                          </label>
+                          {assignTypes.program && (
+                            <select value={assignProgramId} onChange={(e) => setAssignProgramId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                              <option value="">{t("platformMisc.runs.selectProgram")}</option>
+                              {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                          )}
+
+                          {/* Other (cohort / team / organization / all) */}
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" checked={assignTypes.other} onChange={() => toggleAssignType("other")} className="w-3.5 h-3.5 accent-[var(--brand-orange)]" />
+                            <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetOther")}</span>
+                          </label>
+                          {assignTypes.other && (
                             <div className="flex gap-2 items-center">
-                              <input
-                                autoFocus
-                                value={inlineGroupName}
-                                onChange={(e) => setInlineGroupName(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => handleAssign(grp.registration_id || grp.id)); }}
-                                placeholder={t("platformMisc.runs.groupNamePlaceholder")}
-                                className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => handleCreateGroupInline((grp) => handleAssign(grp.registration_id || grp.id))}
-                                disabled={creatingGroup || !inlineGroupName.trim()}
-                                className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
-                              >
-                                {creatingGroup ? "..." : t("platformMisc.runs.createAndAssign")}
-                              </button>
-                              <button type="button" onClick={() => { setShowInlineGroup(false); setInlineGroupName(""); }} className="p-2 text-[var(--text-secondary)] hover:text-rose-500"><X className="w-3 h-3" /></button>
+                              <select value={assignOtherType} onChange={(e) => setAssignOtherType(e.target.value)} className="w-2/5 rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                                {["cohort", "team", "organization", "all"].map((k) => <option key={k} value={k}>{t(TARGET_LABELS[k])}</option>)}
+                              </select>
+                              <input value={assignOtherId} onChange={(e) => setAssignOtherId(e.target.value)} className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} />
                             </div>
                           )}
                         </div>
-                      ) : (
-                        <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.targetId")}</label><input value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} /></div>
-                      )}
+                      </div>
                     </div>
-                    <div className="flex gap-2"><button onClick={() => setShowAssign(false)} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button><button onClick={handleAssign} disabled={saving || !assignUserId} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.adding") : t("platformMisc.runs.add")}</button></div>
+                    <div className="flex gap-2"><button onClick={() => { setShowAssign(false); resetAssignModal(); }} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button><button onClick={handleAssign} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.adding") : t("platformMisc.runs.add")}</button></div>
                   </div>
                 </div>
               )}
