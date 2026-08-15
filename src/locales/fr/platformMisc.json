@@ -737,6 +737,17 @@
       "emailDateFrom": "Du",
       "emailDateTo": "Au",
       "emailAllStatuses": "Tous les statuts",
+      "emailStatusAll": "Tous",
+      "emailSearchPlaceholder": "Rechercher un destinataire ou un e-mail...",
+      "emailTypeAll": "Tous les e-mails",
+      "emailTypeApproval": "Approbation / Décision",
+      "emailTypeActivation": "Activation / Accès",
+      "emailNoEmailsYet": "Aucun e-mail n'a encore été envoyé pour cette exécution.",
+      "emailNoMatchStatus": "Aucun e-mail {label}",
+      "emailNoMatchStatusHint": "Aucun destinataire n'a actuellement le statut {label} pour cette exécution.",
+      "emailShowingRange": "Affichage de {start}–{end} sur {total} e-mails",
+      "emailPagePrev": "Précédent",
+      "emailPageNext": "Suivant",
       "emailResetFilters": "Réinitialiser"
     },
     "runSubmit": {
