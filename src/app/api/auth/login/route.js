@@ -155,6 +155,20 @@ export async function POST(req) {
       args: [`%${userCid}%`, userCid],
     });
 
+    // External facilitators are program-scoped: only resolved when they hold
+    // a facilitator assignment (or carry the facilitator contact role).
+    const hasFacilitatorAssignment = async (cid, email) => {
+      try {
+        const facRes = await db.execute({
+          sql: "SELECT 1 FROM v2_program_staff WHERE role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
+          args: [cid, email || ""],
+        });
+        return facRes.rows.length > 0;
+      } catch (_) {
+        return false;
+      }
+    };
+
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
     let finalRole = "participant";
 
@@ -172,10 +186,23 @@ export async function POST(req) {
       finalRole = "founder";
     } else if (pmLeadAssignment.rows.length > 0) {
       finalRole = "program_manager"; // Project Manager (Head)
+    } else if (
+      user.role === "staff" ||
+      user.role === "project_manager" ||
+      user.role === "admin" ||
+      user.group_name?.toUpperCase() === "FUTURE STUDIO"
+    ) {
+      // Internal Future Studio staff keep their identity — being assigned as
+      // a program assistant / team handler must NOT turn them into a teacher.
+      finalRole = "staff"; // internal Future Studio team
+    } else if (user.role === "facilitator" || (await hasFacilitatorAssignment(userCid, user.email))) {
+      finalRole = "facilitator"; // program-scoped external facilitator
     } else if (activeTeammateAssignment.rows.length > 0) {
       finalRole = "teacher"; // Active Teammate
-    } else if (user.role === "investor") {
-      finalRole = "investor";
+    } else if (user.role === "teacher") {
+      finalRole = "teacher";
+    } else if (user.role === "participant") {
+      finalRole = "participant";
     } else if (
       user.role === "project_manager" ||
       user.group_name?.toUpperCase() === "FUTURE STUDIO"

@@ -115,6 +115,7 @@ export default function LoginPage() {
         else if (role === "program_manager") target = "/pm";
         else if (role === "staff") target = "/staff";
         else if (role === "teacher") target = "/teacher";
+        else if (role === "facilitator") target = "/facilitator";
         else if (role === "developer") target = "/developer";
         else if (role === "investor") target = "/investor/dashboard";
         else target = "/participant";
@@ -159,7 +160,9 @@ export default function LoginPage() {
                   ? "/staff"
                   : data.user.role === "teacher"
                     ? "/teacher"
-                    : data.user.role === "developer"
+                    : data.user.role === "facilitator"
+                      ? "/facilitator"
+                      : data.user.role === "developer"
                       ? "/developer"
                       : data.user.role === "team"
                         ? "/team/" + data.user.team_id

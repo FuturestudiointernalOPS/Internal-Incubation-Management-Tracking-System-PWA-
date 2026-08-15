@@ -1024,6 +1024,12 @@ function ProgramWorkspace() {
     { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3 },
     { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
     { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
+    {
+      id: "facilitators",
+      name: t("pmMisc.workspace.tabFacilitators"),
+      icon: UserPlus,
+      href: `/pm/programs/${id}/facilitators`,
+    },
   ];
 
   const tabs = allTabs.filter(
@@ -1076,7 +1082,10 @@ function ProgramWorkspace() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                if (tab.href) router.push(tab.href);
+                else setActiveTab(tab.id);
+              }}
               className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 whitespace-nowrap shrink-0 ${activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {tab.name}

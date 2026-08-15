@@ -62,7 +62,7 @@ export async function POST(req) {
 
     const res = await db.execute({
       sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, updated_at = NOW() RETURNING id",
-      args: [program_id, staff_id, role || "teacher"],
+      args: [program_id, staff_id, role || "staff"],
     });
     if (String(role || "").toLowerCase() === "facilitator") {
       await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });

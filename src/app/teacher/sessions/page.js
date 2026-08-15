@@ -26,7 +26,17 @@ export default function TeacherCalendar() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [layoutRole, setLayoutRole] = useState("teacher");
   const { t } = useI18n();
+
+  // Use the session role when available so internal staff assigned to a
+  // program keep their staff identity instead of being labelled Teacher.
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      if (stored.role) setLayoutRole(stored.role);
+    } catch (_) {}
+  }, []);
 
   const fetchSchedule = useCallback(async () => {
     setLoading(true);
@@ -81,7 +91,7 @@ export default function TeacherCalendar() {
   };
 
   return (
-    <DashboardLayout role="teacher">
+    <DashboardLayout role={layoutRole}>
       <div className="space-y-8 animate-in text-left">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-secondary)] pb-8">
           <div className="space-y-2">
