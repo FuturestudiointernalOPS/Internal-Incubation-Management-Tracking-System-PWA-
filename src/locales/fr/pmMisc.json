@@ -632,7 +632,24 @@
       "pmActionNote": "Note d'action du GP…",
       "recordDecision": "Enregistrer la décision",
       "statusSubmitted": "Soumis",
-      "statusDecided": "Décidé"
+      "statusDecided": "Décidé",
+      "inviteFacilitators": "Inviter des facilitateurs",
+      "inviteModalTitle": "Inviter des facilitateurs",
+      "inviteModalDescription": "Ajoutez une ou plusieurs adresses e-mail. Elles recevront une invitation à animer ce programme.",
+      "inviteEmailsPlaceholder": "sarah@gmail.com, john@gmail.com, mary@gmail.com",
+      "review": "Vérifier",
+      "defaultAccess": "Accès par défaut :",
+      "fullAccess": "Accès facilitateur complet",
+      "inviteAll": "Inviter tous les facilitateurs",
+      "cancel": "Annuler",
+      "inviteHint": "Utilisez le bouton Inviter des facilitateurs pour ajouter une ou plusieurs personnes par e-mail.",
+      "inviteStatus_existing_contact": "Contact existant",
+      "inviteStatus_new_contact": "Nouveau contact",
+      "inviteStatus_already_facilitator": "Déjà facilitateur",
+      "inviteStatus_conflict": "Conflit de rôle — déjà participant",
+      "inviteStatus_invalid": "E-mail invalide",
+      "inviteStatus_invited": "Invité",
+      "inviteStatus_activation_sent": "E-mail d'activation envoyé"
     }
   }
 }

@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
+import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
 
 const ROLE = { roles: ['super_admin'] };
 
@@ -40,10 +41,17 @@ export const GET = createHandler(ROLE, async (req) => {
 });
 
 export const POST = createHandler(ROLE, async (req) => {
-  const { program_id, staff_id, role } = await req.json();
+  const { program_id, staff_id, role, permissions } = await req.json();
+  const roleLower = String(role || "").toLowerCase();
+  const finalPermissions =
+    permissions && Object.keys(permissions).length > 0
+      ? permissions
+      : roleLower === "facilitator"
+        ? buildFullFacilitatorPermissions()
+        : {};
   const res = await db.execute({
-    sql: "INSERT INTO v2_program_staff (program_id, staff_id, role) VALUES (?, ?, ?) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role RETURNING id",
-    args: [program_id, staff_id, role || "teacher"],
+    sql: "INSERT INTO v2_program_staff (program_id, staff_id, role, permissions) VALUES (?, ?, ?, ?::jsonb) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, permissions = COALESCE(EXCLUDED.permissions, v2_program_staff.permissions), updated_at = NOW() RETURNING id",
+    args: [program_id, staff_id, role || "teacher", JSON.stringify(finalPermissions)],
   });
   if (String(role || "").toLowerCase() === "facilitator") {
     await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
