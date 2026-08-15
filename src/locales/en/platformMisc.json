@@ -728,7 +728,11 @@
       "emailRetrySent": "{count} sent successfully",
       "emailRetryAlready": "{count} were already sent",
       "emailRetryFailedCount": "{count} still failed:",
-      "emailFallback": "Email"
+      "emailFallback": "Email",
+      "emailDateFrom": "From",
+      "emailDateTo": "To",
+      "emailAllStatuses": "All statuses",
+      "emailResetFilters": "Reset"
     },
     "runSubmit": {
       "platform": "Platform",

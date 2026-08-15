@@ -51,7 +51,7 @@ Sidebar navigation and role→route resolution live in `src/components/layout/Da
 
 ## Internationalization (i18n)
 
-Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar — every user-facing string must go through `t()`. English is the fallback language. Locale files are split by feature area under `src/locales/en/` and `src/locales/fr/` (mirrored key structure — see `AI_AGENT_INSTRUCTIONS.md` for the full namespace table). This is enforced by convention, not a lint rule — AI agents and contributors are expected to follow `AI_AGENT_INSTRUCTIONS.md` directly.
+Custom translation engine (`src/lib/i18n.js`), **not** `next-intl` or similar — every user-facing string must go through `t()`. English is the fallback language. Locale files are split by feature area under `src/locales/en/` and `src/locales/fr/` (mirrored key structure — see `AGENTS.md` for the full namespace table). This is enforced by convention, not a lint rule — AI agents and contributors are expected to follow `AGENTS.md` directly.
 
 ## External Integrations
 

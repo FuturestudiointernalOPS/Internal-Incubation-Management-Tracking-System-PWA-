@@ -23,7 +23,7 @@
 - **Blocker severity:** `critical | high | medium | low`. Color-coded via `SEVERITY_COLORS`.
 - **Standup/retro cycle:** one user = one weekly standup. Monday: system checks for existing, prompts creation if missing. End of week: retro reconciles all tasks → mark completed or raise blocker.
 - **Project task correlation:** any task linked to a project automatically contributes to that project's reports and progress calculations.
-- **i18n key namespaces:** `common.*` (generic UI), `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `teacher.*`, `pm.*`, `participant.*`. See `AI_AGENT_INSTRUCTIONS.md` for the full table.
+- **i18n key namespaces:** `common.*` (generic UI), `auth.*`, `navigation.*`, `admin.*`, `reports.*`, `staff.*`, `status.*`, `time.*`, `errors.*`, `teacher.*`, `pm.*`, `participant.*`. See `AGENTS.md` for the full table.
 - **Design tokens (CSS vars):** `--bg-primary`, `--surface-1/2/3`, `--text-primary/secondary/tertiary`, `--border-primary/secondary`, `--brand-orange: #FF6600`, `--brand-blue: #0066FF`. Never hardcode hex colors in JSX.
 - **Status colors (semantic, not themed):** `text-emerald-500` (success), `text-rose-500` (danger), `text-amber-500` (warning), `text-indigo-500` (info).
 - **DB `uuid` generation:** uses `gen_random_uuid()` via pgcrypto extension.
