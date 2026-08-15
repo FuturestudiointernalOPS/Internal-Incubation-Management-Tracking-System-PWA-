@@ -2,16 +2,19 @@
 
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Search, Eye, FileText, Filter, X } from "lucide-react";
+import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useSafeBack } from "@/lib/useSafeBack";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
 function ResponsesContent() {
   const { t } = useI18n();
   const router = useRouter();
+  const goBack = useSafeBack("/platform/runs");
   const searchParams = useSearchParams();
   const formParam = searchParams.get("form_id");
+  const runParam = searchParams.get("run_id");
   const [loading, setLoading] = useState(true);
   const [runs, setRuns] = useState([]);
   const [allSubs, setAllSubs] = useState([]);
@@ -36,29 +39,54 @@ function ResponsesContent() {
       setForms(formsData.forms || []);
 
       const all = [];
-      for (const run of (runsData.runs || []).filter(r => !["draft", "cancelled"].includes(r.status))) {
+      if (runParam) {
+        // Run-specific mode: only this run's submissions, no other runs.
         try {
-          const subRes = await fetch(`/api/platform/form-runs?id=${run.id}`);
+          const subRes = await fetch(`/api/platform/form-runs?id=${runParam}`);
           const subData = await subRes.json();
-          if (subData.success && subData.submissions) {
-            for (const s of subData.submissions) {
-              const subScores = s.data?._scores;
-              all.push({
-                ...s,
-                run_name: run.name,
-                run_id: run.id,
-                form_id: run.form_id,
-                overall: subScores?.overall,
-                ranking: subScores?.ranking,
-              });
+          if (subData.success && subData.run) {
+            const run = subData.run;
+            setSelectedFormId(String(run.form_id));
+            if (Array.isArray(subData.submissions)) {
+              for (const s of subData.submissions) {
+                const subScores = s.data?._scores;
+                all.push({
+                  ...s,
+                  run_name: run.name,
+                  run_id: run.id,
+                  form_id: run.form_id,
+                  overall: subScores?.overall,
+                  ranking: subScores?.ranking,
+                });
+              }
             }
           }
         } catch (_) {}
+      } else {
+        for (const run of (runsData.runs || []).filter(r => !["draft", "cancelled"].includes(r.status))) {
+          try {
+            const subRes = await fetch(`/api/platform/form-runs?id=${run.id}`);
+            const subData = await subRes.json();
+            if (subData.success && subData.submissions) {
+              for (const s of subData.submissions) {
+                const subScores = s.data?._scores;
+                all.push({
+                  ...s,
+                  run_name: run.name,
+                  run_id: run.id,
+                  form_id: run.form_id,
+                  overall: subScores?.overall,
+                  ranking: subScores?.ranking,
+                });
+              }
+            }
+          } catch (_) {}
+        }
       }
       setAllSubs(all);
     } catch (_) {}
     setLoading(false);
-  }, []);
+  }, [runParam]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -151,33 +179,50 @@ function ResponsesContent() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-[var(--border-primary)] bg-secondary shrink-0 space-y-3">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.responses.title")}</h1>
-            <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-              {selectedForm
-                ? t("platformMisc.responses.submissionsForForm", { count: filtered.length, name: selectedForm.name })
-                : t("platformMisc.responses.submissionsAcrossRuns", { count: allSubs.length, runs: runs.filter(r => !["draft","cancelled"].includes(r.status)).length })}
-            </p>
+          <div className="flex items-center gap-4">
+            <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors shrink-0">
+              <ArrowLeft className="w-3.5 h-3.5" />
+              {t("platformMisc.responses.back")}
+            </button>
+            <div>
+              <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.responses.title")}</h1>
+              <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                {runParam
+                  ? t("platformMisc.responses.submissionsForRun", { count: filtered.length, name: runName(Number(runParam)) || "—" })
+                  : selectedForm
+                    ? t("platformMisc.responses.submissionsForForm", { count: filtered.length, name: selectedForm.name })
+                    : t("platformMisc.responses.submissionsAcrossRuns", { count: allSubs.length, runs: runs.filter(r => !["draft","cancelled"].includes(r.status)).length })}
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Form selector */}
-          <select
-            value={selectedFormId}
-            onChange={e => { setSelectedFormId(e.target.value); setStatusFilter("all"); }}
-            className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
-          >
-            <option value="">{t("platformMisc.responses.allForms")}</option>
-            {forms.filter(f => f.status === "published").map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+          {/* Run-specific view: fixed run badge instead of the selector */}
+          {runParam ? (
+            <div className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)]">
+              {runName(Number(runParam)) || t("platformMisc.responses.thisRun")}
+            </div>
+          ) : (
+            <>
+              {/* Form selector */}
+              <select
+                value={selectedFormId}
+                onChange={e => { setSelectedFormId(e.target.value); setStatusFilter("all"); }}
+                className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+              >
+                <option value="">{t("platformMisc.responses.allForms")}</option>
+                {forms.filter(f => f.status === "published").map(f => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
+                ))}
+              </select>
 
-          {selectedFormId && (
-            <button onClick={() => setSelectedFormId("")} className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-              <X className="w-3.5 h-3.5" />
-            </button>
+              {selectedFormId && (
+                <button onClick={() => setSelectedFormId("")} className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </>
           )}
 
           <div className="relative flex-1 max-w-xs">
