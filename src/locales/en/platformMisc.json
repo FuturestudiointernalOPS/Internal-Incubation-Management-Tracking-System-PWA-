@@ -745,6 +745,17 @@
       "emailDateFrom": "From",
       "emailDateTo": "To",
       "emailAllStatuses": "All statuses",
+      "emailStatusAll": "All",
+      "emailSearchPlaceholder": "Search recipient or email...",
+      "emailTypeAll": "All Emails",
+      "emailTypeApproval": "Approval / Decision",
+      "emailTypeActivation": "Activation / Access",
+      "emailNoEmailsYet": "No emails have been sent for this run yet.",
+      "emailNoMatchStatus": "No {label} emails",
+      "emailNoMatchStatusHint": "No recipients currently have a {label} email status for this run.",
+      "emailShowingRange": "Showing {start}–{end} of {total} emails",
+      "emailPagePrev": "Previous",
+      "emailPageNext": "Next",
       "emailResetFilters": "Reset"
     },
     "runSubmit": {
