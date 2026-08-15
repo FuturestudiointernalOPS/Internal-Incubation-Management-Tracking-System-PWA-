@@ -203,22 +203,28 @@ export function getDefaultTemplate(templateKey) {
 /**
  * Send an invite email with activation link
  */
-export async function sendInviteEmail({ to, name, role, token, template, templateVars }) {
+export async function sendInviteEmail({ to, name, role, token, template, templateVars, programName }) {
   const activationUrl = `${APP_URL}/activate?token=${token}`;
   const roleLabel = role?.replace(/_/g, " ") || "User";
   const org = templateVars?.organization || "ImpactOS";
-  const tv = { name: name || "there", role: roleLabel, activation_link: activationUrl, organization: org, ...(templateVars || {}) };
+  const tv = { name: name || "there", role: roleLabel, activation_link: activationUrl, organization: org, programName: programName || null, ...(templateVars || {}) };
 
   // Use template subject if provided, otherwise default
   const subject = template?.subject
     ? applyTemplate(template.subject, tv)
-    : `You're invited to ${org} — Set Your Password`;
+    : programName
+      ? `You've been invited to facilitate ${programName}`
+      : `You're invited to ${org} — Set Your Password`;
 
   // Template body or default
+  const facilitatorLine = programName
+    ? `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">You have been invited to become a <strong style="color: #ff6600;">Facilitator</strong> for <strong style="color: #f8fafc;">${programName}</strong>.</p>`
+    : "";
   const bodyHtml = normalizeToHtml(
     template?.body
       ? applyTemplate(template.body, tv)
       : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hi <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
+       ${facilitatorLine}
        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You've been invited to join ${org} as a <strong style="color: #ff6600;">${roleLabel}</strong>. Click the button below to set your password and activate your account.</p>`
   );
 
@@ -279,19 +285,25 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
  * Send an access email to someone who ALREADY has a platform account.
  * No password-setup token — the recipient logs in with existing credentials.
  */
-export async function sendLoginEmail({ to, name, role, template, templateVars }) {
+export async function sendLoginEmail({ to, name, role, template, templateVars, programName }) {
   const loginUrl = `${APP_URL}/login`;
   const org = templateVars?.organization || "ImpactOS";
-  const tv = { name: name || "there", role: (role || "").replace(/_/g, " "), organization: org, login_url: loginUrl, ...(templateVars || {}) };
+  const tv = { name: name || "there", role: (role || "").replace(/_/g, " "), organization: org, login_url: loginUrl, programName: programName || null, ...(templateVars || {}) };
 
   const subject = template?.subject
     ? applyTemplate(template.subject, tv)
-    : `Welcome back to ${org} — Log In`;
+    : programName
+      ? `You've been invited to facilitate ${programName}`
+      : `Welcome back to ${org} — Log In`;
 
+  const facilitatorLine = programName
+    ? `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">You have been invited to become a <strong style="color: #ff6600;">Facilitator</strong> for <strong style="color: #f8fafc;">${programName}</strong>.</p>`
+    : "";
   const bodyHtml = normalizeToHtml(
     template?.body
       ? applyTemplate(template.body, tv)
       : `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">Hello <strong style="color: #f8fafc;">${tv.name}</strong>,</p>
+       ${facilitatorLine}
        <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You already have an account with us. Use your existing credentials to log in and access the platform.</p>`
   );
 
