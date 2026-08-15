@@ -1243,8 +1243,11 @@ export async function POST(req) {
           results.push({ submission_id: id, status: "already_active", name: row.submitter_name || "" });
           continue;
         }
-        if (accountStatus !== "approved") {
-          results.push({ submission_id: id, status: "not_approved", name: row.submitter_name || "" });
+        // Eligible when the account is NOT active and NOT deleted/archived/blocked.
+        // This intentionally includes "pending_approval" and "not_created" so an
+        // approved respondent whose activation never fired can still be invited.
+        if (["inactive", "archived", "deleted"].includes(accountStatus)) {
+          results.push({ submission_id: id, status: "blocked", name: row.submitter_name || "" });
           continue;
         }
 
