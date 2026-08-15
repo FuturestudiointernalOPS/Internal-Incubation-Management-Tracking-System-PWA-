@@ -283,7 +283,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendEmail({ to, subject, html, provider: "resend" });
 }
 
 /**
@@ -358,7 +358,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
     </html>
   `;
 
-  return sendEmail({ to, subject, html });
+  return sendEmail({ to, subject, html, provider: "resend" });
 }
 
 /**
@@ -609,15 +609,29 @@ async function sendEmail({ to, subject, html, provider }) {
     return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
   }
 
-  const chosen = provider || "resend";
-  if (chosen === "gmail") {
-    const gmailResult = await sendViaGmail({ to, subject, html });
-    if (gmailResult.success || !RESEND_API_KEY) return gmailResult;
-    console.warn("[Email] Gmail transport failed — falling back to Resend:", gmailResult.error);
-    const resendResult = await sendViaResend({ to, subject, html });
-    return { ...resendResult, provider: resendResult.success ? "resend" : "gmail" };
+  const chosen = provider || "gmail";
+  const fallback = chosen === "gmail" ? "resend" : "gmail";
+  const sendWith = (p) =>
+    p === "gmail"
+      ? sendViaGmail({ to, subject, html })
+      : sendViaResend({ to, subject, html });
+
+  const primary = await sendWith(chosen);
+  if (primary.success) return primary;
+
+  // One safe hand-off in the opposite direction so the recipient is still
+  // reached when the primary transport fails or has no credentials.
+  const secondary = await sendWith(fallback);
+  if (secondary.success) {
+    return { ...secondary, provider: secondary.provider, fallback_used: true };
   }
-  return sendViaResend({ to, subject, html });
+
+  return {
+    success: false,
+    provider: chosen,
+    error: primary.error || secondary.error || "Email send failed",
+    note: "Primary provider (" + chosen + ") and fallback (" + fallback + ") both failed",
+  };
 }
 
 // ─── EMAIL DELIVERY LOG (idempotency layer) ─────────────────────────
@@ -1179,7 +1193,7 @@ export async function sendManualMessage({
     submission_id,
     contact_cid,
     email_type: "manual",
-    provider: "resend",
+    provider: "gmail",
     note: personalizedSubject || "Manual message",
     to,
     batch_id,
@@ -1188,7 +1202,7 @@ export async function sendManualMessage({
         to,
         subject: personalizedSubject,
         html,
-        provider: "resend",
+        provider: "gmail",
       }),
   });
 }
