@@ -51,6 +51,17 @@ export async function GET(req) {
         args: [id, `%${id}%`, id],
       },
       {
+        // People enrolled through form-run approvals (and re-linked identities)
+        // live in participant_programs — the junction of record. Without this
+        // source, form-enrolled participants never appear on the program.
+        name: "participants_enrolled",
+        sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.status, c.created_at, c.group_name, 'enrolled' as source, c.v2_team_id
+              FROM participant_programs pp
+              JOIN contacts c ON pp.participant_id = c.cid
+              WHERE CAST(pp.program_id AS TEXT) = ? AND c.deleted = 0 AND c.deleted_at IS NULL`,
+        args: [String(id)],
+      },
+      {
         name: "teams",
         sql: "SELECT * FROM v2_teams WHERE program_id = ?",
         args: [id],
@@ -134,6 +145,7 @@ export async function GET(req) {
       progRes,
       parRes,
       contRes,
+      enrRes,
       teamRes,
       sesRes,
       staffRes,
@@ -284,7 +296,10 @@ export async function GET(req) {
     }
 
     // --- MERGE PARTICIPANTS (always) ---
-    const allParticipantRows = [...parRes.rows, ...contRes.rows];
+    // Sources: v2_participants (manual registry), contacts by program/group,
+    // and contacts enrolled via participant_programs (form approvals).
+    // Dedupe by lowercase email so one contact = one participant row.
+    const allParticipantRows = [...parRes.rows, ...contRes.rows, ...enrRes.rows];
     const mergedParticipants = Array.from(
       new Map(
         allParticipantRows

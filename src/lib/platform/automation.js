@@ -16,6 +16,7 @@ import {
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
+import { resolveSubmissionEmail } from "@/lib/email";
 
 // ─── Module-level DDL caches (avoid running ALTER/CREATE on every request) ───
 let contactsLanguageColumnEnsured = false;
@@ -40,9 +41,28 @@ async function syncCrmContact(submission) {
     const { default: db, initDb } = await import("@/lib/db");
     await initDb();
     const subData = submission.data || {};
-    const vals = Object.values(subData);
-    const email = vals.find(v => typeof v === "string" && v.includes("@"));
+
+    // Resolve the real applicant email with the same label-aware, placeholder-safe
+    // logic used everywhere else (Run view, evaluations, decision emails) instead
+    // of grabbing the first value that happens to contain "@".
+    let fieldLabels = {};
+    try {
+      const runRes = await db.execute({
+        sql: "SELECT form_id FROM platform_form_runs WHERE id = ?",
+        args: [submission.run_id],
+      });
+      if (runRes.rows.length > 0) {
+        const fRes = await db.execute({
+          sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+          args: [runRes.rows[0].form_id],
+        });
+        for (const f of fRes.rows) fieldLabels[String(f.id)] = f.label;
+      }
+    } catch (_) {}
+
+    const email = resolveSubmissionEmail({ submissionData: subData, fieldLabels, contactEmail: "" });
     if (!email) return null;
+    const vals = Object.values(subData);
     const name = vals.find(v => typeof v === "string" && v.length > 1 && !v.includes("@") && !v.startsWith("{"));
     const phone = vals.find(v => typeof v === "string" && /^[\d\s\+\-\(\)]{7,}$/.test(v));
     const cid = submission.submitter_id || "USR_" + Math.random().toString(36).substring(2, 10).toUpperCase();

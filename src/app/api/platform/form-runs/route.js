@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, hasSentEmailToRecipientInRun } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun } from "@/lib/email";
 import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
@@ -520,7 +520,7 @@ export async function GET(req) {
         } catch (_) {}
       }
 
-      const enrichedSubmissions = rawSubs.map((s, i) => {
+      const enrichedSubmissions = rawSubs.map((s) => {
         // Real applicant email: the form's actual email answer first, then any
         // real email in the submission, then the CRM email — placeholder
         // import addresses are NEVER shown.
@@ -544,10 +544,19 @@ export async function GET(req) {
         // password means the user completed account setup (the activate route
         // sets both password and status = 'active'). Resolve by submitter_id
         // first, then by the real applicant email.
+        // IMPORTANT: when the submitter's stored contact only holds an import
+        // placeholder email (import-…@placeholder…, .local, …), it is NOT the
+        // identity that receives the activation link — the real-email contact
+        // is. Preferring the placeholder contact would report the account as
+        // never activated even though the person activated the real-email
+        // account. So: placeholder submitter contact → prefer the contact
+        // matched by the resolved real email; otherwise keep submitter contact.
+        const contactByCid = accountMap.get(s.submitter_id) || null;
+        const contactByEmail = email ? accountMap.get(String(email).toLowerCase()) : null;
         const contactRow =
-          accountMap.get(s.submitter_id) ||
-          (resolvedEmails[i] ? accountMap.get(String(resolvedEmails[i]).toLowerCase()) : null) ||
-          (email ? accountMap.get(String(email).toLowerCase()) : null);
+          (contactByCid && !isPlaceholderEmail(contactByCid.email) ? contactByCid : null) ||
+          contactByEmail ||
+          contactByCid;
         const account_created = !!contactRow;
         const account_activated = account_created && String(contactRow.status || "").toLowerCase() === "active";
         const account_status = deriveAccountStatus(contactRow);
