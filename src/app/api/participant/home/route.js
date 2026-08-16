@@ -231,8 +231,8 @@ export async function GET(req) {
 
     if (primaryProgram) {
       for (const d of primaryProgram.deliverables) {
-        if (!d.created_at) continue;
-        const dueDate = new Date(d.created_at);
+        if (!d.due_date && !d.created_at) continue;
+        const dueDate = new Date(d.due_date || d.created_at);
         dueDate.setHours(0, 0, 0, 0);
         const existingSub = primaryProgram.submissions.find(
           (s) => s.document_id === d.id,
@@ -243,7 +243,7 @@ export async function GET(req) {
             id: d.id,
             title: d.title,
             type: "deliverable",
-            dueDate: d.created_at,
+            dueDate: d.due_date || d.created_at,
             daysOverdue: Math.floor((today - dueDate) / (1000 * 60 * 60 * 24)),
             programId: primaryProgram.id,
             programName: primaryProgram.name,
@@ -255,7 +255,7 @@ export async function GET(req) {
               id: d.id,
               title: d.title,
               type: "deliverable",
-              dueDate: d.created_at,
+              dueDate: d.due_date || d.created_at,
               daysLeft: diffDays,
               programId: primaryProgram.id,
               programName: primaryProgram.name,
@@ -312,14 +312,14 @@ export async function GET(req) {
         });
       }
       for (const d of prog.deliverables || []) {
-        if (!d.created_at) continue;
+        if (!d.due_date && !d.created_at) continue;
         // Check if participant already submitted
         const existingSub = (prog.submissions || []).find(
           (s) =>
             String(s.document_id) === String(d.id) ||
             String(s.deliverable_id) === String(d.id),
         );
-        const dd = new Date(d.created_at);
+        const dd = new Date(d.due_date || d.created_at);
         const dateStr = dd.toISOString().split("T")[0];
         const key = `deliverable-${d.id}`;
         if (seenEventKeys.has(key)) continue;

@@ -118,7 +118,7 @@ export async function GET(req) {
           weight: d.weight,
           programId: pid,
           programName: program.name,
-          dueDate: d.created_at,
+          dueDate: d.due_date || d.created_at,
           submission: sub
             ? {
                 id: sub.id,
