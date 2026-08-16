@@ -1505,6 +1505,78 @@ export async function POST(req) {
       });
     }
 
+    // ─── SEND ACTIVATION MESSAGES (Run Overview → selected approved) ───
+    if (action === "send_activation_messages") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      if (authError) return authError;
+
+      const { run_id, submission_ids } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 25) {
+        return NextResponse.json({ success: false, error: "A batch can process at most 25 recipients" }, { status: 400 });
+      }
+
+      // Backend validation: every submission must belong to THIS run.
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)))];
+      const valRes = await db.execute({
+        sql: `SELECT * FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
+        args: [idList, parseInt(run_id)],
+      });
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      const { getEmailLogRow } = await import("@/lib/email");
+      const results = [];
+      for (const id of idList) {
+        const sub = validMap.get(id);
+        if (!sub) {
+          results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
+          continue;
+        }
+        const name = sub.submitter_name || "";
+        if (String(sub.status || "").toLowerCase() !== "approved") {
+          results.push({ submission_id: id, name, status: "skipped", error: "Submission is not approved" });
+          continue;
+        }
+
+        const logRow = await getEmailLogRow(id, "activation");
+        if (logRow && logRow.status === "sent") {
+          results.push({ submission_id: id, name, status: "already_sent", error: "Activation email already sent" });
+          continue;
+        }
+
+        try {
+          const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.run_id] });
+          let formData = null;
+          if (runData.rows[0]) {
+            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+            formData = f.rows[0] || null;
+          }
+          await onReview(
+            { id: null, submission_id: id, decision: "approved", comment: "Manual activation send", reviewer_name: session.cid },
+            sub,
+            runData.rows[0] || null,
+            session,
+            formData
+          );
+          const after = await getEmailLogRow(id, "activation");
+          results.push({
+            submission_id: id,
+            name,
+            status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
+            error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
+            to: after?.recipient,
+          });
+        } catch (e) {
+          results.push({ submission_id: id, name, status: "failed", error: e?.message || "Activation send error" });
+        }
+      }
+
+      return NextResponse.json({ success: true, results });
+    }
+
     // ─── CREATE ACTION ───
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     const authError = await requireAuth(["super_admin", "admin"]);
