@@ -189,7 +189,9 @@
       "emailSubject": "Your ImpactOS Account Credentials",
       "done": "Done",
       "updated": "Updated",
-      "bulkAssignmentFailed": "Bulk assignment failed."
+      "bulkAssignmentFailed": "Bulk assignment failed.",
+      "showingCount": "{count} Contacts",
+      "noContactsFound": "No contacts match your search or filters."
     },
     "duplicates": {
       "crm": "CRM",

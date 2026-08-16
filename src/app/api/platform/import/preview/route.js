@@ -29,6 +29,29 @@ function parseCSV(text) {
   return { headers, rows };
 }
 
+/**
+ * Accept either legacy CSV text or normalized headers + rows (both CSV and
+ * XLSX arrive from the client as the same row-object shape). Returns the
+ * canonical { headers, rows } used by the rest of the preview flow.
+ */
+function normalizeInput({ csv_text, headers, rows }) {
+  if (Array.isArray(rows) && rows.length > 0) {
+    const headerList =
+      Array.isArray(headers) && headers.length > 0
+        ? headers
+        : Object.keys(rows[0] || {});
+    const normalizedRows = rows.map((r) => {
+      const row = {};
+      headerList.forEach((h) => {
+        row[h] = r[h] != null ? String(r[h]).trim() : "";
+      });
+      return row;
+    });
+    return { headers: headerList, rows: normalizedRows };
+  }
+  return parseCSV(csv_text || "");
+}
+
 function tokenize(str) {
   return (str || "")
     .toLowerCase()
@@ -81,7 +104,7 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "admin"]);
     if (authError) return authError;
 
-    const { csv_text, form_id, run_id, total_rows } = await req.json();
+    const { csv_text, headers: inputHeaders, rows: inputRows, form_id, run_id, total_rows } = await req.json();
     if (!csv_text || (!form_id && !run_id)) {
       return NextResponse.json(
         { success: false, error: "csv_text and form_id (or run_id) are required" },
@@ -89,13 +112,14 @@ export async function POST(req) {
       );
     }
 
-    // Parse CSV
+    // Parse the file payload — legacy CSV text or normalized headers+rows
+    // (CSV and XLSX both arrive pre-parsed from the client in row form).
     let parsed;
     try {
-      parsed = parseCSV(csv_text);
+      parsed = normalizeInput({ csv_text, headers: inputHeaders, rows: inputRows });
     } catch (e) {
       return NextResponse.json(
-        { success: false, error: "Failed to parse CSV: " + e.message },
+        { success: false, error: "Failed to parse file: " + e.message },
         { status: 400 }
       );
     }

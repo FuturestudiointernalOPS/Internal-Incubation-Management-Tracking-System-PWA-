@@ -188,7 +188,9 @@
       "emailSubject": "Vos identifiants de compte ImpactOS",
       "done": "Terminé",
       "updated": "Mis à jour",
-      "bulkAssignmentFailed": "Échec de l'affectation en masse."
+      "bulkAssignmentFailed": "Échec de l'affectation en masse.",
+      "showingCount": "{count} contacts",
+      "noContactsFound": "Aucun contact ne correspond à votre recherche ou à vos filtres."
     },
     "duplicates": {
       "crm": "CRM",

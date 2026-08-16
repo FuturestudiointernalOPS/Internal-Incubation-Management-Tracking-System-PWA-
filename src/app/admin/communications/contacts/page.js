@@ -10,7 +10,6 @@ import {
   Phone,
   Search,
   X,
-  Loader2,
   CheckCircle,
   Edit3,
   Shield,
@@ -28,7 +27,6 @@ import {
   UserCheck,
   UserX,
   TrendingUp,
-  UploadCloud,
   AlertTriangle,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
@@ -42,7 +40,6 @@ const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
   Active: "status.active",
   Inactive: "crm.contacts.filterInactive",
-  Pending: "crm.contacts.pendingApproval",
   Archived: "status.archived",
 };
 
@@ -73,7 +70,6 @@ function ContactsPageContent() {
   const [selectedGroup, setSelectedGroup] = useState("All Contacts");
   const [selectedTeamTab, setSelectedTeamTab] = useState("All Teams");
   const [copiedGroup, setCopiedGroup] = useState(null);
-  const [isCsvUploading, setIsCsvUploading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   // Modals
@@ -117,8 +113,7 @@ function ContactsPageContent() {
 
   // Feedback
   const [notification, setNotification] = useState(null);
-  const [selectedContacts, setSelectedContacts] = useState([]);
-  const [statusFilter, setStatusFilter] = useState("All"); // All, Active, Inactive, Pending
+  const [statusFilter, setStatusFilter] = useState("All"); // All, Active, Inactive, Archived
 
   useEffect(() => {
     if (roleParam) {
@@ -296,38 +291,6 @@ function ContactsPageContent() {
     }
   };
 
-  const handleBulkApprove = async (mode = "selected") => {
-    const targets =
-      mode === "all"
-        ? filtered.filter((c) => c.status === "pending").map((c) => c.cid)
-        : selectedContacts;
-    if (targets.length === 0) return;
-
-    setIsProcessing(true);
-    try {
-      await Promise.all(
-        targets.map((cid) =>
-          fetch("/api/contacts", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ cid, status: "approved" }),
-          }),
-        ),
-      );
-      setNotification({
-        type: "success",
-        message: t("crm.contacts.approved"),
-      });
-      setSelectedContacts([]);
-      fetchData();
-    } catch (e) {
-      console.error("Approval Failure:", e);
-    } finally {
-      setIsProcessing(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
   const handleArchive = async (c) => {
     setIsProcessing(true);
     try {
@@ -456,70 +419,6 @@ function ContactsPageContent() {
     }
   };
 
-  const handleCsvUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setIsCsvUploading(true);
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      try {
-        const text = event.target.result;
-        const rows = text.split("\n").filter((r) => r.trim());
-        const headers = rows[0].split(",").map((h) => h.trim().toLowerCase());
-
-        const nameIdx =
-          headers.indexOf("name") !== -1
-            ? headers.indexOf("name")
-            : headers.indexOf("fullname");
-        const emailIdx = headers.indexOf("email");
-
-        if (emailIdx === -1)
-          throw new Error(t("crm.contacts.csvMissingEmailColumn"));
-
-        const payload = rows
-          .slice(1)
-          .map((row) => {
-            const cells = row.split(",");
-            return {
-              name: nameIdx !== -1 ? cells[nameIdx]?.trim() : "CSV Member",
-              email: cells[emailIdx]?.trim(),
-              role: "participant",
-              group_name:
-                selectedGroup === "All Contacts" ? "UNASSIGNED" : selectedGroup,
-              status: "pending",
-            };
-          })
-          .filter((c) => c.email);
-
-        const res = await fetch("/api/contacts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if ((await res.json()).success) {
-          setNotification({
-            type: "success",
-            message: t("crm.contacts.uploaded"),
-          });
-          fetchData();
-        }
-      } catch (err) {
-        setNotification({ type: "error", message: t(err.message || "") || err.message });
-      } finally {
-        setIsCsvUploading(false);
-      }
-    };
-    reader.readAsText(file);
-  };
-
-  const toggleSelection = (cid) => {
-    setSelectedContacts((prev) =>
-      prev.includes(cid) ? prev.filter((id) => id !== cid) : [...prev, cid],
-    );
-  };
-
   const copyJoinLink = async (groupName) => {
     let link = `${window.location.origin}/register-staff?group=${encodeURIComponent(groupName)}`;
     try {
@@ -558,8 +457,10 @@ function ContactsPageContent() {
       matchesStatus = c.status === "active" || c.status === "approved";
     else if (statusFilter === "Inactive")
       matchesStatus = c.status === "inactive";
-    else if (statusFilter === "Pending") matchesStatus = c.status === "pending";
-    // "Archived" and "All" are already filtered server-side
+    else if (statusFilter === "All")
+      // Applicants (pending) live in Runs — the Contacts page lists members only.
+      matchesStatus = c.status !== "pending";
+    // "Archived" is filtered server-side
 
     return (
       matchesSearch &&
@@ -568,6 +469,14 @@ function ContactsPageContent() {
       matchesStatus
     );
   });
+
+  // Segment counts — how many contacts belong to each segment (used for the
+  // sidebar badges; "All Contacts" shows the total in the current view).
+  const segmentCounts = {};
+  for (const c of contacts) {
+    const key = String(c.group_name || "UNASSIGNED").toUpperCase();
+    segmentCounts[key] = (segmentCounts[key] || 0) + 1;
+  }
 
   const getPortalUrl = (c) => {
     const isStaff =
@@ -688,25 +597,6 @@ function ContactsPageContent() {
           <div className="flex flex-wrap gap-3">
             {statusFilter !== "Archived" && (
               <>
-                <div className="relative">
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCsvUpload}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                  />
-                  <button
-                    disabled={isCsvUploading}
-                    className="btn btn-secondary gap-2 border-emerald-500/30 text-emerald-500"
-                  >
-                    {isCsvUploading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <UploadCloud className="w-4 h-4" />
-                    )}
-                    {t("crm.contacts.bulkCsv")}
-                  </button>
-                </div>
                 <button
                   onClick={() => {
                     setForm({
@@ -739,15 +629,6 @@ function ContactsPageContent() {
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           <div className="xl:col-span-1 space-y-6">
             <div className="card space-y-6">
-              <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("crm.contacts.filterIdentities")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
-                />
-              </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center ml-2 mb-3">
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
@@ -767,9 +648,14 @@ function ContactsPageContent() {
                     <div key={name} className="flex gap-2 group items-center">
                       <button
                         onClick={() => setSelectedGroup(name)}
-                        className={`flex-1 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
+                        className={`flex-1 flex items-center justify-between gap-2 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
                       >
-                        {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
+                        <span className="truncate">
+                          {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
+                        </span>
+                        <span className={`shrink-0 text-[8px] font-black px-1.5 py-0.5 rounded-full ${selectedGroup === name ? "bg-black/20" : "bg-tertiary"}`}>
+                          {isAll ? contacts.length : segmentCounts[String(name).toUpperCase()] || 0}
+                        </span>
                       </button>
                       {!isAll && (
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -816,52 +702,45 @@ function ContactsPageContent() {
           </div>
 
           <div className="xl:col-span-3 space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex flex-wrap bg-secondary p-1 rounded-xl border border-[var(--border-primary)]">
-                {["All", "Active", "Inactive", "Pending", "Archived"].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setStatusFilter(status)}
-                    className={`px-3 sm:px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  >
-                    {t(STATUS_FILTER_LABELS[status] || "") || status}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3">
-                {selectedContacts.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-4 bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl"
-                  >
-                    <span className="text-[10px] font-black text-emerald-500 uppercase">
-                      {selectedContacts.length} {t("crm.contacts.selected")}
-                    </span>
+            {/* Unified toolbar: search + status tabs + result count + bulk actions */}
+            <div className="card p-4 space-y-4">
+              <div className="flex flex-col lg:flex-row gap-4 lg:items-center">
+                <div className="relative flex-1 min-w-[240px]">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t("crm.contacts.filterIdentities")}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-10 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                  />
+                  {search && (
                     <button
-                      onClick={() => handleBulkApprove("selected")}
-                      className="btn btn-primary !bg-emerald-500 !py-2 !text-[9px] gap-2"
-                    >
-                      <UserCheck className="w-3 h-3" /> {t("crm.contacts.approveSelected")}
-                    </button>
-                    <button
-                      onClick={() => setSelectedContacts([])}
-                      className="p-2 hover:bg-rose-500/10 text-rose-500 rounded-lg"
+                      onClick={() => setSearch("")}
+                      title={t("common.clearFilter")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-rose-500 transition-colors"
                     >
                       <X className="w-4 h-4" />
                     </button>
-                  </motion.div>
-                )}
+                  )}
+                </div>
 
-                {statusFilter === "Pending" && filtered.length > 0 && (
-                  <button
-                    onClick={() => handleBulkApprove("all")}
-                    className="px-6 py-2 bg-blue-500/10 border border-blue-500/20 rounded-xl text-[10px] font-black text-blue-500 uppercase hover:bg-blue-500 hover:text-white transition-all"
-                  >
-                    {t("crm.contacts.approveAll", { count: filtered.length })}
-                  </button>
-                )}
+                <div className="flex flex-wrap bg-secondary p-1 rounded-xl border border-[var(--border-primary)] shrink-0">
+                  {["All", "Active", "Inactive", "Archived"].map((status) => (
+                    <button
+                      key={status}
+                      onClick={() => setStatusFilter(status)}
+                      className={`px-3 sm:px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                    >
+                      {t(STATUS_FILTER_LABELS[status] || "") || status}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border-primary)] pt-3">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                  {t("crm.contacts.showingCount", { count: filtered.length })}
+                </p>
               </div>
             </div>
 
@@ -899,24 +778,6 @@ function ContactsPageContent() {
                 <table className="data-table">
                   <thead>
                     <tr>
-                      <th className="w-10">
-                        {statusFilter !== "Archived" && (
-                          <input
-                            type="checkbox"
-                            checked={
-                              selectedContacts.length === filtered.length &&
-                              filtered.length > 0
-                            }
-                            onChange={() => {
-                              if (selectedContacts.length === filtered.length)
-                                setSelectedContacts([]);
-                              else
-                                setSelectedContacts(filtered.map((c) => c.cid));
-                            }}
-                            className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
-                          />
-                        )}
-                      </th>
                       <th>{t("crm.contacts.identity")}</th>
                       <th>{t("crm.contacts.groupStatus")}</th>
                       <th className="text-right">{t("crm.contacts.actions")}</th>
@@ -924,20 +785,7 @@ function ContactsPageContent() {
                   </thead>
                   <tbody>
                     {filtered.map((c) => (
-                      <tr
-                        key={c.cid}
-                        className={`group ${selectedContacts.includes(c.cid) ? "bg-[var(--brand-orange)]/5" : ""}`}
-                      >
-                        <td>
-                          {statusFilter !== "Archived" && (
-                            <input
-                              type="checkbox"
-                              checked={selectedContacts.includes(c.cid)}
-                              onChange={() => toggleSelection(c.cid)}
-                              className="w-4 h-4 rounded border-[var(--border-primary)] bg-primary accent-[var(--brand-orange)]"
-                            />
-                          )}
-                        </td>
+                      <tr key={c.cid} className="group">
                         <td>
                           <div className="flex flex-col">
                             <span className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">
@@ -975,7 +823,7 @@ function ContactsPageContent() {
                           </div>
                         </td>
                         <td className="text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                          <div className="flex justify-end gap-2">
                             {statusFilter === "Archived" ? (
                               <>
                                 <button
@@ -1057,6 +905,31 @@ function ContactsPageContent() {
                         </td>
                       </tr>
                     ))}
+                    {filtered.length === 0 && (
+                      <tr>
+                        <td colSpan={3} className="py-14 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <Search className="w-8 h-8 text-[var(--text-secondary)] opacity-40" />
+                            <p className="text-xs font-bold text-[var(--text-secondary)]">
+                              {t("crm.contacts.noContactsFound")}
+                            </p>
+                            {(search || statusFilter !== "All" || selectedGroup !== "All Contacts") && (
+                              <button
+                                onClick={() => {
+                                  setSearch("");
+                                  setStatusFilter("All");
+                                  setSelectedGroup("All Contacts");
+                                  setSelectedTeamTab("All Teams");
+                                }}
+                                className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all"
+                              >
+                                {t("common.clearFilter")}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

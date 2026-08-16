@@ -18,7 +18,8 @@ import {
 import Link from "next/link";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
-import { parseCSVRows, rowsToCsv } from "@/lib/csv";
+import * as XLSX from "xlsx";
+import { parseCSVRows } from "@/lib/csv";
 
 const STEPS = [
   { key: "upload", label: "adminMisc.platformImport.stepUpload" },
@@ -47,10 +48,52 @@ function simpleHash(str) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
+// ── File parsing: CSV and XLSX both normalize to { headers, rows } ──
+
+// RFC 4180-aware CSV → row objects keyed by trimmed header.
+function parseTextToRows(text) {
+  const grid = parseCSVRows(text);
+  if (grid.length === 0) return { headers: [], rows: [] };
+  const headers = grid[0].map((h) => h.trim());
+  const rows = [];
+  for (let i = 1; i < grid.length; i++) {
+    const cells = grid[i];
+    if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
+    });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
+// XLSX (first sheet) → row objects keyed by header, same shape as CSV.
+function parseXlsxToRows(buffer) {
+  const wb = XLSX.read(buffer, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return { headers: [], rows: [] };
+  const grid = XLSX.utils.sheet_to_json(ws, { header: 1, defval: "" });
+  if (grid.length === 0) return { headers: [], rows: [] };
+  const headers = (grid[0] || []).map((h) => String(h).trim());
+  const rows = [];
+  for (let i = 1; i < grid.length; i++) {
+    const cells = grid[i];
+    if (!cells || cells.length === 0) continue;
+    if (cells.length === 1 && String(cells[0]).trim() === "") continue;
+    const row = {};
+    headers.forEach((h, idx) => {
+      row[h] = cells[idx] !== undefined && cells[idx] !== null ? String(cells[idx]).trim() : "";
+    });
+    rows.push(row);
+  }
+  return { headers, rows };
+}
+
 export default function ImportPage() {
   const { t } = useI18n();
   const [step, setStep] = useState(0);
-  const [csvText, setCsvText] = useState("");
+  const [parsedData, setParsedData] = useState(null); // { headers, rows, fileName }
   const [csvFileName, setCsvFileName] = useState("");
   const [forms, setForms] = useState([]);
   const [runs, setRuns] = useState([]);
@@ -93,22 +136,41 @@ export default function ImportPage() {
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    if (!file.name.endsWith(".csv")) {
+    const isCsv = file.name.toLowerCase().endsWith(".csv");
+    const isXlsx = file.name.toLowerCase().endsWith(".xlsx");
+    if (!isCsv && !isXlsx) {
       setError(t("adminMisc.platformImport.errorCsvOnly"));
       return;
     }
     setCsvFileName(file.name);
     setError("");
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setCsvText(ev.target.result);
+    const applyParsed = (parsed) => {
+      setParsedData({ ...parsed, fileName: file.name });
+      if (parsed.rows.length === 0) {
+        setError(t("adminMisc.platformImport.errorEmptyRows"));
+      }
     };
-    reader.readAsText(file);
+
+    if (isCsv) {
+      const reader = new FileReader();
+      reader.onload = (ev) => applyParsed(parseTextToRows(ev.target.result));
+      reader.readAsText(file);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          applyParsed(parseXlsxToRows(ev.target.result));
+        } catch (_) {
+          setError(t("adminMisc.platformImport.errorParseFailed"));
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
   };
 
   const handlePreview = async () => {
-    if (!csvText || !selectedFormId) {
+    if (!parsedData || parsedData.rows.length === 0 || !selectedFormId) {
       setError(t("adminMisc.platformImport.errorSelectFormAndFile"));
       return;
     }
@@ -116,16 +178,19 @@ export default function ImportPage() {
     setError("");
 
     try {
-      // Mapping only needs the header + a few sample rows — never send the
-      // full file to preview (large CSVs would hit Vercel's 4.5 MB limit).
-      // Count REAL CSV rows (quoted multi-line cells count as one row).
-      const grid = parseCSVRows(csvText);
-      const sample = rowsToCsv(grid.slice(0, 51));
-      const totalRows = grid.length > 0 ? grid.length - 1 : 0;
+      // Mapping only needs the headers + a few sample rows — never send the
+      // full file to preview (large files would hit Vercel's 4.5 MB limit).
+      const sample = parsedData.rows.slice(0, 50);
       const res = await fetch("/api/platform/import/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csv_text: sample, form_id: selectedFormId, run_id: selectedRunId, total_rows: totalRows }),
+        body: JSON.stringify({
+          headers: parsedData.headers,
+          rows: sample,
+          form_id: selectedFormId,
+          run_id: selectedRunId,
+          total_rows: parsedData.rows.length,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -147,26 +212,6 @@ export default function ImportPage() {
     }
   };
 
-  // Parse the full CSV into row objects using the RFC 4180-aware parser —
-  // quoted cells containing newlines/commas stay intact instead of being
-  // exploded into phantom rows.
-  const parseFullCSV = () => {
-    const grid = parseCSVRows(csvText);
-    if (grid.length === 0) return [];
-    const headers = grid[0].map((h) => h.trim());
-    const rows = [];
-    for (let i = 1; i < grid.length; i++) {
-      const cells = grid[i];
-      if (cells.length === 0 || (cells.length === 1 && cells[0] === "")) continue;
-      const row = {};
-      headers.forEach((h, idx) => {
-        row[h] = cells[idx] !== undefined ? cells[idx].trim() : "";
-      });
-      rows.push(row);
-    }
-    return rows;
-  };
-
   const handleExecute = async () => {
     if (!selectedRunId) {
       setError(t("adminMisc.platformImport.errorSelectRun"));
@@ -176,7 +221,7 @@ export default function ImportPage() {
     setImportProgress(0);
     setError("");
 
-    const allRows = parseFullCSV();
+    const allRows = parsedData ? parsedData.rows : [];
     if (allRows.length === 0) {
       setError(t("adminMisc.platformImport.errorEmptyRows"));
       setStep(1);
@@ -255,7 +300,7 @@ export default function ImportPage() {
 
   const handleReset = () => {
     setStep(0);
-    setCsvText("");
+    setParsedData(null);
     setCsvFileName("");
     setPreviewData(null);
     setMapping({});
@@ -407,7 +452,7 @@ export default function ImportPage() {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -421,7 +466,7 @@ export default function ImportPage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setCsvFileName("");
-                      setCsvText("");
+                      setParsedData(null);
                       if (fileInputRef.current) fileInputRef.current.value = "";
                     }}
                     className="text-[10px] text-rose-500 font-bold uppercase hover:underline"
@@ -444,7 +489,7 @@ export default function ImportPage() {
 
             <button
               onClick={handlePreview}
-              disabled={loading || !csvText || !selectedFormId}
+              disabled={loading || !parsedData || parsedData.rows.length === 0 || !selectedFormId}
               className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3 disabled:opacity-50"
             >
               {loading ? (

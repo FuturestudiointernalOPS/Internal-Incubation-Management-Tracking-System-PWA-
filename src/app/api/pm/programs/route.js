@@ -96,7 +96,16 @@ export async function GET(req) {
           "SELECT program_id, COUNT(*) as count, 0 as completed FROM v2_sessions GROUP BY program_id",
         ),
         db.execute(
-          "SELECT program_id, COUNT(*) as count FROM v2_participants GROUP BY program_id",
+          `SELECT program_id, COUNT(*) as count FROM (
+             SELECT CAST(vp.program_id AS TEXT) AS program_id,
+                    LOWER(COALESCE(vp.email, vp.user_id, '')) AS dedupe_key
+             FROM v2_participants vp
+             UNION
+             SELECT CAST(pp.program_id AS TEXT) AS program_id,
+                    LOWER(COALESCE(c.email, pp.participant_id, '')) AS dedupe_key
+             FROM participant_programs pp
+             LEFT JOIN contacts c ON pp.participant_id = c.cid
+           ) t GROUP BY program_id`,
         ),
         db.execute(
           "SELECT program_id, COUNT(*) as count, SUM(is_completed) as completed FROM v2_document_requirements GROUP BY program_id",

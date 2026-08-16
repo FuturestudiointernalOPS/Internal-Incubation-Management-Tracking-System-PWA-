@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
+import { resolveSubmissionEmail } from "@/lib/email";
 
 /**
  * POST /api/platform/import/execute
@@ -37,7 +38,33 @@ function fileHash(csvRows) {
   }
 }
 
-async function resolveContact(dbClient, row, mapping) {
+/**
+ * Resolve the applicant email for one imported row using the exact same rules
+ * as the Run view (resolveSubmissionEmail — label-aware, EN/FR, placeholder-safe):
+ *   1. the form's email question value,
+ *   2. any other real email in the row,
+ *   3. the explicit _email column mapping.
+ * Returns "" when the row genuinely has no real email — only then is the
+ * import placeholder (import-…@placeholder.impactos.local) used.
+ */
+function resolveRowEmail(row, mapping, fieldLabels) {
+  const rowData = {};
+  for (const csvCol of Object.keys(row)) {
+    const fieldId = mapping[csvCol];
+    if (fieldId && !String(fieldId).startsWith("_")) {
+      rowData[String(fieldId)] = row[csvCol];
+    }
+  }
+  const emailKey = Object.keys(mapping).find((k) => mapping[k] === "_email");
+  const explicitEmail = emailKey && row[emailKey] != null ? String(row[emailKey]) : "";
+  return resolveSubmissionEmail({
+    submissionData: rowData,
+    fieldLabels,
+    contactEmail: explicitEmail,
+  });
+}
+
+async function resolveContact(dbClient, row, mapping, email) {
   // 1. CRM ID (degrade gracefully if column missing)
   const crmIdField = Object.keys(mapping).find((k) => mapping[k] === "_crm_id");
   if (crmIdField && row[crmIdField]) {
@@ -50,21 +77,15 @@ async function resolveContact(dbClient, row, mapping) {
     } catch (_) {}
   }
 
-  // 2. Email (exact, lowercase)
-  const emailField = Object.keys(mapping).find(
-    (k) =>
-      mapping[k] === "_email" ||
-      (typeof mapping[k] === "string" && mapping[k].toLowerCase().includes("email"))
-  );
-  if (emailField && row[emailField]) {
-    const email = String(row[emailField]).toLowerCase().trim();
-    if (email.includes("@")) {
-      const res = await dbClient.execute({
-        sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
-        args: [email],
-      });
-      if (res.rows.length > 0) return { contact: res.rows[0], method: "email", uncertain: false };
-    }
+  // 2. Email (exact, lowercase) — resolved upstream with the same label-aware,
+  // placeholder-safe logic as the Run view, so it matches whether the column
+  // was mapped to _email or to the form's email question.
+  if (email) {
+    const res = await dbClient.execute({
+      sql: "SELECT * FROM contacts WHERE LOWER(email) = ? LIMIT 1",
+      args: [String(email).toLowerCase().trim()],
+    });
+    if (res.rows.length > 0) return { contact: res.rows[0], method: "email", uncertain: false };
   }
 
   // 3. Phone (normalized)
@@ -159,6 +180,18 @@ export async function POST(req) {
       );
     }
 
+    // Form field labels — used to resolve the applicant email label-aware
+    // (same logic as the Run view), so imports keep real emails whether the
+    // CSV/XLSX column was mapped to _email or to the form's email question.
+    let fieldLabels = {};
+    try {
+      const labelsRes = await db.execute({
+        sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
+        args: [effectiveFormId],
+      });
+      for (const f of labelsRes.rows) fieldLabels[String(f.id)] = f.label;
+    } catch (_) {}
+
     // Self-heal: ensure import batch + review flag tables exist (additive, idempotent)
     try {
       await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_batches (
@@ -245,21 +278,14 @@ export async function POST(req) {
           continue;
         }
 
-        const resolved = await resolveContact(db, row, mapping);
+        // Applicant email: label-aware + placeholder-safe (see resolveRowEmail).
+        // "" means the row has no real email — only then is a placeholder used.
+        const email = resolveRowEmail(row, mapping, fieldLabels);
+
+        const resolved = await resolveContact(db, row, mapping, email);
         let contact = resolved?.contact || null;
         const uncertain = resolved?.uncertain || false;
         const matchMethod = resolved?.method || null;
-
-        let email = null;
-        const emailKey = Object.keys(mapping).find(
-          (k) =>
-            mapping[k] === "_email" ||
-            (typeof mapping[k] === "string" && mapping[k].toLowerCase().includes("email"))
-        );
-        if (emailKey && row[emailKey]) {
-          email = String(row[emailKey]).toLowerCase().trim();
-          if (!email.includes("@")) email = null;
-        }
 
         let name = "Unknown";
         const nameKey = Object.keys(mapping).find(
