@@ -9,6 +9,8 @@ import {
   Send,
   CheckCircle2,
   Loader2,
+  LayoutDashboard,
+  BookOpen,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -62,7 +64,7 @@ export default function FacilitatorProgram({ params }) {
       if (parData.success) setParticipants(parData.participants || []);
 
       const subRes = await fetch(
-        `/api/submissions?program_id=${id}&latest_only=true`,
+        `/api/submissions?program_id=${id}`,
       );
       const subData = await subRes.json();
       if (subData.success) setSubmissions(subData.submissions || []);
@@ -166,6 +168,8 @@ export default function FacilitatorProgram({ params }) {
   }
 
   const tabs = [
+    { key: "overview", label: "Overview", icon: LayoutDashboard },
+    { key: "curriculum", label: "Curriculum", icon: BookOpen },
     { key: "participants", label: "Participants", icon: Users },
     { key: "attendance", label: "Attendance", icon: CalendarCheck },
     { key: "assignments", label: "Assignments", icon: ClipboardList },
@@ -206,6 +210,77 @@ export default function FacilitatorProgram({ params }) {
             </button>
           ))}
         </div>
+
+        {/* OVERVIEW (read-only) */}
+        {tab === "overview" && (
+          <div className="space-y-4">
+            <div className="grid sm:grid-cols-3 gap-3">
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
+                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                  Participants
+                </p>
+                <p className="text-2xl font-black">{participants.length}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
+                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                  Sessions
+                </p>
+                <p className="text-2xl font-black">{sessions.length}</p>
+              </div>
+              <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
+                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                  Duration
+                </p>
+                <p className="text-2xl font-black">
+                  {program?.duration_weeks || "\u2014"} wks
+                </p>
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
+              <div>
+                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                  Description
+                </p>
+                <p className="text-sm">{program?.description || "\u2014"}</p>
+              </div>
+              {program?.outcomes && (
+                <div>
+                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                    Outcomes
+                  </p>
+                  <p className="text-sm">{program.outcomes}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* CURRICULUM (read-only) */}
+        {tab === "curriculum" && (
+          <div className="space-y-3">
+            {sessions.length === 0 && (
+              <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+                No sessions scheduled yet.
+              </p>
+            )}
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
+              >
+                <div>
+                  <p className="text-[11px] font-black uppercase">{s.title}</p>
+                  <p className="text-[9px] text-[var(--text-secondary)]">
+                    Week {s.week_number} \u00b7 {s.type}
+                  </p>
+                </div>
+                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">
+                  {s.status || "scheduled"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* PARTICIPANTS */}
         {tab === "participants" && (

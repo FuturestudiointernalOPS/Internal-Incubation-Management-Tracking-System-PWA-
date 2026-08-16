@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * UNIFIED CALENDAR API
@@ -23,6 +23,38 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
+    const cid = session?.cid || null;
+
+    // Role-aware program scope: facilitators see their assigned programs,
+    // participants see their enrolled programs, others see everything.
+    let scopedProgramIds = null; // null = no restriction
+    if (session?.role === "facilitator" && cid) {
+      const teams = await db.execute({
+        sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_teams WHERE handler_id = ?
+              UNION
+              SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_program_staff WHERE role = 'facilitator' AND staff_id = ?`,
+        args: [cid, cid],
+      });
+      scopedProgramIds = teams.rows.map((r) => r.pid);
+    } else if (session?.role === "participant" && cid) {
+      const pp = await db.execute({
+        sql: "SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM participant_programs WHERE participant_id = ?",
+        args: [cid],
+      });
+      scopedProgramIds = pp.rows.map((r) => r.pid);
+    }
+
+    const scopePlaceholders = scopedProgramIds && scopedProgramIds.length
+      ? scopedProgramIds.map(() => "?").join(",")
+      : "";
+    const programScopeSql = scopePlaceholders
+      ? ` AND CAST(program_id AS TEXT) IN (${scopePlaceholders})`
+      : "";
+    const programTableScopeSql = scopePlaceholders
+      ? ` AND CAST(id AS TEXT) IN (${scopePlaceholders})`
+      : "";
+    const programScopeArgs = scopedProgramIds || [];
     const { searchParams } = new URL(req.url);
     const user_id = searchParams.get("user_id");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
@@ -80,8 +112,8 @@ export async function GET(req) {
     // 2. Programs (v2_programs)
     try {
       const programs = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE start_date IS NOT NULL OR end_date IS NOT NULL`,
-        args: [],
+        sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)${programTableScopeSql}`,
+        args: [...programScopeArgs],
       });
       for (const p of programs.rows) {
         if (p.start_date) {
@@ -123,8 +155,8 @@ export async function GET(req) {
         sql: `SELECT s.id, s.title, s.start_at, s.type, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
               LEFT JOIN v2_programs p ON s.program_id = p.id
-              WHERE s.start_at IS NOT NULL`,
-        args: [],
+              WHERE s.start_at IS NOT NULL${programScopeSql}`,
+        args: [...programScopeArgs],
       });
       for (const s of sessions.rows) {
         events.push({
@@ -152,8 +184,8 @@ export async function GET(req) {
         sql: `SELECT d.id, d.title, d.due_date, d.week_number, d.program_id, p.name AS program_name
               FROM v2_deliverables d
               LEFT JOIN v2_programs p ON d.program_id = p.id
-              WHERE d.due_date IS NOT NULL`,
-        args: [],
+              WHERE d.due_date IS NOT NULL${programScopeSql}`,
+        args: [...programScopeArgs],
       });
       for (const d of deliverables.rows) {
         events.push({
@@ -179,8 +211,8 @@ export async function GET(req) {
               FROM v2_followups f
               LEFT JOIN v2_teams t ON f.team_id = t.id
               LEFT JOIN v2_programs p ON f.program_id = p.id
-              WHERE f.scheduled_at IS NOT NULL`;
-      const followupArgs = [];
+              WHERE f.scheduled_at IS NOT NULL${programScopeSql}`;
+      const followupArgs = [...programScopeArgs];
 
       if (user_id) {
         followupSql += ` AND (f.program_id IN (SELECT id FROM v2_programs WHERE assigned_pm_id = ?) OR f.team_id IN (SELECT id FROM v2_teams WHERE handler_id = ?))`;

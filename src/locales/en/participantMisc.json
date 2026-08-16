@@ -45,6 +45,7 @@
       "due": "· Due {date}",
       "score": "· Score: {score}",
       "submit": "Submit",
+      "redo": "Redo",
       "openResource": "Open Resource",
       "requiredError": "Please provide a URL or file to submit.",
       "invalidUrl": "Please enter a valid http(s) URL.",

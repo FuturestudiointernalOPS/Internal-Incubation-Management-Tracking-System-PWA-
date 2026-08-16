@@ -1041,13 +1041,14 @@ function ProgramWorkspace() {
     },
     { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
     { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
-    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3 },
+    { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff", "teacher"] },
     { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
     { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
     {
       id: "facilitators",
       name: t("pmMisc.workspace.tabFacilitators"),
       icon: UserPlus,
+      roles: ["super_admin", "program_manager", "staff", "teacher"],
     },
   ];
 

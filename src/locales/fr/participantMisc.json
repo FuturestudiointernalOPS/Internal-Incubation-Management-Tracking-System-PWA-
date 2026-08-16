@@ -45,6 +45,7 @@
       "due": "· Échéance {date}",
       "score": "· Score : {score}",
       "submit": "Soumettre",
+      "redo": "Refaire",
       "openResource": "Ouvrir la ressource",
       "requiredError": "Veuillez fournir une URL ou un fichier à soumettre.",
       "invalidUrl": "Veuillez saisir une URL http(s) valide.",
