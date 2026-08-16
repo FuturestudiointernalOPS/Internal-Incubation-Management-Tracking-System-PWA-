@@ -75,7 +75,7 @@ const TARGET_LABELS = {
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
 
 // ─── Optimized Runs Table (memoized for performance) ───
-const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, onSort, onPage, openRun, groups }) {
+const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, sortField, sortDir, page, perPage, total, onSort, onPage, openRun, groups }) {
   const { t } = useI18n();
   const filtered = useMemo(() => {
     return runs.filter((r) => {
@@ -98,8 +98,8 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
     });
   }, [filtered, sortField, sortDir]);
 
-  const totalPages = Math.ceil(sorted.length / perPage);
-  const paginated = useMemo(() => sorted.slice((page - 1) * perPage, page * perPage), [sorted, page, perPage]);
+  const totalPages = Math.ceil(total / perPage);
+  const paginated = sorted;
 
   if (sorted.length === 0) return <div className="text-center py-16 text-[var(--text-secondary)] text-[11px] font-bold">{t("platformMisc.runs.noRunsFound")}</div>;
 
@@ -166,7 +166,7 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
     </div>
     {totalPages > 1 && (
       <div className="flex items-center justify-between pt-2">
-        <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runs.showingRange", { start: ((page - 1) * perPage) + 1, end: Math.min(page * perPage, sorted.length), total: sorted.length })}</p>
+        <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runs.showingRange", { start: ((page - 1) * perPage) + 1, end: Math.min(page * perPage, total), total })}</p>
         <div className="flex items-center gap-1">
           <button onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">{t("platformMisc.runs.prev")}</button>
           {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
@@ -335,6 +335,7 @@ export default function FormRunsPage() {
   const [perPage] = useState(50);
   const [sortField, setSortField] = useState("created_at");
   const [sortDir, setSortDir] = useState("desc");
+  const [totalRuns, setTotalRuns] = useState(0);
 
   // Detail view
   const [selectedRun, setSelectedRun] = useState(null);
@@ -394,12 +395,17 @@ export default function FormRunsPage() {
     try {
       const params = new URLSearchParams();
       if (statusFilter !== "all") params.set("status", statusFilter);
+      params.set("page", String(page));
+      params.set("per_page", String(perPage));
       const res = await fetch(`/api/platform/form-runs?${params}`);
       const data = await res.json();
-      if (data.success) setRuns(data.runs || []);
+      if (data.success) {
+        setRuns(data.runs || []);
+        setTotalRuns(data.total || 0);
+      }
     } catch (_) {}
     setLoading(false);
-  }, [statusFilter]);
+  }, [statusFilter, page, perPage]);
 
   const fetchForms = useCallback(async () => {
     try {
@@ -469,6 +475,9 @@ export default function FormRunsPage() {
   }, []);
 
   useEffect(() => { fetchRuns(); fetchForms(); fetchContacts(); fetchGroups(); fetchPrograms(); fetchDashboardStats(); }, [fetchRuns]);
+
+  // Reset to the first page whenever the run status filter changes.
+  useEffect(() => { setPage(1); }, [statusFilter]);
 
   const openRun = useCallback(async (run, opts = {}) => {
     if (!opts.keepTab) {
@@ -3742,7 +3751,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         </select>
       </div>
       {loading ? <div className="flex justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div> : (
-        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} onSort={(f, d) => { setSortField(f); setSortDir(d); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} />
+        <RunsTable runs={runs} search={search} statusFilter={statusFilter} sortField={sortField} sortDir={sortDir} page={page} perPage={perPage} total={totalRuns} onSort={(f, d) => { setSortField(f); setSortDir(d); setPage(1); }} onPage={setPage} openRun={openRun} groups={groups} />
       )}
 
       {/* Create modal */}
