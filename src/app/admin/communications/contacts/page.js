@@ -481,6 +481,7 @@ function ContactsPageContent() {
   // sidebar badges; "All Contacts" shows the total in the current view).
   const segmentCounts = {};
   for (const c of contacts) {
+    if (c.status === "pending") continue;
     const key = String(c.group_name || "UNASSIGNED").toUpperCase();
     segmentCounts[key] = (segmentCounts[key] || 0) + 1;
   }

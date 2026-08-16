@@ -1735,6 +1735,7 @@ export default function ProgramManagement() {
                     <div className="max-h-36 overflow-y-auto space-y-1">
                       {facilitatorPool
                         .filter((c) => !(editingProgram?.facilitators || []).some((f) => f.cid === c.cid))
+                        .filter((c) => c.role !== "participant" && c.role !== "applicant" && c.role !== "student")
                         .filter((c) => !facilitatorSearch || (c.name || "").toLowerCase().includes(facilitatorSearch.toLowerCase()) || (c.email || "").toLowerCase().includes(facilitatorSearch.toLowerCase()))
                         .map((c) => (
                           <button
