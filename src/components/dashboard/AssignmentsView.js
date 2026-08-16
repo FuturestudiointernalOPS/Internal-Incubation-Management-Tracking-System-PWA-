@@ -351,7 +351,7 @@ export default function AssignmentsView() {
                       <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
                     </a>
                   )}
-                  {!a.submission && (
+                  {(!a.submission || a.submission?.status === "rejected") && (
                     <button
                       onClick={() => {
                         setShowSubmitModal(a);
@@ -361,7 +361,9 @@ export default function AssignmentsView() {
                       }}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
                     >
-                      {t("participantMisc.assignments.submit")}
+                      {a.submission?.status === "rejected"
+                        ? t("participantMisc.assignments.redo")
+                        : t("participantMisc.assignments.submit")}
                     </button>
                   )}
                 </div>

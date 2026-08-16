@@ -1,7 +1,6 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { sendEmail } from "@/lib/mailer";
 import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
 
 /**
@@ -328,20 +327,8 @@ export async function PATCH(req) {
         });
       } catch (_) {}
 
-      if (sub.email) {
-        try {
-          let emailBody = `Hello ${sub.participant_name || ""},\n\nYour submission for "${sub.deliverable_title || ""}" has been reviewed.\n\nStatus: ${statusLabel}\n`;
-          if (feedback) emailBody += `Feedback: ${feedback}\n`;
-          if (rejection_reason) emailBody += `Reason: ${rejection_reason}\n`;
-          emailBody += `\nPlease check your dashboard for more details.`;
-
-          await sendEmail({
-            to: sub.email,
-            subject: `Update on your submission: ${sub.deliverable_title || ""}`,
-            body: emailBody,
-          });
-        } catch (_) {}
-      }
+      // NOTE: No email is sent for program-deliverable reviews. In-app
+      // notification only — the participant sees the unread count badge.
     }
 
     // 5. Group Assessment Propagation: if this submission belongs to a team,
