@@ -851,6 +851,7 @@ export default function FormRunsPage() {
   const retryAbortRef = useRef(false); // stops issuing new retry batches when true
   const [activationConfirmOpen, setActivationConfirmOpen] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
+  const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
   const [approvalProcessing, setApprovalProcessing] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
@@ -1666,27 +1667,45 @@ export default function FormRunsPage() {
     if (!selectedRun || eligibleActivationIds.length === 0 || activationProcessing) return;
     setActivationConfirmOpen(false);
     setActivationProcessing(true);
+    const CHUNK = 30;
+    const ids = [...eligibleActivationIds];
+    const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
+    setActivationProgress({ done: 0, total: ids.length });
     try {
-      const res = await fetch("/api/platform/form-runs?action=send_activation_messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: eligibleActivationIds }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const results = data.results || [];
-        const sent = results.filter((r) => r.status === "sent").length;
-        const skipped = results.length - sent;
-        setMessageSummary({ title: t("platformMisc.runs.sendActivationMessage"), sent, skipped });
-        setSelectedIds([]);
-        await openRun(selectedRun);
-      } else {
-        notify(data.error || t("platformMisc.runs.messageSendFailed"));
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const res = await fetch("/api/platform/form-runs?action=send_activation_messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          notify(data.error || t("platformMisc.runs.messageSendFailed"));
+          break;
+        }
+        for (const r of data.results || []) {
+          if (r.status === "sent") agg.sent++;
+          else if (r.status === "already_sent") agg.already_sent++;
+          else if (r.status === "failed" || r.status === "not_found") agg.failed++;
+          else agg.skipped++;
+        }
+        setActivationProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
       }
+      setMessageSummary({
+        title: t("platformMisc.runs.sendActivationMessage"),
+        sent: agg.sent,
+        already_sent: agg.already_sent,
+        skipped: agg.skipped,
+        failed: agg.failed,
+      });
+      setSelectedIds([]);
+      if (selectedRun) await openRun(selectedRun);
     } catch (_) {
       notify(t("platformMisc.runs.messageSendFailed"));
     } finally {
       setActivationProcessing(false);
+      setActivationProgress({ done: 0, total: 0 });
     }
   };
 
@@ -2529,6 +2548,18 @@ export default function FormRunsPage() {
                 </div>
               )}
 
+              {/* ─── ACTIVATION SENDING PROGRESS ─── */}
+              {activationProcessing && (
+                <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                      {t("platformMisc.runs.messageSending")} {activationProgress.done}/{activationProgress.total}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* ─── BULK PROCESSING ─── */}
               {bulkProcessing && (
                 <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
@@ -2583,8 +2614,14 @@ export default function FormRunsPage() {
                   <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{messageSummary.title}</h4>
                     <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.messageSentCount", { count: messageSummary.sent })}</p>
+                    {messageSummary.already_sent > 0 && (
+                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.messageAlreadySentCount", { count: messageSummary.already_sent })}</p>
+                    )}
                     {messageSummary.skipped > 0 && (
                       <p className="text-[10px] font-bold text-amber-500">{t("platformMisc.runs.messageSkippedCount", { count: messageSummary.skipped })}</p>
+                    )}
+                    {messageSummary.failed > 0 && (
+                      <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.messageFailedCount", { count: messageSummary.failed })}</p>
                     )}
                     <button onClick={() => setMessageSummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
                   </div>

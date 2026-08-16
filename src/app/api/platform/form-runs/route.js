@@ -1178,9 +1178,7 @@ export async function POST(req) {
       if (!run_id || !Array.isArray(retries) || retries.length === 0) {
         return NextResponse.json({ success: false, error: "run_id and retries are required" }, { status: 400 });
       }
-      if (retries.length > 30) {
-        return NextResponse.json({ success: false, error: "A retry batch can process at most 30 emails" }, { status: 400 });
-      }
+
       if (!retries.every((r) => r && Number.isFinite(parseInt(r.submission_id)) && typeof r.email_type === "string")) {
         return NextResponse.json({ success: false, error: "Each retry needs submission_id and email_type" }, { status: 400 });
       }
@@ -1539,9 +1537,7 @@ export async function POST(req) {
       if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
         return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
       }
-      if (submission_ids.length > 30) {
-        return NextResponse.json({ success: false, error: "A batch can process at most 30 recipients" }, { status: 400 });
-      }
+
 
       // Backend validation: every submission must belong to THIS run.
       const idList = [...new Set(submission_ids.map((id) => parseInt(id)))];
