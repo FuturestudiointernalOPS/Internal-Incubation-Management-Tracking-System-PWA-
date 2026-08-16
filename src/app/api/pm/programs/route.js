@@ -97,16 +97,18 @@ export async function GET(req) {
         ),
         db.execute(
           `SELECT program_id, COUNT(*) as count FROM (
-             SELECT CAST(vp.program_id AS TEXT) AS program_id,
-                    LOWER(COALESCE(vp.email, vp.user_id, '')) AS dedupe_key
-             FROM v2_participants vp
-             WHERE LOWER(COALESCE(vp.status, '')) = 'active'
-             UNION
              SELECT CAST(pp.program_id AS TEXT) AS program_id,
                     LOWER(COALESCE(c.email, pp.participant_id, '')) AS dedupe_key
              FROM participant_programs pp
-             LEFT JOIN contacts c ON pp.participant_id = c.cid
+             JOIN contacts c ON pp.participant_id = c.cid
              WHERE LOWER(COALESCE(c.status, '')) = 'active'
+               AND c.deleted = 0 AND c.deleted_at IS NULL AND c.archived_at IS NULL
+               AND NOT EXISTS (
+                 SELECT 1 FROM v2_program_staff ps
+                 WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+                   AND ps.role = 'facilitator'
+                   AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+               )
            ) t GROUP BY program_id`,
         ),
         db.execute(

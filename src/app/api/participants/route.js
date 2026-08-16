@@ -71,6 +71,26 @@ export async function POST(req) {
       ],
     });
 
+    // Resolve the actual contact cid (the upsert above may have matched an
+    // existing email, in which case the generated cid is not the real one).
+    let contactCid = cid;
+    try {
+      const cRes = await db.execute({
+        sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+        args: [email],
+      });
+      if (cRes.rows.length > 0) contactCid = cRes.rows[0].cid;
+    } catch (_) {}
+
+    // Keep participant_programs (canonical membership) in sync so direct-add
+    // participants show up in the Program Participants view once active.
+    try {
+      await db.execute({
+        sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'pending', NOW()) ON CONFLICT (participant_id, program_id) DO NOTHING",
+        args: [contactCid, program_id],
+      });
+    } catch (_) {}
+
     // Timeline event
     try {
       await db.execute({

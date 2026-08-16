@@ -71,6 +71,13 @@ export async function POST(req) {
           sql: "INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW()) ON CONFLICT DO NOTHING",
           args: [group.program_id, contactCid, name, normalizedEmail, phone || null],
         });
+        // Keep the canonical membership table (participant_programs) in sync so
+        // group-link registrations show up in the Program Participants view once
+        // the contact's account becomes active.
+        await db.execute({
+          sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'pending', NOW()) ON CONFLICT (participant_id, program_id) DO NOTHING",
+          args: [contactCid, group.program_id],
+        });
       } catch (e) {
         console.warn("Failed to add participant:", e.message);
       }
