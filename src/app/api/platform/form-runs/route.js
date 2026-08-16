@@ -136,7 +136,7 @@ function deriveAccountStatus(contactRow) {
   const st = String(contactRow.status || "").toLowerCase();
   if (st === "inactive") return "inactive";
   if (st === "active") return "active";
-  if (st === "approved") return "approved";
+  if (st === "approved") return "activation_pending";
   if (st === "pending") return "pending_approval";
   return "pending_approval";
 }

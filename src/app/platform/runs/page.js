@@ -1148,10 +1148,10 @@ export default function FormRunsPage() {
       return cfg ? t(cfg.label) : val;
     }
     if (key === "approval_email" || key === "activation_email") {
-      if (val === "not_sent") return "Not Sent";
-      return EMAIL_STATUS_CONFIG[val]?.label || val;
+      if (val === "not_sent") return t("platformMisc.runs.emailNotSent");
+      return EMAIL_STATUS_CONFIG[val] ? t(EMAIL_STATUS_CONFIG[val].label) : val;
     }
-    return SUB_STATUS[val]?.label || val;
+    return SUB_STATUS[val] ? t(SUB_STATUS[val].label) : val;
   };
   const activeTrackingFilters = TRACKING_FILTERS
     .map((f) => ({ key: f.key, label: f.label, value: trackingFilterValue(f.key) }))
