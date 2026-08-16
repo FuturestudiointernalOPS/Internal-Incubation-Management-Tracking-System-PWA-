@@ -850,6 +850,7 @@ export default function FormRunsPage() {
   const [retrySummary, setRetrySummary] = useState(null); // { sent, already_sent, failed[] }
   const retryAbortRef = useRef(false); // stops issuing new retry batches when true
   const [activationConfirmOpen, setActivationConfirmOpen] = useState(false);
+  const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
   const [approvalProcessing, setApprovalProcessing] = useState(false);
@@ -1622,12 +1623,13 @@ export default function FormRunsPage() {
     });
   }, [selectedIds, submissions]);
 
-  const openActivationConfirm = () => {
+  const openActivationConfirm = (forceResend = false) => {
     setBulkMenuOpen(false);
     if (eligibleActivationIds.length === 0) {
       notify(t("platformMisc.runs.noEligibleActivation"));
       return;
     }
+    setActivationForceResend(forceResend);
     setActivationConfirmOpen(true);
   };
 
@@ -1667,6 +1669,7 @@ export default function FormRunsPage() {
     if (!selectedRun || eligibleActivationIds.length === 0 || activationProcessing) return;
     setActivationConfirmOpen(false);
     setActivationProcessing(true);
+    const forceResend = activationForceResend;
     const CHUNK = 30;
     const ids = [...eligibleActivationIds];
     const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
@@ -1677,7 +1680,7 @@ export default function FormRunsPage() {
         const res = await fetch("/api/platform/form-runs?action=send_activation_messages", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk }),
+          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk, force: forceResend }),
         });
         const data = await res.json();
         if (!data.success) {
@@ -1693,7 +1696,7 @@ export default function FormRunsPage() {
         setActivationProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
       }
       setMessageSummary({
-        title: t("platformMisc.runs.sendActivationMessage"),
+        title: t(forceResend ? "platformMisc.runs.sendActivationResendMessage" : "platformMisc.runs.sendActivationMessage"),
         sent: agg.sent,
         already_sent: agg.already_sent,
         skipped: agg.skipped,
@@ -1705,6 +1708,7 @@ export default function FormRunsPage() {
       notify(t("platformMisc.runs.messageSendFailed"));
     } finally {
       setActivationProcessing(false);
+      setActivationForceResend(false);
       setActivationProgress({ done: 0, total: 0 });
     }
   };
@@ -2269,6 +2273,13 @@ export default function FormRunsPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={() => openActivationConfirm(true)}
+                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-amber-400 hover:bg-amber-500/10 flex items-center gap-1.5"
+                            >
+                              <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.resendActivationMessage")}
+                            </button>
+                            <button
+                              type="button"
                               onClick={openMessageComposer}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
@@ -2528,10 +2539,10 @@ export default function FormRunsPage() {
                 <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
                   <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
-                      {t("platformMisc.runs.activationConfirmTitle")}
+                      {t(activationForceResend ? "platformMisc.runs.activationResendConfirmTitle" : "platformMisc.runs.activationConfirmTitle")}
                     </h4>
                     <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                      {t("platformMisc.runs.activationConfirmDesc", { count: eligibleActivationIds.length })}
+                      {t(activationForceResend ? "platformMisc.runs.activationResendConfirmDesc" : "platformMisc.runs.activationConfirmDesc", { count: eligibleActivationIds.length })}
                     </p>
                     {selectedIds.length > eligibleActivationIds.length && (
                       <p className="text-[10px] font-bold text-amber-500">
@@ -2541,7 +2552,7 @@ export default function FormRunsPage() {
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => setActivationConfirmOpen(false)} disabled={activationProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
                       <button onClick={runSendActivationMessages} disabled={activationProcessing || eligibleActivationIds.length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
-                        {t("platformMisc.runs.sendActivationConfirm")}
+                        {t(activationForceResend ? "platformMisc.runs.resendActivationConfirm" : "platformMisc.runs.sendActivationConfirm")}
                       </button>
                     </div>
                   </div>

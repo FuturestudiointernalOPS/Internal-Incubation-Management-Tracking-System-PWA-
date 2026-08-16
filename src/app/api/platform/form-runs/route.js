@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -1533,10 +1533,11 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
       if (authError) return authError;
 
-      const { run_id, submission_ids } = body;
+      const { run_id, submission_ids, force } = body;
       if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
         return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
       }
+      const forceResend = force === true || force === 1 || force === "true" || force === "1";
 
 
       // Backend validation: every submission must belong to THIS run.
@@ -1562,7 +1563,7 @@ export async function POST(req) {
         }
 
         const logRow = await getEmailLogRow(id, "activation");
-        if (logRow && logRow.status === "sent") {
+        if (!forceResend && logRow && logRow.status === "sent") {
           results.push({ submission_id: id, name, status: "already_sent", error: "Activation email already sent" });
           continue;
         }
@@ -1574,9 +1575,12 @@ export async function POST(req) {
             const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
             formData = f.rows[0] || null;
           }
+          // Force resend bypasses the once-per-submission dedup so an admin can
+          // issue a fresh activation link after the previous 48h link expired.
+          const reviewSubmission = forceResend ? { ...sub, _forceActivationResend: true } : sub;
           await onReview(
-            { id: null, submission_id: id, decision: "approved", comment: "Manual activation send", reviewer_name: session.cid },
-            sub,
+            { id: null, submission_id: id, decision: "approved", comment: forceResend ? "Manual activation resend" : "Manual activation send", reviewer_name: session.cid },
+            reviewSubmission,
             runData.rows[0] || null,
             session,
             formData
