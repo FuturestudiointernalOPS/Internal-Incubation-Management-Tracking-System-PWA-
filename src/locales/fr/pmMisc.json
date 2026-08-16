@@ -431,6 +431,7 @@
       "attendanceAbsent": "Absent",
       "attendanceExcused": "Excusé",
       "attendanceLate": "En retard",
+      "attendanceSelect": "Sélectionner",
       "noParticipantsEnrolled": "Aucun participant inscrit à ce programme.",
       "attendanceRecorded": "Présences enregistrées — {count} participants.",
       "attendanceSaveFailed": "Échec de l'enregistrement des présences.",
