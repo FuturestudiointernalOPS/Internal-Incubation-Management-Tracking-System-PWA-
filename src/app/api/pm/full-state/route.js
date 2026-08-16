@@ -460,15 +460,8 @@ export async function GET(req) {
         });
       }
 
-      const allParticipantRows = [...parRes.rows, ...contRes.rows];
-      uniqueParticipants = Array.from(
-        new Map(
-          allParticipantRows
-            .filter((p) => p.email)
-            .map((p) => [p.email.toLowerCase(), p]),
-        ).values(),
-      );
-
+      // uniqueParticipants is already the corrected active-participant list
+      // (participant_programs + active + not facilitator) computed above.
       totalParticipants = uniqueParticipants.length;
       const docList = docRes.rows || [];
       expectedSubmissions = totalParticipants * docList.length;
