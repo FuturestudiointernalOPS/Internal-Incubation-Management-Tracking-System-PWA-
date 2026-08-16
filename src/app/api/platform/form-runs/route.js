@@ -435,9 +435,10 @@ export async function GET(req) {
       let emails = [];
       try {
         const emailRes = await db.execute({
-          sql: `SELECT * FROM platform_email_log
+          sql: `SELECT DISTINCT ON (submission_id, email_type) *
+                FROM platform_email_log
                 WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)
-                ORDER BY id ASC`,
+                ORDER BY submission_id, email_type, id DESC`,
           args: [parseInt(id)],
         });
         emails = emailRes.rows;
@@ -572,23 +573,46 @@ export async function GET(req) {
       return NextResponse.json({ success: true, submissions: subs.rows });
     }
 
-    // List all runs (optionally filtered by group_id)
+    // List all runs (optionally filtered by group_id), paginated server-side.
     const groupId = searchParams.get("group_id");
-    let sql = "SELECT r.*, f.name as form_name, (SELECT a.target_id FROM platform_form_run_assignments a WHERE a.run_id = r.id AND a.target_type = 'group' LIMIT 1) as group_target_id FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id";
+    const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
+    const perPage = Math.max(1, parseInt(searchParams.get("per_page")) || 50);
+    const offset = (page - 1) * perPage;
+
+    const baseFrom = `FROM platform_form_runs r
+      JOIN platform_forms f ON r.form_id = f.id
+      LEFT JOIN LATERAL (
+        SELECT a.target_id
+        FROM platform_form_run_assignments a
+        WHERE a.run_id = r.id AND a.target_type = 'group'
+        LIMIT 1
+      ) ga ON true`;
+    const conditions = [];
     const args = [];
 
     if (groupId) {
-      sql += " JOIN platform_form_run_assignments a ON r.id = a.run_id AND a.target_type = 'group' AND a.target_id = ?";
+      conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND ga2.target_id = ?)");
       args.push(groupId);
     }
+    if (formId) { conditions.push("r.form_id = ?"); args.push(parseInt(formId)); }
+    if (status && status !== "all") {
+      conditions.push("r.status = ?");
+      args.push(status);
+    } else {
+      conditions.push("r.status IS DISTINCT FROM 'archived'");
+    }
 
-    sql += " WHERE 1=1";
-    if (formId) { sql += " AND r.form_id = ?"; args.push(parseInt(formId)); }
-    if (status && status !== "all") { sql += " AND r.status = ?"; args.push(status); }
-    sql += " ORDER BY r.updated_at DESC";
+    const whereClause = conditions.length ? " WHERE " + conditions.join(" AND ") : "";
 
-    const result = await db.execute({ sql, args });
-    return NextResponse.json({ success: true, runs: result.rows });
+    const countRes = await db.execute({ sql: `SELECT COUNT(*) AS total ${baseFrom}${whereClause}`, args });
+    const total = parseInt(countRes.rows[0]?.total) || 0;
+
+    const result = await db.execute({
+      sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id ${baseFrom}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
+      args: [...args, perPage, offset],
+    });
+
+    return NextResponse.json({ success: true, runs: result.rows, total, page, per_page: perPage });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
