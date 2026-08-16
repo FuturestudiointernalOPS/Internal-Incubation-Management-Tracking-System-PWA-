@@ -657,7 +657,7 @@ function ContactsPageContent() {
                         onClick={() => setSelectedGroup(name)}
                         className={`flex-1 flex items-center justify-between gap-2 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}
                       >
-                        <span className="truncate">
+                        <span className="break-words whitespace-normal">
                           {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
                         </span>
                         <span className={`shrink-0 text-[8px] font-black px-1.5 py-0.5 rounded-full ${selectedGroup === name ? "bg-black/20" : "bg-tertiary"}`}>
