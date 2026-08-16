@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -128,6 +128,10 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
 
+    if (!program_id) {
+      return NextResponse.json({ success: true, participants: [] });
+    }
+
     // Server-side enforcement: facilitators must be assigned to the program
     // and hold participants.view at level >= 1.
     const facError = await enforceFacilitatorProgramAccess(
@@ -137,30 +141,49 @@ export async function GET(req) {
     );
     if (facError) return facError;
 
-    let sql = "SELECT * FROM v2_participants";
-    let args = [];
-
-    if (program_id) {
-      sql += " WHERE program_id = ?";
-      args.push(program_id);
-    }
-
-    // Scope enforcement: facilitators with 'assigned_groups' scope only see
-    // participants belonging to their assigned groups (group membership is
-    // tracked via contacts.group_name matching the family name).
     const session = await getSession();
-    if (session?.role === "facilitator" && program_id) {
-      const scope = await getFacilitatorParticipantScope(program_id, session.cid);
-      if (scope.scope === "groups") {
-        if (scope.groupNames.length === 0) {
+
+    // Canonical participant source: participant_programs (program membership)
+    // + contacts (active account). id is contacts.cid so attendance and team
+    // links use one consistent identifier. Form submissions and v2_participants
+    // are NOT treated as operational participant membership.
+    let sql = `
+      SELECT CAST(c.cid AS TEXT) as id,
+             c.cid,
+             CAST(c.cid AS TEXT) as user_id,
+             c.name, c.email, c.phone,
+             c.status, c.created_at, c.group_name, c.v2_team_id,
+             pp.program_id, 'enrolled' as source
+      FROM participant_programs pp
+      JOIN contacts c ON pp.participant_id = c.cid
+      WHERE CAST(pp.program_id AS TEXT) = ?
+        AND c.deleted = 0
+        AND c.deleted_at IS NULL
+        AND c.archived_at IS NULL
+        AND LOWER(COALESCE(c.status, '')) = 'active'
+        AND NOT EXISTS (
+          SELECT 1 FROM v2_program_staff ps
+          WHERE CAST(ps.program_id AS TEXT) = ?
+            AND ps.role = 'facilitator'
+            AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+        )
+    `;
+    const args = [String(program_id), String(program_id)];
+
+    // Facilitator team scope: only participants assigned to the facilitator's
+    // v2_teams (where handler_id = facilitator cid).
+    if (session?.role === "facilitator") {
+      const scope = await getFacilitatorTeamScope(program_id, session.cid);
+      if (scope.scope !== "all") {
+        if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, participants: [] });
         }
-        sql += " AND email IN (SELECT email FROM contacts WHERE UPPER(TRIM(group_name)) IN (" + scope.groupNames.map(() => "?").join(",") + "))";
-        args.push(...scope.groupNames.map((n) => n.toUpperCase()));
+        sql += " AND c.v2_team_id IN (" + scope.teamIds.map(() => "?").join(",") + ")";
+        args.push(...scope.teamIds);
       }
     }
 
-    sql += " ORDER BY created_at DESC";
+    sql += " ORDER BY c.created_at DESC";
 
     const { rows } = await db.execute({ sql, args });
     return NextResponse.json({ success: true, participants: rows });

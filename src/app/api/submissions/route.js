@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -189,13 +189,13 @@ export async function PATCH(req) {
         1,
       );
       if (facError) return facError;
-      const scope = await getFacilitatorParticipantScope(progId, session.cid);
-      if (scope.scope === "groups" && scope.groupNames.length > 0) {
+      const scope = await getFacilitatorTeamScope(progId, session.cid);
+      if (scope.scope !== "all" && scope.teamIds.length > 0) {
         const inScope = await db.execute({
-          sql: "SELECT 1 FROM v2_submissions s JOIN v2_participants p ON s.participant_id::text = p.id::text JOIN contacts c ON p.email = c.email WHERE s.id::text = ? AND UPPER(TRIM(c.group_name)) IN (" +
-            scope.groupNames.map(() => "?").join(",") +
+          sql: "SELECT 1 FROM v2_submissions s JOIN contacts c ON s.participant_id::text = c.cid WHERE s.id::text = ? AND c.v2_team_id IN (" +
+            scope.teamIds.map(() => "?").join(",") +
             ")",
-          args: [String(id), ...scope.groupNames.map((n) => n.toUpperCase())],
+          args: [String(id), ...scope.teamIds],
         });
         if (inScope.rows.length === 0) {
           return NextResponse.json(
@@ -418,7 +418,6 @@ export async function GET(req) {
     const session = await getSession();
     let facScopeFilter = null;
     let facScopeArgs = [];
-    let scopeGroupNames = [];
     if (session?.role === "facilitator" && program_id) {
       const facError = await enforceFacilitatorProgramAccess(
         program_id,
@@ -426,17 +425,16 @@ export async function GET(req) {
         1,
       );
       if (facError) return facError;
-      const scope = await getFacilitatorParticipantScope(program_id, session.cid);
-      if (scope.scope === "groups") {
-        if (scope.groupNames.length === 0) {
+      const scope = await getFacilitatorTeamScope(program_id, session.cid);
+      if (scope.scope !== "all") {
+        if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, submissions: [] });
         }
         facScopeFilter =
-          "s.participant_id IN (SELECT p.id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
-          scope.groupNames.map(() => "?").join(",") +
+          "s.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
+          scope.teamIds.map(() => "?").join(",") +
           "))";
-        facScopeArgs = scope.groupNames.map((n) => n.toUpperCase());
-        scopeGroupNames = facScopeArgs;
+        facScopeArgs = scope.teamIds;
       }
     }
 
@@ -445,10 +443,10 @@ export async function GET(req) {
               d.title as deliverable_title,
               d.week_number as deliverable_week,
               d.due_date as deliverable_due_date,
-              p.name as participant_name, g.name as group_name
+              c.name as participant_name, g.name as group_name
        FROM v2_submissions s
        LEFT JOIN v2_deliverables d ON s.deliverable_id::text = d.id::text
-       LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
+       LEFT JOIN contacts c ON s.participant_id::text = c.cid
        LEFT JOIN v2_groups g ON s.group_id::text = g.id::text
        WHERE 1=1
     `;
@@ -482,6 +480,10 @@ export async function GET(req) {
       sql += " AND s.status = ?";
       args.push(status);
     }
+    if (facScopeFilter) {
+      sql += " AND " + facScopeFilter;
+      args.push(...facScopeArgs);
+    }
 
     // If latest_only, get the latest version per participant+deliverable
     if (latest_only) {
@@ -490,11 +492,11 @@ export async function GET(req) {
                COALESCE(del.title, dr.title) as deliverable_title,
                COALESCE(del.week_number, dr.week_number) as deliverable_week,
                del.due_date as deliverable_due_date,
-               p.name as participant_name, g.name as group_name
+               c.name as participant_name, g.name as group_name
         FROM v2_submissions s1
         LEFT JOIN v2_deliverables del ON s1.deliverable_id::text = del.id::text
         LEFT JOIN v2_document_requirements dr ON s1.document_id = dr.id
-        LEFT JOIN v2_participants p ON s1.participant_id::text = p.id::text
+        LEFT JOIN contacts c ON s1.participant_id::text = c.cid
         LEFT JOIN v2_groups g ON s1.group_id::text = g.id::text
         INNER JOIN (
           SELECT participant_id, COALESCE(deliverable_id::text, document_id::text) as lookup_id, MAX(version_number) as max_ver
@@ -516,10 +518,10 @@ export async function GET(req) {
       }
       if (facScopeFilter) {
         sql +=
-          " AND participant_id IN (SELECT p.id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
-          scopeGroupNames.map(() => "?").join(",") +
+          " AND participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
+          facScopeArgs.map(() => "?").join(",") +
           "))";
-        innerArgs.push(...scopeGroupNames);
+        innerArgs.push(...facScopeArgs);
       }
       sql += " GROUP BY participant_id::text, COALESCE(deliverable_id::text, document_id::text)";
       sql += " ) s2";

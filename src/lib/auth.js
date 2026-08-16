@@ -678,6 +678,39 @@ export async function getFacilitatorParticipantScope(programId, userCid) {
 }
 
 /**
+ * Returns a facilitator's management-group scope for a program using the
+ * existing v2_teams structure (handler_id = facilitator). This is the
+ * cohort-management scope: a facilitator sees only participants assigned to
+ * the v2_teams where they are the handler.
+ *
+ * { scope: 'all' }   — program facilitator_scope is 'all'
+ * { scope: 'teams' } — restricted to the returned teamIds
+ * { scope: 'none' }  — facilitator has no assigned teams
+ */
+export async function getFacilitatorTeamScope(programId, facilitatorCid) {
+  try {
+    await initDb();
+    const prog = await db.execute({
+      sql: "SELECT facilitator_scope FROM v2_programs WHERE id = ?",
+      args: [programId],
+    });
+    if (prog.rows[0]?.facilitator_scope === "all") {
+      return { scope: "all", teamIds: [] };
+    }
+    const teams = await db.execute({
+      sql: "SELECT CAST(id AS TEXT) AS id FROM v2_teams WHERE CAST(program_id AS TEXT) = ? AND handler_id = ?",
+      args: [String(programId), facilitatorCid],
+    });
+    return {
+      scope: teams.rows.length ? "teams" : "none",
+      teamIds: teams.rows.map((r) => r.id),
+    };
+  } catch {
+    return { scope: "none", teamIds: [] };
+  }
+}
+
+/**
  * Guard: requires the session user to be a facilitator assigned to the program.
  * Super admin / staff / PM / teacher keep their existing access.
  */

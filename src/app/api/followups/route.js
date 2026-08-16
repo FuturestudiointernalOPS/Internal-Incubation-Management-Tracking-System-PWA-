@@ -1,6 +1,29 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { getSession, requireProgramFacilitator, getFacilitatorTeamScope } from "@/lib/auth";
+
+/**
+ * For facilitators, resolve program assignment + team scope and return a guard.
+ * Returns null for non-facilitators (no restriction).
+ */
+async function getFacilitatorScopeGuard(req, programId) {
+  const session = await getSession();
+  if (session?.role !== "facilitator") return null;
+  if (!programId) {
+    return {
+      deny: true,
+      response: NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      ),
+    };
+  }
+  const guardError = await requireProgramFacilitator(programId);
+  if (guardError) return { deny: true, response: guardError };
+  const scope = await getFacilitatorTeamScope(programId, session.cid);
+  return { scope };
+}
 
 /**
  * FOLLOW-UPS API — TRACK 3 ENHANCED
@@ -11,7 +34,7 @@ import { createHandler } from "@/lib/api/createHandler";
  */
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager"] },
+  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
@@ -20,9 +43,9 @@ export const GET = createHandler(
     const status = searchParams.get("status");
 
     let sql = `
-      SELECT f.*, p.name as participant_name, d.title as deliverable_title
+      SELECT f.*, c.name as participant_name, d.title as deliverable_title
       FROM v2_followups f
-      LEFT JOIN v2_participants p ON f.participant_id = p.id
+      LEFT JOIN contacts c ON f.participant_id::text = c.cid
       LEFT JOIN v2_submissions s ON f.submission_id = s.id
       LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
       WHERE 1=1
@@ -46,6 +69,20 @@ export const GET = createHandler(
       args.push(status);
     }
 
+    // Facilitators may only see follow-ups for participants in their teams.
+    const scopeGuard = await getFacilitatorScopeGuard(req, programId);
+    if (scopeGuard?.deny) return scopeGuard.response;
+    if (scopeGuard && scopeGuard.scope.scope !== "all") {
+      if (scopeGuard.scope.teamIds.length === 0) {
+        return NextResponse.json({ success: true, followups: [] });
+      }
+      sql +=
+        " AND f.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
+        scopeGuard.scope.teamIds.map(() => "?").join(",") +
+        "))";
+      args.push(...scopeGuard.scope.teamIds);
+    }
+
     sql += " ORDER BY f.scheduled_at DESC";
 
     const result = await db.execute({ sql, args });
@@ -54,7 +91,7 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager"] },
+  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
   async (req) => {
     const body = await req.json();
     const {
@@ -74,6 +111,28 @@ export const POST = createHandler(
         { success: false, error: "Program ID and scheduled date are required" },
         { status: 400 },
       );
+    }
+
+    // Facilitators may only create follow-ups for participants in their teams.
+    const scopeGuard = await getFacilitatorScopeGuard(req, program_id);
+    if (scopeGuard?.deny) return scopeGuard.response;
+    if (scopeGuard && scopeGuard.scope.scope !== "all") {
+      if (!participant_id || scopeGuard.scope.teamIds.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const inScope = await db.execute({
+        sql: "SELECT 1 FROM contacts c WHERE c.cid = ? AND c.v2_team_id IN (" + scopeGuard.scope.teamIds.map(() => "?").join(",") + ")",
+        args: [String(participant_id), ...scopeGuard.scope.teamIds],
+      });
+      if (inScope.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
     }
 
     // Create follow-up record
@@ -132,7 +191,7 @@ export const POST = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager"] },
+  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
   async (req) => {
     const { id, status, notes, meeting_link, scheduled_at } = await req.json();
 
@@ -141,6 +200,35 @@ export const PATCH = createHandler(
         { success: false, error: "Follow-up ID required" },
         { status: 400 },
       );
+    }
+
+    // Facilitators may only update follow-ups for participants in their teams.
+    const followupRes = await db.execute({
+      sql: "SELECT program_id, participant_id FROM v2_followups WHERE id = ?",
+      args: [id],
+    });
+    const followup = followupRes.rows[0];
+    if (followup) {
+      const scopeGuard = await getFacilitatorScopeGuard(req, followup.program_id);
+      if (scopeGuard?.deny) return scopeGuard.response;
+      if (scopeGuard && scopeGuard.scope.scope !== "all") {
+        if (!followup.participant_id || scopeGuard.scope.teamIds.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "errors.insufficientPermissions" },
+            { status: 403 },
+          );
+        }
+        const inScope = await db.execute({
+          sql: "SELECT 1 FROM contacts c WHERE c.cid = ? AND c.v2_team_id IN (" + scopeGuard.scope.teamIds.map(() => "?").join(",") + ")",
+          args: [String(followup.participant_id), ...scopeGuard.scope.teamIds],
+        });
+        if (inScope.rows.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "errors.insufficientPermissions" },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     await db.execute({
