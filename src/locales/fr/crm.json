@@ -190,7 +190,8 @@
       "updated": "Mis à jour",
       "bulkAssignmentFailed": "Échec de l'affectation en masse.",
       "showingCount": "{count} contacts",
-      "noContactsFound": "Aucun contact ne correspond à votre recherche ou à vos filtres."
+      "noContactsFound": "Aucun contact ne correspond à votre recherche ou à vos filtres.",
+      "pageOf": "Page {page} sur {total}"
     },
     "duplicates": {
       "crm": "CRM",
