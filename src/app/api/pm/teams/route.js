@@ -53,6 +53,7 @@ export async function POST(req) {
       member_ids,
       group_name,
       leader_id,
+      is_management_group,
     } = data;
 
     if (!program_id || !name) {
@@ -138,12 +139,15 @@ export async function POST(req) {
           allMembers.push(...res.rows);
         }
 
-        for (const member of allMembers) {
-          try {
-            await sendEmail({
-              to: member.email,
-              subject: `Unit Credentials Secured: ${name}`,
-              body: `
+        // Management groups (facilitator cohort groups) do NOT send shared
+        // team credentials — there is no shared team login for these groups.
+        if (!is_management_group) {
+          for (const member of allMembers) {
+            try {
+              await sendEmail({
+                to: member.email,
+                subject: `Unit Credentials Secured: ${name}`,
+                body: `
                 <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #FF6600;">Unit Deployment: ${name}</h2>
                   <p>Hello ${member.name},</p>
@@ -156,10 +160,11 @@ export async function POST(req) {
                   <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://impactos-pwa.vercel.app"}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
                 </div>
               `,
-              isHtml: true,
-            });
-          } catch (e) {
-            console.error(`Email delivery failed for ${member.email}:`, e);
+                isHtml: true,
+              });
+            } catch (e) {
+              console.error(`Email delivery failed for ${member.email}:`, e);
+            }
           }
         }
       } catch (linkErr) {
@@ -188,7 +193,7 @@ export async function PATCH(req) {
       "teacher",
     ]);
     if (authError) return authError;
-    const { team_id, member_ids, action, is_venture_ready } = await req.json();
+    const { team_id, member_ids, action, is_venture_ready, is_management_group } = await req.json();
 
     // Support set_venture_ready action (used by venture approval workflow)
     if (action === "set_venture_ready" && team_id) {
@@ -256,12 +261,13 @@ export async function PATCH(req) {
       allMembers.push(...res.rows);
     }
 
-    for (const member of allMembers) {
-      try {
-        await sendEmail({
-          to: member.email,
-          subject: `Unit Assignment Confirmed: ${team.name}`,
-          body: `
+    if (!is_management_group) {
+      for (const member of allMembers) {
+        try {
+          await sendEmail({
+            to: member.email,
+            subject: `Unit Assignment Confirmed: ${team.name}`,
+            body: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
               <h2 style="color: #FF6600;">Unit Assignment: ${team.name}</h2>
               <p>Hello ${member.name},</p>
@@ -274,9 +280,10 @@ export async function PATCH(req) {
               <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://impactos-pwa.vercel.app"}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
             </div>
           `,
-          isHtml: true,
-        });
-      } catch (e) {}
+            isHtml: true,
+          });
+        } catch (e) {}
+      }
     }
 
     return NextResponse.json({ success: true });

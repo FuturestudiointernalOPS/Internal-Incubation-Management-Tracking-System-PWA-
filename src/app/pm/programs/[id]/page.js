@@ -81,6 +81,7 @@ function ProgramWorkspace() {
   const [kpis, setKpis] = useState([]);
   const [events, setEvents] = useState([]);
   const [assignedStaff, setAssignedStaff] = useState([]);
+  const [facilitators, setFacilitators] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [toast, setToast] = useState(null);
@@ -132,6 +133,15 @@ function ProgramWorkspace() {
       return [];
     }
   }, [program?.assigned_assistant_id, staffList, assignedStaff]);
+
+  // Oversight candidates = assigned program staff (staff/teacher/assistant)
+  // + program facilitators. Deduped by cid so the same person appears once.
+  const oversightCandidates = React.useMemo(() => {
+    const merged = [...assignedStaff, ...facilitators];
+    return Array.from(
+      new Map(merged.map((s) => [s.cid ?? s.email ?? s.id, s])).values(),
+    );
+  }, [assignedStaff, facilitators]);
 
   const [showTeamModal, setShowTeamModal] = useState(false);
   const [teamAssignmentMode, setTeamAssignmentMode] = useState("new"); // 'new' or 'existing'
@@ -333,6 +343,7 @@ function ProgramWorkspace() {
             group_name: detectedGroupName,
             program_id: id,
             member_ids: selectedParticipants,
+            is_management_group: true,
             ...(newTeam.handler_name ? { handler_name: newTeam.handler_name } : {}),
             ...(newTeam.staff_id ? { handler_id: newTeam.staff_id } : {}),
             ...(newTeam.leader_id ? { leader_id: newTeam.leader_id } : {}),
@@ -989,6 +1000,7 @@ function ProgramWorkspace() {
           setKpis(res.kpis || []);
           setEvents(res.events || []);
           setAssignedStaff(res.assignedStaff || []);
+          setFacilitators(res.facilitators || []);
           setStaffList(res.staffList || []);
           setReports(res.reports || []);
           setFamilies(res.families || []);
@@ -3283,7 +3295,7 @@ function ProgramWorkspace() {
                   <select
                     value={newTeam.staff_id}
                     onChange={(e) => {
-                      const staff = assignedStaff.find(
+                      const staff = oversightCandidates.find(
                         (s) => String(s.cid) === e.target.value,
                       );
                       setNewTeam((p) => ({
@@ -3300,8 +3312,8 @@ function ProgramWorkspace() {
                     }}
                   >
                     <option value="">{t("pmMisc.workspace.noStaffAssignedOptional")}</option>
-                    {assignedStaff.map((s) => (
-                      <option key={s.cid} value={s.cid}>
+                    {oversightCandidates.map((s) => (
+                      <option key={s.cid ?? s.email ?? s.id} value={s.cid}>
                         {s.name} ({s.role === "teacher" ? t("pmMisc.workspace.instructor") : s.role}
                         )
                       </option>

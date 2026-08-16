@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorParticipantScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export async function POST(req) {
@@ -35,13 +35,12 @@ export async function POST(req) {
 
     const body = await req.json();
     const records = Array.isArray(body) ? body : [body];
-    // Only "present" and "absent" are real decisions. A participant left on
-    // "Select" (empty status) means no decision yet and must NOT be stored.
-    const valid = records.filter((r) => r.session_id && r.participant_id && r.status);
 
-    // Server-side enforcement: facilitators must be assigned to the program
-    // and hold attendance.record at level >= 1.
     const session = await getSession();
+
+    // Server-side enforcement: facilitators must be assigned to the program,
+    // hold attendance.record, and may only write participants in their teams.
+    let allowedParticipantIds = null; // null = no restriction
     if (session?.role === "facilitator") {
       const progId = records[0]?.program_id || null;
       if (!progId) {
@@ -56,21 +55,45 @@ export async function POST(req) {
         1,
       );
       if (facError) return facError;
+
+      const scope = await getFacilitatorTeamScope(progId, session.cid);
+      if (scope.scope === "none") {
+        allowedParticipantIds = new Set();
+      } else if (scope.scope === "teams" && scope.teamIds.length > 0) {
+        const inScope = await db.execute({
+          sql: "SELECT cid FROM contacts WHERE v2_team_id IN (" + scope.teamIds.map(() => "?").join(",") + ")",
+          args: scope.teamIds,
+        });
+        allowedParticipantIds = new Set(inScope.rows.map((r) => r.cid));
+      }
     }
 
-    if (records.length === 0) {
+    // Keep only records the caller is allowed to write. For facilitators this
+    // silently drops any participant outside their assigned teams.
+    const scoped = allowedParticipantIds
+      ? records.filter(
+          (r) => r.participant_id && allowedParticipantIds.has(String(r.participant_id)),
+        )
+      : records;
+
+    // Only "present" and "absent" are real decisions. A participant left on
+    // "Select" (empty status) means no decision yet and must NOT be stored.
+    const valid = scoped.filter((r) => r.session_id && r.participant_id && r.status);
+
+    if (scoped.length === 0) {
       return NextResponse.json({ success: true, upserted: 0 });
     }
 
-    const sessionId = records[0].session_id;
-    const date = records[0].date || new Date().toISOString().split("T")[0];
+    const sessionId = scoped[0].session_id;
+    const date = scoped[0].date || new Date().toISOString().split("T")[0];
+    const submittedIds = [...new Set(scoped.map((r) => r.participant_id).filter(Boolean))];
+    const ph = submittedIds.map(() => "?").join(",");
 
-    // 1. Delete ALL existing records for this session+date so participants
-    //    left on "Select" (no status) are cleared rather than keeping a stale
-    //    previous mark. This runs even when no participant has a decision yet.
+    // 1. Delete existing records ONLY for the submitted participants so a
+    //    facilitator saving their group never wipes another group's marks.
     await db.execute({
-      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ?`,
-      args: [sessionId, date],
+      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id IN (${ph})`,
+      args: [sessionId, date, ...submittedIds],
     });
 
     // 2. Batch insert only the records that have a real decision (present/absent).
@@ -118,8 +141,14 @@ export async function GET(req) {
 
     const session = await getSession();
 
-    // Facilitator scope: assigned-groups facilitators only see attendance for
-    // participants in their groups.
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get("session_id");
+    const programId = searchParams.get("program_id");
+    const participantId = searchParams.get("participant_id");
+    const summary = searchParams.get("summary") === "true";
+
+    // Facilitator scope: facilitators only see attendance for participants in
+    // the v2_teams where they are the handler.
     let facGroupFilter = null;
     let facGroupArgs = [];
     if (session?.role === "facilitator" && programId) {
@@ -129,24 +158,18 @@ export async function GET(req) {
         1,
       );
       if (facError) return facError;
-      const scope = await getFacilitatorParticipantScope(programId, session.cid);
-      if (scope.scope === "groups") {
-        if (scope.groupNames.length === 0) {
+      const scope = await getFacilitatorTeamScope(programId, session.cid);
+      if (scope.scope !== "all") {
+        if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, attendance: [] });
         }
         facGroupFilter =
-          "a.participant_id IN (SELECT p.user_id::text FROM v2_participants p JOIN contacts c ON p.email = c.email WHERE UPPER(TRIM(c.group_name)) IN (" +
-          scope.groupNames.map(() => "?").join(",") +
+          "participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
+          scope.teamIds.map(() => "?").join(",") +
           "))";
-        facGroupArgs = scope.groupNames.map((n) => n.toUpperCase());
+        facGroupArgs = scope.teamIds;
       }
     }
-
-    const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get("session_id");
-    const programId = searchParams.get("program_id");
-    const participantId = searchParams.get("participant_id");
-    const summary = searchParams.get("summary") === "true";
 
     // ── Summary mode: return attendance rates per participant ──
     if (summary && programId) {
@@ -154,7 +177,7 @@ export async function GET(req) {
         sql: `
           SELECT
             a.participant_id,
-            p.name as participant_name,
+            c.name as participant_name,
             COUNT(*) as total_sessions,
             SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_count,
             SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_count,
@@ -164,12 +187,12 @@ export async function GET(req) {
               (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / NULLIF(COUNT(*), 0)) * 100
             , 1) as attendance_rate
           FROM v2_attendance a
-          LEFT JOIN v2_participants p ON a.participant_id::text = p.user_id::text
-          WHERE a.program_id = ? AND ${facGroupFilter ? facGroupFilter.replace(/^a\./, "") : "1=1"}
-          GROUP BY a.participant_id, p.name
+          LEFT JOIN contacts c ON a.participant_id::text = c.cid
+          WHERE a.program_id = ? AND ${facGroupFilter ? facGroupFilter : "1=1"}
+          GROUP BY a.participant_id, c.name
           ORDER BY attendance_rate DESC
         `,
-        args: [programId],
+        args: [programId, ...facGroupArgs],
       });
 
       return NextResponse.json({
@@ -178,7 +201,7 @@ export async function GET(req) {
       });
     }
 
-    let sql = "SELECT a.*, p.name as participant_name FROM v2_attendance a LEFT JOIN v2_participants p ON a.participant_id::text = p.user_id::text WHERE 1=1";
+    let sql = "SELECT a.*, c.name as participant_name FROM v2_attendance a LEFT JOIN contacts c ON a.participant_id::text = c.cid WHERE 1=1";
     const args = [];
 
     if (sessionId) {
