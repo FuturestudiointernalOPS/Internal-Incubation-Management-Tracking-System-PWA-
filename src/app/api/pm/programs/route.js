@@ -100,11 +100,13 @@ export async function GET(req) {
              SELECT CAST(vp.program_id AS TEXT) AS program_id,
                     LOWER(COALESCE(vp.email, vp.user_id, '')) AS dedupe_key
              FROM v2_participants vp
+             WHERE LOWER(COALESCE(vp.status, '')) = 'active'
              UNION
              SELECT CAST(pp.program_id AS TEXT) AS program_id,
                     LOWER(COALESCE(c.email, pp.participant_id, '')) AS dedupe_key
              FROM participant_programs pp
              LEFT JOIN contacts c ON pp.participant_id = c.cid
+             WHERE LOWER(COALESCE(c.status, '')) = 'active'
            ) t GROUP BY program_id`,
         ),
         db.execute(

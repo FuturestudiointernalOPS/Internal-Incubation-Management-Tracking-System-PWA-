@@ -298,12 +298,15 @@ export async function GET(req) {
     // --- MERGE PARTICIPANTS (always) ---
     // Sources: v2_participants (manual registry), contacts by program/group,
     // and contacts enrolled via participant_programs (form approvals).
-    // Dedupe by lowercase email so one contact = one participant row.
+    // Only ACTIVATED members appear on the program (status 'active' — i.e.
+    // approved AND account activated). Deactivated members (inactive) and
+    // pending applicants are intentionally excluded. Dedupe by lowercase email.
     const allParticipantRows = [...parRes.rows, ...contRes.rows, ...enrRes.rows];
     const mergedParticipants = Array.from(
       new Map(
         allParticipantRows
           .filter((p) => p.email)
+          .filter((p) => String(p.status || "").toLowerCase() === "active")
           .map((p) => [p.email.toLowerCase(), p]),
       ).values(),
     );
