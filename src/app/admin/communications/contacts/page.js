@@ -115,6 +115,10 @@ function ContactsPageContent() {
   const [notification, setNotification] = useState(null);
   const [statusFilter, setStatusFilter] = useState("All"); // All, Active, Inactive, Archived
 
+  // Pagination
+  const PAGE_SIZE = 50;
+  const [currentPage, setCurrentPage] = useState(1);
+
   useEffect(() => {
     if (roleParam) {
       const normalized =
@@ -438,6 +442,9 @@ function ContactsPageContent() {
     setCopiedGroup(groupName);
     setTimeout(() => setCopiedGroup(null), 2000);
   };
+
+  // Reset page when any filter changes
+  useEffect(() => { setCurrentPage(1); }, [search, statusFilter, selectedGroup, selectedTeamTab]);
 
   const filtered = contacts.filter((c) => {
     const lowerSearch = search.toLowerCase();
@@ -771,6 +778,13 @@ function ContactsPageContent() {
               </div>
             )}
 
+            {/* Pagination math */}
+            {(() => {
+              const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+              const safePage = Math.min(currentPage, totalPages);
+              const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+              return (
+                <>
             {loading ? (
               <TableSkeleton rows={8} />
             ) : (
@@ -784,7 +798,7 @@ function ContactsPageContent() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filtered.map((c) => (
+                    {paginated.map((c) => (
                       <tr key={c.cid} className="group">
                         <td>
                           <div className="flex flex-col">
@@ -905,7 +919,7 @@ function ContactsPageContent() {
                         </td>
                       </tr>
                     ))}
-                    {filtered.length === 0 && (
+                    {paginated.length === 0 && (
                       <tr>
                         <td colSpan={3} className="py-14 text-center">
                           <div className="flex flex-col items-center gap-3">
@@ -934,6 +948,63 @@ function ContactsPageContent() {
                 </table>
               </div>
             )}
+
+            {/* Pagination bar */}
+            {!loading && totalPages > 1 && (
+              <div className="flex items-center justify-between gap-4 pt-2">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                  {t("crm.contacts.pageOf", { page: safePage, total: totalPages })}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage === 1}
+                    className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    {t("common.previous")}
+                  </button>
+
+                  {/* Page number pills */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+                      .reduce((acc, p, idx, arr) => {
+                        if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx) =>
+                        p === "..." ? (
+                          <span key={`ellipsis-${idx}`} className="px-1 text-[10px] text-[var(--text-secondary)]">{p}</span>
+                        ) : (
+                          <button
+                            key={p}
+                            onClick={() => setCurrentPage(p)}
+                            className={`w-8 h-8 rounded-lg text-[10px] font-black transition-all ${
+                              p === safePage
+                                ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20"
+                                : "border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        )
+                      )}
+                  </div>
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage === totalPages}
+                    className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  >
+                    {t("common.next")}
+                  </button>
+                </div>
+              </div>
+            )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>

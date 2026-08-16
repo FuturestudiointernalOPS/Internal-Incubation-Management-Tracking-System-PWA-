@@ -191,7 +191,8 @@
       "updated": "Updated",
       "bulkAssignmentFailed": "Bulk assignment failed.",
       "showingCount": "{count} Contacts",
-      "noContactsFound": "No contacts match your search or filters."
+      "noContactsFound": "No contacts match your search or filters.",
+      "pageOf": "Page {page} of {total}"
     },
     "duplicates": {
       "crm": "CRM",
