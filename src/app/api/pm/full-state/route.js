@@ -41,25 +41,28 @@ export async function GET(req) {
         args: [id],
       },
       {
-        name: "participants_v2",
-        sql: `SELECT CAST(id AS TEXT) as id, user_id, program_id, name, email, phone, screening_status, status, created_at, 'MANUAL' as group_name, 'manual' as source, v2_team_id FROM v2_participants WHERE program_id = ? AND (status IS NULL OR status != 'archived')`,
-        args: [id],
-      },
-      {
-        name: "participants_contacts",
-        sql: `SELECT CAST(cid AS TEXT) as id, program_id, name, email, phone, 'approved' as screening_status, status, created_at, group_name, 'group' as source, v2_team_id FROM contacts WHERE program_id IS NOT NULL AND program_id != '' AND status != 'archived' AND (program_id = ? OR program_id LIKE ? OR UPPER(TRIM(group_name)) IN (SELECT UPPER(TRIM(name)) FROM families WHERE program_id = ?))`,
-        args: [id, `%${id}%`, id],
-      },
-      {
-        // People enrolled through form-run approvals (and re-linked identities)
-        // live in participant_programs — the junction of record. Without this
-        // source, form-enrolled participants never appear on the program.
-        name: "participants_enrolled",
-        sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone, 'approved' as screening_status, c.status, c.created_at, c.group_name, 'enrolled' as source, c.v2_team_id
+        // PARTICIPANTS = real participant_programs membership + active account
+        // + NOT a facilitator of the same program + not deleted/archived.
+        // v2_participants and contacts-by-group are intake/history only and are
+        // intentionally NOT treated as operational participant membership.
+        name: "participants",
+        sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone,
+                     'approved' as screening_status, c.status, c.created_at, c.group_name,
+                     'enrolled' as source, c.v2_team_id
               FROM participant_programs pp
               JOIN contacts c ON pp.participant_id = c.cid
-              WHERE CAST(pp.program_id AS TEXT) = ? AND c.deleted = 0 AND c.deleted_at IS NULL`,
-        args: [String(id)],
+              WHERE CAST(pp.program_id AS TEXT) = ?
+                AND c.deleted = 0
+                AND c.deleted_at IS NULL
+                AND c.archived_at IS NULL
+                AND LOWER(COALESCE(c.status, '')) = 'active'
+                AND NOT EXISTS (
+                  SELECT 1 FROM v2_program_staff ps
+                  WHERE CAST(ps.program_id AS TEXT) = ?
+                    AND ps.role = 'facilitator'
+                    AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+                )`,
+        args: [String(id), String(id)],
       },
       {
         name: "teams",
@@ -143,9 +146,7 @@ export async function GET(req) {
 
     const [
       progRes,
-      parRes,
-      contRes,
-      enrRes,
+      participantsRes,
       teamRes,
       sesRes,
       staffRes,
@@ -296,12 +297,9 @@ export async function GET(req) {
     }
 
     // --- MERGE PARTICIPANTS (always) ---
-    // Sources: v2_participants (manual registry), contacts by program/group,
-    // and contacts enrolled via participant_programs (form approvals).
-    // Only ACTIVATED members appear on the program (status 'active' — i.e.
-    // approved AND account activated). Deactivated members (inactive) and
-    // pending applicants are intentionally excluded. Dedupe by lowercase email.
-    const allParticipantRows = [...parRes.rows, ...contRes.rows, ...enrRes.rows];
+    // Single source: participant_programs (real membership) + active account
+    // + not facilitator + not deleted/archived. Dedupe by lowercase email.
+    const allParticipantRows = participantsRes.rows;
     const mergedParticipants = Array.from(
       new Map(
         allParticipantRows
