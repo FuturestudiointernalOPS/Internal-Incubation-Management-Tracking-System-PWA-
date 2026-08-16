@@ -782,6 +782,7 @@
       "messageSentCount": "{count} sent successfully",
       "messageSkippedCount": "{count} skipped",
       "messageFailedCount": "{count} failed",
+      "messageAlreadySentCount": "{count} already sent",
       "messageSubjectBodyRequired": "Subject and message are required",
       "messageSendFailed": "Send failed",
       "aiPersonalized": "AI personalized",

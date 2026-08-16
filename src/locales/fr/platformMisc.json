@@ -776,6 +776,7 @@
       "messageSentCount": "{count} envoyés avec succès",
       "messageSkippedCount": "{count} ignorés",
       "messageFailedCount": "{count} échecs",
+      "messageAlreadySentCount": "{count} déjà envoyés",
       "messageSubjectBodyRequired": "L'objet et le message sont requis",
       "messageSendFailed": "Échec de l'envoi",
       "aiPersonalized": "Personnalisé par l'IA",
