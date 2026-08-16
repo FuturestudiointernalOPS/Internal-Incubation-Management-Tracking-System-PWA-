@@ -126,7 +126,7 @@ export default function FacilitatorProgram({ params }) {
           session_id: sessionId,
           program_id: id,
           participant_id: p.id || p.user_id,
-          status: attendance[`${sessionId}:${p.id || p.user_id}`] || "present",
+          status: attendance[`${sessionId}:${p.id || p.user_id}`] || "",
           date: new Date().toISOString().split("T")[0],
         }))
         .filter((r) => r.participant_id);
@@ -284,16 +284,15 @@ export default function FacilitatorProgram({ params }) {
                           {p.name}
                         </span>
                         <select
-                          value={attendance[key] || "present"}
+                          value={attendance[key] || ""}
                           onChange={(e) =>
                             setAttendance({ ...attendance, [key]: e.target.value })
                           }
                           className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[8px] font-bold uppercase outline-none cursor-pointer"
                         >
-                          <option value="present">Present</option>
-                          <option value="absent">Absent</option>
-                          <option value="late">Late</option>
-                          <option value="excused">Excused</option>
+                          <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
+                          <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
+                          <option value="absent">{t("pmMisc.workspace.attendanceAbsent")}</option>
                         </select>
                       </div>
                     );

@@ -22,7 +22,7 @@ export async function POST(req) {
           id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
           session_id TEXT NOT NULL,
           participant_id TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'present',
+          status TEXT NOT NULL DEFAULT 'neutral',
           created_at TIMESTAMPTZ DEFAULT NOW()
         )`,
         args: [],
@@ -35,7 +35,9 @@ export async function POST(req) {
 
     const body = await req.json();
     const records = Array.isArray(body) ? body : [body];
-    const valid = records.filter((r) => r.session_id && r.participant_id);
+    // Only "present" and "absent" are real decisions. A participant left on
+    // "Select" (empty status) means no decision yet and must NOT be stored.
+    const valid = records.filter((r) => r.session_id && r.participant_id && r.status);
 
     // Server-side enforcement: facilitators must be assigned to the program
     // and hold attendance.record at level >= 1.
@@ -56,37 +58,40 @@ export async function POST(req) {
       if (facError) return facError;
     }
 
-    if (valid.length === 0) {
+    if (records.length === 0) {
       return NextResponse.json({ success: true, upserted: 0 });
     }
 
-    const sessionId = valid[0].session_id;
-    const date = valid[0].date || new Date().toISOString().split("T")[0];
+    const sessionId = records[0].session_id;
+    const date = records[0].date || new Date().toISOString().split("T")[0];
 
-    // 1. Batch delete all existing records for this session+date
-    const delPlaceholders = valid.map(() => "?").join(",");
+    // 1. Delete ALL existing records for this session+date so participants
+    //    left on "Select" (no status) are cleared rather than keeping a stale
+    //    previous mark. This runs even when no participant has a decision yet.
     await db.execute({
-      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id IN (${delPlaceholders})`,
-      args: [sessionId, date, ...valid.map((r) => r.participant_id)],
+      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ?`,
+      args: [sessionId, date],
     });
 
-    // 2. Batch insert all records in one multi-row VALUES query
-    const valueTuples = valid.map(() => "(gen_random_uuid(), ?, ?, ?, ?, ?)").join(", ");
-    const insertArgs = [];
-    for (const r of valid) {
-      insertArgs.push(
-        r.session_id,
-        r.program_id || null,
-        r.participant_id,
-        r.status || "present",
-        date
-      );
+    // 2. Batch insert only the records that have a real decision (present/absent).
+    if (valid.length > 0) {
+      const valueTuples = valid.map(() => "(gen_random_uuid(), ?, ?, ?, ?, ?)").join(", ");
+      const insertArgs = [];
+      for (const r of valid) {
+        insertArgs.push(
+          r.session_id,
+          r.program_id || null,
+          r.participant_id,
+          r.status,
+          date
+        );
+      }
+      await db.execute({
+        sql: `INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date)
+              VALUES ${valueTuples}`,
+        args: insertArgs,
+      });
     }
-    await db.execute({
-      sql: `INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date)
-            VALUES ${valueTuples}`,
-      args: insertArgs,
-    });
 
     return NextResponse.json({ success: true, upserted: valid.length });
   } catch (e) {

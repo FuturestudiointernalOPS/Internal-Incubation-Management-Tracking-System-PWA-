@@ -4615,7 +4615,7 @@ function ProgramWorkspace() {
 
               <div className="space-y-3">
                 {participants.filter(p => p.status !== 'archived').map((p) => {
-                  const status = attendanceRecords[p.id] || "present";
+                  const status = attendanceRecords[p.id] || "";
                   return (
                     <div
                       key={p.id}
@@ -4642,19 +4642,16 @@ function ProgramWorkspace() {
                             [p.id]: e.target.value,
                           }))
                         }
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${status === "present"
+                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border outline-none ${!status
+                          ? "bg-[var(--border-primary)] text-[var(--text-secondary)] border-[var(--border-primary)]"
+                          : status === "present"
                           ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-                          : status === "absent"
-                            ? "bg-rose-500/10 text-rose-500 border-rose-500/30"
-                            : status === "excused"
-                              ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                              : "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                          : "bg-rose-500/10 text-rose-500 border-rose-500/30"
                           }`}
                       >
+                        <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
                         <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
                         <option value="absent">{t("pmMisc.workspace.attendanceAbsent")}</option>
-                        <option value="excused">{t("pmMisc.workspace.attendanceExcused")}</option>
-                        <option value="late">{t("pmMisc.workspace.attendanceLate")}</option>
                       </select>
                     </div>
                   );
@@ -4685,7 +4682,7 @@ function ProgramWorkspace() {
                           session_id: selectedSessionForAttendance.id,
                           program_id: id,
                           participant_id: pid,
-                          status: attendanceRecords[pid] || "present",
+                          status: attendanceRecords[pid] || "",
                           date: today,
                         };
                       });
