@@ -165,6 +165,7 @@
       "selectAll": "Tout sélectionner",
       "clear": "Effacer",
       "unknown": "Inconnu",
+      "pendingApproval": "Approbation en attente",
       "noParticipantsFound": "Aucun participant trouvé.",
       "processing": "Traitement...",
       "assignToProgram": "Affecter {count} participant(s) au programme",
@@ -191,7 +192,13 @@
       "bulkAssignmentFailed": "Échec de l'affectation en masse.",
       "showingCount": "{count} contacts",
       "noContactsFound": "Aucun contact ne correspond à votre recherche ou à vos filtres.",
-      "pageOf": "Page {page} sur {total}"
+      "pageOf": "Page {page} sur {total}",
+      "resendActivation": "Renvoyer l'e-mail d'activation",
+      "sendLoginEmail": "Envoyer l'e-mail de connexion / réinitialisation",
+      "confirmResendActivation": "Renvoyer l'e-mail d'activation à ce contact ?",
+      "activationSent": "E-mail d'activation envoyé",
+      "confirmSendReset": "Envoyer l'e-mail de réinitialisation du mot de passe (connexion) à ce contact ?",
+      "resetSent": "E-mail de réinitialisation du mot de passe envoyé"
     },
     "duplicates": {
       "crm": "CRM",
