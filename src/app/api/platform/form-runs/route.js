@@ -1061,6 +1061,93 @@ export async function POST(req) {
       }
     }
 
+    // ─── MANUAL ADD ACTION (super admin injects a test respondent) ───
+    // Lets an admin add a person directly into a run so they can test the
+    // full response flow (scoring, AI evaluation, review, activation email)
+    // without waiting for a real applicant.
+    if (action === "manual_add") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { run_id, name, email, data, status: subStatus } = body;
+      if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });
+
+      const run = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+      if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+
+      const cleanName = (name || "").trim();
+      const cleanEmail = (email || "").trim().toLowerCase();
+
+      // Resolve/ensure a real contact so the respondent's name + email flow
+      // through scoring, review, and the approval/activation email pipeline.
+      let submitterId = null;
+      if (cleanEmail) {
+        const existing = await db.execute({
+          sql: "SELECT cid, name FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+          args: [cleanEmail],
+        });
+        if (existing.rows.length > 0) {
+          submitterId = existing.rows[0].cid;
+          if (cleanName && !existing.rows[0].name) {
+            await db.execute({ sql: "UPDATE contacts SET name = ? WHERE cid = ?", args: [cleanName, submitterId] });
+          }
+        } else {
+          submitterId = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
+          await db.execute({
+            sql: "INSERT INTO contacts (cid, name, email, role, status) VALUES (?, ?, ?, 'participant', 'approved')",
+            args: [submitterId, cleanName || cleanEmail, cleanEmail],
+          });
+        }
+      } else {
+        submitterId = "manual_" + Math.random().toString(36).substring(2, 12);
+      }
+
+      const newStatus = subStatus || "submitted";
+
+      let finalData = { ...(data || {}) };
+      let shouldEvaluate = false;
+      if (newStatus === "submitted") {
+        const scores = await calculateSubmissionScores(run_id, finalData);
+        if (scores) finalData._scores = scores;
+        try {
+          const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
+          const runInfo = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
+        } catch (_) {}
+      }
+
+      const result = await db.execute({
+        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
+              VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END) RETURNING *`,
+        args: [parseInt(run_id), submitterId, cleanName || null, newStatus, JSON.stringify(finalData), newStatus],
+      });
+      logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, cleanName || null);
+
+      if (newStatus !== "draft") {
+        const runRow = run.rows[0];
+        let formRow = null;
+        if (runRow) {
+          const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+          formRow = f.rows[0] || null;
+        }
+        onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
+        if (shouldEvaluate) {
+          const subId = result.rows[0].id;
+          try {
+            const { evaluateSubmission } = await import("@/lib/platform/ai/evaluate");
+            await evaluateSubmission(subId);
+            logTimeline(subId, "ai_evaluated", "system", "System", {});
+          } catch (e) {
+            console.error("[form-runs] AI eval failed for manual submission", subId, ":", e.message);
+            logTimeline(subId, "ai_eval_failed", "system", "System", { error: e.message });
+          }
+        }
+      }
+
+      return NextResponse.json({ success: true, submission: result.rows[0] });
+    }
+
     // ─── REVIEW ACTION ───
     if (action === "review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });

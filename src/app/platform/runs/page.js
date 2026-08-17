@@ -864,6 +864,12 @@ export default function FormRunsPage() {
   const [messageSummary, setMessageSummary] = useState(null); // { title, sent, skipped }
   const [aiPersonalizing, setAiPersonalizing] = useState(false);
 
+  // Manual add respondent (super admin injects a test person into a run)
+  const [showManualAdd, setShowManualAdd] = useState(false);
+  const [manualAddName, setManualAddName] = useState("");
+  const [manualAddEmail, setManualAddEmail] = useState("");
+  const [manualAdding, setManualAdding] = useState(false);
+
   // Export options (format + scope)
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
@@ -1549,6 +1555,47 @@ export default function FormRunsPage() {
     setShowMessageComposer(true);
   };
 
+  // ─── Manual add respondent (super admin injects a test person) ───
+  const openManualAdd = () => {
+    setManualAddName("");
+    setManualAddEmail("");
+    setBulkMenuOpen(false);
+    setShowManualAdd(true);
+  };
+
+  const submitManualAdd = async () => {
+    if (!selectedRun || manualAdding) return;
+    if (!manualAddName.trim() && !manualAddEmail.trim()) {
+      notify(t("platformMisc.runs.manualAddNameOrEmailRequired"));
+      return;
+    }
+    setManualAdding(true);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=manual_add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          run_id: selectedRun.id,
+          name: manualAddName.trim(),
+          email: manualAddEmail.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("platformMisc.runs.manualAddSuccess"));
+        setShowManualAdd(false);
+        setManualAddName("");
+        setManualAddEmail("");
+        if (selectedRun) await openRun(selectedRun, { keepTab: true });
+      } else {
+        notify(data.error || t("platformMisc.runs.manualAddFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.manualAddFailed"));
+    }
+    setManualAdding(false);
+  };
+
   const personalizeMessage = async () => {
     setAiPersonalizing(true);
     try {
@@ -1838,6 +1885,7 @@ export default function FormRunsPage() {
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
             <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.reactivate")}</button>
           )}
+          <button onClick={openManualAdd} className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[9px] font-black uppercase hover:bg-blue-500/20 flex items-center gap-1"><Plus className="w-3 h-3" /> {t("platformMisc.runs.addRespondent")}</button>
           {selectedRun.status === "active" && (
             <div className="ml-auto flex items-center gap-2">
               {evalProgress?.running ? (
@@ -3652,6 +3700,31 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <Sparkles className="w-3 h-3" /> {t("platformMisc.runs.reevaluate")}
                 </button>
                 <button onClick={handleReview} disabled={saving} className="flex-1 btn btn-primary">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.submitReview")}</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── MANUAL ADD RESPONDENT MODAL ─── */}
+        {showManualAdd && (
+          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowManualAdd(false)}>
+            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addRespondent")}</h3>
+                <button onClick={() => setShowManualAdd(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
+              </div>
+              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.addRespondentDesc")}</p>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddName")}</label>
+                <input value={manualAddName} onChange={(e) => setManualAddName(e.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddEmail")}</label>
+                <input type="email" value={manualAddEmail} onChange={(e) => setManualAddEmail(e.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setShowManualAdd(false)} disabled={manualAdding} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
+                <button onClick={submitManualAdd} disabled={manualAdding} className="flex-1 btn btn-primary">{manualAdding ? t("platformMisc.runs.manualAdding") : t("platformMisc.runs.addRespondent")}</button>
               </div>
             </div>
           </div>
