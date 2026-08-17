@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * UNIFIED DASHBOARD API — OPTIMIZED (parallel queries)
@@ -36,11 +36,22 @@ export async function GET(req) {
 
     const authError = await requireAuth();
     if (authError) return authError;
-    const userId = searchParams.get("user_id");
-    const role = searchParams.get("role");
+
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requestedUserId = searchParams.get("user_id");
+    const requestedRole = searchParams.get("role");
     const year = parseInt(searchParams.get("year")) || new Date().getFullYear();
-    const month =
-      parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
+    const month = parseInt(searchParams.get("month")) || new Date().getMonth() + 1;
+
+    // SECURITY PATCH: Prevent IDOR by enforcing session identity.
+    // Only allow super_admin or admin to view other users' dashboards.
+    const isSessionAdmin = session.role === "super_admin" || session.role === "admin";
+    const userId = (isSessionAdmin && requestedUserId) ? requestedUserId : session.cid;
+    const role = (isSessionAdmin && requestedRole) ? requestedRole : session.role;
 
     if (!userId) {
       return NextResponse.json(
