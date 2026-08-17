@@ -39,6 +39,8 @@ import { TableSkeleton } from "@/components/ui/Skeleton";
 const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
   Active: "status.active",
+  Approved: "crm.contacts.statusApproved",
+  Pending: "crm.contacts.pendingApproval",
   Inactive: "crm.contacts.filterInactive",
   Archived: "status.archived",
 };
@@ -197,6 +199,40 @@ function ContactsPageContent() {
     } catch (e) {
       console.error(e);
     }
+  };
+
+  const handleResendActivation = async (c) => {
+    if (!confirm(t("crm.contacts.confirmResendActivation") || `Resend activation email to ${c.name}?`)) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/auth/resend-invite/${c.cid}`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ type: "success", text: t("crm.contacts.activationSent") || "Activation email sent" });
+      } else {
+        setNotification({ type: "error", text: data.error || "Failed to send email" });
+      }
+    } catch (e) {
+      setNotification({ type: "error", text: "Error sending email" });
+    }
+    setIsProcessing(false);
+  };
+
+  const handleSendPasswordReset = async (c) => {
+    if (!confirm(t("crm.contacts.confirmSendReset") || `Send password reset (login) email to ${c.name}?`)) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(`/api/auth/reset-password/${c.cid}`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setNotification({ type: "success", text: t("crm.contacts.resetSent") || "Password reset email sent" });
+      } else {
+        setNotification({ type: "error", text: data.error || "Failed to send email" });
+      }
+    } catch (e) {
+      setNotification({ type: "error", text: "Error sending email" });
+    }
+    setIsProcessing(false);
   };
 
   const handleSaveContact = async () => {
@@ -461,12 +497,15 @@ function ContactsPageContent() {
 
     let matchesStatus = true;
     if (statusFilter === "Active")
-      matchesStatus = c.status === "active" || c.status === "approved";
+      matchesStatus = c.status === "active";
+    else if (statusFilter === "Approved")
+      matchesStatus = c.status === "approved";
+    else if (statusFilter === "Pending")
+      matchesStatus = c.status === "pending";
     else if (statusFilter === "Inactive")
       matchesStatus = c.status === "inactive";
     else if (statusFilter === "All")
-      // Applicants (pending) live in Runs — the Contacts page lists members only.
-      matchesStatus = c.status !== "pending";
+      matchesStatus = true;
     // "Archived" is filtered server-side
 
     return (
@@ -732,16 +771,18 @@ function ContactsPageContent() {
                   )}
                 </div>
 
-                <div className="flex flex-wrap bg-secondary p-1 rounded-xl border border-[var(--border-primary)] shrink-0">
-                  {["All", "Active", "Inactive", "Archived"].map((status) => (
-                    <button
-                      key={status}
-                      onClick={() => setStatusFilter(status)}
-                      className={`px-3 sm:px-6 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${statusFilter === status ? "bg-[var(--brand-orange)] text-black shadow-lg shadow-orange-500/20" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                    >
-                      {t(STATUS_FILTER_LABELS[status] || "") || status}
-                    </button>
-                  ))}
+                <div className="shrink-0">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] uppercase tracking-widest"
+                  >
+                    {["All", "Active", "Approved", "Pending", "Inactive", "Archived"].map((status) => (
+                      <option key={status} value={status}>
+                        {t(STATUS_FILTER_LABELS[status] || "") || status}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -875,6 +916,25 @@ function ContactsPageContent() {
                                     <UserCheck className="w-4 h-4" />
                                   )}
                                 </button>
+                                {c.status === "active" ? (
+                                  <button
+                                    onClick={() => handleSendPasswordReset(c)}
+                                    title={t("crm.contacts.sendLoginEmail") || "Send Login / Reset Password Email"}
+                                    disabled={isProcessing}
+                                    className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500 transition-all"
+                                  >
+                                    <Key className="w-4 h-4" />
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleResendActivation(c)}
+                                    title={t("crm.contacts.resendActivation") || "Resend Activation Email (48h link)"}
+                                    disabled={isProcessing}
+                                    className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500 transition-all"
+                                  >
+                                    <Mail className="w-4 h-4" />
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => {
                                     setForm(c);

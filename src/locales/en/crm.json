@@ -192,7 +192,13 @@
       "bulkAssignmentFailed": "Bulk assignment failed.",
       "showingCount": "{count} Contacts",
       "noContactsFound": "No contacts match your search or filters.",
-      "pageOf": "Page {page} of {total}"
+      "pageOf": "Page {page} of {total}",
+      "resendActivation": "Resend Activation Email",
+      "sendLoginEmail": "Send Login / Reset Password Email",
+      "confirmResendActivation": "Resend activation email to this contact?",
+      "activationSent": "Activation email sent",
+      "confirmSendReset": "Send password reset (login) email to this contact?",
+      "resetSent": "Password reset email sent"
     },
     "duplicates": {
       "crm": "CRM",
