@@ -1,13 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import { parsePhoneNumber, getCountryCallingCode } from "libphonenumber-js";
-import { getCountryOptions } from "@/lib/countries";
+import { parsePhoneNumber } from "libphonenumber-js";
+import { getCountryOptions, getCountryDial } from "@/lib/countries";
 
 /**
  * Standard phone input: country dial-code selector + national number.
  *
  * `value` and `onChange` use E.164 strings, e.g. "+2349012345678".
+ *
+ * Important: partial/incomplete values (e.g. while the user is typing) are not
+ * yet valid E.164, so `parsePhoneNumber` returns undefined for them. We must not
+ * fall back to "all digits" in that case, because the E.164 digits include the
+ * country dial code and would corrupt the national field.
  */
 export default function AppPhoneInput({
   value = "",
@@ -21,30 +26,53 @@ export default function AppPhoneInput({
 }) {
   const countries = useMemo(() => getCountryOptions(), []);
 
-  let country = defaultCountry;
-  let national = "";
+  function resolvePhone(rawValue) {
+    if (!rawValue) return { country: defaultCountry, national: "" };
+    const raw = String(rawValue).trim();
 
-  if (value) {
-    const parsed = parsePhoneNumber(String(value));
+    const parsed = parsePhoneNumber(raw);
     if (parsed) {
-      country = parsed.country || defaultCountry;
-      national = parsed.nationalNumber || "";
-    } else {
-      // Legacy plain value without a valid country context.
-      national = String(value).replace(/[^\d]/g, "");
+      return {
+        country: parsed.country || defaultCountry,
+        national: parsed.nationalNumber || "",
+      };
     }
+
+    const digits = raw.replace(/\D/g, "");
+    if (!digits) return { country: defaultCountry, national: "" };
+
+    // E.164-ish partial value: strip the dial prefix by matching the country list.
+    if (raw.startsWith("+")) {
+      for (const c of countries) {
+        const dialDigits = c.dial.replace(/\D/g, "");
+        if (dialDigits && digits.startsWith(dialDigits)) {
+          return { country: c.iso, national: digits.slice(dialDigits.length) };
+        }
+      }
+      // Unknown dial prefix — keep the default country and the raw digits.
+      return { country: defaultCountry, national: digits };
+    }
+
+    // Legacy plain national number (no country context).
+    return { country: defaultCountry, national: digits };
   }
 
+  const { country, national } = resolvePhone(value);
+
   const emit = (iso, nationalDigits) => {
-    const digits = String(nationalDigits || "").replace(/\D/g, "");
+    let digits = String(nationalDigits || "").replace(/\D/g, "");
+    const dial = getCountryDial(iso);
+    const dialDigits = dial.replace(/\D/g, "");
+
+    // Guard against double-prefixing the dial code into the number.
+    if (dialDigits && digits.startsWith(dialDigits)) {
+      digits = digits.slice(dialDigits.length);
+    }
+
     if (!digits) {
       onChange?.("");
       return;
     }
-    let dial = "";
-    try {
-      dial = `+${getCountryCallingCode(iso)}`;
-    } catch (_) {}
 
     const candidate = `${dial}${digits}`;
     const parsed = parsePhoneNumber(candidate, iso);
