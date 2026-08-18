@@ -6,6 +6,7 @@ import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { addContactToGroup } from "@/lib/contact-groups";
+import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = normalizeEmail(email);
+
+    if (!isValidEmail(cleanEmail)) {
+      return NextResponse.json(
+        { success: false, error: "Invalid email address" },
+        { status: 400 },
+      );
+    }
 
     // Rate limit: max 5 invites/resends per recipient email per hour
     const emailLimited = enforceRateLimit(req, `invite:email:${cleanEmail}`, {
