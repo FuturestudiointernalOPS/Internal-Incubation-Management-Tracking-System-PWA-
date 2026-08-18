@@ -176,25 +176,27 @@ export default function LoginPage() {
                                 ? "/finance"
                                 : "/participant";
 
-          // Profile completion gate: if the profile is incomplete, send the
-          // user to their profile page before the main dashboard.
-          try {
-            const profRes = await fetch("/api/profile");
-            const profData = await profRes.json();
-            if (profData.success && profData.isComplete === false) {
-              const r = data.user.role;
-              target =
-                r === "super_admin" || r === "staff" || r === "admin"
-                  ? "/admin/profile"
-                  : r === "program_manager"
-                    ? "/pm/profile"
-                    : r === "teacher"
-                      ? "/teacher/profile"
-                      : r === "developer"
-                        ? "/developer/profile"
-                        : "/participant/profile";
-            }
-          } catch (_) {}
+          // Profile completion gate: only enforce on the FIRST login. After
+          // that the user is not repeatedly redirected, even if they skip it.
+          if (data.user.is_first_login) {
+            try {
+              const profRes = await fetch("/api/profile");
+              const profData = await profRes.json();
+              if (profData.success && profData.isComplete === false) {
+                const r = data.user.role;
+                target =
+                  r === "super_admin" || r === "staff" || r === "admin"
+                    ? "/admin/profile"
+                    : r === "program_manager"
+                      ? "/pm/profile"
+                      : r === "teacher"
+                        ? "/teacher/profile"
+                        : r === "developer"
+                          ? "/developer/profile"
+                          : "/participant/profile";
+              }
+            } catch (_) {}
+          }
 
           window.location.href = target;
         }, 800);
