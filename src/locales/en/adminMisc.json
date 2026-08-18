@@ -1182,6 +1182,7 @@
     "newProgram": {
       "dateErrorRequired": "Start Date and End Date are required.",
       "dateErrorOrder": "End Date cannot be earlier than Start Date.",
+      "dateErrorPast": "Start Date cannot be in the past.",
       "syncFailed": "Failed to synchronize personnel and knowledge assets.",
       "uploadFailedFor": "Upload failed for {name}: {error}",
       "attached": "Attached",

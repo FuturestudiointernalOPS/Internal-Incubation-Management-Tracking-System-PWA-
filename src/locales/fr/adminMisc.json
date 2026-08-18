@@ -1182,6 +1182,7 @@
     "newProgram": {
       "dateErrorRequired": "Les dates de début et de fin sont requises.",
       "dateErrorOrder": "La date de fin ne peut pas être antérieure à la date de début.",
+      "dateErrorPast": "La date de début ne peut pas être dans le passé.",
       "syncFailed": "Échec de la synchronisation du personnel et des ressources de connaissances.",
       "uploadFailedFor": "Échec du téléversement pour {name} : {error}",
       "attached": "Joint",

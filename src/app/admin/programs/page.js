@@ -1083,68 +1083,6 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
-              {/* Program Banner */}
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                  {t("adminMisc.programs.programBannerUrl")}
-                </label>
-                <input
-                  type="url"
-                  value={editingProgram?.banner_url || ""}
-                  onChange={(e) =>
-                    setEditingProgram({
-                      ...editingProgram,
-                      banner_url: e.target.value,
-                    })
-                  }
-                  placeholder="https://example.com/banner.jpg"
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    {t?.("admin.registrationWindowStart") || "Registration Start"}
-                  </label>
-                  <input
-                    type="date"
-                    value={(() => {
-                      const rw = editingProgram?.registration_window || "";
-                      const parts = rw.split("|");
-                      return parts[0] || "";
-                    })()}
-                    onChange={(e) => {
-                      const rw = editingProgram?.registration_window || "||||";
-                      const parts = rw.split("|");
-                      parts[0] = e.target.value;
-                      setEditingProgram({ ...editingProgram, registration_window: parts.join("|") });
-                    }}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    {t?.("admin.registrationWindowEnd") || "Registration End"}
-                  </label>
-                  <input
-                    type="date"
-                    value={(() => {
-                      const rw = editingProgram?.registration_window || "";
-                      const parts = rw.split("|");
-                      return parts[1] || "";
-                    })()}
-                    onChange={(e) => {
-                      const rw = editingProgram?.registration_window || "||||";
-                      const parts = rw.split("|");
-                      parts[1] = e.target.value;
-                      setEditingProgram({ ...editingProgram, registration_window: parts.join("|") });
-                    }}
-                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                </div>
-              </div>
-
               {/* Registration Link — the Program-assigned Form Run is the canonical intake point */}
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">

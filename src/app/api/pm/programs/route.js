@@ -244,8 +244,6 @@ export async function POST(req) {
       objectives,
       program_type,
       visibility,
-      participant_limit,
-      registration_window,
       language,
       note_id,
       assigned_pm_id,
@@ -258,7 +256,6 @@ export async function POST(req) {
       kpis,
       expected_outcomes,
       success_metrics,
-      banner_url,
     } = await req.json();
     const id = uuidv4();
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').substring(0, 100) + '-' + id.substring(0, 8);
@@ -267,7 +264,6 @@ export async function POST(req) {
     try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS slug TEXT", args: [] }); } catch(_) {}
     try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS expected_outcomes TEXT", args: [] }); } catch(_) {}
     try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS success_metrics TEXT", args: [] }); } catch(_) {}
-    try { await db.execute({ sql: "ALTER TABLE v2_programs ADD COLUMN IF NOT EXISTS banner_url TEXT", args: [] }); } catch(_) {}
 
     // B6: Check duplicate program name
     const existing = await db.execute({
@@ -281,8 +277,20 @@ export async function POST(req) {
       );
     }
 
+    // Prevent start date in the past
+    if (start_date) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(start_date) < today) {
+        return NextResponse.json(
+          { success: false, error: "Start date cannot be in the past." },
+          { status: 400 },
+        );
+      }
+    }
+
     await db.execute({
-      sql: `INSERT INTO v2_programs (id, name, slug, description, concept_note, vision, objectives, expected_outcomes, success_metrics, banner_url, program_type, visibility, participant_limit, registration_window, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_programs (id, name, slug, description, concept_note, vision, objectives, expected_outcomes, success_metrics, program_type, visibility, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id,
         name,
@@ -293,11 +301,8 @@ export async function POST(req) {
         objectives || null,
         expected_outcomes || null,
         success_metrics || null,
-        banner_url || null,
         program_type || "incubation",
         visibility || "private",
-        participant_limit || 0,
-        registration_window || null,
         language || "en",
         note_id || null,
         assigned_pm_id || null,
@@ -412,11 +417,8 @@ export async function PUT(req) {
       objectives,
       expected_outcomes,
       success_metrics,
-      banner_url,
       program_type,
       visibility,
-      participant_limit,
-      registration_window,
       language,
       note_id,
       assigned_pm_id,
@@ -474,7 +476,7 @@ export async function PUT(req) {
 
     await db.execute({
       sql: `UPDATE v2_programs
-                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, banner_url = ?, program_type = ?, visibility = ?, participant_limit = ?, registration_window = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?, facilitator_default_permissions = ?, facilitator_scope = ?
+                SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, program_type = ?, visibility = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?, facilitator_default_permissions = ?, facilitator_scope = ?
                 WHERE id = ?`,
       args: [
         name,
@@ -484,11 +486,8 @@ export async function PUT(req) {
         objectives || null,
         expected_outcomes || null,
         success_metrics || null,
-        banner_url || null,
         program_type || "incubation",
         visibility || "private",
-        participant_limit || 0,
-        registration_window || null,
         language || "en",
         note_id || null,
         assigned_pm_id || null,
