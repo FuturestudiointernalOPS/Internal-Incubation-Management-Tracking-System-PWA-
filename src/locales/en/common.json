@@ -100,6 +100,7 @@
     "thisWeek": "This Week",
     "moreTasks": "more tasks",
     "operations": "Operations",
+    "weeklyOps": "Weekly Ops",
     "weeklyOpsStatus": "Weekly stand-up & retro status"
   },
   "roles": {
