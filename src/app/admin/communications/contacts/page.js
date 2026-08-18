@@ -13,7 +13,6 @@ import {
   CheckCircle,
   Edit3,
   Shield,
-  Key,
   Send,
   Archive,
   ArrowLeft,
@@ -102,16 +101,6 @@ function ContactsPageContent() {
   // Group invite
   const [showInviteModal, setShowInviteModal] = useState(null); // { name }
   const [inviteForm, setInviteForm] = useState({ name: "", email: "", phone: "", role: "participant" });
-
-  // Group Keys
-  const [showGroupKeysModal, setShowGroupKeysModal] = useState(null);
-  const [groupKeysForm, setGroupKeysForm] = useState({
-    id: "",
-    name: "",
-    shared_email: "",
-    shared_password_read: "",
-    shared_password_edit: "",
-  });
 
   // Feedback
   const [notification, setNotification] = useState(null);
@@ -324,25 +313,6 @@ function ContactsPageContent() {
       }
     } catch (_) {
       setNotification({ type: "error", message: t("crm.contacts.inviteFailed") });
-    } finally {
-      setIsProcessing(false);
-      setTimeout(() => setNotification(null), 3000);
-    }
-  };
-
-  const handleSaveGroupKeys = async () => {
-    setIsProcessing(true);
-    try {
-      const res = await fetch("/api/families", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(groupKeysForm),
-      });
-      if ((await res.json()).success) {
-        setNotification({ type: "success", message: t("crm.contacts.saved") });
-        setShowGroupKeysModal(null);
-        fetchData();
-      }
     } finally {
       setIsProcessing(false);
       setTimeout(() => setNotification(null), 3000);
@@ -704,16 +674,6 @@ function ContactsPageContent() {
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-[var(--brand-orange)]"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setGroupKeysForm({ ...f });
-                              setShowGroupKeysModal(f);
-                            }}
-                            title={t("crm.contacts.accessKeys")}
-                            className="p-2.5 rounded-lg border border-[var(--border-primary)] bg-primary text-slate-500 hover:text-blue-500"
-                          >
-                            <Key className="w-3.5 h-3.5" />
                           </button>
                           <button
                             onClick={() => copyJoinLink(name)}
@@ -1277,61 +1237,6 @@ function ContactsPageContent() {
         </div>
       )}
 
-      {showGroupKeysModal && (
-        <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm">
-          <div className="card w-full max-w-sm space-y-6 border-blue-500/30 max-h-[85vh] overflow-y-auto">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold uppercase">{t("crm.contacts.keyManagement")}</h3>
-              <button onClick={() => setShowGroupKeysModal(null)}>
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="space-y-4 text-left">
-              <input
-                value={groupKeysForm.shared_email}
-                onChange={(e) =>
-                  setGroupKeysForm({
-                    ...groupKeysForm,
-                    shared_email: e.target.value,
-                  })
-                }
-                placeholder={t("crm.contacts.sharedEmail")}
-                className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold outline-none focus:border-blue-500"
-              />
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  value={groupKeysForm.shared_password_read}
-                  onChange={(e) =>
-                    setGroupKeysForm({
-                      ...groupKeysForm,
-                      shared_password_read: e.target.value,
-                    })
-                  }
-                  placeholder={t("crm.contacts.readKey")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-emerald-500 outline-none focus:border-emerald-500"
-                />
-                <input
-                  value={groupKeysForm.shared_password_edit}
-                  onChange={(e) =>
-                    setGroupKeysForm({
-                      ...groupKeysForm,
-                      shared_password_edit: e.target.value,
-                    })
-                  }
-                  placeholder={t("crm.contacts.editKey")}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-blue-500 outline-none focus:border-blue-500"
-                />
-              </div>
-              <button
-                onClick={handleSaveGroupKeys}
-                className="btn btn-primary bg-blue-600 hover:bg-blue-700 w-full py-4 font-bold uppercase"
-              >
-                {t("crm.contacts.syncKeys")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* BULK PROGRAM ASSIGNMENT MODAL */}
       {showBulkProgramModal && (
