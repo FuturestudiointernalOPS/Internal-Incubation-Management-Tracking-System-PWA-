@@ -618,14 +618,20 @@ const FACILITATOR_BYPASS_ROLES = ["super_admin", "staff", "program_manager", "te
 
 /**
  * Returns the facilitator assignment row for (program, user) or null.
+ * Matches by contact cid or email so legacy rows that stored the email
+ * still resolve correctly.
  */
-export async function getProgramFacilitatorAssignment(programId, userCid) {
+export async function getProgramFacilitatorAssignment(programId, userCid, userEmail = null) {
   try {
     await initDb();
-    const res = await db.execute({
-      sql: "SELECT * FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND staff_id = ? AND role = 'facilitator'",
-      args: [String(programId), userCid],
-    });
+    const hasEmail = !!(userEmail && String(userEmail).trim());
+    const sql = hasEmail
+      ? "SELECT * FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?))"
+      : "SELECT * FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND staff_id = ?";
+    const args = hasEmail
+      ? [String(programId), userCid, String(userEmail).trim()]
+      : [String(programId), userCid];
+    const res = await db.execute({ sql, args });
     return res.rows[0] || null;
   } catch {
     return null;
@@ -726,8 +732,10 @@ export async function getFacilitatorTeamScope(programId, facilitatorCid) {
 }
 
 /**
- * Guard: requires the session user to be a facilitator assigned to the program.
- * Super admin / staff / PM / teacher keep their existing access.
+ * Guard: requires the session user to hold a facilitator assignment for the
+ * program. The assignment is the source of truth — the legacy global
+ * 'facilitator' role is no longer checked here. Super admin / staff / PM /
+ * teacher keep their existing bypass access.
  */
 export async function requireProgramFacilitator(programId) {
   try {
@@ -738,12 +746,7 @@ export async function requireProgramFacilitator(programId) {
         { status: 401 },
       );
     if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    if (session.role !== "facilitator")
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
     if (!assignment)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
@@ -760,7 +763,8 @@ export async function requireProgramFacilitator(programId) {
 
 /**
  * Guard: facilitator must be assigned AND have the capability at the required
- * level (individual override > program default). Bypass roles pass through.
+ * level (individual override > program default). Assignment-derived; bypass
+ * roles pass through.
  */
 export async function requireFacilitatorCapability(programId, capability, minLevel = 1) {
   try {
@@ -771,12 +775,7 @@ export async function requireFacilitatorCapability(programId, capability, minLev
         { status: 401 },
       );
     if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    if (session.role !== "facilitator")
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
     if (!assignment)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
@@ -799,7 +798,9 @@ export async function requireFacilitatorCapability(programId, capability, minLev
 
 /**
  * Convenience guard for delivery APIs (participants, attendance, submissions,
- * sessions). Bypass roles are unaffected — existing access is preserved.
+ * sessions). Assignment-derived: access follows the v2_program_staff assignment
+ * rather than the legacy global role. Bypass roles are unaffected — existing
+ * access is preserved.
  */
 export async function enforceFacilitatorProgramAccess(programId, capability = null, minLevel = 1) {
   try {
@@ -810,12 +811,7 @@ export async function enforceFacilitatorProgramAccess(programId, capability = nu
         { status: 401 },
       );
     if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    if (session.role !== "facilitator")
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid);
+    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
     if (!assignment)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
@@ -829,6 +825,85 @@ export async function enforceFacilitatorProgramAccess(programId, capability = nu
           { status: 403 },
         );
     }
+    return null;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "errors.authzSystemFailure" },
+      { status: 500 },
+    );
+  }
+}
+
+/**
+ * Returns the current status of a person's assignment within a resource.
+ * Defaults to "active" when no explicit assignment record exists, so this
+ * never introduces a new denial for legacy rows.
+ */
+export async function getAssignmentStatus(resource, contextId, userCid) {
+  try {
+    await initDb();
+    const res = await db.execute({
+      sql: `SELECT status FROM contact_roles
+            WHERE contact_cid = ? AND context_type = ? AND context_id = ?
+              AND is_current = true
+            ORDER BY started_at DESC
+            LIMIT 1`,
+      args: [userCid, String(resource), String(contextId)],
+    });
+    return res.rows[0]?.status || "active";
+  } catch {
+    return "active";
+  }
+}
+
+/**
+ * General assignment-aware authorization primitive.
+ *
+ * Program resources delegate to the existing, proven facilitator path so current
+ * behavior is preserved exactly. Non-program resources are not wired yet and are
+ * denied. `requireStatus` optionally enforces an assignment status on top.
+ */
+export async function requireAssignmentAccess({
+  resource = "program",
+  contextId,
+  capability = null,
+  minLevel = 1,
+  requireStatus = null,
+}) {
+  try {
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "errors.authRequired" },
+        { status: 401 },
+      );
+
+    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
+
+    if (resource !== "program") {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+
+    const base = await enforceFacilitatorProgramAccess(
+      contextId,
+      capability,
+      minLevel,
+    );
+    if (base) return base;
+
+    if (requireStatus) {
+      const status = await getAssignmentStatus(resource, contextId, session.cid);
+      if (status !== requireStatus) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
+
     return null;
   } catch {
     return NextResponse.json(

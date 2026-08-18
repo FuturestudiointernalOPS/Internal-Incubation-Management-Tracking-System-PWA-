@@ -143,8 +143,9 @@ export async function POST(req) {
       });
       try {
         await db.execute({
-          sql: `INSERT INTO contact_roles (contact_cid, role, context_type, context_id, is_current, assigned_by)
-                SELECT ?, 'facilitator', 'program', ?, true, ?
+          sql: `INSERT INTO contact_roles
+                  (contact_cid, role, context_type, context_id, is_current, title, scope, status, capability_overrides, assigned_by)
+                SELECT ?, 'facilitator', 'program', ?, true, 'facilitator', '{"type":"program"}'::jsonb, 'active', ?::jsonb, ?
                 WHERE NOT EXISTS (
                   SELECT 1 FROM contact_roles cr
                   WHERE cr.contact_cid = ?
@@ -153,7 +154,7 @@ export async function POST(req) {
                     AND cr.context_id = ?
                     AND cr.is_current = true
                 )`,
-          args: [contactCid, programId, session?.cid || "system", contactCid, programId],
+          args: [contactCid, programId, JSON.stringify(defaultPerms), session?.cid || "system", contactCid, programId],
         });
       } catch (_) {}
 

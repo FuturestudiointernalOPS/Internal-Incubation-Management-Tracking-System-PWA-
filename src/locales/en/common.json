@@ -58,7 +58,18 @@
     "audience": "Audience",
     "allPrograms": "All Programs",
     "due": "Due:",
-    "project": "Project:"
+    "project": "Project:",
+    "workspaces": {
+      "title": "My Workspaces",
+      "subtitle": "Programs and modules assigned to you.",
+      "welcome": "Welcome, {name}",
+      "emptyTitle": "No active assignments",
+      "emptyBody": "You currently have no active assignments. When you are assigned to a program or module, it will appear here.",
+      "open": "Open",
+      "myDashboard": "My Dashboard",
+      "logout": "Log out",
+      "role": "Role"
+    }
   },
   "dashboard": {
     "myTasks": "My Tasks",

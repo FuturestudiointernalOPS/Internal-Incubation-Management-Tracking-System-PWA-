@@ -206,17 +206,32 @@ export async function reconcileProgramGroups() {
     // 4. Add contextual facilitator roles (additive; contact_roles may not exist
     //    in older schemas, so this is best-effort).
     await db.execute({
-      sql: `INSERT INTO contact_roles (contact_cid, role, context_type, context_id, is_current, assigned_by)
-            SELECT v.staff_id, 'facilitator', 'program', v.program_id, true, 'system'
-            FROM (SELECT DISTINCT staff_id, program_id FROM v2_program_staff WHERE role = 'facilitator') v
-            WHERE NOT EXISTS (
-              SELECT 1 FROM contact_roles cr
-              WHERE cr.contact_cid = v.staff_id
-                AND cr.role = 'facilitator'
-                AND cr.context_type = 'program'
-                AND cr.context_id = v.program_id
-                AND cr.is_current = true
-            )`,
+      sql: `INSERT INTO contact_roles
+              (contact_cid, role, context_type, context_id, is_current, title, scope, status, capability_overrides, assigned_by)
+            SELECT
+              c.cid,
+              'facilitator',
+              'program',
+              CAST(ps.program_id AS TEXT),
+              true,
+              'facilitator',
+              '{"type":"program"}'::jsonb,
+              'active',
+              COALESCE(ps.permissions, '{}'::jsonb),
+              'system'
+            FROM v2_program_staff ps
+            JOIN contacts c
+              ON (c.cid = ps.staff_id OR LOWER(c.email) = LOWER(ps.staff_id))
+            WHERE ps.role = 'facilitator'
+              AND c.deleted = 0
+              AND NOT EXISTS (
+                SELECT 1 FROM contact_roles cr
+                WHERE cr.contact_cid = c.cid
+                  AND cr.role = 'facilitator'
+                  AND cr.context_type = 'program'
+                  AND cr.context_id = CAST(ps.program_id AS TEXT)
+                  AND cr.is_current = true
+              )`,
       args: [],
     });
   } catch (e) {

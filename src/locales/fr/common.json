@@ -58,7 +58,18 @@
     "audience": "Audience",
     "allPrograms": "Tous les Programmes",
     "due": "Échéance :",
-    "project": "Projet :"
+    "project": "Projet :",
+    "workspaces": {
+      "title": "Mes espaces de travail",
+      "subtitle": "Programmes et modules qui vous sont affectés.",
+      "welcome": "Bienvenue, {name}",
+      "emptyTitle": "Aucune affectation active",
+      "emptyBody": "Vous n'avez actuellement aucune affectation active. Lorsque vous serez affecté à un programme ou un module, il apparaîtra ici.",
+      "open": "Ouvrir",
+      "myDashboard": "Mon tableau de bord",
+      "logout": "Se déconnecter",
+      "role": "Rôle"
+    }
   },
   "dashboard": {
     "myTasks": "Mes Tâches",

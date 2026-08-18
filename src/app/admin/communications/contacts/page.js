@@ -1392,7 +1392,9 @@ function ContactsPageContent() {
                   <button
                     onClick={() => {
                       const parts = contacts.filter(
-                        (c) => c.role === "participant",
+                        (c) =>
+                          c.is_participant === true ||
+                          c.role === "participant",
                       );
                       setBulkSelected(
                         parts.map((c) => c.cid || c.id).filter(Boolean),
@@ -1415,7 +1417,10 @@ function ContactsPageContent() {
               <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto">
                 {contacts
                   .filter(
-                    (c) => c.role === "participant" || c.role === "unassigned",
+                    (c) =>
+                      c.is_participant === true ||
+                      c.role === "participant" ||
+                      c.role === "unassigned",
                   )
                   .map((c) => {
                     const cid = c.cid || c.id;
@@ -1459,8 +1464,12 @@ function ContactsPageContent() {
                       </button>
                     );
                   })}
-                {contacts.filter((c) => c.role === "participant").length ===
-                  0 && (
+                {contacts.filter(
+                  (c) =>
+                    c.is_participant === true ||
+                    c.role === "participant" ||
+                    c.role === "unassigned",
+                ).length === 0 && (
                   <p className="text-[10px] text-slate-500 italic col-span-2 py-8 text-center">
                     {t("crm.contacts.noParticipantsFound")}
                   </p>
