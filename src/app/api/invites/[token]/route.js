@@ -1,16 +1,19 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 
 export const dynamic = "force-dynamic";
 
 // GET /api/invites/[token] — validate invite token
 export async function GET(req, { params }) {
   try {
+    await ensureTokenHashColumns();
     const { token } = await params;
+    const tokenHash = hashToken(token);
     const result = await db.execute({
-      sql: "SELECT token, contact_cid, expires_at FROM password_setup_tokens WHERE token = ? AND used = 0",
-      args: [token],
+      sql: "SELECT id, token, token_hash, contact_cid, expires_at FROM password_setup_tokens WHERE used = 0 AND (token_hash = ? OR token = ?)",
+      args: [tokenHash, token],
     });
 
     if (result.rows.length === 0) {
@@ -18,6 +21,15 @@ export async function GET(req, { params }) {
     }
 
     const row = result.rows[0];
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!row.token_hash) {
+      await db.execute({
+        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
+        args: [tokenHash, row.id],
+      }).catch(() => {});
+    }
+
     const now = new Date();
     const expires = new Date(row.expires_at);
     if (expires < now) {
@@ -40,6 +52,7 @@ export async function GET(req, { params }) {
 // POST /api/invites/[token] — accept invite & create contact account
 export async function POST(req, { params }) {
   try {
+    await ensureTokenHashColumns();
     const { token } = await params;
     const { name, email, password, phone } = await req.json();
 
@@ -48,9 +61,10 @@ export async function POST(req, { params }) {
     }
 
     // Validate token
+    const tokenHash = hashToken(token);
     const tokenResult = await db.execute({
-      sql: "SELECT contact_cid, used FROM password_setup_tokens WHERE token = ?",
-      args: [token],
+      sql: "SELECT id, token_hash, contact_cid, used FROM password_setup_tokens WHERE (token_hash = ? OR token = ?)",
+      args: [tokenHash, token],
     });
 
     if (tokenResult.rows.length === 0 || tokenResult.rows[0].used) {
@@ -59,6 +73,14 @@ export async function POST(req, { params }) {
 
     const row = tokenResult.rows[0];
     const contactCid = row.contact_cid;
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!row.token_hash) {
+      await db.execute({
+        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
+        args: [tokenHash, row.id],
+      }).catch(() => {});
+    }
 
     // Look up contact details from contacts table
     const contactRes = await db.execute({
@@ -96,8 +118,8 @@ export async function POST(req, { params }) {
 
     // Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
-      args: [token],
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE id = ?",
+      args: [row.id],
     });
 
     // Add participant to the program (if contact has program_id)

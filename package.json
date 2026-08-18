@@ -34,7 +34,9 @@
         }
       ]
     },
-    "testMatch": ["<rootDir>/src/__tests__/**/*.test.js"]
+    "testMatch": [
+      "<rootDir>/src/__tests__/**/*.test.js"
+    ]
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -49,6 +51,7 @@
     "googleapis": "^171.4.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",
+    "libphonenumber-js": "^1.13.11",
     "lucide-react": "^0.473.0",
     "mailgen": "^2.0.32",
     "next": "^16.2.9",

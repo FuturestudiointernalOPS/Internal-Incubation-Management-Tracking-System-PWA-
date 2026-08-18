@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import { toE164 } from "@/lib/phone";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -29,14 +31,7 @@ async function translateBatch(strings, sourceLang, targetLang) {
 
 
 
-const COUNTRY_CODES = [
-  { flag: "🇳🇬", name: "Nigeria", code: "+234" }, { flag: "🇧🇯", name: "Benin", code: "+229" },
-  { flag: "🇬🇭", name: "Ghana", code: "+233" }, { flag: "🇰🇪", name: "Kenya", code: "+254" },
-  { flag: "🇿🇦", name: "South Africa", code: "+27" }, { flag: "🇪🇬", name: "Egypt", code: "+20" },
-  { flag: "🇫🇷", name: "France", code: "+33" }, { flag: "🇬🇧", name: "UK", code: "+44" },
-  { flag: "🇺🇸", name: "USA", code: "+1" }, { flag: "🇩🇪", name: "Germany", code: "+49" },
-  { flag: "🇮🇳", name: "India", code: "+91" }, { flag: "🇦🇪", name: "UAE", code: "+971" },
-];
+
 
 export default function PublicSubmitPage() {
   const params = useParams();
@@ -230,22 +225,16 @@ export default function PublicSubmitPage() {
         return <textarea value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || ""} disabled={isDisabled} rows={3} className={`${inputClass} resize-none`} />;
       case "email":
         return <input type="email" value={value} onChange={(e) => updateField(field.id, e.target.value)} placeholder={field.placeholder || "email@example.com"} disabled={isDisabled} className={inputClass} />;
-      case "phone": {
-        let phoneData = { country: "", code: "", number: "" };
-        const raw = value || "";
-        if (typeof raw === "string" && raw.startsWith("{")) { try { phoneData = JSON.parse(raw); } catch (_) {} }
-        else { const m = raw.match(/^(\+\d{1,4})\s?(.*)/); phoneData = { country: "", code: m ? m[1] : "", number: m ? m[2] : raw }; }
-        const updatePhone = (updates) => { updateField(field.id, JSON.stringify({ ...phoneData, ...updates })); };
+      case "phone":
         return (
-          <div className="flex flex-wrap gap-2">
-            <select value={phoneData.code} onChange={(e) => { const cnt = COUNTRY_CODES.find(c => c.code === e.target.value); updatePhone({ country: cnt?.name || "", code: e.target.value }); }} disabled={isDisabled} className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-sm font-medium outline-none bg-slate-800 border border-slate-600 text-slate-100">
-              <option value="">{t("forms.noPrefix")}</option>
-              {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.name} ({c.code})</option>)}
-            </select>
-            <input type="tel" value={phoneData.number} onChange={(e) => { updatePhone({ number: e.target.value.replace(/[^0-9\s\-()]/g, "") }); }} placeholder={field.placeholder || "90 84 78 20"} disabled={isDisabled} className={`${inputClass} flex-1`} />
-          </div>
+          <AppPhoneInput
+            value={toE164(value)}
+            onChange={(next) => updateField(field.id, next)}
+            placeholder={field.placeholder || "90 84 78 20"}
+            disabled={isDisabled}
+            inputClassName={`${inputClass} flex-1`}
+          />
         );
-      }
       case "select": case "radio":
         return (
           <select value={value} onChange={(e) => updateField(field.id, e.target.value)} disabled={isDisabled} className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}>

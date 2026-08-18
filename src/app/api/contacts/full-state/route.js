@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { reconcileProgramGroups } from "@/lib/contact-group-sync";
+import { attachInvitationStatus } from "@/lib/invitations";
 
 /**
  * CONTACTS FULL-STATE API — CENTRAL REGISTRY FEED
@@ -152,9 +153,15 @@ export async function GET(req) {
       group_name: c.group_name ? c.group_name.toUpperCase() : "UNASSIGNED",
     }));
 
+    // Derive invitation/account status (Not Invited / Sent / Activated / Expired)
+    // and strip the password hash so it is never sent to the browser.
+    const contactsWithInvitation = (await attachInvitationStatus(normalizedContacts)).map(
+      ({ password, ...safeContact }) => safeContact,
+    );
+
     return NextResponse.json({
       success: true,
-      contacts: normalizedContacts,
+      contacts: contactsWithInvitation,
       families: familiesList,
       teams: teamsRows,
     });

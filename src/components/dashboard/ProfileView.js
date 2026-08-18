@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   User,
   Mail,
@@ -19,11 +19,17 @@ import {
   Globe,
   Lightbulb,
   Shield,
-  Eye,
-  EyeOff,
+  Camera,
+  Clock,
+  BadgeCheck,
+  Languages,
+  LogOut,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import SearchableSelect from "@/components/ui/SearchableSelect";
+import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
 
 // ─── Info Row ───────────────────────────────────────────────────────
 function InfoRow({ icon: Icon, label, value, editable, onChange }) {
@@ -104,7 +110,8 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
 
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {
-  const { t } = useI18n();
+  const { t, switchLang, lang } = useI18n();
+  const router = useRouter();
   const [user, setUser] = useState(null);
   const [contact, setContact] = useState(null);
   const [programs, setPrograms] = useState([]);
@@ -114,13 +121,14 @@ export default function ProfileView() {
   const [saving, setSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
   const [editedName, setEditedName] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMessage, setPasswordMessage] = useState(null);
   const [history, setHistory] = useState([]);
   const [editedAlternativeEmail, setEditedAlternativeEmail] = useState("");
   const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
-  const [editedCountry, setEditedCountry] = useState("");
+  const [editedPhone, setEditedPhone] = useState("");
+  const [editedLanguage, setEditedLanguage] = useState("en");
+  const [editedCountryCode, setEditedCountryCode] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [photoMessage, setPhotoMessage] = useState(null);
 
   useEffect(() => {
     const stored = JSON.parse(localStorage.getItem("user") || "{}");
@@ -161,17 +169,25 @@ export default function ProfileView() {
           email: p.email || email,
           phone: p.phone || "",
           address: p.address || "",
-          language: p.language || "",
+          language: p.language || "en",
           role: p.role || "",
           group_name: p.group_name || "",
+          image: p.image || "",
+          status: p.status || "",
+          created_at: p.created_at || "",
           alternative_email: p.alternative_email || "",
           alternative_phone: p.alternative_phone || "",
           country: p.country || "",
+          country_code: p.country_code || "",
+          last_login_at: p.last_login_at || "",
+          login_count: p.login_count || 0,
         });
         setEditedName(p.name || "");
+        setEditedPhone(p.phone || "");
+        setEditedLanguage(p.language || "en");
         setEditedAlternativeEmail(p.alternative_email || "");
         setEditedAlternativePhone(p.alternative_phone || "");
-        setEditedCountry(p.country || "");
+        setEditedCountryCode(p.country_code || resolveCountryCode(p.country) || "");
       }
 
       if (progData.success) {
@@ -217,9 +233,11 @@ export default function ProfileView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: editedName || contact.name,
+          phone: editedPhone || contact.phone,
+          language: editedLanguage || contact.language,
           alternative_email: editedAlternativeEmail,
           alternative_phone: editedAlternativePhone,
-          country: editedCountry,
+          country_code: editedCountryCode,
         }),
       });
       const data = await res.json();
@@ -231,7 +249,13 @@ export default function ProfileView() {
         // Update localStorage
         const stored = JSON.parse(localStorage.getItem("user") || "{}");
         stored.name = editedName || contact.name;
+        stored.phone = editedPhone || contact.phone;
+        stored.language = editedLanguage || contact.language;
         localStorage.setItem("user", JSON.stringify(stored));
+        // Persist language preference through the i18n engine too
+        if (editedLanguage && editedLanguage !== contact.language) {
+          switchLang(editedLanguage);
+        }
         // Dispatch global notification
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -253,55 +277,60 @@ export default function ProfileView() {
     setTimeout(() => setSaveMessage(null), 3000);
   };
 
-  const handlePasswordSave = async () => {
-    const field = document.getElementById("profile_password_field");
-    const newPass = field?.value;
-    if (!newPass || newPass.length < 4) {
-      setPasswordMessage({
-        type: "error",
-        text: t("adminMisc.profile.passwordTooShort"),
-      });
-      setTimeout(() => setPasswordMessage(null), 3000);
-      return;
-    }
-    setPasswordSaving(true);
-    setPasswordMessage(null);
+  const handlePhotoUpload = async (file) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    setPhotoMessage(null);
     try {
-      const res = await fetch("/api/profile", {
+      const formData = new FormData();
+      formData.append("file", file);
+      const uploadRes = await fetch("/api/profile/photo", {
+        method: "POST",
+        body: formData,
+      });
+      const uploadData = await uploadRes.json();
+
+      if (!uploadData.success || !uploadData.url) {
+        throw new Error(uploadData.error || t("adminMisc.profile.photoUploadFailed"));
+      }
+
+      const saveRes = await fetch("/api/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          password: newPass,
-        }),
+        body: JSON.stringify({ image: uploadData.url }),
       });
-      const data = await res.json();
-      if (data.success) {
-        field.value = "";
-        setPasswordMessage({
-          type: "success",
-          text: t("adminMisc.profile.passwordUpdateSuccess"),
-        });
-        window.dispatchEvent(
-          new CustomEvent("impactos:notify", {
-            detail: {
-              type: "success",
-              message: t("adminMisc.profile.passwordUpdateSuccess"),
-            },
-          }),
-        );
-      } else {
-        setPasswordMessage({
-          type: "error",
-          text:
-            t((data.error || t("adminMisc.profile.passwordUpdateFailed")) || "") ||
-            (data.error || t("adminMisc.profile.passwordUpdateFailed")),
-        });
+      const saveData = await saveRes.json();
+
+      if (!saveData.success) {
+        throw new Error(saveData.error || t("adminMisc.profile.saveFailed"));
       }
+
+      setContact((prev) => ({ ...prev, image: uploadData.url }));
+      setPhotoMessage({ type: "success", text: t("adminMisc.profile.photoUploadSuccess") });
+
+      const stored = JSON.parse(localStorage.getItem("user") || "{}");
+      stored.image = uploadData.url;
+      localStorage.setItem("user", JSON.stringify(stored));
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "success", message: t("adminMisc.profile.photoUploadSuccess") },
+        }),
+      );
     } catch (e) {
-      setPasswordMessage({ type: "error", text: t("adminMisc.profile.passwordNetworkError") });
+      setPhotoMessage({ type: "error", text: e.message || t("adminMisc.profile.photoUploadFailed") });
     }
-    setPasswordSaving(false);
-    setTimeout(() => setPasswordMessage(null), 3000);
+    setUploadingPhoto(false);
+    setTimeout(() => setPhotoMessage(null), 3000);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/session-logout", { method: "POST" });
+    } catch (e) {
+      console.error("Logout error:", e);
+    }
+    localStorage.clear();
+    router.replace("/login");
   };
 
   const roleLabel = (role) => {
@@ -335,6 +364,38 @@ export default function ProfileView() {
     }
     return contact?.role || "participant";
   };
+
+  const statusLabel = (status) => {
+    if (!status) return t("adminMisc.profile.statusUnknown");
+    const key = String(status).toLowerCase().replace(/\s+/g, "");
+    const mapped = {
+      active: "status.active",
+      pending: "status.pending",
+      approved: "status.active",
+      suspended: "status.blocked",
+      archived: "status.archived",
+      blocked: "status.blocked",
+    };
+    if (mapped[key]) return t(mapped[key]);
+    return status;
+  };
+
+  const formatDate = (value) => {
+    if (!value) return t("adminMisc.profile.notAvailable");
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return t("adminMisc.profile.notAvailable");
+    return date.toLocaleDateString();
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return t("adminMisc.profile.neverLoggedIn");
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return t("adminMisc.profile.neverLoggedIn");
+    return date.toLocaleString();
+  };
+
+  const countryOptions = useMemo(() => getCountries(lang), [lang]);
+  const languageOptions = useMemo(() => getLanguages(lang), [lang]);
 
   if (loading) {
     return (
@@ -414,31 +475,33 @@ export default function ProfileView() {
         </div>
       )}
 
-      {/* Password message */}
-      {passwordMessage && (
-        <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold ${
-            passwordMessage.type === "success"
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-rose-500/10 text-rose-400"
-          }`}
-        >
-          {passwordMessage.type === "success" ? (
-            <CheckCircle2 className="w-4 h-4" />
-          ) : (
-            <AlertCircle className="w-4 h-4" />
-          )}
-          {passwordMessage.text}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ═══ LEFT COLUMN: Avatar + Quick Info ═══ */}
         <div className="lg:col-span-1 space-y-4">
           {/* Avatar card */}
           <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-6 text-center">
-            <div className="w-20 h-20 rounded-2xl bg-[var(--brand-orange)]/10 border-2 border-[var(--brand-orange)]/20 flex items-center justify-center mx-auto mb-4">
-              <User className="w-10 h-10 text-[var(--brand-orange)]" />
+            <div className="relative w-24 h-24 mx-auto mb-4">
+              <div className="w-24 h-24 rounded-2xl bg-[var(--brand-orange)]/10 border-2 border-[var(--brand-orange)]/20 flex items-center justify-center overflow-hidden">
+                {contact.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={contact.image}
+                    alt={contact.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="w-12 h-12 text-[var(--brand-orange)]" />
+                )}
+              </div>
+              <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-[var(--brand-orange)] text-black flex items-center justify-center cursor-pointer hover:brightness-110 transition-all shadow-lg">
+                <Camera className="w-4 h-4" />
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => handlePhotoUpload(e.target.files?.[0])}
+                />
+              </label>
             </div>
             <h2 className="text-base font-black text-[var(--text-primary)]">
               {contact.name}
@@ -446,6 +509,22 @@ export default function ProfileView() {
             <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
               {roleLabel(deriveCurrentRole())}
             </p>
+            {uploadingPhoto && (
+              <p className="text-[9px] font-bold text-[var(--brand-orange)] mt-2">
+                {t("adminMisc.profile.uploadingPhoto")}
+              </p>
+            )}
+            {photoMessage && (
+              <p
+                className={`text-[9px] font-bold mt-2 ${
+                  photoMessage.type === "success"
+                    ? "text-emerald-400"
+                    : "text-rose-400"
+                }`}
+              >
+                {photoMessage.text}
+              </p>
+            )}
             <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-2 text-left">
               <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)]">
                 <Mail className="w-3 h-3 shrink-0" />
@@ -500,7 +579,61 @@ export default function ProfileView() {
                 onChange={setEditedName}
               />
               <InfoRow icon={Mail} label={t("adminMisc.profile.email")} value={contact.email} />
-              <InfoRow icon={Phone} label={t("adminMisc.profile.phone")} value={contact.phone} />
+              <InfoRow
+                icon={Phone}
+                label={t("adminMisc.profile.phone")}
+                value={contact.phone}
+                editable
+                onChange={setEditedPhone}
+              />
+              <InfoRow
+                icon={Shield}
+                label={t("adminMisc.profile.role")}
+                value={roleLabel(deriveCurrentRole())}
+              />
+              <InfoRow
+                icon={Building2}
+                label={t("adminMisc.profile.organization")}
+                value={contact.group_name}
+              />
+              <InfoRow
+                icon={BadgeCheck}
+                label={t("adminMisc.profile.accountStatus")}
+                value={statusLabel(contact.status)}
+              />
+              <SearchableSelect
+                label={t("adminMisc.profile.country")}
+                icon={Globe}
+                value={editedCountryCode}
+                onChange={setEditedCountryCode}
+                options={countryOptions}
+                placeholder={t("common.select")}
+                searchPlaceholder={t("common.search")}
+                emptyText={t("common.noResults")}
+              />
+
+              {/* Preferred Language */}
+              <SearchableSelect
+                label={t("adminMisc.profile.preferredLanguage")}
+                icon={Languages}
+                value={editedLanguage || "en"}
+                onChange={setEditedLanguage}
+                options={languageOptions}
+                placeholder={t("common.select")}
+                searchPlaceholder={t("common.search")}
+                emptyText={t("common.noResults")}
+              />
+
+              <InfoRow
+                icon={Calendar}
+                label={t("adminMisc.profile.dateJoined")}
+                value={formatDate(contact.created_at)}
+              />
+              <InfoRow
+                icon={Clock}
+                label={t("adminMisc.profile.lastLogin")}
+                value={formatDateTime(contact.last_login_at)}
+              />
               <InfoRow
                 icon={Mail}
                 label={t("adminMisc.profile.alternativeEmail")}
@@ -514,18 +647,6 @@ export default function ProfileView() {
                 value={contact.alternative_phone}
                 editable
                 onChange={setEditedAlternativePhone}
-              />
-              <InfoRow
-                icon={Globe}
-                label={t("adminMisc.profile.country")}
-                value={contact.country}
-                editable
-                onChange={setEditedCountry}
-              />
-              <InfoRow
-                icon={User}
-                label={t("adminMisc.profile.groupCohort")}
-                value={contact.group_name}
               />
             </div>
           </SectionCard>
@@ -640,42 +761,15 @@ export default function ProfileView() {
             </div>
           </SectionCard>
 
-          {/* Security / Password Change */}
+          {/* Account / Sign out */}
           <SectionCard title={t("adminMisc.profile.securitySettings")} icon={Shield}>
-            <p className="text-[9px] text-[var(--text-secondary)] mb-4">
-              {t("adminMisc.profile.securityHint")}
-            </p>
-            <div className="flex flex-col sm:flex-row items-end gap-4">
-              <div className="flex-1 space-y-2 w-full relative">
-                <label className="text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-widest pl-1">
-                  {t("adminMisc.profile.newPassword")}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    id="profile_password_field"
-                    placeholder={t("adminMisc.profile.passwordPlaceholder")}
-                    className="w-full bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg p-3 pr-12 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
-                  />
-                  <button
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-tertiary)] hover:text-[var(--brand-orange)] transition-colors"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
+            <div className="flex justify-end">
               <button
-                onClick={handlePasswordSave}
-                disabled={passwordSaving}
-                className="flex items-center gap-2 px-5 py-3 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 shrink-0"
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
               >
-                <Save className="w-3.5 h-3.5" />
-                {passwordSaving ? t("adminMisc.profile.updating") : t("adminMisc.profile.updatePassword")}
+                <LogOut className="w-3.5 h-3.5" />
+                {t("adminMisc.profile.logout")}
               </button>
             </div>
           </SectionCard>

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X } from "lucide-react";
+import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
@@ -38,6 +38,13 @@ const PROGRAM_ROLE_LABELS = {
   program_manager: "crm.roles.pm",
   assistant: "crm.roles.assistant",
   staff: "crm.roles.staff",
+};
+
+const INVITATION_STATUS_LABELS = {
+  not_invited: "crm.contacts.invitationNotInvited",
+  sent: "crm.contacts.invitationSent",
+  activated: "crm.contacts.invitationActivated",
+  expired: "crm.contacts.invitationExpired",
 };
 
 const MODULE_LABELS = {
@@ -77,6 +84,10 @@ export default function CrmDetailPage({ params }) {
 
   // Upload
   const [uploading, setUploading] = useState(false);
+
+  // Invite
+  const [inviting, setInviting] = useState(false);
+  const [inviteMessage, setInviteMessage] = useState(null);
 
   useEffect(() => {
     if (!cid) return;
@@ -164,6 +175,34 @@ export default function CrmDetailPage({ params }) {
     setSavingMeeting(false);
   }
 
+  async function handleInviteUser() {
+    if (!contact?.email) return;
+    setInviting(true);
+    setInviteMessage(null);
+    try {
+      const res = await fetch("/api/auth/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: contact.email,
+          name: contact.name,
+          role: contact.role || "participant",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setInviteMessage({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
+        const contactRes = await fetch("/api/contacts?cid=" + cid).then((r) => r.json());
+        if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
+      } else {
+        setInviteMessage({ type: "error", text: data.error || "Failed to send invitation" });
+      }
+    } catch (e) {
+      setInviteMessage({ type: "error", text: "Error sending invitation" });
+    }
+    setInviting(false);
+  }
+
   async function handleFileUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -207,6 +246,10 @@ export default function CrmDetailPage({ params }) {
     );
   }
 
+  const invitationStatus =
+    contact.invitation_status ||
+    (contact.status === "active" ? "activated" : "not_invited");
+
   return (
     <DashboardLayout role="super_admin" activeTab="crm">
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -245,6 +288,51 @@ export default function CrmDetailPage({ params }) {
                   </span>
                 )}
               </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              <span
+                className={`px-2 py-1 rounded text-[9px] font-black uppercase ${
+                  invitationStatus === "activated"
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : invitationStatus === "sent"
+                      ? "bg-orange-500/10 text-orange-400"
+                      : invitationStatus === "expired"
+                        ? "bg-rose-500/10 text-rose-400"
+                        : "bg-white/5 text-[var(--text-tertiary)]"
+                }`}
+              >
+                {t(INVITATION_STATUS_LABELS[invitationStatus] || "") || invitationStatus}
+              </span>
+
+              {invitationStatus === "activated" ? (
+                <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
+                  {t("crm.contacts.invitationActivated") || "Activated"}
+                </span>
+              ) : (
+                <button
+                  onClick={handleInviteUser}
+                  disabled={inviting}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
+                >
+                  {inviting ? <Clock className="w-3.5 h-3.5 animate-spin" /> : invitationStatus === "not_invited" ? <Send className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                  {inviting
+                    ? t("crm.contacts.sending")
+                    : invitationStatus === "not_invited"
+                      ? t("crm.contacts.inviteUser") || "Invite User"
+                      : t("crm.contacts.resendActivation") || "Resend Invitation"}
+                </button>
+              )}
+
+              {inviteMessage && (
+                <p
+                  className={`text-[9px] font-bold ${
+                    inviteMessage.type === "success" ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                >
+                  {inviteMessage.text}
+                </p>
+              )}
             </div>
           </div>
         </div>

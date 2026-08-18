@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +19,16 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
+
+    // Rate limit: 10 bulk invite batches per IP per 10 minutes
+    const limited = enforceRateLimit(req, `invite-family:ip:${getClientIp(req)}`, {
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (limited) return limited;
 
     const { familyId, familyName, groupName, programId, emails } =
       await req.json();
@@ -86,9 +96,10 @@ export async function POST(req) {
 
         // Generate invite token
         const token = uuidv4();
+        const tokenHash = hashToken(token);
         await db.execute({
-          sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",
-          args: [token, cid],
+          sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')",
+          args: [token, tokenHash, cid],
         });
 
         // Send email

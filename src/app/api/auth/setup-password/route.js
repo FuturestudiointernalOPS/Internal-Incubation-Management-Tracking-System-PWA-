@@ -1,6 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * SET PASSWORD VIA SETUP TOKEN
@@ -17,6 +19,15 @@ import bcrypt from "bcryptjs";
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
+
+    // Rate limit: prevents brute-forcing setup tokens (10 per IP / 15 min)
+    const limited = enforceRateLimit(req, `setup:ip:${getClientIp(req)}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (limited) return limited;
+
     const { token, password } = await req.json();
 
     if (!token || !password) {
@@ -33,11 +44,13 @@ export async function POST(req) {
       );
     }
 
-    // 1. Validate token
+    // 1. Validate token (hashed at rest, raw fallback for legacy rows)
+    const tokenHash = hashToken(token);
     const tokenResult = await db.execute({
       sql: `SELECT * FROM password_setup_tokens
-            WHERE token = ? AND used = 0 AND expires_at > NOW()`,
-      args: [token],
+            WHERE used = 0 AND expires_at > NOW()
+              AND (token_hash = ? OR token = ?)`,
+      args: [tokenHash, token],
     });
 
     if (tokenResult.rows.length === 0) {
@@ -48,6 +61,14 @@ export async function POST(req) {
     }
 
     const setupRecord = tokenResult.rows[0];
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!setupRecord.token_hash) {
+      await db.execute({
+        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
+        args: [tokenHash, setupRecord.id],
+      }).catch(() => {});
+    }
 
     // 2. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -60,8 +81,8 @@ export async function POST(req) {
 
     // 4. Mark token as used
     await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1 WHERE token = ?",
-      args: [token],
+      sql: "UPDATE password_setup_tokens SET used = 1 WHERE id = ?",
+      args: [setupRecord.id],
     });
 
     // 5. Audit log

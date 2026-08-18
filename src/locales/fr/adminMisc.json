@@ -350,7 +350,22 @@
       "programManagerRole": "Gestionnaire de programme",
       "facilitatorRole": "Facilitateur",
       "assistantRole": "Assistant",
-      "staffRole": "Personnel"
+      "staffRole": "Personnel",
+      "role": "Rôle",
+      "organization": "Organisation",
+      "accountStatus": "Statut du compte",
+      "preferredLanguage": "Langue préférée",
+      "languageEnglish": "Anglais",
+      "languageFrench": "Français",
+      "dateJoined": "Date d'inscription",
+      "lastLogin": "Dernière connexion",
+      "neverLoggedIn": "Jamais connecté",
+      "notAvailable": "Non disponible",
+      "statusUnknown": "Inconnu",
+      "uploadingPhoto": "Téléversement...",
+      "photoUploadSuccess": "Photo de profil mise à jour",
+      "photoUploadFailed": "Échec du téléversement de la photo",
+      "logout": "Se déconnecter"
     },
     "recycleBin": {
       "title": "Corbeille",

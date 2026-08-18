@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "@/lib/mailer";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 
 /**
  * APPROVE USER ENDPOINT
@@ -21,6 +22,7 @@ import { sendEmail } from "@/lib/mailer";
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
     const { user_cid, admin_name, role } = await req.json();
@@ -69,12 +71,14 @@ export async function POST(req) {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + 24);
 
+    const tokenHash = hashToken(token);
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
-            VALUES (?, ?, ?, 0)`,
+      sql: `INSERT INTO password_setup_tokens (contact_cid, token, token_hash, expires_at, used)
+            VALUES (?, ?, ?, ?, 0)`,
       args: [
         user_cid,
         token,
+        tokenHash,
         expiresAt.toISOString().replace("T", " ").replace("Z", ""),
       ],
     });

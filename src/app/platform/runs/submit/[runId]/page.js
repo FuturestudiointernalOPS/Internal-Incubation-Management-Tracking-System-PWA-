@@ -8,32 +8,8 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-
-const COUNTRY_CODES = [
-  { flag: "🇳🇬", name: "Nigeria", code: "+234" },
-  { flag: "🇧🇯", name: "Benin", code: "+229" },
-  { flag: "🇬🇭", name: "Ghana", code: "+233" },
-  { flag: "🇰🇪", name: "Kenya", code: "+254" },
-  { flag: "🇿🇦", name: "South Africa", code: "+27" },
-  { flag: "🇪🇬", name: "Egypt", code: "+20" },
-  { flag: "🇨🇮", name: "Côte d'Ivoire", code: "+225" },
-  { flag: "🇸🇳", name: "Senegal", code: "+221" },
-  { flag: "🇹🇬", name: "Togo", code: "+228" },
-  { flag: "🇨🇲", name: "Cameroon", code: "+237" },
-  { flag: "🇷🇼", name: "Rwanda", code: "+250" },
-  { flag: "🇺🇬", name: "Uganda", code: "+256" },
-  { flag: "🇹🇿", name: "Tanzania", code: "+255" },
-  { flag: "🇪🇹", name: "Ethiopia", code: "+251" },
-  { flag: "🇫🇷", name: "France", code: "+33" },
-  { flag: "🇬🇧", name: "United Kingdom", code: "+44" },
-  { flag: "🇺🇸", name: "United States", code: "+1" },
-  { flag: "🇨🇦", name: "Canada", code: "+1" },
-  { flag: "🇩🇪", name: "Germany", code: "+49" },
-  { flag: "🇮🇳", name: "India", code: "+91" },
-  { flag: "🇨🇳", name: "China", code: "+86" },
-  { flag: "🇦🇪", name: "UAE", code: "+971" },
-  { flag: "🇧🇷", name: "Brazil", code: "+55" },
-];
+import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import { toE164 } from "@/lib/phone";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -265,52 +241,16 @@ export default function SubmitFormPage() {
           />
         );
 
-      case "phone": {
-        // Value is stored as JSON: { country: "NG", code: "+234", number: "90847820" }
-        // Backward compat: if it's a plain string, treat as legacy number
-        let phoneData = { country: "", code: "", number: "" };
-        const raw = value || "";
-        if (typeof raw === "string" && raw.startsWith("{")) {
-          try { phoneData = JSON.parse(raw); } catch (_) { phoneData = { country: "", code: "", number: raw }; }
-        } else if (typeof raw === "string") {
-          const m = raw.match(/^(\+\d{1,4})\s?(.*)/);
-          phoneData = { country: "", code: m ? m[1] : "", number: m ? m[2] : raw };
-        }
-        const selectedCountry = COUNTRY_CODES.find((c) => c.code === phoneData.code);
-        const updatePhone = (updates) => {
-          const next = { ...phoneData, ...updates };
-          updateField(field.id, JSON.stringify(next));
-        };
+      case "phone":
         return (
-          <div className="flex gap-2">
-            <select
-              value={phoneData.code}
-              onChange={(e) => {
-                const cnt = COUNTRY_CODES.find((c) => c.code === e.target.value);
-                updatePhone({ country: cnt?.name || "", code: e.target.value });
-              }}
-              disabled={isDisabled}
-              className="w-[150px] shrink-0 rounded-xl px-2 py-3 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
-            >
-              <option value="">{t("platformMisc.runSubmitDetail.noPrefix")}</option>
-              {COUNTRY_CODES.map((c) => (
-                <option key={c.code + c.name} value={c.code}>{c.flag} {c.name} ({c.code})</option>
-              ))}
-            </select>
-            <input
-              type="tel"
-              value={phoneData.number}
-              onChange={(e) => {
-                const num = e.target.value.replace(/[^0-9\s\-()]/g, "");
-                updatePhone({ number: num });
-              }}
-              placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
-              disabled={isDisabled}
-              className={inputClass + " flex-1"}
-            />
-          </div>
+          <AppPhoneInput
+            value={toE164(value)}
+            onChange={(next) => updateField(field.id, next)}
+            placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
+            disabled={isDisabled}
+            inputClassName={inputClass + " flex-1"}
+          />
         );
-      }
 
       case "date":
         return (

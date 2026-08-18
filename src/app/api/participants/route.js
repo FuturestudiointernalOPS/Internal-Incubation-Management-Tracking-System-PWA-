@@ -1,6 +1,8 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
 import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
 
 /**
@@ -46,8 +48,9 @@ export async function POST(req) {
     const participantId = result.lastInsertRowid;
 
     // 3. FLEXIBLE SYNC: Upsert into V1 Contacts
-    const randomStr = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const generatedPassword = `FSP${randomStr}`;
+    // Admins never create user passwords — store an unusable random hash so
+    // the participant sets their own password via the invitation/activation flow.
+    const unusableHash = await bcrypt.hash(uuidv4(), 10);
     const cid = `c-${Math.random().toString(36).substr(2, 9)}`;
 
     await db.execute({
@@ -67,7 +70,7 @@ export async function POST(req) {
         program_id,
         programName,
         "participant",
-        generatedPassword,
+        unusableHash,
       ],
     });
 

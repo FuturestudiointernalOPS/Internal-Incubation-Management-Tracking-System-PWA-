@@ -198,7 +198,14 @@
       "confirmResendActivation": "Renvoyer l'e-mail d'activation à ce contact ?",
       "activationSent": "E-mail d'activation envoyé",
       "confirmSendReset": "Envoyer l'e-mail de réinitialisation du mot de passe (connexion) à ce contact ?",
-      "resetSent": "E-mail de réinitialisation du mot de passe envoyé"
+      "resetSent": "E-mail de réinitialisation du mot de passe envoyé",
+      "inviteUser": "Inviter l'utilisateur",
+      "invitationSent": "Invitation envoyée",
+      "confirmInvite": "Envoyer une invitation à ce contact ?",
+      "sending": "Envoi...",
+      "invitationNotInvited": "Non invité",
+      "invitationActivated": "Activé",
+      "invitationExpired": "Expiré"
     },
     "duplicates": {
       "crm": "CRM",

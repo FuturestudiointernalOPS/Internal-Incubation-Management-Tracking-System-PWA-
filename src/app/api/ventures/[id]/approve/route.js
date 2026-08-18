@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendVentureApprovalEmail } from "@/lib/email";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { logVentureActivity, createVentureNotification } from "@/lib/ventures";
 
 /**
@@ -13,6 +14,7 @@ import { logVentureActivity, createVentureNotification } from "@/lib/ventures";
 export async function POST(req, { params }) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
@@ -88,10 +90,11 @@ export async function POST(req, { params }) {
             });
             if (contact.rows?.[0]?.cid) {
               const token = uuidv4();
+              const tokenHash = hashToken(token);
               await db.execute({
-                sql: `INSERT INTO password_setup_tokens (token, contact_cid, user_email, role, token_type, expires_at)
-                      VALUES (?, ?, ?, 'founder', 'venture_approval', NOW() + INTERVAL '48 hours')`,
-                args: [token, contact.rows[0].cid, f.email],
+                sql: `INSERT INTO password_setup_tokens (token, token_hash, contact_cid, user_email, role, token_type, expires_at)
+                      VALUES (?, ?, ?, ?, 'founder', 'venture_approval', NOW() + INTERVAL '48 hours')`,
+                args: [token, tokenHash, contact.rows[0].cid, f.email],
               });
               setupUrl = `${appBase}/activate?token=${token}`;
             }

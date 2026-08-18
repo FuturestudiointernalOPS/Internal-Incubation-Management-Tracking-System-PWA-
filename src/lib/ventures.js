@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
+import { hashToken } from "@/lib/token-hashing";
 
 /**
  * VENTURE OS — Shared Business Logic
@@ -82,6 +83,8 @@ export async function ensureVentureSchema() {
     "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS last_activity TIMESTAMP",
     "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS logout_time TIMESTAMP",
     "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS session_status TEXT DEFAULT 'active'",
+    "ALTER TABLE user_sessions ADD COLUMN IF NOT EXISTS token_hash TEXT",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_sessions_token_hash ON user_sessions(token_hash) WHERE token_hash IS NOT NULL",
     "CREATE TABLE IF NOT EXISTS venture_trusted_devices (id SERIAL PRIMARY KEY, user_cid TEXT NOT NULL, device_name TEXT, device_type TEXT, browser TEXT, os TEXT, ip_address TEXT, fingerprint TEXT, is_trusted BOOLEAN DEFAULT FALSE, last_used_at TIMESTAMP DEFAULT NOW(), created_at TIMESTAMP DEFAULT NOW(), UNIQUE(user_cid, fingerprint))",
     "CREATE TABLE IF NOT EXISTS venture_login_history (id SERIAL PRIMARY KEY, user_cid TEXT, user_name TEXT, user_email TEXT, action TEXT NOT NULL, ip_address TEXT, user_agent TEXT, device TEXT, browser TEXT, os TEXT, country TEXT, city TEXT, is_success BOOLEAN DEFAULT TRUE, failure_reason TEXT, session_id TEXT, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_venture_login_history_user ON venture_login_history(user_cid)",
@@ -4592,9 +4595,10 @@ export async function getActiveSessions({ userCid, limit=50, offset=0 } = {}) {
  * Revoke a specific session.
  */
 export async function revokeSession(sessionToken, revokedBy) {
-  const session = (await db.execute({ sql: "SELECT * FROM user_sessions WHERE token=? AND expires_at > NOW()", args: [sessionToken] })).rows[0];
+  const tokenHash = hashToken(sessionToken);
+  const session = (await db.execute({ sql: "SELECT * FROM user_sessions WHERE expires_at > NOW() AND (token_hash = ? OR token = ?)", args: [tokenHash, sessionToken] })).rows[0];
   if (!session) return { success: false, error: "Session not found or already expired" };
-  await db.execute({ sql: "UPDATE user_sessions SET expires_at=NOW(), logout_time=NOW(), session_status='revoked' WHERE token=?", args: [sessionToken] });
+  await db.execute({ sql: "UPDATE user_sessions SET expires_at=NOW(), logout_time=NOW(), session_status='revoked' WHERE token_hash = ? OR token = ?", args: [tokenHash, sessionToken] });
   // Log the revocation
   await logAuditEvent({
     eventType: "SESSION_REVOKED", actorCid: revokedBy, actorName: null,

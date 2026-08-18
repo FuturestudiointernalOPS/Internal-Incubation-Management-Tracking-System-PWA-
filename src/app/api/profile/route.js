@@ -22,7 +22,7 @@ export async function GET() {
 
     await initDb();
     const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language, role, group_name FROM contacts WHERE cid = ?",
+      sql: "SELECT name, email, phone, address, language, role, group_name, image, status, created_at FROM contacts WHERE cid = ?",
       args: [session.cid],
     });
 
@@ -35,12 +35,12 @@ export async function GET() {
 
     const user = res.rows[0];
 
-    // Optional secondary contact fields. These columns may not exist yet in
-    // every environment, so this read is best-effort and never fatal.
+    // Optional / recently-added columns. These may not exist yet in every
+    // environment, so this read is best-effort and never fatal.
     let extras = {};
     try {
       const ext = await db.execute({
-        sql: "SELECT alternative_email, alternative_phone, country FROM contacts WHERE cid = ?",
+        sql: "SELECT alternative_email, alternative_phone, country, country_code, last_login_at, login_count FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
       extras = ext.rows[0] || {};
@@ -64,9 +64,15 @@ export async function GET() {
         phone: user.phone,
         address: user.address,
         language: user.language,
+        image: user.image || null,
+        status: user.status || null,
+        created_at: user.created_at || null,
         alternative_email: extras.alternative_email || null,
         alternative_phone: extras.alternative_phone || null,
         country: extras.country || null,
+        country_code: extras.country_code || null,
+        last_login_at: extras.last_login_at || null,
+        login_count: extras.login_count || 0,
       },
       mandatory: { name: !hasName, email: !hasEmail },
       isComplete,
@@ -98,9 +104,11 @@ export async function PUT(req) {
       address,
       language,
       password,
+      image,
       alternative_email,
       alternative_phone,
       country,
+      country_code,
     } = body;
 
     // Build core update fields
@@ -122,6 +130,10 @@ export async function PUT(req) {
     if (language !== undefined) {
       updates.push("language = ?");
       args.push(language);
+    }
+    if (image !== undefined) {
+      updates.push("image = ?");
+      args.push(image || null);
     }
 
     // Self-service password change (session-scoped — only the logged-in user)
@@ -151,6 +163,10 @@ export async function PUT(req) {
     if (country !== undefined) {
       extUpdates.push("country = ?");
       extArgs.push(country || null);
+    }
+    if (country_code !== undefined) {
+      extUpdates.push("country_code = ?");
+      extArgs.push(country_code || null);
     }
 
     if (updates.length === 0 && extUpdates.length === 0) {
