@@ -516,8 +516,38 @@ export async function GET(req) {
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     }
-    const contacts = (await attachInvitationStatus(result.rows || [])).map(
-      ({ password, ...safeContact }) => safeContact,
+    const rows = result.rows || [];
+    const cids = rows.map((r) => r.cid).filter(Boolean);
+    let participantCids = new Set();
+    let assignmentCids = new Set();
+    if (cids.length > 0) {
+      // Best-effort: these tables may not exist in older schemas.
+      try {
+        const ph = cids.map(() => "?").join(",");
+        const ppRes = await db.execute({
+          sql: `SELECT DISTINCT participant_id FROM participant_programs WHERE participant_id IN (${ph})`,
+          args: cids,
+        });
+        participantCids = new Set(ppRes.rows.map((r) => r.participant_id));
+      } catch (_) {}
+      try {
+        const ph = cids.map(() => "?").join(",");
+        const crRes = await db.execute({
+          sql: `SELECT DISTINCT contact_cid FROM contact_roles WHERE contact_cid IN (${ph}) AND is_current = true`,
+          args: cids,
+        });
+        assignmentCids = new Set(crRes.rows.map((r) => r.contact_cid));
+      } catch (_) {}
+    }
+    const contacts = (await attachInvitationStatus(rows)).map(
+      ({ password, ...safeContact }) => ({
+        ...safeContact,
+        // Derived flags: a participant enrollment OR the legacy role value.
+        is_participant:
+          participantCids.has(safeContact.cid) ||
+          safeContact.role === "participant",
+        has_assignment: assignmentCids.has(safeContact.cid),
+      }),
     );
     return NextResponse.json({ success: true, contacts });
   } catch (error) {

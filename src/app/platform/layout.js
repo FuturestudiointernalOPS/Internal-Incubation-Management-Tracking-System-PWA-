@@ -58,13 +58,26 @@ export default function PlatformLayout({ children }) {
   const { t, switchLang, lang } = useI18n();
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState({ role: "super_admin" });
+  const [user, setUser] = useState({ role: "" });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    if (u.role) setUser(u);
+    // Server session is authoritative; localStorage is only a legacy fallback.
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setUser(d.user);
+          return;
+        }
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        if (u.role) setUser(u);
+      })
+      .catch(() => {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        if (u.role) setUser(u);
+      });
   }, []);
 
   const navModules = useMemo(() => getActiveModules(user.role), [user.role]);

@@ -120,7 +120,7 @@ export default function LoginPage() {
         else if (role === "facilitator") target = "/facilitator";
         else if (role === "developer") target = "/developer";
         else if (role === "investor") target = "/investor/dashboard";
-        else target = "/participant";
+        else target = "/workspaces";
         window.location.href = target;
       } else {
         setImpersonateError(
@@ -174,7 +174,7 @@ export default function LoginPage() {
                               ? "/participant"
                               : data.user.role === "finance"
                                 ? "/finance"
-                                : "/participant";
+                                : "/workspaces";
 
           // Profile completion gate: only enforce on the FIRST login. After
           // that the user is not repeatedly redirected, even if they skip it.

@@ -61,8 +61,21 @@ export default function AnnouncementsPage() {
   }, [showArchived]);
 
   useEffect(() => {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    setUser(u);
+    // Server session is authoritative; localStorage is only a legacy fallback.
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setUser(d.user);
+          return;
+        }
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        setUser(u);
+      })
+      .catch(() => {
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        setUser(u);
+      });
   }, []);
 
   useEffect(() => {

@@ -65,11 +65,12 @@ export async function GET(req) {
         " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?))";
       args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);
     }
-    // Facilitators only see programs they are assigned to
+    // Facilitators only see programs they are assigned to (matched by cid or
+    // email so legacy rows that stored the email still resolve correctly).
     if (session?.role === "facilitator") {
       baseQuery +=
-        " AND p.id IN (SELECT program_id FROM v2_program_staff WHERE staff_id = ? AND role = 'facilitator')";
-      args.push(session.cid);
+        " AND p.id IN (SELECT program_id FROM v2_program_staff WHERE (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)) AND role = 'facilitator')";
+      args.push(session.cid, session.email || "");
     }
     baseQuery += " ORDER BY p.created_at DESC";
 
