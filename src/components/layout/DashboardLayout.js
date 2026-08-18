@@ -109,6 +109,7 @@ const NAV_KEY_MAP = {
   standup: "navigation.standup",
   retro: "navigation.retro",
   standups_retros: "navigation.standupsRetros",
+  weekly_ops: "navigation.weeklyOps",
   finance: "navigation.finance",
   metrics: "navigation.metrics",
   program_reports: "navigation.programReports",
@@ -581,16 +582,10 @@ const NAVIGATION_MATRIX = {
       href: "/staff",
     },
     {
-      id: "standup",
-      name: "STANDUP",
-      icon: MessageSquare,
-      href: "/staff/op-report?tab=standup",
-    },
-    {
-      id: "retro",
-      name: "RETRO",
-      icon: MessageSquare,
-      href: "/staff/op-report?tab=retro",
+      id: "weekly_ops",
+      name: "WEEKLY OPS",
+      icon: Calendar,
+      href: "/staff/op-report",
     },
     {
       id: "my_projects",
@@ -892,6 +887,7 @@ const NAV_RESPONSIBILITY_MAP = {
   standup: "operations",
   retro: "operations",
   standups_retros: "operations",
+  weekly_ops: "operations",
   internal_reports: "reporting",
   // Knowledge
   knowledge: "knowledge_base",
