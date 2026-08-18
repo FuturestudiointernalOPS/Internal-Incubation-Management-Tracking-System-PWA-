@@ -75,6 +75,7 @@ export default function ProgramManagement() {
   });
   const [isKpiSubmitting, setIsKpiSubmitting] = useState(false);
   const [groupRegLinks, setGroupRegLinks] = useState({});
+  const [programRegLink, setProgramRegLink] = useState(null); // { name, url } for the Program-assigned Form Run
 
   // ── Facilitator management state ──
   const [facilitatorPool, setFacilitatorPool] = useState([]);
@@ -278,6 +279,30 @@ export default function ProgramManagement() {
         .catch(() => {});
     });
   }, [editingProgram?.assigned_segments]);
+
+  // Fetch the Form Run assigned directly to this PROGRAM (target_type = "program").
+  // This is the canonical participant intake link, distinct from group-level links.
+  useEffect(() => {
+    if (!editingProgram?.id) {
+      setProgramRegLink(null);
+      return;
+    }
+    fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(editingProgram.id)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const runs = (d.success ? d.runs || [] : []);
+        const run = runs.find((x) => x.status === "active" && x.public_slug);
+        if (run) {
+          setProgramRegLink({
+            name: run.form_name || run.name || "Registration Form",
+            url: `${window.location.origin}/s/${run.public_slug}`,
+          });
+        } else {
+          setProgramRegLink(null);
+        }
+      })
+      .catch(() => setProgramRegLink(null));
+  }, [editingProgram?.id]);
 
   useEffect(() => {
     if (editingProgram?.id) {
@@ -1120,17 +1145,20 @@ export default function ProgramManagement() {
                 </div>
               </div>
 
-              {/* Registration Link — the assigned Form is the participant intake point */}
-              {editingProgram?.assigned_segments && editingProgram.assigned_segments.length > 0 && editingProgram.assigned_segments[0] && (
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    {t("adminMisc.programs.registrationLink")}
-                  </label>
-                  {(() => {
-                    const gid = editingProgram.assigned_segments[0];
-                    const formUrl = groupRegLinks[gid];
-                    if (formUrl) {
-                      return (
+              {/* Registration Link — the Program-assigned Form Run is the canonical intake point */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
+                  {t("adminMisc.programs.registrationLink")}
+                </label>
+                {(() => {
+                  const formUrl = programRegLink?.url || groupRegLinks[editingProgram?.assigned_segments?.[0]] || null;
+                  const formName = programRegLink?.name || null;
+                  if (formUrl) {
+                    return (
+                      <div className="space-y-1.5">
+                        {formName && (
+                          <p className="text-[9px] font-black uppercase text-[var(--text-primary)] ml-2 truncate">{formName}</p>
+                        )}
                         <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
                           <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
                             {formUrl}
@@ -1155,20 +1183,20 @@ export default function ProgramManagement() {
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         </div>
-                      );
-                    }
-                    return (
-                      <div className="space-y-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                        <p className="text-[9px] font-black uppercase text-amber-400">{t("adminMisc.programs.noFormYet")}</p>
-                        <p className="text-[8px] text-[var(--text-secondary)]">{t("adminMisc.programs.noFormYetHint")}</p>
-                        <a href="/admin/communications/forms" className="inline-block text-[8px] font-black uppercase text-blue-400 hover:underline">
-                          {t("adminMisc.programs.goToCrmForms")}
-                        </a>
                       </div>
                     );
-                  })()}
-                </div>
-              )}
+                  }
+                  return (
+                    <div className="space-y-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                      <p className="text-[9px] font-black uppercase text-amber-400">{t("adminMisc.programs.noFormYet")}</p>
+                      <p className="text-[8px] text-[var(--text-secondary)]">{t("adminMisc.programs.noFormYetHint")}</p>
+                      <a href="/platform/forms" className="inline-block text-[8px] font-black uppercase text-blue-400 hover:underline">
+                        {t("adminMisc.programs.goToCrmForms")}
+                      </a>
+                    </div>
+                  );
+                })()}
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">

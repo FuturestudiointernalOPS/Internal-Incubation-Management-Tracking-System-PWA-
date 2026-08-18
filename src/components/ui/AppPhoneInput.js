@@ -57,7 +57,7 @@ export default function AppPhoneInput({
         value={country}
         onChange={(e) => emit(e.target.value, national)}
         disabled={disabled}
-        className={selectClassName || "shrink-0 w-[150px] rounded-xl px-2 py-3 text-sm font-medium outline-none border cursor-pointer"}
+        className={selectClassName || "shrink-0 w-[120px] sm:w-[150px] rounded-xl px-2 py-3 text-sm font-medium outline-none border cursor-pointer"}
         style={{
           background: "var(--bg-primary)",
           borderColor: "var(--border-primary)",
@@ -77,7 +77,7 @@ export default function AppPhoneInput({
         onChange={(e) => emit(country, e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className={inputClassName || "flex-1 min-w-0 rounded-xl px-4 py-3 text-sm font-medium outline-none border"}
+        className={`min-w-0 cursor-text ${inputClassName || "flex-1 rounded-xl px-4 py-3 text-sm font-medium outline-none border"}`}
         style={{
           background: "var(--bg-primary)",
           borderColor: "var(--border-primary)",

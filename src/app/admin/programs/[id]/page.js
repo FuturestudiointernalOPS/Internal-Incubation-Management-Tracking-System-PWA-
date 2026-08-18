@@ -35,6 +35,23 @@ export default function SuperAdminExecutiveView({ params }) {
   const [regForm, setRegForm] = useState(null);
 
   useEffect(() => {
+    // Prefer the Form Run assigned directly to the Program (target_type = "program");
+    // fall back to the first group-assigned run only when no program run exists.
+    const pid = program?.id;
+    if (pid) {
+      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(pid))}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const run = (d.success ? d.runs || [] : []).find((x) => x.status === 'active' && x.public_slug);
+          if (run) {
+            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' });
+            return;
+          }
+          setRegForm(null);
+        })
+        .catch(() => setRegForm(null));
+      return;
+    }
     const gid = program?.assigned_segments?.[0];
     if (!gid) { setRegForm(null); return; }
     fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
@@ -45,7 +62,7 @@ export default function SuperAdminExecutiveView({ params }) {
       })
       .catch(() => setRegForm(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [program?.assigned_segments]);
+  }, [program?.id, program?.assigned_segments]);
 
   useEffect(() => {
     fetchData();
@@ -196,7 +213,7 @@ export default function SuperAdminExecutiveView({ params }) {
                       <div className="flex flex-col items-end gap-1">
                          <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest italic">{t("adminMisc.programDetail.noFormYet")}</p>
                          <a
-                            href="/admin/communications/forms"
+                            href="/platform/forms"
                             className="text-[9px] font-black text-blue-400 hover:underline uppercase italic"
                          >
                             {t("adminMisc.programDetail.goToCrmForms")}

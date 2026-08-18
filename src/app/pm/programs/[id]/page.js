@@ -106,10 +106,25 @@ function ProgramWorkspace() {
   };
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
-  // Assigned registration form (public link) - resolved from the Form assigned to the program group
+  // Assigned registration form (public link) - resolved from the Form Run
+  // assigned directly to this Program (target_type = "program").
   const [regForm, setRegForm] = useState(null);
 
   useEffect(() => {
+    if (id) {
+      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+          if (run) {
+            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" });
+            return;
+          }
+          setRegForm(null);
+        })
+        .catch(() => setRegForm(null));
+      return;
+    }
     const fam = families[0];
     if (!fam) { setRegForm(null); return; }
     const gid = fam.registration_id || fam.id;
@@ -121,7 +136,7 @@ function ProgramWorkspace() {
       })
       .catch(() => setRegForm(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [families]);
+  }, [id, families]);
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const programTeamMembers = React.useMemo(() => {
