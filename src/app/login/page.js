@@ -165,16 +165,37 @@ export default function LoginPage() {
                     : data.user.role === "facilitator"
                       ? "/facilitator"
                       : data.user.role === "developer"
-                      ? "/developer"
-                      : data.user.role === "team"
-                        ? "/team/" + data.user.team_id
-                        : data.user.role === "founder"
-                          ? await getFounderVentureTarget(data.user.cid)
-                          : data.user.role === "participant"
-                            ? "/participant"
-                            : data.user.role === "finance"
-                              ? "/finance"
-                              : "/participant";
+                        ? "/developer"
+                        : data.user.role === "team"
+                          ? "/team/" + data.user.team_id
+                          : data.user.role === "founder"
+                            ? await getFounderVentureTarget(data.user.cid)
+                            : data.user.role === "participant"
+                              ? "/participant"
+                              : data.user.role === "finance"
+                                ? "/finance"
+                                : "/participant";
+
+          // Profile completion gate: if the profile is incomplete, send the
+          // user to their profile page before the main dashboard.
+          try {
+            const profRes = await fetch("/api/profile");
+            const profData = await profRes.json();
+            if (profData.success && profData.isComplete === false) {
+              const r = data.user.role;
+              target =
+                r === "super_admin" || r === "staff" || r === "admin"
+                  ? "/admin/profile"
+                  : r === "program_manager"
+                    ? "/pm/profile"
+                    : r === "teacher"
+                      ? "/teacher/profile"
+                      : r === "developer"
+                        ? "/developer/profile"
+                        : "/participant/profile";
+            }
+          } catch (_) {}
+
           window.location.href = target;
         }, 800);
       } else {
