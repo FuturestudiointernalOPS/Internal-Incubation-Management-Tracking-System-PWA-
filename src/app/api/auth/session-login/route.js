@@ -269,6 +269,18 @@ export async function POST(req) {
       };
     }
 
+    // --- LOGIN ACTIVITY TRACKING (successful login only) ---
+    if (!isTeamLogin && !isFamilyLogin && user.cid) {
+      try {
+        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ");
+        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0");
+        await db.execute({
+          sql: "UPDATE contacts SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE cid = ?",
+          args: [user.cid],
+        });
+      } catch (_) {}
+    }
+
     // --- 8. CREATE SESSION & RETURN ---
     const { token, maxAge } = await createSession(
       responseUser.cid || responseUser.id,

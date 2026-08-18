@@ -36,11 +36,16 @@ export async function GET() {
     const user = res.rows[0];
 
     // Optional / recently-added columns. These may not exist yet in every
-    // environment, so this read is best-effort and never fatal.
+    // environment, so each read is best-effort and never fatal.
+    //
+    // IMPORTANT: login activity is read separately from secondary contact
+    // fields. If they were bundled together, a single missing optional column
+    // (e.g. alternative_email) would fail the whole query and incorrectly hide
+    // last_login_at / login_count.
     let extras = {};
     try {
       const ext = await db.execute({
-        sql: "SELECT alternative_email, alternative_phone, country, country_code, last_login_at, login_count FROM contacts WHERE cid = ?",
+        sql: "SELECT alternative_email, alternative_phone, country, country_code FROM contacts WHERE cid = ?",
         args: [session.cid],
       });
       extras = ext.rows[0] || {};
@@ -48,10 +53,32 @@ export async function GET() {
       extras = {};
     }
 
-    // Determine if profile is complete (name + email mandatory).
-    const hasName = user.name && user.name.trim().length > 0;
-    const hasEmail = user.email && user.email.trim().length > 0;
-    const isComplete = hasName && hasEmail;
+    let loginActivity = {};
+    try {
+      const ext = await db.execute({
+        sql: "SELECT last_login_at, login_count FROM contacts WHERE cid = ?",
+        args: [session.cid],
+      });
+      loginActivity = ext.rows[0] || {};
+    } catch (_) {
+      loginActivity = {};
+    }
+
+    // Determine if the required profile information is complete.
+    const hasName = !!(user.name && user.name.trim().length > 0);
+    const hasEmail = !!(user.email && user.email.trim().length > 0);
+    const hasPhone = !!(user.phone && String(user.phone).trim().length > 0);
+    const hasCountry = !!(extras.country_code || extras.country);
+    const hasLanguage = !!(user.language && String(user.language).trim().length > 0);
+
+    const mandatory = {
+      name: !hasName,
+      email: !hasEmail,
+      phone: !hasPhone,
+      country: !hasCountry,
+      language: !hasLanguage,
+    };
+    const isComplete = !Object.values(mandatory).some(Boolean);
 
     return NextResponse.json({
       success: true,
@@ -71,10 +98,10 @@ export async function GET() {
         alternative_phone: extras.alternative_phone || null,
         country: extras.country || null,
         country_code: extras.country_code || null,
-        last_login_at: extras.last_login_at || null,
-        login_count: extras.login_count || 0,
+        last_login_at: loginActivity.last_login_at || null,
+        login_count: loginActivity.login_count || 0,
       },
-      mandatory: { name: !hasName, email: !hasEmail },
+      mandatory,
       isComplete,
     });
   } catch (err) {

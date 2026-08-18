@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import { addContactToGroup } from "@/lib/contact-groups";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,18 @@ export async function POST(req) {
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)",
         args: [contactCid, displayName, cleanEmail, role || "participant", group_id || null],
+      });
+    }
+
+    // Record proper group membership (invitation source). This is additive and
+    // idempotent; if the membership table is unavailable it falls back to the
+    // legacy group_name write done above.
+    if (group_id) {
+      await addContactToGroup({
+        contactCid,
+        familyId: group_id,
+        source: "invitation",
+        addedBy: actor,
       });
     }
 

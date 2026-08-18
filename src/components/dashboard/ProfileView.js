@@ -23,9 +23,7 @@ import {
   Clock,
   BadgeCheck,
   Languages,
-  LogOut,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -111,7 +109,6 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ProfileView() {
   const { t, switchLang, lang } = useI18n();
-  const router = useRouter();
   const [user, setUser] = useState(null);
   const [contact, setContact] = useState(null);
   const [programs, setPrograms] = useState([]);
@@ -323,15 +320,7 @@ export default function ProfileView() {
     setTimeout(() => setPhotoMessage(null), 3000);
   };
 
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/session-logout", { method: "POST" });
-    } catch (e) {
-      console.error("Logout error:", e);
-    }
-    localStorage.clear();
-    router.replace("/login");
-  };
+
 
   const roleLabel = (role) => {
     switch (role) {
@@ -761,18 +750,7 @@ export default function ProfileView() {
             </div>
           </SectionCard>
 
-          {/* Account / Sign out */}
-          <SectionCard title={t("adminMisc.profile.securitySettings")} icon={Shield}>
-            <div className="flex justify-end">
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                {t("adminMisc.profile.logout")}
-              </button>
-            </div>
-          </SectionCard>
+
 
           {/* Recent Submissions */}
           <SectionCard title={t("adminMisc.profile.submittedWork")} icon={FileText}>
