@@ -106,6 +106,37 @@ function ProgramWorkspace() {
   };
   const [activePDF, setActivePDF] = useState(null);
   const [families, setFamilies] = useState([]);
+  // Assigned registration form (public link) - resolved from the Form Run
+  // assigned directly to this Program (target_type = "program").
+  const [regForm, setRegForm] = useState(null);
+
+  useEffect(() => {
+    if (id) {
+      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+          if (run) {
+            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" });
+            return;
+          }
+          setRegForm(null);
+        })
+        .catch(() => setRegForm(null));
+      return;
+    }
+    const fam = families[0];
+    if (!fam) { setRegForm(null); return; }
+    const gid = fam.registration_id || fam.id;
+    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const run = (d.success ? d.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
+        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" } : null);
+      })
+      .catch(() => setRegForm(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, families]);
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const programTeamMembers = React.useMemo(() => {
@@ -1194,36 +1225,56 @@ function ProgramWorkspace() {
               </div>
             </div>
 
-            {/* REGISTRATION LINK */}
-            {families.length > 0 && families[0]?.registration_id && (
+            {/* REGISTRATION - assigned Form link (Form is the participant intake point) */}
+            {families.length > 0 && families[0] && (
               <div className="card mt-6 border-l-4 border-emerald-500">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1 flex-1">
                     <p className="text-xs font-black uppercase text-[var(--text-secondary)] tracking-wider">
                       {t("pmMisc.workspace.registrationLink")}
                     </p>
-                    <p className="text-[9px] text-emerald-500 font-medium mt-1">
-                      {t("pmMisc.workspace.registrationLinkHint")}
-                    </p>
-                    <div className="flex items-center gap-2 mt-3">
-                      <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
-                        {typeof window !== "undefined" ? window.location.origin : ""}/register-participant?group_id={families[0]?.registration_id && encodeURIComponent(families[0].registration_id)}
-                      </code>
-                      <button
-                        onClick={() => {
-                          const fid = families[0]?.registration_id;
-                          if (!fid) return;
-                          navigator.clipboard.writeText(
-                            `${window.location.origin}/register-participant?group_id=${encodeURIComponent(fid)}`
-                          );
-                          window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("pmMisc.workspace.registrationLinkCopied") } }));
-                        }}
-                        className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
-                        title={t("pmMisc.workspace.copyRegistrationLink")}
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {regForm ? (
+                      <>
+                        <p className="text-[9px] text-emerald-500 font-medium mt-1">
+                          {t("pmMisc.workspace.assignedRegistrationForm")}: <strong className="uppercase">{regForm.name}</strong>
+                        </p>
+                        <div className="flex items-center gap-2 mt-3">
+                          <code className="text-[10px] font-mono bg-black/30 px-3 py-2 rounded-lg border border-[var(--border-primary)] truncate max-w-[450px] block" style={{ color: "var(--text-primary)" }}>
+                            {regForm.link}
+                          </code>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(regForm.link);
+                              window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("pmMisc.workspace.registrationLinkCopied") } }));
+                            }}
+                            className="p-2.5 rounded-lg bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all border border-emerald-500/20"
+                            title={t("pmMisc.workspace.copyRegistrationLink")}
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={regForm.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="p-2.5 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20"
+                            title={t("pmMisc.workspace.openForm")}
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="space-y-2 mt-2">
+                        <p className="text-[10px] font-black uppercase text-amber-400">{t("pmMisc.workspace.noFormYet")}</p>
+                        <p className="text-[9px] text-[var(--text-secondary)] font-medium">{t("pmMisc.workspace.noFormYetHint")}</p>
+                        <a
+                          href="/platform/runs"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20 text-[9px] font-black uppercase tracking-widest"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" /> {t("pmMisc.workspace.goToCrmForms")}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

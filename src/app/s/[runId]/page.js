@@ -232,7 +232,7 @@ export default function PublicSubmitPage() {
             onChange={(next) => updateField(field.id, next)}
             placeholder={field.placeholder || "90 84 78 20"}
             disabled={isDisabled}
-            inputClassName={`${inputClass} flex-1`}
+            inputClassName="flex-1 rounded-xl px-4 py-3 text-sm font-medium outline-none border bg-slate-800 text-slate-100 placeholder:text-slate-400 border-slate-600 focus:border-orange-500"
           />
         );
       case "select": case "radio":
@@ -420,7 +420,12 @@ export default function PublicSubmitPage() {
           // Multi-section — stepper
           const sec = validSections[currentSection];
           if (!sec) return null;
-          const secFields = fields.filter(f => String(f.section_id) === String(sec.id));
+          // Include fields with no section in the FIRST step so they are never
+          // dropped or rendered twice (single-section path already covers them).
+          const secFields = fields.filter(f => {
+            if (currentSection === 0 && !f.section_id) return true;
+            return String(f.section_id) === String(sec.id);
+          });
           const isLast = currentSection >= validSections.length - 1;
           const isFirst = currentSection === 0;
 
@@ -484,15 +489,6 @@ export default function PublicSubmitPage() {
             </div>
           );
         })()}
-
-        {/* Orphan fields (no section) */}
-        {fields.filter(f => !f.section_id && sections.length === 0).map(f => (
-          <div key={f.id} className="space-y-1.5">
-            <label className="text-sm font-bold text-slate-200 flex items-center gap-1">{f.label} {f.required && <span className="text-red-400">*</span>}</label>
-            {renderField(f)}
-            {errors[f.id] && <p className="text-xs text-red-400 font-bold">{errors[f.id]}</p>}
-          </div>
-        ))}
 
         {/* Submit — only for forms with no sections (single-page layout) */}
         {!success && run?.status === "active" && sections.filter(sec => fields.some(f => String(f.section_id) === String(sec.id))).length <= 1 && (

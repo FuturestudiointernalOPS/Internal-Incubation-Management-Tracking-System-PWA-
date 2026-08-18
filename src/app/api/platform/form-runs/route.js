@@ -573,8 +573,9 @@ export async function GET(req) {
       return NextResponse.json({ success: true, submissions: subs.rows });
     }
 
-    // List all runs (optionally filtered by group_id), paginated server-side.
+    // List all runs (optionally filtered by group_id or program_id), paginated server-side.
     const groupId = searchParams.get("group_id");
+    const programId = searchParams.get("program_id");
     const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
     const perPage = Math.max(1, parseInt(searchParams.get("per_page")) || 50);
     const offset = (page - 1) * perPage;
@@ -593,6 +594,10 @@ export async function GET(req) {
     if (groupId) {
       conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND ga2.target_id = ?)");
       args.push(groupId);
+    }
+    if (programId) {
+      conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments pa WHERE pa.run_id = r.id AND pa.target_type = 'program' AND pa.target_id = ?)");
+      args.push(programId);
     }
     if (formId) { conditions.push("r.form_id = ?"); args.push(parseInt(formId)); }
     if (status && status !== "all") {

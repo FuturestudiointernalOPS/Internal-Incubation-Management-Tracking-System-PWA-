@@ -5,7 +5,8 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
   Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
-  Link as LinkIcon, Trash2
+  Link as LinkIcon, Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -30,6 +31,38 @@ export default function SuperAdminExecutiveView({ params }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditingKpi, setIsEditingKpi] = useState(null);
   const [kpiForm, setKpiForm] = useState({ title: '', target_value: '' });
+  // Assigned registration form (public link) - resolved from the Form assigned to the program group
+  const [regForm, setRegForm] = useState(null);
+
+  useEffect(() => {
+    // Prefer the Form Run assigned directly to the Program (target_type = "program");
+    // fall back to the first group-assigned run only when no program run exists.
+    const pid = program?.id;
+    if (pid) {
+      fetch(`/api/platform/form-runs?program_id=${encodeURIComponent(String(pid))}`)
+        .then((r) => r.json())
+        .then((d) => {
+          const run = (d.success ? d.runs || [] : []).find((x) => x.status === 'active' && x.public_slug);
+          if (run) {
+            setRegForm({ link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' });
+            return;
+          }
+          setRegForm(null);
+        })
+        .catch(() => setRegForm(null));
+      return;
+    }
+    const gid = program?.assigned_segments?.[0];
+    if (!gid) { setRegForm(null); return; }
+    fetch(`/api/platform/form-runs?group_id=${encodeURIComponent(String(gid))}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const run = (d.success ? d.runs || [] : []).find((x) => x.status === 'active' && x.public_slug);
+        setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' } : null);
+      })
+      .catch(() => setRegForm(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [program?.id, program?.assigned_segments]);
 
   useEffect(() => {
     fetchData();
@@ -156,17 +189,37 @@ export default function SuperAdminExecutiveView({ params }) {
              {program.assigned_segments?.length > 0 && program.assigned_segments[0] && (
                 <div className="flex flex-col items-end gap-2 px-6 py-2 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                    <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest italic">{t("adminMisc.programDetail.registrationNode")}</p>
-                   <button 
-                      onClick={() => {
-                         const gid = program.assigned_segments[0];
-                         const url = `${window.location.origin}/register-participant?group_id=${encodeURIComponent(String(gid))}`;
-                         navigator.clipboard.writeText(url);
-                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.programDetail.urlCopied") } }));
-                      }}
-                      className="flex items-center gap-2 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
-                   >
-                      <LinkIcon className="w-3 h-3" /> {t("adminMisc.programDetail.copyGroupUrl")}
-                   </button>
+                   {regForm ? (
+                      <div className="flex items-center gap-3">
+                         <button 
+                            onClick={() => {
+                               navigator.clipboard.writeText(regForm.link);
+                               window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.programDetail.urlCopied") } }));
+                            }}
+                            className="flex items-center gap-2 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
+                         >
+                            <LinkIcon className="w-3 h-3" /> {t("adminMisc.programDetail.copyGroupUrl")}
+                         </button>
+                         <a
+                            href={regForm.link}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
+                         >
+                            <ExternalLink className="w-3 h-3" /> {t("adminMisc.programDetail.openForm")}
+                         </a>
+                      </div>
+                   ) : (
+                      <div className="flex flex-col items-end gap-1">
+                         <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest italic">{t("adminMisc.programDetail.noFormYet")}</p>
+                         <a
+                            href="/platform/forms"
+                            className="text-[9px] font-black text-blue-400 hover:underline uppercase italic"
+                         >
+                            {t("adminMisc.programDetail.goToCrmForms")}
+                         </a>
+                      </div>
+                   )}
                 </div>
              )}
              <div className="text-right">
