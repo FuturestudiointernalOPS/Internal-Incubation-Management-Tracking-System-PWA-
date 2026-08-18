@@ -258,6 +258,7 @@ export async function POST(req) {
         language: "en",
       };
     } else {
+      const isFirstLogin = !user.login_count || Number(user.login_count) === 0;
       responseUser = {
         cid: userCid,
         name: user.name,
@@ -266,6 +267,7 @@ export async function POST(req) {
         group_name: user.group_name,
         language: user.language || "en",
         permission: "edit",
+        is_first_login: isFirstLogin,
       };
     }
 
