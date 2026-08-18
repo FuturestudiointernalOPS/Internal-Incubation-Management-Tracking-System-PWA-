@@ -63,9 +63,9 @@ export async function POST(req) {
       await db.execute({
         sql: `INSERT INTO v2_programs
           (id, name, description, concept_note, vision, objectives, program_type, visibility,
-           participant_limit, registration_window, language, duration_weeks, grading_mode,
+           language, duration_weeks, grading_mode,
            feedback_enabled, materials, is_template, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'template')`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'template')`,
         args: [
           templateId,
           template_name,
@@ -75,8 +75,6 @@ export async function POST(req) {
           p.objectives,
           p.program_type || "incubation",
           p.visibility || "private",
-          p.participant_limit || 0,
-          p.registration_window,
           p.language || "en",
           p.duration_weeks || 4,
           p.grading_mode || "graded",
@@ -110,13 +108,25 @@ export async function POST(req) {
       }
       const t = tmpl.rows[0];
 
+      // Prevent start date in the past
+      if (start_date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(start_date) < today) {
+          return NextResponse.json(
+            { success: false, error: "Start date cannot be in the past." },
+            { status: 400 },
+          );
+        }
+      }
+
       const newId = uuidv4();
       await db.execute({
         sql: `INSERT INTO v2_programs
           (id, name, description, concept_note, vision, objectives, program_type, visibility,
-           participant_limit, registration_window, language, duration_weeks, grading_mode,
+           language, duration_weeks, grading_mode,
            feedback_enabled, materials, start_date, end_date, assigned_pm_id, status, template_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', ?)`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', ?)`,
         args: [
           newId,
           name,
@@ -126,8 +136,6 @@ export async function POST(req) {
           t.objectives,
           t.program_type || "incubation",
           t.visibility || "private",
-          t.participant_limit || 0,
-          t.registration_window,
           t.language || "en",
           t.duration_weeks || 4,
           t.grading_mode || "graded",

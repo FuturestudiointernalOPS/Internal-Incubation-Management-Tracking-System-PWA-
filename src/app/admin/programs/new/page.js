@@ -59,22 +59,32 @@ export default function NewProgram() {
     objectives: "",
     program_type: "incubation",
     visibility: "private",
-    participant_limit: 0,
-    registration_window_start: "",
-    registration_window_end: "",
     language: "en",
     assigned_pm_id: "",
     expected_outcomes: "",
     success_metrics: "",
-    banner_url: "",
   });
 
   // Date validation
   const [dateError, setDateError] = useState("");
 
+  // Today's date (YYYY-MM-DD) to prevent picking a past start date
+  const todayStr = (() => {
+    const d = new Date();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${mm}-${dd}`;
+  })();
+
   const validateDates = (start, end) => {
     if (!start || !end) {
       setDateError(t("adminMisc.newProgram.dateErrorRequired"));
+      return false;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (new Date(start) < today) {
+      setDateError(t("adminMisc.newProgram.dateErrorPast"));
       return false;
     }
     if (new Date(end) < new Date(start)) {
@@ -217,19 +227,6 @@ export default function NewProgram() {
 
   const handleCreateGroupInline = async () => {
     if (!newGroup.name) return notify("error", t("adminMisc.newProgram.groupNameRequired"));
-    // Vérifier que la date actuelle est dans la fenêtre d'inscription
-    if (program.registration_window_start && program.registration_window_end) {
-      const now = new Date();
-      const start = new Date(program.registration_window_start);
-      const end = new Date(program.registration_window_end);
-      end.setHours(23, 59, 59, 999);
-      if (now < start) {
-        return notify("error", t("adminMisc.newProgram.registrationWindowOpens", { date: program.registration_window_start }));
-      }
-      if (now > end) {
-        return notify("error", t("adminMisc.newProgram.registrationWindowClosed", { date: program.registration_window_end }));
-      }
-    }
     setIsDeploying(true);
     try {
       const res = await fetch("/api/families", {
@@ -350,13 +347,8 @@ export default function NewProgram() {
           objectives: program.objectives || null,
           expected_outcomes: program.expected_outcomes || null,
           success_metrics: program.success_metrics || null,
-          banner_url: program.banner_url || null,
           program_type: program.program_type || "incubation",
           visibility: program.visibility || "private",
-          participant_limit: program.participant_limit || 0,
-          registration_window: program.registration_window_start && program.registration_window_end
-            ? `${program.registration_window_start}|${program.registration_window_end}`
-            : null,
           language: program.language || "en",
           start_date: program.start_date,
           end_date: program.end_date,
@@ -523,6 +515,7 @@ export default function NewProgram() {
               <input
                 required
                 type="date"
+                min={todayStr}
                 value={program.start_date}
                 onChange={(e) => {
                   const d = e.target.value;
@@ -732,73 +725,6 @@ export default function NewProgram() {
                 placeholder={t("adminMisc.newProgram.successMetricsPlaceholder")}
                 className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
-            </div>
-          </div>
-
-          {/* Program Banner */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-              {t("adminMisc.newProgram.programBannerUrl")}
-            </label>
-            <input
-              type="url"
-              value={program.banner_url || ""}
-              onChange={(e) =>
-                setProgram({ ...program, banner_url: e.target.value })
-              }
-              placeholder="https://example.com/banner.jpg"
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                {t("admin.participantLimit")}
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={program.participant_limit || 0}
-                onChange={(e) =>
-                  setProgram({
-                    ...program,
-                    participant_limit: parseInt(e.target.value) || 0,
-                  })
-                }
-                placeholder={t("admin.unlimited")}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
-                {t("admin.registrationWindow")}
-              </label>
-              <div className="flex gap-3">
-                <input
-                  type="date"
-                  value={program.registration_window_start || ""}
-                  onChange={(e) =>
-                    setProgram({
-                      ...program,
-                      registration_window_start: e.target.value,
-                    })
-                  }
-                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
-                />
-                <span className="flex items-center text-slate-500 text-sm font-bold">→</span>
-                <input
-                  type="date"
-                  value={program.registration_window_end || ""}
-                  onChange={(e) =>
-                    setProgram({
-                      ...program,
-                      registration_window_end: e.target.value,
-                    })
-                  }
-                  className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all [color-scheme:dark]"
-                />
-              </div>
             </div>
           </div>
 
