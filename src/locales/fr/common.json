@@ -100,6 +100,7 @@
     "thisWeek": "Cette Semaine",
     "moreTasks": "tâches supplémentaires",
     "operations": "Opérations",
+    "weeklyOps": "Ops hebdo",
     "weeklyOpsStatus": "Statut du point hebdomadaire et de la rétrospective"
   },
   "roles": {

@@ -1,6 +1,7 @@
 {
   "staffMisc": {
     "standupRetro": {
+      "weeklyOps": "Weekly Ops",
       "statusPending": "Pending",
       "statusActive": "Active",
       "statusBlocked": "Blocked",

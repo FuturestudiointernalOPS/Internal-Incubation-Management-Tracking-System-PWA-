@@ -1742,7 +1742,7 @@ function OperationsSection({ userId, summary }) {
           </div>
           <div>
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-              {t("dashboard.operations", "Operations")}
+              {t("dashboard.weeklyOps")}
             </h3>
             <p className="text-[10px] text-slate-500 font-bold mt-0.5">
               {t("dashboard.weeklyOpsStatus", "Weekly stand-up & retro status")}
@@ -1761,11 +1761,11 @@ function OperationsSection({ userId, summary }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="rounded-xl border border-[var(--border-primary)] bg-secondary overflow-hidden">
         {/* Standup status */}
         <button
           onClick={() => router.push("/staff/op-report?tab=standup")}
-          className="flex items-center justify-between gap-2 p-3 rounded-xl border border-[var(--border-primary)] bg-secondary cursor-pointer hover:border-[var(--brand-orange)]/40 transition-all text-left"
+          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-white/[0.03] transition-all text-left"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Calendar className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
@@ -1789,10 +1789,12 @@ function OperationsSection({ userId, summary }) {
           )}
         </button>
 
+        <div className="h-px bg-[var(--border-primary)]" />
+
         {/* Retro status */}
         <button
           onClick={() => router.push("/staff/op-report?tab=retro")}
-          className="flex items-center justify-between gap-2 p-3 rounded-xl border border-[var(--border-primary)] bg-secondary cursor-pointer hover:border-[var(--brand-orange)]/40 transition-all text-left"
+          className="w-full flex items-center justify-between gap-2 p-3 cursor-pointer hover:bg-white/[0.03] transition-all text-left"
         >
           <div className="flex items-center gap-2 min-w-0">
             <Trophy className="w-4 h-4 text-purple-400 shrink-0" />
