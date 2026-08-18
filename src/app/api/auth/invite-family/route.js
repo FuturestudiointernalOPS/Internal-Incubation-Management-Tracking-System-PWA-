@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import { parseEmailList } from "@/lib/email-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +34,19 @@ export async function POST(req) {
     const { familyId, familyName, groupName, programId, emails } =
       await req.json();
 
-    if (!familyId || !emails || !Array.isArray(emails) || emails.length === 0) {
+    if (!familyId) {
       return NextResponse.json(
-        { success: false, error: "familyId and emails array are required" },
+        { success: false, error: "familyId is required" },
+        { status: 400 },
+      );
+    }
+
+    // Accept either an array or raw pasted text. Only valid email addresses
+    // are kept; invalid tokens are ignored (reported as skipped).
+    const emailList = parseEmailList(emails);
+    if (emailList.length === 0) {
+      return NextResponse.json(
+        { success: false, error: "No valid email addresses provided" },
         { status: 400 },
       );
     }
@@ -59,11 +70,8 @@ export async function POST(req) {
 
     const results = [];
 
-    for (const item of emails) {
-      const memberEmail = typeof item === "string" ? item : item.email;
-      const memberName = item.name || memberEmail.split("@")[0];
-
-      if (!memberEmail) continue;
+    for (const memberEmail of emailList) {
+      const memberName = memberEmail.split("@")[0];
 
       try {
         // Create contact for this member
