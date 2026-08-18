@@ -1,16 +1,29 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
+
+    // Rate limit: 20 invite/resend requests per IP per 10 minutes
+    const ipLimited = enforceRateLimit(req, `invite:ip:${getClientIp(req)}`, {
+      limit: 20,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (ipLimited) return ipLimited;
+
+    const session = await getSession();
+    const actor = session?.cid || "system";
 
     const body = await req.json();
     const { email, name, role, group_id, action, program_id, program_name } = body;
@@ -20,6 +33,13 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Rate limit: max 5 invites/resends per recipient email per hour
+    const emailLimited = enforceRateLimit(req, `invite:email:${cleanEmail}`, {
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (emailLimited) return emailLimited;
 
     // RESEND
     if (action === "resend") {
@@ -33,11 +53,19 @@ export async function POST(req) {
       const contact = existingContact.rows[0];
       await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contact.cid] });
       const token = uuidv4();
+      const tokenHash = hashToken(token);
       await db.execute({
-        sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
-        args: [token, contact.cid],
+        sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
+        args: [token, tokenHash, contact.cid],
       });
       await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
+      try {
+        await db.execute({
+          sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
+                VALUES (?, 'invitation_resent', 'Invitation resent', 'contacts', ?, '{}'::jsonb)`,
+          args: [contact.cid, actor],
+        });
+      } catch (_) {}
       return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
     }
 
@@ -79,20 +107,22 @@ export async function POST(req) {
     await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contactCid] });
 
     const token = uuidv4();
+    const tokenHash = hashToken(token);
     await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
-      args: [token, contactCid],
+      sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
+      args: [token, tokenHash, contactCid],
     });
 
     // CRM history: invitation sent (context = the program, when provided).
     try {
       await db.execute({
         sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-              VALUES (?, 'invitation_sent', ?, 'programs', ?, 'system', '{}'::jsonb)`,
+              VALUES (?, 'invitation_sent', ?, 'programs', ?, ?, '{}'::jsonb)`,
         args: [
           contactCid,
           program_name ? `Invited to facilitate ${program_name}` : "Invitation sent",
           program_id ? String(program_id) : null,
+          actor,
         ],
       });
     } catch (_) {}

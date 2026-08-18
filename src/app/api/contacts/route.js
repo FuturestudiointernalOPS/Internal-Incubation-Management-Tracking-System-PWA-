@@ -3,6 +3,8 @@ import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireCapability } from "@/lib/auth";
+import { attachInvitationStatus } from "@/lib/invitations";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
 
 /**
@@ -10,12 +12,14 @@ export const dynamic = "force-dynamic";
  */
 async function fireInvite(cid, name, email, role, groupId) {
   try {
+    await ensureTokenHashColumns();
     const token = uuidv4();
+    const tokenHash = hashToken(token);
 
     await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, contact_cid, expires_at)
-            VALUES (?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [token, cid],
+      sql: `INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at)
+            VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')`,
+      args: [token, tokenHash, cid],
     });
 
     await db.execute({
@@ -62,7 +66,6 @@ export async function POST(req) {
       // Mapping for Public Application Form
       const rawName = c.name || c.fullName || "Unknown Applicant";
       const rawEmail = (c.email || "").toLowerCase().trim();
-      const rawPassword = (c.password || "").trim();
 
       if (!rawEmail) {
         errors.push({ name: rawName, error: "Email is required" });
@@ -74,10 +77,10 @@ export async function POST(req) {
         uuidv4().split("-")[0].toUpperCase() +
         Math.floor(Math.random() * 10000);
 
-      // Hash password if provided; otherwise generate a temp hash (DB column is NOT NULL)
-      const hashedPassword = rawPassword
-        ? await bcrypt.hash(rawPassword, 10)
-        : await bcrypt.hash(uuidv4(), 10);
+      // Admins never create user passwords. Store an unusable random hash so
+      // the account can only gain a real password through the invitation /
+      // activation flow (user sets their own password).
+      const hashedPassword = await bcrypt.hash(uuidv4(), 10);
 
       // Gated Status Logic (UPPERCASE NORMALIZATION)
       const groupName = (c.group_name || "unassigned").toUpperCase();
@@ -281,7 +284,6 @@ export async function PUT(req) {
       "dob",
       "group_name",
       "role",
-      "password",
       "program_id",
       "program_name",
       "image",
@@ -298,13 +300,7 @@ export async function PUT(req) {
         let val = data[col];
         if (typeof val === "string") val = val.trim();
 
-        if (col === "password" && val === "") continue;
-
-        if (col === "password") {
-          const hashedPassword = await bcrypt.hash(val, 10);
-          fieldsToUpdate.push(`${col} = ?`);
-          args.push(hashedPassword);
-        } else if (col === "email") {
+        if (col === "email") {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(val.toLowerCase());
         } else if (col === "archived_at" || col === "archived_by") {
@@ -472,9 +468,15 @@ export async function GET(req) {
     const statusFilter = searchParams.get("status");
     const roleFilter = searchParams.get("role");
     const groupFilter = searchParams.get("group");
+    const cidFilter = searchParams.get("cid");
 
     let result;
-    if (session.role === "participant" || session.role === "founder") {
+    if (cidFilter) {
+      result = await db.execute({
+        sql: "SELECT * FROM contacts WHERE cid = ?",
+        args: [cidFilter],
+      });
+    } else if (session.role === "participant" || session.role === "founder") {
       result = await db.execute({
         sql: "SELECT * FROM contacts WHERE cid = ?",
         args: [session.cid],
@@ -514,7 +516,10 @@ export async function GET(req) {
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     }
-    return NextResponse.json({ success: true, contacts: result.rows });
+    const contacts = (await attachInvitationStatus(result.rows || [])).map(
+      ({ password, ...safeContact }) => safeContact,
+    );
+    return NextResponse.json({ success: true, contacts });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

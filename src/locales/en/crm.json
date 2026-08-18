@@ -198,7 +198,14 @@
       "confirmResendActivation": "Resend activation email to this contact?",
       "activationSent": "Activation email sent",
       "confirmSendReset": "Send password reset (login) email to this contact?",
-      "resetSent": "Password reset email sent"
+      "resetSent": "Password reset email sent",
+      "inviteUser": "Invite User",
+      "invitationSent": "Invitation sent",
+      "confirmInvite": "Send an invitation to this contact?",
+      "sending": "Sending...",
+      "invitationNotInvited": "Not Invited",
+      "invitationActivated": "Activated",
+      "invitationExpired": "Expired"
     },
     "duplicates": {
       "crm": "CRM",

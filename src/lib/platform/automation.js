@@ -17,6 +17,7 @@ import {
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
 import { resolveSubmissionEmail } from "@/lib/email";
+import { hashToken } from "@/lib/token-hashing";
 
 // ─── Module-level DDL caches (avoid running ALTER/CREATE on every request) ───
 let contactsLanguageColumnEnsured = false;
@@ -611,8 +612,8 @@ const RULES = [
               await ensurePasswordSetupTokensSchema();
               const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().replace("T", " ").replace("Z", "");
               await db.execute({
-                sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used) VALUES (?, ?, ?, 0)`,
-                args: [contact.cid, token, expiresAt],
+                sql: `INSERT INTO password_setup_tokens (contact_cid, token, token_hash, expires_at, used) VALUES (?, ?, ?, ?, 0)`,
+                args: [contact.cid, token, hashToken(token), expiresAt],
               });
               console.log("[Automation] Token stored for", contactEmail);
             }

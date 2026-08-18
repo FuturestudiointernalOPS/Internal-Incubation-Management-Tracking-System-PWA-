@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -10,6 +12,24 @@ export const POST = createHandler(
   { roles: ["super_admin"] },
   async (req, { params }) => {
     const { cid } = await params;
+
+    // Self-heal the token_hash column on first use (cached once per process)
+    await ensureTokenHashColumns();
+
+    // Rate limit: max 10 resends per IP per 10 minutes
+    const ipLimited = enforceRateLimit(req, `resend:ip:${getClientIp(req)}`, {
+      limit: 10,
+      windowMs: 10 * 60 * 1000,
+    });
+    if (ipLimited) return ipLimited;
+
+    // Rate limit: max 5 resends per contact per hour
+    const contactLimited = enforceRateLimit(req, `resend:cid:${cid}`, {
+      limit: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (contactLimited) return contactLimited;
+
     const contactRes = await db.execute({
       sql: "SELECT cid, name, email, role FROM contacts WHERE cid = ?",
       args: [cid],
@@ -25,9 +45,10 @@ export const POST = createHandler(
       args: [cid],
     });
     const token = uuidv4();
+    const tokenHash = hashToken(token);
     await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at) VALUES (?, ?, NOW() + INTERVAL '48 hours')",
-      args: [token, cid],
+      sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')",
+      args: [token, tokenHash, cid],
     });
     sendInviteEmail({
       to: contact.email,

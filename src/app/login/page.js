@@ -95,15 +95,17 @@ export default function LoginPage() {
     setImpersonateLoading(true);
     setImpersonateError("");
     try {
-      // Find the selected user's email for login
       const selectedUsers = impersonateUsers[selectedRole] || [];
-      const selectedUser = selectedUsers.find(u => u.cid === selectedUserCid);
+      const selectedUser = selectedUsers.find((u) => u.cid === selectedUserCid);
       const userEmail = selectedUser ? selectedUser.email : selectedUserCid;
 
-      const res = await fetch("/api/auth/session-login", {
+      // Use the passwordless staging impersonation endpoint instead of a
+      // hardcoded password login. This works for any existing contact and
+      // removes the "Invalid credentials" failure caused by password drift.
+      const res = await fetch("/api/auth/impersonate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, password: "Aa.123456" }),
+        body: JSON.stringify({ cid: selectedUserCid, email: userEmail }),
       });
       const data = await res.json();
       if (data.success) {

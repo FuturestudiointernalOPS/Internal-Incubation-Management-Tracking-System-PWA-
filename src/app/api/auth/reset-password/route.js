@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 export async function POST(req) {
   try {
     await initDb();
-    const { email, currentPassword, newPassword, adminToken } = await req.json();
+    const { email, currentPassword, newPassword } = await req.json();
 
     if (!email || !newPassword) {
       return NextResponse.json({ success: false, error: 'Email and new password required.' }, { status: 400 });
@@ -18,40 +18,8 @@ export async function POST(req) {
     const cleanEmail = email.trim().toLowerCase();
     const hashedNewPassword = await bcrypt.hash(newPassword, 10);
 
-    // Admin/PM reset (no current password check)
-    if (adminToken) {
-      // Try contacts table first
-      const contactRes = await db.execute({
-        sql: 'UPDATE contacts SET password = ? WHERE email = ? RETURNING name, email, role',
-        args: [hashedNewPassword, cleanEmail]
-      });
-
-      if (contactRes.rows && contactRes.rows.length > 0) {
-        return NextResponse.json({
-          success: true,
-          message: 'Password has been reset successfully.',
-          user: contactRes.rows[0]
-        });
-      }
-
-      // Try v2_teams table (team login)
-      const teamRes = await db.execute({
-        sql: 'UPDATE v2_teams SET password = ? WHERE team_username = ? RETURNING name, team_username',
-        args: [newPassword, cleanEmail]  // Teams use plain text passwords
-      });
-
-      if (teamRes.rows && teamRes.rows.length > 0) {
-        return NextResponse.json({
-          success: true,
-          message: 'Team password has been reset successfully.',
-          user: teamRes.rows[0]
-        });
-      }
-
-      return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
-    }
-
-    // Self-reset: verify current password
+    // Self-reset: verify current password (users manage their own passwords;
+    // there is no administrator password-reset path by design).
     if (!currentPassword) {
       return NextResponse.json({ success: false, error: 'Current password required for self-reset.' }, { status: 400 });
     }

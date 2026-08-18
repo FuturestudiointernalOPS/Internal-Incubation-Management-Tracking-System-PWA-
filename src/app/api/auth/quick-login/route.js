@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 
 /**
  * QUICK LOGIN - Staging-only endpoint.
@@ -18,6 +19,7 @@ export async function POST(req) {
 
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const { email } = await req.json();
 
     if (!email) {
@@ -65,8 +67,8 @@ export async function POST(req) {
     const expiresAtStr = expiresAt.toISOString().replace("T", " ").replace("Z", "");
 
     await db.execute({
-      sql: "INSERT INTO user_sessions (token, user_cid, role, expires_at, is_impersonation) VALUES (?, ?, ?, ?, ?)",
-      args: [token, userCid, finalRole, expiresAtStr, 1],
+      sql: "INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at, is_impersonation) VALUES (?, ?, ?, ?, ?, ?)",
+      args: [token, hashToken(token), userCid, finalRole, expiresAtStr, 1],
     });
 
     // Determine redirect

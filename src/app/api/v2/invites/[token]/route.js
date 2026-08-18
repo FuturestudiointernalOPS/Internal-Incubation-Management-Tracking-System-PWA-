@@ -10,18 +10,22 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 
 // GET: Validate the token and return program/group info for the UI
 export async function GET(req, { params }) {
   try {
+    await ensureTokenHashColumns();
     const { token } = await params; // Destructure carefully
+    const tokenHash = hashToken(token);
 
     const result = await db.execute({
       sql: `SELECT i.*, p.name as program_name
             FROM v2_invitations i
             LEFT JOIN v2_programs p ON i.program_id = p.id::text
-            WHERE i.token = ? AND i.expires_at > NOW()`,
-      args: [token]
+            WHERE i.expires_at > NOW()
+              AND (i.token_hash = ? OR i.token = ?)`,
+      args: [tokenHash, token]
     });
 
     if (result.rows.length === 0) {
@@ -29,6 +33,14 @@ export async function GET(req, { params }) {
     }
 
     const invite = result.rows[0];
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!invite.token_hash) {
+      await db.execute({
+        sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
+        args: [tokenHash, token],
+      }).catch(() => {});
+    }
     return NextResponse.json({
       invite: {
         program_id: invite.program_id,
@@ -46,6 +58,7 @@ export async function GET(req, { params }) {
 // POST: Accept invite and register user
 export async function POST(req, { params }) {
   try {
+    await ensureTokenHashColumns();
     const { token } = await params;
     const { name, email, phone, password } = await req.json();
 
@@ -54,15 +67,24 @@ export async function POST(req, { params }) {
     }
 
     // 1. Validate Invite
+    const tokenHash = hashToken(token);
     const inviteCheck = await db.execute({
-      sql: "SELECT * FROM v2_invitations WHERE token = ? AND expires_at > NOW()",
-      args: [token]
+      sql: "SELECT * FROM v2_invitations WHERE expires_at > NOW() AND (token_hash = ? OR token = ?)",
+      args: [tokenHash, token]
     });
 
     if (inviteCheck.rows.length === 0) {
       return NextResponse.json({ error: "Invalid or expired Future Studio Invite Link." }, { status: 404 });
     }
     const invite = inviteCheck.rows[0];
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!invite.token_hash) {
+      await db.execute({
+        sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
+        args: [tokenHash, token],
+      }).catch(() => {});
+    }
 
     // 2. Hash Password & Prepare User (Ticket 2 - Auth System)
     const salt = await bcrypt.genSalt(10);

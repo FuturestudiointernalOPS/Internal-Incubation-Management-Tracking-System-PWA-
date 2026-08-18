@@ -350,7 +350,22 @@
       "programManagerRole": "Program Manager",
       "facilitatorRole": "Facilitator",
       "assistantRole": "Assistant",
-      "staffRole": "Staff"
+      "staffRole": "Staff",
+      "role": "Role",
+      "organization": "Organization",
+      "accountStatus": "Account Status",
+      "preferredLanguage": "Preferred Language",
+      "languageEnglish": "English",
+      "languageFrench": "French",
+      "dateJoined": "Date Joined",
+      "lastLogin": "Last Login",
+      "neverLoggedIn": "Never logged in",
+      "notAvailable": "Not available",
+      "statusUnknown": "Unknown",
+      "uploadingPhoto": "Uploading...",
+      "photoUploadSuccess": "Profile photo updated",
+      "photoUploadFailed": "Photo upload failed",
+      "logout": "Logout"
     },
     "recycleBin": {
       "title": "Recycle Bin",

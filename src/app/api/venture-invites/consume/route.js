@@ -2,11 +2,22 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 // POST /api/venture-invites/consume — external user creates a venture via invite link
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
+
+    // Rate limit: 10 venture creations via invite link per IP per 15 minutes
+    const limited = enforceRateLimit(req, `venture-consume:ip:${getClientIp(req)}`, {
+      limit: 10,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (limited) return limited;
+
     const body = await req.json();
     const { token, name, description, industry, business_stage, founder_name, founder_email, founder_password } = body;
 
@@ -20,12 +31,21 @@ export async function POST(req) {
     }
 
     // Validate token
+    const tokenHash = hashToken(token);
     const linkRes = await db.execute({
-      sql: "SELECT * FROM venture_invite_links WHERE token = ?",
-      args: [token],
+      sql: "SELECT * FROM venture_invite_links WHERE token_hash = ? OR token = ?",
+      args: [tokenHash, token],
     });
     const link = linkRes.rows?.[0];
     if (!link) return NextResponse.json({ success: false, error: "Invalid invitation link" }, { status: 404 });
+
+    // Lazily backfill the hash for legacy rows stored before hashing was added.
+    if (!link.token_hash) {
+      await db.execute({
+        sql: "UPDATE venture_invite_links SET token_hash = ? WHERE id = ?",
+        args: [tokenHash, link.id],
+      }).catch(() => {});
+    }
     if (new Date(link.expires_at) < new Date()) {
       return NextResponse.json({ success: false, error: "This invitation link has expired" }, { status: 410 });
     }
@@ -106,8 +126,8 @@ export async function POST(req) {
 
     // Increment usage
     await db.execute({
-      sql: "UPDATE venture_invite_links SET uses = uses + 1 WHERE token = ?",
-      args: [token],
+      sql: "UPDATE venture_invite_links SET uses = uses + 1 WHERE id = ?",
+      args: [link.id],
     });
 
     return NextResponse.json({

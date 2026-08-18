@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 
 import { NextResponse } from "next/server";
 
@@ -21,6 +22,7 @@ const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
  */
 export async function createSession(userCid, userRole, rememberMe = false, isImpersonation = false) {
   await initDb();
+  await ensureTokenHashColumns();
 
   const durationMs = rememberMe ? REMEMBER_ME_DURATION_MS : SESSION_DURATION_MS;
   const token = uuidv4();
@@ -57,10 +59,11 @@ export async function createSession(userCid, userRole, rememberMe = false, isImp
   }
 
   // Create new session
+  const tokenHash = hashToken(token);
   await db.execute({
-    sql: `INSERT INTO user_sessions (token, user_cid, role, expires_at)
-          VALUES (?, ?, ?, ?)`,
-    args: [token, userCid, userRole, expiresAtStr],
+    sql: `INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at)
+          VALUES (?, ?, ?, ?, ?)`,
+    args: [token, tokenHash, userCid, userRole, expiresAtStr],
   });
 
   console.log(
@@ -84,6 +87,7 @@ export async function getSession() {
     }
 
     await initDb();
+    await ensureTokenHashColumns();
 
     const cookieStore = await cookies();
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
@@ -105,12 +109,14 @@ export async function getSession() {
       token.substring(0, 8) + "...",
     );
 
+    const tokenHash = hashToken(token);
     const result = await db.execute({
       sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
             FROM user_sessions s
             LEFT JOIN contacts c ON s.user_cid = c.cid
-            WHERE s.token = ? AND s.expires_at > NOW()`,
-      args: [token],
+            WHERE s.expires_at > NOW()
+              AND (s.token_hash = ? OR s.token = ?)`,
+      args: [tokenHash, token],
     });
 
     if (result.rows.length === 0) {
@@ -124,6 +130,14 @@ export async function getSession() {
     console.log("[session] Session FOUND in DB");
 
     const session = result.rows[0];
+
+    // Lazily backfill the hash for legacy sessions stored before hashing was added.
+    if (session && !session.token_hash) {
+      db.execute({
+        sql: "UPDATE user_sessions SET token_hash = ? WHERE token = ?",
+        args: [tokenHash, token],
+      }).catch(() => {});
+    }
 
     // Check user standing
     const allowedStatuses = ["active", "approved"];
@@ -194,9 +208,10 @@ export async function destroySession() {
     const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
     if (token) {
+      const tokenHash = hashToken(token);
       await db.execute({
-        sql: "DELETE FROM user_sessions WHERE token = ?",
-        args: [token],
+        sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",
+        args: [tokenHash, token],
       });
     }
 

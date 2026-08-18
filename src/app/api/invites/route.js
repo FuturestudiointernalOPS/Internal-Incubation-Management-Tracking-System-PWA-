@@ -2,8 +2,17 @@ import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { createHandler } from "@/lib/api/createHandler";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  // Rate limit: 20 program invite links per IP per 10 minutes
+  const limited = enforceRateLimit(req, `program-invites:ip:${getClientIp(req)}`, {
+    limit: 20,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
+
   const {
     program_id,
     group_name,
@@ -37,6 +46,9 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
     });
   } catch (_) {}
 
+  // Ensure the hashed-token column exists (idempotent, cached once per process)
+  await ensureTokenHashColumns();
+
   const token = uuidv4();
   const expiresAt = new Date();
 
@@ -48,10 +60,11 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
 
   try {
     await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, email, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      sql: `INSERT INTO v2_invitations (token, token_hash, program_id, group_name, team_id, role, email, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         token,
+        hashToken(token),
         program_id,
         group_name || null,
         team_id || null,

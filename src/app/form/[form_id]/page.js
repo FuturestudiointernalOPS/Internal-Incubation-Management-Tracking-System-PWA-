@@ -4,6 +4,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
+import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import { toE164 } from "@/lib/phone";
 import { useI18n } from "@/lib/i18n";
 function PublicFormContent() {
   const { t } = useI18n();
@@ -130,7 +132,11 @@ function PublicFormContent() {
                  </div>
                  <div>
                     <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">{t("rootMisc.form.phone")}</label>
-                    <input type="tel" value={publicData.phone} onChange={e => setPublicData({...publicData, phone: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-indigo-500/50" />
+                    <AppPhoneInput
+                      value={toE164(publicData.phone)}
+                      onChange={(next) => setPublicData({ ...publicData, phone: next })}
+                      placeholder="+229 90 84 78 20"
+                    />
                  </div>
               </motion.div>
             )}

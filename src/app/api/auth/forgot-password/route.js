@@ -2,6 +2,8 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "@/lib/mailer";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
 /**
  * FORGOT PASSWORD
@@ -18,6 +20,7 @@ import { sendEmail } from "@/lib/mailer";
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const { email } = await req.json();
 
     if (!email) {
@@ -28,6 +31,18 @@ export async function POST(req) {
     }
 
     const cleanEmail = email.trim().toLowerCase();
+
+    // Rate limit: prevents reset-email bombing (5 per IP / 3 per email per 15 min)
+    const ipLimited = enforceRateLimit(req, `forgot:ip:${getClientIp(req)}`, {
+      limit: 5,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (ipLimited) return ipLimited;
+    const emailLimited = enforceRateLimit(req, `forgot:email:${cleanEmail}`, {
+      limit: 3,
+      windowMs: 15 * 60 * 1000,
+    });
+    if (emailLimited) return emailLimited;
 
     // Find user (don't reveal if they exist)
     const userResult = await db.execute({
@@ -50,12 +65,14 @@ export async function POST(req) {
       });
 
       // Create new token
+      const tokenHash = hashToken(token);
       await db.execute({
-        sql: `INSERT INTO password_setup_tokens (contact_cid, token, expires_at, used)
-              VALUES (?, ?, ?, 0)`,
+        sql: `INSERT INTO password_setup_tokens (contact_cid, token, token_hash, expires_at, used)
+              VALUES (?, ?, ?, ?, 0)`,
         args: [
           user.cid,
           token,
+          tokenHash,
           expiresAt.toISOString().replace("T", " ").replace("Z", ""),
         ],
       });

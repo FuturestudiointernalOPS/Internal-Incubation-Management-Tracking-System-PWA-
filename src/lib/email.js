@@ -744,6 +744,8 @@ export async function ensurePasswordSetupTokensSchema() {
       // used BOOLEAN). The app writes contact_cid + integer used; legacy NOT NULL
       // columns without defaults otherwise break every insert.
       await db.execute(`ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS contact_cid TEXT`);
+      await db.execute(`ALTER TABLE password_setup_tokens ADD COLUMN IF NOT EXISTS token_hash TEXT`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_password_setup_tokens_token_hash ON password_setup_tokens(token_hash) WHERE token_hash IS NOT NULL`);
       try {
         await db.execute(`ALTER TABLE password_setup_tokens ALTER COLUMN user_cid DROP NOT NULL`);
       } catch (_) {}

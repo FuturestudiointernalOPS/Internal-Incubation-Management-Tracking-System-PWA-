@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
+import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import {
   buildFullFacilitatorPermissions,
   parsePermissions,
@@ -69,6 +70,7 @@ async function analyzeEmail(email, programId) {
 export async function POST(req) {
   try {
     await initDb();
+    await ensureTokenHashColumns();
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
 
@@ -161,9 +163,10 @@ export async function POST(req) {
         args: [contactCid],
       });
       const token = uuidv4();
+      const tokenHash = hashToken(token);
       await db.execute({
-        sql: "INSERT INTO password_setup_tokens (token, contact_cid, expires_at, token_type) VALUES (?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
-        args: [token, contactCid],
+        sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
+        args: [token, tokenHash, contactCid],
       });
 
       if (analysis.accountActivated) {
