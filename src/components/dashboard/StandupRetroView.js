@@ -365,7 +365,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       )}
 
       <div className="text-center space-y-1">
-        <p className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">{tab === "standup" ? t("staffMisc.standupRetro.mondayStandup") : t("staffMisc.standupRetro.fridayRetro")}</p>
+        <p className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">{t("staffMisc.standupRetro.weeklyOps")}</p>
         <h2 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("staffMisc.standupRetro.weekLabel", { week: week.week, year: week.year })}</h2>
         {contextLabel && <p className="text-[10px] text-[var(--text-secondary)]">{contextLabel}</p>}
       </div>
