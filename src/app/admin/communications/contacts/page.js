@@ -1225,6 +1225,7 @@ function ContactsPageContent() {
                 <option value="intern">{t("crm.contacts.roleIntern")}</option>
                 <option value="developer">{t("crm.contacts.roleDeveloper")}</option>
               </select>
+
               <button
                 onClick={handleInvite}
                 disabled={!inviteForm.email.trim() || isProcessing}
