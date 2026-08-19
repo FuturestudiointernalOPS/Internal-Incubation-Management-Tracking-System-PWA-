@@ -444,6 +444,21 @@ export async function GET(req) {
         emails = emailRes.rows;
       } catch (_) {}
 
+      // Full activation email history for the run (ALL rows, not just latest)
+      // so first/last sent timestamps can be surfaced per submission.
+      let activationLogs = [];
+      try {
+        const actRes = await db.execute({
+          sql: `SELECT el.submission_id, el.status, el.sent_at, el.created_at
+                FROM platform_email_log el
+                JOIN platform_form_submissions s ON el.submission_id = s.id
+                WHERE s.run_id = ? AND el.email_type = 'activation'
+                ORDER BY el.id ASC`,
+          args: [parseInt(id)],
+        });
+        activationLogs = actRes.rows;
+      } catch (_) {}
+
       // ── Run-scoped respondent enrichment: emails + dynamic filter fields ──
       const formIdOfRun = run.rows[0].form_id;
 
@@ -521,6 +536,24 @@ export async function GET(req) {
         } catch (_) {}
       }
 
+      // Password-setup tokens per contact (latest per contact) — for link validity
+      const tokenByCid = new Map();
+      try {
+        const contactCids = [...new Set([...accountMap.values()].map((c) => c.cid).filter(Boolean))];
+        if (contactCids.length > 0) {
+          const tokRes = await db.execute({
+            sql: `SELECT contact_cid, used, expires_at
+                  FROM password_setup_tokens
+                  WHERE contact_cid = ANY(?)
+                  ORDER BY created_at DESC, id DESC`,
+            args: [contactCids],
+          });
+          for (const t of tokRes.rows) {
+            if (!tokenByCid.has(t.contact_cid)) tokenByCid.set(t.contact_cid, t);
+          }
+        }
+      } catch (_) {}
+
       const enrichedSubmissions = rawSubs.map((s) => {
         // Real applicant email: the form's actual email answer first, then any
         // real email in the submission, then the CRM email — placeholder
@@ -561,7 +594,30 @@ export async function GET(req) {
         const account_created = !!contactRow;
         const account_activated = account_created && String(contactRow.status || "").toLowerCase() === "active";
         const account_status = deriveAccountStatus(contactRow);
-        return { ...s, email, display_name: displayName, account_created, account_activated, account_status };
+
+        // Activation history from the REAL email log + token state (first/last
+        // sent, link validity) — the source of truth for Send vs Resend.
+        const actRows = activationLogs.filter((l) => l.submission_id === s.id);
+        const sentAct = actRows.filter((r) => r.status === "sent");
+        const token = contactRow ? tokenByCid.get(contactRow.cid) : null;
+        const token_valid = !!(token && Number(token.used) === 0 && new Date(token.expires_at) > new Date());
+        return {
+          ...s,
+          email,
+          display_name: displayName,
+          account_created,
+          account_activated,
+          account_status,
+          activation_history: {
+            email_status: actRows.length ? actRows[actRows.length - 1].status : null,
+            first_sent_at: sentAct.length ? (sentAct[0].sent_at || sentAct[0].created_at) : null,
+            last_sent_at: sentAct.length ? (sentAct[sentAct.length - 1].sent_at || sentAct[sentAct.length - 1].created_at) : null,
+            email_count: actRows.length,
+            token_valid,
+            token_expires_at: token?.expires_at || null,
+            token_used: token ? token.used : null,
+          },
+        };
       });
 
       return NextResponse.json({ success: true, run: run.rows[0], assignments: await enrichAssignments(assignments.rows), submissions: enrichedSubmissions, reviews: reviews.rows, evaluations, emails, field_labels: fieldLabels, filterable_fields: filterableFields });
@@ -1640,7 +1696,7 @@ export async function POST(req) {
       });
       const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
 
-      const { getEmailLogRow } = await import("@/lib/email");
+      const { getEmailLogRow, getActivationHistory } = await import("@/lib/email");
       const results = [];
       for (const id of idList) {
         const sub = validMap.get(id);
@@ -1660,6 +1716,19 @@ export async function POST(req) {
           continue;
         }
 
+        // Account already activated → no activation email needed. This avoids
+        // the misleading "Send failed" when the person already completed setup.
+        try {
+          const actCheck = await db.execute({
+            sql: "SELECT status FROM contacts WHERE cid = ?",
+            args: [sub.submitter_id],
+          });
+          if (actCheck.rows[0] && String(actCheck.rows[0].status || "").toLowerCase() === "active") {
+            results.push({ submission_id: id, name, status: "skipped", error: "Account already activated — no activation email needed" });
+            continue;
+          }
+        } catch (_) {}
+
         try {
           const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.run_id] });
           let formData = null;
@@ -1678,12 +1747,17 @@ export async function POST(req) {
             formData
           );
           const after = await getEmailLogRow(id, "activation");
+          const hist = await getActivationHistory({ submission_id: id, contact_cid: sub.submitter_id || null });
           results.push({
             submission_id: id,
             name,
             status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
             error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
             to: after?.recipient,
+            first_sent_at: hist.first_sent_at,
+            last_sent_at: hist.last_sent_at,
+            token_valid: hist.token_valid,
+            token_expires_at: hist.token_expires_at,
           });
         } catch (e) {
           results.push({ submission_id: id, name, status: "failed", error: e?.message || "Activation send error" });
