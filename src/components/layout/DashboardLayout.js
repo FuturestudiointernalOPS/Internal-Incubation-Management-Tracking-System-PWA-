@@ -787,6 +787,12 @@ const NAVIGATION_MATRIX = {
       href: "/participant/dashboard",
     },
     {
+      id: "timeline",
+      name: "MY TIMELINE",
+      icon: Clock,
+      href: "/participant/profile#timeline",
+    },
+    {
       id: "certificates",
       name: "MY CERTIFICATES",
       icon: FileText,
@@ -818,6 +824,12 @@ const NAVIGATION_MATRIX = {
       name: "MY VENTURES",
       icon: Rocket,
       href: "/participant/ventures",
+    },
+    {
+      id: "timeline",
+      name: "MY TIMELINE",
+      icon: Clock,
+      href: "/participant/profile#timeline",
     },
     {
       id: "messages",
