@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 
 /**
  * POST /api/standups/submit
@@ -17,7 +18,7 @@ import { requireAuth } from "@/lib/auth";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(INTERNAL_OPS_ROLES);
     if (authError) return authError;
     const { getSession } = await import("@/lib/auth");
     const session = await getSession();
