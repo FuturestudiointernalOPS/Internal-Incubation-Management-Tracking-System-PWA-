@@ -318,6 +318,8 @@
       "reportHighlights": "Highlights & Successes",
       "reportNextSteps": "Strategic Next Steps",
       "awaitingReports": "Awaiting initial intelligence reports...",
+      "reportsGoToCurriculumTitle": "Create Your Weekly Report",
+      "reportsGoToCurriculumHint": "Reports are submitted from the Curriculum tab. Go back to Curriculum and make your report for the week you want.",
       "tableDeliverable": "Deliverable",
       "tableDate": "Date",
       "tableAction": "Action",
