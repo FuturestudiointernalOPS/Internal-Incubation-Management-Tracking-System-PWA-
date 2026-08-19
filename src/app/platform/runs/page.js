@@ -1669,29 +1669,27 @@ export default function FormRunsPage() {
     return rows.some((r) => r.status === "sent");
   };
 
-  // FIRST send: approved + activation email never sent yet
-  const eligibleSendActivationIds = useMemo(() => {
+  // ONE eligible list for BOTH actions: approved + account not yet activated.
+  // The difference is only the `force` flag: Send sends normally, Resend forces.
+  const eligibleActivationIds = useMemo(() => {
+    const blocked = new Set(["active", "inactive", "archived", "deleted"]);
     return selectedIds.filter((id) => {
       const s = submissions.find((x) => x.id === id);
       if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
-      return !hasActivationEmailSent(id);
+      const accountStatus = s.account_status || "not_created";
+      return !blocked.has(accountStatus);
     });
-  }, [selectedIds, submissions, activationLogBySubmission]);
+  }, [selectedIds, submissions]);
 
-  // RESEND: approved + activation email already sent at least once
-  const eligibleResendActivationIds = useMemo(() => {
-    return selectedIds.filter((id) => {
-      const s = submissions.find((x) => x.id === id);
-      if (!s || String(s.status || "").toLowerCase() !== "approved") return false;
-      return hasActivationEmailSent(id);
-    });
-  }, [selectedIds, submissions, activationLogBySubmission]);
+  const alreadySentCount = useMemo(
+    () => eligibleActivationIds.filter((id) => hasActivationEmailSent(id)).length,
+    [eligibleActivationIds, activationLogBySubmission]
+  );
 
   const openActivationConfirm = (forceResend = false) => {
     setBulkMenuOpen(false);
-    const ids = forceResend ? eligibleResendActivationIds : eligibleSendActivationIds;
-    if (ids.length === 0) {
-      notify(t(forceResend ? "platformMisc.runs.noEligibleResend" : "platformMisc.runs.noEligibleSend"));
+    if (eligibleActivationIds.length === 0) {
+      notify(t("platformMisc.runs.noEligibleActivation"));
       return;
     }
     setActivationForceResend(forceResend);
@@ -1699,13 +1697,12 @@ export default function FormRunsPage() {
   };
 
   const runSendActivationMessages = async () => {
-    const targetIds = activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds;
-    if (!selectedRun || targetIds.length === 0 || activationProcessing) return;
+    if (!selectedRun || eligibleActivationIds.length === 0 || activationProcessing) return;
     setActivationConfirmOpen(false);
     setActivationProcessing(true);
     const forceResend = activationForceResend;
     const CHUNK = 30;
-    const ids = [...targetIds];
+    const ids = [...eligibleActivationIds];
     const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
     setActivationProgress({ done: 0, total: ids.length });
     try {
@@ -2577,37 +2574,42 @@ export default function FormRunsPage() {
                       {t(activationForceResend ? "platformMisc.runs.activationResendConfirmTitle" : "platformMisc.runs.activationConfirmTitle")}
                     </h4>
                     <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                      {t(activationForceResend ? "platformMisc.runs.activationResendConfirmDesc" : "platformMisc.runs.activationConfirmDesc", { count: (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length })}
+                      {t(activationForceResend ? "platformMisc.runs.activationResendConfirmDesc" : "platformMisc.runs.activationConfirmDesc", { count: eligibleActivationIds.length })}
                     </p>
-                    {activationForceResend && eligibleResendActivationIds.slice(0, 5).map((id) => {
+                    {!activationForceResend && alreadySentCount > 0 && (
+                      <p className="text-[10px] font-bold text-amber-500">
+                        {t("platformMisc.runs.activationAlreadySentOffer", { count: alreadySentCount })}
+                      </p>
+                    )}
+                    {activationForceResend && eligibleActivationIds.slice(0, 5).map((id) => {
                       const s = submissions.find((x) => x.id === id);
                       const h = s?.activation_history;
                       return (
                         <div key={id} className="rounded-lg bg-primary/50 border border-[var(--border-primary)] px-3 py-2 text-[9px] text-[var(--text-secondary)] space-y-0.5">
                           <p className="font-black text-[var(--text-primary)] uppercase truncate">{s?.display_name || s?.submitter_name || `#${id}`}</p>
-                          {h?.first_sent_at && <p>{t("platformMisc.runs.activationFirstSent", { date: new Date(h.first_sent_at).toLocaleString() })}</p>}
+                          {h?.first_sent_at ? <p>{t("platformMisc.runs.activationFirstSent", { date: new Date(h.first_sent_at).toLocaleString() })}</p> : <p>{t("platformMisc.runs.activationNotSentYet")}</p>}
                           {h?.last_sent_at && <p>{t("platformMisc.runs.activationLastSent", { date: new Date(h.last_sent_at).toLocaleString() })}</p>}
                           <p className={h?.token_valid ? "text-emerald-500" : "text-rose-500"}>
                             {h?.token_valid
                               ? t("platformMisc.runs.activationLinkValid", { date: h.token_expires_at ? new Date(h.token_expires_at).toLocaleString() : "" })
-                              : t("platformMisc.runs.activationLinkExpired")}
+                              : h?.email_status ? t("platformMisc.runs.activationLinkExpired") : t("platformMisc.runs.activationNotSentYet")}
                           </p>
                         </div>
                       );
                     })}
-                    {activationForceResend && eligibleResendActivationIds.length > 5 && (
+                    {activationForceResend && eligibleActivationIds.length > 5 && (
                       <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-                        +{eligibleResendActivationIds.length - 5} {t("platformMisc.runs.moreRecipients")}
+                        +{eligibleActivationIds.length - 5} {t("platformMisc.runs.moreRecipients")}
                       </p>
                     )}
-                    {selectedIds.length > (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length && (
+                    {selectedIds.length > eligibleActivationIds.length && (
                       <p className="text-[10px] font-bold text-amber-500">
-                        {t("platformMisc.runs.activationIneligible", { count: selectedIds.length - (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length })}
+                        {t("platformMisc.runs.activationIneligible", { count: selectedIds.length - eligibleActivationIds.length })}
                       </p>
                     )}
                     <div className="flex items-center gap-2 justify-end">
                       <button onClick={() => setActivationConfirmOpen(false)} disabled={activationProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
-                      <button onClick={runSendActivationMessages} disabled={activationProcessing || (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                      <button onClick={runSendActivationMessages} disabled={activationProcessing || eligibleActivationIds.length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
                         {t(activationForceResend ? "platformMisc.runs.resendActivationConfirm" : "platformMisc.runs.sendActivationConfirm")}
                       </button>
                     </div>
