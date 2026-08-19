@@ -40,28 +40,32 @@ function ProgressRing({
 
   return (
     <div className="relative inline-flex items-center justify-center">
-      <svg width={size} height={size} className="transform -rotate-90">
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="transparent"
-          stroke="currentColor"
-          strokeWidth={strokeWidth}
-          className="text-white/10"
-        />
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="transparent"
-          stroke={color}
-          strokeWidth={strokeWidth}
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          strokeLinecap="round"
-          className="transition-all duration-1000 ease-out"
-        />
+      <svg width={size} height={size}>
+        {/* Rotation around the circle center via SVG attribute (CSS transform
+            on <svg> clips the ring at the top-left in some browsers). */}
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="transparent"
+            stroke="currentColor"
+            strokeWidth={strokeWidth}
+            className="text-white/10"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="transparent"
+            stroke={color}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+        </g>
       </svg>
       <span className="absolute text-lg font-black text-white">{percent}%</span>
     </div>
