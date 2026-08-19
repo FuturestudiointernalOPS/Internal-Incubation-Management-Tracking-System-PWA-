@@ -204,7 +204,10 @@
       "sending": "Sending...",
       "invitationNotInvited": "Not Invited",
       "invitationActivated": "Activated",
-      "invitationExpired": "Expired"
+      "invitationExpired": "Expired",
+      "activationEmailSent": "Activation email: Sent",
+      "activationEmailFailed": "Activation email: Failed",
+      "activationEmailNotSent": "Activation email: Not sent"
     },
     "duplicates": {
       "crm": "CRM",

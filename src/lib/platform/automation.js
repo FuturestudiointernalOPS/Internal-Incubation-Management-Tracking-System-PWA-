@@ -642,7 +642,11 @@ const RULES = [
         try {
           const { recordEmailFailure, getEmailLogRow } = await import("@/lib/email");
           const existing = ctx.submission?.id ? await getEmailLogRow(ctx.submission.id, "activation") : null;
-          if (!existing) {
+          // Only skip recording when a REAL send is on record. A queued
+          // (pending) row written before this background job ran is NOT a
+          // send — without this guard the log stays stuck at "pending"
+          // forever and the UI shows a misleading in-flight status.
+          if (!existing || existing.status !== "sent") {
             await recordEmailFailure({
               submission_id: ctx.submission?.id || null,
               contact_cid: ctx.submission?.submitter_id || null,
