@@ -14,8 +14,6 @@ import {
   ChevronRight,
   Plus,
   Target,
-  Bell,
-  UserCheck,
   Loader2,
   Briefcase,
   Clock,
@@ -135,8 +133,6 @@ const ICONS = {
   ChevronRight,
   Plus,
   Target,
-  Bell,
-  UserCheck,
   Loader2,
   Briefcase,
   Clock,
@@ -232,8 +228,6 @@ export default function AdminDashboard() {
     totalStaff: 0,
   });
   const [activity, setActivity] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [pendingApprovalsTotal, setPendingApprovalsTotal] = useState(0);
   const [activePrograms, setActivePrograms] = useState([]);
   const [opStats, setOpStats] = useState({
     standups: 0,
@@ -306,29 +300,22 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const [stateRes, notifRes, opRes, blockerRes, kpiRes, pendingRes] = await Promise.all([
+      const [stateRes, opRes, blockerRes, kpiRes] = await Promise.all([
         fetch("/api/superadmin/full-state"),
-        fetch("/api/notifications?recipient_id=sa"),
         fetch("/api/op-reports"),
         fetch("/api/blockers?status=active"),
         fetch("/api/dashboard?summary=true"),
-        fetch("/api/admin/pending-users"),
       ]);
 
       const stateData = await stateRes.json();
-      const notifData = await notifRes.json();
       const opData = await opRes.json();
       const blockerData = await blockerRes.json();
       const kpiData = await kpiRes.json();
-      const pendingData = await pendingRes.json();
 
       if (stateData.success) {
         setStats(stateData.stats || {});
         setActivity(stateData.activity || []);
         setActivePrograms(stateData.activePrograms || []);
-      }
-      if (notifData.success) {
-        setNotifications(notifData.notifications || []);
       }
       if (opData.success) {
         const reports = opData.reports || [];
@@ -405,9 +392,6 @@ export default function AdminDashboard() {
       }
       if (kpiData.success) {
         setKpiSummary(kpiData.programs || []);
-      }
-      if (pendingData.success) {
-        setPendingApprovalsTotal(pendingData.total || 0);
       }
     } catch (err) {
       console.error("Dashboard sync failure:", err);
@@ -578,38 +562,6 @@ export default function AdminDashboard() {
     checkAuth();
   }, [router, fetchDashboardData]);
 
-  const handleApproval = async (notif) => {
-    setProcessingId(notif.id);
-    try {
-      // Find the matching pending user by name from contacts
-      const contactsRes = await fetch("/api/contacts");
-      const contactsData = await contactsRes.json();
-      const pendingUser = contactsData.contacts.find(
-        (c) => c.status === "pending" && notif.message.includes(c.name),
-      );
-      if (pendingUser) {
-        // Use the dedicated approve endpoint (same as Pending Users page)
-        // This handles: status change, token generation, email, audit log, notification cleanup
-        await fetch("/api/admin/approve-user", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_cid: pendingUser.cid,
-            admin_name: "super_admin",
-          }),
-        });
-      }
-      // Refresh — approved user and their notification will be gone from both places
-      fetchDashboardData();
-      // Also trigger header notification refresh
-      window.dispatchEvent(new CustomEvent("notifications:refresh"));
-    } catch (e) {
-      console.error("Approval Failed:", e);
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
   return (
     <DashboardLayout role="super_admin">
       <div className="space-y-10 pb-20 text-left">
@@ -635,91 +587,6 @@ export default function AdminDashboard() {
             </button>
           </div>
         </header>
-
-        {/* ──────── PENDING APPROVALS ──────── */}
-        {pendingApprovalsTotal > 0 && (
-          <div className="card border-orange-500/20 bg-orange-500/[0.02] !p-0 overflow-hidden">
-            <div className="px-5 py-4 border-b border-orange-500/10 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <Bell className="w-4 h-4 text-orange-500" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black uppercase tracking-tight">
-                    {t("adminMisc.dashboard.pendingAccessRequests")}
-                  </h3>
-                  <p className="text-[10px] text-[var(--text-secondary)]">
-                    {t("adminMisc.dashboard.pendingReviewCount", {
-                      count: pendingApprovalsTotal,
-                    })}
-                  </p>
-                </div>
-              </div>
-              <button onClick={() => router.push("/admin/pending-users")} className="text-[9px] font-black text-orange-400 uppercase hover:underline">
-                {t("adminMisc.dashboard.viewAll")} →
-              </button>
-            </div>
-            <div className="divide-y divide-orange-500/5 max-h-[380px] overflow-y-auto">
-              {notifications.filter((n) => !n.is_read && n.type === "verification").slice(0, 5).map((notif) => {
-                const nameMatch = notif.message?.match(/^([\w\s]+) has applied/);
-                const applicantName = nameMatch
-                  ? nameMatch[1]
-                  : t("adminMisc.dashboard.applicant");
-                return (
-                  <div key={notif.id} className="px-5 py-4 hover:bg-orange-500/[0.03] transition-colors">
-                    <div className="flex flex-col md:flex-row justify-between gap-4">
-                      <div className="flex items-start gap-4 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                          <span className="text-sm font-black text-orange-500">{applicantName.charAt(0)}</span>
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-bold text-[var(--text-primary)]">{applicantName}</h4>
-                          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{notif.message}</p>
-                          <div className="flex items-center gap-3 mt-2">
-                            <button
-                              onClick={async () => {
-                                setProcessingId(notif.id);
-                                await handleApproval(notif);
-                              }}
-                              disabled={processingId === notif.id}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-500 disabled:opacity-50 inline-flex items-center gap-1.5"
-                            >
-                              {processingId === notif.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserCheck className="w-3 h-3" />}
-                              {t("adminMisc.dashboard.approve")}
-                            </button>
-                            <button
-                              onClick={() => router.push("/admin/pending-users")}
-                              className="px-4 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-wider hover:border-orange-500/30"
-                            >
-                              {t("adminMisc.dashboard.viewDetails")}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              {notifications.filter((n) => !n.is_read && n.type === "verification").length === 0 && (
-                <div className="px-5 py-4">
-                  <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
-                    {t("adminMisc.dashboard.viewAll")} →
-                  </button>
-                </div>
-              )}
-              {pendingApprovalsTotal > 5 && (
-                <div className="px-5 py-3 text-center">
-                  <button onClick={() => router.push("/admin/pending-users")} className="text-[10px] font-bold text-orange-400 hover:underline">
-                    +
-                    {t("adminMisc.dashboard.morePendingViewAll", {
-                      count: Math.max(pendingApprovalsTotal - 5, 0),
-                    })}
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ═══════ DASHBOARD WIDGETS ═══════ */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
