@@ -22,6 +22,7 @@ import {
   Paperclip,
   ExternalLink,
   AlertTriangle,
+  Loader2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -253,6 +254,7 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [replyAttachmentUrl, setReplyAttachmentUrl] = useState("");
   const [replyAttachmentName, setReplyAttachmentName] = useState("");
   const [replyShowAttachment, setReplyShowAttachment] = useState(false);
+  const [replyUploading, setReplyUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
   const [deletingMessageId, setDeletingMessageId] = useState(null);
@@ -268,6 +270,7 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [composeAttachmentUrl, setComposeAttachmentUrl] = useState("");
   const [composeAttachmentName, setComposeAttachmentName] = useState("");
   const [composeShowAttachment, setComposeShowAttachment] = useState(false);
+  const [composeUploading, setComposeUploading] = useState(false);
   const [contactSearch, setContactSearch] = useState("");
   const [programSearch, setProgramSearch] = useState("");
   const [showContactDropdown, setShowContactDropdown] = useState(false);
@@ -429,11 +432,36 @@ export default function MessagingChat({ role = "super_admin" }) {
     }
   }, [uid, fetchMessages, fetchAllContacts, fetchFamilies, fetchPrograms]);
 
-  // ── Auto-poll every 10 seconds ──
+  // ── Auto-poll every 3 seconds while the page is visible ──
   useEffect(() => {
     if (!uid) return;
-    const interval = setInterval(fetchMessages, 10000);
-    return () => clearInterval(interval);
+    let timer = null;
+    const tick = () => {
+      fetchMessages();
+    };
+    const start = () => {
+      if (timer) return;
+      tick();
+      timer = setInterval(tick, 3000);
+    };
+    const stop = () => {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") start();
+      else stop();
+    };
+    start();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onVisibility);
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onVisibility);
+    };
   }, [uid, fetchMessages]);
 
   // ── Build conversation threads ──
@@ -459,11 +487,15 @@ export default function MessagingChat({ role = "super_admin" }) {
         icon = "broadcast";
       } else if (msg.target_type === "role") {
         threadId = `role_${msg.target_id}`;
-        // Look up the group name from families
+        // Look up the group name from families (or the internal staff group)
         const fam = families.find(
           (f) => String(f.id) === String(msg.target_id),
         );
-        label = fam ? fam.name : msg.target_id || t("messaging.groupFallback");
+        label =
+          fam?.name ||
+          (String(msg.target_id) === "__staff__"
+            ? t("messaging.staffGroup")
+            : msg.target_id || t("messaging.groupFallback"));
         icon = "group";
       } else if (msg.target_type === "program") {
         threadId = `program_${msg.target_id}`;
@@ -592,6 +624,66 @@ export default function MessagingChat({ role = "super_admin" }) {
     },
     [messages, uid],
   );
+
+  // ── Upload a file attachment (server-validated) and store the returned URL ──
+  const uploadAttachment = async (file) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.success && data.url) return { url: data.url };
+    return { error: data.error || t("messaging.uploadFailed", { error: "" }) };
+  };
+
+  const notifyError = (message) => {
+    window.dispatchEvent(
+      new CustomEvent("impactos:notify", {
+        detail: { type: "error", message },
+      }),
+    );
+  };
+
+  const handleReplyFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setReplyUploading(true);
+    try {
+      const result = await uploadAttachment(file);
+      if (result.url) {
+        setReplyAttachmentUrl(result.url);
+        setReplyAttachmentName(file.name);
+      } else {
+        notifyError(result.error || t("messaging.uploadFailed", { error: "" }));
+      }
+    } catch (err) {
+      console.error(err);
+      notifyError(t("messaging.uploadFailed", { error: "" }));
+    } finally {
+      setReplyUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  const handleComposeFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setComposeUploading(true);
+    try {
+      const result = await uploadAttachment(file);
+      if (result.url) {
+        setComposeAttachmentUrl(result.url);
+        setComposeAttachmentName(file.name);
+      } else {
+        notifyError(result.error || t("messaging.uploadFailed", { error: "" }));
+      }
+    } catch (err) {
+      console.error(err);
+      notifyError(t("messaging.uploadFailed", { error: "" }));
+    } finally {
+      setComposeUploading(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   // ── Handle quick reply from the chat panel ──
   const handleReply = async () => {
@@ -1154,6 +1246,16 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <div className="space-y-2 px-1">
                     <div className="flex items-center gap-2">
                       <input
+                        type="file"
+                        onChange={handleReplyFile}
+                        className="flex-1 text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                      />
+                      {replyUploading && (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-orange)] shrink-0" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
                         type="text"
                         placeholder={t("messaging.attachmentUrlPlaceholder")}
                         value={replyAttachmentUrl}
@@ -1452,6 +1554,16 @@ export default function MessagingChat({ role = "super_admin" }) {
               )}
               {composeShowAttachment && (
                 <div className="space-y-2 p-3 rounded-lg bg-tertiary border border-[var(--border-primary)]">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="file"
+                      onChange={handleComposeFile}
+                      className="flex-1 text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-[var(--bg-primary)] file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                    />
+                    {composeUploading && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-orange)] shrink-0" />
+                    )}
+                  </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="text"

@@ -2,6 +2,202 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+// ─── Message-scope resolution helpers ───────────────────────────────────────
+// Group/program messages (target_type 'role'/'program') carry a target_id but
+// no recipient_id, so recipients must be resolved from their memberships.
+
+/** Group member ids for a role/group target ('__staff__' or a family id). */
+async function resolveGroupMemberIds(targetId) {
+  const ids = new Set();
+  try {
+    if (String(targetId) === "__staff__") {
+      const res = await db.execute({
+        sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = 'FUTURE STUDIO' OR role IN ('staff', 'developer', 'intern', 'admin', 'super_admin')`,
+        args: [],
+      });
+      res.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+      return Array.from(ids);
+    }
+    const fam = await db.execute({
+      sql: "SELECT name, program_id FROM families WHERE id::text = ?",
+      args: [String(targetId)],
+    });
+    if (fam.rows.length === 0) return [];
+    const family = fam.rows[0];
+    if (family.name) {
+      const members = await db.execute({
+        sql: "SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = ?",
+        args: [String(family.name).toUpperCase()],
+      });
+      members.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+      try {
+        const ug = await db.execute({
+          sql: "SELECT user_cid FROM user_groups WHERE UPPER(TRIM(group_name)) = ?",
+          args: [String(family.name).toUpperCase()],
+        });
+        ug.rows.forEach((r) => r.user_cid && ids.add(String(r.user_cid)));
+      } catch (_) {}
+    }
+    if (family.program_id) {
+      (await resolveProgramMemberIds(family.program_id)).forEach((m) =>
+        ids.add(m),
+      );
+    }
+  } catch (_) {}
+  return Array.from(ids);
+}
+
+/** Member ids for a program target (participants, staff, PM, assistants). */
+async function resolveProgramMemberIds(programId) {
+  const ids = new Set();
+  try {
+    const pp = await db.execute({
+      sql: "SELECT participant_id FROM participant_programs WHERE program_id::text = ?",
+      args: [String(programId)],
+    });
+    pp.rows.forEach((r) => r.participant_id && ids.add(String(r.participant_id)));
+  } catch (_) {}
+  try {
+    const staff = await db.execute({
+      sql: "SELECT staff_id FROM v2_program_staff WHERE program_id::text = ?",
+      args: [String(programId)],
+    });
+    staff.rows.forEach((r) => r.staff_id && ids.add(String(r.staff_id)));
+  } catch (_) {}
+  try {
+    const prog = await db.execute({
+      sql: "SELECT assigned_pm_id, assigned_assistant_id FROM v2_programs WHERE id::text = ?",
+      args: [String(programId)],
+    });
+    const p = prog.rows[0];
+    if (p) {
+      if (p.assigned_pm_id) ids.add(String(p.assigned_pm_id));
+      if (p.assigned_assistant_id) {
+        try {
+          const arr = JSON.parse(p.assigned_assistant_id);
+          if (Array.isArray(arr))
+            arr.forEach((a) => a && ids.add(String(a)));
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  try {
+    const legacy = await db.execute({
+      sql: "SELECT cid FROM contacts WHERE program_id::text = ?",
+      args: [String(programId)],
+    });
+    legacy.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
+  } catch (_) {}
+  return Array.from(ids);
+}
+
+/**
+ * Groups (family ids + '__staff__') and programs the user belongs to, used to
+ * include group/program messages in their inbox.
+ */
+async function resolveUserMessageScope(session) {
+  const cid = session.cid;
+  const email = session.email;
+  const scope = {
+    groupIds: new Set(),
+    programIds: new Set(),
+    isFutureStudioStaff: false,
+  };
+
+  let contact = {};
+  try {
+    const cRes = await db.execute({
+      sql: "SELECT group_name, role, program_id FROM contacts WHERE cid = ?",
+      args: [cid],
+    });
+    if (cRes.rows.length > 0) contact = cRes.rows[0];
+  } catch (_) {}
+
+  const groupNames = new Set();
+  if (contact.group_name) groupNames.add(String(contact.group_name).trim());
+  try {
+    const ug = await db.execute({
+      sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
+      args: [cid],
+    });
+    ug.rows.forEach((r) => {
+      if (r.group_name) groupNames.add(String(r.group_name).trim());
+    });
+  } catch (_) {}
+
+  scope.isFutureStudioStaff =
+    String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO" ||
+    ["staff", "developer", "intern", "admin"].includes(contact.role);
+
+  // Families whose name matches one of the user's group names
+  if (groupNames.size > 0) {
+    const placeholders = Array.from(groupNames).map(() => "?").join(",");
+    try {
+      const famRes = await db.execute({
+        sql: `SELECT id, program_id FROM families WHERE UPPER(TRIM(name)) IN (${placeholders})`,
+        args: Array.from(groupNames).map((g) => String(g).toUpperCase()),
+      });
+      famRes.rows.forEach((r) => {
+        scope.groupIds.add(String(r.id));
+        if (r.program_id) scope.programIds.add(String(r.program_id));
+      });
+    } catch (_) {}
+  }
+
+  // Program ids: participant_programs (authoritative) + contact + assignments
+  try {
+    const { getParticipantProgramIds } = await import(
+      "@/lib/participant-membership"
+    );
+    const pp = await getParticipantProgramIds({ cid, email, contact });
+    pp.forEach((id) => scope.programIds.add(String(id)));
+  } catch (_) {}
+  if (contact.program_id) {
+    String(contact.program_id)
+      .split(",")
+      .forEach((id) => {
+        if (id.trim()) scope.programIds.add(String(id.trim()));
+      });
+  }
+  try {
+    const progRes = await db.execute({
+      sql: "SELECT id::text AS id FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ?",
+      args: [cid, `%${cid}%`],
+    });
+    progRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  } catch (_) {}
+  try {
+    const staffRes = await db.execute({
+      sql: "SELECT program_id::text AS id FROM v2_program_staff WHERE staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)",
+      args: [cid, email || ""],
+    });
+    staffRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  } catch (_) {}
+  try {
+    const teamRes = await db.execute({
+      sql: "SELECT program_id::text AS id FROM v2_teams WHERE handler_id = ?",
+      args: [cid],
+    });
+    teamRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
+  } catch (_) {}
+
+  // Families linked to those programs
+  if (scope.programIds.size > 0) {
+    const placeholders = Array.from(scope.programIds)
+      .map(() => "?")
+      .join(",");
+    try {
+      const famRes = await db.execute({
+        sql: `SELECT id FROM families WHERE program_id IN (${placeholders})`,
+        args: Array.from(scope.programIds),
+      });
+      famRes.rows.forEach((r) => scope.groupIds.add(String(r.id)));
+    } catch (_) {}
+  }
+
+  return scope;
+}
+
 export async function GET(req) {
   try {
     await initDb();
@@ -19,6 +215,7 @@ export async function GET(req) {
       "program_manager",
       "teacher",
       "developer",
+      "participant",
     ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
@@ -46,22 +243,52 @@ export async function GET(req) {
     let query = "SELECT * FROM v2_messages";
     let args = [];
 
-    query +=
-      " WHERE (recipient_id = ? OR sender_id = ?) AND target_type != 'all' AND (is_deleted IS NULL OR is_deleted = 0)";
-    args = [targetCid, targetCid];
-
-    // Super admins can also see broadcast messages
     if (session.role === "super_admin") {
+      // SA sees everything (individual + broadcasts)
       query = "SELECT * FROM v2_messages";
       args = [];
       if (targetCid) {
         query +=
-          " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all') AND (is_deleted IS NULL OR is_deleted = 0)";
+          " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all')";
         args = [targetCid, targetCid];
       }
+    } else {
+      // Users see their own individual messages + group/program messages
+      // for the groups/programs they belong to. Broadcasts stay SA-only.
+      const visibility = ["(recipient_id = ? OR sender_id = ?)"];
+      const visArgs = [targetCid, targetCid];
+
+      const scope = await resolveUserMessageScope(session);
+      const groupIds = Array.from(scope.groupIds);
+      const programIds = Array.from(scope.programIds);
+      if (scope.isFutureStudioStaff) {
+        visibility.push("(target_type = 'role' AND target_id = '__staff__')");
+      }
+      if (groupIds.length > 0) {
+        visibility.push(
+          `(target_type = 'role' AND target_id IN (${groupIds
+            .map(() => "?")
+            .join(",")}))`,
+        );
+        visArgs.push(...groupIds);
+      }
+      if (programIds.length > 0) {
+        visibility.push(
+          `(target_type = 'program' AND target_id IN (${programIds
+            .map(() => "?")
+            .join(",")}))`,
+        );
+        visArgs.push(...programIds);
+      }
+
+      query = `SELECT * FROM v2_messages WHERE (${visibility.join(
+        " OR ",
+      )})`;
+      args = visArgs;
     }
 
-    query += " ORDER BY created_at DESC";
+    query +=
+      " AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC";
 
     const res = await db.execute({ sql: query, args });
     return NextResponse.json({ success: true, messages: res.rows });
@@ -89,6 +316,8 @@ export async function POST(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "developer",
+      "participant",
     ]);
     if (authError) return authError;
     const {
@@ -184,26 +413,24 @@ export async function POST(req) {
         args: [recipient_id, notifTitle, notifMessage, "message"],
       });
     } else if (target_type === "role" && target_id) {
-      const roleMap = {
-        staff: "Staff",
-        program_manager: "Program Manager",
-        super_admin: "Super Admin",
-        teacher: "Instructor",
-        participant: "Participant",
-      };
-      const dbRole = roleMap[target_id];
-      if (dbRole) {
-        const members = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE role = ?",
-          args: [dbRole],
+      // Group message — notify every member of the group (family or staff)
+      const memberIds = await resolveGroupMemberIds(target_id);
+      for (const m of memberIds) {
+        if (String(m) === String(effectiveSenderId)) continue;
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
+          args: [m, notifTitle, notifMessage, "message"],
         });
-        for (const m of members.rows) {
-          if (m.cid === effectiveSenderId) continue;
-          await db.execute({
-            sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-            args: [m.cid, notifTitle, notifMessage, "message"],
-          });
-        }
+      }
+    } else if (target_type === "program" && target_id) {
+      // Program message — notify participants, staff, PM and assistants
+      const memberIds = await resolveProgramMemberIds(target_id);
+      for (const m of memberIds) {
+        if (String(m) === String(effectiveSenderId)) continue;
+        await db.execute({
+          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
+          args: [m, notifTitle, notifMessage, "message"],
+        });
       }
     }
 
@@ -232,6 +459,8 @@ export async function PUT(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "developer",
+      "participant",
     ]);
     if (authError) return authError;
     const { messageIds, conversationWith } = await req.json();
@@ -308,6 +537,8 @@ export async function DELETE(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "developer",
+      "participant",
     ]);
     if (authError) return authError;
 
