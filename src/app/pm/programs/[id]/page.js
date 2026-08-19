@@ -4697,6 +4697,7 @@ function ProgramWorkspace() {
                     onChange={(e) => setAttendanceDate(e.target.value)}
                     className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
                     max={new Date().toISOString().split("T")[0]}
+                    min={new Date().toISOString().split("T")[0]}
                   />
                 </div>
               </div>
@@ -4784,7 +4785,11 @@ function ProgramWorkspace() {
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
                     } catch (e) {
-                      notify(t("pmMisc.workspace.attendanceSaveFailed"), "error");
+                      notify(
+                        (e && e.message) ||
+                          t("pmMisc.workspace.attendanceSaveFailed"),
+                        "error",
+                      );
                     } finally {
                       setIsSaving(false);
                     }

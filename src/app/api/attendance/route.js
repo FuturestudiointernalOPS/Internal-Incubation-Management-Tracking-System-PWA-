@@ -84,8 +84,24 @@ export async function POST(req) {
       return NextResponse.json({ success: true, upserted: 0 });
     }
 
+    // ─── Attendance integrity: attendance can only be recorded for today ───
+    // Super admins keep full control (corrections / backfill); all other
+    // roles (program_manager, teacher, staff, facilitator) are locked to
+    // today's date so past/future days cannot be backdated or prefilled.
+    const todayStr = new Date().toISOString().split("T")[0];
+    const requestedDate = scoped[0].date || todayStr;
+    if (session?.role !== "super_admin" && requestedDate !== todayStr) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Attendance can only be recorded for today's date.",
+        },
+        { status: 400 },
+      );
+    }
+
     const sessionId = scoped[0].session_id;
-    const date = scoped[0].date || new Date().toISOString().split("T")[0];
+    const date = requestedDate;
     const submittedIds = [...new Set(scoped.map((r) => r.participant_id).filter(Boolean))];
     const ph = submittedIds.map(() => "?").join(",");
 
