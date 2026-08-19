@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
 
@@ -37,50 +38,9 @@ export async function GET(req) {
 
     const contact = contactRes.rows[0];
 
-    const programIds = new Set();
-    if (contact.program_id) {
-      String(contact.program_id)
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-        .forEach((id) => programIds.add(id));
-    }
-    if (contact.group_name) {
-      const familyRes = await db.execute({
-        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
-        args: [contact.group_name],
-      });
-      familyRes.rows.forEach((r) => {
-        if (r.program_id != null) programIds.add(String(r.program_id).trim());
-      });
-      const groupRes = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
-        args: [contact.group_name],
-      });
-      groupRes.rows.forEach((r) => {
-        if (r.id != null) programIds.add(String(r.id).trim());
-      });
-    }
-    // Path 4: participant_programs junction table
-    try {
-      const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
-        args: [cid],
-      });
-      ppRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
-    // Path 5: v2_participants (direct participant enrollments)
-    try {
-      const vpRes = await db.execute({
-        sql: "SELECT program_id FROM v2_participants WHERE email = ?",
-        args: [email],
-      });
-      vpRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
+    const programIds = new Set(
+      await getParticipantProgramIds({ cid, email, contact }),
+    );
 
     const programIdList = Array.from(programIds);
     const programsData = [];

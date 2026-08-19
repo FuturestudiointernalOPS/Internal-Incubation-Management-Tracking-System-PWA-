@@ -43,9 +43,9 @@ export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
 
-  let sql = `SELECT f.*, p.name as participant_name
+  let sql = `SELECT f.*, c.name as participant_name
        FROM v2_feedback f
-       LEFT JOIN v2_participants p ON f.participant_id = p.id
+       LEFT JOIN contacts c ON f.participant_id = c.cid
        WHERE 1=1`;
   let args = [];
   if (program_id) {

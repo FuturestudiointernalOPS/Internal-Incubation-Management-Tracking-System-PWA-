@@ -228,46 +228,24 @@ export async function PUT(req) {
         });
         const familyName = familyRes.rows[0]?.name;
         if (familyName) {
-          await db.execute({
-            sql: `UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
-            args: [programId, programName || null, familyName],
-          });
-
-          // 4. Upsert into v2_participants
+          // Phase 1: participant_programs is the authoritative membership.
+          // Legacy contacts.program_id/program_name and v2_participants writes
+          // have been removed.
           const contactsRes = await db.execute({
-            sql: `SELECT cid, email, name, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
+            sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
             args: [familyName],
           });
           for (const contact of contactsRes.rows) {
-            const existing = await db.execute({
-              sql: `SELECT id FROM v2_participants WHERE email = ? AND program_id = ?`,
-              args: [contact.email, programId],
-            });
-            if (existing.rows.length > 0) {
+            if (!contact.cid) continue;
+            try {
               await db.execute({
-                sql: `UPDATE v2_participants SET name = ?, phone = ? WHERE email = ? AND program_id = ?`,
-                args: [contact.name, contact.phone, contact.email, programId],
+                sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
+                      VALUES (?, ?, 'active', NOW())
+                      ON CONFLICT (participant_id, program_id) DO NOTHING`,
+                args: [contact.cid, programId],
               });
-            } else {
-              await db.execute({
-                sql: `INSERT INTO v2_participants (program_id, name, email, phone, screening_status)
-                      VALUES (?, ?, ?, ?, 'active')`,
-                args: [programId, contact.name, contact.email, contact.phone],
-              });
-            }
-
-            // 5. Sync participant_programs junction table
-            if (contact.cid) {
-              try {
-                await db.execute({
-                  sql: `INSERT INTO participant_programs (participant_id, program_id)
-                        VALUES (?, ?)
-                        ON CONFLICT (participant_id, program_id) DO NOTHING`,
-                  args: [contact.cid, programId],
-                });
-              } catch (_) {
-                // participant_programs table may not exist
-              }
+            } catch (_) {
+              // participant_programs table may not exist
             }
           }
         }

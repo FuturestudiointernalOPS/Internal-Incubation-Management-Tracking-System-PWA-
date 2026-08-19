@@ -6,6 +6,11 @@
  * 2. Finds the participant by CID
  * 3. Inserts into participant_programs (modern approach)
  * 4. Clears the invalid contacts.program_id
+ *
+ * LEGACY NOTE (participant cleanup): this offline repair tool still writes
+ * v2_participants. v2_participants is now read-only in the live flow and must
+ * not be re-introduced; switch this script to participant_programs or retire
+ * it before v2_participants is removed.
  */
 
 import { initDb } from "../src/lib/db.js";

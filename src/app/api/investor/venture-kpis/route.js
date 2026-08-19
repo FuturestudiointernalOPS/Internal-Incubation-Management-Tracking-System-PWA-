@@ -21,7 +21,20 @@ export async function GET(req) {
 
     const p = prog.rows[0];
     const participants = await db.execute({
-      sql: "SELECT COUNT(*) as count FROM v2_participants WHERE program_id = ?",
+      sql: `SELECT COUNT(*) as count
+            FROM participant_programs pp
+            JOIN contacts c ON pp.participant_id = c.cid
+            WHERE CAST(pp.program_id AS TEXT) = ?
+              AND c.deleted = 0
+              AND c.deleted_at IS NULL
+              AND c.archived_at IS NULL
+              AND LOWER(COALESCE(c.status, '')) = 'active'
+              AND NOT EXISTS (
+                SELECT 1 FROM v2_program_staff ps
+                WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+                  AND ps.role = 'facilitator'
+                  AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+              )`,
       args: [ventureId],
     });
     const invested = await db.execute({

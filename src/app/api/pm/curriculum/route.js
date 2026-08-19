@@ -240,7 +240,20 @@ export async function POST(req) {
       let sent = 0;
       try {
         const cnt = await db.execute({
-          sql: "SELECT COUNT(*) as cnt FROM v2_participants WHERE program_id = $1",
+          sql: `SELECT COUNT(*) as cnt
+                FROM participant_programs pp
+                JOIN contacts c ON pp.participant_id = c.cid
+                WHERE CAST(pp.program_id AS TEXT) = ?
+                  AND c.deleted = 0
+                  AND c.deleted_at IS NULL
+                  AND c.archived_at IS NULL
+                  AND LOWER(COALESCE(c.status, '')) = 'active'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM v2_program_staff ps
+                    WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+                      AND ps.role = 'facilitator'
+                      AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+                  )`,
           args: [program_id]
         });
         sent = cnt.rows[0]?.cnt || 0;

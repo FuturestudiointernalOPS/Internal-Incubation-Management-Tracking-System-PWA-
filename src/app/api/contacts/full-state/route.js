@@ -59,7 +59,10 @@ export async function GET(req) {
 
         contactsRes = await db.execute({
           sql: `SELECT * FROM contacts
-                WHERE (program_id IN (${idPlaceholders})
+                WHERE (cid IN (
+                        SELECT participant_id FROM participant_programs
+                        WHERE CAST(program_id AS TEXT) IN (${idPlaceholders})
+                      )
                 OR UPPER(TRIM(group_name)) IN (${namePlaceholders}))
                 AND deleted_at IS NULL
                 ${archiveClause}
@@ -67,34 +70,28 @@ export async function GET(req) {
           args: [...myProgIds, ...myProgNames],
         });
 
-        // Also fetch v2_participants — skip when viewing archived (archiving not supported for this table)
+        // Also fetch participants via participant_programs (authoritative
+        // membership) — skip when viewing archived.
         if (statusFilter !== "archived") {
-          const v2ParRes = await db.execute({
-            sql: `SELECT *, CAST(id AS TEXT) as v2_participant_id FROM v2_participants
-                  WHERE program_id IN (${idPlaceholders})`,
+          const ppRes = await db.execute({
+            sql: `SELECT c.*
+                  FROM participant_programs pp
+                  JOIN contacts c ON pp.participant_id = c.cid
+                  WHERE CAST(pp.program_id AS TEXT) IN (${idPlaceholders})
+                    AND c.deleted = 0
+                    AND c.deleted_at IS NULL`,
             args: [...myProgIds],
           });
-          const v2Rows = v2ParRes.rows || [];
-          if (v2Rows.length > 0) {
-            // Merge into contacts, avoiding duplicates by email
+          const ppRows = ppRes.rows || [];
+          if (ppRows.length > 0) {
             const existingEmails = new Set(
               (contactsRes.rows || [])
                 .map((c) => c.email?.toLowerCase())
                 .filter(Boolean),
             );
-            for (const p of v2Rows) {
-              if (!existingEmails.has(p.email?.toLowerCase())) {
-                contactsRes.rows.push({
-                  ...p,
-                  cid: p.id,
-                  source: "v2_participants",
-                  name: p.name,
-                  email: p.email,
-                  phone: p.phone,
-                  role: "participant",
-                  status: p.screening_status || "approved",
-                  group_name: (p.group_name || p.program_id || "").toUpperCase(),
-                });
+            for (const c of ppRows) {
+              if (!existingEmails.has(c.email?.toLowerCase())) {
+                contactsRes.rows.push({ ...c, source: "participant_programs" });
               }
             }
           }

@@ -122,13 +122,15 @@ export async function POST(req, { params }) {
       args: [row.id],
     });
 
-    // Add participant to the program (if contact has program_id)
+    // Add participant to the program via participant_programs (authoritative
+    // membership). The legacy v2_participants write was removed (Phase 3).
     if (contact.program_id) {
       try {
         await db.execute({
-          sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, created_at)
-                VALUES (?, ?, ?, ?, 'active', NOW())`,
-          args: [contact.program_id, contactName, contactEmail, phone || null],
+          sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
+                VALUES (?, ?, 'active', NOW())
+                ON CONFLICT (participant_id, program_id) DO NOTHING`,
+          args: [contactCid, contact.program_id],
         });
       } catch (e) {
         console.warn("Failed to add participant to program:", e.message);

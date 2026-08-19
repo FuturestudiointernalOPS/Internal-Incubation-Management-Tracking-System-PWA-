@@ -14,7 +14,23 @@ async function run() {
       const kpis = await client.query("SELECT * FROM v2_kpis WHERE program_id::text = $1", [p.id]);
       if (kpis.rows.length === 0) { skipped++; continue; }
 
-      const pc = await client.query("SELECT COUNT(*) AS c FROM v2_participants WHERE program_id::text = $1 AND (status IS NULL OR status != 'archived')", [p.id]);
+      const pc = await client.query(
+        `SELECT COUNT(*) AS c
+         FROM participant_programs pp
+         JOIN contacts c ON pp.participant_id = c.cid
+         WHERE CAST(pp.program_id AS TEXT) = $1
+           AND c.deleted = 0
+           AND c.deleted_at IS NULL
+           AND c.archived_at IS NULL
+           AND LOWER(COALESCE(c.status, '')) = 'active'
+           AND NOT EXISTS (
+             SELECT 1 FROM v2_program_staff ps
+             WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+               AND ps.role = 'facilitator'
+               AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+           )`,
+        [p.id]
+      );
       const total = parseInt(pc.rows[0]?.c) || 1;
 
       for (const kpi of kpis.rows) {

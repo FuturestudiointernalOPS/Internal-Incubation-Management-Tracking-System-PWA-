@@ -40,6 +40,9 @@ async function migrate() {
     'v2_attendance',
     'v2_progress',
     'v2_feedback',
+    // LEGACY NOTE (participant cleanup): these activity tables now reference
+    // contacts.cid instead of v2_participants.id. Review RLS policies after
+    // the participant-id migrations are applied.
   ];
 
   let success = 0;
