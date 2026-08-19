@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
+import { roleHomeHref } from "@/lib/platform/roles";
 
 // Founders land directly on their venture dashboard after login
 async function getFounderVentureTarget(cid) {
@@ -112,15 +113,7 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         // Resolve target same as normal login
         var role = data.user.role;
-        var target;
-        if (role === "super_admin") target = "/admin";
-        else if (role === "program_manager") target = "/pm";
-        else if (role === "staff") target = "/staff";
-        else if (role === "teacher") target = "/teacher";
-        else if (role === "facilitator") target = "/facilitator";
-        else if (role === "developer") target = "/developer";
-        else if (role === "investor") target = "/investor/dashboard";
-        else target = "/workspaces";
+        var target = roleHomeHref(role) || "/workspaces";
         window.location.href = target;
       } else {
         setImpersonateError(
@@ -153,28 +146,14 @@ export default function LoginPage() {
         localStorage.setItem("user", JSON.stringify(data.user));
         setSuccess(true);
         setTimeout(async () => {
+          // Dynamic targets first (team needs team_id, founder needs their
+          // venture), then the shared role map, then the neutral hub.
           let target =
-            data.user.role === "super_admin"
-              ? "/admin"
-              : data.user.role === "program_manager"
-                ? "/pm"
-                : data.user.role === "staff"
-                  ? "/staff"
-                  : data.user.role === "teacher"
-                    ? "/teacher"
-                    : data.user.role === "facilitator"
-                      ? "/facilitator"
-                      : data.user.role === "developer"
-                        ? "/developer"
-                        : data.user.role === "team"
-                          ? "/team/" + data.user.team_id
-                          : data.user.role === "founder"
-                            ? await getFounderVentureTarget(data.user.cid)
-                            : data.user.role === "participant"
-                              ? "/participant"
-                              : data.user.role === "finance"
-                                ? "/finance"
-                                : "/workspaces";
+            data.user.role === "team"
+              ? "/team/" + data.user.team_id
+              : data.user.role === "founder"
+                ? await getFounderVentureTarget(data.user.cid)
+                : roleHomeHref(data.user.role) || "/workspaces";
 
           // Profile completion gate: only enforce on the FIRST login. After
           // that the user is not repeatedly redirected, even if they skip it.
