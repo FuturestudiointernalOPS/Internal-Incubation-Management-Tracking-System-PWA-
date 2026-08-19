@@ -1752,7 +1752,11 @@ export async function POST(req) {
             submission_id: id,
             name,
             status: after?.status === "sent" ? "sent" : after?.status === "failed" ? "failed" : "skipped",
-            error: after?.status === "failed" ? (after.error || "Activation email failed") : undefined,
+            error: after?.status === "failed" || !after
+              ? (after?.error || "Activation email failed")
+              : after?.status === "pending"
+                ? "Activation send did not complete — check the Emails tab"
+                : after?.error || undefined,
             to: after?.recipient,
             first_sent_at: hist.first_sent_at,
             last_sent_at: hist.last_sent_at,

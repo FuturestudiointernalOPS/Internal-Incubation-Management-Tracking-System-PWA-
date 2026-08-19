@@ -156,9 +156,43 @@ export async function GET(req) {
       ({ password, ...safeContact }) => safeContact,
     );
 
+    // Attach activation EMAIL status from platform_email_log — the same
+    // source of truth the Runs page uses — so Contacts and Runs agree on
+    // whether an activation email has actually been sent. Never derived
+    // from approval status or account status.
+    const cids = [...new Set(contactsWithInvitation.map((c) => c.cid).filter(Boolean))];
+    const activationByCid = {};
+    if (cids.length > 0) {
+      try {
+        const placeholders = cids.map(() => "?").join(",");
+        const elRes = await db.execute({
+          sql: `SELECT el.contact_cid, el.status, el.sent_at, el.created_at, el.error
+                FROM platform_email_log el
+                WHERE el.email_type = 'activation' AND el.contact_cid IN (${placeholders})
+                ORDER BY el.id ASC`,
+          args: cids,
+        });
+        for (const row of elRes.rows) {
+          const cur = activationByCid[row.contact_cid] || { latest: null, lastSentAt: null };
+          cur.latest = row;
+          if (row.status === "sent") cur.lastSentAt = row.sent_at || row.created_at;
+          activationByCid[row.contact_cid] = cur;
+        }
+      } catch (_) {}
+    }
+    const contacts = contactsWithInvitation.map((c) => {
+      const act = activationByCid[c.cid] || null;
+      return {
+        ...c,
+        activation_email_status: act?.latest?.status || null,
+        activation_email_sent_at: act?.lastSentAt || null,
+        activation_email_error: act?.latest?.error || null,
+      };
+    });
+
     return NextResponse.json({
       success: true,
-      contacts: contactsWithInvitation,
+      contacts,
       families: familiesList,
       teams: teamsRows,
     });

@@ -1665,6 +1665,10 @@ export default function FormRunsPage() {
   }, [emailLog]);
 
   const hasActivationEmailSent = (id) => {
+    // Full-history truth from the API enrichment (sent rows only) takes
+    // priority; the client email log carries only the latest row per type.
+    const s = submissions.find((x) => x.id === id);
+    if (s?.activation_history?.first_sent_at) return true;
     const rows = activationLogBySubmission.get(id) || [];
     return rows.some((r) => r.status === "sent");
   };
@@ -1691,7 +1695,16 @@ export default function FormRunsPage() {
     setBulkMenuOpen(false);
     const ids = forceResend ? eligibleResendActivationIds : eligibleSendActivationIds;
     if (ids.length === 0) {
-      notify(t(forceResend ? "platformMisc.runs.noEligibleResend" : "platformMisc.runs.noEligibleSend"));
+      // State-aware messaging: the empty list means different things for
+      // Send vs Resend, and the message must never claim an email was
+      // "already sent" when it was not (or vice versa).
+      if (!forceResend && eligibleResendActivationIds.length > 0) {
+        notify(t("platformMisc.runs.noEligibleSendAlreadySent"));
+      } else if (forceResend && eligibleSendActivationIds.length > 0) {
+        notify(t("platformMisc.runs.noEligibleResendNotSentYet"));
+      } else {
+        notify(t(forceResend ? "platformMisc.runs.noEligibleResendNone" : "platformMisc.runs.noEligibleSendNone"));
+      }
       return;
     }
     setActivationForceResend(forceResend);
@@ -2293,7 +2306,7 @@ export default function FormRunsPage() {
                             </button>
                             <button
                               type="button"
-                              onClick={openActivationConfirm}
+                              onClick={() => openActivationConfirm(false)}
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
                               <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
@@ -2371,6 +2384,12 @@ export default function FormRunsPage() {
                         const activationEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "activation")
                           .slice(-1)[0];
+                        // "Actually sent" must come from sent rows in the full
+                        // history (activation_history.first_sent_at) — never
+                        // inferred from a queued/pending row or account status.
+                        const activationEverSent =
+                          !!s.activation_history?.first_sent_at ||
+                          (activationEmail && ["sent", "delivered", "opened", "clicked"].includes(activationEmail.status));
                         const approvalEmail = emailLog
                           .filter((e) => e.submission_id === s.id && e.email_type === "approval")
                           .slice(-1)[0];
@@ -2473,7 +2492,7 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{t(sc.label)}</span></td>
                             <td className="px-4 py-3">
-                              {activationEmail ? (
+                              {activationEverSent || activationEmail?.status === "failed" ? (
                                 (() => {
                                   const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
                                   return (
@@ -2483,19 +2502,31 @@ export default function FormRunsPage() {
                                   );
                                 })()
                               ) : (
-                                <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                                <span
+                                  title={activationEmail?.error ? `${t("platformMisc.runs.activationNotSentYet")} — ${activationEmail.error}` : t("platformMisc.runs.activationNotSentYet")}
+                                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400"
+                                >
+                                  {t("platformMisc.runs.emailNotSent")}
+                                </span>
                               )}
                             </td>
                             <td className="px-4 py-3">
                               {(() => {
                                 const cfg = ACCOUNT_STATUS_STYLES[accountStatus] || ACCOUNT_STATUS_STYLES.not_created;
                                 const hist = s.activation_history;
+                                // A queued/pending row is NOT "sent" — show it as
+                                // not-sent-yet so the column never implies an
+                                // activation email went out when it did not.
+                                const emailStatusShown =
+                                  hist?.email_status && !["pending", "skipped", "cancelled"].includes(hist.email_status)
+                                    ? t("platformMisc.runs.activationEmailStatus", { status: t(EMAIL_STATUS_CONFIG[hist.email_status]?.label || "platformMisc.runs.emailPending") })
+                                    : null;
                                 const histTitle = [
                                   t(cfg.title),
-                                  hist?.email_status ? t("platformMisc.runs.activationEmailStatus", { status: t(EMAIL_STATUS_CONFIG[hist.email_status]?.label || "platformMisc.runs.emailPending") }) : t("platformMisc.runs.activationNotSentYet"),
+                                  emailStatusShown || t("platformMisc.runs.activationNotSentYet"),
                                   hist?.first_sent_at ? t("platformMisc.runs.activationFirstSent", { date: new Date(hist.first_sent_at).toLocaleString() }) : null,
                                   hist?.last_sent_at ? t("platformMisc.runs.activationLastSent", { date: new Date(hist.last_sent_at).toLocaleString() }) : null,
-                                  hist?.token_valid ? t("platformMisc.runs.activationLinkValid", { date: hist.token_expires_at ? new Date(hist.token_expires_at).toLocaleString() : "" }) : (hist?.email_status ? t("platformMisc.runs.activationLinkExpired") : null),
+                                  hist?.token_valid ? t("platformMisc.runs.activationLinkValid", { date: hist.token_expires_at ? new Date(hist.token_expires_at).toLocaleString() : "" }) : (hist?.token_expires_at ? t("platformMisc.runs.activationLinkExpired") : null),
                                 ].filter(Boolean).join(" | ");
                                 return (
                                   <span title={histTitle} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.cls)}>
