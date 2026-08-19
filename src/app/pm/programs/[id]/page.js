@@ -303,6 +303,10 @@ function ProgramWorkspace() {
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [reviewScore, setReviewScore] = useState("");
   const [showFollowupFields, setShowFollowupFields] = useState(false);
+  // Tracks whether the PM has opened the submissions tab (clears the "new" badge/highlight)
+  const [submissionsSeen, setSubmissionsSeen] = useState(
+    searchParams.get("tab") === "submissions",
+  );
   const [followupDate, setFollowupDate] = useState("");
   const [followupTime, setFollowupTime] = useState("");
   const [followupDuration, setFollowupDuration] = useState(30);
@@ -986,6 +990,31 @@ function ProgramWorkspace() {
     }
   };
 
+  // Open a submission's attachment: PDFs open in the built-in viewer, anything else in a new tab.
+  const handleViewSubmission = (sub) => {
+    const url =
+      sub.file_url ||
+      sub.submission_url ||
+      sub.submission_link ||
+      sub.supporting_url ||
+      null;
+    if (!url) {
+      notify(t("pmMisc.workspace.noSubmissionFile"), "error");
+      return;
+    }
+    const path = url.split("?")[0].toLowerCase();
+    if (path.endsWith(".pdf")) {
+      setActivePDF({
+        url,
+        name:
+          sub.deliverable_title ||
+          t("pmMisc.workspace.submissionDocument"),
+      });
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const updateParticipantScores = async (participantId, score) => {
     if (!score) return;
     setIsSaving(true);
@@ -1069,6 +1098,10 @@ function ProgramWorkspace() {
     );
   }
 
+  const pendingSubmissionCount = submissions.filter(
+    (s) => s.status === "pending",
+  ).length;
+
   const allTabs = [
     { id: "overview", name: t("pmMisc.workspace.tabOverview"), icon: LayoutDashboard },
     {
@@ -1142,11 +1175,21 @@ function ProgramWorkspace() {
               key={tab.id}
               onClick={() => {
                 if (tab.href) router.push(tab.href);
-                else setActiveTab(tab.id);
+                else {
+                  if (tab.id === "submissions") setSubmissionsSeen(true);
+                  setActiveTab(tab.id);
+                }
               }}
               className={`px-6 py-3 text-sm font-bold uppercase tracking-wide transition-all border-b-2 whitespace-nowrap shrink-0 ${activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--text-primary)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {tab.name}
+              {tab.id === "submissions" &&
+                !submissionsSeen &&
+                pendingSubmissionCount > 0 && (
+                  <span className="ml-2 text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full align-middle">
+                    {pendingSubmissionCount}
+                  </span>
+                )}
             </button>
           ))}
         </div>
@@ -3080,12 +3123,24 @@ function ProgramWorkspace() {
                 </thead>
                 <tbody>
                   {submissions.map((sub) => (
-                    <tr key={sub.id}>
+                    <tr
+                      key={sub.id}
+                      className={
+                        sub.status === "pending" && !submissionsSeen
+                          ? "bg-[var(--brand-orange)]/5"
+                          : ""
+                      }
+                    >
                       <td>
                         <div className="flex flex-col">
-                          <span className="font-black text-[var(--text-primary)]">
-                            {sub.participant_name || t("pmMisc.workspace.na")}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {sub.status === "pending" && !submissionsSeen && (
+                              <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
+                            )}
+                            <span className="font-black text-[var(--text-primary)]">
+                              {sub.participant_name || t("pmMisc.workspace.na")}
+                            </span>
+                          </div>
                           <span className="text-[9px] font-bold text-blue-500 uppercase tracking-widest">
                             {sub.group_name || t("pmMisc.workspace.individual")}
                           </span>
@@ -3110,16 +3165,24 @@ function ProgramWorkspace() {
                         </span>
                       </td>
                       <td className="text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedSubmission(sub);
-                            setReviewScore(sub.score || 0);
-                            setShowReviewModal(true);
-                          }}
-                          className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic"
-                        >
-                          {t("pmMisc.workspace.review")}
-                        </button>
+                        <div className="flex items-center justify-end gap-4">
+                          <button
+                            onClick={() => handleViewSubmission(sub)}
+                            className="text-[var(--brand-orange)] text-[10px] font-black uppercase italic"
+                          >
+                            {t("pmMisc.workspace.viewSubmission")}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedSubmission(sub);
+                              setReviewScore(sub.score || 0);
+                              setShowReviewModal(true);
+                            }}
+                            className="text-[var(--brand-blue)] text-[10px] font-black uppercase italic"
+                          >
+                            {t("pmMisc.workspace.review")}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -4013,7 +4076,7 @@ function ProgramWorkspace() {
             onClick={() => setShowReviewModal(false)}
           >
             <div
-              className="card w-full max-w-md space-y-6"
+              className="card w-full max-w-md max-h-[85vh] overflow-y-auto space-y-6"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center">
