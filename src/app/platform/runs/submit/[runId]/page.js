@@ -9,7 +9,6 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
-import { toE164 } from "@/lib/phone";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -244,7 +243,7 @@ export default function SubmitFormPage() {
       case "phone":
         return (
           <AppPhoneInput
-            value={toE164(value)}
+            value={value}
             onChange={(next) => updateField(field.id, next)}
             placeholder={field.placeholder || t("platformMisc.runSubmitDetail.phoneExample")}
             disabled={isDisabled}
