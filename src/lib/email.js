@@ -718,6 +718,82 @@ export async function hasSentEmailToRecipientInRun({ run_id, email_type, recipie
 }
 
 /**
+ * ACTIVATION HISTORY — the real email/invitation history for a submission,
+ * plus the state of its most recent password-setup token. Used to distinguish
+ * a FIRST activation send from a RESEND (never guessed from account status)
+ * and to surface first/last sent timestamps + link validity in the UI.
+ *
+ * Returns {
+ *   email_status,        // latest platform_email_log status (sent/failed/pending/skipped…) or null
+ *   first_sent_at,       // first successful send timestamp (sent rows only)
+ *   last_sent_at,        // most recent successful send timestamp
+ *   email_count,         // total activation log rows for the submission
+ *   token_valid,         // most recent token exists, unused and not expired
+ *   token_expires_at,    // expiry of the most recent token (or null)
+ *   token_used,          // used flag of the most recent token (or null)
+ * }
+ */
+export async function getActivationHistory({ submission_id, contact_cid }) {
+  const empty = {
+    email_status: null,
+    first_sent_at: null,
+    last_sent_at: null,
+    email_count: 0,
+    token_valid: false,
+    token_expires_at: null,
+    token_used: null,
+  };
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    let rows = [];
+    if (submission_id) {
+      const res = await db.execute({
+        sql: `SELECT status, sent_at, created_at, recipient, error
+              FROM platform_email_log
+              WHERE submission_id = ? AND email_type = 'activation'
+              ORDER BY id ASC`,
+        args: [parseInt(submission_id)],
+      });
+      rows = res.rows;
+    }
+    const sentRows = rows.filter((r) => r.status === "sent");
+
+    let tokenValid = false;
+    let tokenExpiresAt = null;
+    let tokenUsed = null;
+    if (contact_cid) {
+      try {
+        await ensurePasswordSetupTokensSchema();
+        const tokRes = await db.execute({
+          sql: `SELECT used, expires_at FROM password_setup_tokens
+                WHERE contact_cid = ? ORDER BY created_at DESC, id DESC LIMIT 1`,
+          args: [String(contact_cid)],
+        });
+        const tok = tokRes.rows[0];
+        if (tok) {
+          tokenUsed = tok.used;
+          tokenExpiresAt = tok.expires_at;
+          tokenValid = Number(tok.used) === 0 && new Date(tok.expires_at) > new Date();
+        }
+      } catch (_) {}
+    }
+
+    return {
+      email_status: rows.length ? rows[rows.length - 1].status : null,
+      first_sent_at: sentRows.length ? sentRows[0].sent_at || sentRows[0].created_at : null,
+      last_sent_at: sentRows.length ? sentRows[sentRows.length - 1].sent_at || sentRows[sentRows.length - 1].created_at : null,
+      email_count: rows.length,
+      token_valid: tokenValid,
+      token_expires_at: tokenExpiresAt,
+      token_used: tokenUsed,
+    };
+  } catch (_) {
+    return empty;
+  }
+}
+
+/**
  * Ensure password_setup_tokens exists with the CORRECT shape and repair
  * environments where `used` was created as BOOLEAN. A boolean `used` breaks
  * every "used = 0/1" write with Postgres error
