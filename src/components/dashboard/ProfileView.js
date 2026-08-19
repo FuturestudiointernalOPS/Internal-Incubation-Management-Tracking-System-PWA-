@@ -119,6 +119,7 @@ export default function ProfileView() {
   const [saveMessage, setSaveMessage] = useState(null);
   const [editedName, setEditedName] = useState("");
   const [history, setHistory] = useState([]);
+  const [timeline, setTimeline] = useState([]);
   const [editedAlternativeEmail, setEditedAlternativeEmail] = useState("");
   const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
   const [editedPhone, setEditedPhone] = useState("");
@@ -144,19 +145,21 @@ export default function ProfileView() {
 
       // Fetch own profile (session-based — no CRM-wide capability required),
       // plus participant programs/submissions in parallel.
-      const [profileRes, progRes, subRes, histRes] = await Promise.all([
+      const [profileRes, progRes, subRes, histRes, timelineRes] = await Promise.all([
         fetch("/api/profile"),
         fetch("/api/participant/programs"),
         cid
           ? fetch(`/api/participant/submissions?participant_id=${cid}`)
           : fetch(`/api/participant/submissions?participant_id=${email}`),
         fetch("/api/profile/history"),
+        fetch("/api/participant/timeline?limit=20"),
       ]);
 
       const profileData = await profileRes.json();
       const progData = await progRes.json();
       const subData = await subRes.json();
       const histData = await histRes.json();
+      const timelineData = await timelineRes.json();
 
       if (profileData.success && profileData.profile) {
         const p = profileData.profile;
@@ -197,6 +200,10 @@ export default function ProfileView() {
 
       if (histData.success) {
         setHistory(histData.history || []);
+      }
+
+      if (timelineData.success) {
+        setTimeline(timelineData.events || []);
       }
 
       // Fetch group info if participant has a group_name
@@ -637,6 +644,37 @@ export default function ProfileView() {
               </div>
             )}
           </SectionCard>
+
+          {/* Activity Timeline — the user's own contact activity log */}
+          <div id="timeline">
+            <SectionCard title={t("participant.activityTimeline")} icon={Clock}>
+              {timeline.length === 0 ? (
+                <p className="text-[10px] text-[var(--text-tertiary)]">
+                  {t("participant.timelineEmpty")}
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {timeline.map((e) => (
+                    <div
+                      key={e.id}
+                      className="flex items-start gap-3 p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
+                    >
+                      <Clock className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                          {e.description}
+                        </p>
+                        <p className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mt-1">
+                          {(e.event_type || "").replace(/_/g, " ")} ·{" "}
+                          {e.created_at ? new Date(e.created_at).toLocaleDateString() : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </SectionCard>
+          </div>
 
           {/* Startup / Group Profile */}
           {groupInfo && (
