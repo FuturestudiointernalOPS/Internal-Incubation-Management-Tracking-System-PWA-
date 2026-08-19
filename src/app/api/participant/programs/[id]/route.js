@@ -299,7 +299,13 @@ export async function GET(req, { params }) {
     ).length;
     // Total sessions this participant was expected to attend = sessions that are unlocked
     const totalSessions = unlockedSessions.length || 1;
-    const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
+    // Attendance rate uses distinct recorded attendance dates (matches home/list endpoints)
+    const expectedDaysRes = await db.execute({
+      sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
+      args: [programId],
+    });
+    const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
+    const attendanceRate = Math.round((attendedSessions / totalExpectedDays) * 100);
 
     // ─── 4. KPI Progress — per participant ───
     let kpiProgress = [];

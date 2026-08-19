@@ -102,28 +102,33 @@ function ProgramCard({ program, onSelect }) {
           </h3>
         </div>
         <div className="relative w-14 h-14 shrink-0 ml-3">
-          <svg className="w-full h-full transform -rotate-90">
-            <circle
-              cx="28"
-              cy="28"
-              r="22"
-              fill="transparent"
-              stroke="currentColor"
-              strokeWidth="4"
-              className="text-white/10"
-            />
-            <circle
-              cx="28"
-              cy="28"
-              r="22"
-              fill="transparent"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeDasharray={138.2}
-              strokeDashoffset={138.2 - (138.2 * metrics.percentComplete) / 100}
-              className={progressColor}
-              strokeLinecap="round"
-            />
+          <svg className="w-full h-full" viewBox="0 0 56 56">
+            {/* Rotation applied around the circle center via SVG attribute —
+                CSS transform on <svg> is subject to SVG transform-origin quirks
+                and clips the ring at the top-left in some browsers. */}
+            <g transform="rotate(-90 28 28)">
+              <circle
+                cx="28"
+                cy="28"
+                r="22"
+                fill="transparent"
+                stroke="currentColor"
+                strokeWidth="4"
+                className="text-white/10"
+              />
+              <circle
+                cx="28"
+                cy="28"
+                r="22"
+                fill="transparent"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeDasharray={138.2}
+                strokeDashoffset={138.2 - (138.2 * metrics.percentComplete) / 100}
+                className={progressColor}
+                strokeLinecap="round"
+              />
+            </g>
           </svg>
           <span className="absolute inset-0 flex items-center justify-center text-[11px] font-black text-[var(--text-primary)]">
             {metrics.percentComplete}%
