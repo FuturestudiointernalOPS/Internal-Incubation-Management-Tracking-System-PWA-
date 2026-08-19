@@ -216,6 +216,7 @@ export async function GET(req) {
       "teacher",
       "developer",
       "participant",
+      "member",
     ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
