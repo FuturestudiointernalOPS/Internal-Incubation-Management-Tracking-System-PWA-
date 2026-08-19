@@ -279,6 +279,7 @@
       "roleIntern": "Intern",
       "roleDeveloper": "Developer",
       "roleParticipant": "Participant",
+      "roleMember": "Member (no role yet)",
       "reject": "Reject",
       "archive": "Archive",
       "resendInvite": "Resend Invite",

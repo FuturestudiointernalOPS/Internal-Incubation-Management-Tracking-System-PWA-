@@ -460,6 +460,7 @@ export default function PendingUsersPage() {
                                   className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
                                 >
                                   <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
+                                  <option value="member">{t("adminMisc.pendingUsers.roleMember")}</option>
                                   <option value="staff">{t("adminMisc.pendingUsers.roleStaff")}</option>
                                   <option value="intern">{t("adminMisc.pendingUsers.roleIntern")}</option>
                                   <option value="developer">{t("adminMisc.pendingUsers.roleDeveloper")}</option>

@@ -279,6 +279,7 @@
       "roleIntern": "Stagiaire",
       "roleDeveloper": "Développeur",
       "roleParticipant": "Participant",
+      "roleMember": "Membre (aucun rôle pour l'instant)",
       "reject": "Rejeter",
       "archive": "Archiver",
       "resendInvite": "Renvoyer l'invitation",

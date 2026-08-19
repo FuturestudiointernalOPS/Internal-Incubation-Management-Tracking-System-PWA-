@@ -380,7 +380,8 @@ const RULES = [
         // The group establishes organizational/program CONTEXT:
         //  - group name exactly "Future Studio" → internal Staff
         //  - any other group (with or without a Program) → Participant
-        //  - no group → no activation email can be sent
+        //  - no group at all → neutral Member (no role yet; the person still
+        //    activates and lands on the empty workspaces hub)
         let groupName = null;
         let groupProgramId = null;
         if (ctx.run?.id) {
@@ -396,29 +397,20 @@ const RULES = [
           } catch (_) {}
         }
 
-        // No group assigned → do not send an activation email.
-        if (!groupName) {
-          console.warn("[Automation] Activation skipped: no group assigned", ctx.submission?.id);
-          await recordEmailStatus({
-            submission_id: ctx.submission?.id || null,
-            contact_cid: ctx.submission?.submitter_id || null,
-            email_type: "activation",
-            status: "skipped",
-            error: "Skipped — No group assigned to this run; activation email not sent",
-            to: contactEmail,
-          });
-          return;
-        }
-
         // 2. Find or create the identity BY EMAIL (reuse existing, never duplicate)
         let contact = null;
         let accountExists = false;
         let accountActivated = false;
-        // Automated role: only the internal "Future Studio" group becomes Staff.
+        // Automated role:
+        //  - "Future Studio" group → internal Staff
+        //  - any other group → Participant
+        //  - no group → neutral Member (activates into the empty workspaces hub)
         let targetRole =
           groupName && groupName.trim().toUpperCase() === "FUTURE STUDIO"
             ? "staff"
-            : "participant";
+            : groupName
+              ? "participant"
+              : "member";
         const existingContact = await db.execute({
           sql: "SELECT cid, name, email, password, role FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],

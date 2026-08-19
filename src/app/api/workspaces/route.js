@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { roleHomeHref } from "@/lib/platform/roles";
 
 export const dynamic = "force-dynamic";
 
@@ -12,23 +13,6 @@ export const dynamic = "force-dynamic";
  * global role. Any authenticated user may call this; having no assignment
  * is a valid state.
  */
-
-const ROLE_HOME = {
-  super_admin: "/admin",
-  admin: "/admin",
-  program_manager: "/pm",
-  staff: "/staff",
-  teacher: "/teacher",
-  facilitator: "/facilitator",
-  developer: "/developer",
-  investor: "/investor/dashboard",
-  finance: "/finance",
-  participant: "/participant",
-};
-
-function roleHomeHref(role) {
-  return ROLE_HOME[String(role || "").toLowerCase()] || null;
-}
 
 function assignmentHref(role, programId) {
   const r = String(role || "").toLowerCase();

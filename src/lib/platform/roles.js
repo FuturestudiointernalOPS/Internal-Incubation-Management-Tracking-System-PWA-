@@ -33,5 +33,32 @@ export function isPrivilegedRole(role) {
  */
 export function resolveDefaultRole(explicitRole) {
   const r = String(explicitRole || "").trim().toLowerCase();
+  // The neutral "member" state means "person exists, no role/assignment yet".
+  // It is preserved as-is and must never be upgraded to participant.
+  if (r === "member") return r;
   return isPrivilegedRole(r) ? r : DEFAULT_ROLE;
+}
+
+/**
+ * Where each global role lands after login. Single source of truth shared by
+ * the login redirect and the workspaces hub so the hub's "My Dashboard"
+ * button can never drift from the real login routing.
+ *
+ * Roles not listed here (or dynamic targets like team/founder) fall back to
+ * the neutral /workspaces hub.
+ */
+export const ROLE_HOME = {
+  super_admin: "/admin",
+  program_manager: "/pm",
+  staff: "/staff",
+  teacher: "/teacher",
+  facilitator: "/facilitator",
+  developer: "/developer",
+  participant: "/participant",
+  finance: "/finance",
+  investor: "/investor/dashboard",
+};
+
+export function roleHomeHref(role) {
+  return ROLE_HOME[String(role || "").toLowerCase()] || null;
 }

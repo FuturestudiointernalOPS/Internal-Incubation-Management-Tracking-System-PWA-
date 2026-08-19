@@ -1130,6 +1130,7 @@ function ContactsPageContent() {
                   <option value="developer">{t("crm.contacts.roleDeveloper")}</option>
                   <option value="staff">{t("crm.contacts.roleStaff")}</option>
                   <option value="participant">{t("crm.contacts.roleParticipant")}</option>
+                  <option value="member">{t("crm.contacts.roleMember")}</option>
                   <option value="intern">{t("crm.contacts.roleIntern")}</option>
                 </select>
                 <p className="text-[8px] text-[var(--text-secondary)] ml-1 opacity-60">
@@ -1259,6 +1260,7 @@ function ContactsPageContent() {
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="participant">{t("crm.contacts.roleParticipant")}</option>
+                <option value="member">{t("crm.contacts.roleMember")}</option>
                 <option value="staff">{t("crm.contacts.roleStaff")}</option>
                 <option value="intern">{t("crm.contacts.roleIntern")}</option>
                 <option value="developer">{t("crm.contacts.roleDeveloper")}</option>

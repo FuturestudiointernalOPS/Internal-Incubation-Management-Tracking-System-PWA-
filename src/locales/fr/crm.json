@@ -138,6 +138,7 @@
       "roleDeveloper": "Développeur",
       "roleStaff": "Personnel",
       "roleParticipant": "Participant",
+      "roleMember": "Membre (aucun rôle pour l'instant)",
       "roleIntern": "Stagiaire",
       "roleHelper": "Laisser en détection automatique pour la plupart des utilisateurs. Ne définir « Développeur » que pour le compte de développement.",
       "programAssignment": "Affectation au programme",
