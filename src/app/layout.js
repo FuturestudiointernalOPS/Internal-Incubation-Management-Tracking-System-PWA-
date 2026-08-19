@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import "./globals.css";
 import { I18nProvider } from "@/lib/i18n";
 import { ThemeProvider } from "@/lib/ThemeProvider";
 import NavHistoryTracker from "@/components/NavHistoryTracker";
+import NavigationLoader from "@/components/ui/NavigationLoader";
 
 export default function RootLayout({ children }) {
   const [themeReady, setThemeReady] = useState(false);
@@ -166,6 +167,9 @@ export default function RootLayout({ children }) {
       <body className="antialiased min-h-screen">
         <ThemeProvider>
           <I18nProvider>
+            <Suspense fallback={null}>
+              <NavigationLoader />
+            </Suspense>
             <NavHistoryTracker />
             {children}
           </I18nProvider>
