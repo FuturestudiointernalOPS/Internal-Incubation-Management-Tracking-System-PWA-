@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
 
@@ -39,52 +40,9 @@ export async function GET(req) {
     }
     const contact = userRes.rows[0];
 
-    const programIds = new Set();
-    if (contact.program_id) {
-      String(contact.program_id)
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-        .forEach((id) => programIds.add(id));
-    }
-    if (contact.group_name) {
-      const familyRes = await db.execute({
-        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
-        args: [contact.group_name],
-      });
-      familyRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-      const groupRes = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))",
-        args: [contact.group_name],
-      });
-      groupRes.rows.forEach((r) => {
-        if (r.id) programIds.add(String(r.id).trim());
-      });
-    }
-    // Path 4: participant_programs junction table (modern many-to-many assignments)
-    try {
-      const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
-        args: [cid],
-      });
-      ppRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {
-      // participant_programs table may not exist in all environments
-    }
-    // Path 5: v2_participants (direct participant enrollments)
-    try {
-      const vpRes = await db.execute({
-        sql: "SELECT program_id FROM v2_participants WHERE email = ?",
-        args: [email],
-      });
-      vpRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
+    const programIds = new Set(
+      await getParticipantProgramIds({ cid, email, contact }),
+    );
 
     const programs = [];
     for (const pid of Array.from(programIds)) {
@@ -104,18 +62,14 @@ export async function GET(req) {
           }),
           db.execute({
             sql: `SELECT s.* FROM v2_submissions s
-                  LEFT JOIN v2_participants p ON s.participant_id::text = p.id::text
-                  WHERE (s.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
-                  AND s.program_id::text = ?`,
-            args: [cid, email, cid, pid],
+                  WHERE s.participant_id = ? AND s.program_id::text = ?`,
+            args: [cid, pid],
           }),
           db.execute({
             sql: `SELECT a.* FROM v2_attendance a
                   JOIN v2_sessions s ON a.session_id::text = s.id::text
-                  LEFT JOIN v2_participants p ON a.participant_id::text = p.id::text
-                  WHERE (a.participant_id::text = ? OR p.email = ? OR p.user_id = ?)
-                  AND s.program_id::text = ?`,
-            args: [cid, email, cid, pid],
+                  WHERE a.participant_id = ? AND s.program_id::text = ?`,
+            args: [cid, pid],
           }),
           db.execute({
             sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",

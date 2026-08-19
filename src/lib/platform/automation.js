@@ -427,10 +427,9 @@ const RULES = [
           if (!accountActivated) {
             await db.execute({
               sql: `UPDATE contacts SET role = ?, status = 'approved',
-                    group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END,
-                    program_id = COALESCE(NULLIF(program_id, ''), ?)
+                    group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END
                     WHERE cid = ?`,
-              args: [targetRole, groupName || null, groupProgramId || null, contact.cid],
+              args: [targetRole, groupName || null, contact.cid],
             });
           }
         } else {
@@ -444,8 +443,8 @@ const RULES = [
             } catch (_) {}
           }
           await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, program_id, password, language) VALUES (?, ?, ?, ?, 'approved', ?, ?, '', ?)`,
-            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', groupProgramId || null, formLanguage],
+            sql: `INSERT INTO contacts (cid, name, email, role, status, group_name, password, language) VALUES (?, ?, ?, ?, 'approved', ?, '', ?)`,
+            args: [cid, contactName || "Participant", contactEmail, targetRole, groupName || '', formLanguage],
           });
           contact = { cid, name: contactName || "Participant", email: contactEmail, role: targetRole };
         }

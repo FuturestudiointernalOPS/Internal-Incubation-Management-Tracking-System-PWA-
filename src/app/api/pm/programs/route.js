@@ -572,59 +572,28 @@ export async function PUT(req) {
             familyName = segmentId;
           }
 
-          // 3. Update contacts and v2_participants with the new program assignment
+          // 3. Sync participant_programs for the new program assignment.
+          //    (Phase 3: legacy contacts.program_id and v2_participants writes
+          //    removed; participant_programs is now authoritative.)
           if (familyName) {
-            // Update contacts
-            await db.execute({
-              sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
-              args: [id, name, familyName],
-            });
-
-            // Upsert v2_participants using SELECT then INSERT/UPDATE pattern
             const contactsRes = await db.execute({
-              sql: "SELECT cid, name, email, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
+              sql: "SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
               args: [familyName],
             });
 
             if (contactsRes.rows && contactsRes.rows.length > 0) {
               for (const contact of contactsRes.rows) {
-                const {
-                  cid: cCid,
-                  name: cName,
-                  email: cEmail,
-                  phone: cPhone,
-                } = contact;
-                if (!cEmail) continue;
-
-                const existRes = await db.execute({
-                  sql: "SELECT id FROM v2_participants WHERE email = ? AND program_id = ?",
-                  args: [cEmail, id],
-                });
-
-                if (existRes.rows && existRes.rows.length > 0) {
+                const cCid = contact.cid;
+                if (!cCid) continue;
+                try {
                   await db.execute({
-                    sql: "UPDATE v2_participants SET name = ?, phone = ? WHERE id = ?",
-                    args: [cName, cPhone, existRes.rows[0].id],
+                    sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
+                          VALUES (?, ?, 'active', NOW())
+                          ON CONFLICT (participant_id, program_id) DO NOTHING`,
+                    args: [cCid, id],
                   });
-                } else {
-                  await db.execute({
-                    sql: "INSERT INTO v2_participants (program_id, name, email, phone, screening_status, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-                    args: [id, cName, cEmail, cPhone, "pending"],
-                  });
-                }
-
-                // Sync participant_programs junction table
-                if (cCid) {
-                  try {
-                    await db.execute({
-                      sql: `INSERT INTO participant_programs (participant_id, program_id)
-                            VALUES (?, ?)
-                            ON CONFLICT (participant_id, program_id) DO NOTHING`,
-                      args: [cCid, id],
-                    });
-                  } catch (_) {
-                    // participant_programs table may not exist
-                  }
+                } catch (_) {
+                  // participant_programs table may not exist
                 }
               }
             }

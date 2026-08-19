@@ -10,6 +10,10 @@
  * 3. Finding all v2_participants records → ensuring contacts are in sync
  *
  * Run: node scripts/repair_group_assignments.js
+ *
+ * LEGACY NOTE (participant cleanup): this repair script still syncs/writes
+ * v2_participants. Offline tool only; switch to participant_programs or retire
+ * before v2_participants removal.
  */
 
 import db, { initDb } from "../src/lib/db.js";

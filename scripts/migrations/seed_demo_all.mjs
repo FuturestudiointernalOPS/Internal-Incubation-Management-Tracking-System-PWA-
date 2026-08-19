@@ -1,3 +1,8 @@
+/**
+ * LEGACY NOTE (participant cleanup): this demo seed still writes v2_participants.
+ * Offline demo tool only; switch to participant_programs or retire before
+ * v2_participants removal.
+ */
 import db, { initDb } from "../src/lib/db.js";
 import fs from "fs";
 import path from "path";

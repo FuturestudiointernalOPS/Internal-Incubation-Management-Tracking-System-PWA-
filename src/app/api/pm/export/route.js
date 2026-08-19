@@ -45,30 +45,42 @@ export async function GET(req) {
 
     switch (type) {
       case "participants":
-        sql = `SELECT name, email, phone, status, created_at FROM v2_participants WHERE program_id = $1 ORDER BY name`;
+        sql = `SELECT c.name, c.email, c.phone, c.status, c.created_at
+               FROM participant_programs pp
+               JOIN contacts c ON pp.participant_id = c.cid
+               WHERE CAST(pp.program_id AS TEXT) = $1
+                 AND c.deleted = 0 AND c.deleted_at IS NULL AND c.archived_at IS NULL
+                 AND LOWER(COALESCE(c.status, '')) = 'active'
+                 AND NOT EXISTS (
+                   SELECT 1 FROM v2_program_staff ps
+                   WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
+                     AND ps.role = 'facilitator'
+                     AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
+                 )
+               ORDER BY c.name`;
         filename = `participants-${programId}.csv`;
         break;
       case "attendance":
-        sql = `SELECT vp.name, vp.email, va.status as attendance_status, va.date as session_date, va.week_number
+        sql = `SELECT c.name, c.email, va.status as attendance_status, va.date as session_date, va.week_number
                FROM v2_attendance va
-               JOIN v2_participants vp ON va.participant_id = vp.user_id
+               JOIN contacts c ON va.participant_id = c.cid
                WHERE va.program_id = $1
-               ORDER BY va.date, vp.name`;
+               ORDER BY va.date, c.name`;
         filename = `attendance-${programId}.csv`;
         break;
       case "submissions":
-        sql = `SELECT vp.name, vp.email, vdr.title as requirement, vsb.submission_url, vsb.status, vsb.submitted_at
+        sql = `SELECT c.name, c.email, vdr.title as requirement, vsb.submission_url, vsb.status, vsb.submitted_at
                FROM v2_submissions vsb
-               JOIN v2_participants vp ON vsb.participant_id = vp.user_id
+               JOIN contacts c ON vsb.participant_id = c.cid
                JOIN v2_document_requirements vdr ON vsb.requirement_id = vdr.id
                WHERE vdr.program_id = $1
-               ORDER BY vp.name, vsb.submitted_at DESC`;
+               ORDER BY c.name, vsb.submitted_at DESC`;
         filename = `submissions-${programId}.csv`;
         break;
       case "teams":
-        sql = `SELECT vt.name as team_name, COUNT(vp.id) as member_count, vt.handler_name
+        sql = `SELECT vt.name as team_name, COUNT(c.cid) as member_count, vt.handler_name
                FROM v2_teams vt
-               LEFT JOIN v2_participants vp ON vp.v2_team_id = vt.id
+               LEFT JOIN contacts c ON c.v2_team_id = vt.id AND c.deleted = 0
                WHERE vt.program_id = $1
                GROUP BY vt.id, vt.name, vt.handler_name
                ORDER BY vt.name`;

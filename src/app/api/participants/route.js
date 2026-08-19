@@ -25,28 +25,6 @@ export async function POST(req) {
       );
     }
 
-    // 1. Fetch Program Details
-    const progRes = await db.execute({
-      sql: "SELECT name FROM v2_programs WHERE id = ?",
-      args: [program_id],
-    });
-    const programName = progRes.rows[0]?.name || "Unassigned Program";
-
-    // 2. Insert into V2 Participants (Standardized for Postgres)
-    const result = await db.execute({
-      sql: `INSERT INTO v2_participants (program_id, name, email, phone, screening_status)
-             VALUES (?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        program_id,
-        name,
-        email,
-        phone || null,
-        screening_status || "applied",
-      ],
-    });
-
-    const participantId = result.lastInsertRowid;
-
     // 3. FLEXIBLE SYNC: Upsert into V1 Contacts
     // Admins never create user passwords — store an unusable random hash so
     // the participant sets their own password via the invitation/activation flow.
@@ -54,21 +32,17 @@ export async function POST(req) {
     const cid = `c-${Math.random().toString(36).substr(2, 9)}`;
 
     await db.execute({
-      sql: `INSERT INTO contacts (cid, name, email, phone, program_id, program_name, role, password)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      sql: `INSERT INTO contacts (cid, name, email, phone, role, password)
+            VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(email) DO UPDATE SET
               name = EXCLUDED.name,
               phone = EXCLUDED.phone,
-              program_id = EXCLUDED.program_id,
-              program_name = EXCLUDED.program_name,
               role = EXCLUDED.role`,
       args: [
         cid,
         name,
         email,
         phone || null,
-        program_id,
-        programName,
         "participant",
         unusableHash,
       ],
@@ -89,8 +63,10 @@ export async function POST(req) {
     // participants show up in the Program Participants view once active.
     try {
       await db.execute({
-        sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'pending', NOW()) ON CONFLICT (participant_id, program_id) DO NOTHING",
-        args: [contactCid, program_id],
+        sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at, screening_status)
+              VALUES (?, ?, 'pending', NOW(), ?)
+              ON CONFLICT (participant_id, program_id) DO UPDATE SET screening_status = EXCLUDED.screening_status`,
+        args: [contactCid, program_id, screening_status || "pending"],
       });
     } catch (_) {}
 
@@ -106,7 +82,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       participant: {
-        id: participantId,
+        id: contactCid,
         program_id,
         name,
         email,
@@ -156,6 +132,7 @@ export async function GET(req) {
              CAST(c.cid AS TEXT) as user_id,
              c.name, c.email, c.phone,
              c.status, c.created_at, c.group_name, c.v2_team_id,
+             pp.screening_status,
              pp.program_id, 'enrolled' as source
       FROM participant_programs pp
       JOIN contacts c ON pp.participant_id = c.cid

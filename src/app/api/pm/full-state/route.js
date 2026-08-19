@@ -47,7 +47,7 @@ export async function GET(req) {
         // intentionally NOT treated as operational participant membership.
         name: "participants",
         sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone,
-                     'approved' as screening_status, c.status, c.created_at, c.group_name,
+                     COALESCE(pp.screening_status, 'pending') as screening_status, c.status, c.created_at, c.group_name,
                      'enrolled' as source, c.v2_team_id
               FROM participant_programs pp
               JOIN contacts c ON pp.participant_id = c.cid
@@ -107,11 +107,10 @@ export async function GET(req) {
       {
         name: "submissions",
         sql: `SELECT s.*, 
-                     COALESCE(c.name, vp.name) as participant_name, 
+                     c.name as participant_name, 
                      d.title as deliverable_title
               FROM v2_submissions s
               LEFT JOIN contacts c ON s.participant_id::text = c.cid
-              LEFT JOIN v2_participants vp ON s.participant_id::text = vp.id::text
               LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
               WHERE s.program_id::text = ?`,
         args: [id],

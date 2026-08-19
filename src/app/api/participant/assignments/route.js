@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +31,7 @@ export async function GET(req) {
     const filterProgramId = searchParams.get("program_id");
 
     const contactRes = await db.execute({
-      sql: "SELECT cid, program_id, group_name FROM contacts WHERE cid = ?",
+      sql: "SELECT cid, email, program_id, group_name FROM contacts WHERE cid = ?",
       args: [cid],
     });
     if (contactRes.rows.length === 0) {
@@ -41,43 +42,9 @@ export async function GET(req) {
     }
     const contact = contactRes.rows[0];
 
-    const programIds = new Set();
-    if (contact.program_id) {
-      String(contact.program_id)
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean)
-        .forEach((id) => programIds.add(id));
-    }
-    if (contact.group_name) {
-      const famRes = await db.execute({
-        sql: "SELECT program_id FROM families WHERE UPPER(TRIM(name)) = UPPER(TRIM(?)) AND program_id IS NOT NULL",
-        args: [contact.group_name],
-      });
-      famRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    }
-    // Path 4: participant_programs junction table
-    try {
-      const ppRes = await db.execute({
-        sql: "SELECT program_id FROM participant_programs WHERE participant_id::text = ?",
-        args: [cid],
-      });
-      ppRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
-    // Path 5: v2_participants (direct participant enrollments)
-    try {
-      const vpRes = await db.execute({
-        sql: "SELECT program_id FROM v2_participants WHERE email = ?",
-        args: [session.email],
-      });
-      vpRes.rows.forEach((r) => {
-        if (r.program_id) programIds.add(String(r.program_id).trim());
-      });
-    } catch (_) {}
+    const programIds = new Set(
+      await getParticipantProgramIds({ cid, email: contact.email, contact }),
+    );
 
     const allAssignments = [];
     for (const pid of programIds) {

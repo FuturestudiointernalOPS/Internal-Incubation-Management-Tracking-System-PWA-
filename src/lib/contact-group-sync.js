@@ -40,13 +40,8 @@ async function fillGroupAndProgram(contactCid, groupName, programId) {
   }
 
   if (programId) {
-    await db.execute({
-      sql: `UPDATE contacts SET program_id = ?
-            WHERE cid = ?
-              AND (program_id IS NULL OR TRIM(program_id) = '')`,
-      args: [programId, contactCid],
-    });
-
+    // participant_programs is the authoritative membership (Phase 5); the
+    // legacy contacts.program_id write has been removed.
     await db.execute({
       sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
             VALUES (?, ?, 'active', NOW())
@@ -106,7 +101,7 @@ export async function reconcileProgramGroups() {
   try {
     await initDb();
 
-    // 1. Backfill group_name + program_id for participants (fill-only).
+    // 1. Backfill group_name for participants (fill-only).
     await db.execute({
       sql: `WITH links AS (
               SELECT
@@ -142,11 +137,6 @@ export async function reconcileProgramGroups() {
                 WHEN c.group_name IS NULL OR TRIM(c.group_name) = '' OR LOWER(c.group_name) = 'unassigned'
                   THEN u.group_name
                 ELSE c.group_name
-              END,
-              program_id = CASE
-                WHEN c.program_id IS NULL OR TRIM(c.program_id) = ''
-                  THEN u.program_id
-                ELSE c.program_id
               END
             FROM unambiguous u
             WHERE c.cid = u.contact_cid
@@ -187,21 +177,9 @@ export async function reconcileProgramGroups() {
       args: [],
     });
 
-    // 3. Backfill facilitator program link (fill-only).
-    await db.execute({
-      sql: `UPDATE contacts c
-            SET program_id = v.program_id
-            FROM (
-              SELECT DISTINCT ON (staff_id) staff_id, program_id
-              FROM v2_program_staff
-              WHERE role = 'facilitator'
-              ORDER BY staff_id, program_id
-            ) v
-            WHERE c.cid = v.staff_id
-              AND (c.program_id IS NULL OR TRIM(c.program_id) = '')
-              AND c.deleted = 0`,
-      args: [],
-    });
+    // 3. (Removed in Phase 1) The legacy contacts.program_id backfill for
+    //    facilitators is no longer performed; participant_programs is
+    //    authoritative and facilitator scope comes from v2_program_staff/families.
 
     // 4. Add contextual facilitator roles (additive; contact_roles may not exist
     //    in older schemas, so this is best-effort).
@@ -234,7 +212,65 @@ export async function reconcileProgramGroups() {
               )`,
       args: [],
     });
+
+    // 5. Participant-architecture cleanup (Phase 1): backfill
+    //    participant_programs from the remaining legacy sources so it can
+    //    become the single source of truth for Person -> Program membership.
+    await reconcileParticipantPrograms();
   } catch (e) {
     console.error("[contact-group-sync] reconciliation failed:", e.message);
+  }
+}
+
+/**
+ * Phase 1 (participant-architecture cleanup): backfill `participant_programs`
+ * from the legacy sources so it can become the single source of truth.
+ *
+ * This is additive and idempotent — it only INSERTs rows that are missing and
+ * never deletes or overwrites existing membership.
+ *
+ * Legacy sources covered:
+ *   - `v2_participants` (legacy intake): joined to `contacts` by email or
+ *     `user_id`, and only when the program still exists.
+ *   - `contacts.program_id` (legacy single-value field): only when it holds a
+ *     single program id (not comma-separated) and the program exists.
+ *
+ * Deliberately NOT reconciled here: `contacts.group_name` name-lookup. Group
+ * membership is a separate concept from program membership and must not be
+ * re-introduced as a program source.
+ */
+export async function reconcileParticipantPrograms() {
+  try {
+    await initDb();
+
+    await db.execute({
+      sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
+            SELECT c.cid, CAST(vp.program_id AS TEXT), 'active', NOW()
+            FROM v2_participants vp
+            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(vp.program_id AS TEXT)
+            JOIN contacts c
+              ON (LOWER(c.email) = LOWER(vp.email) OR c.cid = vp.user_id)
+            WHERE c.deleted = 0
+            ON CONFLICT (participant_id, program_id) DO NOTHING`,
+      args: [],
+    });
+
+    await db.execute({
+      sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
+            SELECT c.cid, CAST(c.program_id AS TEXT), 'active', NOW()
+            FROM contacts c
+            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(c.program_id AS TEXT)
+            WHERE c.deleted = 0
+              AND c.program_id IS NOT NULL
+              AND TRIM(c.program_id) <> ''
+              AND c.program_id NOT LIKE '%,%'
+            ON CONFLICT (participant_id, program_id) DO NOTHING`,
+      args: [],
+    });
+
+    return { success: true };
+  } catch (e) {
+    console.error("[participant-programs] reconciliation failed:", e.message);
+    return { success: false, error: e.message };
   }
 }
