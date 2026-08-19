@@ -161,13 +161,16 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                       return (
                         <div className="mt-2 flex flex-wrap gap-1.5">
                           {mats.map((m, mi) => (
-                            <span
+                            <a
                               key={mi}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400"
+                              href={m.url || "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
                             >
                               <FileText className="w-2.5 h-2.5" />
-                              {m.name}
-                            </span>
+                              {m.name || m.title || "Resource"}
+                            </a>
                           ))}
                         </div>
                       );
@@ -285,7 +288,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
   );
 }
 
-function SubmitForm({ programId, deliverableId, onDone, t, readOnly }) {
+function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly }) {
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -383,33 +386,41 @@ function SubmitForm({ programId, deliverableId, onDone, t, readOnly }) {
         </div>
       )}
 
-      <div className="space-y-1">
-        <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-          Upload File
-        </label>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files[0])}
-          disabled={readOnly}
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer disabled:opacity-40"
-        />
-      </div>
-      <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest">
-        — or —
-      </div>
-      <div className="space-y-1">
-        <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-          Supporting URL
-        </label>
-        <input
-          type="url"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          disabled={readOnly}
-          placeholder="https://..."
-          className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)] disabled:opacity-40"
-        />
-      </div>
+      {(!deliverable?.allowedFormat || ['pdf', 'image', 'document', 'file'].includes(deliverable.allowedFormat.toLowerCase())) && (
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+            Upload File
+          </label>
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files[0])}
+            disabled={readOnly}
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black file:cursor-pointer disabled:opacity-40 text-[var(--text-primary)]"
+          />
+        </div>
+      )}
+      
+      {!deliverable?.allowedFormat && (
+        <div className="text-center text-[8px] text-slate-500 uppercase tracking-widest my-2">
+          — or —
+        </div>
+      )}
+      
+      {(!deliverable?.allowedFormat || ['link', 'video'].includes(deliverable.allowedFormat.toLowerCase())) && (
+        <div className="space-y-1">
+          <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+            {deliverable?.allowedFormat?.toLowerCase() === 'video' ? 'Video URL' : 'URL Link'}
+          </label>
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            disabled={readOnly}
+            placeholder="https://..."
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs outline-none focus:border-[var(--brand-orange)] disabled:opacity-40 text-[var(--text-primary)]"
+          />
+        </div>
+      )}
       {submitError && (
         <p className="text-[9px] font-bold text-rose-500 text-center">
           {submitError}
@@ -541,6 +552,12 @@ export default function ProgramDetail({ programId }) {
       const res = await fetch(`/api/participant/programs/${programId}`);
       const result = await res.json();
       if (result.success) {
+        if (result.curriculum && result.curriculum.weeks) {
+          result.curriculum.weeks = result.curriculum.weeks.map(w => ({
+            ...w,
+            deliverables: (w.deliverables || []).filter(d => !d.title?.toLowerCase().includes("attendance"))
+          }));
+        }
         setData(result);
         // Auto-expand current week
         if (result.curriculum?.currentWeek) {
@@ -765,10 +782,10 @@ export default function ProgramDetail({ programId }) {
                 onToggle={toggleWeek}
                 programId={programId}
                 t={t}
-                onSubmit={(delId) =>
+                onSubmit={(delId, weekNumber, delData) =>
                   setSubmitModal({
                     deliverableId: delId,
-                    weekNumber: week.number,
+                    weekNumber: weekNumber,
                     deliverable: delData,
                   })
                 }
