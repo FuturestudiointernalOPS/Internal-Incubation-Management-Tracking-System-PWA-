@@ -740,12 +740,6 @@ const NAVIGATION_MATRIX = {
       href: "/workspaces",
     },
     {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/participant/profile",
-    },
-    {
       id: "messages",
       name: "MESSAGES",
       icon: MessageSquare,
@@ -770,7 +764,7 @@ const NAVIGATION_MATRIX = {
       id: "timeline",
       name: "MY TIMELINE",
       icon: Clock,
-      href: "/participant/timeline",
+      href: "/participant/profile#timeline",
     },
     {
       id: "certificates",
@@ -809,7 +803,7 @@ const NAVIGATION_MATRIX = {
       id: "timeline",
       name: "MY TIMELINE",
       icon: Clock,
-      href: "/participant/timeline",
+      href: "/participant/profile#timeline",
     },
     {
       id: "messages",
