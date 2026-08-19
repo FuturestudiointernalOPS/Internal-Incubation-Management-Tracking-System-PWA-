@@ -659,23 +659,6 @@ const NAVIGATION_MATRIX = {
         { id: "all_programs", name: "ALL PROGRAMS", href: "/pm/programs" },
       ],
     },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "internal_reports",
-          name: "INTERNAL REPORTS",
-          href: "/staff/op-report",
-        },
-        {
-          id: "my_projects",
-          name: "MY PROJECTS",
-          href: "/staff/projects",
-        },
-      ],
-    },
   ],
   facilitator: [
     {

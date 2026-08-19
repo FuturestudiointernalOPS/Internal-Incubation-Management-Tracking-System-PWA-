@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 
 /**
  * OPERATIONAL REPORTS API
@@ -107,7 +108,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(INTERNAL_OPS_ROLES);
     if (authError) return authError;
     const body = await req.json();
     const {

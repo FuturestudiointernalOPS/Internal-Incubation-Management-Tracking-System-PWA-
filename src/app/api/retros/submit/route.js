@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
+import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
@@ -19,7 +20,7 @@ import { getTaskTitleById } from "@/lib/db/queries/tasks";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth(INTERNAL_OPS_ROLES);
     if (authError) return authError;
     const { getSession } = await import("@/lib/auth");
     const session = await getSession();

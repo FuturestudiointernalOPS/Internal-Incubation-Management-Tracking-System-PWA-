@@ -62,3 +62,20 @@ export const ROLE_HOME = {
 export function roleHomeHref(role) {
   return ROLE_HOME[String(role || "").toLowerCase()] || null;
 }
+
+/**
+ * Roles that are internal Future Studio staff and therefore allowed to submit
+ * their own weekly operational reports (standups / retros).
+ *
+ * External roles are deliberately excluded:
+ *   - teacher      → external "Active Teammate" (program assistant / team handler)
+ *   - facilitator  → external, program-scoped
+ *   - participant / member / founder / investor / mentor / finance
+ */
+export const INTERNAL_OPS_ROLES = [
+  "super_admin",
+  "staff",
+  "program_manager",
+  "admin",
+  "developer",
+];
