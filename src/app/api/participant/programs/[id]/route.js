@@ -289,6 +289,7 @@ export async function GET(req, { params }) {
     const attendedSessions = attendance.filter(
       (a) => a.status === "present",
     ).length;
+    const totalSessions = unlockedSessions.length || 1;
     const expectedDaysRes = await db.execute({
       sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
       args: [programId]
