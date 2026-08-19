@@ -853,7 +853,6 @@ export default function FormRunsPage() {
   const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
-  const [approvalProcessing, setApprovalProcessing] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1653,13 +1652,6 @@ export default function FormRunsPage() {
     setMessageSending(false);
   };
 
-  const eligibleApprovalIds = useMemo(() => {
-    return selectedIds.filter((id) => {
-      const s = submissions.find((x) => x.id === id);
-      return s && String(s.status || "").toLowerCase() === "approved";
-    });
-  }, [selectedIds, submissions]);
-
   const eligibleActivationIds = useMemo(() => {
     const blocked = new Set(["active", "inactive", "archived", "deleted"]);
     return selectedIds.filter((id) => {
@@ -1678,38 +1670,6 @@ export default function FormRunsPage() {
     }
     setActivationForceResend(forceResend);
     setActivationConfirmOpen(true);
-  };
-
-  const runSendApprovalMessages = async () => {
-    if (!selectedRun || approvalProcessing) return;
-    setBulkMenuOpen(false);
-    if (eligibleApprovalIds.length === 0) {
-      notify(t("platformMisc.runs.noEligibleApproval"));
-      return;
-    }
-    setApprovalProcessing(true);
-    try {
-      const res = await fetch("/api/platform/form-runs?action=send_approval_messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ run_id: selectedRun.id, submission_ids: eligibleApprovalIds }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const results = data.results || [];
-        const sent = results.filter((r) => r.status === "sent").length;
-        const skipped = results.length - sent;
-        setMessageSummary({ title: t("platformMisc.runs.sendApprovalMessage"), sent, skipped });
-        setSelectedIds([]);
-        await openRun(selectedRun);
-      } else {
-        notify(data.error || t("platformMisc.runs.messageSendFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.messageSendFailed"));
-    } finally {
-      setApprovalProcessing(false);
-    }
   };
 
   const runSendActivationMessages = async () => {
@@ -2303,14 +2263,6 @@ export default function FormRunsPage() {
                               className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
                             >
                               {t("platformMisc.runs.approve")}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={runSendApprovalMessages}
-                              disabled={approvalProcessing}
-                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5 disabled:opacity-50"
-                            >
-                              <Send className="w-3 h-3" /> {t("platformMisc.runs.sendApprovalMessage")}
                             </button>
                             <button
                               type="button"
