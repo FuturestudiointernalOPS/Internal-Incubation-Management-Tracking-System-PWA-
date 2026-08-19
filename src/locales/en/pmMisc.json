@@ -572,7 +572,16 @@
       "followupScheduled": "Follow-up scheduled successfully.",
       "followupScheduleFailed": "Failed to schedule follow-up",
       "scoresSynced": "Synchronized {score}% marks for participant.",
-      "syncFailed": "Sync failed."
+      "syncFailed": "Sync failed.",
+      "addToRequirementList": "Add to List",
+      "configNewReq": "Configure New Requirement",
+      "reqTypeLabel": "Requirement Type",
+      "titleLabel": "Title",
+      "descLabel": "Description",
+      "urlLabel": "URL",
+      "btnLabel": "Button Label",
+      "deadlineLabel": "Deadline",
+      "targetAudienceLabel": "Target Audience"
     },
     "facilitators": {
       "caps": {

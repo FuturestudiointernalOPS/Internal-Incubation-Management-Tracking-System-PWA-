@@ -31,7 +31,7 @@ export async function GET(req) {
     const filterProgramId = searchParams.get("program_id");
 
     const contactRes = await db.execute({
-      sql: "SELECT cid, email, program_id, group_name FROM contacts WHERE cid = ?",
+      sql: "SELECT cid, email, program_id, group_name, v2_team_id, team_id FROM contacts WHERE cid = ?",
       args: [cid],
     });
     if (contactRes.rows.length === 0) {
@@ -67,7 +67,24 @@ export async function GET(req) {
 
         const program = progRes.rows[0];
         if (!program) continue;
-        const deliverables = delRes.rows || [];
+        const deliverables = (delRes.rows || []).filter((d) => {
+          // Apply the requirement's stored assignee scoping. A PM can target a
+          // requirement at everyone, a team, or a single individual. Without
+          // this filter every participant would incorrectly see every
+          // requirement regardless of how the PM scoped it.
+          const type = String(d.assignee_type || "all").toLowerCase();
+          if (type === "all" || !type) return true;
+          if (type === "team") {
+            const teamIds = [contact.v2_team_id, contact.team_id]
+              .filter(Boolean)
+              .map((t) => String(t));
+            return teamIds.length > 0 && teamIds.includes(String(d.assignee_id));
+          }
+          if (type === "individual") {
+            return String(d.assignee_id) === String(cid);
+          }
+          return true; // unknown scope — stay safe and visible
+        });
         const submissions = subRes.rows || [];
 
         for (const d of deliverables) {

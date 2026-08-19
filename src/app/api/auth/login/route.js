@@ -201,6 +201,9 @@ export async function POST(req) {
       finalRole = "teacher"; // Active Teammate
     } else if (user.role === "teacher") {
       finalRole = "teacher";
+    } else if (user.role === "member") {
+      // Neutral "member" = a valid person with no global role yet.
+      finalRole = "member";
     } else if (user.role === "participant") {
       finalRole = "participant";
     } else if (
@@ -215,6 +218,9 @@ export async function POST(req) {
       userLanguage = user.language;
     }
 
+    // A participant with no group and no program is effectively an unassigned
+    // neutral member. Downgrade instead of rejecting so they reach the empty
+    // workspace hub rather than a broken participant dashboard.
     if (finalRole === "participant" && !isFamilyLogin) {
       const hasDirectProgram =
         user.program_id && String(user.program_id).trim();
@@ -228,17 +234,10 @@ export async function POST(req) {
           hasParticipantPrograms = ppRes.rows.length > 0;
         } catch (_) {}
       }
-      if (!user.group_name || user.group_name === "unassigned") {
-        if (!hasDirectProgram && !hasParticipantPrograms) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "Access Denied: You must be assigned to an active Program to log in.",
-            },
-            { status: 403 },
-          );
-        }
+      const groupName = String(user.group_name || "").trim().toLowerCase();
+      const hasGroup = !!groupName && groupName !== "unassigned";
+      if (!hasGroup && !hasDirectProgram && !hasParticipantPrograms) {
+        finalRole = "member";
       }
     }
 

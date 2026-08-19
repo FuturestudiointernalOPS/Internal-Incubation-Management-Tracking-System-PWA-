@@ -1847,7 +1847,17 @@ export async function DELETE(req) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
-    await db.execute({ sql: "UPDATE platform_form_runs SET status = 'archived', updated_at = NOW() WHERE id = ?", args: [parseInt(id)] });
+
+    const runId = parseInt(id);
+
+    // Permanently delete the run and everything attached to it. Assignments
+    // and submissions cascade via FK, but email/review/evaluation logs
+    // reference submission_id without a FK cascade, so clean those up first.
+    await db.execute({ sql: "DELETE FROM platform_email_log WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
+    await db.execute({ sql: "DELETE FROM platform_submission_reviews WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
+    await db.execute({ sql: "DELETE FROM platform_submission_evaluations WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
+    await db.execute({ sql: "DELETE FROM platform_form_runs WHERE id = ?", args: [runId] });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

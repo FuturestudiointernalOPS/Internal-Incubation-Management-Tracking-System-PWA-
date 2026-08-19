@@ -192,6 +192,9 @@ function ProgramWorkspace() {
   const [selectedSessionForAttendance, setSelectedSessionForAttendance] =
     useState(null);
   const [attendanceRecords, setAttendanceRecords] = useState({});
+  const [attendanceDate, setAttendanceDate] = useState(
+    () => new Date().toISOString().split("T")[0]
+  );
   const [pmReportAttachments, setPmReportAttachments] = useState({
     type: "text",
     content: "",
@@ -202,11 +205,11 @@ function ProgramWorkspace() {
 
   // Load existing attendance when modal opens
   useEffect(() => {
-    if (!showAttendanceModal || !selectedSessionForAttendance) return;
+    if (!showAttendanceModal || !selectedSessionForAttendance || !attendanceDate) return;
     const loadAttendance = async () => {
       try {
         const res = await fetch(
-          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}`
+          `/api/attendance?session_id=${selectedSessionForAttendance.id}&program_id=${id}&date=${attendanceDate}`
         );
         const data = await res.json();
         if (data.success && data.attendance) {
@@ -215,11 +218,15 @@ function ProgramWorkspace() {
             records[a.participant_id] = a.status;
           });
           setAttendanceRecords(records);
+        } else {
+          setAttendanceRecords({});
         }
-      } catch (_) {}
+      } catch (_) {
+        setAttendanceRecords({});
+      }
     };
     loadAttendance();
-  }, [showAttendanceModal, selectedSessionForAttendance, id]);
+  }, [showAttendanceModal, selectedSessionForAttendance, id, attendanceDate]);
 
   const [expandedSessionId, setExpandedSessionId] = useState(null);
   const [selectedSessionId, setSelectedSessionId] = useState(null);
@@ -3846,13 +3853,18 @@ function ProgramWorkspace() {
                   {(newSession.requirements || []).length > 0 && (
                     <div className="space-y-2 mb-3">
                       {(newSession.requirements || []).map((req, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[10px]">
-                          <div>
-                            <span className="font-bold text-indigo-400 uppercase">{req.title}</span>
-                            <span className="text-slate-400 ml-2">({req.allowed_format})</span>
+                        <div key={idx} className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] shadow-sm">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] font-black text-[var(--text-primary)] uppercase">{req.title}</span>
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] uppercase">
+                                {req.allowed_format}
+                              </span>
+                            </div>
+                            {req.due_date && <span className="text-[10px] text-[var(--text-secondary)]">Due: {req.due_date}</span>}
                           </div>
-                          <button type="button" onClick={() => setNewSession(p => ({ ...p, requirements: p.requirements.filter((_, i) => i !== idx) }))} className="text-rose-500 hover:scale-110">
-                            <Trash2 className="w-3 h-3" />
+                          <button type="button" onClick={() => setNewSession(p => ({ ...p, requirements: p.requirements.filter((_, i) => i !== idx) }))} className="text-rose-500 hover:bg-rose-500/10 p-2 rounded-md transition-all">
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       ))}
@@ -3860,45 +3872,16 @@ function ProgramWorkspace() {
                   )}
 
                   {/* Inline Form to add a new requirement */}
-                  <div className="p-3 bg-[var(--surface-1)] rounded-xl border border-[var(--border-primary)] space-y-3">
-                    <input
-                      value={newRequirement.title}
-                      onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
-                      placeholder={t("pmMisc.workspace.requirementTitlePlaceholder")}
-                      className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                    <textarea
-                      value={newRequirement.description || ""}
-                      onChange={(e) => setNewRequirement(p => ({ ...p, description: e.target.value }))}
-                      placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
-                      rows={2}
-                      className="w-full rounded-lg px-3 py-2 text-[11px] font-bold outline-none transition-colors"
-                      style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                    />
-                    <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="text"
-                        value={newRequirement.resource_url || ""}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, resource_url: e.target.value }))}
-                        placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
-                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                      <input
-                        type="text"
-                        value={newRequirement.resource_label || ""}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, resource_label: e.target.value }))}
-                        placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
-                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
-                        style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
+                  <div className="p-4 bg-[var(--surface-1)] rounded-xl border border-[var(--border-primary)] shadow-inner space-y-4">
+                    <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider mb-2">{t("pmMisc.workspace.configNewReq")}</p>
+                    
+                    {/* 1. Type Dropdown */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.reqTypeLabel")}</label>
                       <select
                         value={newRequirement.allowed_format}
                         onChange={(e) => setNewRequirement(p => ({ ...p, allowed_format: e.target.value }))}
-                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       >
                         <option value="pdf">{t("pmMisc.workspace.formatPdf")}</option>
@@ -3906,40 +3889,101 @@ function ProgramWorkspace() {
                         <option value="link">{t("pmMisc.workspace.formatLink")}</option>
                         <option value="video">{t("pmMisc.workspace.formatVideo")}</option>
                       </select>
+                    </div>
+
+                    {/* 2. Title */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.titleLabel")}</label>
                       <input
-                        type="date"
-                        value={newRequirement.due_date || ""}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, due_date: e.target.value }))}
-                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+                        value={newRequirement.title}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, title: e.target.value }))}
+                        placeholder={t("pmMisc.workspace.requirementTitlePlaceholder")}
+                        className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select
-                        value={newRequirement.assignee_type || "all"}
-                        onChange={(e) => setNewRequirement(p => ({ ...p, assignee_type: e.target.value, assignee_id: "" }))}
-                        className="w-full rounded-lg px-3 py-2 text-[10px] font-bold outline-none transition-colors"
+
+                    {/* 3. Description */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.descLabel")}</label>
+                      <textarea
+                        value={newRequirement.description || ""}
+                        onChange={(e) => setNewRequirement(p => ({ ...p, description: e.target.value }))}
+                        placeholder={t("pmMisc.workspace.instructionsPlaceholder")}
+                        rows={2}
+                        className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
                         style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
-                      >
-                        <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
-                        <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
-                        <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
-                      </select>
-                      <div className="flex items-center text-[9px] text-slate-400 italic px-2">
-                        * {t("pmMisc.workspace.evaluatedViaSessionKpis")}
+                      />
+                    </div>
+
+                    {/* 4. Conditional URL/Label */}
+                    {(newRequirement.allowed_format === "link" || newRequirement.allowed_format === "video") && (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.urlLabel")}</label>
+                          <input
+                            type="text"
+                            value={newRequirement.resource_url || ""}
+                            onChange={(e) => setNewRequirement(p => ({ ...p, resource_url: e.target.value }))}
+                            placeholder={t("pmMisc.workspace.resourceUrlPlaceholder")}
+                            className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
+                            style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.btnLabel")}</label>
+                          <input
+                            type="text"
+                            value={newRequirement.resource_label || ""}
+                            onChange={(e) => setNewRequirement(p => ({ ...p, resource_label: e.target.value }))}
+                            placeholder={t("pmMisc.workspace.resourceLabelPlaceholder")}
+                            className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
+                            style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 5. Due Date & Target */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.deadlineLabel")}</label>
+                        <input
+                          type="date"
+                          value={newRequirement.due_date || ""}
+                          onChange={(e) => setNewRequirement(p => ({ ...p, due_date: e.target.value }))}
+                          className="w-full rounded-lg px-3 py-2 text-xs font-medium outline-none transition-colors"
+                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("pmMisc.workspace.targetAudienceLabel")}</label>
+                        <select
+                          value={newRequirement.assignee_type || "all"}
+                          onChange={(e) => setNewRequirement(p => ({ ...p, assignee_type: e.target.value, assignee_id: "" }))}
+                          className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none transition-colors"
+                          style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                        >
+                          <option value="all">{t("pmMisc.workspace.assigneeAll")}</option>
+                          <option value="team">{t("pmMisc.workspace.assigneeTeam")}</option>
+                          <option value="individual">{t("pmMisc.workspace.assigneeIndividual")}</option>
+                        </select>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      disabled={!newRequirement.title.trim()}
-                      onClick={() => {
-                        setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
-                        setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "", resource_url: "", resource_label: "" });
-                      }}
-                      className="w-full py-2 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-500/30 disabled:opacity-50 transition-colors"
-                    >
-                      <Plus className="w-3 h-3 inline mr-1" /> {t("pmMisc.workspace.addDeliverable")}
-                    </button>
+
+                    <div className="pt-2">
+                      <button
+                        type="button"
+                        disabled={!newRequirement.title.trim()}
+                        onClick={() => {
+                          setNewSession(p => ({ ...p, requirements: [...(p.requirements || []), { ...newRequirement, kpi_ids: p.kpi_ids || [] }] }));
+                          setNewRequirement({ title: "", description: "", allowed_format: "pdf", kpi_ids: [], due_date: "", assignee_type: "all", assignee_id: "", resource_url: "", resource_label: "" });
+                        }}
+                        className="w-full py-2.5 rounded-lg bg-[var(--surface-2)] text-[var(--text-primary)] border border-[var(--border-primary)] text-xs font-black uppercase tracking-widest hover:bg-[var(--surface-3)] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> {t("pmMisc.workspace.addToRequirementList")}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4641,6 +4685,22 @@ function ProgramWorkspace() {
                 </button>
               </div>
 
+              <div className="flex items-center gap-3 bg-[var(--bg-secondary)] p-3 rounded-xl border border-[var(--border-primary)]">
+                <Calendar className="w-4 h-4 text-[var(--text-secondary)]" />
+                <div className="flex-1">
+                  <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+                    Date
+                  </p>
+                  <input
+                    type="date"
+                    value={attendanceDate}
+                    onChange={(e) => setAttendanceDate(e.target.value)}
+                    className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+              </div>
+
               <div className="space-y-3">
                 {participants.filter(p => p.status !== 'archived').map((p) => {
                   const status = attendanceRecords[p.id] || "";
@@ -4700,10 +4760,9 @@ function ProgramWorkspace() {
                 </button>
                 <button
                   onClick={async () => {
-                    if (!selectedSessionForAttendance) return;
+                    if (!selectedSessionForAttendance || !attendanceDate) return;
                     setIsSaving(true);
                     try {
-                      const today = new Date().toISOString().split("T")[0];
                       const records = participants.map((p) => {
                         const pid = p.user_id || p.cid || p.id;
                         return {
@@ -4711,7 +4770,7 @@ function ProgramWorkspace() {
                           program_id: id,
                           participant_id: pid,
                           status: attendanceRecords[pid] || "",
-                          date: today,
+                          date: attendanceDate,
                         };
                       });
                       const res = await fetch("/api/attendance", {

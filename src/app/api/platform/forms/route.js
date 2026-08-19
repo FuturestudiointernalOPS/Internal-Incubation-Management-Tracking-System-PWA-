@@ -362,13 +362,27 @@ export async function DELETE(req) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+    const permanent = searchParams.get("permanent") === "true";
     if (!id) {
       return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
     }
 
+    const formId = parseInt(id);
+
+    if (permanent) {
+      // Hard delete the form and everything attached to it. Sections, fields,
+      // versions and runs cascade via FK; email/review/evaluation logs for the
+      // form's runs' submissions must be cleaned up explicitly first.
+      await db.execute({ sql: "DELETE FROM platform_email_log WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
+      await db.execute({ sql: "DELETE FROM platform_submission_reviews WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
+      await db.execute({ sql: "DELETE FROM platform_submission_evaluations WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
+      await db.execute({ sql: "DELETE FROM platform_forms WHERE id = ?", args: [formId] });
+      return NextResponse.json({ success: true });
+    }
+
     await db.execute({
       sql: "UPDATE platform_forms SET status = 'archived', updated_at = NOW() WHERE id = ?",
-      args: [parseInt(id)],
+      args: [formId],
     });
 
     return NextResponse.json({ success: true });

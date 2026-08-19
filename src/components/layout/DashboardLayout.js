@@ -729,6 +729,30 @@ const NAVIGATION_MATRIX = {
     },
   ],
 
+  // Neutral member: a valid person with no program/group/assignment yet.
+  // Only genuinely global surfaces — no program-specific items that would
+  // immediately 403 with "not enrolled".
+  member: [
+    {
+      id: "dashboard",
+      name: "WORKSPACES",
+      icon: LayoutDashboard,
+      href: "/workspaces",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/participant/profile",
+    },
+    {
+      id: "messages",
+      name: "MESSAGES",
+      icon: MessageSquare,
+      href: "/participant/messages",
+    },
+  ],
+
   participant: [
     {
       id: "dashboard",

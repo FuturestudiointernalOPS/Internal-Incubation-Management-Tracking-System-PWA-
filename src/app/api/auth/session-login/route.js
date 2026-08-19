@@ -201,12 +201,18 @@ export async function POST(req) {
         finalRole = "teacher";
       } else if (user.role === "investor") {
         finalRole = "investor";
+      } else if (user.role === "member") {
+        // Neutral "member" means a person exists on the platform but has no
+        // global role yet. Preserve it — never collapse it into participant.
+        finalRole = "member";
       } else if (user.role === "participant") {
         finalRole = "participant";
       }
     }
 
-    // Allow participants with group_name="unassigned" if they have valid program assignments
+    // A participant with no group and no program is effectively an unassigned
+    // neutral member. Instead of rejecting them, downgrade to member so they
+    // land on the empty workspace hub (no assignment is a valid state).
     if (finalRole === "participant" && !isFamilyLogin) {
       const hasDirectProgram =
         user.program_id && String(user.program_id).trim();
@@ -220,17 +226,10 @@ export async function POST(req) {
           hasParticipantPrograms = ppRes.rows.length > 0;
         } catch (_) {}
       }
-      if (!user.group_name || user.group_name === "unassigned") {
-        if (!hasDirectProgram && !hasParticipantPrograms) {
-          return NextResponse.json(
-            {
-              success: false,
-              error:
-                "Access Denied: You must be assigned to an active Program to log in.",
-            },
-            { status: 403 },
-          );
-        }
+      const groupName = String(user.group_name || "").trim().toLowerCase();
+      const hasGroup = !!groupName && groupName !== "unassigned";
+      if (!hasGroup && !hasDirectProgram && !hasParticipantPrograms) {
+        finalRole = "member";
       }
     }
 

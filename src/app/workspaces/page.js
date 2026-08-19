@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { LayoutGrid, LogOut, Loader2, ArrowRight } from "lucide-react";
+import { LayoutGrid, LogOut, Loader2, ArrowRight, User } from "lucide-react";
 
 /**
  * WORKSPACES HUB
@@ -64,13 +64,22 @@ export default function WorkspacesPage() {
           <h1 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
             {t("common.workspaces.title")}
           </h1>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            {t("common.workspaces.logout")}
-          </button>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/participant/profile"
+              className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+            >
+              <User className="w-3.5 h-3.5" />
+              {t("common.workspaces.profile")}
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              {t("common.workspaces.logout")}
+            </button>
+          </div>
         </div>
       </header>
 

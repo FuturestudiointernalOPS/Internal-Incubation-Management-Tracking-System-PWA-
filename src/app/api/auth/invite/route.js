@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
-import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
+import { sendInviteEmail, sendLoginEmail, recordEmailSent } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { addContactToGroup } from "@/lib/contact-groups";
@@ -67,7 +67,10 @@ export async function POST(req) {
         sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
         args: [token, tokenHash, contact.cid],
       });
-      await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
+      const sendResult = await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
+      if (sendResult?.success) {
+        await recordEmailSent({ contact_cid: contact.cid, email_type: "activation", provider: "resend", to: contact.email, note: "Manual activation email resent" });
+      }
       try {
         await db.execute({
           sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
@@ -153,7 +156,10 @@ export async function POST(req) {
     if (accountActivated) {
       await sendLoginEmail({ to: cleanEmail, name: displayName, role: role || "participant", programName: program_name });
     } else {
-      await sendInviteEmail({ to: cleanEmail, name: displayName, role: role || "participant", token, programName: program_name });
+      const sendResult = await sendInviteEmail({ to: cleanEmail, name: displayName, role: role || "participant", token, programName: program_name });
+      if (sendResult?.success) {
+        await recordEmailSent({ contact_cid: contactCid, email_type: "activation", provider: "resend", to: cleanEmail, note: "Manual activation email sent" });
+      }
     }
 
     return NextResponse.json({
