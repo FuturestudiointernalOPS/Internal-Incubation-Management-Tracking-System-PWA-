@@ -277,33 +277,37 @@ export async function GET(req, { params }) {
     const unlockedWeeks = weeks.filter((w) => !w.locked);
     const unlockedDeliverables = unlockedWeeks.flatMap((w) => w.deliverables);
 
-    const totalDeliverables = unlockedDeliverables.length || 1;
-    const completedDeliverables = unlockedDeliverables.filter((d) =>
+    // ─── 1. Program completion = how far the program itself has progressed ───
+    // Use week-based progress: currentWeek / program.duration_weeks
+    const durationWeeks = Number(program.duration_weeks) || weeks.length || 1;
+    const percentComplete = Math.round((currentWeek / durationWeeks) * 100);
+
+    // ─── 2. Deliverables done — exclude 'attendance' deliverables ───
+    const unlockedNonAttendanceDeliverables = unlockedDeliverables.filter(
+      (d) => !d.title?.toLowerCase().includes("attendance")
+    );
+    const totalDeliverables = unlockedNonAttendanceDeliverables.length;
+    const completedDeliverables = unlockedNonAttendanceDeliverables.filter((d) =>
       submissions.some(
         (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
       ),
     ).length;
-    const percentComplete = Math.round(
-      (completedDeliverables / totalDeliverables) * 100,
-    );
+
+    // ─── 3. Attendance — for this participant only ───
     const attendedSessions = attendance.filter(
       (a) => a.status === "present",
     ).length;
+    // Total sessions this participant was expected to attend = sessions that are unlocked
     const totalSessions = unlockedSessions.length || 1;
-    const expectedDaysRes = await db.execute({
-      sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
-      args: [programId]
-    });
-    const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
-    const attendanceRate = Math.round((attendedSessions / totalExpectedDays) * 100);
+    const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
 
-    // ─── KPI Progress from persistent engine ───
+    // ─── 4. KPI Progress — per participant ───
     let kpiProgress = [];
     let kpiCompletion = 0;
     try {
       const progressRes = await db.execute({
-        sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
-        args: [programId],
+        sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? AND participant_id::text = ? ORDER BY kpi_id ASC",
+        args: [programId, cid],
       });
       kpiProgress = progressRes.rows || [];
       if (kpiProgress.length === 0) {
