@@ -227,6 +227,7 @@ const SidebarContent = ({
   hasCommunicationActivity,
 }) => {
   const { switchLang } = useI18n();
+  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
@@ -360,13 +361,38 @@ const SidebarContent = ({
             {t("navigation.userProtocol")}
           </p>
         )}
-        <Link
-          href={`/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`}
-          className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
-        >
-          <User className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>{t(tnav("profile"))}</span>}
-        </Link>
+        <div className="space-y-1">
+          <button
+            onClick={() => toggleMenu("profile")}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
+          >
+            <div className="flex items-center gap-4">
+              <User className="w-4 h-4 flex-shrink-0" />
+              {!collapsed && <span>{t(tnav("profile"))}</span>}
+            </div>
+            {!collapsed && (
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${openMenus["profile"] ? "rotate-180" : ""}`} />
+            )}
+          </button>
+          {openMenus["profile"] && !collapsed && (
+            <div className="pl-8 space-y-1 py-1">
+              <Link
+                href={profileHref}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+              >
+                <span className="truncate">{t(tnav("profile"))}</span>
+              </Link>
+              <Link
+                href={`${profileHref}#timeline`}
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+              >
+                <span className="truncate">{t(tnav("timeline"))}</span>
+              </Link>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => {
             if (typeof window === "undefined") return;
@@ -761,12 +787,6 @@ const NAVIGATION_MATRIX = {
       href: "/participant/dashboard",
     },
     {
-      id: "timeline",
-      name: "MY TIMELINE",
-      icon: Clock,
-      href: "/participant/profile#timeline",
-    },
-    {
       id: "certificates",
       name: "MY CERTIFICATES",
       icon: FileText,
@@ -798,12 +818,6 @@ const NAVIGATION_MATRIX = {
       name: "MY VENTURES",
       icon: Rocket,
       href: "/participant/ventures",
-    },
-    {
-      id: "timeline",
-      name: "MY TIMELINE",
-      icon: Clock,
-      href: "/participant/profile#timeline",
     },
     {
       id: "messages",
