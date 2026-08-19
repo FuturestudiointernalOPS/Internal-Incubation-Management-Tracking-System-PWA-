@@ -109,7 +109,6 @@ export async function POST(req) {
         finalDocumentId,
         group_id || null,
         participant_id || null,
-        team_id || null,
         resolvedFileUrl,
         supporting_url || null,
         status || "pending",
