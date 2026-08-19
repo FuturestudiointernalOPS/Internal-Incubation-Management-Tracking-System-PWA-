@@ -62,8 +62,8 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Resolve file URL
-    const resolvedFileUrl = file_url || submission_link || file_path || null;
+    // Resolve file URL (database requires this field to be non-null)
+    const resolvedFileUrl = file_url || submission_link || file_path || supporting_url || "";
 
     // Auto-detect deliverable_id from document_id if needed
     const finalDeliverableId = deliverable_id || null;
