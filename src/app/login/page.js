@@ -172,7 +172,9 @@ export default function LoginPage() {
                         ? "/teacher/profile"
                         : r === "developer"
                           ? "/developer/profile"
-                          : "/participant/profile";
+                          : r === "member"
+                            ? "/workspaces"
+                            : "/participant/profile";
               }
             } catch (_) {}
           }

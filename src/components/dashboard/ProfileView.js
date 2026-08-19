@@ -427,42 +427,14 @@ export default function ProfileView() {
       className="space-y-6"
     >
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
-            {t("adminMisc.profile.title")}
-          </h1>
-          <p className="text-[11px] text-[var(--text-secondary)] mt-1">
-            {t("adminMisc.profile.subtitle")}
-          </p>
-        </div>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30"
-        >
-          <Save className="w-3.5 h-3.5" />{" "}
-          {saving ? t("adminMisc.profile.saving") : t("adminMisc.profile.saveChanges")}
-        </button>
+      <div>
+        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+          {t("adminMisc.profile.title")}
+        </h1>
+        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+          {t("adminMisc.profile.subtitle")}
+        </p>
       </div>
-
-      {/* Save message */}
-      {saveMessage && (
-        <div
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold ${
-            saveMessage.type === "success"
-              ? "bg-emerald-500/10 text-emerald-400"
-              : "bg-rose-500/10 text-rose-400"
-          }`}
-        >
-          {saveMessage.type === "success" ? (
-            <CheckCircle2 className="w-4 h-4" />
-          ) : (
-            <AlertCircle className="w-4 h-4" />
-          )}
-          {saveMessage.text}
-        </div>
-      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ═══ LEFT COLUMN: Avatar + Quick Info ═══ */}
@@ -831,6 +803,36 @@ export default function ProfileView() {
               </div>
             )}
           </SectionCard>
+        </div>
+      </div>
+
+      {/* Save actions — at the bottom of the profile form */}
+      <div className="space-y-3">
+        {saveMessage && (
+          <div
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-bold ${
+              saveMessage.type === "success"
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-rose-500/10 text-rose-400"
+            }`}
+          >
+            {saveMessage.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4" />
+            ) : (
+              <AlertCircle className="w-4 h-4" />
+            )}
+            {saveMessage.text}
+          </div>
+        )}
+        <div className="flex justify-end">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30"
+          >
+            <Save className="w-3.5 h-3.5" />{" "}
+            {saving ? t("adminMisc.profile.saving") : t("adminMisc.profile.saveChanges")}
+          </button>
         </div>
       </div>
     </motion.div>

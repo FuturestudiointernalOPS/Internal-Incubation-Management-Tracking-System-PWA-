@@ -146,6 +146,7 @@ export async function GET(req) {
     const programId = searchParams.get("program_id");
     const participantId = searchParams.get("participant_id");
     const summary = searchParams.get("summary") === "true";
+    const dateStr = searchParams.get("date");
 
     // Facilitator scope: facilitators only see attendance for participants in
     // the v2_teams where they are the handler.
@@ -184,12 +185,13 @@ export async function GET(req) {
             SUM(CASE WHEN a.status = 'excused' THEN 1 ELSE 0 END) as excused_count,
             SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_count,
             ROUND(
-              (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / NULLIF(COUNT(*), 0)) * 100
+              (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / 
+              NULLIF((SELECT COUNT(DISTINCT date) FROM v2_attendance WHERE program_id = a.program_id), 0)) * 100
             , 1) as attendance_rate
           FROM v2_attendance a
           LEFT JOIN contacts c ON a.participant_id::text = c.cid
           WHERE a.program_id = ? AND ${facGroupFilter ? facGroupFilter : "1=1"}
-          GROUP BY a.participant_id, c.name
+          GROUP BY a.participant_id, c.name, a.program_id
           ORDER BY attendance_rate DESC
         `,
         args: [programId, ...facGroupArgs],
@@ -207,6 +209,10 @@ export async function GET(req) {
     if (sessionId) {
       sql += " AND a.session_id = ?";
       args.push(sessionId);
+    }
+    if (dateStr) {
+      sql += " AND a.date = ?";
+      args.push(dateStr);
     }
     if (programId) {
       sql += " AND a.program_id = ?";

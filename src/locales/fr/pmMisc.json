@@ -567,7 +567,16 @@
       "followupScheduled": "Suivi planifié avec succès.",
       "followupScheduleFailed": "Échec de la planification du suivi",
       "scoresSynced": "Synchronisé {score} % de notes pour le participant.",
-      "syncFailed": "Échec de la synchronisation."
+      "syncFailed": "Échec de la synchronisation.",
+      "addToRequirementList": "Ajouter à la liste",
+      "configNewReq": "Configurer la nouvelle exigence",
+      "reqTypeLabel": "Type d'exigence",
+      "titleLabel": "Titre",
+      "descLabel": "Description",
+      "urlLabel": "URL",
+      "btnLabel": "Libellé du bouton",
+      "deadlineLabel": "Date limite",
+      "targetAudienceLabel": "Public cible"
     },
     "facilitators": {
       "caps": {

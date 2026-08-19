@@ -1208,6 +1208,39 @@ async function recordEmailResult({ submission_id, contact_cid, email_type, succe
 }
 
 /**
+ * Record a successful email send in the delivery log. Used by flows that send
+ * directly without going through sendTrackedEmail (e.g. manual invites via
+ * /api/auth/invite), so the Contacts activation-email badge and the Runs email
+ * log agree on whether an activation email was actually sent.
+ */
+export async function recordEmailSent({ submission_id, contact_cid, email_type, provider, note, to, emailId, batch_id }) {
+  try {
+    await ensureEmailLogTable();
+    const { default: db } = await import("@/lib/db");
+    const recipient = to ? String(to).trim().substring(0, 300) : null;
+    if (!submission_id && contact_cid) {
+      // Manual invites are not submission-scoped; dedupe by contact + type so
+      // resending does not create duplicate "sent" rows.
+      const dup = await db.execute({
+        sql: "SELECT 1 FROM platform_email_log WHERE contact_cid = ? AND email_type = ? AND submission_id IS NULL AND status = 'sent' LIMIT 1",
+        args: [contact_cid, email_type],
+      });
+      if (dup.rows.length > 0) return false;
+    }
+    await db.execute({
+      sql: `INSERT INTO platform_email_log (submission_id, contact_cid, email_type, status, provider, error, recipient, email_id, batch_id, sent_at)
+            VALUES (?, ?, ?, 'sent', ?, ?, ?, ?, ?, NOW())
+            ON CONFLICT (submission_id, email_type, COALESCE(batch_id, '')) WHERE status = 'sent' DO NOTHING`,
+      args: [submission_id ? parseInt(submission_id) : null, contact_cid || null, email_type, provider || null, note || null, recipient, emailId || null, batch_id || null],
+    });
+    return true;
+  } catch (e) {
+    console.warn("[EmailLog] Could not record sent email:", e.message);
+    return false;
+  }
+}
+
+/**
  * Send a workflow email exactly once per (submission_id, email_type).
  * - Already sent → returns { skipped: true } without sending
  * - Send succeeds → records 'sent' and returns { success: true }

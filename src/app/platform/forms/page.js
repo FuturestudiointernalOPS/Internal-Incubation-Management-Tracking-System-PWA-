@@ -524,6 +524,20 @@ export default function PlatformForms() {
     setArchiveConfirm({ id, name: form.name, action: "unarchive" });
   };
 
+  const handleDeletePermanently = async (id) => {
+    const form = forms.find((f) => f.id === id);
+    if (!form) return;
+    if (!confirm(t("platformMisc.forms.deleteFormConfirm"))) return;
+    try {
+      const res = await fetch(`/api/platform/forms?id=${id}&permanent=true`, { method: "DELETE" });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("platformMisc.forms.notifyFormDeleted"));
+        fetchForms();
+      }
+    } catch (_) {}
+  };
+
   const confirmArchiveAction = async () => {
     if (!archiveConfirm) return;
     const { id, action } = archiveConfirm;
@@ -773,7 +787,10 @@ export default function PlatformForms() {
                       {f.status !== "archived" ? (
                         <button onClick={() => handleArchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.archiveTitle")}><Archive className="w-3 h-3" /></button>
                       ) : (
-                        <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
+                        <>
+                          <button onClick={() => handleUnarchive(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-emerald-500 hover:bg-tertiary" title={t("platformMisc.forms.restoreTitle")}><RotateCcw className="w-3 h-3" /></button>
+                          <button onClick={() => handleDeletePermanently(f.id)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-rose-500 hover:bg-tertiary" title={t("platformMisc.forms.deleteTitle")}><Trash2 className="w-3 h-3" /></button>
+                        </>
                       )}
                     </div>
                   </div>
