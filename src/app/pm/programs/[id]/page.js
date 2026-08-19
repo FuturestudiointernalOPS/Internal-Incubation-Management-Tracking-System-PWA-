@@ -2944,6 +2944,19 @@ function ProgramWorkspace() {
 
           {activeTab === "reports" && (
             <div className="space-y-6">
+              {user.role === "program_manager" && (
+                <div className="flex items-start gap-3 p-4 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/5">
+                  <FileText className="w-5 h-5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-tight text-[var(--text-primary)]">
+                      {t("pmMisc.workspace.reportsGoToCurriculumTitle")}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-secondary)] mt-1 leading-relaxed">
+                      {t("pmMisc.workspace.reportsGoToCurriculumHint")}
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Export Bar */}
               <div className="flex flex-wrap items-center gap-2 p-3 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mr-2">{t("pmMisc.workspace.exportLabel")}</span>

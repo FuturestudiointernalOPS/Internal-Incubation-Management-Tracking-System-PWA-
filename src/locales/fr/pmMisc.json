@@ -318,6 +318,8 @@
       "reportHighlights": "Points forts et réussites",
       "reportNextSteps": "Prochaines étapes stratégiques",
       "awaitingReports": "En attente des rapports d'intelligence initiaux...",
+      "reportsGoToCurriculumTitle": "Créer votre rapport hebdomadaire",
+      "reportsGoToCurriculumHint": "Les rapports se soumettent depuis l'onglet Programme pédagogique. Revenez au Programme pédagogique et créez votre rapport pour la semaine souhaitée.",
       "tableDeliverable": "Livrable",
       "tableDate": "Date",
       "tableAction": "Action",
