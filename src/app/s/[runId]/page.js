@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
-import { toE164 } from "@/lib/phone";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -228,7 +227,7 @@ export default function PublicSubmitPage() {
       case "phone":
         return (
           <AppPhoneInput
-            value={toE164(value)}
+            value={value}
             onChange={(next) => updateField(field.id, next)}
             placeholder={field.placeholder || "90 84 78 20"}
             disabled={isDisabled}
