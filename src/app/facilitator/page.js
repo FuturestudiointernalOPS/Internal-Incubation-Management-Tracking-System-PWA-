@@ -18,7 +18,7 @@ export default function FacilitatorDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/pm/programs")
+    fetch("/api/pm/programs?my_facilitator=1")
       .then((r) => r.json())
       .then((d) => {
         if (d.success) setPrograms(d.programs || []);

@@ -213,6 +213,9 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Quick Access collapse ──
   const [expandedPanels, setExpandedPanels] = useState({});
 
+  // ── Facilitator programs (program-scoped assignments for any session role) ──
+  const [facilitatorPrograms, setFacilitatorPrograms] = useState([]);
+
   // ── This Week date range (computed once on mount) ──
   const [weekDateRange] = useState(() => {
     const now = new Date();
@@ -250,6 +253,22 @@ export default function UnifiedDashboard({ role: propRole }) {
     }
     checkAuth();
   }, [router]);
+
+  // Fetch the user's program-scoped facilitator assignments (role-agnostic),
+  // so staff who were also assigned as facilitators can see those programs here.
+  useEffect(() => {
+    if (!user?.cid) return;
+    let active = true;
+    fetch("/api/pm/programs?my_facilitator=1")
+      .then((r) => r.json())
+      .then((d) => {
+        if (active && d.success) setFacilitatorPrograms(d.programs || []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user?.cid]);
 
   // Determine effective role
   const effectiveRole = user?.role || propRole || "staff";
@@ -1136,6 +1155,49 @@ export default function UnifiedDashboard({ role: propRole }) {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* My Facilitator Programs — program-scoped assignments for any role */}
+            {facilitatorPrograms.length > 0 && (
+              <div className="card">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-[var(--brand-orange)]" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                      {t("dashboard.facilitatorPrograms", "My Facilitator Programs")}
+                    </span>
+                    <span className="text-[9px] font-bold text-slate-500">
+                      ({facilitatorPrograms.length})
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {facilitatorPrograms.map((p) => (
+                    <div
+                      key={p.id}
+                      onClick={() => router.push(`/facilitator/program/${p.id}`)}
+                      className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/40 transition-all cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
+                          <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                        </div>
+                        <span className="text-[8px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                          {p.status || "Active"}
+                        </span>
+                      </div>
+                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate group-hover:text-[var(--brand-orange)] transition-colors">
+                        {p.name}
+                      </p>
+                      {p.description && (
+                        <p className="text-[8px] text-slate-500 mt-1 line-clamp-2">
+                          {p.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 

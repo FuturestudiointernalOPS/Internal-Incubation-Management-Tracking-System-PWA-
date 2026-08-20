@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireProgramFacilitator } from "@/lib/auth";
+import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
@@ -22,7 +22,7 @@ export async function GET(req) {
       const progId = sp.get("id");
       if (progId) {
         const session = await getSession();
-        if (session?.role === "facilitator") {
+        if (session && !hasProgramManagementAccess(session.role)) {
           const guardError = await requireProgramFacilitator(progId);
           if (guardError) return guardError;
         }

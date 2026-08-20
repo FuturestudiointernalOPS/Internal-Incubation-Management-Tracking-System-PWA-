@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -169,7 +169,7 @@ export async function PATCH(req) {
     // Server-side enforcement: facilitators must be assigned to the program
     // and hold assignments.grade to review submissions.
     const session = await getSession();
-    if (session?.role === "facilitator") {
+    if (session && !hasProgramManagementAccess(session.role)) {
       const subRow = await db.execute({
         sql: "SELECT program_id FROM v2_submissions WHERE id::text = ?",
         args: [String(id)],
@@ -404,7 +404,7 @@ export async function GET(req) {
     const session = await getSession();
     let facScopeFilter = null;
     let facScopeArgs = [];
-    if (session?.role === "facilitator" && program_id) {
+    if (session && program_id && !hasProgramManagementAccess(session.role)) {
       const facError = await enforceFacilitatorProgramAccess(
         program_id,
         "assignments.view",

@@ -5,6 +5,7 @@ import {
   requireAuth,
   getSession,
   requireProgramFacilitator,
+  hasProgramManagementAccess,
 } from "@/lib/auth";
 
 /**
@@ -54,8 +55,8 @@ export async function GET(req) {
       args.push(parseInt(weekNumber));
     }
 
-    // Facilitators may only read their own reviews
-    if (session.role === "facilitator") {
+    // Non-management roles may only read their own reviews
+    if (session && !hasProgramManagementAccess(session.role)) {
       sql += " AND facilitator_id = ?";
       args.push(session.cid);
     }
@@ -104,8 +105,8 @@ export async function POST(req) {
       );
     }
 
-    // Enforce program assignment for facilitators
-    if (session.role === "facilitator") {
+    // Enforce program assignment for non-management roles
+    if (session && !hasProgramManagementAccess(session.role)) {
       const guardError = await requireProgramFacilitator(program_id);
       if (guardError) return guardError;
     }
