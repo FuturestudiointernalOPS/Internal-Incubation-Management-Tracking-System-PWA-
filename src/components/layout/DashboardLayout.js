@@ -675,7 +675,7 @@ const NAVIGATION_MATRIX = {
       id: "my_programs",
       name: "MY PROGRAMS",
       icon: Briefcase,
-      href: "/facilitator",
+      href: "/facilitator/programs",
     },
     {
       id: "reviews",
