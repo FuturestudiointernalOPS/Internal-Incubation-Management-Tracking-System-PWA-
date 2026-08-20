@@ -143,6 +143,7 @@ export async function PATCH(req) {
       "super_admin",
       "program_manager",
       "teacher",
+      "facilitator",
     ]);
     if (authError) return authError;
     const {
