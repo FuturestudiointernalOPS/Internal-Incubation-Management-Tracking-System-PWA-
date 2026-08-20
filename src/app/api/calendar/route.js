@@ -207,6 +207,7 @@ export async function GET(req) {
 
     // 5. Follow-ups (v2_followups with scheduled_at)
     try {
+      await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS created_by TEXT");
       let followupSql = `SELECT f.id, f.comment, f.scheduled_at, f.followup_type, f.team_id, f.program_id, t.name AS team_name, p.name AS program_name
               FROM v2_followups f
               LEFT JOIN v2_teams t ON f.team_id = t.id
@@ -214,9 +215,14 @@ export async function GET(req) {
               WHERE f.scheduled_at IS NOT NULL${programScopeSql}`;
       const followupArgs = [...programScopeArgs];
 
-      if (user_id) {
-        followupSql += ` AND (f.program_id IN (SELECT id FROM v2_programs WHERE assigned_pm_id = ?) OR f.team_id IN (SELECT id FROM v2_teams WHERE handler_id = ?))`;
-        followupArgs.push(user_id, user_id);
+      // Follow-up visibility: super_admin sees all; participants see their own;
+      // everyone else sees follow-ups they assigned (legacy NULL rows remain visible).
+      if (session?.role === "participant" && cid) {
+        followupSql += " AND f.participant_id = ?";
+        followupArgs.push(cid);
+      } else if (session?.role !== "super_admin" && cid) {
+        followupSql += " AND (f.created_by IS NULL OR f.created_by = ?)";
+        followupArgs.push(cid);
       }
 
       const followups = await db.execute({
