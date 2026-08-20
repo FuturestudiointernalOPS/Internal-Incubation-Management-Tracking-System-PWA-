@@ -23,6 +23,7 @@
     "reply": "Reply",
     "deleteConfirm": "Delete this message?",
     "deleteMessage": "Delete",
+    "confirmAction": "Confirm Action",
     "messageTo": "Message to {name}",
     "broadcast": "Broadcast",
     "broadcastWarning": "Broadcast messages will be sent to ALL users. Use responsibly.",

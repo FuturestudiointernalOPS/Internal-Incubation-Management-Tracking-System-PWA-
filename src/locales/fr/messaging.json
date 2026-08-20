@@ -23,6 +23,7 @@
     "reply": "Réponse",
     "deleteConfirm": "Supprimer ce message ?",
     "deleteMessage": "Supprimer",
+    "confirmAction": "Confirmer l'action",
     "messageTo": "Message à {name}",
     "broadcast": "Diffusion",
     "broadcastWarning": "Les messages de diffusion seront envoyés à TOUS les utilisateurs. À utiliser avec responsabilité.",
