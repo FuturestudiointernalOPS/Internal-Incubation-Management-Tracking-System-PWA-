@@ -13,7 +13,7 @@ const REMEMBER_ME_DURATION_MS = REMEMBER_ME_DURATION_HOURS * 60 * 60 * 1000;
 const SESSION_CACHE_TTL = 5000; // 5s cache for session lookups
 const _sessionCache = new Map();
 const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
-const FAILURE_CACHE_TTL = 30000; // If DB fails, don't retry for 30s
+const FAILURE_CACHE_TTL = 5000; // If DB fails, don't retry for 5s (avoids 30s lockouts on transient errors)
 
 /**
  * Creates a new session for a user.
@@ -152,7 +152,9 @@ export async function getSession() {
         "role:",
         session.role,
       );
-      await destroySession();
+      // NOTE: never destroy the session on the READ path — destroying here
+      // turns a bad status into a login loop (login creates a session, the
+      // next request deletes it). The session simply expires naturally.
       _sessionCache.delete(token);
       return null;
     }
@@ -185,14 +187,28 @@ export async function getSession() {
 /**
  * Sets the session cookie on a NextResponse object.
  * This is more reliable than using cookies().set() in route handlers.
+ *
+ * An optional request host can be supplied so the cookie is scoped to the
+ * real domain (handles www vs apex and proxy setups). The domain is only
+ * applied for real hostnames — never for localhost, IPs, or empty values.
  */
-export function setSessionCookieOnResponse(response, token, maxAge) {
+export function setSessionCookieOnResponse(response, token, maxAge, host) {
+  let domain;
+  if (host) {
+    const h = String(host).toLowerCase().split(":")[0]; // strip port
+    const isLocalhost = h === "localhost" || h.endsWith(".localhost");
+    const isIp =
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.startsWith("[") || h.includes("_");
+    if (!isLocalhost && !isIp && h.includes(".")) domain = h;
+  }
+
   response.cookies.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge,
+    ...(domain ? { domain } : {}),
   });
   return response;
 }

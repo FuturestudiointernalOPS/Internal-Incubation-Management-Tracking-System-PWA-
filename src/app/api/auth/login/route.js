@@ -118,21 +118,24 @@ export async function POST(req) {
           { status: 403 },
         );
       }
-      if (user.status === "approved") {
-        return NextResponse.json(
-          {
-            success: false,
-            error:
-              "Access Denied: Your account has been approved, but you have not completed account activation. Please check your email and complete the activation process before logging in.",
-          },
-          { status: 403 },
-        );
-      }
       if (user.status === "archived" || user.archived_at != null) {
         return NextResponse.json(
           {
             success: false,
             error: "Access Denied: Your account has been archived.",
+          },
+          { status: 403 },
+        );
+      }
+      // Any other status that getSession() will not accept (unknown, null,
+      // etc.) must be rejected HERE so a session is never created that the
+      // very next request would invalidate (login loop).
+      if (!["active", "approved"].includes(user.status)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Access Denied: Your account is not active. Contact your administrator.",
           },
           { status: 403 },
         );
@@ -287,11 +290,24 @@ export async function POST(req) {
       );
       // Build response and set cookie directly on it
       const response = NextResponse.json({ success: true, user: responseUser });
-      return setSessionCookieOnResponse(response, token, maxAge);
+      return setSessionCookieOnResponse(
+        response,
+        token,
+        maxAge,
+        req.headers.get("host"),
+      );
     } catch (sessionErr) {
       console.error("Session creation failed:", sessionErr.message);
-      // Still return success so user can proceed (degraded UX)
-      return NextResponse.json({ success: true, user: responseUser });
+      // NEVER return success without a session cookie — that is what turns a
+      // DB/schema failure into an endless login->redirect loop.
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Could not start a secure session. Please try again in a moment.",
+        },
+        { status: 500 },
+      );
     }
   } catch (err) {
     console.error("Auth V1 Error:", err);

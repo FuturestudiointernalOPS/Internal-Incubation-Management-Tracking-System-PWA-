@@ -173,7 +173,12 @@ export async function POST(req) {
     console.log("[impersonate:POST] SUCCESS - redirecting to:", target);
 
     const response = NextResponse.json({ success: true, user: responseUser, redirect: target });
-    return setSessionCookieOnResponse(response, token, maxAge);
+    return setSessionCookieOnResponse(
+      response,
+      token,
+      maxAge,
+      req.headers.get("host"),
+    );
   } catch (error) {
     console.error("[impersonate:POST] ERROR:", error.message, error.stack);
     return NextResponse.json({ success: false, error: "Impersonation failed: " + error.message }, { status: 500 });

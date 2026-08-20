@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, Shield } from 'lucide-react';
 import { useI18n } from "@/lib/i18n";
+import { roleHomeHref } from "@/lib/platform/roles";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -16,9 +17,9 @@ export default function LandingPage() {
     if (sa_session === 'prime-2026-active') {
       router.replace('/admin');
     } else if (user) {
-      if (user.role === 'program_manager') router.replace('/pm');
-      else if (user.role === 'super_admin') router.replace('/admin');
-      else router.replace('/login');
+      // Same single source of truth as the login redirect (ROLE_HOME), so no
+      // authenticated role is ever bounced back to /login from the root.
+      router.replace(roleHomeHref(user.role) || '/workspaces');
     } else {
       router.replace('/login');
     }

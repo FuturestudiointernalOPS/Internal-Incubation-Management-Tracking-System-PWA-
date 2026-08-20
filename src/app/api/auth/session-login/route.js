@@ -113,6 +113,19 @@ export async function POST(req) {
           { status: 403 },
         );
       }
+      // Any other status that getSession() will not accept (archived, unknown,
+      // null, etc.) is rejected HERE so a session is never created that the
+      // very next request would invalidate (login loop).
+      if (!["active", "approved"].includes(user.status)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "Your account is not active. Contact your administrator.",
+          },
+          { status: 403 },
+        );
+      }
     }
 
     // --- 6. ROLE RESOLUTION ---
@@ -294,7 +307,12 @@ export async function POST(req) {
       user: responseUser,
     });
 
-    return setSessionCookieOnResponse(response, token, maxAge);
+    return setSessionCookieOnResponse(
+      response,
+      token,
+      maxAge,
+      req.headers.get("host"),
+    );
   } catch (error) {
     console.error("Session login error:", error);
     return NextResponse.json(
