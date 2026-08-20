@@ -617,6 +617,15 @@ export async function logPermissionAudit({
 const FACILITATOR_BYPASS_ROLES = ["super_admin", "staff", "program_manager", "teacher"];
 
 /**
+ * Roles with system-defined, program-wide management access. These roles keep
+ * their existing program-management workflows and are NOT subject to the
+ * per-program facilitator assignment check on shared program-data APIs.
+ */
+export function hasProgramManagementAccess(role) {
+  return ["super_admin", "program_manager", "teacher"].includes(role);
+}
+
+/**
  * Returns the facilitator assignment row for (program, user) or null.
  * Matches by contact cid or email so legacy rows that stored the email
  * still resolve correctly.
@@ -639,6 +648,82 @@ export async function getProgramFacilitatorAssignment(programId, userCid, userEm
 }
 
 /**
+ * Generalized program assignment lookup via contact_roles (any title: facilitator,
+ * coach, mentor, advisor, ...). Returns a row normalized to the same shape as
+ * v2_program_staff so existing guards can consume it unchanged.
+ * Returns null when no current assignment exists (or the table is missing).
+ */
+export async function getProgramAssignment(programId, userCid, userEmail = null) {
+  try {
+    await initDb();
+    const hasEmail = !!(userEmail && String(userEmail).trim());
+    const sql = hasEmail
+      ? `SELECT * FROM contact_roles
+         WHERE context_type = 'program' AND CAST(context_id AS TEXT) = ?
+           AND is_current = true
+           AND (contact_cid = ? OR LOWER(TRIM(contact_cid)) = LOWER(?))
+         ORDER BY started_at DESC LIMIT 1`
+      : `SELECT * FROM contact_roles
+         WHERE context_type = 'program' AND CAST(context_id AS TEXT) = ?
+           AND is_current = true AND contact_cid = ?
+         ORDER BY started_at DESC LIMIT 1`;
+    const args = hasEmail
+      ? [String(programId), userCid, String(userEmail).trim()]
+      : [String(programId), userCid];
+    const res = await db.execute({ sql, args });
+    if (res.rows.length === 0) return null;
+    const r = res.rows[0];
+    return {
+      id: r.id,
+      program_id: r.context_id,
+      staff_id: r.contact_cid,
+      role: r.role || r.title || "assignment",
+      title: r.title || r.role || "assignment",
+      permissions: r.capability_overrides || r.permissions || {},
+      access_profile_id: r.access_profile_id || null,
+      scope: r.scope || { type: "program" },
+      status: r.status || "active",
+      assigned_by: r.assigned_by || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolves the assignment for (program, user): legacy v2_program_staff path first
+ * (keeps existing facilitators working unchanged), then the generalized
+ * contact_roles layer as fallback. Returns null when neither exists.
+ */
+export async function resolveProgramAssignment(programId, userCid, userEmail = null) {
+  const legacy = await getProgramFacilitatorAssignment(programId, userCid, userEmail);
+  if (legacy) return { source: "v2_program_staff", assignment: legacy };
+  const generalized = await getProgramAssignment(programId, userCid, userEmail);
+  if (generalized) return { source: "contact_roles", assignment: generalized };
+  return null;
+}
+
+/**
+ * Returns true when the user holds at least one facilitator assignment
+ * (program-scoped), matched by cid or email. Used to gate the facilitator
+ * area so only system-assigned facilitators (or super admins) can enter it.
+ */
+export async function hasAnyFacilitatorAssignment(userCid, userEmail = null) {
+  try {
+    await initDb();
+    const hasEmail = !!(userEmail && String(userEmail).trim());
+    const sql = hasEmail
+      ? "SELECT 1 FROM v2_program_staff WHERE role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)) LIMIT 1"
+      : "SELECT 1 FROM v2_program_staff WHERE role = 'facilitator' AND staff_id = ? LIMIT 1";
+    const args = hasEmail ? [userCid, String(userEmail).trim()] : [userCid];
+    const res = await db.execute({ sql, args });
+    return res.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resolves the effective access level for a capability within a program.
  * Individual override beats the program default. Returns 0 when denied.
  */
@@ -652,6 +737,24 @@ export async function getFacilitatorPermissionLevel(programId, assignment, capab
         try { ov = JSON.parse(ov); } catch { ov = null; }
       }
       if (ov && typeof ov[capability] === "number") level = ov[capability];
+    }
+    if (level === 0 && assignment?.access_profile_id) {
+      // Fall back to the assignment's Access Profile template capabilities.
+      // Profile rows are (module, capability, access_level); overrides use
+      // "module.capability" dot keys — normalize both sides for the lookup.
+      try {
+        const profRes = await db.execute({
+          sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
+          args: [assignment.access_profile_id],
+        });
+        for (const row of profRes.rows || []) {
+          const dotKey = `${row.module}.${row.capability}`;
+          if (dotKey === capability || row.capability === capability) {
+            level = Number(row.access_level) || 0;
+            break;
+          }
+        }
+      } catch (_) {}
     }
     if (level === 0) {
       const prog = await db.execute({
@@ -745,9 +848,9 @@ export async function requireProgramFacilitator(programId) {
         { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
-    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
-    if (!assignment)
+    if (session.role === "super_admin") return null;
+    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
+    if (!resolved)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
@@ -774,14 +877,14 @@ export async function requireFacilitatorCapability(programId, capability, minLev
         { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
-    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
-    if (!assignment)
+    if (session.role === "super_admin") return null;
+    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
+    if (!resolved)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
       );
-    const level = await getFacilitatorPermissionLevel(programId, assignment, capability);
+    const level = await getFacilitatorPermissionLevel(programId, resolved.assignment, capability);
     if (level < minLevel)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
@@ -810,15 +913,15 @@ export async function enforceFacilitatorProgramAccess(programId, capability = nu
         { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
-    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return null;
-    const assignment = await getProgramFacilitatorAssignment(programId, session.cid, session.email);
-    if (!assignment)
+    if (session.role === "super_admin") return null;
+    const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
+    if (!resolved)
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },
       );
     if (capability) {
-      const level = await getFacilitatorPermissionLevel(programId, assignment, capability);
+      const level = await getFacilitatorPermissionLevel(programId, resolved.assignment, capability);
       if (level < minLevel)
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
