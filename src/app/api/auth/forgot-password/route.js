@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { sendEmail } from "@/lib/mailer";
+import { sendPasswordResetEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 
@@ -77,59 +77,25 @@ export async function POST(req) {
         ],
       });
 
-      // Send email
+      // Send email (Gmail primary, Resend fallback via @/lib/email)
       const protocol = req.headers.get("x-forwarded-proto") || "https";
       const host = req.headers.get("host") || "impactos.futurestudio.com";
       const baseUrl = `${protocol}://${host}`;
       const resetUrl = `${baseUrl}/setup-password/${token}`;
 
-      const emailBody = `
-        <div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto;">
-          <div style="text-align: center; padding: 32px 0;">
-            <img src="${baseUrl}/brand/logo_full.png" alt="Future Studio" style="height: 48px;" />
-          </div>
-
-          <h1 style="font-size: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 8px;">
-            Password Reset Request
-          </h1>
-
-          <p style="color: #475569; font-size: 15px; line-height: 1.6;">
-            Hello <strong>${user.name}</strong>,
-          </p>
-
-          <p style="color: #475569; font-size: 15px; line-height: 1.6;">
-            We received a request to reset your password. Click the button below to set a new password:
-          </p>
-
-          <div style="text-align: center; margin: 32px 0;">
-            <a href="${resetUrl}"
-               style="display: inline-block; background: #f97316; color: #000; font-weight: 800;
-                      font-size: 14px; text-transform: uppercase; letter-spacing: 0.1em;
-                      padding: 16px 40px; border-radius: 12px; text-decoration: none;">
-              Reset Password
-            </a>
-          </div>
-
-          <p style="color: #94a3b8; font-size: 12px; line-height: 1.5;">
-            This link will expire in <strong>1 hour</strong> and can only be used once.
-            If you did not request this, please ignore this email.
-          </p>
-
-          <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 32px 0;" />
-
-          <p style="color: #94a3b8; font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: bold;">
-            Future Studio · ImpactOS
-          </p>
-        </div>
-      `;
-
-      await sendEmail({
+      const sendResult = await sendPasswordResetEmail({
         to: user.email,
-        subject: "Reset Your Password — Future Studio",
-        body: emailBody,
-        isHtml: true,
-        fromName: "Future Studio Security",
+        name: user.name,
+        resetUrl,
       });
+
+      if (!sendResult?.success) {
+        console.error(
+          "[forgot-password] Failed to send reset email:",
+          sendResult?.provider,
+          sendResult?.error || sendResult?.note || "unknown",
+        );
+      }
     }
 
     // Always return success to prevent email enumeration
