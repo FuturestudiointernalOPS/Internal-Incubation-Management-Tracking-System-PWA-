@@ -48,9 +48,37 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 
-// LocalStorage key used to remember when a PM last viewed the submissions page,
-// so the "programs" badge only counts submissions that arrived after that visit.
-const PM_SUBMISSIONS_SEEN_KEY = "impactos_pm_submissions_seen_at";
+// LocalStorage keys that remember when the user last viewed a given page,
+// so sidebar badges only count items that arrived after that visit.
+const SEEN_KEYS = {
+  submissions: "impactos_pm_submissions_seen_at",
+  messages: "impactos_messages_seen_at",
+  pendingUsers: "impactos_pending_users_seen_at",
+  announcements: "impactos_announcements_seen_at",
+  forms: "impactos_forms_seen_at",
+};
+
+const readSeenWatermark = (key) => {
+  if (typeof window === "undefined") return 0;
+  const raw = localStorage.getItem(key);
+  const ts = raw ? new Date(raw).getTime() : 0;
+  return Number.isFinite(ts) ? ts : 0;
+};
+
+const writeSeenWatermark = (key) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(key, new Date().toISOString());
+};
+
+// Returns true when `dateValue` is newer than the watermark (or when we can't
+// tell — we err on the side of showing the badge).
+const isNewerThan = (dateValue, watermark) => {
+  if (!watermark) return true;
+  if (!dateValue) return true;
+  const ts = new Date(dateValue).getTime();
+  if (!Number.isFinite(ts)) return true;
+  return ts > watermark;
+};
 
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
@@ -1081,10 +1109,12 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       const res = await fetch(`/api/internal-comms?cid=${cid}`);
       const data = await res.json();
       if (data.success) {
+        const seenAt = readSeenWatermark(SEEN_KEYS.messages);
         const myMessages = data.messages.filter(
           (m) =>
             String(m.recipient_id) === String(cid) &&
-            (m.is_read === 0 || m.is_read === null),
+            (m.is_read === 0 || m.is_read === null) &&
+            isNewerThan(m.created_at, seenAt),
         );
         setUnreadMessageCount(myMessages.length);
       }
@@ -1101,9 +1131,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       const res = await fetch("/api/admin/pending-users");
       const data = await res.json();
       if (data.success) {
+        const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
         setPendingUsersCount(
           (data.users || data.pendingUsers || []).filter(
-            (u) => u.status === "pending",
+            (u) => u.status === "pending" && isNewerThan(u.created_at, seenAt),
           ).length,
         );
       }
@@ -1125,24 +1156,23 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       );
       const data = await res.json();
       if (data.success) {
-        const seenAtRaw = localStorage.getItem(PM_SUBMISSIONS_SEEN_KEY);
-        const seenAt = seenAtRaw ? new Date(seenAtRaw).getTime() : 0;
-        const pending = (data.submissions || []).filter((s) => {
-          if (s.status !== "pending") return false;
-          if (!seenAt) return true;
-          // Treat missing/unparseable dates as unseen so the badge errs on showing.
-          if (!s.created_at) return true;
-          const createdAt = new Date(s.created_at).getTime();
-          if (!Number.isFinite(createdAt)) return true;
-          return createdAt > seenAt;
-        }).length;
+        const seenAt = readSeenWatermark(SEEN_KEYS.submissions);
+        const pending = (data.submissions || []).filter(
+          (s) => s.status === "pending" && isNewerThan(s.created_at, seenAt),
+        ).length;
         setSubmissionCount(pending);
       }
     } catch (_) {}
   }, []);
 
-  // When a PM opens the submissions page, remember the visit so the sidebar
-  // "programs" badge only counts submissions that arrived after that point.
+  // When a PM opens the submissions page (or a program's submissions tab),
+  // remember the visit so the sidebar "programs" badge only counts submissions
+  // that arrived after that point.
+  const markSubmissionsSeen = useCallback(() => {
+    writeSeenWatermark(SEEN_KEYS.submissions);
+    fetchSubmissionCount();
+  }, [fetchSubmissionCount]);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!pathname || !pathname.startsWith("/pm/submissions")) return;
@@ -1152,9 +1182,54 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     } catch (_) {
       return;
     }
-    localStorage.setItem(PM_SUBMISSIONS_SEEN_KEY, new Date().toISOString());
-    fetchSubmissionCount();
-  }, [pathname, fetchSubmissionCount]);
+    markSubmissionsSeen();
+  }, [pathname, markSubmissionsSeen]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const onSeen = () => {
+      try {
+        const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+        if (savedUser?.role !== "program_manager") return;
+      } catch (_) {
+        return;
+      }
+      markSubmissionsSeen();
+    };
+    window.addEventListener("pm:submissions-seen", onSeen);
+    return () => window.removeEventListener("pm:submissions-seen", onSeen);
+  }, [markSubmissionsSeen]);
+
+  // Clear the other sidebar badges when the user visits their page.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!pathname) return;
+    const p = pathname;
+
+    const messagesPage =
+      p === "/admin/internal-comms" || p.endsWith("/messages");
+    if (messagesPage) {
+      writeSeenWatermark(SEEN_KEYS.messages);
+      fetchUnreadMessageCount();
+    }
+    if (p.startsWith("/admin/pending-users")) {
+      writeSeenWatermark(SEEN_KEYS.pendingUsers);
+      fetchPendingUsersCount();
+    }
+    if (p.startsWith("/admin/communications/announcements")) {
+      writeSeenWatermark(SEEN_KEYS.announcements);
+      fetchNotifications();
+    }
+    if (p.startsWith("/admin/communications/forms")) {
+      writeSeenWatermark(SEEN_KEYS.forms);
+      fetchNotifications();
+    }
+  }, [
+    pathname,
+    fetchNotifications,
+    fetchUnreadMessageCount,
+    fetchPendingUsersCount,
+  ]);
 
   const fetchPendingInvites = useCallback(async () => {
     try {
@@ -1377,10 +1452,19 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       pending_users: pendingUsersCount,
       bulk_upload: 0,
     };
+    const announcementsSeenAt = readSeenWatermark(SEEN_KEYS.announcements);
+    const formsSeenAt = readSeenWatermark(SEEN_KEYS.forms);
     for (const n of notifications) {
       if (!n.is_read) {
-        if (n.type === "announcement") counts.announcements++;
-        if (n.type === "form") counts.forms++;
+        if (
+          n.type === "announcement" &&
+          isNewerThan(n.created_at, announcementsSeenAt)
+        ) {
+          counts.announcements++;
+        }
+        if (n.type === "form" && isNewerThan(n.created_at, formsSeenAt)) {
+          counts.forms++;
+        }
       }
     }
     return counts;
