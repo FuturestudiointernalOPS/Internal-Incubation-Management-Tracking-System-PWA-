@@ -50,7 +50,9 @@ function formatTime(dateStr) {
 
 function getPermissions(role, groupName, userProgramIds, allPrograms) {
   const isSA = role === "super_admin";
-  const isStaffFutureStudio = role === "staff" && groupName === "FUTURE STUDIO";
+  const isStaffFutureStudio =
+    role === "staff" &&
+    String(groupName || "").toUpperCase() === "FUTURE STUDIO";
   const isPM = role === "program_manager";
   const isTeacher = role === "teacher";
   const isParticipant = role === "participant";
@@ -72,7 +74,9 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
 
     // Staff (FUTURE STUDIO): only other FUTURE STUDIO members
     if (isStaffFutureStudio) {
-      return contact.group_name === "FUTURE STUDIO";
+      return (
+        String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO"
+      );
     }
 
     // Program Manager: only contacts in programs they manage
@@ -82,7 +86,8 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
       if (contact.program_id && userProgramIds.includes(contact.program_id))
         return true;
       // FUTURE STUDIO staff who may be assigned to PM's programs
-      if (contact.group_name === "FUTURE STUDIO") return true;
+      if (String(contact.group_name || "").toUpperCase() === "FUTURE STUDIO")
+        return true;
       // Contacts whose group_name matches a family linked to PM's programs
       if (contact.group_name) {
         const familyProgramId = allContacts
@@ -102,8 +107,13 @@ function getPermissions(role, groupName, userProgramIds, allPrograms) {
 
     // Participant: only contacts linked to their specific program
     if (isParticipant) {
-      // Other participants with same group_name
-      if (contact.role === "participant" && contact.group_name === groupName)
+      // Other participants with same group_name (case-insensitive — group
+      // names can be stored uppercased by some flows and original-case by others)
+      if (
+        contact.role === "participant" &&
+        String(contact.group_name || "").toUpperCase() ===
+          String(groupName || "").toUpperCase()
+      )
         return true;
       // Staff/PM/teachers assigned to this participant's program
       if (contact.role !== "participant" && userProgramIds.length > 0) {
