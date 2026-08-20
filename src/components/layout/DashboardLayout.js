@@ -48,6 +48,10 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 
+// LocalStorage key used to remember when a PM last viewed the submissions page,
+// so the "programs" badge only counts submissions that arrived after that visit.
+const PM_SUBMISSIONS_SEEN_KEY = "impactos_pm_submissions_seen_at";
+
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
   dashboard: "navigation.dashboard",
@@ -1133,13 +1137,36 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       );
       const data = await res.json();
       if (data.success) {
-        const pending = (data.submissions || []).filter(
-          (s) => s.status === "pending",
-        ).length;
+        const seenAtRaw = localStorage.getItem(PM_SUBMISSIONS_SEEN_KEY);
+        const seenAt = seenAtRaw ? new Date(seenAtRaw).getTime() : 0;
+        const pending = (data.submissions || []).filter((s) => {
+          if (s.status !== "pending") return false;
+          if (!seenAt) return true;
+          // Treat missing/unparseable dates as unseen so the badge errs on showing.
+          if (!s.created_at) return true;
+          const createdAt = new Date(s.created_at).getTime();
+          if (!Number.isFinite(createdAt)) return true;
+          return createdAt > seenAt;
+        }).length;
         setSubmissionCount(pending);
       }
     } catch (_) {}
   }, []);
+
+  // When a PM opens the submissions page, remember the visit so the sidebar
+  // "programs" badge only counts submissions that arrived after that point.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!pathname || !pathname.startsWith("/pm/submissions")) return;
+    try {
+      const savedUser = JSON.parse(localStorage.getItem("user") || "null");
+      if (savedUser?.role !== "program_manager") return;
+    } catch (_) {
+      return;
+    }
+    localStorage.setItem(PM_SUBMISSIONS_SEEN_KEY, new Date().toISOString());
+    fetchSubmissionCount();
+  }, [pathname, fetchSubmissionCount]);
 
   const fetchPendingInvites = useCallback(async () => {
     try {
