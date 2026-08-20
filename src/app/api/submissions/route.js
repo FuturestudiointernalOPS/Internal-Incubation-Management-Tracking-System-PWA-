@@ -575,7 +575,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
     if (authError) return authError;
     const { id, score, evaluation_data } = await req.json();
 
