@@ -48,3 +48,41 @@ export function ensureTokenHashColumns() {
   }
   return ensurePromise;
 }
+
+/**
+ * Idempotent runtime self-healing for the form_response_shares table.
+ *
+ * The table (including the token_hash column and its indexes) is created on
+ * first use, so running the 043 SQL migration by hand is OPTIONAL — the
+ * feature works the first time an admin shares a response.
+ */
+let formResponseSharesTablePromise = null;
+
+export function ensureFormResponseSharesTable() {
+  if (!formResponseSharesTablePromise) {
+    formResponseSharesTablePromise = (async () => {
+      await db.execute(`CREATE TABLE IF NOT EXISTS form_response_shares (
+        id SERIAL PRIMARY KEY,
+        response_id INTEGER NOT NULL,
+        recipient_email TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active', 'revoked', 'expired')),
+        expires_at TIMESTAMPTZ,
+        created_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        revoked_at TIMESTAMPTZ,
+        revoked_by TEXT,
+        last_viewed_at TIMESTAMPTZ
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_form_response_shares_response ON form_response_shares(response_id)`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_form_response_shares_email ON form_response_shares(LOWER(recipient_email))`);
+      return true;
+    })().catch((e) => {
+      console.warn("[TokenHashing] ensureFormResponseSharesTable failed:", e.message);
+      formResponseSharesTablePromise = null; // allow retry on the next call
+      return false;
+    });
+  }
+  return formResponseSharesTablePromise;
+}

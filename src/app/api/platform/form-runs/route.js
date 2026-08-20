@@ -1122,10 +1122,11 @@ export async function POST(req) {
       }
     }
 
-    // ─── MANUAL ADD ACTION (super admin injects a test respondent) ───
-    // Lets an admin add a person directly into a run so they can test the
-    // full response flow (scoring, AI evaluation, review, activation email)
-    // without waiting for a real applicant.
+    // ─── MANUAL ADD ACTION (super admin injects a respondent) ───
+    // Lets an admin add a person directly into a run. The submission is created
+    // as "approved" by default so the person is immediately eligible for an
+    // activation/join email. Pass status:'submitted' (or 'draft') explicitly to
+    // exercise the full scoring/review flow when testing.
     if (action === "manual_add") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
       const authError = await requireAuth(["super_admin", "admin"]);
@@ -1164,7 +1165,7 @@ export async function POST(req) {
         submitterId = "manual_" + Math.random().toString(36).substring(2, 12);
       }
 
-      const newStatus = subStatus || "submitted";
+      const newStatus = subStatus || "approved";
 
       let finalData = { ...(data || {}) };
       let shouldEvaluate = false;

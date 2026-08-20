@@ -89,7 +89,8 @@ export default function RegisterParticipantPage() {
         setError(t((data.error || t('rootMisc.registerParticipant.registrationFailed')) || "") || (data.error || t('rootMisc.registerParticipant.registrationFailed')));
       }
     } catch (e) {
-      setError(t('rootMisc.registerParticipant.networkError'));
+      // Network/parse failure — the registration may still have been saved.
+      setError(t('rootMisc.registerParticipant.couldNotConfirm') || "We couldn't confirm your registration. Please check your email — if we received it, you'll hear from us shortly.");
     } finally {
       setSubmitting(false);
     }

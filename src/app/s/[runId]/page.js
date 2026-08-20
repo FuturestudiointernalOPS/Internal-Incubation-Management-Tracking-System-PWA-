@@ -207,7 +207,11 @@ export default function PublicSubmitPage() {
       } else {
         notify(t((data.error || t("forms.submitFailed")) || "") || (data.error || t("forms.submitFailed")));
       }
-    } catch (_) { notify(t("forms.submitFailed")); }
+    } catch (_) {
+      // Network/parse failure — the submission may still have been saved.
+      // Never tell the participant it failed when we cannot confirm that.
+      notify(t("forms.couldNotConfirm") || "We couldn't confirm your submission. Please check your email — if we received it, you'll hear from us shortly.");
+    }
     setSaving(false);
   };
 

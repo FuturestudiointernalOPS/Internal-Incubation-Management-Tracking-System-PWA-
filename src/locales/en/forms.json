@@ -11,6 +11,7 @@
     "thankYouDetail": "Your application has been received successfully. Our team will review your information and you will receive a confirmation email shortly. If you do not receive an email within 24 hours, please check your spam folder.",
     "checkEmail": "Please check your email (including spam/junk folder) for updates on your application.",
     "submitFailed": "Submission failed",
+    "couldNotConfirm": "We couldn't confirm your submission. Please check your email — if we received it, you'll hear from us shortly.",
     "submit": "Submit",
     "submitting": "Submitting...",
     "closes": "Closes"

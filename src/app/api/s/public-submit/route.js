@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
+import { after } from "next/server";
+import { onSubmission } from "@/lib/platform/automation";
 
 /**
  * POST /api/s/public-submit
@@ -130,14 +132,22 @@ export async function POST(req) {
     }
     const submitterId = submitterEmail || "public-" + Date.now();
 
-    // Prevent duplicate SUBMITTED entries by same email
+    // Prevent duplicate SUBMITTED entries by same email — idempotent:
+    // a repeat submission returns success (not an error) so a participant who
+    // resubmits after a misleading error is NOT told their application failed.
     if (submitterEmail) {
       const existing = await db.execute({
         sql: "SELECT id, status FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'submitted'",
         args: [parseInt(run_id), submitterEmail],
       });
       if (existing.rows.length > 0) {
-        return NextResponse.json({ success: false, error: "You have already submitted this form" }, { status: 409 });
+        return NextResponse.json({
+          success: true,
+          id: existing.rows[0].id,
+          already_submitted: true,
+          success_message: null,
+          redirect_url: null,
+        });
       }
     }
 
@@ -189,6 +199,36 @@ export async function POST(req) {
           redirect_url: auto.redirect_after_submit || null,
         };
       }
+    } catch (_) {}
+
+    // Fire post-submission automation (CRM contact, confirmation email, owner
+    // notification) in the background so it never blocks or breaks the response.
+    // The submission is already saved — any automation failure is logged, not
+    // surfaced to the participant.
+    try {
+      const runForAuto = run.rows[0];
+      let formForAuto = null;
+      const fRes = await db.execute({
+        sql: "SELECT * FROM platform_forms WHERE id = ?",
+        args: [runForAuto?.form_id],
+      });
+      formForAuto = fRes.rows[0] || null;
+      after(() => {
+        onSubmission(
+          {
+            id: submissionId,
+            run_id: parseInt(run_id),
+            submitter_id: submitterId,
+            submitter_name: submitterName,
+            status: "submitted",
+            data,
+            submitted_at: new Date(),
+          },
+          runForAuto || { id: parseInt(run_id) },
+          formForAuto,
+          null,
+        );
+      });
     } catch (_) {}
 
     return NextResponse.json({ 

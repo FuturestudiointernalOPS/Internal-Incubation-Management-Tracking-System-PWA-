@@ -11,6 +11,7 @@
     "thankYouDetail": "Votre candidature a bien ete recue. Notre equipe examinera votre dossier et vous recevrez un email de confirmation prochainement. Si vous ne recevez pas d'email dans les 24 heures, veuillez verifier vos spams.",
     "checkEmail": "Veuillez verifier votre boite de reception (y compris les spams) pour le suivi de votre candidature.",
     "submitFailed": "Echec de la soumission",
+    "couldNotConfirm": "Nous n'avons pas pu confirmer votre soumission. Veuillez verifier votre email — si nous l'avons recue, vous aurez de nos nouvelles prochainement.",
     "submit": "Envoyer",
     "submitting": "Envoi en cours...",
     "closes": "Ferme le"

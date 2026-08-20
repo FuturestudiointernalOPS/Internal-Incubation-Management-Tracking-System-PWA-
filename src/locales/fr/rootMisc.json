@@ -71,6 +71,23 @@
       "resetPasswordButton": "Réinitialiser le mot de passe",
       "activateAccountButton": "Activer le compte"
     },
+    "sharedResponse": {
+      "title": "Réponse partagée",
+      "loading": "Chargement…",
+      "accessDenied": "Accès refusé",
+      "accessDeniedMessage": "Cette réponse n'a pas été partagée avec votre compte, ou le partage a été révoqué ou a expiré.",
+      "revoked": "Ce partage a été révoqué.",
+      "expired": "Ce partage a expiré.",
+      "emailMismatch": "Cette réponse a été partagée avec une autre adresse email.",
+      "notFound": "Partage introuvable.",
+      "signIn": "Se connecter",
+      "submittedBy": "Soumis par",
+      "status": "Statut",
+      "submittedAt": "Soumis",
+      "fields": "Réponse",
+      "readOnly": "Lecture seule",
+      "empty": "Aucune donnée de réponse"
+    },
     "registerVenture": {
       "invalidInvitationLink": "Lien d'invitation invalide",
       "unableToValidateLink": "Impossible de valider le lien d'invitation",
@@ -108,6 +125,7 @@
       "loadFailed": "Échec du chargement des informations du groupe.",
       "registrationFailed": "Échec de l'inscription.",
       "networkError": "Erreur réseau pendant l'inscription.",
+      "couldNotConfirm": "Nous n'avons pas pu confirmer votre inscription. Veuillez vérifier votre email — si nous l'avons reçue, vous aurez de nos nouvelles prochainement.",
       "applicationSubmitted": "Candidature soumise",
       "registrationIntro": "Votre inscription pour",
       "theProgram": "le programme",
