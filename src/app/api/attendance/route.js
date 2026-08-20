@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export async function POST(req) {
@@ -41,7 +41,7 @@ export async function POST(req) {
     // Server-side enforcement: facilitators must be assigned to the program,
     // hold attendance.record, and may only write participants in their teams.
     let allowedParticipantIds = null; // null = no restriction
-    if (session?.role === "facilitator") {
+    if (session && !hasProgramManagementAccess(session.role)) {
       const progId = records[0]?.program_id || null;
       if (!progId) {
         return NextResponse.json(
@@ -168,7 +168,7 @@ export async function GET(req) {
     // the v2_teams where they are the handler.
     let facGroupFilter = null;
     let facGroupArgs = [];
-    if (session?.role === "facilitator" && programId) {
+    if (session && programId && !hasProgramManagementAccess(session.role)) {
       const facError = await enforceFacilitatorProgramAccess(
         programId,
         "attendance.view",

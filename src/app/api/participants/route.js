@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope } from "@/lib/auth";
+import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -111,16 +111,18 @@ export async function GET(req) {
       return NextResponse.json({ success: true, participants: [] });
     }
 
-    // Server-side enforcement: facilitators must be assigned to the program
-    // and hold participants.view at level >= 1.
-    const facError = await enforceFacilitatorProgramAccess(
-      program_id,
-      "participants.view",
-      1,
-    );
-    if (facError) return facError;
-
     const session = await getSession();
+
+    // Server-side enforcement: non-management roles (facilitator, staff, …)
+    // must be assigned to the program and hold participants.view at level >= 1.
+    if (session && !hasProgramManagementAccess(session.role)) {
+      const facError = await enforceFacilitatorProgramAccess(
+        program_id,
+        "participants.view",
+        1,
+      );
+      if (facError) return facError;
+    }
 
     // Canonical participant source: participant_programs (program membership)
     // + contacts (active account). id is contacts.cid so attendance and team
@@ -152,7 +154,7 @@ export async function GET(req) {
 
     // Facilitator team scope: only participants assigned to the facilitator's
     // v2_teams (where handler_id = facilitator cid).
-    if (session?.role === "facilitator") {
+    if (session && !hasProgramManagementAccess(session.role)) {
       const scope = await getFacilitatorTeamScope(program_id, session.cid);
       if (scope.scope !== "all") {
         if (scope.teamIds.length === 0) {
