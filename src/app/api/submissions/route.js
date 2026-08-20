@@ -399,12 +399,13 @@ export async function GET(req) {
     const include_versions = searchParams.get("include_versions") === "true";
     const latest_only = searchParams.get("latest_only") === "true";
 
-    // Server-side enforcement: facilitators must be assigned to the program
-    // and hold assignments.view. Scope restricts to their assigned groups.
+    // Server-side enforcement: only facilitators must be assigned to the
+    // program and hold assignments.view. Scope restricts to their assigned
+    // groups. Participants/teams/staff read their own submissions directly.
     const session = await getSession();
     let facScopeFilter = null;
     let facScopeArgs = [];
-    if (session && program_id && !hasProgramManagementAccess(session.role)) {
+    if (session && program_id && session.role === "facilitator") {
       const facError = await enforceFacilitatorProgramAccess(
         program_id,
         "assignments.view",
@@ -575,7 +576,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
     if (authError) return authError;
     const { id, score, evaluation_data } = await req.json();
 

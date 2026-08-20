@@ -1277,7 +1277,13 @@ function ProgramWorkspace() {
               onClick={() => {
                 if (tab.href) router.push(tab.href);
                 else {
-                  if (tab.id === "submissions") setSubmissionsSeen(true);
+                  if (tab.id === "submissions") {
+                    setSubmissionsSeen(true);
+                    // Tell the global sidebar badge to clear too.
+                    window.dispatchEvent(
+                      new CustomEvent("pm:submissions-seen"),
+                    );
+                  }
                   setActiveTab(tab.id);
                 }
               }}

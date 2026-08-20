@@ -274,7 +274,7 @@ export default function PMProgramsRegistry() {
 
                   <div className="flex-1 p-10 flex flex-col justify-between">
                     <p className="text-[13px] text-[var(--text-secondary)] font-bold leading-relaxed uppercase tracking-tight line-clamp-3">
-                      {t("common.noResults")}
+                      {program.description || ""}
                     </p>
 
                     <div className="space-y-3">

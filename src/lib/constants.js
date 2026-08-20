@@ -274,3 +274,19 @@ export const CHART_COLORS_CSS = [
   "#F59E0B",
   "#6366F1",
 ];
+
+// ─── SERVER ERROR → i18n KEY MAPPING ──────────────────────────────────
+// Some API routes return hardcoded English literals (see src/lib/auth.js).
+// Map the known literals to translation keys so the client can localize them.
+export function getServerErrorKey(message) {
+  const map = {
+    "Authentication required.": "errors.authRequired",
+    "Insufficient permissions.": "errors.insufficientPermissions",
+    "Authentication system failure.": "errors.authSystemFailure",
+    "Authorization system failure.": "errors.authzSystemFailure",
+    "Network error. Please try again.": "errors.networkError",
+    "Something went wrong. Please try again.": "errors.somethingWrong",
+    "Not found.": "errors.notFound",
+  };
+  return map[message] || null;
+}

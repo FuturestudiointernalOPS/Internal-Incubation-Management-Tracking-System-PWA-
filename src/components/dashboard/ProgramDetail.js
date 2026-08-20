@@ -33,10 +33,23 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
 
 // ─── Status Badge ──────────────────────────────────────────────────
+function translateStatus(raw, t) {
+  const statusKey = `status.${raw}`;
+  let label = t(statusKey);
+  if (label === statusKey) {
+    const participantKey = `participant.${raw}`;
+    label = t(participantKey);
+    if (label === participantKey) label = raw.replace(/_/g, " ");
+  }
+  return label;
+}
+
 function StatusBadge({ status }) {
+  const { t } = useI18n();
   const config = {
     approved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
@@ -49,7 +62,7 @@ function StatusBadge({ status }) {
     <span
       className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
     >
-      {status || "draft"}
+      {translateStatus(status || "draft", t)}
     </span>
   );
 }
@@ -169,7 +182,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[8px] font-bold text-blue-400 hover:bg-blue-500/20 transition-colors cursor-pointer"
                             >
                               <FileText className="w-2.5 h-2.5" />
-                              {m.name || m.title || "Resource"}
+                              {m.name || m.title || t("participant.resource")}
                             </a>
                           ))}
                         </div>
@@ -233,20 +246,20 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                       </div>
                       {!del.submission && del.dueDate && (
                         <p className="text-[10px] text-amber-500/80 font-medium mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Due {new Date(del.dueDate).toLocaleDateString()}
+                          <Clock className="w-3 h-3" /> {t("participant.due")} {new Date(del.dueDate).toLocaleDateString()}
                         </p>
                       )}
                     </div>
                     {del.submission && (
                       <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                        Submitted{" "}
+                        {t("participant.submitted")}{" "}
                         {del.submission.submittedAt
                           ? new Date(
                               del.submission.submittedAt,
                             ).toLocaleDateString()
                           : ""}
                         {del.submission.score > 0 &&
-                          ` · Score: ${del.submission.score}`}
+                          ` · ${t("participant.score")}: ${del.submission.score}`}
                       </p>
                     )}
                   </div>
@@ -262,7 +275,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                             rel={isExternal ? "noopener noreferrer" : ""}
                             className="text-xs text-[var(--brand-orange)] hover:underline"
                           >
-                            View
+                            {t("participant.view")}
                           </a>
                         );
                       })()}
@@ -288,7 +301,8 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
   );
 }
 
-function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly }) {
+function SubmitForm({ programId, deliverableId, deliverable, onDone, readOnly }) {
+  const { t } = useI18n();
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -338,10 +352,11 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
       if (data.success) {
         onDone?.();
       } else {
-        setSubmitError(t((data.error || "Failed to submit. Please try again.") || "") || (data.error || "Failed to submit. Please try again."));
+        const key = getServerErrorKey(data.error);
+        setSubmitError(key ? t(key) : data.error || t("errors.somethingWrong"));
       }
     } catch (_) {
-      setSubmitError("Network error. Please try again.");
+      setSubmitError(t("errors.networkError"));
     }
     setSubmitting(false);
   };
@@ -373,14 +388,14 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
             <div className="flex items-center gap-1.5 mt-1">
               <Clock className="w-3 h-3 text-amber-400" />
               <span className={`text-[8px] font-bold ${new Date(deliverable.dueDate) < new Date() ? 'text-rose-400' : 'text-amber-400'}`}>
-                Due: {new Date(deliverable.dueDate).toLocaleDateString()}
-                {new Date(deliverable.dueDate) < new Date() ? ' (Overdue)' : ''}
+                {t("participant.due")}: {new Date(deliverable.dueDate).toLocaleDateString()}
+                {new Date(deliverable.dueDate) < new Date() ? ` (${t("participant.overdue")})` : ''}
               </span>
             </div>
           )}
           {deliverable.allowedFormat && (
             <p className="text-[7px] text-[var(--text-tertiary)] mt-1">
-              Format: {deliverable.allowedFormat}
+              {t("participant.format")}: {deliverable.allowedFormat}
             </p>
           )}
         </div>
@@ -389,7 +404,7 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
       {(!deliverable?.allowedFormat || ['pdf', 'image', 'document', 'file'].includes(deliverable.allowedFormat.toLowerCase())) && (
         <div className="space-y-1">
           <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-            Upload File
+            {t("participant.uploadFile")}
           </label>
           <input
             type="file"
@@ -409,7 +424,7 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
       {(!deliverable?.allowedFormat || ['link', 'video'].includes(deliverable.allowedFormat.toLowerCase())) && (
         <div className="space-y-1">
           <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-            {deliverable?.allowedFormat?.toLowerCase() === 'video' ? 'Video URL' : 'URL Link'}
+            {deliverable?.allowedFormat?.toLowerCase() === 'video' ? t("participant.videoUrl") : t("participant.urlLink")}
           </label>
           <input
             type="url"
@@ -432,10 +447,10 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
         className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
       >
         {submitting ? (
-          <><RefreshCw className="w-4 h-4 animate-spin" /> Submitting...</>
+          <><RefreshCw className="w-4 h-4 animate-spin" /> {t("participant.submitting")}</>
         ) : (
           <>
-            <Upload className="w-4 h-4" /> {t ? t("participant.submit") : "Submit"}
+            <Upload className="w-4 h-4" /> {t("participant.submit")}
           </>
         )}
       </button>
@@ -445,6 +460,7 @@ function SubmitForm({ programId, deliverableId, deliverable, onDone, t, readOnly
 
 // ─── Resource Card ──────────────────────────────────────────────────
 function ResourceCard({ resource }) {
+  const { t } = useI18n();
   const typeIcons = {
     video: Video,
     document: FileText,
@@ -475,7 +491,7 @@ function ResourceCard({ resource }) {
           )}
         </div>
         <span className="text-[7px] font-black text-slate-500 uppercase tracking-widest shrink-0">
-          No file
+          {t("participant.noFile")}
         </span>
       </div>
     );
@@ -564,10 +580,11 @@ export default function ProgramDetail({ programId }) {
           setExpandedWeeks({ [result.curriculum.currentWeek]: true });
         }
       } else {
-        setError(t((result.error || "Failed to load program") || "") || (result.error || "Failed to load program"));
+        const key = getServerErrorKey(result.error);
+        setError(key ? t(key) : result.error || t("participant.failedToLoad"));
       }
     } catch (e) {
-      setError("Network error. Please try again.");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -591,7 +608,7 @@ export default function ProgramDetail({ programId }) {
         <AlertCircle className="w-12 h-12 text-rose-400" />
         <div className="text-center">
           <h3 className="text-lg font-black text-[var(--text-primary)]">
-            Failed to Load
+            {t("participant.failedToLoad")}
           </h3>
           <p className="text-[12px] text-[var(--text-secondary)] mt-2">
             {error}
@@ -601,7 +618,7 @@ export default function ProgramDetail({ programId }) {
           onClick={fetchDetail}
           className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest"
         >
-          <RefreshCw className="w-3.5 h-3.5" /> Retry
+          <RefreshCw className="w-3.5 h-3.5" /> {t("participant.retry")}
         </button>
       </div>
     );
@@ -613,7 +630,7 @@ export default function ProgramDetail({ programId }) {
       <div className="flex flex-col items-center justify-center py-24">
         <BookOpen className="w-12 h-12 text-[var(--text-tertiary)] mb-3" />
         <p className="text-[12px] font-bold text-[var(--text-secondary)]">
-          Program not found
+          {t("participant.programNotFound")}
         </p>
       </div>
     );
@@ -640,9 +657,9 @@ export default function ProgramDetail({ programId }) {
 
   const tabs = [
     { id: "curriculum", label: t("participant.curriculum"), icon: Layers },
-    { id: "assignments", label: "Assignments", icon: FileText },
-    { id: "progress", label: "Progress", icon: BarChart3 },
-    { id: "resources", label: "Resources", icon: BookOpen },
+    { id: "assignments", label: t("participant.assignments"), icon: FileText },
+    { id: "progress", label: t("participant.progress"), icon: BarChart3 },
+    { id: "resources", label: t("participant.resources"), icon: BookOpen },
   ];
 
   return (
@@ -686,15 +703,15 @@ export default function ProgramDetail({ programId }) {
             {metrics.percentComplete}%
           </p>
           <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-            Complete
+            {t("participant.complete")}
           </p>
         </div>
         <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
           <p className="text-[18px] font-black text-[var(--text-primary)]">
-            Week {curriculum.currentWeek}
+            {t("participant.week")} {curriculum.currentWeek}
           </p>
           <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-            {program.durationWeeks ? `of ${program.durationWeeks}` : "Current"}
+            {program.durationWeeks ? t("participant.ofWeeks", { total: program.durationWeeks }) : t("participant.current")}
           </p>
         </div>
         <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
@@ -702,7 +719,7 @@ export default function ProgramDetail({ programId }) {
             {metrics.totalDeliverables}
           </p>
           <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-            Deliverables
+            {t("participant.deliverables")}
           </p>
         </div>
         <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
@@ -710,7 +727,7 @@ export default function ProgramDetail({ programId }) {
             {metrics.completedDeliverables}
           </p>
           <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-            Completed
+            {t("participant.completed")}
           </p>
         </div>
       </div>
@@ -719,7 +736,7 @@ export default function ProgramDetail({ programId }) {
       {program.facilitators?.length > 0 && (
         <div className="bg-[var(--bg-tertiary)] rounded-xl p-4 border border-[var(--border-primary)]">
           <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-2">
-            Facilitators
+            {t("participant.facilitators")}
           </p>
           <div className="flex flex-wrap gap-2">
             {program.pmName && (
@@ -804,7 +821,7 @@ export default function ProgramDetail({ programId }) {
                 Week {week.number}
               </h3>
               {week.deliverables.length === 0 ? (
-                <p className="text-[9px] text-[var(--text-tertiary)] italic">No assignments this week</p>
+                <p className="text-[9px] text-[var(--text-tertiary)] italic">{t("participant.noAssignmentsThisWeek")}</p>
               ) : (
                 week.deliverables.map((d) => (
                   <div
@@ -826,7 +843,7 @@ export default function ProgramDetail({ programId }) {
                           {d.title}
                         </p>
                         <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
-                          {d.allowedFormat} {d.dueDate ? `· Due: ${new Date(d.dueDate).toLocaleDateString()}` : ""}
+                          {d.allowedFormat} {d.dueDate ? `· ${t("participant.due")}: ${new Date(d.dueDate).toLocaleDateString()}` : ""}
                         </p>
                       </div>
                     </div>
@@ -834,7 +851,7 @@ export default function ProgramDetail({ programId }) {
                       {d.submission ? (
                         <StatusBadge status={d.submission.status} />
                       ) : (
-                        <span className="text-[8px] text-[var(--text-tertiary)] font-bold uppercase">Pending</span>
+                        <span className="text-[8px] text-[var(--text-tertiary)] font-bold uppercase">{t("participant.pending")}</span>
                       )}
                       {d.submission?.score != null && (
                         <span className="text-[10px] font-black text-[var(--brand-orange)]">
@@ -851,7 +868,7 @@ export default function ProgramDetail({ programId }) {
             <div className="text-center py-12">
               <FileText className="w-10 h-10 text-[var(--text-tertiary)] mx-auto mb-3" />
               <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No assignments available yet
+                {t("participant.noAssignmentsYet")}
               </p>
             </div>
           )}
@@ -868,7 +885,7 @@ export default function ProgramDetail({ programId }) {
                 .map(([weekNum, items]) => (
                   <div key={weekNum}>
                     <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                      {Number(weekNum) > 0 ? `Week ${weekNum}` : "General"}
+                      {Number(weekNum) > 0 ? `${t("participant.week")} ${weekNum}` : t("participant.general")}
                     </h3>
                     <div className="space-y-2">
                       {items.map((r) => (
@@ -883,7 +900,7 @@ export default function ProgramDetail({ programId }) {
           {generalResources.length > 0 && (
             <div>
               <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                General Resources
+                {t("participant.generalResources")}
               </h3>
               <div className="space-y-2">
                 {generalResources.map((r) => (
@@ -898,10 +915,10 @@ export default function ProgramDetail({ programId }) {
             <div className="text-center py-16">
               <BookOpen className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-3" />
               <p className="text-[11px] font-bold text-[var(--text-secondary)]">
-                No resources available yet
+                {t("participant.noResourcesYet")}
               </p>
               <p className="text-[9px] text-[var(--text-tertiary)] mt-1">
-                Resources will appear here when added by your program manager.
+                {t("participant.resourcesHint")}
               </p>
             </div>
           )}
@@ -923,7 +940,7 @@ export default function ProgramDetail({ programId }) {
                 {metrics.percentComplete}%
               </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-                Program Completion
+                {t("participant.programCompletion")}
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
                 <div
@@ -942,7 +959,7 @@ export default function ProgramDetail({ programId }) {
                 {metrics.attendanceRate}%
               </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-                Attendance
+                {t("participant.attendance")}
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
                 <div
@@ -961,7 +978,7 @@ export default function ProgramDetail({ programId }) {
                 {metrics.kpiCompletion}%
               </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-                KPI Achievement
+                {t("participant.kpiAchievement")}
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
                 <div
@@ -980,7 +997,7 @@ export default function ProgramDetail({ programId }) {
                 {metrics.completedDeliverables}/{metrics.totalDeliverables}
               </p>
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
-                Deliverables Done
+                {t("participant.deliverablesDone")}
               </p>
               <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
                 <div
@@ -996,7 +1013,7 @@ export default function ProgramDetail({ programId }) {
           {/* Submissions — Version History */}
           <div>
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-              Submission History
+              {t("participant.submissionHistory")}
             </h3>
             <SubmissionVersionHistory
               participantId={user?.cid || user?.id}
@@ -1008,7 +1025,7 @@ export default function ProgramDetail({ programId }) {
           {followups.length > 0 && (
             <div>
               <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
-                Follow-ups
+                {t("participant.followUps")}
               </h3>
               <div className="space-y-2">
                 {followups.slice(0, 5).map((f) => (
@@ -1017,7 +1034,7 @@ export default function ProgramDetail({ programId }) {
                     className="p-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]"
                   >
                     <p className="text-[10px] font-bold text-[var(--text-primary)]">
-                      Week {f.week_number}
+                      {t("participant.week")} {f.week_number}
                     </p>
                     <p className="text-[9px] text-[var(--text-secondary)] mt-1">
                       {f.comment}
@@ -1036,28 +1053,28 @@ export default function ProgramDetail({ programId }) {
           {/* Program Info */}
           <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
             <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-4">
-              Program Information
+              {t("participant.programInfo")}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Status
+                  {t("participant.status")}
                 </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
-                  {program.status || "Active"}
+                  {translateStatus(program.status || "active", t)}
                 </p>
               </div>
               <div>
                 <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Duration
+                  {t("participant.duration")}
                 </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
-                  {program.durationWeeks || "?"} weeks
+                  {program.durationWeeks || "?"} {t("participant.weeks")}
                 </p>
               </div>
               <div>
                 <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Start Date
+                  {t("participant.startDate")}
                 </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
                   {program.startDate
@@ -1067,7 +1084,7 @@ export default function ProgramDetail({ programId }) {
               </div>
               <div>
                 <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  End Date
+                  {t("participant.endDate")}
                 </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
                   {program.endDate
@@ -1077,16 +1094,16 @@ export default function ProgramDetail({ programId }) {
               </div>
               <div>
                 <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                  Current Week
+                  {t("participant.currentWeek")}
                 </p>
                 <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
-                  Week {curriculum.currentWeek}
+                  {t("participant.week")} {curriculum.currentWeek}
                 </p>
               </div>
               {program.pmName && (
                 <div>
                   <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                    Program Manager
+                    {t("participant.programManager")}
                   </p>
                   <p className="text-[12px] font-bold text-[var(--text-primary)] mt-1">
                     {program.pmName}
@@ -1100,7 +1117,7 @@ export default function ProgramDetail({ programId }) {
           {kpis.length > 0 && (
             <div className="bg-[var(--bg-tertiary)] rounded-xl p-5 border border-[var(--border-primary)]">
               <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-4">
-                Key Performance Indicators
+                {t("participant.keyPerformanceIndicators")}
               </h3>
               <div className="space-y-3">
                 {kpis.map((kpi) => (
@@ -1134,7 +1151,7 @@ export default function ProgramDetail({ programId }) {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                Submit Deliverable
+                {t("participant.submitDeliverable")}
               </h3>
               <button onClick={() => setSubmitModal(null)}>
                 <X className="w-5 h-5 text-slate-400" />
