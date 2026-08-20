@@ -305,12 +305,12 @@ export default function FacilitatorProgram({ params }) {
                 </div>
                 <span
                   className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
-                    p.screening_status === "active"
+                    p.status === "active"
                       ? "bg-emerald-500/15 text-emerald-400"
                       : "bg-amber-500/15 text-amber-400"
                   }`}
                 >
-                  {p.screening_status || p.status || "—"}
+                  {p.status || "—"}
                 </span>
               </div>
             ))}
