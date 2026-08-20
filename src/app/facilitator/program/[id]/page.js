@@ -74,6 +74,17 @@ export default function FacilitatorProgram({ params }) {
       const revRes = await fetch(`/api/facilitator-reviews?program_id=${id}`);
       const revData = await revRes.json();
       if (revData.success) setMyReviews(revData.reviews || []);
+
+      // Load saved attendance so selections persist across refreshes.
+      const attRes = await fetch(`/api/attendance?program_id=${id}&date=${attendanceDate}`);
+      const attData = await attRes.json();
+      if (attData.success) {
+        const map = {};
+        (attData.attendance || []).forEach((a) => {
+          map[`${a.session_id}:${a.participant_id}`] = a.status;
+        });
+        setAttendance(map);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -165,8 +176,9 @@ export default function FacilitatorProgram({ params }) {
           },
         ]),
       });
-      if (!(await res.json()).success) {
-        notify("error", "Failed to record attendance");
+      const data = await res.json();
+      if (!data.success) {
+        notify("error", data.error || "Failed to record attendance");
       }
     } catch (e) {
       notify("error", "Failed to record attendance");
