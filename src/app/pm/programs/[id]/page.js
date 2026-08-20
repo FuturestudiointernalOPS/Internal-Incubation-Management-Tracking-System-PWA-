@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
-import { getWeekNumber, getLocalToday } from "@/lib/constants";
+import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 
 export const dynamic = "force-dynamic";
@@ -1026,6 +1026,19 @@ function ProgramWorkspace() {
     } catch (_) {}
     setReviewsLoading(false);
   };
+
+  const reviewRatingLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
+      : v || "";
+  const reviewEngagementLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
+      : v || "";
+  const reviewAttentionLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
+      : v || "";
 
   const handleReviewDecision = async (reviewId, decision) => {
     try {
@@ -3071,31 +3084,108 @@ function ProgramWorkspace() {
                     <div className="flex items-center justify-between gap-2">
                       <div>
                         <p className="text-[11px] font-black uppercase">{r.facilitator_name || r.facilitator_id || "Facilitator"}</p>
-                        <p className="text-[9px] text-[var(--text-secondary)]">Week {r.week_number || "—"}</p>
+                        <p className="text-[9px] text-[var(--text-secondary)]">
+                          {t("pmMisc.facilitators.weeklyReview.week")} {r.week_number || "—"} ·{" "}
+                          {t("pmMisc.facilitators.weeklyReview.submittedAt", {
+                            date: new Date(r.created_at).toLocaleDateString(),
+                          })}
+                        </p>
                       </div>
                       <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                        r.status === "decided" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"
+                        r.pm_decision === "changes_requested"
+                          ? "bg-rose-500/15 text-rose-400"
+                          : r.status === "decided"
+                            ? "bg-emerald-500/15 text-emerald-400"
+                            : "bg-amber-500/15 text-amber-400"
                       }`}>
-                        {r.status}
+                        {r.pm_decision === "changes_requested"
+                          ? t("pmMisc.facilitators.weeklyReview.status_changes_requested")
+                          : r.status === "decided"
+                            ? t("pmMisc.facilitators.weeklyReview.status_decided")
+                            : t("pmMisc.facilitators.weeklyReview.status_submitted")}
                       </span>
                     </div>
-                    {r.participant_progress && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Progress:</strong> {r.participant_progress}</p>}
-                    {r.attendance_concerns && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Attendance:</strong> {r.attendance_concerns}</p>}
-                    {r.assignment_performance && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Assignments:</strong> {r.assignment_performance}</p>}
-                    {r.challenges && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Challenges:</strong> {r.challenges}</p>}
-                    {r.recommendations && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Recommendations:</strong> {r.recommendations}</p>}
-                    {r.pm_decision && (
-                      <p className="text-[9px] text-[var(--brand-orange)]">
-                        <strong>Decision:</strong> {r.pm_decision}{r.pm_decision_note ? ` — ${r.pm_decision_note}` : ""}
+
+                    {(r.overall_rating || r.participant_progress) && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.overall")}:
+                        </strong>{" "}
+                        {reviewRatingLabel(r.overall_rating) || r.participant_progress}
                       </p>
+                    )}
+                    {r.engagement && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.engagement")}:
+                        </strong>{" "}
+                        {reviewEngagementLabel(r.engagement)}
+                      </p>
+                    )}
+                    {(r.went_well || r.completed_work) && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.wentWell")}:
+                        </strong>{" "}
+                        {r.went_well || r.completed_work}
+                      </p>
+                    )}
+                    {(r.struggles || r.challenges) && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.struggles")}:
+                        </strong>{" "}
+                        {r.struggles || r.challenges}
+                      </p>
+                    )}
+                    {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && (
+                      <div className="text-[10px] text-[var(--text-secondary)]">
+                        <p>
+                          <strong className="text-[var(--text-primary)]">
+                            {t("pmMisc.facilitators.weeklyReview.needsAttention")}:
+                          </strong>{" "}
+                          {reviewAttentionLabel(r.needs_attention_type) || r.needs_attention}
+                        </p>
+                        {r.needs_attention_note && (
+                          <p className="mt-0.5 pl-1">{r.needs_attention_note}</p>
+                        )}
+                      </div>
+                    )}
+                    {(r.focus_next_week || r.recommendations) && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.focusNextWeek")}:
+                        </strong>{" "}
+                        {r.focus_next_week || r.recommendations}
+                      </p>
+                    )}
+                    {r.additional_notes && (
+                      <p className="text-[10px] text-[var(--text-secondary)]">
+                        <strong className="text-[var(--text-primary)]">
+                          {t("pmMisc.facilitators.weeklyReview.additionalNotes")}:
+                        </strong>{" "}
+                        {r.additional_notes}
+                      </p>
+                    )}
+
+                    {r.pm_decision && (
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+                        <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
+                          {t("pmMisc.facilitators.weeklyReview.decision")}
+                        </p>
+                        <p className="text-[9px] text-[var(--text-primary)]">{r.pm_decision}</p>
+                        {r.pm_decision_note && (
+                          <p className="text-[9px] text-[var(--text-secondary)] mt-1">{r.pm_decision_note}</p>
+                        )}
+                      </div>
                     )}
                     {r.status !== "decided" && (
                       <div className="flex gap-2">
                         <button onClick={() => handleReviewDecision(r.id, "acknowledged")} className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
-                          Acknowledge
+                          {t("pmMisc.facilitators.weeklyReview.acknowledge")}
                         </button>
                         <button onClick={() => handleReviewDecision(r.id, "changes_requested")} className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
-                          Request changes
+                          {t("pmMisc.facilitators.weeklyReview.requestChanges")}
                         </button>
                       </div>
                     )}

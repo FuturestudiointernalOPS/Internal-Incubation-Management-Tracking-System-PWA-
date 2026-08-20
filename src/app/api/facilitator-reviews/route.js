@@ -72,9 +72,32 @@ export async function GET(req) {
   }
 }
 
+// Additive/idempotent — ensures the structured review columns exist so the
+// route works even before migration 042 is applied. Never drops legacy columns.
+async function ensureReviewStructure() {
+  const cols = [
+    "overall_rating TEXT",
+    "went_well TEXT",
+    "struggles TEXT",
+    "engagement TEXT",
+    "needs_attention_type TEXT",
+    "needs_attention_note TEXT",
+    "focus_next_week TEXT",
+    "additional_notes TEXT",
+  ];
+  for (const col of cols) {
+    try {
+      await db.execute(
+        `ALTER TABLE program_facilitator_reviews ADD COLUMN IF NOT EXISTS ${col}`,
+      );
+    } catch (_) {}
+  }
+}
+
 export async function POST(req) {
   try {
     await initDb();
+    await ensureReviewStructure();
     const authError = await requireAuth([
       "super_admin",
       "program_manager",
@@ -88,6 +111,7 @@ export async function POST(req) {
     const {
       program_id,
       week_number,
+      // Legacy free-form fields (kept for backward compatibility)
       participant_progress,
       attendance_concerns,
       assignment_performance,
@@ -96,6 +120,15 @@ export async function POST(req) {
       completed_work,
       needs_attention,
       recommendations,
+      // Structured weekly check-in fields
+      overall_rating,
+      went_well,
+      struggles,
+      engagement,
+      needs_attention_type,
+      needs_attention_note,
+      focus_next_week,
+      additional_notes,
     } = body;
 
     if (!program_id) {
@@ -111,26 +144,75 @@ export async function POST(req) {
       if (guardError) return guardError;
     }
 
+    const facilitatorCid = session.cid || "unknown";
+    const parsedWeek = week_number ? parseInt(week_number) : null;
+    const values = [
+      participant_progress || null,
+      attendance_concerns || null,
+      assignment_performance || null,
+      challenges || null,
+      participants_needing_intervention || null,
+      completed_work || null,
+      needs_attention || null,
+      recommendations || null,
+      overall_rating || null,
+      went_well || null,
+      struggles || null,
+      engagement || null,
+      needs_attention_type || null,
+      needs_attention_note || null,
+      focus_next_week || null,
+      additional_notes || null,
+    ];
+
+    // Respond-to-changes: if the PM requested changes on this week's review,
+    // update the same row (reset to submitted, clear the decision) instead of
+    // creating a duplicate review for the same program/week.
+    if (parsedWeek != null) {
+      const existing = await db.execute({
+        sql: `SELECT id FROM program_facilitator_reviews
+              WHERE CAST(program_id AS TEXT) = ?
+                AND facilitator_id = ?
+                AND week_number = ?
+                AND pm_decision = 'changes_requested'
+              ORDER BY created_at DESC LIMIT 1`,
+        args: [String(program_id), facilitatorCid, parsedWeek],
+      });
+      if (existing.rows.length > 0) {
+        const reviewId = existing.rows[0].id;
+        await db.execute({
+          sql: `UPDATE program_facilitator_reviews SET
+                  participant_progress = ?, attendance_concerns = ?, assignment_performance = ?,
+                  challenges = ?, participants_needing_intervention = ?, completed_work = ?,
+                  needs_attention = ?, recommendations = ?,
+                  overall_rating = ?, went_well = ?, struggles = ?, engagement = ?,
+                  needs_attention_type = ?, needs_attention_note = ?, focus_next_week = ?,
+                  additional_notes = ?, status = 'submitted',
+                  pm_decision = NULL, pm_decision_note = NULL, pm_decision_by = NULL, pm_decision_at = NULL,
+                  updated_at = NOW()
+                WHERE id = ?`,
+          args: [...values, reviewId],
+        });
+        return NextResponse.json({ success: true, reviewId });
+      }
+    }
+
     const result = await db.execute({
       sql: `INSERT INTO program_facilitator_reviews (
         program_id, facilitator_id, facilitator_name, week_number,
         participant_progress, attendance_concerns, assignment_performance,
         challenges, participants_needing_intervention, completed_work,
-        needs_attention, recommendations, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted') RETURNING id`,
+        needs_attention, recommendations,
+        overall_rating, went_well, struggles, engagement,
+        needs_attention_type, needs_attention_note, focus_next_week,
+        additional_notes, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted') RETURNING id`,
       args: [
         program_id,
-        session.cid || "unknown",
+        facilitatorCid,
         session.name || null,
-        week_number ? parseInt(week_number) : null,
-        participant_progress || null,
-        attendance_concerns || null,
-        assignment_performance || null,
-        challenges || null,
-        participants_needing_intervention || null,
-        completed_work || null,
-        needs_attention || null,
-        recommendations || null,
+        parsedWeek,
+        ...values,
       ],
     });
 

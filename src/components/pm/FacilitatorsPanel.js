@@ -6,15 +6,17 @@ import {
   Search,
   Plus,
   Trash2,
-  Save,
   UserCheck,
   ClipboardList,
   ShieldCheck,
   Mail,
   X,
   Send,
+  Check,
+  RotateCcw,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 
 /**
  * PM — PROGRAM FACILITATORS
@@ -303,14 +305,14 @@ export function FacilitatorsPanel({ programId }) {
     }
   };
 
-  const recordDecision = async (reviewId) => {
+  const recordDecision = async (reviewId, decision) => {
     const input = decisionInputs[reviewId] || {};
     const res = await fetch("/api/facilitator-reviews", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         id: reviewId,
-        pm_decision: input.decision || "",
+        pm_decision: decision,
         pm_decision_note: input.note || "",
       }),
     });
@@ -320,11 +322,26 @@ export function FacilitatorsPanel({ programId }) {
     }
   };
 
-  const reviewStatusLabel = (status) => {
-    if (status === "decided") return t("pmMisc.facilitators.statusDecided");
-    if (status === "submitted") return t("pmMisc.facilitators.statusSubmitted");
-    return status || "";
+  const reviewStatusLabel = (r) => {
+    if (r?.pm_decision === "changes_requested")
+      return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
+    if (r?.status === "decided")
+      return t("pmMisc.facilitators.weeklyReview.status_decided");
+    return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
+
+  const reviewRatingLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
+      : v || "";
+  const reviewEngagementLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
+      : v || "";
+  const reviewAttentionLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
+      : v || "";
 
   if (!program) {
     return (
@@ -598,17 +615,24 @@ export function FacilitatorsPanel({ programId }) {
                       {r.facilitator_name || r.facilitator_id}
                     </p>
                   </div>
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "decided" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
-                    {reviewStatusLabel(r.status)}
+                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                    r.pm_decision === "changes_requested"
+                      ? "bg-rose-500/15 text-rose-400"
+                      : r.status === "decided"
+                        ? "bg-emerald-500/15 text-emerald-400"
+                        : "bg-amber-500/15 text-amber-400"
+                  }`}>
+                    {reviewStatusLabel(r)}
                   </span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-2 text-[9px]">
-                  {r.participant_progress && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.progressLabel")}</strong> {r.participant_progress}</p>}
-                  {r.attendance_concerns && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.attendanceLabel")}</strong> {r.attendance_concerns}</p>}
-                  {r.assignment_performance && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.assignmentsLabel")}</strong> {r.assignment_performance}</p>}
-                  {r.challenges && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.challengesLabel")}</strong> {r.challenges}</p>}
-                  {r.participants_needing_intervention && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.interventionLabel")}</strong> {r.participants_needing_intervention}</p>}
-                  {r.recommendations && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.recommendationsLabel")}</strong> {r.recommendations}</p>}
+                  {(r.overall_rating || r.participant_progress) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.overall")}</strong> {reviewRatingLabel(r.overall_rating) || r.participant_progress}</p>}
+                  {r.engagement && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.engagement")}</strong> {reviewEngagementLabel(r.engagement)}</p>}
+                  {(r.went_well || r.completed_work) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.wentWell")}</strong> {r.went_well || r.completed_work}</p>}
+                  {(r.struggles || r.challenges) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.struggles")}</strong> {r.struggles || r.challenges}</p>}
+                  {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && <div className="text-[var(--text-secondary)]"><p><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.needsAttention")}</strong> {reviewAttentionLabel(r.needs_attention_type) || r.needs_attention}</p>{r.needs_attention_note && <p className="mt-0.5 pl-1">{r.needs_attention_note}</p>}</div>}
+                  {(r.focus_next_week || r.recommendations) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.focusNextWeek")}</strong> {r.focus_next_week || r.recommendations}</p>}
+                  {r.additional_notes && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.additionalNotes")}</strong> {r.additional_notes}</p>}
                 </div>
                 {r.pm_decision ? (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
@@ -622,22 +646,6 @@ export function FacilitatorsPanel({ programId }) {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    <select
-                      value={decisionInputs[r.id]?.decision || ""}
-                      onChange={(e) =>
-                        setDecisionInputs({
-                          ...decisionInputs,
-                          [r.id]: { ...decisionInputs[r.id], decision: e.target.value },
-                        })
-                      }
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-2 text-[9px] font-bold outline-none cursor-pointer"
-                    >
-                      <option value="">{t("pmMisc.facilitators.selectDecision")}</option>
-                      <option value="Acknowledged">{t("pmMisc.facilitators.decisionAcknowledged")}</option>
-                      <option value="Action taken">{t("pmMisc.facilitators.decisionActionTaken")}</option>
-                      <option value="Needs follow-up">{t("pmMisc.facilitators.decisionNeedsFollowUp")}</option>
-                      <option value="Escalated to Super Admin">{t("pmMisc.facilitators.decisionEscalated")}</option>
-                    </select>
                     <textarea
                       value={decisionInputs[r.id]?.note || ""}
                       onChange={(e) =>
@@ -650,12 +658,20 @@ export function FacilitatorsPanel({ programId }) {
                       rows={2}
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
                     />
-                    <button
-                      onClick={() => recordDecision(r.id)}
-                      className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-400 hover:underline"
-                    >
-                      <Save className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.recordDecision")}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => recordDecision(r.id, "acknowledged")}
+                        className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                      >
+                        <Check className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.acknowledge")}
+                      </button>
+                      <button
+                        onClick={() => recordDecision(r.id, "changes_requested")}
+                        className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.requestChanges")}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
