@@ -296,6 +296,8 @@ export async function GET(req, { params }) {
     const attendedSessions = attendance.filter(
       (a) => a.status === "present",
     ).length;
+    // Total sessions this participant was expected to attend = sessions that are unlocked
+    const totalSessions = unlockedSessions.length || 1;
     // Attendance is measured against distinct attendance dates recorded for the program.
     const expectedDaysRes = await db.execute({
       sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
