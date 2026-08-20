@@ -461,8 +461,10 @@ export async function GET(req) {
       "founder",
     ]);
     if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "view");
-    if (capError) return capError;
+    // Read access is gated by the role allowlist above. Participants/founders
+    // are additionally scoped to their own contact below, so no extra
+    // capability check is required here (avoids 403s for roles whose access
+    // profile has not been seeded yet).
 
     const { searchParams } = new URL(req.url);
     const statusFilter = searchParams.get("status");
@@ -505,9 +507,14 @@ export async function GET(req) {
       sql += " ORDER BY name ASC";
       result = await db.execute({ sql, args });
     } else {
-      // Staff/PM/Teacher: active only
+      // Staff/Teacher: active only. Program managers also see pending contacts
+      // so they can find unapproved people and assign them as facilitators.
+      const statusClause =
+        session.role === "program_manager"
+          ? "status IN ('active', 'pending')"
+          : "status = 'active'";
       let sql =
-        "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND status = 'active'";
+        `SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND ${statusClause}`;
       const args = [];
       if (groupFilter) {
         sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";

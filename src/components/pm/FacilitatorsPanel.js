@@ -343,6 +343,16 @@ export function FacilitatorsPanel({ programId }) {
   const assignedCids = (program.facilitators || []).map((f) => f.cid);
   const participantKeys = new Set((participants || []).flatMap((p) => [p.cid, p.email].filter(Boolean)));
 
+  const filteredPool = pool
+    .filter((c) => !assignedCids.includes(c.cid))
+    .filter((c) => !participantKeys.has(c.cid) && !participantKeys.has(c.email))
+    .filter(
+      (c) =>
+        !search ||
+        (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (c.email || "").toLowerCase().includes(search.toLowerCase()),
+    );
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header className="flex items-center justify-between gap-4">
@@ -416,28 +426,19 @@ export function FacilitatorsPanel({ programId }) {
             />
           </div>
           <div className="max-h-48 overflow-y-auto space-y-1.5">
-            {pool
-              .filter((c) => !assignedCids.includes(c.cid))
-              .filter((c) => !participantKeys.has(c.cid) && !participantKeys.has(c.email))
-              .filter(
-                (c) =>
-                  !search ||
-                  (c.name || "").toLowerCase().includes(search.toLowerCase()) ||
-                  (c.email || "").toLowerCase().includes(search.toLowerCase()),
-              )
-              .map((c) => (
-                <button
-                  key={c.cid}
-                  disabled={busy}
-                  onClick={() => addFacilitator(c)}
-                  className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
-                >
-                  <span className="text-[10px] font-black uppercase truncate">{c.name}</span>
-                  <span className="text-[9px] text-[var(--text-secondary)] truncate">{c.email}</span>
-                  <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
-                </button>
-              ))}
-            {pool.length === 0 && (
+            {filteredPool.map((c) => (
+              <button
+                key={c.cid}
+                disabled={busy}
+                onClick={() => addFacilitator(c)}
+                className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
+              >
+                <span className="text-[10px] font-black uppercase truncate">{c.name}</span>
+                <span className="text-[9px] text-[var(--text-secondary)] truncate">{c.email}</span>
+                <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+              </button>
+            ))}
+            {search.trim() && filteredPool.length === 0 && (
               <p className="text-[9px] italic text-[var(--text-secondary)]">
                 {t("pmMisc.facilitators.noContacts")}
               </p>
