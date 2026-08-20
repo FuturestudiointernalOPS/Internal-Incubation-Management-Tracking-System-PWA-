@@ -71,6 +71,23 @@
       "resetPasswordButton": "Reset Password",
       "activateAccountButton": "Activate Account"
     },
+    "sharedResponse": {
+      "title": "Shared Response",
+      "loading": "Loading…",
+      "accessDenied": "Access Denied",
+      "accessDeniedMessage": "This response was not shared with your account, or the share has been revoked or expired.",
+      "revoked": "This share has been revoked.",
+      "expired": "This share has expired.",
+      "emailMismatch": "This response was shared with a different email address.",
+      "notFound": "Share not found.",
+      "signIn": "Sign In",
+      "submittedBy": "Submitted by",
+      "status": "Status",
+      "submittedAt": "Submitted",
+      "fields": "Response",
+      "readOnly": "Read-only",
+      "empty": "No response data"
+    },
     "registerVenture": {
       "invalidInvitationLink": "Invalid invitation link",
       "unableToValidateLink": "Unable to validate invitation link",
@@ -108,6 +125,7 @@
       "loadFailed": "Failed to load group info.",
       "registrationFailed": "Registration failed.",
       "networkError": "Network error during registration.",
+      "couldNotConfirm": "We couldn't confirm your registration. Please check your email — if we received it, you'll hear from us shortly.",
       "applicationSubmitted": "Application Submitted",
       "registrationIntro": "Your registration for",
       "theProgram": "the program",
