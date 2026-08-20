@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Clock,
   RefreshCw,
+  Briefcase,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -107,18 +108,21 @@ export default function UserAccessSummary() {
     setSelectedUser(user);
     setLoading(true);
     try {
-      // Fetch permissions + profile + groups in parallel
-      const [permsRes, groupsRes, respRes, profileRes] = await Promise.all([
-        fetch(`/api/engineering/permissions?user_cid=${user.cid}`),
-        fetch(`/api/user-groups?user_cid=${user.cid}`),
-        fetch(`/api/responsibilities?user_cid=${user.cid}`),
-        fetch(`/api/access-profiles/assign?user_cid=${user.cid}`),
-      ]);
+      // Fetch permissions + profile + groups + assignments in parallel
+      const [permsRes, groupsRes, respRes, profileRes, rolesRes] =
+        await Promise.all([
+          fetch(`/api/engineering/permissions?user_cid=${user.cid}`),
+          fetch(`/api/user-groups?user_cid=${user.cid}`),
+          fetch(`/api/responsibilities?user_cid=${user.cid}`),
+          fetch(`/api/access-profiles/assign?user_cid=${user.cid}`),
+          fetch(`/api/contacts/${user.cid}/roles`),
+        ]);
 
       const permsData = await permsRes.json();
       const groupsData = await groupsRes.json();
       const respData = await respRes.json();
       const profileData = await profileRes.json();
+      const rolesData = await rolesRes.json();
 
       setUserData({
         user: permsData.user || user,
@@ -132,6 +136,7 @@ export default function UserAccessSummary() {
         effectivePermissions: permsData.effectivePermissions || {},
         individualGrants: permsData.individualGrants || [],
         individualRestrictions: permsData.individualRestrictions || [],
+        assignments: rolesData.success ? rolesData.roles || [] : [],
       });
     } catch (e) {
       console.error("Failed to fetch user summary", e);
@@ -327,6 +332,85 @@ export default function UserAccessSummary() {
                             {r.name}
                           </span>
                         ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Assignments Card (contact_roles — program/venture/form scoped titles) */}
+                  <div className="ios-card !p-5 border-[var(--border-primary)]">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
+                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                        {t("adminMisc.access.assignments")}
+                      </h3>
+                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                        {(userData.assignments || []).length}
+                      </span>
+                    </div>
+                    {(userData.assignments || []).length === 0 ? (
+                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noAssignments")}</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {(userData.assignments || []).map((a, i) => {
+                          let scopeLabel = "";
+                          try {
+                            const s = typeof a.scope === "string" ? JSON.parse(a.scope) : a.scope;
+                            if (s?.type === "program") scopeLabel = "Program";
+                            else if (s?.type === "groups") scopeLabel = `Groups (${(s.groupIds || []).length})`;
+                            else if (s?.type === "individuals") scopeLabel = `Individuals (${(s.cids || []).length})`;
+                          } catch (_) {}
+                          const isCurrent = a.is_current !== false;
+                          return (
+                            <div
+                              key={i}
+                              className={`rounded-xl border p-3 ${
+                                isCurrent
+                                  ? "border-[var(--brand-orange)]/20 bg-[var(--brand-orange)]/[0.03]"
+                                  : "border-[var(--border-primary)] bg-tertiary/40 opacity-60"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                                  {a.title || a.role}
+                                </p>
+                                {isCurrent ? (
+                                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase tracking-wider">
+                                    Current
+                                  </span>
+                                ) : (
+                                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
+                                    Ended
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-1.5 space-y-0.5">
+                                <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                                  {a.context_type} · {a.context_id || "global"}
+                                  {scopeLabel ? ` · ${scopeLabel}` : ""}
+                                </p>
+                                {a.status && (
+                                  <p className="text-[8px] font-bold text-[var(--text-secondary)] opacity-70">
+                                    Status: {a.status}
+                                  </p>
+                                )}
+                                {(a.capability_overrides || a.permissions) &&
+                                  typeof (a.capability_overrides || a.permissions) === "object" &&
+                                  Object.keys(a.capability_overrides || a.permissions).length > 0 && (
+                                    <div className="flex flex-wrap gap-1 pt-1">
+                                      {Object.keys(a.capability_overrides || a.permissions).map((k) => (
+                                        <span
+                                          key={k}
+                                          className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                                        >
+                                          {k.replace(/\./g, " ")}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>

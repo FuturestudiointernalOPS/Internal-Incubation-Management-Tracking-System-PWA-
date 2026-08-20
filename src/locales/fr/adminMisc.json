@@ -18,6 +18,8 @@
       "roleDefaultSuffix": "(défaut du rôle)",
       "responsibilities": "Responsabilités",
       "noResponsibilities": "Aucune responsabilité assignée",
+      "assignments": "Affectations",
+      "noAssignments": "Aucune affectation programme/venture",
       "permissionOverrides": "Dérogations de permissions",
       "noOverrides": "Aucune dérogation individuelle",
       "grants": "Octrois",
