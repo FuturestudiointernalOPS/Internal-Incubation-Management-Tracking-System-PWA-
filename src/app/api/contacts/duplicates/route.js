@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, requireCapability } from "@/lib/auth";
+import { requireAuth, requireCapabilityV2 } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export async function GET() {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
-    const capError = await requireCapability("crm", "view");
+    const capError = await requireCapabilityV2("contacts", "view");
     if (capError) return capError;
 
     const flags = await db.execute({
@@ -41,7 +41,7 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
-    const capError = await requireCapability("crm", "edit");
+    const capError = await requireCapabilityV2("contacts", "edit");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
