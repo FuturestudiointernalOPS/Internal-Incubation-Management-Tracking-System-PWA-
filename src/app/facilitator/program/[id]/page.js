@@ -149,15 +149,50 @@ export default function FacilitatorProgram({ params }) {
     }
   };
 
+  const saveAttendanceForParticipant = async (sessionId, participantId, status) => {
+    if (!status) return;
+    try {
+      const res = await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([
+          {
+            session_id: sessionId,
+            program_id: id,
+            participant_id: participantId,
+            status,
+            date: attendanceDate,
+          },
+        ]),
+      });
+      if (!(await res.json()).success) {
+        notify("error", "Failed to record attendance");
+      }
+    } catch (e) {
+      notify("error", "Failed to record attendance");
+    }
+  };
+
   const reviewSubmission = async (subId, status, feedback) => {
-    const res = await fetch("/api/submissions", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: subId, status, feedback }),
-    });
-    if ((await res.json()).success) {
-      notify("success", "Submission updated");
-      load();
+    const body = { id: subId, status, feedback: feedback || null };
+    if (status === "rejected") {
+      body.rejection_reason = feedback || "Rejected";
+    }
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify("success", "Submission updated");
+        load();
+      } else {
+        notify("error", data.error || "Failed to update submission");
+      }
+    } catch (e) {
+      notify("error", "Failed to update submission");
     }
   };
 
@@ -357,13 +392,6 @@ export default function FacilitatorProgram({ params }) {
                       Week {s.week_number} · {s.type}
                     </p>
                   </div>
-                  <button
-                    disabled={savingAtt}
-                    onClick={() => saveAttendance(s.id)}
-                    className="flex items-center gap-1.5 text-[9px] font-black uppercase text-emerald-400 hover:underline shrink-0"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Save attendance
-                  </button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-1.5">
                   {participants.map((p) => {
@@ -378,9 +406,11 @@ export default function FacilitatorProgram({ params }) {
                         </span>
                         <select
                           value={attendance[key] || ""}
-                          onChange={(e) =>
-                            setAttendance({ ...attendance, [key]: e.target.value })
-                          }
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setAttendance({ ...attendance, [key]: v });
+                            saveAttendanceForParticipant(s.id, p.id || p.user_id, v);
+                          }}
                           className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[8px] font-bold uppercase outline-none cursor-pointer"
                         >
                           <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
@@ -391,6 +421,13 @@ export default function FacilitatorProgram({ params }) {
                     );
                   })}
                 </div>
+                <button
+                  disabled={savingAtt}
+                  onClick={() => saveAttendance(s.id)}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Save attendance
+                </button>
               </div>
             ))}
           </div>
