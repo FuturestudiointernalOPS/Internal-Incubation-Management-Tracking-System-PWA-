@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth, requireCapability } from "@/lib/auth";
+import { requireAuth, requireCapabilityV2 } from "@/lib/auth";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
@@ -47,7 +47,7 @@ export async function POST(req) {
     try {
       const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
       if (!authError) {
-        const capError = await requireCapability("crm", "create");
+        const capError = await requireCapabilityV2("contacts", "create");
         if (capError) return capError;
       }
     } catch (_) {}
@@ -261,7 +261,7 @@ export async function PUT(req) {
       "participant",
     ]);
     if (authError) return authError;
-    const capError = await requireCapability("crm", "edit");
+    const capError = await requireCapabilityV2("contacts", "edit");
     if (capError) return capError;
 
     const data = await req.json();
@@ -574,7 +574,7 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
-    const capError = await requireCapability("crm", "delete");
+    const capError = await requireCapabilityV2("contacts", "delete");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
