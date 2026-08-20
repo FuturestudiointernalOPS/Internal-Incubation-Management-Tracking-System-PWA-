@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { getLocalToday } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,7 @@ export default function FacilitatorProgram({ params }) {
   const [sessions, setSessions] = useState([]);
   const [submissions, setSubmissions] = useState([]);
   const [attendance, setAttendance] = useState({});
+  const [attendanceDate, setAttendanceDate] = useState(() => getLocalToday());
   const [loading, setLoading] = useState(true);
   const [review, setReview] = useState({
     participant_progress: "",
@@ -129,7 +131,7 @@ export default function FacilitatorProgram({ params }) {
           program_id: id,
           participant_id: p.id || p.user_id,
           status: attendance[`${sessionId}:${p.id || p.user_id}`] || "",
-          date: new Date().toISOString().split("T")[0],
+          date: attendanceDate,
         }))
         .filter((r) => r.participant_id);
       const res = await fetch("/api/attendance", {
@@ -320,6 +322,22 @@ export default function FacilitatorProgram({ params }) {
         {/* ATTENDANCE */}
         {tab === "attendance" && (
           <div className="space-y-6">
+            <div className="flex items-center gap-3 rounded-xl border border-[var(--border-primary)] bg-primary p-3">
+              <CalendarCheck className="w-4 h-4 text-[var(--text-secondary)]" />
+              <div className="flex-1">
+                <p className="text-[9px] font-black uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+                  Date
+                </p>
+                <input
+                  type="date"
+                  value={attendanceDate}
+                  onChange={(e) => setAttendanceDate(e.target.value)}
+                  max={getLocalToday()}
+                  min={getLocalToday()}
+                  className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
+                />
+              </div>
+            </div>
             {sessions.length === 0 && (
               <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
                 No sessions scheduled yet.
