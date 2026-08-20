@@ -45,6 +45,17 @@ export async function GET(req) {
       scopedProgramIds = pp.rows.map((r) => r.pid);
     }
 
+    // A scoped role (facilitator/participant) with NO assignments must see NO
+    // program-scoped events — an empty scope list would silently remove the
+    // program filter below and leak every program's events. The sentinel
+    // matches no real program id.
+    if (
+      (session?.role === "facilitator" || session?.role === "participant") &&
+      (!scopedProgramIds || scopedProgramIds.length === 0)
+    ) {
+      scopedProgramIds = ["__no_program_scope__"];
+    }
+
     const scopePlaceholders = scopedProgramIds && scopedProgramIds.length
       ? scopedProgramIds.map(() => "?").join(",")
       : "";

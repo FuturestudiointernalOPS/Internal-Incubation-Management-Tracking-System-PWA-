@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Calendar, Clock, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import CalendarPanel from "@/components/ui/CalendarPanel";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,7 @@ const EVENT_META = {
 
 export default function FacilitatorDashboard() {
   const { t } = useI18n();
-  const [events, setEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -34,22 +35,27 @@ export default function FacilitatorDashboard() {
     ])
       .then(([cal, prog]) => {
         const raw = cal.success ? cal.events || [] : [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const upcoming = raw
-          .filter((e) => e.date && new Date(e.date) >= today)
-          .sort((a, b) => new Date(a.date) - new Date(b.date))
-          .slice(0, 8);
-        setEvents(upcoming);
+        setAllEvents(raw);
         if (prog.success) setPrograms(prog.programs || []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  // Upcoming list = future events; the calendar panel shows the full month.
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const upcoming = allEvents
+    .filter((e) => e.date && new Date(e.date) >= today)
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(0, 8);
+
+  // A facilitator with no assigned programs has no role in the system yet.
+  const hasNoRole = programs.length === 0;
+
   return (
     <DashboardLayout role="facilitator" activeTab="dashboard">
-      <div className="max-w-4xl mx-auto space-y-8 p-6">
+      <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
           <h1 className="text-2xl font-black uppercase tracking-tight">
             Dashboard
@@ -79,28 +85,43 @@ export default function FacilitatorDashboard() {
                   Upcoming activities
                 </p>
                 <p className="text-3xl font-black text-[var(--brand-orange)] mt-2">
-                  {events.length}
+                  {upcoming.length}
                 </p>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                <h2 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
-                  Upcoming
-                </h2>
+            {/* Facilitator with no assigned programs / no role in the system */}
+            {hasNoRole && (
+              <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                  {t("pmMisc.contacts.noProgramsAssigned")}
+                </p>
               </div>
+            )}
 
-              {events.length === 0 ? (
-                <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-10 text-center">
-                  <CheckCircle2 className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-3" />
-                  <p className="text-[11px] font-black uppercase text-[var(--text-secondary)]">
-                    No upcoming activities
-                  </p>
+            {/* Calendar (reused CalendarPanel from the shared UI library) + upcoming list */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+              <div className="lg:col-span-2">
+                <CalendarPanel events={allEvents} />
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
+                  <h2 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    Upcoming
+                  </h2>
                 </div>
-              ) : (
-                events.map((e) => {
+
+                {upcoming.length === 0 ? (
+                  <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-10 text-center">
+                    <CheckCircle2 className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-3" />
+                    <p className="text-[11px] font-black uppercase text-[var(--text-secondary)]">
+                      No upcoming activities
+                    </p>
+                  </div>
+                ) : (
+                  upcoming.map((e) => {
                   const meta = EVENT_META[e.source] || {
                     label: e.type || e.source,
                     color: "text-[var(--text-secondary)]",
@@ -129,6 +150,7 @@ export default function FacilitatorDashboard() {
                   );
                 })
               )}
+              </div>
             </div>
           </>
         )}
