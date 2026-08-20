@@ -466,7 +466,7 @@ export async function sendPasswordResetEmail({ to, name, resetUrl }) {
               </table>
 
               <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
-                This link expires in <strong style="color: #f8fafc;">48 hours</strong>.
+                This link expires in <strong style="color: #f8fafc;">1 hour</strong>.
               </p>
               <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
                 If you didn't request this, you can safely ignore this email.
