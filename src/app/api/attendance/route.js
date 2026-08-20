@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { getLocalToday } from "@/lib/constants";
 
 export async function POST(req) {
   try {
@@ -88,7 +89,7 @@ export async function POST(req) {
     // Super admins keep full control (corrections / backfill); all other
     // roles (program_manager, teacher, staff, facilitator) are locked to
     // today's date so past/future days cannot be backdated or prefilled.
-    const todayStr = new Date().toISOString().split("T")[0];
+    const todayStr = getLocalToday();
     const requestedDate = scoped[0].date || todayStr;
     if (session?.role !== "super_admin" && requestedDate !== todayStr) {
       return NextResponse.json(
