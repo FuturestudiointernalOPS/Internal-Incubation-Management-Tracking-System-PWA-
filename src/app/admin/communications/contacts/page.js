@@ -29,6 +29,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
@@ -59,6 +60,13 @@ const INVITATION_STATUS_LABELS = {
 const GROUP_LABELS = {
   UNASSIGNED: "crm.contacts.unassigned",
 };
+
+// Internal Future Studio staff are created manually (not via an invitation/application
+// form) and therefore do not need an activation email — hide that status for them.
+const INTERNAL_ROLE_SET = new Set(INTERNAL_OPS_ROLES);
+const isInternalContact = (c) =>
+  INTERNAL_ROLE_SET.has(String(c.role || "").toLowerCase()) ||
+  String(c.group_name || "").toUpperCase() === "FUTURE STUDIO";
 
 function ContactsPageContent() {
   const searchParams = useSearchParams();
@@ -836,28 +844,30 @@ function ContactsPageContent() {
                             >
                               {t(INVITATION_STATUS_LABELS[c.invitation_status] || "") || c.invitation_status}
                             </span>
-                            <span
-                              title={
-                                c.activation_email_status === "failed"
-                                  ? (c.activation_email_error || t("crm.contacts.activationEmailFailed"))
+                            {!isInternalContact(c) && (
+                              <span
+                                title={
+                                  c.activation_email_status === "failed"
+                                    ? (c.activation_email_error || t("crm.contacts.activationEmailFailed"))
+                                    : c.activation_email_sent_at
+                                      ? `${t("crm.contacts.activationEmailSent")} — ${new Date(c.activation_email_sent_at).toLocaleString()}`
+                                      : (c.activation_email_error || t("crm.contacts.activationEmailNotSent"))
+                                }
+                                className={`w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                  c.activation_email_status === "failed"
+                                    ? "bg-rose-500/10 text-rose-400"
+                                    : c.activation_email_sent_at
+                                      ? "bg-emerald-500/10 text-emerald-400"
+                                      : "bg-white/5 text-[var(--text-tertiary)]"
+                                }`}
+                              >
+                                {c.activation_email_status === "failed"
+                                  ? t("crm.contacts.activationEmailFailed")
                                   : c.activation_email_sent_at
-                                    ? `${t("crm.contacts.activationEmailSent")} — ${new Date(c.activation_email_sent_at).toLocaleString()}`
-                                    : (c.activation_email_error || t("crm.contacts.activationEmailNotSent"))
-                              }
-                              className={`w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                c.activation_email_status === "failed"
-                                  ? "bg-rose-500/10 text-rose-400"
-                                  : c.activation_email_sent_at
-                                    ? "bg-emerald-500/10 text-emerald-400"
-                                    : "bg-white/5 text-[var(--text-tertiary)]"
-                              }`}
-                            >
-                              {c.activation_email_status === "failed"
-                                ? t("crm.contacts.activationEmailFailed")
-                                : c.activation_email_sent_at
-                                  ? t("crm.contacts.activationEmailSent")
-                                  : t("crm.contacts.activationEmailNotSent")}
-                            </span>
+                                    ? t("crm.contacts.activationEmailSent")
+                                    : t("crm.contacts.activationEmailNotSent")}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="text-right">
