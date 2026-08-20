@@ -302,6 +302,7 @@ function ProgramWorkspace() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
   const [reviewScore, setReviewScore] = useState("");
+  const [reviewFeedback, setReviewFeedback] = useState("");
   const [showFollowupFields, setShowFollowupFields] = useState(false);
   // Tracks whether the PM has opened the submissions tab (clears the "new" badge/highlight)
   const [submissionsSeen, setSubmissionsSeen] = useState(
@@ -944,6 +945,69 @@ function ProgramWorkspace() {
         setFollowupTime("");
         fetchProgramData(true);
       } else notify(t((data.error || t("pmMisc.workspace.gradeFailed")) || "") || (data.error || t("pmMisc.workspace.gradeFailed")), "error");
+    } catch (e) {
+      notify(t("pmMisc.workspace.networkError"), "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRequestRevision = async () => {
+    if (!selectedSubmission) return;
+    if (!reviewFeedback.trim()) {
+      notify("Written feedback is required", "error");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: "revision_requested",
+          feedback: reviewFeedback.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("pmMisc.workspace.submissionGraded"));
+        setShowReviewModal(false);
+        setReviewFeedback("");
+        fetchProgramData(true);
+      } else {
+        notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
+      }
+    } catch (e) {
+      notify(t("pmMisc.workspace.networkError"), "error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleRejectSubmission = async () => {
+    if (!selectedSubmission) return;
+    setIsSaving(true);
+    try {
+      const res = await fetch("/api/submissions", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: selectedSubmission.id,
+          status: "rejected",
+          rejection_reason: reviewFeedback.trim() || "Rejected",
+          feedback: reviewFeedback.trim() || "Rejected",
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("pmMisc.workspace.submissionGraded"));
+        setShowReviewModal(false);
+        setReviewFeedback("");
+        fetchProgramData(true);
+      } else {
+        notify(data.error || t("pmMisc.workspace.gradeFailed"), "error");
+      }
     } catch (e) {
       notify(t("pmMisc.workspace.networkError"), "error");
     } finally {
@@ -4152,6 +4216,19 @@ function ProgramWorkspace() {
                     {t("pmMisc.workspace.scoreSyncNote")}
                   </p>
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+                    Feedback / Notes
+                  </label>
+                  <textarea
+                    value={reviewFeedback}
+                    onChange={(e) => setReviewFeedback(e.target.value)}
+                    rows={2}
+                    placeholder="Optional feedback or rejection reason"
+                    className="w-full rounded-lg px-3 py-2 text-xs font-bold outline-none"
+                    style={{ background: "var(--bg-primary)", border: "1px solid var(--border-primary)", color: "var(--text-primary)" }}
+                  />
+                </div>
               </div>
               {!showFollowupFields ? (
                 <>
@@ -4161,20 +4238,36 @@ function ProgramWorkspace() {
                   >
                     <Calendar className="w-3.5 h-3.5" /> {t("pmMisc.workspace.scheduleFollowup")}
                   </button>
-                  <div className="flex gap-3 pt-2">
-                    <button
-                      onClick={() => setShowReviewModal(false)}
-                      className="flex-1 btn btn-secondary"
-                    >
-                      {t("pmMisc.workspace.cancel")}
-                    </button>
+                  <div className="space-y-2 pt-2">
                     <button
                       onClick={handleReviewSubmission}
                       disabled={isSaving || reviewScore === ""}
-                      className="flex-1 btn btn-primary"
+                      className="w-full btn btn-primary"
                     >
                       {isSaving ? t("pmMisc.workspace.grading") : t("pmMisc.workspace.approveAndGrade")}
                     </button>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setShowReviewModal(false)}
+                        className="flex-1 btn btn-secondary"
+                      >
+                        {t("pmMisc.workspace.cancel")}
+                      </button>
+                      <button
+                        onClick={handleRequestRevision}
+                        disabled={isSaving}
+                        className="flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-all"
+                      >
+                        Request revision
+                      </button>
+                      <button
+                        onClick={handleRejectSubmission}
+                        disabled={isSaving}
+                        className="flex-1 py-3 rounded-xl text-[9px] font-black uppercase tracking-widest bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-all"
+                      >
+                        Reject
+                      </button>
+                    </div>
                   </div>
                 </>
               ) : (
