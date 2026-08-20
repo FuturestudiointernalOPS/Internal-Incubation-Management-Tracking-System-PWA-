@@ -68,6 +68,8 @@ function ProgramWorkspace() {
   const [submissions, setSubmissions] = useState([]);
   const [requirements, setRequirements] = useState([]);
   const [reports, setReports] = useState([]);
+  const [facilitatorReviews, setFacilitatorReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState("individuals");
   const [selectedParticipants, setSelectedParticipants] = useState([]);
   const [newTeam, setNewTeam] = useState({
@@ -1015,6 +1017,40 @@ function ProgramWorkspace() {
     }
   };
 
+  const loadReviews = async () => {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch(`/api/facilitator-reviews?program_id=${encodeURIComponent(id)}`);
+      const data = await res.json();
+      if (data.success) setFacilitatorReviews(data.reviews || []);
+    } catch (_) {}
+    setReviewsLoading(false);
+  };
+
+  const handleReviewDecision = async (reviewId, decision) => {
+    try {
+      const res = await fetch("/api/facilitator-reviews", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: reviewId, pm_decision: decision }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("pmMisc.workspace.reviewDecided") || "Review updated");
+        loadReviews();
+      } else {
+        notify(data.error || "Failed to update review", "error");
+      }
+    } catch (e) {
+      notify(t("pmMisc.workspace.networkError"), "error");
+    }
+  };
+
+  useEffect(() => {
+    if (id) loadReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const handleScheduleFollowup = async () => {
     if (!selectedSubmission) return;
     if (!followupDate || !followupTime) {
@@ -1177,6 +1213,7 @@ function ProgramWorkspace() {
     { id: "curriculum", name: t("pmMisc.workspace.tabCurriculum"), icon: FileText },
     { id: "attendance", name: t("pmMisc.workspace.tabAttendance"), icon: CheckCircle2 },
     { id: "reports", name: t("pmMisc.workspace.tabReports"), icon: BarChart3, roles: ["super_admin", "program_manager", "staff", "teacher"] },
+    { id: "reviews", name: t("pmMisc.workspace.tabReviews"), icon: MessageCircle, roles: ["super_admin", "program_manager", "staff", "teacher"] },
     { id: "participants", name: t("pmMisc.workspace.tabParticipants"), icon: Users },
     { id: "submissions", name: t("pmMisc.workspace.tabSubmissions"), icon: Activity },
     {
@@ -3012,6 +3049,61 @@ function ProgramWorkspace() {
             </div>
           )}
 
+          {activeTab === "reviews" && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  {t("pmMisc.workspace.tabReviews")}
+                </h3>
+                <button onClick={loadReviews} className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:underline">
+                  {t("common.refresh") || "Refresh"}
+                </button>
+              </div>
+              {reviewsLoading ? (
+                <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">Loading…</p>
+              ) : facilitatorReviews.length === 0 ? (
+                <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+                  No facilitator reviews submitted yet.
+                </p>
+              ) : (
+                facilitatorReviews.map((r) => (
+                  <div key={r.id} className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] font-black uppercase">{r.facilitator_name || r.facilitator_id || "Facilitator"}</p>
+                        <p className="text-[9px] text-[var(--text-secondary)]">Week {r.week_number || "—"}</p>
+                      </div>
+                      <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                        r.status === "decided" ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"
+                      }`}>
+                        {r.status}
+                      </span>
+                    </div>
+                    {r.participant_progress && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Progress:</strong> {r.participant_progress}</p>}
+                    {r.attendance_concerns && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Attendance:</strong> {r.attendance_concerns}</p>}
+                    {r.assignment_performance && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Assignments:</strong> {r.assignment_performance}</p>}
+                    {r.challenges && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Challenges:</strong> {r.challenges}</p>}
+                    {r.recommendations && <p className="text-[10px] text-[var(--text-secondary)]"><strong>Recommendations:</strong> {r.recommendations}</p>}
+                    {r.pm_decision && (
+                      <p className="text-[9px] text-[var(--brand-orange)]">
+                        <strong>Decision:</strong> {r.pm_decision}{r.pm_decision_note ? ` — ${r.pm_decision_note}` : ""}
+                      </p>
+                    )}
+                    {r.status !== "decided" && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleReviewDecision(r.id, "acknowledged")} className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
+                          Acknowledge
+                        </button>
+                        <button onClick={() => handleReviewDecision(r.id, "changes_requested")} className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
+                          Request changes
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           {activeTab === "reports" && (
             <div className="space-y-6">
               {user.role === "program_manager" && (
