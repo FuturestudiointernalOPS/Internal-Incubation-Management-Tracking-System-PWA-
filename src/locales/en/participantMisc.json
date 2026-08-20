@@ -60,6 +60,7 @@
       "retry": "Retry",
       "statusApproved": "Approved",
       "statusPending": "Pending",
+      "statusAwaitingReview": "Submitted — Awaiting review",
       "statusRejected": "Rejected",
       "statusDraft": "Draft"
     },

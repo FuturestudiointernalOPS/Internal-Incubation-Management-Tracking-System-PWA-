@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import { getServerErrorKey } from "@/lib/constants";
 
 /**
  * SUBMISSION VERSION HISTORY
@@ -40,6 +41,7 @@ import { useI18n } from "@/lib/i18n";
  */
 
 function StatusBadge({ status }) {
+  const { t } = useI18n();
   const config = {
     approved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
@@ -50,16 +52,25 @@ function StatusBadge({ status }) {
   const c =
     config[status?.toLowerCase()] ||
     "bg-white/5 text-[var(--text-tertiary)] border-white/10";
+  const raw = status || "draft";
+  const statusKey = `status.${raw}`;
+  let label = t(statusKey);
+  if (label === statusKey) {
+    const participantKey = `participant.${raw}`;
+    label = t(participantKey);
+    if (label === participantKey) label = raw.replace(/_/g, " ");
+  }
   return (
     <span
       className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
     >
-      {status?.replace(/_/g, " ") || "draft"}
+      {label}
     </span>
   );
 }
 
 function VersionTimeline({ versions, onRefresh }) {
+  const { t } = useI18n();
   const [expandedVersion, setExpandedVersion] = useState(null);
 
   if (!versions || versions.length === 0) return null;
@@ -140,7 +151,7 @@ function VersionTimeline({ versions, onRefresh }) {
                       >
                         <FileText className="w-3 h-3 text-[var(--brand-orange)]" />
                         <span className="text-[8px] font-bold text-[var(--brand-orange)]">
-                          View File
+                          {t("participant.viewFile")}
                         </span>
                         <ExternalLink className="w-2.5 h-2.5 text-[var(--text-tertiary)]" />
                       </a>
@@ -154,7 +165,7 @@ function VersionTimeline({ versions, onRefresh }) {
                       >
                         <ExternalLink className="w-3 h-3 text-blue-400" />
                         <span className="text-[8px] font-bold text-blue-400">
-                          Supporting URL
+                          {t("participant.supportingUrl")}
                         </span>
                       </a>
                     )}
@@ -166,7 +177,7 @@ function VersionTimeline({ versions, onRefresh }) {
                       <div className="flex items-center gap-1.5 mb-1">
                         <MessageSquare className="w-3 h-3 text-blue-400" />
                         <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">
-                          Feedback
+                          {t("participant.feedback")}
                         </span>
                       </div>
                       <p className="text-[9px] text-[var(--text-primary)] leading-relaxed">
@@ -181,7 +192,7 @@ function VersionTimeline({ versions, onRefresh }) {
                       <div className="flex items-center gap-1.5 mb-1">
                         <XCircle className="w-3 h-3 text-rose-400" />
                         <span className="text-[7px] font-black text-rose-400 uppercase tracking-widest">
-                          Rejection Reason
+                          {t("participant.rejectionReason")}
                         </span>
                       </div>
                       <p className="text-[9px] text-[var(--text-primary)] leading-relaxed">
@@ -194,7 +205,7 @@ function VersionTimeline({ versions, onRefresh }) {
                   {ver.review_action && (
                     <div className="flex items-center gap-2">
                       <span className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Action:
+                        {t("participant.action")}:
                       </span>
                       <StatusBadge status={ver.review_action} />
                     </div>
@@ -204,7 +215,7 @@ function VersionTimeline({ versions, onRefresh }) {
                   {ver.evaluation_score > 0 && (
                     <div className="flex items-center gap-2">
                       <span className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                        Score:
+                        {t("participant.score")}:
                       </span>
                       <span
                         className={`text-[10px] font-black ${
@@ -258,10 +269,11 @@ export default function SubmissionVersionHistory({
       if (data.success) {
         setGroupedData(data.grouped || []);
       } else {
-        setError(t((data.error || "Failed to load version history") || "") || (data.error || "Failed to load version history"));
+        const key = getServerErrorKey(data.error);
+        setError(key ? t(key) : data.error || t("participant.failedToLoad"));
       }
     } catch (e) {
-      setError("Network error");
+      setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -305,7 +317,7 @@ export default function SubmissionVersionHistory({
       <div className="text-center py-8">
         <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
         <p className="text-[9px] font-bold text-[var(--text-secondary)]">
-          No submissions yet
+          {t("participant.noSubmissionsYet")}
         </p>
       </div>
     );
@@ -317,7 +329,7 @@ export default function SubmissionVersionHistory({
         <div className="flex items-center gap-2">
           <Send className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
-            Submission History ({groupedData.length} deliverables)
+            {t("participant.submissionHistory")} ({groupedData.length} {t("participant.deliverables").toLowerCase()})
           </span>
         </div>
       )}
@@ -339,7 +351,7 @@ export default function SubmissionVersionHistory({
               <div className="flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
                 <span className="text-[10px] font-bold text-[var(--text-primary)]">
-                  {group.deliverable_title || `Deliverable #${group.deliverable_id}`}
+                  {group.deliverable_title || t("participant.deliverableNumber", { id: group.deliverable_id })}
                 </span>
                 {group.deliverable_due_date && (
                   <span
@@ -349,13 +361,15 @@ export default function SubmissionVersionHistory({
                         : "text-amber-400"
                     }`}
                   >
-                    Due: {new Date(group.deliverable_due_date).toLocaleDateString()}
+                    {t("participant.due")}: {new Date(group.deliverable_due_date).toLocaleDateString()}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-[8px] text-[var(--text-tertiary)]">
-                  {group.versions.length} version{group.versions.length > 1 ? "s" : ""}
+                  {group.versions.length > 1
+                    ? t("participant.versionCountPlural", { count: group.versions.length })
+                    : t("participant.versionCount", { count: group.versions.length })}
                 </span>
                 <StatusBadge status={group.latest?.status} />
               </div>
