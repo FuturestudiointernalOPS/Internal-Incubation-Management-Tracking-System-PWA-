@@ -894,6 +894,7 @@ export default function FormRunsPage() {
   const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
+  const [regeneratingLink, setRegeneratingLink] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1928,6 +1929,30 @@ export default function FormRunsPage() {
         ? t("platformMisc.runs.emailRetryPartial", { sent: agg.sent, failed: agg.failed.length })
         : t("platformMisc.runs.emailRetrySuccess", { sent: agg.sent })
     );
+  };
+
+  // ─── REGENERATE SHARE LINK (rotates public_slug — revokes the old URL) ───
+  const regenerateLink = async () => {
+    if (!selectedRun || regeneratingLink) return;
+    setRegeneratingLink(true);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=regenerate_link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: selectedRun.id }),
+      });
+      const data = await res.json();
+      if (data.success && data.run) {
+        setSelectedRun(data.run);
+        notify(t("platformMisc.runs.linkRegenerated"));
+      } else {
+        notify(t("platformMisc.runs.regenerateFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.runs.regenerateFailed"));
+    } finally {
+      setRegeneratingLink(false);
+    }
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -3183,6 +3208,16 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
                         >
                           {t("platformMisc.runs.copy")}
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
+                        <p className="text-[9px] font-bold text-rose-400">{t("platformMisc.runs.regenerateLinkWarning")}</p>
+                        <button
+                          onClick={regenerateLink}
+                          disabled={regeneratingLink}
+                          className="shrink-0 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20 disabled:opacity-50"
+                        >
+                          {t("platformMisc.runs.regenerateLink")}
                         </button>
                       </div>
                     </div>

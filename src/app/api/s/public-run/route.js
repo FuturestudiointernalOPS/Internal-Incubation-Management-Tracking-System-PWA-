@@ -2,39 +2,30 @@ import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 
 /**
- * GET /api/s/public-run?id=X
+ * GET /api/s/public-run?slug=X
  * Public endpoint — returns run + form + sections + fields.
- * No authentication required.
+ * No authentication required. Slug-only lookup (numeric IDs never accepted).
  */
 export async function GET(req) {
   try {
     await initDb();
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
     const slug = searchParams.get("slug");
-    
+
+    if (!slug) {
+      return NextResponse.json({ success: false, error: "slug required" }, { status: 400 });
+    }
+
+    // Slug-only lookup — prevents sequential-ID probing of active runs.
     let run;
-    if (slug) {
-      // Try slug lookup first, fall back if column doesn't exist
-      try {
-        run = await db.execute({
-          sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
-          args: [slug],
-        });
-      } catch (_) {
-        // public_slug column may not exist — fall back to ID lookup
-        run = await db.execute({
-          sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
-          args: [parseInt(slug) || 0],
-        });
-      }
-    } else if (id) {
+    try {
       run = await db.execute({
-        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ? AND r.status = 'active'",
-        args: [parseInt(id)],
+        sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
+        args: [slug],
       });
-    } else {
-      return NextResponse.json({ success: false, error: "id or slug required" }, { status: 400 });
+    } catch (_) {
+      // Legacy schemas without the public_slug column resolve as not-found.
+      run = { rows: [] };
     }
     if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
 

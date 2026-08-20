@@ -1772,6 +1772,36 @@ export async function POST(req) {
       return NextResponse.json({ success: true, results });
     }
 
+    // ─── REGENERATE PUBLIC LINK (rotates public_slug — old link stops working) ───
+    if (action === "regenerate_link") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin"]);
+      if (authError) return authError;
+
+      const { id } = body;
+      if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
+
+      // Same unguessable slug format as run creation.
+      const slug = "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+
+      try {
+        await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+      } catch (_) {
+        // Legacy schemas may lack the column — add it idempotently, then retry.
+        try {
+          await db.execute({ sql: "ALTER TABLE platform_form_runs ADD COLUMN IF NOT EXISTS public_slug TEXT" });
+          await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+        } catch (e) {
+          return NextResponse.json({ success: false, error: "Could not rotate the share link" }, { status: 500 });
+        }
+      }
+
+      const fresh = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
+      if (fresh.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
+
+      return NextResponse.json({ success: true, run: fresh.rows[0], public_slug: slug });
+    }
+
     // ─── CREATE ACTION ───
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     const authError = await requireAuth(["super_admin", "admin"]);

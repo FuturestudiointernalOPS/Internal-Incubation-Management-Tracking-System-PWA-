@@ -28,25 +28,28 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    let { run_id, data, slug } = body;
-    
-    // Resolve slug to ID if provided (gracefully handle missing column)
-    if (slug && !run_id) {
-      try {
-        const runBySlug = await db.execute({
-          sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
-          args: [slug],
-        });
-        if (runBySlug.rows.length > 0) {
-          run_id = runBySlug.rows[0].id;
-        }
-      } catch (e) {
-        // public_slug column may not exist — fall back to ID lookup
-        console.warn("[Public Submit] public_slug lookup failed:", e.message);
-      }
+    const { data, slug } = body;
+
+    if (!slug || !data || typeof data !== "object") {
+      return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });
     }
-    if (!run_id || !data || typeof data !== "object") {
-      return NextResponse.json({ success: false, error: "run_id and data required" }, { status: 400 });
+
+    // Resolve the run from its public slug — numeric run IDs are never
+    // accepted on the public endpoint (prevents sequential-ID probing).
+    let run_id = null;
+    try {
+      const runBySlug = await db.execute({
+        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
+        args: [slug],
+      });
+      if (runBySlug.rows.length > 0) {
+        run_id = runBySlug.rows[0].id;
+      }
+    } catch (e) {
+      console.warn("[Public Submit] public_slug lookup failed:", e.message);
+    }
+    if (!run_id) {
+      return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
 
     // Verify run exists and is active
