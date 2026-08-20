@@ -18,6 +18,8 @@
       "roleDefaultSuffix": "(role default)",
       "responsibilities": "Responsibilities",
       "noResponsibilities": "No responsibilities assigned",
+      "assignments": "Assignments",
+      "noAssignments": "No program/venture assignments",
       "permissionOverrides": "Permission Overrides",
       "noOverrides": "No individual overrides",
       "grants": "Grants",
