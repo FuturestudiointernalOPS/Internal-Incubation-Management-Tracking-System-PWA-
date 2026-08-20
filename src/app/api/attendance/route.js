@@ -87,11 +87,20 @@ export async function POST(req) {
 
     // ─── Attendance integrity: attendance can only be recorded for today ───
     // Super admins keep full control (corrections / backfill); all other
-    // roles (program_manager, teacher, staff, facilitator) are locked to
-    // today's date so past/future days cannot be backdated or prefilled.
+    // roles are locked to today. A ±1 day window tolerates client/server
+    // timezone differences while still blocking far-past/future dates.
     const todayStr = getLocalToday();
     const requestedDate = scoped[0].date || todayStr;
-    if (session?.role !== "super_admin" && requestedDate !== todayStr) {
+    const withinTodayWindow = (() => {
+      const base = new Date();
+      const ok = new Set();
+      for (let i = -1; i <= 1; i++) {
+        const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+        ok.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      }
+      return ok.has(requestedDate);
+    })();
+    if (session?.role !== "super_admin" && !withinTodayWindow) {
       return NextResponse.json(
         {
           success: false,
