@@ -1050,6 +1050,7 @@ function ProgramWorkspace() {
     if (id) loadReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
   const handleScheduleFollowup = async () => {
     if (!selectedSubmission) return;
     if (!followupDate || !followupTime) {
