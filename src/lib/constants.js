@@ -164,6 +164,19 @@ export function getCurrentWeek() {
 }
 
 /**
+ * Returns today's date in the local timezone as "YYYY-MM-DD".
+ * Prefer this over `new Date().toISOString().slice(0, 10)`, which returns UTC
+ * and can shift the date by one day for non-UTC timezones.
+ */
+export function getLocalToday() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Format a date string to a human-readable format
  * @param {string|Date} date
  * @param {object} [options]

@@ -39,7 +39,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
-import { getWeekNumber } from "@/lib/constants";
+import { getWeekNumber, getLocalToday } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 
 export const dynamic = "force-dynamic";
@@ -193,7 +193,7 @@ function ProgramWorkspace() {
     useState(null);
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(
-    () => new Date().toISOString().split("T")[0]
+    () => getLocalToday()
   );
   const [pmReportAttachments, setPmReportAttachments] = useState({
     type: "text",
@@ -4772,8 +4772,8 @@ function ProgramWorkspace() {
                     value={attendanceDate}
                     onChange={(e) => setAttendanceDate(e.target.value)}
                     className="w-full bg-transparent text-sm font-bold text-[var(--text-primary)] outline-none"
-                    max={new Date().toISOString().split("T")[0]}
-                    min={new Date().toISOString().split("T")[0]}
+                    max={getLocalToday()}
+                    min={getLocalToday()}
                   />
                 </div>
               </div>
