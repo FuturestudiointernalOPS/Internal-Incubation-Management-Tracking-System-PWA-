@@ -60,6 +60,7 @@
       "retry": "Réessayer",
       "statusApproved": "Approuvé",
       "statusPending": "En attente",
+      "statusAwaitingReview": "Soumis — En attente de correction",
       "statusRejected": "Rejeté",
       "statusDraft": "Brouillon"
     },

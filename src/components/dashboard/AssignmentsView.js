@@ -28,7 +28,7 @@ function StatusBadge({ status }) {
   };
   const statusLabels = {
     approved: t("participantMisc.assignments.statusApproved"),
-    pending: t("participantMisc.assignments.statusPending"),
+    pending: t("participantMisc.assignments.statusAwaitingReview"),
     rejected: t("participantMisc.assignments.statusRejected"),
     draft: t("participantMisc.assignments.statusDraft"),
   };
