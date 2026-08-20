@@ -37,7 +37,13 @@ export function ensureTokenHashColumns() {
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_venture_invite_links_token_hash ON venture_invite_links(token_hash) WHERE token_hash IS NOT NULL",
       ];
       for (const sql of statements) {
-        await db.execute(sql);
+        try {
+          await db.execute(sql);
+        } catch (e) {
+          // A missing table (e.g. venture_invite_links before first use) must
+          // not fail the whole self-heal batch or trigger endless retries.
+          console.warn("[TokenHashing] skipped statement:", e.message);
+        }
       }
       return true;
     })().catch((e) => {

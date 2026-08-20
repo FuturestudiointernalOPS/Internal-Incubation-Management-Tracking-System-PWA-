@@ -27,6 +27,7 @@ export async function POST(req) {
       sql: `CREATE TABLE IF NOT EXISTS venture_invite_links (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         token TEXT NOT NULL UNIQUE,
+        token_hash TEXT,
         created_by TEXT REFERENCES contacts(cid),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         expires_at TIMESTAMPTZ NOT NULL,

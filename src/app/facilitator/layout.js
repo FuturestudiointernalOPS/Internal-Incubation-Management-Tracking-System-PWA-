@@ -24,7 +24,11 @@ export default async function FacilitatorLayout({ children }) {
       session.email,
     );
     if (!assigned) {
-      redirect(roleHomeHref(session.role) || "/workspaces");
+      const home = roleHomeHref(session.role) || "/workspaces";
+      // A facilitator-role user WITHOUT an assignment must never be sent to
+      // their own role home (/facilitator) — that is an infinite redirect.
+      // Send them to the neutral workspace hub instead.
+      redirect(home === "/facilitator" ? "/workspaces" : home);
     }
   }
 
