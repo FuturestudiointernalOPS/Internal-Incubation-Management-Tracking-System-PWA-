@@ -731,14 +731,18 @@ export async function getFacilitatorPermissionLevel(programId, assignment, capab
   let level = 0;
   try {
     await initDb();
+    let found = false;
     if (assignment?.permissions) {
       let ov = assignment.permissions;
       if (typeof ov === "string") {
         try { ov = JSON.parse(ov); } catch { ov = null; }
       }
-      if (ov && typeof ov[capability] === "number") level = ov[capability];
+      if (ov && typeof ov[capability] === "number") {
+        level = ov[capability];
+        found = true;
+      }
     }
-    if (level === 0 && assignment?.access_profile_id) {
+    if (!found && assignment?.access_profile_id) {
       // Fall back to the assignment's Access Profile template capabilities.
       // Profile rows are (module, capability, access_level); overrides use
       // "module.capability" dot keys — normalize both sides for the lookup.
@@ -751,12 +755,13 @@ export async function getFacilitatorPermissionLevel(programId, assignment, capab
           const dotKey = `${row.module}.${row.capability}`;
           if (dotKey === capability || row.capability === capability) {
             level = Number(row.access_level) || 0;
+            found = true;
             break;
           }
         }
       } catch (_) {}
     }
-    if (level === 0) {
+    if (!found) {
       const prog = await db.execute({
         sql: "SELECT facilitator_default_permissions FROM v2_programs WHERE id = ?",
         args: [programId],
