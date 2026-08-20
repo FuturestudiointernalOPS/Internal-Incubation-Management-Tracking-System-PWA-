@@ -96,6 +96,7 @@ export async function POST(req) {
         response_id: parseInt(response_id),
         status: "active",
         email_sent: !!sendResult?.success,
+        share_url: shareUrl,
       },
     });
   } catch (error) {
