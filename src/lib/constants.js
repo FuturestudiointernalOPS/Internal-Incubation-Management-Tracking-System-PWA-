@@ -176,6 +176,24 @@ export function getLocalToday() {
   return `${y}-${m}-${day}`;
 }
 
+// ─── FACILITATOR WEEKLY REVIEW OPTIONS ────────────────────────────────
+// Stable codes stored in the DB. The UI maps each code to a localized label
+// via the `pmMisc.facilitators.weeklyReview.*` i18n keys (rating_*, engagement_*,
+// attention_*).
+export const FACILITATOR_REVIEW_OPTIONS = {
+  ratings: ["excellent", "good", "okay", "difficult"],
+  engagement: ["high", "moderate", "low", "concerning"],
+  attention: [
+    "nothing",
+    "participant",
+    "group",
+    "attendance",
+    "session",
+    "assignment",
+    "other",
+  ],
+};
+
 /**
  * Format a date string to a human-readable format
  * @param {string|Date} date

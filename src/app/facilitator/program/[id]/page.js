@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
-import { getLocalToday } from "@/lib/constants";
+import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -38,18 +38,30 @@ export default function FacilitatorProgram({ params }) {
   const [attendanceDate, setAttendanceDate] = useState(() => getLocalToday());
   const [loading, setLoading] = useState(true);
   const [review, setReview] = useState({
-    participant_progress: "",
-    attendance_concerns: "",
-    assignment_performance: "",
-    challenges: "",
-    participants_needing_intervention: "",
-    completed_work: "",
-    needs_attention: "",
-    recommendations: "",
+    overall_rating: "",
+    went_well: "",
+    struggles: "",
+    engagement: "",
+    needs_attention_type: "",
+    needs_attention_note: "",
+    focus_next_week: "",
+    additional_notes: "",
   });
+  const [reviewWeek, setReviewWeek] = useState(1);
   const [savingReview, setSavingReview] = useState(false);
   const [savingAtt, setSavingAtt] = useState(false);
   const [myReviews, setMyReviews] = useState([]);
+
+  const computeProgramWeek = (program) => {
+    if (!program?.start_date) return 1;
+    const start = new Date(String(program.start_date).slice(0, 10) + "T00:00:00");
+    const today = new Date(getLocalToday() + "T00:00:00");
+    if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) return 1;
+    const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24));
+    if (diffDays < 0) return 1;
+    const max = Number(program.duration_weeks) || 13;
+    return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -59,6 +71,7 @@ export default function FacilitatorProgram({ params }) {
       if (progData.success) {
         setProgram(progData.program);
         setSessions(progData.sessions || []);
+        setReviewWeek(computeProgramWeek(progData.program));
       }
 
       const parRes = await fetch(`/api/participants?program_id=${id}`);
@@ -101,33 +114,57 @@ export default function FacilitatorProgram({ params }) {
       new CustomEvent("impactos:notify", { detail: { type, message } }),
     );
 
+  const reviewRatingLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.ratings.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.rating_${v}`)
+      : v || "";
+  const reviewEngagementLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.engagement.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.engagement_${v}`)
+      : v || "";
+  const reviewAttentionLabel = (v) =>
+    FACILITATOR_REVIEW_OPTIONS.attention.includes(v)
+      ? t(`pmMisc.facilitators.weeklyReview.attention_${v}`)
+      : v || "";
+  const reviewStatusLabel = (r) => {
+    if (r.pm_decision === "changes_requested")
+      return t("pmMisc.facilitators.weeklyReview.status_changes_requested");
+    if (r.status === "decided")
+      return t("pmMisc.facilitators.weeklyReview.status_decided");
+    return t("pmMisc.facilitators.weeklyReview.status_submitted");
+  };
+
   const submitReview = async () => {
+    if (!review.overall_rating) {
+      notify("error", t("pmMisc.facilitators.weeklyReview.ratingRequired"));
+      return;
+    }
     setSavingReview(true);
     try {
       const res = await fetch("/api/facilitator-reviews", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ program_id: id, ...review }),
+        body: JSON.stringify({ program_id: id, week_number: reviewWeek, ...review }),
       });
       const data = await res.json();
       if (data.success) {
-        notify("success", "Review submitted to Program Manager");
+        notify("success", t("pmMisc.facilitators.weeklyReview.submitSuccess"));
         setReview({
-          participant_progress: "",
-          attendance_concerns: "",
-          assignment_performance: "",
-          challenges: "",
-          participants_needing_intervention: "",
-          completed_work: "",
-          needs_attention: "",
-          recommendations: "",
+          overall_rating: "",
+          went_well: "",
+          struggles: "",
+          engagement: "",
+          needs_attention_type: "",
+          needs_attention_note: "",
+          focus_next_week: "",
+          additional_notes: "",
         });
         load();
       } else {
-        notify("error", data.error || "Failed to submit");
+        notify("error", data.error || t("pmMisc.facilitators.weeklyReview.submitError"));
       }
     } catch (e) {
-      notify("error", "Failed to submit");
+      notify("error", t("pmMisc.facilitators.weeklyReview.submitError"));
     } finally {
       setSavingReview(false);
     }
@@ -463,62 +500,92 @@ export default function FacilitatorProgram({ params }) {
         {tab === "review" && (
           <div className="space-y-6">
             <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                Submit Facilitator Review — goes to your Program Manager
-              </h2>
-              <ReviewField
-                label="Participant progress"
-                value={review.participant_progress}
-                onChange={(v) =>
-                  setReview({ ...review, participant_progress: v })
-                }
+              <div>
+                <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("pmMisc.facilitators.weeklyReview.title")}
+                </h2>
+                <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                  {t("pmMisc.facilitators.weeklyReview.subtitle")}
+                </p>
+                <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 bg-primary">
+                  <span className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+                    {t("pmMisc.facilitators.weeklyReview.week")}
+                  </span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={reviewWeek}
+                    onChange={(e) => setReviewWeek(parseInt(e.target.value) || 1)}
+                    className="w-16 bg-transparent text-center text-[11px] font-black text-[var(--text-primary)] outline-none"
+                  />
+                </div>
+              </div>
+
+              <ReviewSelect
+                label={t("pmMisc.facilitators.weeklyReview.q1")}
+                value={review.overall_rating}
+                onChange={(v) => setReview({ ...review, overall_rating: v })}
+                options={FACILITATOR_REVIEW_OPTIONS.ratings.map((v) => ({
+                  value: v,
+                  label: t(`pmMisc.facilitators.weeklyReview.rating_${v}`),
+                }))}
               />
+
               <ReviewField
-                label="Attendance concerns"
-                value={review.attendance_concerns}
-                onChange={(v) =>
-                  setReview({ ...review, attendance_concerns: v })
-                }
+                label={t("pmMisc.facilitators.weeklyReview.q2")}
+                value={review.went_well}
+                onChange={(v) => setReview({ ...review, went_well: v })}
               />
+
               <ReviewField
-                label="Assignment performance"
-                value={review.assignment_performance}
-                onChange={(v) =>
-                  setReview({ ...review, assignment_performance: v })
-                }
+                label={t("pmMisc.facilitators.weeklyReview.q3")}
+                value={review.struggles}
+                onChange={(v) => setReview({ ...review, struggles: v })}
               />
+
+              <ReviewSelect
+                label={t("pmMisc.facilitators.weeklyReview.q4")}
+                value={review.engagement}
+                onChange={(v) => setReview({ ...review, engagement: v })}
+                options={FACILITATOR_REVIEW_OPTIONS.engagement.map((v) => ({
+                  value: v,
+                  label: t(`pmMisc.facilitators.weeklyReview.engagement_${v}`),
+                }))}
+              />
+
+              <ReviewSelect
+                label={t("pmMisc.facilitators.weeklyReview.q5")}
+                value={review.needs_attention_type}
+                onChange={(v) => setReview({ ...review, needs_attention_type: v })}
+                options={FACILITATOR_REVIEW_OPTIONS.attention.map((v) => ({
+                  value: v,
+                  label: t(`pmMisc.facilitators.weeklyReview.attention_${v}`),
+                }))}
+              />
+
+              {review.needs_attention_type &&
+                review.needs_attention_type !== "nothing" && (
+                  <ReviewField
+                    label={t("pmMisc.facilitators.weeklyReview.q5note")}
+                    value={review.needs_attention_note}
+                    onChange={(v) =>
+                      setReview({ ...review, needs_attention_note: v })
+                    }
+                  />
+                )}
+
               <ReviewField
-                label="Challenges"
-                value={review.challenges}
-                onChange={(v) => setReview({ ...review, challenges: v })}
+                label={t("pmMisc.facilitators.weeklyReview.q6")}
+                value={review.focus_next_week}
+                onChange={(v) => setReview({ ...review, focus_next_week: v })}
               />
+
               <ReviewField
-                label="Participants requiring intervention"
-                value={review.participants_needing_intervention}
-                onChange={(v) =>
-                  setReview({
-                    ...review,
-                    participants_needing_intervention: v,
-                  })
-                }
+                label={t("pmMisc.facilitators.weeklyReview.q7")}
+                value={review.additional_notes}
+                onChange={(v) => setReview({ ...review, additional_notes: v })}
               />
-              <ReviewField
-                label="What was completed"
-                value={review.completed_work}
-                onChange={(v) => setReview({ ...review, completed_work: v })}
-              />
-              <ReviewField
-                label="What needs attention"
-                value={review.needs_attention}
-                onChange={(v) => setReview({ ...review, needs_attention: v })}
-              />
-              <ReviewField
-                label="Recommendations"
-                value={review.recommendations}
-                onChange={(v) =>
-                  setReview({ ...review, recommendations: v })
-                }
-              />
+
               <button
                 disabled={savingReview}
                 onClick={submitReview}
@@ -529,14 +596,14 @@ export default function FacilitatorProgram({ params }) {
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
-                Submit Review
+                {t("pmMisc.facilitators.weeklyReview.submit")}
               </button>
             </div>
 
             {myReviews.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                  My Previous Reviews
+                  {t("pmMisc.facilitators.weeklyReview.myReviews")}
                 </h2>
                 {myReviews.map((r) => (
                   <div
@@ -545,30 +612,64 @@ export default function FacilitatorProgram({ params }) {
                   >
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">
-                        Submitted {new Date(r.created_at).toLocaleDateString()}
+                        {t("pmMisc.facilitators.weeklyReview.submittedAt", {
+                          date: new Date(r.created_at).toLocaleDateString(),
+                        })}
+                        {r.week_number
+                          ? ` · ${t("pmMisc.facilitators.weeklyReview.week")} ${r.week_number}`
+                          : ""}
                       </span>
                       <span
                         className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
-                          r.status === "decided"
-                            ? "bg-emerald-500/15 text-emerald-400"
-                            : "bg-amber-500/15 text-amber-400"
+                          r.pm_decision === "changes_requested"
+                            ? "bg-rose-500/15 text-rose-400"
+                            : r.status === "decided"
+                              ? "bg-emerald-500/15 text-emerald-400"
+                              : "bg-amber-500/15 text-amber-400"
                         }`}
                       >
-                        {r.status}
+                        {reviewStatusLabel(r)}
                       </span>
                     </div>
-                    {r.participant_progress && (
-                      <p className="text-[9px] text-[var(--text-secondary)]">
-                        <strong className="text-[var(--text-primary)]">
-                          Progress:
-                        </strong>{" "}
-                        {r.participant_progress}
-                      </p>
-                    )}
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.overall")}
+                      value={
+                        reviewRatingLabel(r.overall_rating) ||
+                        r.participant_progress
+                      }
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.engagement")}
+                      value={reviewEngagementLabel(r.engagement)}
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.wentWell")}
+                      value={r.went_well}
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.struggles")}
+                      value={r.struggles || r.challenges}
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.needsAttention")}
+                      value={
+                        reviewAttentionLabel(r.needs_attention_type) ||
+                        r.needs_attention
+                      }
+                      note={r.needs_attention_note}
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.focusNextWeek")}
+                      value={r.focus_next_week || r.recommendations}
+                    />
+                    <ReviewSummaryRow
+                      label={t("pmMisc.facilitators.weeklyReview.additionalNotes")}
+                      value={r.additional_notes}
+                    />
                     {r.pm_decision && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
                         <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
-                          PM Decision
+                          {t("pmMisc.facilitators.weeklyReview.decision")}
                         </p>
                         <p className="text-[9px] text-[var(--text-primary)]">
                           {r.pm_decision}
@@ -604,6 +705,43 @@ function ReviewField({ label, value, onChange }) {
         placeholder="Optional…"
         className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
       />
+    </div>
+  );
+}
+
+function ReviewSelect({ label, value, onChange, options, placeholder }) {
+  return (
+    <div className="space-y-1">
+      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] cursor-pointer text-[var(--text-primary)]"
+      >
+        <option value="">{placeholder || "Select…"}</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ReviewSummaryRow({ label, value, note }) {
+  if (!value && !note) return null;
+  return (
+    <div className="text-[9px]">
+      <p className="text-[var(--text-secondary)]">
+        <strong className="text-[var(--text-primary)]">{label}:</strong>{" "}
+        {value || ""}
+      </p>
+      {note && (
+        <p className="text-[var(--text-secondary)] mt-0.5 pl-1">{note}</p>
+      )}
     </div>
   );
 }
