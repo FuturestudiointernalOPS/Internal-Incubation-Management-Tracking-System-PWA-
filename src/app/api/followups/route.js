@@ -1,7 +1,13 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, requireProgramFacilitator, getFacilitatorTeamScope } from "@/lib/auth";
+import { getSession, requireProgramFacilitator, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+
+async function ensureFollowupSchema() {
+  try {
+    await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS created_by TEXT");
+  } catch (_) {}
+}
 
 /**
  * For facilitators, resolve program assignment + team scope and return a guard.
@@ -9,7 +15,7 @@ import { getSession, requireProgramFacilitator, getFacilitatorTeamScope } from "
  */
 async function getFacilitatorScopeGuard(req, programId) {
   const session = await getSession();
-  if (session?.role !== "facilitator") return null;
+  if (session && hasProgramManagementAccess(session.role)) return null;
   if (!programId) {
     return {
       deny: true,
@@ -34,8 +40,10 @@ async function getFacilitatorScopeGuard(req, programId) {
  */
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
+  { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator", "participant"] },
   async (req) => {
+    await ensureFollowupSchema();
+    const session = await getSession();
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     const participantId = searchParams.get("participant_id");
@@ -69,18 +77,15 @@ export const GET = createHandler(
       args.push(status);
     }
 
-    // Facilitators may only see follow-ups for participants in their teams.
-    const scopeGuard = await getFacilitatorScopeGuard(req, programId);
-    if (scopeGuard?.deny) return scopeGuard.response;
-    if (scopeGuard && scopeGuard.scope.scope !== "all") {
-      if (scopeGuard.scope.teamIds.length === 0) {
-        return NextResponse.json({ success: true, followups: [] });
-      }
-      sql +=
-        " AND f.participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
-        scopeGuard.scope.teamIds.map(() => "?").join(",") +
-        "))";
-      args.push(...scopeGuard.scope.teamIds);
+    // Visibility: super_admin sees all; participants see their own; everyone
+    // else sees follow-ups they assigned. Legacy rows (created_by NULL) remain
+    // visible to non-participant staff so historical data is not lost.
+    if (session?.role === "participant") {
+      sql += " AND f.participant_id = ?";
+      args.push(session.cid);
+    } else if (session?.role !== "super_admin") {
+      sql += " AND (f.created_by IS NULL OR f.created_by = ?)";
+      args.push(session.cid);
     }
 
     sql += " ORDER BY f.scheduled_at DESC";
@@ -93,6 +98,8 @@ export const GET = createHandler(
 export const POST = createHandler(
   { roles: ["staff", "super_admin", "teacher", "program_manager", "facilitator"] },
   async (req) => {
+    await ensureFollowupSchema();
+    const session = await getSession();
     const body = await req.json();
     const {
       program_id,
@@ -139,8 +146,8 @@ export const POST = createHandler(
     const result = await db.execute({
       sql: `INSERT INTO v2_followups (
           program_id, participant_id, submission_id, week_number,
-          comment, scheduled_at, duration_minutes, meeting_link, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled') RETURNING *`,
+          comment, scheduled_at, duration_minutes, meeting_link, notes, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?) RETURNING *`,
       args: [
         program_id,
         participant_id || null,
@@ -151,6 +158,7 @@ export const POST = createHandler(
         duration_minutes || 30,
         meeting_link || null,
         notes || null,
+        session.cid || null,
       ],
     });
 
@@ -169,7 +177,7 @@ export const POST = createHandler(
           scheduledDate.toISOString(),
           endDate.toISOString(),
           participant_id || null,
-          "staff",
+          session.cid || "staff",
         ],
       });
     } catch (_) {
