@@ -344,12 +344,15 @@ export default function MessagingChat({ role = "super_admin" }) {
   );
 
   // ── Available contacts (filtered by permissions) ──
+  // Participants/founders get a server-scoped list from /api/messaging/contacts,
+  // so their contacts can be trusted directly (no extra client-side canMessage).
   const contacts = useMemo(() => {
     return allContacts.filter((c) => {
       if (String(c.cid || c.id) === String(uid)) return false;
+      if (role === "participant" || role === "founder") return true;
       return permissions.canMessage(c, allContacts);
     });
-  }, [allContacts, permissions, uid]);
+  }, [allContacts, permissions, uid, role]);
 
   // ── Available groups for group messaging ──
   const availableGroups = useMemo(
@@ -400,15 +403,21 @@ export default function MessagingChat({ role = "super_admin" }) {
   }, [uid]);
 
   // ── Fetch all contacts ──
+  // Participants/founders use a scoped endpoint so they only see the people
+  // they are actually allowed to message (PMs, facilitators, peers).
   const fetchAllContacts = useCallback(async () => {
     try {
-      const res = await fetch("/api/contacts");
+      const url =
+        role === "participant" || role === "founder"
+          ? "/api/messaging/contacts"
+          : "/api/contacts";
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) setAllContacts(data.contacts || []);
     } catch (e) {
       console.error(e);
     }
-  }, []);
+  }, [role]);
 
   // ── Fetch families (contact groups) ──
   const fetchFamilies = useCallback(async () => {
@@ -1472,7 +1481,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   </option>
                   {availableGroups.map((g) => (
                     <option key={g.id} value={g.id}>
-                      {g.name}
+                      {g.type === "staff" ? t("messaging.staffGroup") : g.name}
                     </option>
                   ))}
                 </select>
@@ -1648,13 +1657,13 @@ export default function MessagingChat({ role = "super_admin" }) {
             <div className="flex items-center gap-3">
               <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
               <div>
-                <h3 className="text-sm font-black uppercase tracking-tight">Confirm Action</h3>
+                <h3 className="text-sm font-black uppercase tracking-tight">{t("messaging.confirmAction")}</h3>
                 <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
               </div>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
-              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">{t("common.cancel")}</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">{t("common.confirm")}</button>
             </div>
           </div>
         </div>
