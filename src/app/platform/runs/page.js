@@ -3315,7 +3315,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
                       {/* Show the generated link */}
                       {viewShareToken && (() => {
-                        const viewUrl = `${baseUrl}/share/run/${viewShareToken}`;
+                        const viewUrl = `${baseUrl}/platform/runs/view/${viewShareToken}`;
                         return (
                           <div className="space-y-2 pt-1">
                             <div className="flex gap-2">
