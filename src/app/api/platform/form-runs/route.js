@@ -1888,7 +1888,7 @@ export async function POST(req) {
           if (runRes.rows.length > 0) {
             const { run_name, form_name } = runRes.rows[0];
             const { sendRunViewTokenEmail } = await import("@/lib/email");
-            const baseUrl = request.headers.get("origin") || process.env.APP_URL || "https://impactos.futurestudio.bj";
+            const baseUrl = req.headers.get("origin") || process.env.APP_URL || "https://impactos.futurestudio.bj";
             const viewUrl = `${baseUrl}/platform/runs/view/${token}`;
 
             // Send sequentially (or concurrently, but we'll await all to not block edge runtime)
