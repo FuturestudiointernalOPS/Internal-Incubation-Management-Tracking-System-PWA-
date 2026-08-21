@@ -1653,13 +1653,25 @@ export default function TaskManager({
             </label>
             <input
               type="file"
-              onChange={(e) => setTaskFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setTaskFile(e.target.files?.[0] || null);
+                e.target.value = "";
+              }}
               className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
             />
             {taskFile && (
-              <p className="text-[8px] text-slate-500 mt-1 truncate">
-                {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
-              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-[8px] text-slate-500 truncate">
+                  {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTaskFile(null)}
+                  className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                >
+                  {t("common.remove")}
+                </button>
+              </div>
             )}
           </div>
 
@@ -1895,13 +1907,25 @@ export default function TaskManager({
                 </label>
                 <input
                   type="file"
-                  onChange={(e) => setSubTaskFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    setSubTaskFile(e.target.files?.[0] || null);
+                    e.target.value = "";
+                  }}
                   className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                 />
                 {subTaskFile && (
-                  <p className="text-[8px] text-slate-500 mt-1 truncate">
-                    {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
-                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-[8px] text-slate-500 truncate">
+                      {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSubTaskFile(null)}
+                      className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                    >
+                      {t("common.remove")}
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="flex gap-2">
