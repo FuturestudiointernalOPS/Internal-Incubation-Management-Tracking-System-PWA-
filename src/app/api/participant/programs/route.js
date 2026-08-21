@@ -127,9 +127,21 @@ export async function GET(req) {
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const attendedSessions = attendance.filter(
-        (a) => a.status === "present",
-      ).length;
+      // Count distinct sessions with a "present" mark, restricted to unlocked
+      // sessions, so duplicate attendance rows (same session recorded on
+      // multiple dates) can never push the rate above 100%.
+      const unlockedSessionIds = new Set(
+        unlockedSessions.map((s) => String(s.id)),
+      );
+      const attendedSessions = new Set(
+        attendance
+          .filter(
+            (a) =>
+              a.status === "present" &&
+              unlockedSessionIds.has(String(a.session_id)),
+          )
+          .map((a) => String(a.session_id)),
+      ).size;
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalExpectedDays = unlockedSessions.length || 1;
       // A program "tracks" attendance only when attendance records actually exist.
