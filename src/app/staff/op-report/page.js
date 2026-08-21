@@ -220,6 +220,9 @@ function StaffOpReport() {
   const [tasks, setTasks] = useState([]);
   const [carryoverTasks, setCarryoverTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  // Increment to ask the TaskManager inside the standup to open its new-task
+  // form directly ("Add Task" shortcut at the bottom of the task list).
+  const [newTaskRequest, setNewTaskRequest] = useState(0);
   const [taskCreationOpen, setTaskCreationOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -1769,10 +1772,7 @@ function StaffOpReport() {
                                                     year: report.year,
                                                   });
                                                   setShowStandupModal(true);
-                                                  setTimeout(
-                                                    () => setShowTaskForm(true),
-                                                    100,
-                                                  );
+                                                  setNewTaskRequest((c) => c + 1);
                                                 }}
                                                 className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                               >
@@ -4043,6 +4043,7 @@ function StaffOpReport() {
                   weekInfo={weekInfo}
                   showCarryOver={true}
                   readOnly={readOnly || isHistorical}
+                  requestNewTask={newTaskRequest}
                 />
               </div>
 

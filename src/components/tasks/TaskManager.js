@@ -95,6 +95,7 @@ export default function TaskManager({
   weekInfo = null, // { week, year } for standup mode
   showCarryOver = true, // show carry-over tasks section
   readOnly = false, // past-week read-only mode
+  requestNewTask = 0, // increments to auto-open the new-task form
 }) {
   const { t } = useI18n();
   const uid = userId;
@@ -260,6 +261,12 @@ export default function TaskManager({
       setForm((p) => ({ ...p, project_id: String(projectId) }));
     }
   }, [mode, projectId, showTaskForm]);
+
+  // External signal to open the new-task form directly (used by the standup
+  // "Add Task" shortcut so the creation form shows immediately).
+  useEffect(() => {
+    if (requestNewTask > 0) setShowTaskForm(true);
+  }, [requestNewTask]);
 
   // Sync taskList into local state when it changes
   useEffect(() => {
