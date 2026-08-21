@@ -128,11 +128,14 @@ export async function GET(req) {
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
-      const expectedDaysRes = await db.execute({
-        sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
-        args: [program.id]
+      // Expected attendance = sessions unlocked so far (future sessions don't count).
+      const totalExpectedDays = unlockedSessions.length || 1;
+      // A program "tracks" attendance only when attendance records actually exist.
+      const attMetaRes = await db.execute({
+        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
+        args: [program.id],
       });
-      const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
+      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
       );
@@ -172,18 +175,22 @@ export async function GET(req) {
           deliverableIdsByKpi.get(key).add(String(d.id));
         }
       }
-      if ((kpis || []).length > 0) {
-        const perKpi = kpis.map((kpi) => {
-          const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-          const achieved = approvedSubs.some((s) =>
-            linked.has(String(s.deliverable_id)),
-          );
-          return achieved ? 100 : 0;
-        });
-        kpiCompletion = Math.round(
-          perKpi.reduce((sum, v) => sum + v, 0) / perKpi.length,
+      // Attendance counts as an extra factor in KPI achievement when the
+      // program actually tracks attendance (at least one record exists).
+      const kpiFactors = (kpis || []).map((kpi) => {
+        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        const achieved = approvedSubs.some((s) =>
+          linked.has(String(s.deliverable_id)),
         );
-      }
+        return achieved ? 100 : 0;
+      });
+      if (attendanceTracked) kpiFactors.push(attendanceRate);
+      kpiCompletion =
+        kpiFactors.length > 0
+          ? Math.round(
+              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+            )
+          : 0;
 
       const facilitators = (staffRes.rows || []).map((s) => ({
         id: s.staff_id,

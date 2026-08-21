@@ -43,8 +43,8 @@ export async function GET(req) {
       overallApproved = 0,
       overallSessions = 0,
       overallAttended = 0;
-    let overallKpis = 0,
-      overallKpisMet = 0,
+    let overallKpiPoints = 0,
+      overallKpiMax = 0,
       overallDeliverables = 0,
       overallCompletedDels = 0;
     let totalStandups = 0,
@@ -164,7 +164,14 @@ export async function GET(req) {
       const attendedSessions = attendance.filter(
         (a) => a.status === "present",
       ).length;
-      const totalSessions = sessions.length || 1;
+      // Expected attendance = sessions unlocked so far (future sessions don't count).
+      const totalSessions = unlockedSessions.length || 1;
+      // A program "tracks" attendance only when attendance records actually exist.
+      const attMetaRes = await db.execute({
+        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
+        args: [pid],
+      });
+      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
@@ -210,8 +217,16 @@ export async function GET(req) {
       });
       const totalKpis = kpis.length;
       const targetMetKpis = perKpiAchieved.filter(Boolean).length;
+      // Attendance counts as an extra factor in KPI achievement when the
+      // program actually tracks attendance (at least one record exists).
+      const kpiFactors = perKpiAchieved.map((ok) => (ok ? 100 : 0));
+      if (attendanceTracked) kpiFactors.push(attendanceRate);
       const kpiCompletion =
-        totalKpis > 0 ? Math.round((targetMetKpis / totalKpis) * 100) : 0;
+        kpiFactors.length > 0
+          ? Math.round(
+              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+            )
+          : 0;
 
       const weeksWithRituals = new Set();
       standups.forEach((s) => weeksWithRituals.add(s.week_number));
@@ -227,8 +242,9 @@ export async function GET(req) {
       overallApproved += approvedSubmissions;
       overallSessions += totalSessions;
       overallAttended += attendedSessions;
-      overallKpis += totalKpis;
-      overallKpisMet += targetMetKpis;
+      overallKpiPoints +=
+        targetMetKpis * 100 + (attendanceTracked ? attendanceRate : 0);
+      overallKpiMax += totalKpis * 100 + (attendanceTracked ? 100 : 0);
       overallDeliverables += totalDeliverables;
       overallCompletedDels += completedDeliverables;
 
@@ -332,7 +348,9 @@ export async function GET(req) {
         ? Math.round((overallApproved / overallSubmissions) * 100)
         : 0;
     const overallKpiCompletion =
-      overallKpis > 0 ? Math.round((overallKpisMet / overallKpis) * 100) : 0;
+      overallKpiMax > 0
+        ? Math.round((overallKpiPoints / overallKpiMax) * 100)
+        : 0;
     const totalRituals =
       totalStandups + totalCheckins + totalRetros + totalReflections;
 
