@@ -94,7 +94,7 @@ export async function GET(req, { params }) {
       (tasksRes.rows || []).map(async (task) => {
         const [blockerRes, subtaskRes] = await Promise.all([
           db.execute({
-            sql: "SELECT id, title, status, severity, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
+            sql: "SELECT id, title, status, severity, description, reference_url, notes, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
             args: [task.id],
           }),
           db.execute({

@@ -124,7 +124,15 @@
       "carryoverPlaceholder": "Que reporterez-vous la semaine prochaine ?",
       "retroNotes": "Notes de rétrospective",
       "retroNotesPlaceholder": "Notes supplémentaires ?",
-      "submitRetro": "Soumettre la rétrospective"
+      "submitRetro": "Soumettre la rétrospective",
+      "lockedWeek": "Les points ne peuvent être créés ou modifiés que pour la semaine de reporting en cours.",
+      "archivedTasks": "Tâches archivées",
+      "noArchivedTasks": "Aucune tâche archivée.",
+      "unarchive": "Désarchiver",
+      "remove": "Retirer",
+      "draftPrompt": "Reprendre là où vous vous étiez arrêté ?",
+      "discard": "Abandonner",
+      "restoreDraft": "Reprendre"
     },
     "categories": {
       "operations": "Opérations",

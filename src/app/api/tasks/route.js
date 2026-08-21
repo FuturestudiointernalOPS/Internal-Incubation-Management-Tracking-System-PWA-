@@ -128,7 +128,7 @@ export async function GET(req) {
 
       // Fetch blockers + subtasks for this single task
       const blockerRes = await db.execute({
-        sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ?",
+        sql: "SELECT id, title, status, severity, description, reference_url, notes FROM blockers WHERE task_id = ?",
         args: [parseInt(id)],
       });
       const subtaskRes = await db.execute({
@@ -249,7 +249,7 @@ export async function GET(req) {
     if (taskIds.length > 0) {
       // Single batch query for all blockers
       const blockerRes = await db.execute({
-        sql: `SELECT id, title, status, severity, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
+        sql: `SELECT id, title, status, severity, description, reference_url, notes, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
         args: taskIds,
       });
       for (const b of blockerRes.rows || []) {
@@ -260,6 +260,9 @@ export async function GET(req) {
           title: b.title,
           status: b.status,
           severity: b.severity,
+          description: b.description,
+          reference_url: b.reference_url,
+          notes: b.notes,
         });
       }
 

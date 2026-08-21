@@ -444,7 +444,7 @@ export async function PUT(req) {
 
     // Verify the program exists before updating or assigning
     const progExists = await db.execute({
-      sql: "SELECT id FROM v2_programs WHERE id = ?",
+      sql: "SELECT id, assigned_pm_id FROM v2_programs WHERE id = ?",
       args: [id],
     });
     if (progExists.rows.length === 0) {
@@ -517,8 +517,9 @@ export async function PUT(req) {
       details: `Program "${name}" updated`,
     });
 
-    // B11: Notification PM assignment change
-    if (assigned_pm_id) {
+    // B11: Notification PM assignment — only log when the PM actually changes
+    const previousPmId = progExists.rows[0]?.assigned_pm_id;
+    if (assigned_pm_id && String(assigned_pm_id) !== String(previousPmId)) {
       await logAuditEvent({
         entity_type: "program_assignment",
         entity_id: id,

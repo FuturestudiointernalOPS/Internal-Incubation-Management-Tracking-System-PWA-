@@ -31,7 +31,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { uploadFile } from "@/lib/storage";
+import { uploadTaskAttachment } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
@@ -95,6 +95,7 @@ export default function TaskManager({
   weekInfo = null, // { week, year } for standup mode
   showCarryOver = true, // show carry-over tasks section
   readOnly = false, // past-week read-only mode
+  requestNewTask = 0, // increments to auto-open the new-task form
 }) {
   const { t } = useI18n();
   const uid = userId;
@@ -162,6 +163,7 @@ export default function TaskManager({
     status: "",
     assigned_to: "",
     priority: "medium",
+    link: "",
   });
 
   // ── Comments (Ticket 1.3 / 1.9) ──
@@ -234,8 +236,7 @@ export default function TaskManager({
   };
 
   const attachFileToTask = async (taskId, file) => {
-    const path = `${taskId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-    const upload = await uploadFile("knowledge", path, file);
+    const upload = await uploadTaskAttachment(file, taskId);
     if (!upload.success)
       return { success: false, error: upload.error || "Upload failed" };
     const res = await fetch("/api/tasks/resources", {
@@ -250,7 +251,8 @@ export default function TaskManager({
         file_size: file.size,
       }),
     });
-    return { success: res.ok };
+    const data = await res.json();
+    return { success: data.success, error: data.error };
   };
 
   // Auto-populate project_id from prop when in project mode
@@ -259,6 +261,12 @@ export default function TaskManager({
       setForm((p) => ({ ...p, project_id: String(projectId) }));
     }
   }, [mode, projectId, showTaskForm]);
+
+  // External signal to open the new-task form directly (used by the standup
+  // "Add Task" shortcut so the creation form shows immediately).
+  useEffect(() => {
+    if (requestNewTask > 0) setShowTaskForm(true);
+  }, [requestNewTask]);
 
   // Sync taskList into local state when it changes
   useEffect(() => {
@@ -285,8 +293,7 @@ export default function TaskManager({
 
       // If a file is selected, upload it first
       if (resourceFile) {
-        const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-        const upload = await uploadFile("knowledge", path, resourceFile);
+        const upload = await uploadTaskAttachment(resourceFile, taskId);
         if (!upload.success) {
           notify('error', t((upload.error || "Upload failed") || "") || (upload.error || "Upload failed"));
           setResourceAdding(false);
@@ -845,10 +852,8 @@ export default function TaskManager({
                 : ""
           } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
-          {/* Checkbox — always available for sub-tasks (independent completion, Ticket 1.3).
-              For parent tasks, hidden in standup mode since the status dropdown covers it. */}
-          {(mode !== "standup" || isSub) &&
-            (() => {
+          {/* Checkbox — available for both parent and sub-tasks (independent completion, Ticket 1.3). */}
+          {(() => {
               const canCheck =
                 mode === "project"
                   ? String(task.user_id) === String(currentUserId) ||
@@ -1045,6 +1050,7 @@ export default function TaskManager({
                   status: task.status || "in_progress",
                   assigned_to: task.assigned_to || "",
                   priority: task.priority || "medium",
+                  link: task.link || "",
                 });
                 setEditTaskModal(task);
               }}
@@ -1425,7 +1431,7 @@ export default function TaskManager({
         !showTaskForm && (
           <div className="text-center py-6">
             <ListTodo className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-[10px] text-slate-500">No tasks yet</p>
+            <p className="text-[10px] text-slate-500">{t("staffMisc.standupRetro.noTasksYet")}</p>
           </div>
         )}
 
@@ -1654,13 +1660,25 @@ export default function TaskManager({
             </label>
             <input
               type="file"
-              onChange={(e) => setTaskFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                setTaskFile(e.target.files?.[0] || null);
+                e.target.value = "";
+              }}
               className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
             />
             {taskFile && (
-              <p className="text-[8px] text-slate-500 mt-1 truncate">
-                {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
-              </p>
+              <div className="mt-1 flex items-center gap-2">
+                <p className="text-[8px] text-slate-500 truncate">
+                  {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTaskFile(null)}
+                  className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                >
+                  {t("common.remove")}
+                </button>
+              </div>
             )}
           </div>
 
@@ -1896,13 +1914,25 @@ export default function TaskManager({
                 </label>
                 <input
                   type="file"
-                  onChange={(e) => setSubTaskFile(e.target.files?.[0] || null)}
+                  onChange={(e) => {
+                    setSubTaskFile(e.target.files?.[0] || null);
+                    e.target.value = "";
+                  }}
                   className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                 />
                 {subTaskFile && (
-                  <p className="text-[8px] text-slate-500 mt-1 truncate">
-                    {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
-                  </p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <p className="text-[8px] text-slate-500 truncate">
+                      {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setSubTaskFile(null)}
+                      className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                    >
+                      {t("common.remove")}
+                    </button>
+                  </div>
                 )}
               </div>
               <div className="flex gap-2">
@@ -1969,6 +1999,21 @@ export default function TaskManager({
                 rows={2}
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
               />
+
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Resource Link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={editForm.link || ""}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, link: e.target.value }))
+                  }
+                  placeholder="https://..."
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
 
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
@@ -2106,6 +2151,7 @@ export default function TaskManager({
                         end_date: editForm.due_date || null,
                         assigned_to: editForm.assigned_to || null,
                         priority: editForm.priority || "medium",
+                        link: editForm.link || null,
                         user_id: uid,
                       }),
                     });

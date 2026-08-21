@@ -93,6 +93,72 @@ export const uploadFile = async (bucket, path, file) => {
   }
 }
 
+/**
+ * Task attachments use a dedicated bucket and accept any file type (unlike
+ * knowledge-bank files, which are restricted to documents/images). Size is
+ * still capped to avoid unbounded storage.
+ */
+export const uploadTaskAttachment = async (file, taskId) => {
+  try {
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      return {
+        success: false,
+        error: `File size exceeds the maximum of 5MB. This file is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Please compress it or upload a file link/URL instead.`
+      }
+    }
+
+    const bucket = 'task-attachments'
+    const sanitized = file.name.replace(/\s+/g, '_')
+    const path = `${taskId}/${Date.now()}_${sanitized}`
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, {
+        cacheControl: '3600',
+        upsert: true,
+      })
+
+    if (error) {
+      if (/bucket.*not found|does not exist/i.test(error.message)) {
+        await supabase.storage.createBucket(bucket, { public: true });
+        const retry = await supabase.storage
+          .from(bucket)
+          .upload(path, file, {
+            cacheControl: '3600',
+            upsert: true,
+          });
+        if (retry.error) throw retry.error;
+        const { data: retryUrl } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(path);
+        return { success: true, url: retryUrl.publicUrl, data: retry.data };
+      }
+      throw error;
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(path)
+
+    return { success: true, url: publicUrl, data }
+  } catch (error) {
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: `Storage bucket "task-attachments" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
+  }
+}
+
 export const deleteFile = async (bucket, path) => {
   try {
     const { error } = await supabase.storage.from(bucket).remove([path])

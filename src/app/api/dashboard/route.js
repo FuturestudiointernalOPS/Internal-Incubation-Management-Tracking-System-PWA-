@@ -220,9 +220,9 @@ export async function GET(req) {
                FROM tasks WHERE assigned_to::text = ?::text
                ORDER BY created_at DESC LIMIT 3)
               UNION ALL
-              (SELECT action, details AS description, created_at AS timestamp, user_id
+              (SELECT DISTINCT ON (entity_id, action) action, details AS description, created_at AS timestamp, user_id
                FROM audit_log WHERE entity_type = 'program_assignment' AND user_id = ?
-               ORDER BY created_at DESC LIMIT 3)
+               ORDER BY entity_id, action, created_at DESC LIMIT 3)
               ORDER BY timestamp DESC LIMIT 10`,
         args: [userId, userId, userId, userId, userId],
       }),

@@ -54,6 +54,45 @@ function getCurrentWeek() {
   return { week: getWeekNumber(now), year: now.getFullYear() };
 }
 
+// Returns true when a stand-up draft actually contains something the user
+// typed/added (a non-empty field or at least one task row). Empty drafts are
+// not worth showing or keeping.
+function hasDraftContent(form, taskRows) {
+  if (Array.isArray(taskRows) && taskRows.length > 0) return true;
+  if (!form) return false;
+
+  const arrayFields = [
+    "top_priorities",
+    "expected_deliverables",
+    "completed_work",
+    "unfinished_tasks",
+    "wins",
+    "carryover_items",
+  ];
+  for (const f of arrayFields) {
+    if (Array.isArray(form[f]) && form[f].length > 0) return true;
+  }
+
+  const stringFields = [
+    "projects_tasks",
+    "dependency_note",
+    "blocker_description",
+    "support_note",
+    "additional_notes",
+    "challenges",
+    "week_status",
+    "blocker_type",
+    "blocker_desc",
+    "major_achievement",
+    "retro_notes",
+  ];
+  for (const f of stringFields) {
+    if (typeof form[f] === "string" && form[f].trim() !== "") return true;
+  }
+
+  return false;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   try {
@@ -181,6 +220,9 @@ function StaffOpReport() {
   const [tasks, setTasks] = useState([]);
   const [carryoverTasks, setCarryoverTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  // Increment to ask the TaskManager inside the standup to open its new-task
+  // form directly ("Add Task" shortcut at the bottom of the task list).
+  const [newTaskRequest, setNewTaskRequest] = useState(0);
   const [taskCreationOpen, setTaskCreationOpen] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDescription, setNewTaskDescription] = useState("");
@@ -239,15 +281,19 @@ function StaffOpReport() {
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
-      const draft = {
-        form,
-        taskRows,
-        reportType,
-        showTaskForm,
-        savedAt: Date.now(),
-      };
       try {
-        localStorage.setItem(key, JSON.stringify(draft));
+        if (hasDraftContent(form, taskRows)) {
+          const draft = {
+            form,
+            taskRows,
+            reportType,
+            showTaskForm,
+            savedAt: Date.now(),
+          };
+          localStorage.setItem(key, JSON.stringify(draft));
+        } else {
+          localStorage.removeItem(key);
+        }
       } catch (e) {
         // localStorage full or unavailable — silently ignore
       }
@@ -266,8 +312,7 @@ function StaffOpReport() {
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Only show banner if draft is from today or earlier (prevents showing banner right after save)
-        if (parsed.form || (parsed.taskRows && parsed.taskRows.length > 0)) {
+        if (hasDraftContent(parsed.form, parsed.taskRows)) {
           setDraftAvailable(true);
           return;
         }
@@ -482,7 +527,7 @@ function StaffOpReport() {
       );
       // Fetch tasks assigned TO the user
       const assignedRes = await fetch(
-        `/api/tasks?assigned_to=${userId}&brief=true`,
+        `/api/tasks?assigned_to=${userId}`,
       );
       const assignedData = await assignedRes.json();
 
@@ -1313,11 +1358,16 @@ function StaffOpReport() {
                       {history
                         .filter((r) => r.report_type === "standup")
                         .map((report) => {
-                          const taskCount = tasks.filter(
+                          const weekTasks = tasks.filter(
                             (t) =>
                               t.created_week === report.week_number &&
                               t.created_year === report.year,
-                          ).length;
+                          );
+                          const taskCount = weekTasks.reduce(
+                            (sum, t) =>
+                              sum + 1 + (t.subtasks?.length || 0),
+                            0,
+                          );
                           return (
                             <React.Fragment key={report.id}>
                               <tr
@@ -1722,10 +1772,7 @@ function StaffOpReport() {
                                                     year: report.year,
                                                   });
                                                   setShowStandupModal(true);
-                                                  setTimeout(
-                                                    () => setShowTaskForm(true),
-                                                    100,
-                                                  );
+                                                  setNewTaskRequest((c) => c + 1);
                                                 }}
                                                 className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                               >
@@ -2026,9 +2073,20 @@ function StaffOpReport() {
                               t.created_year === report.year &&
                               !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
                           );
-                          const completed = weekTasks.filter(
-                            (t) => t.status === "completed",
-                          ).length;
+                          const totalTasks = weekTasks.reduce(
+                            (sum, t) =>
+                              sum + 1 + (t.subtasks?.length || 0),
+                            0,
+                          );
+                          const completed = weekTasks.reduce(
+                            (sum, t) =>
+                              sum +
+                              (t.status === "completed" ? 1 : 0) +
+                              (t.subtasks?.filter(
+                                (st) => st.status === "completed",
+                              ).length || 0),
+                            0,
+                          );
                           const isExpanded = expandedWeek === weekKey;
                           return (
                             <React.Fragment key={weekKey}>
@@ -2045,19 +2103,19 @@ function StaffOpReport() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-[12px] font-medium text-slate-500">
-                                  {weekTasks.length} {t("staff.table.tasks")}
+                                  {totalTasks} {t("staff.table.tasks")}
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="text-[12px] font-medium text-emerald-400">
-                                    {completed}/{weekTasks.length}
+                                    {completed}/{totalTasks}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
                                   <span
-                                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${completed === weekTasks.length && weekTasks.length > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}
+                                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${completed === totalTasks && totalTasks > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}
                                   >
-                                    {completed === weekTasks.length &&
-                                    weekTasks.length > 0
+                                    {completed === totalTasks &&
+                                    totalTasks > 0
                                       ? t("staff.opReport.complete")
                                       : t("staff.opReport.review")}
                                   </span>
@@ -3669,7 +3727,7 @@ function StaffOpReport() {
                 <div className="px-4 py-3 rounded-lg border border-amber-500/30 bg-[var(--bg-tertiary)] text-[12px] text-[var(--text-primary)] leading-relaxed flex items-start gap-3">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
                   <span>
-                    This standup belongs to a previous reporting week and can no longer be edited.
+                    {t("staff.opReport.lockedWeek")}
                   </span>
                 </div>
               )}
@@ -3679,7 +3737,7 @@ function StaffOpReport() {
                   <div className="flex items-start gap-3">
                     <Clock className="w-4 h-4 shrink-0 mt-0.5 text-[var(--brand-orange)]" />
                     <span className="text-[12px] text-[var(--text-primary)] leading-relaxed font-medium">
-                      Continue where you left off?
+                      {t("staff.opReport.draftPrompt")}
                     </span>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -3687,13 +3745,13 @@ function StaffOpReport() {
                       onClick={discardDraft}
                       className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
                     >
-                      Discard
+                      {t("staff.opReport.discard")}
                     </button>
                     <button
                       onClick={restoreDraft}
                       className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--brand-orange)] text-black rounded-lg hover:brightness-110 transition-all"
                     >
-                      Continue
+                      {t("staff.opReport.restoreDraft")}
                     </button>
                   </div>
                 </div>
@@ -3781,11 +3839,11 @@ function StaffOpReport() {
               {/* Section 1b — Archived Tasks */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Archive className="w-3.5 h-3.5" /> Archived Tasks
+                  <Archive className="w-3.5 h-3.5" /> {t("staff.opReport.archivedTasks")}
                 </h3>
                 {tasks.filter((t) => t.status === "archived").length === 0 ? (
                   <p className="text-[10px] text-slate-600 italic py-2">
-                    No archived tasks.
+                    {t("staff.opReport.noArchivedTasks")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -3827,7 +3885,7 @@ function StaffOpReport() {
                                 className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
                               >
                                 <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
-                                Unarchive
+                                {t("staff.opReport.unarchive")}
                               </button>
                             </div>
                           )}
@@ -3871,7 +3929,7 @@ function StaffOpReport() {
                             }))
                           }
                           className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title="Remove"
+                          title={t("staff.opReport.remove")}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -3937,7 +3995,7 @@ function StaffOpReport() {
                             }))
                           }
                           className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title="Remove"
+                          title={t("staff.opReport.remove")}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -3985,6 +4043,7 @@ function StaffOpReport() {
                   weekInfo={weekInfo}
                   showCarryOver={true}
                   readOnly={readOnly || isHistorical}
+                  requestNewTask={newTaskRequest}
                 />
               </div>
 

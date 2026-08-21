@@ -124,7 +124,15 @@
       "carryoverPlaceholder": "What will carry over to next week?",
       "retroNotes": "Retro Notes",
       "retroNotesPlaceholder": "Any additional notes?",
-      "submitRetro": "Submit Retro"
+      "submitRetro": "Submit Retro",
+      "lockedWeek": "Stand-ups can only be created or edited for the current reporting week.",
+      "archivedTasks": "Archived Tasks",
+      "noArchivedTasks": "No archived tasks.",
+      "unarchive": "Unarchive",
+      "remove": "Remove",
+      "draftPrompt": "Continue where you left off?",
+      "discard": "Discard",
+      "restoreDraft": "Continue"
     },
     "categories": {
       "operations": "Operations",
