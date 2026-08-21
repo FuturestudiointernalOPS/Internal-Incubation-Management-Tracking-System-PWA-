@@ -70,39 +70,40 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "Token is required." }, { status: 400 });
     }
 
-    // ── 1. Resolve email from session OR magic link params ──────────────
+    // ── 1. Resolve email: MAGIC LINK takes precedence, then session ─────
+    // The magic link is HMAC-signed for a specific email + expiry, so it is a
+    // secure identity by itself. It must work even when the recipient is
+    // already logged in with a DIFFERENT account — otherwise shared links
+    // break for anyone who has an ImpactOS session.
     let email = null;
     let viewerName = null;
     let accessMethod = "session";
 
-    // Try session first (logged-in users)
-    const session = await getSession();
-    if (session?.email) {
-      email = session.email.toLowerCase().trim();
-      viewerName = session.name || email;
+    const m = url.searchParams.get("m"); // email
+    const s = url.searchParams.get("s"); // signature
+    const e = url.searchParams.get("e"); // expiry (ms timestamp)
+
+    if (m && s && e) {
+      const candidateEmail = decodeURIComponent(m).toLowerCase().trim();
+      if (verifyMagicLink(token, candidateEmail, e, s)) {
+        email = candidateEmail;
+        viewerName = email;
+        accessMethod = "magic_link";
+      }
+      // Invalid/expired signature → fall through to the session below.
+      // A bad signature never grants access on its own.
     }
 
-    // If no session, check for magic link params (?m=EMAIL&s=SIG&e=EXP)
+    // No valid magic link → fall back to the signed-in account.
     if (!email) {
-      const m = url.searchParams.get("m"); // email
-      const s = url.searchParams.get("s"); // signature
-      const e = url.searchParams.get("e"); // expiry (ms timestamp)
-      if (m && s && e) {
-        const candidateEmail = decodeURIComponent(m).toLowerCase().trim();
-        if (verifyMagicLink(token, candidateEmail, e, s)) {
-          email = candidateEmail;
-          viewerName = email;
-          accessMethod = "magic_link";
-        } else {
-          return NextResponse.json(
-            { success: false, error: "This magic link is invalid or has expired." },
-            { status: 403 }
-          );
-        }
+      const session = await getSession();
+      if (session?.email) {
+        email = session.email.toLowerCase().trim();
+        viewerName = session.name || email;
       }
     }
 
-    // Neither session nor valid magic link → tell frontend to redirect to login
+    // Neither a valid magic link nor a session → tell frontend to login
     if (!email) {
       return NextResponse.json(
         { success: false, error: "Authentication required.", requiresLogin: true },
