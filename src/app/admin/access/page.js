@@ -54,6 +54,8 @@ export default function UserAccessSummary() {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [modules, setModules] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     fetchUsers();
@@ -149,6 +151,17 @@ export default function UserAccessSummary() {
     return userData?.effectivePermissions?.[module]?.[capability] ?? 0;
   };
 
+  // Pagination
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+  const totalPages = Math.max(1, Math.ceil(searchResults.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedUsers = searchResults.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
+
   // ─── RENDER ───
   return (
     <DashboardLayout role="super_admin" activeTab="access">
@@ -196,30 +209,56 @@ export default function UserAccessSummary() {
                   style={{ borderColor: "rgba(255,102,0,0.1)", borderTopColor: "var(--brand-orange)" }} />
               </div>
             ) : (
-              <div className="space-y-1 max-w-md">
-                {searchResults.map((u) => (
-                  <button
-                    key={u.cid}
-                    onClick={() => fetchUserSummary(u)}
-                    className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
-                        <User className="w-5 h-5 text-[var(--brand-orange)]" />
+              <>
+                <div className="space-y-1 max-w-md">
+                  {paginatedUsers.map((u) => (
+                    <button
+                      key={u.cid}
+                      onClick={() => fetchUserSummary(u)}
+                      className="w-full ios-card !p-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all text-left flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
+                          <User className="w-5 h-5 text-[var(--brand-orange)]" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                            {u.name}
+                          </p>
+                          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                            {u.email} · {u.role} · {u.status}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                          {u.name}
-                        </p>
-                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
-                          {u.email} · {u.role} · {u.status}
-                        </p>
-                      </div>
+                      <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
+                    </button>
+                  ))}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between gap-4 max-w-md pt-2">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                      {t("crm.contacts.pageOf", { page: safePage, total: totalPages })}
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        disabled={safePage === 1}
+                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        {t("common.previous")}
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        disabled={safePage === totalPages}
+                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      >
+                        {t("common.next")}
+                      </button>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" />
-                  </button>
-                ))}
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
