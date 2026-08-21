@@ -211,6 +211,7 @@ export default function TaskManager({
   // Form state
   const [form, setForm] = useState({
     name: "",
+    description: "",
     project_id: "",
     category: "",
     assigned_to: "",
@@ -639,6 +640,7 @@ export default function TaskManager({
     try {
       const data = await createTask({
         title: form.name.trim(),
+        description: form.description || null,
         project_id: form.project_id || null,
         category: form.category || null,
         parent_task_id: pendingParentTaskId || null,
@@ -697,6 +699,7 @@ export default function TaskManager({
     setAddedCount(0);
     setForm({
       name: "",
+      description: "",
       project_id: "",
       category: "",
       assigned_to: "",
@@ -1479,6 +1482,17 @@ export default function TaskManager({
             onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
             placeholder="What are you working on?"
             className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+          />
+
+          {/* Description */}
+          <textarea
+            value={form.description || ""}
+            onChange={(e) =>
+              setForm((p) => ({ ...p, description: e.target.value }))
+            }
+            placeholder="Description (optional)"
+            rows={2}
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
           />
 
           {/* Project / Category (hidden for sub-tasks — inherited) */}
