@@ -7,7 +7,6 @@ import {
   ArrowLeft, Settings, Link2, Trash2, AlertTriangle, BarChart3,
   History, Calendar, Hash, Globe, EyeOff, ShieldAlert, PauseCircle,
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn, Download,
-  Share2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
@@ -900,11 +899,6 @@ export default function FormRunsPage() {
   const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
-  const [viewShareEmails, setViewShareEmails] = useState(""); // comma-sep emails for view-responses link
-  const [viewShareMessage, setViewShareMessage] = useState("");
-  const [viewShareSendEmail, setViewShareSendEmail] = useState(false);
-  const [viewShareResults, setViewShareResults] = useState(null); // per-email results
-  const [viewShareLoading, setViewShareLoading] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -920,15 +914,7 @@ export default function FormRunsPage() {
   const [manualAddName, setManualAddName] = useState("");
   const [manualAddEmail, setManualAddEmail] = useState("");
   const [manualAdding, setManualAdding] = useState(false);
-
-  // Share a single response (read-only, email-verified link)
-  const [showShareModal, setShowShareModal] = useState(false);
-  const [shareResponseId, setShareResponseId] = useState(null);
-  const [shareEmail, setShareEmail] = useState("");
-  const [shareExpiry, setShareExpiry] = useState(7);
-  const [sharing, setSharing] = useState(false);
-  const [shareResult, setShareResult] = useState(null);
-
+  // Manual message composer (Room Overview → selected participants)
   // Export options (format + scope)
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [exportFormat, setExportFormat] = useState("csv"); // csv | xlsx
@@ -1655,58 +1641,6 @@ export default function FormRunsPage() {
     setManualAdding(false);
   };
 
-  // ─── Share a single response (read-only, email-verified) ───
-  const openShare = (sub) => {
-    setShareResult(null);
-    setShareEmail(sub?.email || "");
-    setShareExpiry(7);
-    setShareResponseId(sub?.id || null);
-    setShowShareModal(true);
-  };
-
-  const submitShare = async () => {
-    if (!shareResponseId || sharing) return;
-    if (!shareEmail.trim()) {
-      notify(t("platformMisc.runs.shareEmailRequired"));
-      return;
-    }
-    setSharing(true);
-    setShareResult(null);
-    try {
-      const res = await fetch("/api/form-response-shares", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          response_id: shareResponseId,
-          recipient_email: shareEmail.trim(),
-          expires_in_days: shareExpiry,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShareResult({
-          share_url: data.share?.share_url || null,
-          recipient_email: data.share?.recipient_email || shareEmail.trim(),
-        });
-      } else {
-        notify(data.error || t("platformMisc.runs.shareFailed"));
-      }
-    } catch (_) {
-      notify(t("platformMisc.runs.shareFailed"));
-    }
-    setSharing(false);
-  };
-
-  const copyShareUrl = async () => {
-    if (!shareResult?.share_url) return;
-    try {
-      await navigator.clipboard.writeText(shareResult.share_url);
-      notify(t("platformMisc.runs.shareUrlCopied"));
-    } catch (_) {
-      notify(t("platformMisc.runs.shareUrlCopyFailed"));
-    }
-  };
-
   const personalizeMessage = async () => {
     setAiPersonalizing(true);
     try {
@@ -1939,36 +1873,6 @@ export default function FormRunsPage() {
         ? t("platformMisc.runs.emailRetryPartial", { sent: agg.sent, failed: agg.failed.length })
         : t("platformMisc.runs.emailRetrySuccess", { sent: agg.sent })
     );
-  };
-
-  // ─── CREATE VIEW-RESPONSES SHARE LINKS (simple, per-email, login-verified) ───
-  const generateViewShareLink = async (runId, emails, sendEmail, customMessage) => {
-    setViewShareLoading(true);
-    setViewShareResults(null);
-    try {
-      const res = await fetch("/api/run-response-shares", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          run_id: runId,
-          emails: emails.split(",").map((e) => e.trim()).filter(Boolean),
-          expires_in_days: 7,
-          customMessage: customMessage || null,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setViewShareResults(data.results || []);
-        const ok = (data.results || []).filter((r) => r.success).length;
-        notify(`View links created & emailed (${ok}/${(data.results || []).length}).`);
-      } else {
-        notify(data.error || "Failed to create view links.");
-      }
-    } catch (_) {
-      notify("Failed to create view links.");
-    } finally {
-      setViewShareLoading(false);
-    }
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -2691,9 +2595,6 @@ export default function FormRunsPage() {
                                 {s.status === "submitted" && (
                                   <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
-                                <button onClick={() => openShare(s)} className="px-2 py-1 rounded-lg bg-blue-500/10 text-blue-400 text-[8px] font-black uppercase hover:bg-blue-500/20 flex items-center gap-1">
-                                  <Share2 className="w-3 h-3" /> {t("platformMisc.runs.share")}
-                                </button>
                                 <button onClick={() => handleDeleteSubmission(s.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
                             </td>
@@ -3248,99 +3149,28 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       </div>
                     </div>
 
-                    {/* View Responses Link — email-allowlisted, read-only */}
+                    {/* Export Responses — structured Excel / PDF download */}
                     <div className="space-y-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)]">
                       <div>
-                        <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">View Responses Link</h3>
+                        <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.exportTitle")}</h3>
                         <p className="text-[10px] text-[var(--text-secondary)] mt-1">
-                          Share a <strong>read-only</strong> link to your responses. Only people whose email you add below can access it — no login, no CRM access, no ability to edit or delete anything.
+                          {t("platformMisc.runs.exportDesc")}
                         </p>
                       </div>
-
-                      {/* Allowed emails input */}
-                      <div className="space-y-1.5">
-                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                          Allowed Emails (comma-separated)
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={viewShareEmails}
-                          onChange={(e) => setViewShareEmails(e.target.value)}
-                          placeholder="email1@example.com, email2@example.com"
-                          className="w-full rounded-xl px-4 py-3 text-[11px] outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
-                        />
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`/api/run-export?id=${selectedRun.id}&format=xlsx`}
+                          className="px-5 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase hover:bg-emerald-500/20 border border-emerald-500/30 transition-all"
+                        >
+                          {t("platformMisc.runs.exportExcel")}
+                        </a>
+                        <a
+                          href={`/api/run-export?id=${selectedRun.id}&format=pdf`}
+                          className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase hover:bg-rose-500/20 border border-rose-500/30 transition-all"
+                        >
+                          {t("platformMisc.runs.exportPdf")}
+                        </a>
                       </div>
-
-                      <div className="flex items-center gap-2 mt-2">
-                        <input
-                          type="checkbox"
-                          id="sendViewEmail"
-                          checked={viewShareSendEmail}
-                          onChange={(e) => setViewShareSendEmail(e.target.checked)}
-                          className="w-4 h-4 rounded bg-primary border border-[var(--border-primary)] text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]"
-                        />
-                        <label htmlFor="sendViewEmail" className="text-[11px] font-bold text-[var(--text-primary)] cursor-pointer">
-                          Send an email to these recipients immediately via ImpactOS
-                        </label>
-                      </div>
-
-                      {viewShareSendEmail && (
-                        <div className="space-y-1.5 pt-2">
-                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                            Custom Email Message (Optional)
-                          </label>
-                          <textarea
-                            rows={3}
-                            value={viewShareMessage}
-                            onChange={(e) => setViewShareMessage(e.target.value)}
-                            placeholder="Type a custom message to include in the email..."
-                            className="w-full rounded-xl px-4 py-3 text-[11px] outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
-                          />
-                        </div>
-                      )}
-
-                      <button
-                        disabled={viewShareLoading || !viewShareEmails.trim()}
-                        onClick={() => generateViewShareLink(selectedRun.id, viewShareEmails, viewShareSendEmail, viewShareMessage)}
-                        className="px-5 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-40 transition-all"
-                      >
-                        {viewShareLoading ? "Creating…" : "Create & Email View Links"}
-                      </button>
-
-                      {/* Per-email results: each person gets their own link */}
-                      {viewShareResults && (
-                        <div className="space-y-2 pt-1">
-                          {viewShareResults.map((r, i) => (
-                            <div key={i} className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1.5">
-                              <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
-                                {r.success ? "✓" : "✗"} {r.email}
-                              </p>
-                              {r.success ? (
-                                <>
-                                  <p className="text-[9px] text-[var(--text-secondary)]">
-                                    {r.activation_sent ? "Activation email sent · " : ""}Link emailed. Recipient must sign in with this email to view.
-                                  </p>
-                                  <div className="flex gap-2">
-                                    <input
-                                      readOnly
-                                      value={r.share_url}
-                                      className="flex-1 rounded-xl px-3 py-2 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
-                                    />
-                                    <button
-                                      onClick={() => { navigator.clipboard.writeText(r.share_url); notify("View link copied!"); }}
-                                      className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shrink-0"
-                                    >
-                                      Copy
-                                    </button>
-                                  </div>
-                                </>
-                              ) : (
-                                <p className="text-[9px] text-rose-400">{r.error || "Failed"}</p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
                     </div>
 
                   </>
@@ -4009,53 +3839,6 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <button onClick={() => setShowManualAdd(false)} disabled={manualAdding} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
                 <button onClick={submitManualAdd} disabled={manualAdding} className="flex-1 btn btn-primary">{manualAdding ? t("platformMisc.runs.manualAdding") : t("platformMisc.runs.addRespondent")}</button>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* ─── SHARE RESPONSE MODAL ─── */}
-        {showShareModal && (
-          <div className="fixed inset-0 z-[500] bg-black/60 flex items-center justify-center p-4" onClick={() => setShowShareModal(false)}>
-            <div className="w-full max-w-sm rounded-2xl bg-secondary border border-[var(--border-primary)] p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.shareTitle")}</h3>
-                <button onClick={() => setShowShareModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
-              </div>
-
-              {shareResult ? (
-                <div className="space-y-3">
-                  <p className="text-[10px] text-emerald-400 font-bold">{t("platformMisc.runs.shareSuccessTitle")}</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                    {t("platformMisc.runs.shareSuccessDesc", { email: shareResult.recipient_email })}
-                  </p>
-                  {shareResult.share_url && (
-                    <div className="space-y-2">
-                      <input readOnly value={shareResult.share_url} className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none" onFocus={(e) => e.target.select()} />
-                      <div className="flex gap-2">
-                        <button onClick={copyShareUrl} className="flex-1 btn btn-secondary">{t("platformMisc.runs.shareCopy")}</button>
-                        <a href={shareResult.share_url} target="_blank" rel="noreferrer" className="flex-1 btn btn-primary text-center">{t("platformMisc.runs.shareOpenLink")}</a>
-                      </div>
-                    </div>
-                  )}
-                  <button onClick={() => setShowShareModal(false)} className="w-full btn btn-secondary">{t("common.close")}</button>
-                </div>
-              ) : (
-                <>
-                  <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.shareDesc")}</p>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.shareEmailLabel")}</label>
-                    <input type="email" value={shareEmail} onChange={(e) => setShareEmail(e.target.value)} placeholder="name@example.com" className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.shareExpiryLabel")}</label>
-                    <input type="number" min="1" max="90" value={shareExpiry} onChange={(e) => setShareExpiry(parseInt(e.target.value) || 7)} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
-                  </div>
-                  <div className="flex gap-3 pt-1">
-                    <button onClick={() => setShowShareModal(false)} disabled={sharing} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
-                    <button onClick={submitShare} disabled={sharing} className="flex-1 btn btn-primary">{sharing ? t("platformMisc.runs.shareCreating") : t("platformMisc.runs.shareSubmit")}</button>
-                  </div>
-                </>
-              )}
             </div>
           </div>
         )}
