@@ -3669,7 +3669,7 @@ function StaffOpReport() {
                 <div className="px-4 py-3 rounded-lg border border-amber-500/30 bg-[var(--bg-tertiary)] text-[12px] text-[var(--text-primary)] leading-relaxed flex items-start gap-3">
                   <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-amber-400" />
                   <span>
-                    This standup belongs to a previous reporting week and can no longer be edited.
+                    {t("staff.opReport.lockedWeek")}
                   </span>
                 </div>
               )}
@@ -3679,7 +3679,7 @@ function StaffOpReport() {
                   <div className="flex items-start gap-3">
                     <Clock className="w-4 h-4 shrink-0 mt-0.5 text-[var(--brand-orange)]" />
                     <span className="text-[12px] text-[var(--text-primary)] leading-relaxed font-medium">
-                      Continue where you left off?
+                      {t("staff.opReport.draftPrompt")}
                     </span>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -3687,13 +3687,13 @@ function StaffOpReport() {
                       onClick={discardDraft}
                       className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
                     >
-                      Discard
+                      {t("staff.opReport.discard")}
                     </button>
                     <button
                       onClick={restoreDraft}
                       className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider bg-[var(--brand-orange)] text-black rounded-lg hover:brightness-110 transition-all"
                     >
-                      Continue
+                      {t("staff.opReport.restoreDraft")}
                     </button>
                   </div>
                 </div>
@@ -3781,11 +3781,11 @@ function StaffOpReport() {
               {/* Section 1b — Archived Tasks */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Archive className="w-3.5 h-3.5" /> Archived Tasks
+                  <Archive className="w-3.5 h-3.5" /> {t("staff.opReport.archivedTasks")}
                 </h3>
                 {tasks.filter((t) => t.status === "archived").length === 0 ? (
                   <p className="text-[10px] text-slate-600 italic py-2">
-                    No archived tasks.
+                    {t("staff.opReport.noArchivedTasks")}
                   </p>
                 ) : (
                   <div className="space-y-2">
@@ -3827,7 +3827,7 @@ function StaffOpReport() {
                                 className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
                               >
                                 <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
-                                Unarchive
+                                {t("staff.opReport.unarchive")}
                               </button>
                             </div>
                           )}
@@ -3871,7 +3871,7 @@ function StaffOpReport() {
                             }))
                           }
                           className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title="Remove"
+                          title={t("staff.opReport.remove")}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -3937,7 +3937,7 @@ function StaffOpReport() {
                             }))
                           }
                           className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title="Remove"
+                          title={t("staff.opReport.remove")}
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>

@@ -31,7 +31,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-import { uploadFile } from "@/lib/storage";
+import { uploadTaskAttachment } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
 
 function cn(...classes) {
@@ -234,8 +234,7 @@ export default function TaskManager({
   };
 
   const attachFileToTask = async (taskId, file) => {
-    const path = `${taskId}/${Date.now()}_${file.name.replace(/\s+/g, "_")}`;
-    const upload = await uploadFile("knowledge", path, file);
+    const upload = await uploadTaskAttachment(file, taskId);
     if (!upload.success)
       return { success: false, error: upload.error || "Upload failed" };
     const res = await fetch("/api/tasks/resources", {
@@ -250,7 +249,8 @@ export default function TaskManager({
         file_size: file.size,
       }),
     });
-    return { success: res.ok };
+    const data = await res.json();
+    return { success: data.success, error: data.error };
   };
 
   // Auto-populate project_id from prop when in project mode
@@ -285,8 +285,7 @@ export default function TaskManager({
 
       // If a file is selected, upload it first
       if (resourceFile) {
-        const path = `${taskId}/${Date.now()}_${resourceFile.name}`;
-        const upload = await uploadFile("knowledge", path, resourceFile);
+        const upload = await uploadTaskAttachment(resourceFile, taskId);
         if (!upload.success) {
           notify('error', t((upload.error || "Upload failed") || "") || (upload.error || "Upload failed"));
           setResourceAdding(false);
@@ -1425,7 +1424,7 @@ export default function TaskManager({
         !showTaskForm && (
           <div className="text-center py-6">
             <ListTodo className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-[10px] text-slate-500">No tasks yet</p>
+            <p className="text-[10px] text-slate-500">{t("staffMisc.standupRetro.noTasksYet")}</p>
           </div>
         )}
 
