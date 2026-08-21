@@ -25,6 +25,9 @@ export default function SuperAdminExecutiveView({ params }) {
   const [followups, setFollowups] = useState([]);
   const [kpis, setKpis] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [participants, setParticipants] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [attendance, setAttendance] = useState([]);
   
   const [selectedSession, setSelectedSession] = useState(null);
   const [newFollowup, setNewFollowup] = useState({ week: null, session_id: null, comment: '' });
@@ -78,6 +81,8 @@ export default function SuperAdminExecutiveView({ params }) {
         setSessions(progData.sessions || []);
         setRequirements(progData.documents || []);
         setKpis(progData.kpis || []);
+        setParticipants(progData.participants || []);
+        setSubmissions(progData.submissions || []);
       }
 
       // 2. Weekly Reports
@@ -89,6 +94,11 @@ export default function SuperAdminExecutiveView({ params }) {
       const followupRes = await fetch(`/api/followups?program_id=${id}`);
       const followupData = await followupRes.json();
       if (followupData.success) setFollowups(followupData.followups || []);
+
+      // 4. Attendance (presence marks per session — drives the auto "Présence" task)
+      const attRes = await fetch(`/api/attendance?program_id=${id}`);
+      const attData = await attRes.json();
+      if (attData.success) setAttendance(attData.attendance || []);
 
       setIsLoaded(true);
     } catch (e) {
@@ -167,6 +177,52 @@ export default function SuperAdminExecutiveView({ params }) {
 
   const weeks = Array.from({ length: program.duration_weeks || 13 }, (_, i) => i + 1);
 
+  // ── Completion rate: based on program duration (elapsed time vs total duration) ──
+  const nowMs = Date.now();
+  const startMs = program.start_date
+    ? new Date(`${program.start_date}T00:00:00`).getTime()
+    : program.created_at
+      ? new Date(program.created_at).getTime()
+      : null;
+  const endMs = program.end_date
+    ? new Date(`${program.end_date}T00:00:00`).getTime()
+    : null;
+  let durationCompletion = 0;
+  if (startMs && Number.isFinite(startMs)) {
+    if (endMs && Number.isFinite(endMs) && endMs > startMs) {
+      durationCompletion = Math.min(
+        100,
+        Math.max(0, ((nowMs - startMs) / (endMs - startMs)) * 100),
+      );
+    } else {
+      const totalWeeks = program.duration_weeks || 13;
+      const elapsedWeeks = Math.max(
+        0,
+        (nowMs - startMs) / (7 * 24 * 60 * 60 * 1000),
+      );
+      durationCompletion =
+        totalWeeks > 0 ? Math.min(100, (elapsedWeeks / totalWeeks) * 100) : 0;
+    }
+  }
+
+  // ── Required tasks = the PM's weekly deliverables (documents) + an
+  //    auto-added presence task for every week that has scheduled sessions ──
+  const weeksWithSessions = weeks.filter((wn) =>
+    sessions.some((s) => s.week_number === wn),
+  );
+  const requiredTotal = requirements.length + weeksWithSessions.length;
+  const completedDeliverables = requirements.filter((r) => r.is_completed).length;
+  const completedPresence = weeksWithSessions.filter((wn) => {
+    const weekSessionIds = sessions
+      .filter((s) => s.week_number === wn)
+      .map((s) => String(s.id));
+    return attendance.some(
+      (a) =>
+        weekSessionIds.includes(String(a.session_id)) && a.status === "present",
+    );
+  }).length;
+  const requiredDone = completedDeliverables + completedPresence;
+
   return (
     <DashboardLayout role="super_admin" activeTab="Progress Hub">
       <div className="space-y-12 pb-20">
@@ -243,7 +299,7 @@ export default function SuperAdminExecutiveView({ params }) {
                     {t("adminMisc.programDetail.completionRate")}
                     <AlertCircle className="w-3 h-3 text-[var(--text-secondary)] cursor-help" title={t("adminMisc.programDetail.completionRateTooltip")} />
                  </p>
-                 <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{Number(program.completion_index || 0).toFixed(1)}%</h4>
+                 <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{durationCompletion.toFixed(1)}%</h4>
                  <p className="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-3 italic leading-relaxed">
                     {t("adminMisc.programDetail.overallProgress")}
                  </p>
@@ -251,7 +307,7 @@ export default function SuperAdminExecutiveView({ params }) {
            </div>
            <div className="ios-card bg-secondary border-[var(--border-primary)] !p-8">
               <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4 italic">{t("adminMisc.programDetail.requiredTasks")}</p>
-              <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{requirements.filter(r => r.is_completed).length}/{requirements.length}</h4>
+              <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{requiredDone}/{requiredTotal}</h4>
            </div>
            <div className="ios-card bg-white/[0.02] border-white/5 !p-8">
               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">{t("adminMisc.programDetail.weeklyReports")}</p>
@@ -401,10 +457,33 @@ export default function SuperAdminExecutiveView({ params }) {
                  const weekFollowups = followups.filter(f => f.week_number === wn);
                  const weekSessions = sessions.filter(s => s.week_number === wn);
                  const weekDocs = requirements.filter(r => r.session_id && weekSessions.map(s => s.id).includes(r.session_id));
-                 
-                 const completedPoints = (weekSessions.filter(s => s.status === 'completed').length * 5) + (weekDocs.filter(d => d.is_completed).length * 2) + (weekReports.length > 0 ? 10 : 0);
-                 const totalPoints = (weekSessions.length * 5) + (weekDocs.length * 2) + 10;
-                 const weekProgress = totalPoints > 0 ? (completedPoints / totalPoints) * 100 : 0;
+
+                 // Week completion = participant progress (submissions + presence)
+                 // vs the expected number of completions (participants × week tasks).
+                 const weekSessionIds = weekSessions.map((s) => String(s.id));
+                 const weekDocIds = weekDocs.map((d) => String(d.id));
+                 const weekSubmissions = submissions.filter(
+                   (s) =>
+                     (weekDocIds.includes(String(s.document_id)) ||
+                      weekDocIds.includes(String(s.deliverable_id))) &&
+                     s.status !== "rejected",
+                 ).length;
+                 const weekPresentCount = attendance.filter(
+                   (a) =>
+                     weekSessionIds.includes(String(a.session_id)) &&
+                     a.status === "present",
+                 ).length;
+                 const weekTaskCount =
+                   weekDocs.length + (weekSessionIds.length > 0 ? 1 : 0);
+                 const expectedCompletions = participants.length * weekTaskCount;
+                 const actualCompletions = weekSubmissions + weekPresentCount;
+                 const weekProgress =
+                   expectedCompletions > 0
+                     ? Math.min(100, (actualCompletions / expectedCompletions) * 100)
+                     : 0;
+                 const weekComplete =
+                   expectedCompletions > 0 &&
+                   actualCompletions >= expectedCompletions;
 
                  const isCompleted = weekSessions.length > 0 && weekSessions.every(s => s.status === 'completed');
 
@@ -448,7 +527,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                    weekReports.length > 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                 }`}>
                                    <BookOpen className="w-3 h-3" />
-                                   {weekReports.length > 0 ? t("adminMisc.programDetail.reportSubmitted") : t("adminMisc.programDetail.reportPending")}
+                                   {weekComplete ? t("adminMisc.programDetail.reportSubmitted") : t("adminMisc.programDetail.reportPending")}
                                 </div>
                              </div>
                           </div>
@@ -591,7 +670,17 @@ export default function SuperAdminExecutiveView({ params }) {
                                          <span className={`text-[8px] font-black uppercase tracking-widest ${doc.is_completed ? 'text-emerald-500' : 'text-slate-600'}`}>{doc.is_completed ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
                                       </div>
                                    ))}
-                                   {weekDocs.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">{t("adminMisc.programDetail.noTasks")}</p>}
+                                   {/* Auto-added presence task for weeks with scheduled sessions */}
+                                   {weekSessionIds.length > 0 && (
+                                      <div key={`presence-${wn}`} className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/5">
+                                         <div className="flex items-center gap-4">
+                                            <CheckCircle2 className={`w-4 h-4 ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-800'}`} />
+                                            <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{t("pmMisc.workspace.attendance")}</p>
+                                         </div>
+                                         <span className={`text-[8px] font-black uppercase tracking-widest ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-600'}`}>{weekPresentCount > 0 ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
+                                      </div>
+                                   )}
+                                   {weekDocs.length === 0 && weekSessionIds.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">{t("adminMisc.programDetail.noTasks")}</p>}
                                 </div>
                              </div>
                           </div>

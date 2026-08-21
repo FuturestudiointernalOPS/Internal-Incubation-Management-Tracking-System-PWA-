@@ -22,6 +22,17 @@ import {
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 
+// Visual + label config per program status (mirrors the admin program status chips).
+const PROGRAM_STATUS_STYLE = {
+  active:      { key: "status.active",     text: "text-emerald-500", dot: "bg-emerald-500", value: "text-emerald-500" },
+  in_progress: { key: "status.inProgress", text: "text-blue-500",    dot: "bg-blue-500",    value: "text-blue-500" },
+  planned:     { key: "status.planned",    text: "text-slate-400",   dot: "bg-slate-400",   value: "text-slate-400" },
+  pending:     { key: "status.pending",    text: "text-amber-500",   dot: "bg-amber-500",   value: "text-amber-500" },
+  completed:   { key: "status.completed",  text: "text-purple-500",  dot: "bg-purple-500",  value: "text-purple-500" },
+  archived:    { key: "status.archived",   text: "text-rose-500",    dot: "bg-rose-500",    value: "text-rose-500" },
+  draft:       { key: "status.draft",      text: "text-slate-400",   dot: "bg-slate-400",   value: "text-slate-400" },
+};
+
 /**
  * PM OPERATIONS REGISTRY (FULL FEATURE V2)
  * Unified list of all programs assigned to the current PM identity.
@@ -243,7 +254,12 @@ export default function PMProgramsRegistry() {
               </p>
             </div>
           ) : (
-            filtered.map((program) => (
+            filtered.map((program) => {
+              const statusKey = String(program.status || "active").toLowerCase();
+              const statusCfg =
+                PROGRAM_STATUS_STYLE[statusKey] || PROGRAM_STATUS_STYLE.active;
+              const statusLabel = t(statusCfg.key);
+              return (
               <motion.div
                 key={program.id}
                 onClick={() => router.push(`/pm/programs/${program.id}`)}
@@ -256,8 +272,8 @@ export default function PMProgramsRegistry() {
                         <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
                           <Briefcase className="w-5 h-5" />
                         </div>
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] italic animate-pulse">
-                          {t("status.active")}
+                        <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic animate-pulse ${statusCfg.text}`}>
+                          {statusLabel}
                         </span>
                       </div>
                       <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none italic group-hover:text-[#FF6600] transition-colors">
@@ -265,9 +281,9 @@ export default function PMProgramsRegistry() {
                       </h3>
                     </div>
                     <div className="mt-8 flex items-center gap-2">
-                      <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                      <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">
-                        {t("status.active")}
+                      <div className={`w-2 h-2 rounded-full ${statusCfg.dot} shadow-[0_0_8px_rgba(255,102,0,0.35)]`} />
+                      <span className={`text-[10px] font-black uppercase tracking-widest ${statusCfg.text}`}>
+                        {statusLabel}
                       </span>
                     </div>
                   </div>
@@ -319,11 +335,11 @@ export default function PMProgramsRegistry() {
                       </div>
                       <div>
                         <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
-                          {t("status.active")}
+                          {statusLabel}
                         </p>
-                        <p className="text-lg font-black text-emerald-500 uppercase tracking-tighter flex items-center gap-2 italic">
-                          {t("status.active")}{" "}
-                          <Activity className="w-3.5 h-3.5 text-emerald-900" />
+                        <p className={`text-lg font-black uppercase tracking-tighter flex items-center gap-2 italic ${statusCfg.value}`}>
+                          {statusLabel}{" "}
+                          <Activity className="w-3.5 h-3.5 opacity-40" />
                         </p>
                       </div>
                       <div className="flex items-center justify-end">
@@ -373,8 +389,8 @@ export default function PMProgramsRegistry() {
                   </div>
                 </div>
               </motion.div>
-            ))
-          )}
+            );
+          }))}
         </div>
       </div>
     </DashboardLayout>

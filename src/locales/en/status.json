@@ -3,6 +3,7 @@
     "active": "Active",
     "pending": "Pending",
     "inProgress": "In Progress",
+    "planned": "Planned",
     "completed": "Completed",
     "archived": "Archived",
     "draft": "Draft",

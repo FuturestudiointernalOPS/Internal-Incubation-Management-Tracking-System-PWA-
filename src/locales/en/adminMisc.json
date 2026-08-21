@@ -396,7 +396,7 @@
       "status": "Status",
       "active": "Active",
       "completionRate": "Completion Rate",
-      "completionRateTooltip": "Weighted: Sessions (5pt) + Assets (2pt) + Report (10pt)",
+      "completionRateTooltip": "Based on the program duration (elapsed weeks ÷ total weeks)",
       "overallProgress": "Overall Program Progress",
       "requiredTasks": "Required Tasks",
       "weeklyReports": "Weekly Reports",

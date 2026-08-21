@@ -59,7 +59,7 @@ export const GET = createHandler(
       progressEntries.length > 0
         ? Math.round(
             progressEntries.reduce(
-              (sum, e) => sum + (parseFloat(e.progress) || 0),
+              (sum, e) => sum + (parseFloat(e.completion_rate) || 0),
               0,
             ) / progressEntries.length,
           )

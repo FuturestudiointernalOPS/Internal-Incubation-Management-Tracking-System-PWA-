@@ -399,7 +399,7 @@
       "status": "Statut",
       "active": "Actif",
       "completionRate": "Taux d'achèvement",
-      "completionRateTooltip": "Pondéré : Sessions (5 pt) + Ressources (2 pt) + Rapport (10 pt)",
+      "completionRateTooltip": "Basé sur la durée du programme (semaines écoulées ÷ semaines totales)",
       "overallProgress": "Progression globale du programme",
       "requiredTasks": "Tâches requises",
       "weeklyReports": "Rapports hebdomadaires",
