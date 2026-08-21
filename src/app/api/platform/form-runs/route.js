@@ -1808,7 +1808,7 @@ export async function POST(req) {
       const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
       if (authError) return authError;
 
-      const { id: runId, emails } = body;
+      const { id: runId, emails, sendEmail, customMessage } = body;
       if (!runId) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
       if (!emails || !Array.isArray(emails) || emails.length === 0) {
         return NextResponse.json({ success: false, error: "At least one email is required" }, { status: 400 });
@@ -1853,10 +1853,12 @@ export async function POST(req) {
         });
         const tokenId = Number(tokenRes.rows[0]?.id ?? tokenRes.lastInsertRowid);
 
+        const validEmails = [];
         // Insert each allowed email
         for (const email of emails) {
           const normalized = email.toLowerCase().trim();
           if (!normalized) continue;
+          validEmails.push(normalized);
           try {
             await db.execute({
               sql: "INSERT INTO run_view_token_emails (token_id, email) VALUES (?, ?) ON CONFLICT DO NOTHING",
@@ -1868,6 +1870,37 @@ export async function POST(req) {
               sql: "INSERT INTO run_view_token_emails (token_id, email) VALUES (?, ?)",
               args: [tokenId, normalized],
             });
+          }
+        }
+
+        // Handle email sending
+        if (sendEmail) {
+          const runRes = await db.execute({
+            sql: `
+              SELECT r.name as run_name, f.name as form_name 
+              FROM platform_form_runs r
+              JOIN platform_forms f ON r.form_id = f.id
+              WHERE r.id = ?
+            `,
+            args: [parseInt(runId)]
+          });
+
+          if (runRes.rows.length > 0) {
+            const { run_name, form_name } = runRes.rows[0];
+            const { sendRunViewTokenEmail } = await import("@/lib/email");
+            const baseUrl = request.headers.get("origin") || process.env.APP_URL || "https://impactos.futurestudio.bj";
+            const viewUrl = `${baseUrl}/platform/runs/view/${token}`;
+
+            // Send sequentially (or concurrently, but we'll await all to not block edge runtime)
+            await Promise.all(validEmails.map(email => 
+              sendRunViewTokenEmail({
+                to: email,
+                runName: run_name,
+                formName: form_name,
+                viewUrl,
+                customMessage
+              }).catch(e => console.error("Error sending view token email to", email, e))
+            ));
           }
         }
 

@@ -10,6 +10,9 @@ import {
   getUserEffectiveProfile,
   logPermissionAudit,
   seedDefaultRoleCapabilities,
+  ensureResponsibilitiesSchema,
+  ensurePermissionsSchema,
+  seedDefaultResponsibilities,
 } from "@/lib/auth";
 
 /**
@@ -21,12 +24,25 @@ import {
  *   ?role=staff  — get role defaults for a specific role
  *   ?group=Development — get group defaults for a specific group
  */
+// Resilient query helper: a missing table (migration not yet applied) must
+// never 500 the whole permissions page — it degrades to an empty list.
+async function safeQuery(sql, args = []) {
+  try {
+    return await db.execute({ sql, args });
+  } catch (_) {
+    return { rows: [] };
+  }
+}
+
 export async function GET(req) {
   try {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
     await initDb();
+    await ensureResponsibilitiesSchema();
+    await ensurePermissionsSchema();
+    await seedDefaultResponsibilities();
     const { searchParams } = new URL(req.url);
     const userCid = searchParams.get("user_cid");
     const role = searchParams.get("role");
@@ -41,9 +57,7 @@ export async function GET(req) {
       });
 
       // Fetch all user_groups
-      const groupsRes = await db.execute({
-        sql: "SELECT user_cid, group_name FROM user_groups",
-      });
+      const groupsRes = await safeQuery("SELECT user_cid, group_name FROM user_groups");
       const groupMap = {};
       for (const row of groupsRes.rows) {
         if (!groupMap[row.user_cid]) groupMap[row.user_cid] = [];
@@ -51,12 +65,10 @@ export async function GET(req) {
       }
 
       // Fetch all user responsibilities
-      const respRes = await db.execute({
-        sql: `SELECT ur.user_cid, r.id, r.name, r.key, r.icon
+      const respRes = await safeQuery(`SELECT ur.user_cid, r.id, r.name, r.key, r.icon
               FROM user_responsibilities ur
               JOIN responsibilities r ON r.id = ur.responsibility_id
-              WHERE r.is_active = 1`,
-      });
+              WHERE r.is_active = 1`);
       const respMap = {};
       for (const row of respRes.rows) {
         if (!respMap[row.user_cid]) respMap[row.user_cid] = [];
@@ -64,20 +76,16 @@ export async function GET(req) {
       }
 
       // Fetch all access profiles
-      const profileRes = await db.execute({
-        sql: "SELECT id, name, description FROM access_profiles WHERE is_active = 1",
-      });
+      const profileRes = await safeQuery("SELECT id, name, description FROM access_profiles WHERE is_active = 1");
       const profileMap = {};
       for (const row of profileRes.rows) {
         profileMap[row.id] = row;
       }
 
       // Fetch role-to-profile defaults
-      const roleProfileRes = await db.execute({
-        sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
+      const roleProfileRes = await safeQuery(`SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
               FROM role_access_profile_defaults rpd
-              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
-      });
+              JOIN access_profiles ap ON ap.id = rpd.access_profile_id`);
       const roleProfileMap = {};
       for (const row of roleProfileRes.rows) {
         roleProfileMap[row.role_name] = { id: row.profile_id, name: row.profile_name };
@@ -119,13 +127,9 @@ export async function GET(req) {
     // Return full modules definition
     if (!userCid && !role && !group) {
       // Get all role defaults
-      const roleCaps = await db.execute({
-        sql: "SELECT * FROM role_capabilities ORDER BY role, module, capability",
-      });
+      const roleCaps = await safeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
       // Get all group defaults
-      const groupCaps = await db.execute({
-        sql: "SELECT * FROM group_capabilities ORDER BY group_name, module, capability",
-      });
+      const groupCaps = await safeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
 
       // Get access profile defaults
       let accessProfiles = [];
@@ -177,16 +181,16 @@ export async function GET(req) {
       const matrix = await getUserFullPermissionMatrix(userCid, user.role);
 
       // Get individual grants
-      const grants = await db.execute({
-        sql: "SELECT * FROM user_capabilities WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid],
-      });
+      const grants = await safeQuery(
+        "SELECT * FROM user_capabilities WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+        [userCid],
+      );
 
       // Get individual restrictions
-      const restrictions = await db.execute({
-        sql: "SELECT * FROM user_capability_restrictions WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid],
-      });
+      const restrictions = await safeQuery(
+        "SELECT * FROM user_capability_restrictions WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+        [userCid],
+      );
 
       // Get access profile info
       const effectiveProfile = await getUserEffectiveProfile(
@@ -214,10 +218,7 @@ export async function GET(req) {
 
     // Get role defaults
     if (role) {
-      const caps = await db.execute({
-        sql: "SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability",
-        args: [role],
-      });
+      const caps = await safeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
       return NextResponse.json({
         success: true,
         role,
@@ -227,10 +228,7 @@ export async function GET(req) {
 
     // Get group defaults
     if (group) {
-      const caps = await db.execute({
-        sql: "SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability",
-        args: [group],
-      });
+      const caps = await safeQuery("SELECT * FROM group_capabilities WHERE group_name = ? ORDER BY module, capability", [group]);
       return NextResponse.json({
         success: true,
         group,
@@ -279,6 +277,7 @@ export async function PUT(req) {
     }
 
     await initDb();
+    await ensurePermissionsSchema();
 
     // Get target user info
     const targetRes = await db.execute({

@@ -895,6 +895,8 @@ export default function FormRunsPage() {
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
   const [viewShareEmails, setViewShareEmails] = useState(""); // comma-sep emails for view-responses link
+  const [viewShareMessage, setViewShareMessage] = useState("");
+  const [viewShareSendEmail, setViewShareSendEmail] = useState(false);
   const [viewShareToken, setViewShareToken] = useState(null);
   const [viewShareLoading, setViewShareLoading] = useState(false);
 
@@ -1934,13 +1936,18 @@ export default function FormRunsPage() {
   };
 
   // ─── GENERATE / FETCH VIEW-RESPONSES SHARE LINK ───
-  const generateViewShareLink = async (runId, emails) => {
+  const generateViewShareLink = async (runId, emails, sendEmail, customMessage) => {
     setViewShareLoading(true);
     try {
       const res = await fetch("/api/platform/form-runs?action=generate_view_token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: runId, emails: emails.split(",").map((e) => e.trim()).filter(Boolean) }),
+        body: JSON.stringify({ 
+          id: runId, 
+          emails: emails.split(",").map((e) => e.trim()).filter(Boolean),
+          sendEmail,
+          customMessage
+        }),
       });
       const data = await res.json();
       if (data.success && data.viewToken) {
@@ -3264,12 +3271,40 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         />
                       </div>
 
+                      <div className="flex items-center gap-2 mt-2">
+                        <input
+                          type="checkbox"
+                          id="sendViewEmail"
+                          checked={viewShareSendEmail}
+                          onChange={(e) => setViewShareSendEmail(e.target.checked)}
+                          className="w-4 h-4 rounded bg-primary border border-[var(--border-primary)] text-[var(--brand-orange)] focus:ring-[var(--brand-orange)]"
+                        />
+                        <label htmlFor="sendViewEmail" className="text-[11px] font-bold text-[var(--text-primary)] cursor-pointer">
+                          Send an email to these recipients immediately via ImpactOS
+                        </label>
+                      </div>
+
+                      {viewShareSendEmail && (
+                        <div className="space-y-1.5 pt-2">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                            Custom Email Message (Optional)
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={viewShareMessage}
+                            onChange={(e) => setViewShareMessage(e.target.value)}
+                            placeholder="Type a custom message to include in the email..."
+                            className="w-full rounded-xl px-4 py-3 text-[11px] outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
+                          />
+                        </div>
+                      )}
+
                       <button
                         disabled={viewShareLoading || !viewShareEmails.trim()}
-                        onClick={() => generateViewShareLink(selectedRun.id, viewShareEmails)}
+                        onClick={() => generateViewShareLink(selectedRun.id, viewShareEmails, viewShareSendEmail, viewShareMessage)}
                         className="px-5 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-40 transition-all"
                       >
-                        {viewShareLoading ? "Generating…" : "Generate View Link"}
+                        {viewShareLoading ? "Generating…" : (viewShareSendEmail ? "Generate & Send Emails" : "Generate View Link")}
                       </button>
 
                       {/* Show the generated link */}

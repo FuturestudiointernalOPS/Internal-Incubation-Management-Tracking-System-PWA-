@@ -1523,6 +1523,140 @@ export async function seedDefaultAccessProfiles() {
 // Responsibilities are NOT permissions — they define ownership scope.
 // =============================================================================
 
+let responsibilitiesSchemaPromise = null;
+
+/**
+ * Idempotent runtime self-healing for the responsibilities tables.
+ * Creates the tables on first use so the migration is optional, matching the
+ * self-healing pattern used elsewhere (token hashing, email log).
+ */
+export async function ensureResponsibilitiesSchema() {
+  if (!responsibilitiesSchemaPromise) {
+    responsibilitiesSchemaPromise = (async () => {
+      await db.execute(`CREATE TABLE IF NOT EXISTS responsibilities (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        key TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        icon TEXT DEFAULT '',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS user_responsibilities (
+        id SERIAL PRIMARY KEY,
+        user_cid TEXT NOT NULL,
+        responsibility_id INTEGER NOT NULL,
+        assigned_by TEXT,
+        assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_cid, responsibility_id)
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_resp_cid ON user_responsibilities(user_cid)`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_resp_id ON user_responsibilities(responsibility_id)`);
+      return true;
+    })().catch((e) => {
+      console.warn("[Auth] ensureResponsibilitiesSchema failed:", e.message);
+      responsibilitiesSchemaPromise = null; // allow retry on the next call
+      return false;
+    });
+  }
+  return responsibilitiesSchemaPromise;
+}
+
+let permissionsSchemaPromise = null;
+
+/**
+ * Idempotent runtime self-healing for the full authorization tables
+ * (role/group/user capabilities, restrictions, groups, access profiles).
+ * Creates them on first use so the permission UI never 500s on a DB that
+ * has not run the authorization migrations yet.
+ */
+export function ensurePermissionsSchema() {
+  if (!permissionsSchemaPromise) {
+    permissionsSchemaPromise = (async () => {
+      await db.execute(`CREATE TABLE IF NOT EXISTS role_capabilities (
+        id SERIAL PRIMARY KEY,
+        role TEXT NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        access_level INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(role, module, capability)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS group_capabilities (
+        id SERIAL PRIMARY KEY,
+        group_name TEXT NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        access_level INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(group_name, module, capability)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS user_capabilities (
+        id SERIAL PRIMARY KEY,
+        user_cid TEXT NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        access_level INTEGER NOT NULL DEFAULT 1,
+        granted_by TEXT,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_cid, module, capability)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS user_capability_restrictions (
+        id SERIAL PRIMARY KEY,
+        user_cid TEXT NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        restricted_by TEXT,
+        expires_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_cid, module, capability)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS user_groups (
+        id SERIAL PRIMARY KEY,
+        user_cid TEXT NOT NULL,
+        group_name TEXT NOT NULL,
+        role_in_group TEXT DEFAULT 'member',
+        assigned_by TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_cid, group_name)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS access_profiles (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT DEFAULT '',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS access_profile_capabilities (
+        id SERIAL PRIMARY KEY,
+        profile_id INTEGER NOT NULL,
+        module TEXT NOT NULL,
+        capability TEXT NOT NULL,
+        access_level INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(profile_id, module, capability)
+      )`);
+      await db.execute(`CREATE TABLE IF NOT EXISTS role_access_profile_defaults (
+        id SERIAL PRIMARY KEY,
+        role_name TEXT NOT NULL UNIQUE,
+        access_profile_id INTEGER NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_caps_lookup ON user_capabilities(user_cid, module, capability)`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_restr_lookup ON user_capability_restrictions(user_cid, module, capability)`);
+      return true;
+    })().catch((e) => {
+      console.warn("[Auth] ensurePermissionsSchema failed:", e.message);
+      permissionsSchemaPromise = null; // allow retry on the next call
+      return false;
+    });
+  }
+  return permissionsSchemaPromise;
+}
+
 /**
  * Get all responsibilities for a user.
  * Returns array of { id, name, key, description, icon }
@@ -1530,6 +1664,7 @@ export async function seedDefaultAccessProfiles() {
 export async function getUserResponsibilities(userCid) {
   try {
     await initDb();
+    await ensureResponsibilitiesSchema();
     const result = await db.execute({
       sql: `SELECT r.id, r.name, r.key, r.description, r.icon
             FROM responsibilities r
@@ -1555,6 +1690,7 @@ export async function assignResponsibility(
 ) {
   try {
     await initDb();
+    await ensureResponsibilitiesSchema();
     await db.execute({
       sql: `INSERT INTO user_responsibilities (user_cid, responsibility_id, assigned_by)
             VALUES (?, ?, ?)
@@ -1573,6 +1709,7 @@ export async function assignResponsibility(
 export async function removeResponsibility(userCid, responsibilityId) {
   try {
     await initDb();
+    await ensureResponsibilitiesSchema();
     await db.execute({
       sql: "DELETE FROM user_responsibilities WHERE user_cid = ? AND responsibility_id = ?",
       args: [userCid, responsibilityId],
@@ -1608,6 +1745,7 @@ export async function getAllResponsibilities() {
 export async function seedDefaultResponsibilities() {
   try {
     await initDb();
+    await ensureResponsibilitiesSchema();
 
     const defaults = [
       {
