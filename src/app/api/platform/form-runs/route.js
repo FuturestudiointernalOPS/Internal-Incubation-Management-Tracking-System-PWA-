@@ -1,4 +1,5 @@
- import db, { initDb } from "@/lib/db";
+ import crypto from "crypto";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
@@ -1905,8 +1906,8 @@ export async function POST(req) {
                 formName: form_name,
                 viewUrl,
                 customMessage
-              }).catch(e => console.error("Error sending view token email to", email, e))
-            ));
+              }).catch(e => console.error("Error sending view token email to", email, e));
+            }));
           }
         }
 
