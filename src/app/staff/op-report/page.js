@@ -2183,12 +2183,11 @@ function StaffOpReport() {
                                                                   0
                                                                 ) {
                                                                   blocked = true;
-                                                                  setBlockerModal(
-                                                                    {
-                                                                      type: "api",
-                                                                      taskId:
-                                                                        task.id,
-                                                                    },
+                                                                  notify(
+                                                                    t(
+                                                                      "staff.opReport.blockerActive",
+                                                                    ),
+                                                                    "error",
                                                                   );
                                                                 }
                                                               }
@@ -2219,12 +2218,11 @@ function StaffOpReport() {
                                                                     false &&
                                                                   data.hasActiveBlockers
                                                                 ) {
-                                                                  setBlockerModal(
-                                                                    {
-                                                                      type: "api",
-                                                                      taskId:
-                                                                        task.id,
-                                                                    },
+                                                                  notify(
+                                                                    t(
+                                                                      "staff.opReport.blockerActive",
+                                                                    ),
+                                                                    "error",
                                                                   );
                                                                 } else {
                                                                   fetchTasks();
@@ -2380,12 +2378,11 @@ function StaffOpReport() {
                                                                                 false &&
                                                                               stData.hasActiveBlockers
                                                                             ) {
-                                                                              setBlockerModal(
-                                                                                {
-                                                                                  type: "api",
-                                                                                  taskId:
-                                                                                    st.id,
-                                                                                },
+                                                                              notify(
+                                                                                t(
+                                                                                  "staff.opReport.blockerActive",
+                                                                                ),
+                                                                                "error",
                                                                               );
                                                                             } else {
                                                                               fetchTasks();
@@ -3609,7 +3606,7 @@ function StaffOpReport() {
                 }
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
               >
-                <option value="">{t("staff.opReport.searchProject")}</option>
+                <option value="">{t("common.none")}</option>
                 {(assignedProjects || []).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -3645,9 +3642,7 @@ function StaffOpReport() {
                 disabled={!newTaskForm.name.trim() || creatingTask}
                 className="w-full px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
               >
-                {creatingTask
-                  ? t("common.saving")
-                  : t("staff.opReport.addBlockerButton") || "Add Task"}
+                {creatingTask ? t("common.saving") : t("reports.addTask")}
               </button>
             </div>
           </div>
