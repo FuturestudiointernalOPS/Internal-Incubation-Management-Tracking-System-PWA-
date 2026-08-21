@@ -54,6 +54,9 @@ const MIGRATION_STATEMENTS = [
   "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS review_action TEXT",
   "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS rejection_reason TEXT",
   "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS document_id INTEGER",
+  "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS team_id TEXT",
+  "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL",
+  "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS evaluation_score INTEGER DEFAULT NULL",
   "ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL",
 
   // ── Track 3: v2_submissions status constraint ──
