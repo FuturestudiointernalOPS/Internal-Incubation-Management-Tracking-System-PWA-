@@ -151,10 +151,18 @@ export async function GET(req) {
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
 
-      const totalDeliverables = unlockedDeliverables.length || 1;
-      const completedDeliverables = unlockedDeliverables.filter((d) =>
+      // System-generated attendance deliverables are recorded by staff, not
+      // submitted by participants — exclude them from completion.
+      const nonAttendanceDeliverables = unlockedDeliverables.filter(
+        (d) => !d.title?.toLowerCase().includes("attendance"),
+      );
+      const totalDeliverables = nonAttendanceDeliverables.length || 1;
+      const completedDeliverables = nonAttendanceDeliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) =>
+            s.status === "approved" &&
+            (String(s.document_id) === String(d.id) ||
+              String(s.deliverable_id) === String(d.id)),
         ),
       ).length;
       const programCompletion = Math.round(
@@ -175,6 +183,21 @@ export async function GET(req) {
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
+      // KPI attendance factor only considers the days where presence was actually
+      // marked for this participant (unmarked sessions don't penalize it).
+      const markedAttendanceDays = new Set(
+        attendance.map((a) => a.date).filter(Boolean),
+      ).size;
+      const presentAttendanceDays = new Set(
+        attendance
+          .filter((a) => a.status === "present")
+          .map((a) => a.date)
+          .filter(Boolean),
+      ).size;
+      const markedAttendanceRate =
+        markedAttendanceDays > 0
+          ? Math.round((presentAttendanceDays / markedAttendanceDays) * 100)
+          : 0;
 
       const approvedSubmissions = submissions.filter(
         (s) => s.status === "approved",
@@ -220,7 +243,7 @@ export async function GET(req) {
       // Attendance counts as an extra factor in KPI achievement when the
       // program actually tracks attendance (at least one record exists).
       const kpiFactors = perKpiAchieved.map((ok) => (ok ? 100 : 0));
-      if (attendanceTracked) kpiFactors.push(attendanceRate);
+      if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
       const kpiCompletion =
         kpiFactors.length > 0
           ? Math.round(
@@ -243,7 +266,7 @@ export async function GET(req) {
       overallSessions += totalSessions;
       overallAttended += attendedSessions;
       overallKpiPoints +=
-        targetMetKpis * 100 + (attendanceTracked ? attendanceRate : 0);
+        targetMetKpis * 100 + (attendanceTracked ? markedAttendanceRate : 0);
       overallKpiMax += totalKpis * 100 + (attendanceTracked ? 100 : 0);
       overallDeliverables += totalDeliverables;
       overallCompletedDels += completedDeliverables;
@@ -263,7 +286,13 @@ export async function GET(req) {
         });
       });
       deliverables.forEach((d) => {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        // Attendance tasks are recorded by staff, not submitted by participants.
+        if (d.title?.toLowerCase().includes("attendance")) return;
+        const sub = submissions.find(
+          (s) =>
+            String(s.document_id) === String(d.id) ||
+            String(s.deliverable_id) === String(d.id),
+        );
         milestones.push({
           id: `deliverable-${d.id}`,
           title: `Completed: ${d.title}`,
@@ -277,10 +306,17 @@ export async function GET(req) {
 
       const historyByWeek = [];
       for (let w = 1; w <= currentWeek; w++) {
-        const weekDels = deliverables.filter((d) => (d.week_number || 1) === w);
+        const weekDels = deliverables.filter(
+          (d) =>
+            (d.week_number || 1) === w &&
+            !d.title?.toLowerCase().includes("attendance"),
+        );
         const weekDelsCompleted = weekDels.filter((d) =>
           submissions.some(
-            (s) => s.document_id === d.id && s.status === "approved",
+            (s) =>
+              s.status === "approved" &&
+              (String(s.document_id) === String(d.id) ||
+                String(s.deliverable_id) === String(d.id)),
           ),
         ).length;
         const weekSessions = sessions.filter((s) => (s.week_number || 1) === w);

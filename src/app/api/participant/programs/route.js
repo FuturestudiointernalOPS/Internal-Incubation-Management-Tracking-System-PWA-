@@ -118,10 +118,12 @@ export async function GET(req) {
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) =>
         submissions.some(
-          (s) => (s.deliverable_id || s.document_id) === d.id && s.status === "approved",
+          (s) =>
+            String(s.deliverable_id || s.document_id) === String(d.id) &&
+            s.status === "approved",
         ),
       ).length;
-      const percentComplete = Math.round(
+      let percentComplete = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
@@ -147,6 +149,12 @@ export async function GET(req) {
       const assignmentCompletion = Math.round(
         (approvedSubmissions / totalSubmissions) * 100,
       );
+
+      // No deliverables tracked for this program → fall back to submissions so
+      // Progress stays consistent with Assignments instead of a misleading 0%.
+      if (unlockedDeliverables.length === 0 && submissions.length > 0) {
+        percentComplete = assignmentCompletion;
+      }
 
       // ─── KPI Progress — per participant ───
       // Average across the program's KPIs, where each KPI counts as "achieved"

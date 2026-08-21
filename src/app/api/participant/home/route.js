@@ -107,12 +107,17 @@ export async function GET(req) {
         unlockedSessions.length > 0
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
-      const totalDeliverables = unlockedDeliverables.length || 1;
-      const completedDeliverables = unlockedDeliverables.filter((d) => {
+      // System-generated attendance deliverables are recorded by staff, not
+      // submitted by participants — exclude them from completion.
+      const nonAttendanceDeliverables = unlockedDeliverables.filter(
+        (d) => !d.title?.toLowerCase().includes("attendance"),
+      );
+      const totalDeliverables = nonAttendanceDeliverables.length || 1;
+      const completedDeliverables = nonAttendanceDeliverables.filter((d) => {
         const sub = submissions.find((s) => String(s.deliverable_id || s.document_id) === String(d.id));
         return sub && sub.status === "approved";
       }).length;
-      const programCompletion = Math.round(
+      let programCompletion = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
@@ -131,6 +136,21 @@ export async function GET(req) {
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
       );
+      // KPI attendance factor only considers the days where presence was actually
+      // marked for this participant (unmarked sessions don't penalize it).
+      const markedAttendanceDays = new Set(
+        attendance.map((a) => a.date).filter(Boolean),
+      ).size;
+      const presentAttendanceDays = new Set(
+        attendance
+          .filter((a) => a.status === "present")
+          .map((a) => a.date)
+          .filter(Boolean),
+      ).size;
+      const markedAttendanceRate =
+        markedAttendanceDays > 0
+          ? Math.round((presentAttendanceDays / markedAttendanceDays) * 100)
+          : 0;
 
       const totalAssignments = submissions.length || 1;
       const approvedAssignments = submissions.filter(
@@ -139,6 +159,12 @@ export async function GET(req) {
       const assignmentCompletion = Math.round(
         (approvedAssignments / totalAssignments) * 100,
       );
+
+      // No deliverables tracked for this program → fall back to submissions so
+      // programCompletion stays consistent with assignmentCompletion.
+      if (unlockedDeliverables.length === 0 && submissions.length > 0) {
+        programCompletion = assignmentCompletion;
+      }
 
       // ─── KPI Achievement — per participant ───
       // A participant's KPI achievement is the average across the program's KPIs,
@@ -176,7 +202,7 @@ export async function GET(req) {
         );
         return achieved ? 100 : 0;
       });
-      if (attendanceTracked) kpiFactors.push(attendanceRate);
+      if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
       kpiCompletion =
         kpiFactors.length > 0
           ? Math.round(
@@ -220,11 +246,16 @@ export async function GET(req) {
 
     if (primaryProgram) {
       for (const d of primaryProgram.deliverables) {
+        // System-generated attendance tasks are recorded by staff, not submitted
+        // by participants — they must never appear as overdue or due soon.
+        if (d.title?.toLowerCase().includes("attendance")) continue;
         if (!d.due_date && !d.created_at) continue;
         const dueDate = new Date(d.due_date || d.created_at);
         dueDate.setHours(0, 0, 0, 0);
         const existingSub = primaryProgram.submissions.find(
-          (s) => s.document_id === d.id,
+          (s) =>
+            String(s.document_id) === String(d.id) ||
+            String(s.deliverable_id) === String(d.id),
         );
         const isApproved = existingSub?.status === "approved";
         if (!isApproved && dueDate < today) {
@@ -301,6 +332,8 @@ export async function GET(req) {
         });
       }
       for (const d of prog.deliverables || []) {
+        // Attendance tasks are recorded by staff, not submitted by participants.
+        if (d.title?.toLowerCase().includes("attendance")) continue;
         if (!d.due_date && !d.created_at) continue;
         // Check if participant already submitted
         const existingSub = (prog.submissions || []).find(

@@ -200,7 +200,9 @@ export async function GET(req, { params }) {
     for (const [wn, data] of weekMap) {
       const completedDels = data.deliverables.filter((d) =>
         submissions.some(
-          (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
+          (s) =>
+            String(s.deliverable_id || s.document_id) === String(d.id) &&
+            s.status === "approved",
         ),
       ).length;
       
@@ -211,7 +213,9 @@ export async function GET(req, { params }) {
         sessions: data.sessions,
         locked: !isWeekUnlocked,
         deliverables: data.deliverables.map((d) => {
-          const sub = submissions.find((s) => String(s.deliverable_id) === String(d.id));
+          const sub = submissions.find(
+            (s) => String(s.deliverable_id || s.document_id) === String(d.id),
+          );
           return {
             id: d.id,
             title: d.title,
@@ -276,10 +280,9 @@ export async function GET(req, { params }) {
     const unlockedWeeks = weeks.filter((w) => !w.locked);
     const unlockedDeliverables = unlockedWeeks.flatMap((w) => w.deliverables);
 
-    // ─── 1. Program completion = how far the program itself has progressed ───
-    // Use week-based progress: currentWeek / program.duration_weeks
-    const durationWeeks = Number(program.duration_weeks) || weeks.length || 1;
-    const percentComplete = Math.round((currentWeek / durationWeeks) * 100);
+    // ─── 1. Program completion — performance-based, computed below from the
+    // approved deliverables (falls back to approved submissions when the
+    // program tracks no deliverables). Kept in sync with the dashboard card.
 
     // ─── 2. Deliverables done — exclude 'attendance' deliverables ───
     const unlockedNonAttendanceDeliverables = unlockedDeliverables.filter(
@@ -288,9 +291,21 @@ export async function GET(req, { params }) {
     const totalDeliverables = unlockedNonAttendanceDeliverables.length;
     const completedDeliverables = unlockedNonAttendanceDeliverables.filter((d) =>
       submissions.some(
-        (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
+        (s) =>
+          String(s.deliverable_id || s.document_id) === String(d.id) &&
+          s.status === "approved",
       ),
     ).length;
+    const percentComplete =
+      totalDeliverables > 0
+        ? Math.round((completedDeliverables / totalDeliverables) * 100)
+        : submissions.length > 0
+          ? Math.round(
+              (submissions.filter((s) => s.status === "approved").length /
+                submissions.length) *
+                100,
+            )
+          : 0;
 
     // ─── 3. Attendance — for this participant only ───
     const attendedSessions = attendance.filter(
