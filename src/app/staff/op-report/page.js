@@ -54,6 +54,45 @@ function getCurrentWeek() {
   return { week: getWeekNumber(now), year: now.getFullYear() };
 }
 
+// Returns true when a stand-up draft actually contains something the user
+// typed/added (a non-empty field or at least one task row). Empty drafts are
+// not worth showing or keeping.
+function hasDraftContent(form, taskRows) {
+  if (Array.isArray(taskRows) && taskRows.length > 0) return true;
+  if (!form) return false;
+
+  const arrayFields = [
+    "top_priorities",
+    "expected_deliverables",
+    "completed_work",
+    "unfinished_tasks",
+    "wins",
+    "carryover_items",
+  ];
+  for (const f of arrayFields) {
+    if (Array.isArray(form[f]) && form[f].length > 0) return true;
+  }
+
+  const stringFields = [
+    "projects_tasks",
+    "dependency_note",
+    "blocker_description",
+    "support_note",
+    "additional_notes",
+    "challenges",
+    "week_status",
+    "blocker_type",
+    "blocker_desc",
+    "major_achievement",
+    "retro_notes",
+  ];
+  for (const f of stringFields) {
+    if (typeof form[f] === "string" && form[f].trim() !== "") return true;
+  }
+
+  return false;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "—";
   try {
@@ -239,15 +278,19 @@ function StaffOpReport() {
 
     if (draftTimerRef.current) clearTimeout(draftTimerRef.current);
     draftTimerRef.current = setTimeout(() => {
-      const draft = {
-        form,
-        taskRows,
-        reportType,
-        showTaskForm,
-        savedAt: Date.now(),
-      };
       try {
-        localStorage.setItem(key, JSON.stringify(draft));
+        if (hasDraftContent(form, taskRows)) {
+          const draft = {
+            form,
+            taskRows,
+            reportType,
+            showTaskForm,
+            savedAt: Date.now(),
+          };
+          localStorage.setItem(key, JSON.stringify(draft));
+        } else {
+          localStorage.removeItem(key);
+        }
       } catch (e) {
         // localStorage full or unavailable — silently ignore
       }
@@ -266,8 +309,7 @@ function StaffOpReport() {
       const raw = localStorage.getItem(key);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Only show banner if draft is from today or earlier (prevents showing banner right after save)
-        if (parsed.form || (parsed.taskRows && parsed.taskRows.length > 0)) {
+        if (hasDraftContent(parsed.form, parsed.taskRows)) {
           setDraftAvailable(true);
           return;
         }
