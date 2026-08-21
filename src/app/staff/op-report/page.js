@@ -1361,7 +1361,8 @@ function StaffOpReport() {
                           const weekTasks = tasks.filter(
                             (t) =>
                               t.created_week === report.week_number &&
-                              t.created_year === report.year,
+                              t.created_year === report.year &&
+                              !t.parent_task_id, // subtasks are counted via the parent
                           );
                           const taskCount = weekTasks.reduce(
                             (sum, t) =>
