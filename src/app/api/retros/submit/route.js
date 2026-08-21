@@ -4,6 +4,7 @@ import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
 import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 
 /**
  * POST /api/retros/submit
@@ -184,6 +185,11 @@ export async function POST(req) {
             sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
             args: updateArgs,
           });
+
+          // Completing a cloned task must also complete its carried-over ancestors
+          if (status === "completed") {
+            await completeCarryoverAncestors(task_id);
+          }
 
           // Audit log
           const taskTitle =

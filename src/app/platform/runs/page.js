@@ -894,7 +894,9 @@ export default function FormRunsPage() {
   const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
-  const [regeneratingLink, setRegeneratingLink] = useState(false);
+  const [viewShareEmails, setViewShareEmails] = useState(""); // comma-sep emails for view-responses link
+  const [viewShareToken, setViewShareToken] = useState(null);
+  const [viewShareLoading, setViewShareLoading] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1931,28 +1933,35 @@ export default function FormRunsPage() {
     );
   };
 
-  // ─── REGENERATE SHARE LINK (rotates public_slug — revokes the old URL) ───
-  const regenerateLink = async () => {
-    if (!selectedRun || regeneratingLink) return;
-    setRegeneratingLink(true);
+  // ─── GENERATE / FETCH VIEW-RESPONSES SHARE LINK ───
+  const generateViewShareLink = async (runId, emails) => {
+    setViewShareLoading(true);
     try {
-      const res = await fetch("/api/platform/form-runs?action=regenerate_link", {
+      const res = await fetch("/api/platform/form-runs?action=generate_view_token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: selectedRun.id }),
+        body: JSON.stringify({ id: runId, emails: emails.split(",").map((e) => e.trim()).filter(Boolean) }),
       });
       const data = await res.json();
-      if (data.success && data.run) {
-        setSelectedRun(data.run);
-        notify(t("platformMisc.runs.linkRegenerated"));
+      if (data.success && data.viewToken) {
+        setViewShareToken(data.viewToken);
+        notify("View link generated!");
       } else {
-        notify(t("platformMisc.runs.regenerateFailed"));
+        notify(data.error || "Failed to generate view link.");
       }
     } catch (_) {
-      notify(t("platformMisc.runs.regenerateFailed"));
+      notify("Failed to generate view link.");
     } finally {
-      setRegeneratingLink(false);
+      setViewShareLoading(false);
     }
+  };
+
+  const fetchViewShareToken = async (runId) => {
+    try {
+      const res = await fetch(`/api/platform/form-runs?action=get_view_token&id=${runId}`);
+      const data = await res.json();
+      if (data.success && data.viewToken) setViewShareToken(data.viewToken);
+    } catch (_) {}
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -3193,7 +3202,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 )}
                 {slug && (
                   <>
-                    {/* Direct Link */}
+                    {/* Direct Link (Submission) */}
                     <div>
                       <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.directLink")}</h3>
                       <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">{t("platformMisc.runs.directLinkDesc")}</p>
@@ -3208,16 +3217,6 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
                         >
                           {t("platformMisc.runs.copy")}
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 mt-3 p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
-                        <p className="text-[9px] font-bold text-rose-400">{t("platformMisc.runs.regenerateLinkWarning")}</p>
-                        <button
-                          onClick={regenerateLink}
-                          disabled={regeneratingLink}
-                          className="shrink-0 px-3 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20 disabled:opacity-50"
-                        >
-                          {t("platformMisc.runs.regenerateLink")}
                         </button>
                       </div>
                     </div>
@@ -3241,6 +3240,64 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         </button>
                       </div>
                     </div>
+
+                    {/* View Responses Link — email-allowlisted, read-only */}
+                    <div className="space-y-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)]">
+                      <div>
+                        <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">View Responses Link</h3>
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                          Share a <strong>read-only</strong> link to your responses. Only people whose email you add below can access it — no login, no CRM access, no ability to edit or delete anything.
+                        </p>
+                      </div>
+
+                      {/* Allowed emails input */}
+                      <div className="space-y-1.5">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                          Allowed Emails (comma-separated)
+                        </label>
+                        <textarea
+                          rows={2}
+                          value={viewShareEmails}
+                          onChange={(e) => setViewShareEmails(e.target.value)}
+                          placeholder="email1@example.com, email2@example.com"
+                          className="w-full rounded-xl px-4 py-3 text-[11px] outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none"
+                        />
+                      </div>
+
+                      <button
+                        disabled={viewShareLoading || !viewShareEmails.trim()}
+                        onClick={() => generateViewShareLink(selectedRun.id, viewShareEmails)}
+                        className="px-5 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-40 transition-all"
+                      >
+                        {viewShareLoading ? "Generating…" : "Generate View Link"}
+                      </button>
+
+                      {/* Show the generated link */}
+                      {viewShareToken && (() => {
+                        const viewUrl = `${baseUrl}/platform/runs/view/${viewShareToken}`;
+                        return (
+                          <div className="space-y-2 pt-1">
+                            <div className="flex gap-2">
+                              <input
+                                readOnly
+                                value={viewUrl}
+                                className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-emerald-500/40 text-[var(--text-primary)]"
+                              />
+                              <button
+                                onClick={() => { navigator.clipboard.writeText(viewUrl); notify("View link copied!"); }}
+                                className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 shrink-0"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <p className="text-[8px] text-emerald-400 font-bold">
+                              ✓ Only the emails you listed above can open this link.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+
                   </>
                 )}
 

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 
 /**
  * POST /api/tasks/reconcile
@@ -66,6 +67,11 @@ export async function POST(req) {
           sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
           args: updateArgs,
         });
+
+        // Completing a cloned task must also complete its carried-over ancestors
+        if (status === "completed") {
+          await completeCarryoverAncestors(id);
+        }
 
         // Audit log
         await logAuditEvent({

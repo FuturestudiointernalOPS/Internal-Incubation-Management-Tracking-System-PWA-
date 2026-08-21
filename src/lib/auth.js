@@ -1589,6 +1589,10 @@ export async function removeResponsibility(userCid, responsibilityId) {
 export async function getAllResponsibilities() {
   try {
     await initDb();
+    // Idempotent upsert — guarantees the canonical default responsibilities
+    // (including "crm") always exist, even for partially-seeded databases.
+    // Safe to call repeatedly; each statement is ON CONFLICT DO UPDATE.
+    await seedDefaultResponsibilities();
     const result = await db.execute({
       sql: "SELECT * FROM responsibilities WHERE is_active = 1 ORDER BY name",
     });
