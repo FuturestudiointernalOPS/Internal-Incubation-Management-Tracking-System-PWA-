@@ -6,6 +6,7 @@ import {
   assignResponsibility,
   removeResponsibility,
   logPermissionAudit,
+  getAllResponsibilities,
 } from "@/lib/auth";
 
 /**
@@ -120,6 +121,9 @@ export async function GET(req) {
     if (authError) return authError;
 
     await initDb();
+    // Self-heal: ensure the responsibility definitions always exist so the
+    // Responsibilities tab never renders an empty list.
+    await seedDefaultResponsibilities();
     const { searchParams } = new URL(req.url);
     const userCid = searchParams.get("user_cid");
 
@@ -130,10 +134,8 @@ export async function GET(req) {
       );
     }
 
-    // Get all active responsibilities
-    const all = await db.execute({
-      sql: "SELECT * FROM responsibilities WHERE is_active = 1 ORDER BY name",
-    });
+    // Get all active responsibilities (self-seeds defaults when empty)
+    const all = await getAllResponsibilities();
 
     // Get user's assigned responsibilities
     const assigned = await db.execute({
@@ -148,7 +150,7 @@ export async function GET(req) {
     const assignedIds = new Set(assigned.rows.map((r) => r.id));
 
     // Build full response with toggle state
-    const responsibilities = all.rows.map((r) => ({
+    const responsibilities = all.map((r) => ({
       ...r,
       assigned: assignedIds.has(r.id),
     }));

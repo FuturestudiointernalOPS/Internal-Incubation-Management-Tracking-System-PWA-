@@ -71,6 +71,19 @@ function truncate(str, maxLen) {
 }
 
 async function backfill() {
+  // SAFETY GUARD: This script reconstructs tasks from free-text report fields.
+  // Because hard-deleted tasks leave no tombstone, re-running it re-inserts
+  // tasks the user already deleted. Require an explicit opt-in to run.
+  if (process.env.ALLOW_TASK_BACKFILL !== "1") {
+    console.error(
+      "\nREFUSING TO RUN.\n\n" +
+        "This backfill re-inserts tasks from v2_op_reports and can resurrect\n" +
+        "tasks that were hard-deleted. If you are certain you want to run it,\n" +
+        "set ALLOW_TASK_BACKFILL=1 and re-run.\n",
+    );
+    process.exit(1);
+  }
+
   await initDb();
   console.log("Backfilling tasks from v2_op_reports...\n");
 

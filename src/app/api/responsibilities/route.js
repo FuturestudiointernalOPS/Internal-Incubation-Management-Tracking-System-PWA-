@@ -6,6 +6,7 @@ import {
   getUserResponsibilities,
   getAllResponsibilities,
   logPermissionAudit,
+  seedDefaultResponsibilities,
 } from "@/lib/auth";
 
 /**
@@ -21,6 +22,9 @@ export async function GET(req) {
     if (authError) return authError;
 
     await initDb();
+    // Self-heal: ensure the responsibility definitions always exist so the
+    // Responsibilities tab never renders an empty list.
+    await seedDefaultResponsibilities();
     const { searchParams } = new URL(req.url);
     const userCid = searchParams.get("user_cid");
 

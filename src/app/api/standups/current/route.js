@@ -102,6 +102,12 @@ export async function GET(req) {
       weekTaskArgs.push(context_id);
     }
 
+    // Archived tasks are soft-deleted and must not appear in the active
+    // dashboard view unless explicitly requested for historical reference.
+    if (!showAll) {
+      weekTaskSql += " AND status != 'archived'";
+    }
+
     weekTaskSql += ` ORDER BY CASE priority
         WHEN 'critical' THEN 0 WHEN 'high' THEN 1
         WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4

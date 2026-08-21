@@ -1802,6 +1802,99 @@ export async function POST(req) {
       return NextResponse.json({ success: true, run: fresh.rows[0], public_slug: slug });
     }
 
+    // ─── GENERATE VIEW TOKEN — create a run-level read-only share token with email allowlist ───
+    if (action === "generate_view_token") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin", "program_manager"]);
+      if (authError) return authError;
+
+      const { id: runId, emails } = body;
+      if (!runId) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
+      if (!emails || !Array.isArray(emails) || emails.length === 0) {
+        return NextResponse.json({ success: false, error: "At least one email is required" }, { status: 400 });
+      }
+
+      // Generate a random 48-char hex token
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(24).toString("hex");
+
+      try {
+        // Ensure table exists (idempotent)
+        await db.execute({
+          sql: `CREATE TABLE IF NOT EXISTS run_view_tokens (
+            id SERIAL PRIMARY KEY,
+            run_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            created_by TEXT,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            expires_at TIMESTAMPTZ,
+            is_active BOOLEAN NOT NULL DEFAULT TRUE
+          )`
+        });
+        await db.execute({
+          sql: `CREATE TABLE IF NOT EXISTS run_view_token_emails (
+            id SERIAL PRIMARY KEY,
+            token_id INTEGER NOT NULL,
+            email TEXT NOT NULL,
+            added_at TIMESTAMPTZ DEFAULT NOW()
+          )`
+        });
+
+        // Deactivate any old tokens for this run
+        await db.execute({
+          sql: "UPDATE run_view_tokens SET is_active = FALSE WHERE run_id = ?",
+          args: [parseInt(runId)],
+        });
+
+        // Insert new token
+        const tokenRes = await db.execute({
+          sql: "INSERT INTO run_view_tokens (run_id, token, created_by) VALUES (?, ?, ?) RETURNING id",
+          args: [parseInt(runId), token, session.cid || session.email],
+        });
+        const tokenId = Number(tokenRes.rows[0]?.id ?? tokenRes.lastInsertRowid);
+
+        // Insert each allowed email
+        for (const email of emails) {
+          const normalized = email.toLowerCase().trim();
+          if (!normalized) continue;
+          try {
+            await db.execute({
+              sql: "INSERT INTO run_view_token_emails (token_id, email) VALUES (?, ?) ON CONFLICT DO NOTHING",
+              args: [tokenId, normalized],
+            });
+          } catch (_) {
+            // Fallback for DBs without ON CONFLICT support
+            await db.execute({
+              sql: "INSERT INTO run_view_token_emails (token_id, email) VALUES (?, ?)",
+              args: [tokenId, normalized],
+            });
+          }
+        }
+
+        return NextResponse.json({ success: true, viewToken: token });
+      } catch (err) {
+        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+      }
+    }
+
+    // ─── GET VIEW TOKEN — fetch the current active view token for a run ───
+    if (action === "get_view_token") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const runId = url.searchParams.get("id");
+      if (!runId) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
+      try {
+        const res = await db.execute({
+          sql: "SELECT token FROM run_view_tokens WHERE run_id = ? AND is_active = TRUE ORDER BY created_at DESC LIMIT 1",
+          args: [parseInt(runId)],
+        });
+        if (res.rows.length === 0) return NextResponse.json({ success: true, viewToken: null });
+        return NextResponse.json({ success: true, viewToken: res.rows[0].token });
+      } catch (_) {
+        return NextResponse.json({ success: true, viewToken: null });
+      }
+    }
+
+
     // ─── CREATE ACTION ───
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     const authError = await requireAuth(["super_admin", "admin"]);

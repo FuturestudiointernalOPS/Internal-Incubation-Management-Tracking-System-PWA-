@@ -4,6 +4,7 @@ import { logAuditEvent } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth } from "@/lib/auth";
 import { getTaskById } from "@/lib/db/queries/tasks";
+import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 
 /**
  * ASSIGNMENT ACTION API
@@ -174,6 +175,9 @@ export async function POST(req) {
         sql: "UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         args: [parseInt(task_id)],
       });
+
+      // Completing a cloned task must also complete its carried-over ancestors
+      await completeCarryoverAncestors(task_id);
 
       // Audit log
       await logAuditEvent({
