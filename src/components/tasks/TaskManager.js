@@ -162,6 +162,7 @@ export default function TaskManager({
     status: "",
     assigned_to: "",
     priority: "medium",
+    link: "",
   });
 
   // ── Comments (Ticket 1.3 / 1.9) ──
@@ -844,10 +845,8 @@ export default function TaskManager({
                 : ""
           } ${!isSub && task.subtasks?.length > 0 ? "bg-indigo-500/[0.04]" : ""}`}
         >
-          {/* Checkbox — always available for sub-tasks (independent completion, Ticket 1.3).
-              For parent tasks, hidden in standup mode since the status dropdown covers it. */}
-          {(mode !== "standup" || isSub) &&
-            (() => {
+          {/* Checkbox — available for both parent and sub-tasks (independent completion, Ticket 1.3). */}
+          {(() => {
               const canCheck =
                 mode === "project"
                   ? String(task.user_id) === String(currentUserId) ||
@@ -1044,6 +1043,7 @@ export default function TaskManager({
                   status: task.status || "in_progress",
                   assigned_to: task.assigned_to || "",
                   priority: task.priority || "medium",
+                  link: task.link || "",
                 });
                 setEditTaskModal(task);
               }}
@@ -1995,6 +1995,21 @@ export default function TaskManager({
 
               <div>
                 <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Resource Link (optional)
+                </label>
+                <input
+                  type="url"
+                  value={editForm.link || ""}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, link: e.target.value }))
+                  }
+                  placeholder="https://..."
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)] transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
                   Priority
                 </label>
                 <select
@@ -2129,6 +2144,7 @@ export default function TaskManager({
                         end_date: editForm.due_date || null,
                         assigned_to: editForm.assigned_to || null,
                         priority: editForm.priority || "medium",
+                        link: editForm.link || null,
                         user_id: uid,
                       }),
                     });
