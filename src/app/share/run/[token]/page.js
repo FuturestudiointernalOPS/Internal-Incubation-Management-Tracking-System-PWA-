@@ -1,34 +1,21 @@
 ﻿"use client";
 export const dynamic = "force-dynamic";
 import { useState, useEffect } from "react";
-import { Eye, Lock, LogOut, CheckCircle, Clock, AlertCircle, Mail } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { Eye, Lock, LogOut, CheckCircle, Clock, AlertCircle } from "lucide-react";
 
 export default function RunShareViewPage({ params }) {
   const token = params.token;
-  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [errorEmail, setErrorEmail] = useState(null);
   const [data, setData] = useState(null);
   const [isUnauthorized, setIsUnauthorized] = useState(false);
-  const [requiresLogin, setRequiresLogin] = useState(false);
-  const [isMagicLink, setIsMagicLink] = useState(false);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        // Build the API URL — pass magic link params if present in this URL
-        const m = searchParams.get("m");
-        const s = searchParams.get("s");
-        const e = searchParams.get("e");
-        setIsMagicLink(!!(m && s && e));
-
-        let apiUrl = "/api/share/run?token=" + encodeURIComponent(token);
-        if (m && s && e) {
-          apiUrl += "&m=" + encodeURIComponent(m) + "&s=" + encodeURIComponent(s) + "&e=" + encodeURIComponent(e);
-        }
+        const apiUrl = "/api/run-response-shares/resolve?token=" + encodeURIComponent(token);
 
         const res = await fetch(apiUrl);
         const json = await res.json();
@@ -37,7 +24,7 @@ export default function RunShareViewPage({ params }) {
           setData(json);
         } else {
           if (res.status === 401 && json.requiresLogin) {
-            // Not logged in and no magic link — redirect to login with return URL
+            // Not logged in — redirect to login with return URL
             window.location.href = "/login?redirect=" + encodeURIComponent(window.location.href);
             return;
           }
@@ -54,7 +41,7 @@ export default function RunShareViewPage({ params }) {
       }
     }
     load();
-  }, [token, searchParams]);
+  }, [token]);
 
   if (loading) {
     return (
@@ -105,14 +92,6 @@ export default function RunShareViewPage({ params }) {
           ) : (
             <div className="space-y-3">
               <p className="text-[12px] text-white/70 leading-relaxed">{error}</p>
-              {isMagicLink && (
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-2">
-                  <Mail className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-[11px] text-amber-300/80 leading-relaxed">
-                    This link may have expired. Please request a new one from the person who shared it with you.
-                  </p>
-                </div>
-              )}
             </div>
           )}
         </div>

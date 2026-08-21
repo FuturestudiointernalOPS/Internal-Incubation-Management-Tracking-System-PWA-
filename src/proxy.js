@@ -56,6 +56,7 @@ const publicApiPaths = [
   "/api/migrate",
   "/api/s",
   "/api/share/run",
+  "/api/run-response-shares",
   "/api/investor/register",
   "/api/investor/setup-password",
 ];

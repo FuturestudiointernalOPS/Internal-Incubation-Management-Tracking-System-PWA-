@@ -753,10 +753,89 @@ export async function sendRunViewTokenEmail({ to, runName, formName, viewUrl, cu
     </html>
   `;
 
-  return sendEmail({ to, subject, html, provider: "gmail" });
+  return sendEmail({ to, subject, html, provider: "resend" });
 }
 
-// ─── EMAIL DELIVERY LOG (idempotency layer) ─────────────────────────
+/**
+ * Send a read-only run-responses share invitation.
+ *
+ * One combined email:
+ *   - activationUrl (optional) → "Create my account" (new accounts only)
+ *   - shareUrl → "View responses" (always)
+ * Access still requires login + email match; the token is never the only gate.
+ */
+export async function sendRunResponseShareEmail({ to, name, shareUrl, activationUrl, runName, customMessage }) {
+  const greetingName = resolveGreetingName(name);
+  const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
+  const subject = runName ? `View responses for ${runName}` : "You have view access to form responses";
+
+  const escapeHtml = (v) =>
+    String(v || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const messageBlock = customMessage
+    ? `<p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">${escapeHtml(customMessage)}</p>`
+    : "";
+  const activationBlock = activationUrl
+    ? `<table cellpadding="0" cellspacing="0" style="margin: 0 0 12px;">
+        <tr>
+          <td align="center" style="background: #334155; border-radius: 12px; padding: 14px 32px;">
+            <a href="${activationUrl}" style="color: #f8fafc; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+              Create My Account
+            </a>
+          </td>
+        </tr>
+      </table>`
+    : "";
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;"> OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">${subject}</h2>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">${greeting}</p>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">You have been given view-only access to the responses${runName ? ` for <strong style="color: #f8fafc;">${runName}</strong>` : ""}. You must sign in with <strong style="color: #f8fafc;">${to}</strong> to view them.</p>
+              ${messageBlock}
+              ${activationBlock}
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${shareUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      View Responses
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">${shareUrl}</p>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                This link is intended only for ${to}. If you did not expect this, please ignore this email.
+              </p>
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject, html, provider: "resend" });
+}
 // Every workflow email is tracked in platform_email_log so the system
 // never sends the same email type twice for the same submission, and
 // failed sends are distinguishable from successful ones.

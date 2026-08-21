@@ -903,7 +903,7 @@ export default function FormRunsPage() {
   const [viewShareEmails, setViewShareEmails] = useState(""); // comma-sep emails for view-responses link
   const [viewShareMessage, setViewShareMessage] = useState("");
   const [viewShareSendEmail, setViewShareSendEmail] = useState(false);
-  const [viewShareToken, setViewShareToken] = useState(null);
+  const [viewShareResults, setViewShareResults] = useState(null); // per-email results
   const [viewShareLoading, setViewShareLoading] = useState(false);
 
   // Manual message composer (Room Overview → selected participants)
@@ -1941,40 +1941,34 @@ export default function FormRunsPage() {
     );
   };
 
-  // ─── GENERATE / FETCH VIEW-RESPONSES SHARE LINK ───
+  // ─── CREATE VIEW-RESPONSES SHARE LINKS (simple, per-email, login-verified) ───
   const generateViewShareLink = async (runId, emails, sendEmail, customMessage) => {
     setViewShareLoading(true);
+    setViewShareResults(null);
     try {
-      const res = await fetch("/api/platform/form-runs?action=generate_view_token", {
+      const res = await fetch("/api/run-response-shares", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          id: runId, 
+        body: JSON.stringify({
+          run_id: runId,
           emails: emails.split(",").map((e) => e.trim()).filter(Boolean),
-          sendEmail,
-          customMessage
+          expires_in_days: 7,
+          customMessage: customMessage || null,
         }),
       });
       const data = await res.json();
-      if (data.success && data.viewToken) {
-        setViewShareToken(data.viewToken);
-        notify("View link generated!");
+      if (data.success) {
+        setViewShareResults(data.results || []);
+        const ok = (data.results || []).filter((r) => r.success).length;
+        notify(`View links created & emailed (${ok}/${(data.results || []).length}).`);
       } else {
-        notify(data.error || "Failed to generate view link.");
+        notify(data.error || "Failed to create view links.");
       }
     } catch (_) {
-      notify("Failed to generate view link.");
+      notify("Failed to create view links.");
     } finally {
       setViewShareLoading(false);
     }
-  };
-
-  const fetchViewShareToken = async (runId) => {
-    try {
-      const res = await fetch(`/api/platform/form-runs?action=get_view_token&id=${runId}`);
-      const data = await res.json();
-      if (data.success && data.viewToken) setViewShareToken(data.viewToken);
-    } catch (_) {}
   };
 
   // ─── RUN DETAIL VIEW ───
@@ -3310,33 +3304,43 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         onClick={() => generateViewShareLink(selectedRun.id, viewShareEmails, viewShareSendEmail, viewShareMessage)}
                         className="px-5 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-40 transition-all"
                       >
-                        {viewShareLoading ? "Generating…" : (viewShareSendEmail ? "Generate & Send Emails" : "Generate View Link")}
+                        {viewShareLoading ? "Creating…" : "Create & Email View Links"}
                       </button>
 
-                      {/* Show the generated link */}
-                      {viewShareToken && (() => {
-                        const viewUrl = `${baseUrl}/share/run/${viewShareToken}`;
-                        return (
-                          <div className="space-y-2 pt-1">
-                            <div className="flex gap-2">
-                              <input
-                                readOnly
-                                value={viewUrl}
-                                className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-emerald-500/40 text-[var(--text-primary)]"
-                              />
-                              <button
-                                onClick={() => { navigator.clipboard.writeText(viewUrl); notify("View link copied!"); }}
-                                className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 shrink-0"
-                              >
-                                Copy
-                              </button>
+                      {/* Per-email results: each person gets their own link */}
+                      {viewShareResults && (
+                        <div className="space-y-2 pt-1">
+                          {viewShareResults.map((r, i) => (
+                            <div key={i} className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-1.5">
+                              <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                                {r.success ? "✓" : "✗"} {r.email}
+                              </p>
+                              {r.success ? (
+                                <>
+                                  <p className="text-[9px] text-[var(--text-secondary)]">
+                                    {r.activation_sent ? "Activation email sent · " : ""}Link emailed. Recipient must sign in with this email to view.
+                                  </p>
+                                  <div className="flex gap-2">
+                                    <input
+                                      readOnly
+                                      value={r.share_url}
+                                      className="flex-1 rounded-xl px-3 py-2 text-[10px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                                    />
+                                    <button
+                                      onClick={() => { navigator.clipboard.writeText(r.share_url); notify("View link copied!"); }}
+                                      className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 shrink-0"
+                                    >
+                                      Copy
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <p className="text-[9px] text-rose-400">{r.error || "Failed"}</p>
+                              )}
                             </div>
-                            <p className="text-[8px] text-emerald-400 font-bold">
-                              ✓ Only the emails you listed above can open this link.
-                            </p>
-                          </div>
-                        );
-                      })()}
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                   </>

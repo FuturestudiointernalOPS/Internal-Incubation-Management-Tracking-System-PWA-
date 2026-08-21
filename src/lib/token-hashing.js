@@ -92,3 +92,39 @@ export function ensureFormResponseSharesTable() {
   }
   return formResponseSharesTablePromise;
 }
+
+/**
+ * Idempotent runtime self-healing for the run_response_shares table.
+ * Same pattern as form_response_shares — created on first use, so running
+ * migration 045 by hand is OPTIONAL.
+ */
+let runResponseSharesTablePromise = null;
+
+export function ensureRunResponseSharesTable() {
+  if (!runResponseSharesTablePromise) {
+    runResponseSharesTablePromise = (async () => {
+      await db.execute(`CREATE TABLE IF NOT EXISTS run_response_shares (
+        id SERIAL PRIMARY KEY,
+        run_id INTEGER NOT NULL,
+        email TEXT NOT NULL,
+        token_hash TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'active'
+          CHECK (status IN ('active', 'revoked', 'expired')),
+        expires_at TIMESTAMPTZ,
+        created_by TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        revoked_at TIMESTAMPTZ,
+        revoked_by TEXT,
+        last_viewed_at TIMESTAMPTZ
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_run_response_shares_run ON run_response_shares(run_id)`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_run_response_shares_email ON run_response_shares(LOWER(email))`);
+      return true;
+    })().catch((e) => {
+      console.warn("[TokenHashing] ensureRunResponseSharesTable failed:", e.message);
+      runResponseSharesTablePromise = null; // allow retry on the next call
+      return false;
+    });
+  }
+  return runResponseSharesTablePromise;
+}
