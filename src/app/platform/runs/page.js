@@ -407,12 +407,18 @@ export default function FormRunsPage() {
       params.set("page", String(page));
       params.set("per_page", String(perPage));
       const res = await fetch(`/api/platform/form-runs?${params}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (data.success) {
         setRuns(data.runs || []);
         setTotalRuns(data.total || 0);
+      } else {
+        console.error("[runs] list error:", data.error || res.status);
+        notify(t("platformMisc.runs.loadError", { error: data.error || res.status }));
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error("[runs] list fetch failed:", e);
+      notify(t("platformMisc.runs.loadError", { error: e.message || "network" }));
+    }
     setLoading(false);
   }, [statusFilter, page, perPage]);
 

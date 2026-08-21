@@ -429,6 +429,7 @@
       "closes": "Fermeture",
       "created": "Créée",
       "noRunsFound": "Aucune exécution de formulaire trouvée",
+      "loadError": "Échec du chargement des exécutions : {error}",
       "showingRange": "Affichage de {start}–{end} sur {total}",
       "prev": "Précédent",
       "next": "Suivant",

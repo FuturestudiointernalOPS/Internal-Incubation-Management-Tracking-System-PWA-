@@ -429,6 +429,7 @@
       "closes": "Closes",
       "created": "Created",
       "noRunsFound": "No form runs found",
+      "loadError": "Failed to load runs: {error}",
       "showingRange": "Showing {start}–{end} of {total}",
       "prev": "Prev",
       "next": "Next",
