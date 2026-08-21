@@ -524,7 +524,7 @@ function StaffOpReport() {
       );
       // Fetch tasks assigned TO the user
       const assignedRes = await fetch(
-        `/api/tasks?assigned_to=${userId}&brief=true`,
+        `/api/tasks?assigned_to=${userId}`,
       );
       const assignedData = await assignedRes.json();
 
