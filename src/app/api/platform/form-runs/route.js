@@ -1889,11 +1889,17 @@ export async function POST(req) {
             const { run_name, form_name } = runRes.rows[0];
             const { sendRunViewTokenEmail } = await import("@/lib/email");
             const baseUrl = req.headers.get("origin") || process.env.APP_URL || "https://impactos.futurestudio.bj";
-            const viewUrl = `${baseUrl}/platform/runs/view/${token}`;
+            const SHARE_SECRET = process.env.VIEW_SHARE_SECRET || process.env.NEXTAUTH_SECRET || "impactos-share-secret-fallback";
+            
+            // Generate expiry 7 days from now
+            const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
 
             // Send sequentially (or concurrently, but we'll await all to not block edge runtime)
-            await Promise.all(validEmails.map(email => 
-              sendRunViewTokenEmail({
+            await Promise.all(validEmails.map(email => {
+              const sig = crypto.createHmac("sha256", SHARE_SECRET).update(`${token}:${email}:${exp}`).digest("hex");
+              const viewUrl = `${baseUrl}/share/run/${token}?m=${encodeURIComponent(email)}&s=${sig}&e=${exp}`;
+              
+              return sendRunViewTokenEmail({
                 to: email,
                 runName: run_name,
                 formName: form_name,

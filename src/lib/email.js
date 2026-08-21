@@ -720,6 +720,7 @@ export async function sendRunViewTokenEmail({ to, runName, formName, viewUrl, cu
               <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">View Responses for ${runName}</h2>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
                 You have been granted read-only access to view the responses for <strong>${formName}</strong>.
+                Log in to your ImpactOS account to view the responses.
               </p>
 
               ${messageBlock}
@@ -741,7 +742,7 @@ export async function sendRunViewTokenEmail({ to, runName, formName, viewUrl, cu
 
               <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
               <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
-                You will need to verify your email (${to}) when opening the link.
+                You must log in to ImpactOS with the account associated with <strong>${to}</strong> to access this resource.
               </p>
               ${FUTURE_STUDIO_FOOTER}
             </td></tr>

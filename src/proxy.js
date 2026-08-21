@@ -35,7 +35,7 @@ const publicPaths = [
   "/investor/wizard",
   "/investor/setup-password",
   "/s",
-  "/platform/runs/view",
+  "/share/run",
   "/_next",
   "/brand",
   "/favicon.ico",
@@ -55,7 +55,7 @@ const publicApiPaths = [
   "/api/venture-invites",
   "/api/migrate",
   "/api/s",
-  "/api/platform/runs/view",
+  "/api/share/run",
   "/api/investor/register",
   "/api/investor/setup-password",
 ];
