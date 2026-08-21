@@ -1355,11 +1355,16 @@ function StaffOpReport() {
                       {history
                         .filter((r) => r.report_type === "standup")
                         .map((report) => {
-                          const taskCount = tasks.filter(
+                          const weekTasks = tasks.filter(
                             (t) =>
                               t.created_week === report.week_number &&
                               t.created_year === report.year,
-                          ).length;
+                          );
+                          const taskCount = weekTasks.reduce(
+                            (sum, t) =>
+                              sum + 1 + (t.subtasks?.length || 0),
+                            0,
+                          );
                           return (
                             <React.Fragment key={report.id}>
                               <tr
@@ -2068,9 +2073,20 @@ function StaffOpReport() {
                               t.created_year === report.year &&
                               !t.parent_task_id, // exclude sub-tasks (rendered inside parent)
                           );
-                          const completed = weekTasks.filter(
-                            (t) => t.status === "completed",
-                          ).length;
+                          const totalTasks = weekTasks.reduce(
+                            (sum, t) =>
+                              sum + 1 + (t.subtasks?.length || 0),
+                            0,
+                          );
+                          const completed = weekTasks.reduce(
+                            (sum, t) =>
+                              sum +
+                              (t.status === "completed" ? 1 : 0) +
+                              (t.subtasks?.filter(
+                                (st) => st.status === "completed",
+                              ).length || 0),
+                            0,
+                          );
                           const isExpanded = expandedWeek === weekKey;
                           return (
                             <React.Fragment key={weekKey}>
@@ -2087,19 +2103,19 @@ function StaffOpReport() {
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-[12px] font-medium text-slate-500">
-                                  {weekTasks.length} {t("staff.table.tasks")}
+                                  {totalTasks} {t("staff.table.tasks")}
                                 </td>
                                 <td className="px-4 py-3">
                                   <span className="text-[12px] font-medium text-emerald-400">
-                                    {completed}/{weekTasks.length}
+                                    {completed}/{totalTasks}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
                                   <span
-                                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${completed === weekTasks.length && weekTasks.length > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}
+                                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${completed === totalTasks && totalTasks > 0 ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}
                                   >
-                                    {completed === weekTasks.length &&
-                                    weekTasks.length > 0
+                                    {completed === totalTasks &&
+                                    totalTasks > 0
                                       ? t("staff.opReport.complete")
                                       : t("staff.opReport.review")}
                                   </span>
