@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
@@ -178,33 +177,41 @@ export async function GET(req) {
         (approvedSubmissions / totalSubmissions) * 100,
       );
 
-      // ─── KPI Progress from persistent engine ───
-      let kpiCompletion = 0;
-      let totalKpis = 0;
-      let targetMetKpis = 0;
-      try {
-        const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-          args: [pid],
-        });
-        let kpiProgress = progressRes.rows || [];
-        if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid, cid);
+      // ─── KPI Achievement — per participant ───
+      // Each KPI counts as "achieved" only if the participant has an APPROVED
+      // submission on a deliverable linked to that KPI.
+      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const deliverableIdsByKpi = new Map();
+      for (const d of deliverables) {
+        let linkedKpiIds = [];
+        try {
+          linkedKpiIds =
+            typeof d.kpi_ids === "string"
+              ? JSON.parse(d.kpi_ids || "[]")
+              : d.kpi_ids || [];
+        } catch (_) {
+          linkedKpiIds = [];
         }
-        totalKpis = kpiProgress.length;
-        targetMetKpis = kpiProgress.filter(
-          (e) => parseFloat(e.progress) >= 100,
-        ).length;
-        kpiCompletion =
-          kpiProgress.length > 0
-            ? Math.round(
-                kpiProgress.reduce(
-                  (sum, e) => sum + (parseFloat(e.progress) || 0),
-                  0,
-                ) / kpiProgress.length,
-              )
-            : 0;
-      } catch (_) {}
+        for (const kid of linkedKpiIds) {
+          const key = String(kid);
+          if (!deliverableIdsByKpi.has(key)) {
+            deliverableIdsByKpi.set(key, new Set());
+          }
+          deliverableIdsByKpi.get(key).add(String(d.id));
+        }
+      }
+      const perKpiAchieved = kpis.map((kpi) => {
+        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        return approvedSubs.some(
+          (s) =>
+            linked.has(String(s.deliverable_id)) ||
+            linked.has(String(s.document_id)),
+        );
+      });
+      const totalKpis = kpis.length;
+      const targetMetKpis = perKpiAchieved.filter(Boolean).length;
+      const kpiCompletion =
+        totalKpis > 0 ? Math.round((targetMetKpis / totalKpis) * 100) : 0;
 
       const weeksWithRituals = new Set();
       standups.forEach((s) => weeksWithRituals.add(s.week_number));

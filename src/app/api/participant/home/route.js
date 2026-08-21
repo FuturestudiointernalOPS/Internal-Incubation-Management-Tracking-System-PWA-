@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
@@ -138,27 +137,45 @@ export async function GET(req) {
         (approvedAssignments / totalAssignments) * 100,
       );
 
-      // ─── KPI Progress from persistent engine ───
+      // ─── KPI Achievement — per participant ───
+      // A participant's KPI achievement is the average across the program's KPIs,
+      // where each KPI counts as "achieved" only if they have an APPROVED
+      // submission on a deliverable linked to that KPI.
       let kpiCompletion = 0;
-      try {
-        const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
-          args: [pid],
-        });
-        let kpiProgress = progressRes.rows || [];
-        if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid, cid);
+      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const deliverableIdsByKpi = new Map();
+      for (const d of deliverables) {
+        let linkedKpiIds = [];
+        try {
+          linkedKpiIds =
+            typeof d.kpi_ids === "string"
+              ? JSON.parse(d.kpi_ids || "[]")
+              : d.kpi_ids || [];
+        } catch (_) {
+          linkedKpiIds = [];
         }
-        kpiCompletion =
-          kpiProgress.length > 0
-            ? Math.round(
-                kpiProgress.reduce(
-                  (sum, e) => sum + (parseFloat(e.progress) || 0),
-                  0,
-                ) / kpiProgress.length,
-              )
-            : 0;
-      } catch (_) {}
+        for (const kid of linkedKpiIds) {
+          const key = String(kid);
+          if (!deliverableIdsByKpi.has(key)) {
+            deliverableIdsByKpi.set(key, new Set());
+          }
+          deliverableIdsByKpi.get(key).add(String(d.id));
+        }
+      }
+      if (kpis.length > 0) {
+        const perKpi = kpis.map((kpi) => {
+          const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+          const achieved = approvedSubs.some(
+            (s) =>
+              linked.has(String(s.deliverable_id)) ||
+              linked.has(String(s.document_id)),
+          );
+          return achieved ? 100 : 0;
+        });
+        kpiCompletion = Math.round(
+          perKpi.reduce((sum, v) => sum + v, 0) / perKpi.length,
+        );
+      }
 
       programsData.push({
         id: program.id,
