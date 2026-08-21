@@ -65,6 +65,13 @@ function MiniMetric({ icon: Icon, label, value, color }) {
 function ProgramCard({ program, onSelect }) {
   const { t, lang } = useI18n();
   const { metrics } = program;
+  // Show "Completed" once every unlocked deliverable has an approved
+  // submission, so the badge reflects the deliverables' actual state.
+  const displayStatus =
+    metrics.totalDeliverables > 0 &&
+    metrics.completedDeliverables >= metrics.totalDeliverables
+      ? "completed"
+      : program.status || "active";
   const progressColor =
     metrics.percentComplete >= 80
       ? "bg-emerald-400"
@@ -85,15 +92,10 @@ function ProgramCard({ program, onSelect }) {
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1.5">
-            <StatusBadge status={program.status} />
+            <StatusBadge status={displayStatus} />
             {program.status && String(program.status).toLowerCase() !== "active" && (
               <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider bg-slate-500/10 text-slate-400 border border-slate-500/20">
                 {t("participantMisc.programListing.viewOnly")}
-              </span>
-            )}
-            {program.programMode && (
-              <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                {program.programMode}
               </span>
             )}
           </div>

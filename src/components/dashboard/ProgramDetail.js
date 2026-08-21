@@ -651,6 +651,15 @@ export default function ProgramDetail({ programId }) {
   const isViewOnlyProgram =
     !!program?.status && String(program.status).toLowerCase() !== "active";
 
+  // The displayed status reflects the deliverables' actual state: once every
+  // unlocked deliverable has an approved submission, show "Completed" rather
+  // than the raw program status.
+  const displayStatus =
+    metrics.totalDeliverables > 0 &&
+    metrics.completedDeliverables >= metrics.totalDeliverables
+      ? "completed"
+      : program.status || "active";
+
   // Resources grouped by week for display
   const resourcesByWeek = resources?.byWeek || {};
   const generalResources = resources?.general || [];
@@ -678,12 +687,7 @@ export default function ProgramDetail({ programId }) {
         </button>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
-            <StatusBadge status={program.status} />
-            {program.programMode && (
-              <span className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
-                {program.programMode}
-              </span>
-            )}
+            <StatusBadge status={displayStatus} />
           </div>
           <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tight">
             {program.name}
@@ -942,10 +946,10 @@ export default function ProgramDetail({ programId }) {
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 {t("participant.programCompletion")}
               </p>
-              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
-                  style={{ width: `${metrics.percentComplete}%` }}
+                  style={{ width: `${Math.min(metrics.percentComplete, 100)}%` }}
                 />
               </div>
             </div>
@@ -961,10 +965,10 @@ export default function ProgramDetail({ programId }) {
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 {t("participant.attendance")}
               </p>
-              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-emerald-400 transition-all"
-                  style={{ width: `${metrics.attendanceRate}%` }}
+                  style={{ width: `${Math.min(metrics.attendanceRate, 100)}%` }}
                 />
               </div>
             </div>
@@ -980,10 +984,10 @@ export default function ProgramDetail({ programId }) {
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 {t("participant.kpiAchievement")}
               </p>
-              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-blue-400 transition-all"
-                  style={{ width: `${metrics.kpiCompletion}%` }}
+                  style={{ width: `${Math.min(metrics.kpiCompletion, 100)}%` }}
                 />
               </div>
             </div>
@@ -999,11 +1003,11 @@ export default function ProgramDetail({ programId }) {
               <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
                 {t("participant.deliverablesDone")}
               </p>
-              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3">
+              <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-purple-400 transition-all"
                   style={{
-                    width: `${(metrics.completedDeliverables / metrics.totalDeliverables) * 100}%`,
+                    width: `${metrics.totalDeliverables > 0 ? Math.min((metrics.completedDeliverables / metrics.totalDeliverables) * 100, 100) : 0}%`,
                   }}
                 />
               </div>
