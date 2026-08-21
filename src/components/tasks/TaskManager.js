@@ -239,20 +239,25 @@ export default function TaskManager({
     const upload = await uploadTaskAttachment(file, taskId);
     if (!upload.success)
       return { success: false, error: upload.error || "Upload failed" };
-    const res = await fetch("/api/tasks/resources", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        task_id: taskId,
-        name: file.name,
-        url: upload.url,
-        type: "file",
-        file_name: file.name,
-        file_size: file.size,
-      }),
-    });
-    const data = await res.json();
-    return { success: data.success, error: data.error };
+    try {
+      const res = await fetch("/api/tasks/resources", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task_id: taskId,
+          name: file.name,
+          url: upload.url,
+          type: "file",
+          file_name: file.name,
+          file_size: file.size,
+        }),
+      });
+      const data = await res.json();
+      return { success: !!data?.success, error: data?.error };
+    } catch (e) {
+      console.error("Attach file to task error:", e);
+      return { success: false, error: "Upload failed" };
+    }
   };
 
   // Auto-populate project_id from prop when in project mode
@@ -631,49 +636,59 @@ export default function TaskManager({
     }
 
     setCreating(true);
-    const data = await createTask({
-      title: form.name.trim(),
-      project_id: form.project_id || null,
-      category: form.category || null,
-      parent_task_id: pendingParentTaskId || null,
-      assigned_to: form.assigned_to || null,
-      start_date: form.start_date || null,
-      due_date: form.due_date || null,
-      link: form.link || null,
-      priority: form.priority || "medium",
-    });
+    try {
+      const data = await createTask({
+        title: form.name.trim(),
+        project_id: form.project_id || null,
+        category: form.category || null,
+        parent_task_id: pendingParentTaskId || null,
+        assigned_to: form.assigned_to || null,
+        start_date: form.start_date || null,
+        due_date: form.due_date || null,
+        link: form.link || null,
+        priority: form.priority || "medium",
+      });
 
-    if (data.success) {
-      if (taskFile && data.id) {
-        const attach = await attachFileToTask(data.id, taskFile);
-        if (!attach.success) {
-          notify(
-            "error",
-            t((attach.error || "Upload failed") || "") ||
-              (attach.error || "Upload failed"),
-          );
+      if (data.success) {
+        if (taskFile && data.id) {
+          const attach = await attachFileToTask(data.id, taskFile);
+          if (!attach.success) {
+            notify(
+              "error",
+              t((attach.error || "Upload failed") || "") ||
+                (attach.error || "Upload failed"),
+            );
+          }
         }
+        setTaskFile(null);
+        setForm((p) => ({
+          ...p,
+          name: "",
+          start_date: "",
+          due_date: "",
+          start_time: "",
+          due_time: "",
+        }));
+        setPendingParentTaskId(null);
+        setAddedCount((c) => c + 1);
+        if (onTasksChange) onTasksChange();
+        if (typeof window !== "undefined") {
+          window.__refreshDashboard?.();
+          window.__refreshAdminDashboard?.();
+        }
+      } else {
+        alert(t((data.error || "Failed to create task.") || "") || (data.error || "Failed to create task."));
       }
-      setTaskFile(null);
-      setForm((p) => ({
-        ...p,
-        name: "",
-        start_date: "",
-        due_date: "",
-        start_time: "",
-        due_time: "",
-      }));
-      setPendingParentTaskId(null);
-      setAddedCount((c) => c + 1);
-      if (onTasksChange) onTasksChange();
-      if (typeof window !== "undefined") {
-        window.__refreshDashboard?.();
-        window.__refreshAdminDashboard?.();
-      }
-    } else {
-      alert(t((data.error || "Failed to create task.") || "") || (data.error || "Failed to create task."));
+    } catch (e) {
+      console.error("Create task error:", e);
+      notify(
+        "error",
+        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
+          "Something went wrong. Please try again.",
+      );
+    } finally {
+      setCreating(false);
     }
-    setCreating(false);
   }, [form, pendingParentTaskId, createTask, onTasksChange, creating, taskFile, t]);
 
   const handleCloseForm = useCallback(() => {
@@ -716,45 +731,54 @@ export default function TaskManager({
       notify("error", dateError);
       return;
     }
-    const data = await createTask({
-      title: name,
-      description: subTaskDescription || null,
-      project_id: subTaskModal.project_id || null,
-      category: subTaskModal.category || null,
-      parent_task_id: subTaskModal.id,
-      assigned_to: subTaskAssignedTo || null,
-      priority: subTaskPriority || "medium",
-      start_date: subTaskStartDate || null,
-      due_date: subTaskEndDate || null,
-      link: subTaskLink || null,
-    });
+    try {
+      const data = await createTask({
+        title: name,
+        description: subTaskDescription || null,
+        project_id: subTaskModal.project_id || null,
+        category: subTaskModal.category || null,
+        parent_task_id: subTaskModal.id,
+        assigned_to: subTaskAssignedTo || null,
+        priority: subTaskPriority || "medium",
+        start_date: subTaskStartDate || null,
+        due_date: subTaskEndDate || null,
+        link: subTaskLink || null,
+      });
 
-    if (data.success) {
-      if (subTaskFile && data.id) {
-        const attach = await attachFileToTask(data.id, subTaskFile);
-        if (!attach.success) {
-          notify(
-            "error",
-            t((attach.error || "Upload failed") || "") ||
-              (attach.error || "Upload failed"),
-          );
+      if (data.success) {
+        if (subTaskFile && data.id) {
+          const attach = await attachFileToTask(data.id, subTaskFile);
+          if (!attach.success) {
+            notify(
+              "error",
+              t((attach.error || "Upload failed") || "") ||
+                (attach.error || "Upload failed"),
+            );
+          }
+        }
+        setSubTaskFile(null);
+        setSubTaskInput("");
+        setSubTaskDescription("");
+        setSubTaskAssignedTo("");
+        setSubTaskPriority("medium");
+        setSubTaskStartDate("");
+        setSubTaskEndDate("");
+        setSubTaskLink("");
+        setSubTaskSuccess("Sub-task added!");
+        setTimeout(() => setSubTaskSuccess(""), 2000);
+        if (onTasksChange) onTasksChange();
+        if (typeof window !== "undefined") {
+          window.__refreshDashboard?.();
+          window.__refreshAdminDashboard?.();
         }
       }
-      setSubTaskFile(null);
-      setSubTaskInput("");
-      setSubTaskDescription("");
-      setSubTaskAssignedTo("");
-      setSubTaskPriority("medium");
-      setSubTaskStartDate("");
-      setSubTaskEndDate("");
-      setSubTaskLink("");
-      setSubTaskSuccess("Sub-task added!");
-      setTimeout(() => setSubTaskSuccess(""), 2000);
-      if (onTasksChange) onTasksChange();
-      if (typeof window !== "undefined") {
-        window.__refreshDashboard?.();
-        window.__refreshAdminDashboard?.();
-      }
+    } catch (e) {
+      console.error("Add sub-task error:", e);
+      notify(
+        "error",
+        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
+          "Something went wrong. Please try again.",
+      );
     }
   }, [
     subTaskInput,
