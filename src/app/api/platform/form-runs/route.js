@@ -1,5 +1,5 @@
  import crypto from "crypto";
-import { initDb } from "@/lib/db";
+import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
