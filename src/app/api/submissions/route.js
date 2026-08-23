@@ -65,6 +65,12 @@ export async function POST(req) {
     // Resolve file URL (database requires this field to be non-null)
     const resolvedFileUrl = file_url || submission_link || file_path || supporting_url || "";
 
+    // Ensure team_id column exists (teams submit as a unit; the PM table
+    // matches submissions to members by team_id).
+    try {
+      await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS team_id TEXT");
+    } catch (_) {}
+
     // Auto-detect deliverable_id from document_id if needed
     const finalDeliverableId = deliverable_id || null;
     const finalDocumentId = document_id || 
@@ -100,14 +106,15 @@ export async function POST(req) {
 
     const result = await db.execute({
       sql: `INSERT INTO v2_submissions (
-          program_id, deliverable_id, document_id, group_id, participant_id,
+          program_id, deliverable_id, document_id, group_id, team_id, participant_id,
           file_url, supporting_url, status, feedback, version_number
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       args: [
         program_id,
         finalDeliverableId,
         finalDocumentId,
         group_id || null,
+        team_id || null,
         participant_id || null,
         resolvedFileUrl,
         supporting_url || null,
@@ -389,6 +396,10 @@ export async function GET(req) {
       "facilitator",
     ]);
     if (authError) return authError;
+    // Ensure team_id column exists so team-level submissions resolve.
+    try {
+      await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS team_id TEXT");
+    } catch (_) {}
     const { searchParams } = new URL(req.url);
     const participant_id = searchParams.get("participant_id");
     const team_id = searchParams.get("team_id");
@@ -579,19 +590,38 @@ export async function PUT(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
     if (authError) return authError;
-    const { id, score, evaluation_data } = await req.json();
+    const { id, participant_id, program_id, score, evaluation_data } = await req.json();
 
-    if (!id) {
+    // Accept either a single submission id OR participant_id + program_id
+    // (applies the same score to every submission of that participant).
+    if (!id && (!participant_id || !program_id)) {
       return NextResponse.json(
-        { success: false, error: "Missing submission ID" },
+        { success: false, error: "Missing submission ID or participant_id + program_id" },
         { status: 400 },
       );
     }
 
-    await db.execute({
-      sql: "UPDATE v2_submissions SET evaluation_score = ?, evaluation_data = ?, updated_at = NOW() WHERE id = ?",
-      args: [score || null, evaluation_data ? JSON.stringify(evaluation_data) : null, id],
-    });
+    // Ensure both score columns exist (migration safety).
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL"); } catch (_) {}
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS evaluation_score INTEGER DEFAULT NULL"); } catch (_) {}
+
+    const payload = {
+      score: score != null ? parseInt(score) : null,
+      evaluation_score: score != null ? parseInt(score) : null,
+      evaluation_data: evaluation_data ? JSON.stringify(evaluation_data) : null,
+    };
+
+    if (id) {
+      await db.execute({
+        sql: "UPDATE v2_submissions SET score = ?, evaluation_score = ?, evaluation_data = ?, updated_at = NOW() WHERE id = ?",
+        args: [payload.score, payload.evaluation_score, payload.evaluation_data, id],
+      });
+    } else {
+      await db.execute({
+        sql: "UPDATE v2_submissions SET score = ?, evaluation_score = ?, evaluation_data = ?, updated_at = NOW() WHERE participant_id::text = ? AND program_id::text = ?",
+        args: [payload.score, payload.evaluation_score, payload.evaluation_data, String(participant_id), String(program_id)],
+      });
+    }
 
     return NextResponse.json({ success: true, message: "Evaluation updated" });
   } catch (error) {

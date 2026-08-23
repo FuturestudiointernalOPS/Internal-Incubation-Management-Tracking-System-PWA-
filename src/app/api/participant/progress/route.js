@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
@@ -44,8 +43,8 @@ export async function GET(req) {
       overallApproved = 0,
       overallSessions = 0,
       overallAttended = 0;
-    let overallKpis = 0,
-      overallKpisMet = 0,
+    let overallKpiPoints = 0,
+      overallKpiMax = 0,
       overallDeliverables = 0,
       overallCompletedDels = 0;
     let totalStandups = 0,
@@ -152,23 +151,65 @@ export async function GET(req) {
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
 
-      const totalDeliverables = unlockedDeliverables.length || 1;
-      const completedDeliverables = unlockedDeliverables.filter((d) =>
+      // System-generated attendance deliverables are recorded by staff, not
+      // submitted by participants — exclude them from completion.
+      const nonAttendanceDeliverables = unlockedDeliverables.filter(
+        (d) => !d.title?.toLowerCase().includes("attendance"),
+      );
+      const totalDeliverables = nonAttendanceDeliverables.length || 1;
+      const completedDeliverables = nonAttendanceDeliverables.filter((d) =>
         submissions.some(
-          (s) => s.document_id === d.id && s.status === "approved",
+          (s) =>
+            s.status === "approved" &&
+            (String(s.document_id) === String(d.id) ||
+              String(s.deliverable_id) === String(d.id)),
         ),
       ).length;
       const programCompletion = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const attendedSessions = attendance.filter(
-        (a) => a.status === "present",
-      ).length;
-      const totalSessions = sessions.length || 1;
+      // Count distinct sessions with a "present" mark, restricted to unlocked
+      // sessions, so duplicate attendance rows (same session recorded on
+      // multiple dates) can never push the rate above 100%.
+      const unlockedSessionIds = new Set(
+        unlockedSessions.map((s) => String(s.id)),
+      );
+      const attendedSessions = new Set(
+        attendance
+          .filter(
+            (a) =>
+              a.status === "present" &&
+              unlockedSessionIds.has(String(a.session_id)),
+          )
+          .map((a) => String(a.session_id)),
+      ).size;
+      // Expected attendance = sessions unlocked so far (future sessions don't count).
+      const totalSessions = unlockedSessions.length || 1;
+      // A program "tracks" attendance only when attendance records actually exist.
+      const attMetaRes = await db.execute({
+        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
+        args: [pid],
+      });
+      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,
       );
+      // KPI attendance factor only considers the days where presence was actually
+      // marked for this participant (unmarked sessions don't penalize it).
+      const markedAttendanceDays = new Set(
+        attendance.map((a) => a.date).filter(Boolean),
+      ).size;
+      const presentAttendanceDays = new Set(
+        attendance
+          .filter((a) => a.status === "present")
+          .map((a) => a.date)
+          .filter(Boolean),
+      ).size;
+      const markedAttendanceRate =
+        markedAttendanceDays > 0
+          ? Math.round((presentAttendanceDays / markedAttendanceDays) * 100)
+          : 0;
 
       const approvedSubmissions = submissions.filter(
         (s) => s.status === "approved",
@@ -178,33 +219,49 @@ export async function GET(req) {
         (approvedSubmissions / totalSubmissions) * 100,
       );
 
-      // ─── KPI Progress from persistent engine ───
-      let kpiCompletion = 0;
-      let totalKpis = 0;
-      let targetMetKpis = 0;
-      try {
-        const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-          args: [pid],
-        });
-        let kpiProgress = progressRes.rows || [];
-        if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid, cid);
+      // ─── KPI Achievement — per participant ───
+      // Each KPI counts as "achieved" only if the participant has an APPROVED
+      // submission on a deliverable linked to that KPI.
+      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const deliverableIdsByKpi = new Map();
+      for (const d of deliverables) {
+        let linkedKpiIds = [];
+        try {
+          linkedKpiIds =
+            typeof d.kpi_ids === "string"
+              ? JSON.parse(d.kpi_ids || "[]")
+              : d.kpi_ids || [];
+        } catch (_) {
+          linkedKpiIds = [];
         }
-        totalKpis = kpiProgress.length;
-        targetMetKpis = kpiProgress.filter(
-          (e) => parseFloat(e.progress) >= 100,
-        ).length;
-        kpiCompletion =
-          kpiProgress.length > 0
-            ? Math.round(
-                kpiProgress.reduce(
-                  (sum, e) => sum + (parseFloat(e.progress) || 0),
-                  0,
-                ) / kpiProgress.length,
-              )
-            : 0;
-      } catch (_) {}
+        for (const kid of linkedKpiIds) {
+          const key = String(kid);
+          if (!deliverableIdsByKpi.has(key)) {
+            deliverableIdsByKpi.set(key, new Set());
+          }
+          deliverableIdsByKpi.get(key).add(String(d.id));
+        }
+      }
+      const perKpiAchieved = kpis.map((kpi) => {
+        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        return approvedSubs.some(
+          (s) =>
+            linked.has(String(s.deliverable_id)) ||
+            linked.has(String(s.document_id)),
+        );
+      });
+      const totalKpis = kpis.length;
+      const targetMetKpis = perKpiAchieved.filter(Boolean).length;
+      // Attendance counts as an extra factor in KPI achievement when the
+      // program actually tracks attendance (at least one record exists).
+      const kpiFactors = perKpiAchieved.map((ok) => (ok ? 100 : 0));
+      if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
+      const kpiCompletion =
+        kpiFactors.length > 0
+          ? Math.round(
+              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+            )
+          : 0;
 
       const weeksWithRituals = new Set();
       standups.forEach((s) => weeksWithRituals.add(s.week_number));
@@ -220,8 +277,9 @@ export async function GET(req) {
       overallApproved += approvedSubmissions;
       overallSessions += totalSessions;
       overallAttended += attendedSessions;
-      overallKpis += totalKpis;
-      overallKpisMet += targetMetKpis;
+      overallKpiPoints +=
+        targetMetKpis * 100 + (attendanceTracked ? markedAttendanceRate : 0);
+      overallKpiMax += totalKpis * 100 + (attendanceTracked ? 100 : 0);
       overallDeliverables += totalDeliverables;
       overallCompletedDels += completedDeliverables;
 
@@ -240,7 +298,13 @@ export async function GET(req) {
         });
       });
       deliverables.forEach((d) => {
-        const sub = submissions.find((s) => s.document_id === d.id);
+        // Attendance tasks are recorded by staff, not submitted by participants.
+        if (d.title?.toLowerCase().includes("attendance")) return;
+        const sub = submissions.find(
+          (s) =>
+            String(s.document_id) === String(d.id) ||
+            String(s.deliverable_id) === String(d.id),
+        );
         milestones.push({
           id: `deliverable-${d.id}`,
           title: `Completed: ${d.title}`,
@@ -254,10 +318,17 @@ export async function GET(req) {
 
       const historyByWeek = [];
       for (let w = 1; w <= currentWeek; w++) {
-        const weekDels = deliverables.filter((d) => (d.week_number || 1) === w);
+        const weekDels = deliverables.filter(
+          (d) =>
+            (d.week_number || 1) === w &&
+            !d.title?.toLowerCase().includes("attendance"),
+        );
         const weekDelsCompleted = weekDels.filter((d) =>
           submissions.some(
-            (s) => s.document_id === d.id && s.status === "approved",
+            (s) =>
+              s.status === "approved" &&
+              (String(s.document_id) === String(d.id) ||
+                String(s.deliverable_id) === String(d.id)),
           ),
         ).length;
         const weekSessions = sessions.filter((s) => (s.week_number || 1) === w);
@@ -325,7 +396,9 @@ export async function GET(req) {
         ? Math.round((overallApproved / overallSubmissions) * 100)
         : 0;
     const overallKpiCompletion =
-      overallKpis > 0 ? Math.round((overallKpisMet / overallKpis) * 100) : 0;
+      overallKpiMax > 0
+        ? Math.round((overallKpiPoints / overallKpiMax) * 100)
+        : 0;
     const totalRituals =
       totalStandups + totalCheckins + totalRetros + totalReflections;
 

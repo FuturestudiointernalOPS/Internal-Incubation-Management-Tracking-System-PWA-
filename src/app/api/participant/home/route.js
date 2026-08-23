@@ -1,7 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
 
 export const dynamic = "force-dynamic";
@@ -108,27 +107,62 @@ export async function GET(req) {
         unlockedSessions.length > 0
           ? Math.max(...unlockedSessions.map((s) => s.week_number || 1))
           : 1;
-      const totalDeliverables = unlockedDeliverables.length || 1;
-      const completedDeliverables = unlockedDeliverables.filter((d) => {
+      // System-generated attendance deliverables are recorded by staff, not
+      // submitted by participants — exclude them from completion.
+      const nonAttendanceDeliverables = unlockedDeliverables.filter(
+        (d) => !d.title?.toLowerCase().includes("attendance"),
+      );
+      const totalDeliverables = nonAttendanceDeliverables.length || 1;
+      const completedDeliverables = nonAttendanceDeliverables.filter((d) => {
         const sub = submissions.find((s) => String(s.deliverable_id || s.document_id) === String(d.id));
         return sub && sub.status === "approved";
       }).length;
-      const programCompletion = Math.round(
+      let programCompletion = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const expectedDaysRes = await db.execute({
-        sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
-        args: [program.id]
+      // A program "tracks" attendance only when attendance records actually exist.
+      const attMetaRes = await db.execute({
+        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
+        args: [program.id],
       });
-      const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
+      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
+      // Expected attendance = sessions unlocked so far (future sessions don't count).
+      const totalExpectedDays = unlockedSessions.length || 1;
 
-      const attendedSessions = attendance.filter(
-        (a) => a.status === "present",
-      ).length;
+      // Count distinct sessions with a "present" mark, restricted to unlocked
+      // sessions, so duplicate attendance rows (same session recorded on
+      // multiple dates) can never push the rate above 100%.
+      const unlockedSessionIds = new Set(
+        unlockedSessions.map((s) => String(s.id)),
+      );
+      const attendedSessions = new Set(
+        attendance
+          .filter(
+            (a) =>
+              a.status === "present" &&
+              unlockedSessionIds.has(String(a.session_id)),
+          )
+          .map((a) => String(a.session_id)),
+      ).size;
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
       );
+      // KPI attendance factor only considers the days where presence was actually
+      // marked for this participant (unmarked sessions don't penalize it).
+      const markedAttendanceDays = new Set(
+        attendance.map((a) => a.date).filter(Boolean),
+      ).size;
+      const presentAttendanceDays = new Set(
+        attendance
+          .filter((a) => a.status === "present")
+          .map((a) => a.date)
+          .filter(Boolean),
+      ).size;
+      const markedAttendanceRate =
+        markedAttendanceDays > 0
+          ? Math.round((presentAttendanceDays / markedAttendanceDays) * 100)
+          : 0;
 
       const totalAssignments = submissions.length || 1;
       const approvedAssignments = submissions.filter(
@@ -138,27 +172,55 @@ export async function GET(req) {
         (approvedAssignments / totalAssignments) * 100,
       );
 
-      // ─── KPI Progress from persistent engine ───
+      // No deliverables tracked for this program → fall back to submissions so
+      // programCompletion stays consistent with assignmentCompletion.
+      if (unlockedDeliverables.length === 0 && submissions.length > 0) {
+        programCompletion = assignmentCompletion;
+      }
+
+      // ─── KPI Achievement — per participant ───
+      // A participant's KPI achievement is the average across the program's KPIs,
+      // where each KPI counts as "achieved" only if they have an APPROVED
+      // submission on a deliverable linked to that KPI.
       let kpiCompletion = 0;
-      try {
-        const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id::text = ? ORDER BY kpi_id ASC",
-          args: [pid],
-        });
-        let kpiProgress = progressRes.rows || [];
-        if (kpiProgress.length === 0) {
-          kpiProgress = await recalculateKpiProgress(pid, cid);
+      const approvedSubs = submissions.filter((s) => s.status === "approved");
+      const deliverableIdsByKpi = new Map();
+      for (const d of deliverables) {
+        let linkedKpiIds = [];
+        try {
+          linkedKpiIds =
+            typeof d.kpi_ids === "string"
+              ? JSON.parse(d.kpi_ids || "[]")
+              : d.kpi_ids || [];
+        } catch (_) {
+          linkedKpiIds = [];
         }
-        kpiCompletion =
-          kpiProgress.length > 0
-            ? Math.round(
-                kpiProgress.reduce(
-                  (sum, e) => sum + (parseFloat(e.progress) || 0),
-                  0,
-                ) / kpiProgress.length,
-              )
-            : 0;
-      } catch (_) {}
+        for (const kid of linkedKpiIds) {
+          const key = String(kid);
+          if (!deliverableIdsByKpi.has(key)) {
+            deliverableIdsByKpi.set(key, new Set());
+          }
+          deliverableIdsByKpi.get(key).add(String(d.id));
+        }
+      }
+      // Attendance counts as an extra factor in KPI achievement when the
+      // program actually tracks attendance (at least one record exists).
+      const kpiFactors = kpis.map((kpi) => {
+        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        const achieved = approvedSubs.some(
+          (s) =>
+            linked.has(String(s.deliverable_id)) ||
+            linked.has(String(s.document_id)),
+        );
+        return achieved ? 100 : 0;
+      });
+      if (attendanceTracked) kpiFactors.push(markedAttendanceRate);
+      kpiCompletion =
+        kpiFactors.length > 0
+          ? Math.round(
+              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+            )
+          : 0;
 
       programsData.push({
         id: program.id,
@@ -171,6 +233,7 @@ export async function GET(req) {
         currentWeek,
         cohort: contact.group_name || "Cohort 1",
         metrics: {
+          percentComplete: programCompletion,
           programCompletion,
           attendanceRate,
           assignmentCompletion,
@@ -196,11 +259,16 @@ export async function GET(req) {
 
     if (primaryProgram) {
       for (const d of primaryProgram.deliverables) {
+        // System-generated attendance tasks are recorded by staff, not submitted
+        // by participants — they must never appear as overdue or due soon.
+        if (d.title?.toLowerCase().includes("attendance")) continue;
         if (!d.due_date && !d.created_at) continue;
         const dueDate = new Date(d.due_date || d.created_at);
         dueDate.setHours(0, 0, 0, 0);
         const existingSub = primaryProgram.submissions.find(
-          (s) => s.document_id === d.id,
+          (s) =>
+            String(s.document_id) === String(d.id) ||
+            String(s.deliverable_id) === String(d.id),
         );
         const isApproved = existingSub?.status === "approved";
         if (!isApproved && dueDate < today) {
@@ -277,6 +345,8 @@ export async function GET(req) {
         });
       }
       for (const d of prog.deliverables || []) {
+        // Attendance tasks are recorded by staff, not submitted by participants.
+        if (d.title?.toLowerCase().includes("attendance")) continue;
         if (!d.due_date && !d.created_at) continue;
         // Check if participant already submitted
         const existingSub = (prog.submissions || []).find(

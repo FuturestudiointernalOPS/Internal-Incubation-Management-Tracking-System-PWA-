@@ -334,19 +334,52 @@ export async function GET(req) {
         const persistedProgress = progressRes.rows || [];
 
         if (persistedProgress.length > 0) {
-          // Merge persisted progress with KPI metadata
+          // Merge persisted progress with KPI metadata. kpi_progress rows store
+          // completion_rate (approved submissions / participants); the weight
+          // lives on the KPI itself, and linked session/doc counts are derived
+          // from the curriculum (they are not cached).
+          const sessionList = sesRes.rows || [];
+          const docList = docRes.rows || [];
           kpisWithProgress = kpiList.map((kpi) => {
             const p = persistedProgress.find(
               (pp) => String(pp.kpi_id) === String(kpi.id),
             );
+            const linkedSessions = sessionList.filter((s) => {
+              try {
+                const ids =
+                  typeof s.kpi_ids === "string"
+                    ? JSON.parse(s.kpi_ids)
+                    : s.kpi_ids || [];
+                return ids.map(String).includes(String(kpi.id));
+              } catch {
+                return false;
+              }
+            });
+            const linkedDocs = docList.filter((d) => {
+              try {
+                const ids =
+                  typeof d.kpi_ids === "string"
+                    ? JSON.parse(d.kpi_ids)
+                    : d.kpi_ids || [];
+                return ids.map(String).includes(String(kpi.id));
+              } catch {
+                return false;
+              }
+            });
             return {
               ...kpi,
-              progress: p ? parseFloat(p.progress) : 0,
-              weight: p ? parseFloat(p.weight) : 0,
-              linkedSessions: p ? p.linked_sessions : 0,
-              completedSessions: p ? p.completed_sessions : 0,
-              linkedDocs: p ? p.linked_docs : 0,
-              completedDocs: p ? p.completed_docs : 0,
+              progress: p
+                ? Math.round(parseFloat(p.completion_rate) || 0)
+                : 0,
+              weight:
+                parseFloat(kpi.weight) ||
+                (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
+              linkedSessions: linkedSessions.length,
+              completedSessions: linkedSessions.filter(
+                (s) => s.status === "completed",
+              ).length,
+              linkedDocs: linkedDocs.length,
+              completedDocs: linkedDocs.filter((d) => d.is_completed).length,
             };
           });
         } else {
@@ -391,7 +424,9 @@ export async function GET(req) {
                         100,
                     )
                   : 0,
-              weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
+              weight:
+                parseFloat(kpi.weight) ||
+                (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
               linkedSessions: linkedSessions.length,
               completedSessions: linkedSessions.filter(
                 (s) => s.status === "completed",
@@ -448,7 +483,9 @@ export async function GET(req) {
                       100,
                   )
                 : 0,
-            weight: kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0,
+            weight:
+              parseFloat(kpi.weight) ||
+              (kpiList.length > 0 ? Math.round(100 / kpiList.length) : 0),
             linkedSessions: linkedSessions.length,
             completedSessions: linkedSessions.filter(
               (s) => s.status === "completed",
@@ -459,8 +496,6 @@ export async function GET(req) {
         });
       }
 
-      // uniqueParticipants is already the corrected active-participant list
-      // (participant_programs + active + not facilitator) computed above.
       totalParticipants = uniqueParticipants.length;
       const docList = docRes.rows || [];
       expectedSubmissions = totalParticipants * docList.length;

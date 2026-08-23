@@ -200,7 +200,9 @@ export async function GET(req, { params }) {
     for (const [wn, data] of weekMap) {
       const completedDels = data.deliverables.filter((d) =>
         submissions.some(
-          (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
+          (s) =>
+            String(s.deliverable_id || s.document_id) === String(d.id) &&
+            s.status === "approved",
         ),
       ).length;
       
@@ -211,7 +213,9 @@ export async function GET(req, { params }) {
         sessions: data.sessions,
         locked: !isWeekUnlocked,
         deliverables: data.deliverables.map((d) => {
-          const sub = submissions.find((s) => String(s.deliverable_id) === String(d.id));
+          const sub = submissions.find(
+            (s) => String(s.deliverable_id || s.document_id) === String(d.id),
+          );
           return {
             id: d.id,
             title: d.title,
@@ -276,10 +280,9 @@ export async function GET(req, { params }) {
     const unlockedWeeks = weeks.filter((w) => !w.locked);
     const unlockedDeliverables = unlockedWeeks.flatMap((w) => w.deliverables);
 
-    // ─── 1. Program completion = how far the program itself has progressed ───
-    // Use week-based progress: currentWeek / program.duration_weeks
-    const durationWeeks = Number(program.duration_weeks) || weeks.length || 1;
-    const percentComplete = Math.round((currentWeek / durationWeeks) * 100);
+    // ─── 1. Program completion — performance-based, computed below from the
+    // approved deliverables (falls back to approved submissions when the
+    // program tracks no deliverables). Kept in sync with the dashboard card.
 
     // ─── 2. Deliverables done — exclude 'attendance' deliverables ───
     const unlockedNonAttendanceDeliverables = unlockedDeliverables.filter(
@@ -288,23 +291,47 @@ export async function GET(req, { params }) {
     const totalDeliverables = unlockedNonAttendanceDeliverables.length;
     const completedDeliverables = unlockedNonAttendanceDeliverables.filter((d) =>
       submissions.some(
-        (s) => String(s.deliverable_id) === String(d.id) && s.status === "approved",
+        (s) =>
+          String(s.deliverable_id || s.document_id) === String(d.id) &&
+          s.status === "approved",
       ),
     ).length;
+    const percentComplete =
+      totalDeliverables > 0
+        ? Math.round((completedDeliverables / totalDeliverables) * 100)
+        : submissions.length > 0
+          ? Math.round(
+              (submissions.filter((s) => s.status === "approved").length /
+                submissions.length) *
+                100,
+            )
+          : 0;
 
     // ─── 3. Attendance — for this participant only ───
-    const attendedSessions = attendance.filter(
-      (a) => a.status === "present",
-    ).length;
+    // Count distinct sessions with a "present" mark, restricted to unlocked
+    // sessions, so duplicate attendance rows (same session recorded on
+    // multiple dates) can never push the rate above 100%.
+    const unlockedSessionIds = new Set(
+      unlockedSessions.map((s) => String(s.id)),
+    );
+    const attendedSessions = new Set(
+      attendance
+        .filter(
+          (a) =>
+            a.status === "present" &&
+            unlockedSessionIds.has(String(a.session_id)),
+        )
+        .map((a) => String(a.session_id)),
+    ).size;
     // Total sessions this participant was expected to attend = sessions that are unlocked
     const totalSessions = unlockedSessions.length || 1;
-    // Attendance is measured against distinct attendance dates recorded for the program.
-    const expectedDaysRes = await db.execute({
-      sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
+    // A program "tracks" attendance only when attendance records actually exist.
+    const attMetaRes = await db.execute({
+      sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
       args: [programId],
     });
-    const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
-    const attendanceRate = Math.round((attendedSessions / totalExpectedDays) * 100);
+    const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
+    const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
 
     // ─── 4. KPI Progress — per participant ───
     // A participant's KPI achievement is the average across the program's KPIs,
@@ -333,18 +360,22 @@ export async function GET(req, { params }) {
         deliverableIdsByKpi.get(key).add(String(d.id));
       }
     }
-    if ((kpis || []).length > 0) {
-      const perKpi = kpis.map((kpi) => {
-        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-        const achieved = approvedSubs.some((s) =>
-          linked.has(String(s.deliverable_id)),
-        );
-        return achieved ? 100 : 0;
-      });
-      kpiCompletion = Math.round(
-        perKpi.reduce((sum, v) => sum + v, 0) / perKpi.length,
+    // Attendance counts as an extra factor in KPI achievement when the
+    // program actually tracks attendance (at least one record exists).
+    const kpiFactors = (kpis || []).map((kpi) => {
+      const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+      const achieved = approvedSubs.some((s) =>
+        linked.has(String(s.deliverable_id)),
       );
-    }
+      return achieved ? 100 : 0;
+    });
+    if (attendanceTracked) kpiFactors.push(attendanceRate);
+    kpiCompletion =
+      kpiFactors.length > 0
+        ? Math.round(
+            kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+          )
+        : 0;
 
     return NextResponse.json({
       success: true,

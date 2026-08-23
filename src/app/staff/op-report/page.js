@@ -970,6 +970,65 @@ function StaffOpReport() {
     setShowTaskForm(false);
   };
 
+  // Create a new task immediately via the existing tasks API, then refresh.
+  const handleCreateNewTask = async () => {
+    if (!newTaskForm.name.trim()) return;
+    setCreatingTask(true);
+    try {
+      const week = weekInfo || getCurrentWeek();
+      const userId = user?.cid || user?.id;
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: newTaskForm.name.trim(),
+          project_id: newTaskForm.project_id || null,
+          user_id: userId,
+          user_name: user?.name || "User",
+          status: "in_progress",
+          created_week: week.week,
+          created_year: week.year,
+          start_date: newTaskForm.start_date || null,
+          end_date: newTaskForm.due_date || null,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTaskCreationOpen(false);
+        setNewTaskForm({
+          name: "",
+          project_id: "",
+          category: "",
+          start_date: "",
+          start_time: "",
+          due_date: "",
+          due_time: "",
+          collaborator: "",
+          collaborator_note: "",
+          project_search: "",
+          show_dropdown: false,
+        });
+        notify(t("staff.opReport.tasksCreated", { count: 1 }));
+        fetchTasks();
+      } else {
+        notify(
+          t((data.error || "Failed to create task") || "") ||
+            (data.error || "Failed to create task"),
+          "error",
+        );
+      }
+    } catch (e) {
+      console.error("Create task error:", e);
+      notify(
+        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
+          "Something went wrong. Please try again.",
+        "error",
+      );
+    } finally {
+      setCreatingTask(false);
+    }
+  };
+
   const updateTaskRow = (index, field, value) => {
     setTaskRows((prev) => {
       const updated = [...prev];
@@ -1361,7 +1420,8 @@ function StaffOpReport() {
                           const weekTasks = tasks.filter(
                             (t) =>
                               t.created_week === report.week_number &&
-                              t.created_year === report.year,
+                              t.created_year === report.year &&
+                              !t.parent_task_id, // subtasks are counted via the parent
                           );
                           const taskCount = weekTasks.reduce(
                             (sum, t) =>
@@ -1771,8 +1831,14 @@ function StaffOpReport() {
                                                     week: report.week_number,
                                                     year: report.year,
                                                   });
-                                                  setShowStandupModal(true);
-                                                  setNewTaskRequest((c) => c + 1);
+                                                  setNewTaskForm((p) => ({
+                                                    ...p,
+                                                    name: "",
+                                                    project_id: "",
+                                                    start_date: "",
+                                                    due_date: "",
+                                                  }));
+                                                  setTaskCreationOpen(true);
                                                 }}
                                                 className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                               >
@@ -1839,187 +1905,6 @@ function StaffOpReport() {
                   <p className="text-[11px] text-slate-500 mt-0.5">
                     {t("staff.opReport.reviewCompletedWork")}
                   </p>
-                </div>
-
-                {/* ─── RETRO FORM ─── */}
-                <div className="card p-5 space-y-4 border-l-4 border-l-purple-500">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wider flex items-center gap-2">
-                        <Trophy className="w-3.5 h-3.5 text-purple-400" />
-                        {t("staff.opReport.retroForWeek", {
-                          week: weekInfo.week,
-                        })}
-                      </h3>
-                      <p className="text-[9px] text-slate-500 mt-0.5">
-                        {weekInfo.year}
-                      </p>
-                    </div>
-                    {existingReport?.status === "submitted" && (
-                      <span className="text-[8px] font-bold px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 uppercase tracking-wider">
-                        {t("status.submitted")}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Wins */}
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                      {t("staff.opReport.wins")}
-                    </label>
-                    <div className="space-y-1.5">
-                      {(form.wins || []).map((w, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                          <input
-                            value={w}
-                            onChange={(e) =>
-                              setForm((p) => ({
-                                ...p,
-                                wins: (p.wins || []).map((x, j) =>
-                                  j === i ? e.target.value : x,
-                                ),
-                              }))
-                            }
-                            className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all"
-                          />
-                          <button
-                            onClick={() =>
-                              setForm((p) => ({
-                                ...p,
-                                wins: (p.wins || []).filter((_, j) => j !== i),
-                              }))
-                            }
-                            className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex gap-2">
-                        <input
-                          value={newWin}
-                          onChange={(e) => setNewWin(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              addWin();
-                            }
-                          }}
-                          placeholder={t("staff.opReport.winsPlaceholder")}
-                          className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
-                        />
-                        <button
-                          onClick={addWin}
-                          className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
-                        >
-                          + {t("staff.opReport.addItem")}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Challenges */}
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                      {t("staff.opReport.challenges")}
-                    </label>
-                    <textarea
-                      value={form.challenges || ""}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, challenges: e.target.value }))
-                      }
-                      rows={3}
-                      placeholder={t("staff.opReport.challengesPlaceholder")}
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
-                    />
-                  </div>
-
-                  {/* Carry-over items */}
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                      {t("staff.opReport.carryoverItems")}
-                    </label>
-                    <div className="space-y-1.5">
-                      {(form.carryover_items || []).map((c, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" />
-                          <input
-                            value={c}
-                            onChange={(e) =>
-                              setForm((p) => ({
-                                ...p,
-                                carryover_items: (p.carryover_items || []).map(
-                                  (x, j) => (j === i ? e.target.value : x),
-                                ),
-                              }))
-                            }
-                            className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all"
-                          />
-                          <button
-                            onClick={() =>
-                              setForm((p) => ({
-                                ...p,
-                                carryover_items: (p.carryover_items || []).filter(
-                                  (_, j) => j !== i,
-                                ),
-                              }))
-                            }
-                            className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ))}
-                      <div className="flex gap-2">
-                        <input
-                          value={newCarryover}
-                          onChange={(e) => setNewCarryover(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              addCarryover();
-                            }
-                          }}
-                          placeholder={t("staff.opReport.carryoverPlaceholder")}
-                          className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
-                        />
-                        <button
-                          onClick={addCarryover}
-                          className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
-                        >
-                          + {t("staff.opReport.addItem")}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Retro notes */}
-                  <div>
-                    <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-                      {t("staff.opReport.retroNotes")}
-                    </label>
-                    <textarea
-                      value={form.retro_notes || ""}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, retro_notes: e.target.value }))
-                      }
-                      rows={2}
-                      placeholder={t("staff.opReport.retroNotesPlaceholder")}
-                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none"
-                    />
-                  </div>
-
-                  <button
-                    onClick={() => handleSubmit("submitted")}
-                    disabled={saving}
-                    className="w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-wider bg-[var(--brand-orange)] text-black hover:brightness-110 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
-                  >
-                    <Send className="w-4 h-4" />
-                    {saving
-                      ? t("common.saving")
-                      : t("staff.opReport.submitRetro")}
-                  </button>
                 </div>
 
                 {/* Week history table */}
@@ -2298,12 +2183,11 @@ function StaffOpReport() {
                                                                   0
                                                                 ) {
                                                                   blocked = true;
-                                                                  setBlockerModal(
-                                                                    {
-                                                                      type: "api",
-                                                                      taskId:
-                                                                        task.id,
-                                                                    },
+                                                                  notify(
+                                                                    t(
+                                                                      "staff.opReport.blockerActive",
+                                                                    ),
+                                                                    "error",
                                                                   );
                                                                 }
                                                               }
@@ -2334,12 +2218,11 @@ function StaffOpReport() {
                                                                     false &&
                                                                   data.hasActiveBlockers
                                                                 ) {
-                                                                  setBlockerModal(
-                                                                    {
-                                                                      type: "api",
-                                                                      taskId:
-                                                                        task.id,
-                                                                    },
+                                                                  notify(
+                                                                    t(
+                                                                      "staff.opReport.blockerActive",
+                                                                    ),
+                                                                    "error",
                                                                   );
                                                                 } else {
                                                                   fetchTasks();
@@ -2495,12 +2378,11 @@ function StaffOpReport() {
                                                                                 false &&
                                                                               stData.hasActiveBlockers
                                                                             ) {
-                                                                              setBlockerModal(
-                                                                                {
-                                                                                  type: "api",
-                                                                                  taskId:
-                                                                                    st.id,
-                                                                                },
+                                                                              notify(
+                                                                                t(
+                                                                                  "staff.opReport.blockerActive",
+                                                                                ),
+                                                                                "error",
                                                                               );
                                                                             } else {
                                                                               fetchTasks();
@@ -3685,6 +3567,87 @@ function StaffOpReport() {
           </div>
         </div>
       </div>
+      {taskCreationOpen && (
+        <div
+          className="fixed inset-0 z-[600] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+          onClick={() => setTaskCreationOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-secondary border border-[var(--border-primary)] rounded-xl p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Plus className="w-4 h-4 text-[var(--brand-orange)]" />
+                <span className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+                  {t("staff.opReport.newTask")}
+                </span>
+              </div>
+              <button onClick={() => setTaskCreationOpen(false)}>
+                <X className="w-5 h-5 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={newTaskForm.name}
+                onChange={(e) =>
+                  setNewTaskForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder={t("staff.opReport.taskNamePlaceholder")}
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                autoFocus
+              />
+              <select
+                value={newTaskForm.project_id}
+                onChange={(e) =>
+                  setNewTaskForm((p) => ({ ...p, project_id: e.target.value }))
+                }
+                className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
+              >
+                <option value="">{t("common.none")}</option>
+                {(assignedProjects || []).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={newTaskForm.start_date}
+                  onChange={(e) =>
+                    setNewTaskForm((p) => ({
+                      ...p,
+                      start_date: e.target.value,
+                    }))
+                  }
+                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
+                />
+                <input
+                  type="date"
+                  value={newTaskForm.due_date}
+                  onChange={(e) =>
+                    setNewTaskForm((p) => ({
+                      ...p,
+                      due_date: e.target.value,
+                    }))
+                  }
+                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[11px] font-bold text-[var(--text-primary)] outline-none"
+                />
+              </div>
+              <button
+                onClick={handleCreateNewTask}
+                disabled={!newTaskForm.name.trim() || creatingTask}
+                className="w-full px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
+              >
+                {creatingTask ? t("common.saving") : t("reports.addTask")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {showStandupModal && (
         <div
           className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
@@ -3756,277 +3719,6 @@ function StaffOpReport() {
                   </div>
                 </div>
               )}
-              {/* Section 1 — Carry Over Tasks */}
-              <div>
-                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <ChevronRight className="w-3.5 h-3.5" />{" "}
-                  {t("staff.opReport.carryOverTasks")}
-                </h3>
-                {carryoverTasks.length === 0 ? (
-                  <p className="text-[10px] text-slate-600 italic py-2">
-                    {t("staff.opReport.noCarryOverTasks")}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {carryoverTasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-start gap-3 p-3 rounded-xl border border-indigo-500/20 bg-indigo-500/[0.03]"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                            {task.title}
-                          </p>
-                          <div className="flex flex-wrap gap-2 mt-1">
-                            <span className="text-[8px] text-slate-500">
-                              {t("staff.table.due")}:{" "}
-                              {formatDate(task.end_date)}
-                            </span>
-                            {(task.blockers || []).filter(
-                              (b) => b.status === "active",
-                            ).length > 0 && (
-                              <span className="text-[8px] text-rose-400 flex items-center gap-1">
-                                <Shield className="w-2.5 h-2.5" />
-                                {
-                                  (task.blockers || []).filter(
-                                    (b) => b.status === "active",
-                                  ).length
-                                }{" "}
-                                {t("status.active")}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        {!readOnly && !isHistorical && (
-                          <div className="flex gap-1 shrink-0">
-                            <button
-                              onClick={async () => {
-                                const res = await fetch(
-                                  "/api/tasks/carryover",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      task_id: task.id,
-                                      target_week: weekInfo.week,
-                                      target_year: weekInfo.year,
-                                      user_id: user?.cid || user?.id,
-                                      user_name: user?.name || "",
-                                    }),
-                                  },
-                                );
-                                if (res.ok) {
-                                  setCarryoverTasks((prev) =>
-                                    prev.filter((t) => t.id !== task.id),
-                                  );
-                                  fetchTasks();
-                                }
-                              }}
-                              className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white transition-all"
-                            >
-                              {t("staff.opReport.continue")}
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Section 1b — Archived Tasks */}
-              <div>
-                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Archive className="w-3.5 h-3.5" /> {t("staff.opReport.archivedTasks")}
-                </h3>
-                {tasks.filter((t) => t.status === "archived").length === 0 ? (
-                  <p className="text-[10px] text-slate-600 italic py-2">
-                    {t("staff.opReport.noArchivedTasks")}
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {tasks
-                      .filter((t) => t.status === "archived")
-                      .map((task) => (
-                        <div
-                          key={task.id}
-                          className="flex items-start gap-3 p-3 rounded-xl border border-rose-500/20 bg-rose-500/[0.03]"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[11px] font-bold text-[var(--text-primary)]">
-                              {task.title}
-                            </p>
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              <span className="text-[8px] text-slate-500">
-                                {t("staff.table.due")}:{" "}
-                                {formatDate(task.end_date)}
-                              </span>
-                            </div>
-                          </div>
-                          {!readOnly && !isHistorical && (
-                            <div className="flex gap-1 shrink-0">
-                              <button
-                                onClick={async () => {
-                                  await fetch("/api/tasks", {
-                                    method: "PUT",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      id: task.id,
-                                      status: "in_progress",
-                                      user_id: user?.cid || user?.id,
-                                    }),
-                                  });
-                                  fetchTasks();
-                                }}
-                                className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all"
-                              >
-                                <RotateCcw className="w-2.5 h-2.5 inline mr-1" />
-                                {t("staff.opReport.unarchive")}
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Section 1c — Top Priorities */}
-              <div>
-                <h3 className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5" />{" "}
-                  {t("staff.opReport.topPriorities")}
-                </h3>
-                <div className="space-y-2">
-                  {(form.top_priorities || []).map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] shrink-0" />
-                      <input
-                        value={item}
-                        onChange={(e) =>
-                          setForm((p) => ({
-                            ...p,
-                            top_priorities: (p.top_priorities || []).map(
-                              (x, j) => (j === i ? e.target.value : x),
-                            ),
-                          }))
-                        }
-                        disabled={readOnly || isHistorical}
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                      {!readOnly && !isHistorical && (
-                        <button
-                          onClick={() =>
-                            setForm((p) => ({
-                              ...p,
-                              top_priorities: (p.top_priorities || []).filter(
-                                (_, j) => j !== i,
-                              ),
-                            }))
-                          }
-                          className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title={t("staff.opReport.remove")}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {!readOnly && !isHistorical && (
-                    <div className="flex gap-2">
-                      <input
-                        value={newPriority}
-                        onChange={(e) => setNewPriority(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addPriority();
-                          }
-                        }}
-                        placeholder={t("staff.opReport.topPrioritiesPlaceholder")}
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
-                      />
-                      <button
-                        onClick={addPriority}
-                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
-                      >
-                        + {t("staff.opReport.addItem")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Section 1d — Expected Deliverables */}
-              <div>
-                <h3 className="text-[11px] font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" />{" "}
-                  {t("staff.opReport.expectedDeliverablesTitle")}
-                </h3>
-                <div className="space-y-2">
-                  {(form.expected_deliverables || []).map((item, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                      <input
-                        value={item}
-                        onChange={(e) =>
-                          setForm((p) => ({
-                            ...p,
-                            expected_deliverables: (
-                              p.expected_deliverables || []
-                            ).map((x, j) => (j === i ? e.target.value : x)),
-                          }))
-                        }
-                        disabled={readOnly || isHistorical}
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-slate-500 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-                      />
-                      {!readOnly && !isHistorical && (
-                        <button
-                          onClick={() =>
-                            setForm((p) => ({
-                              ...p,
-                              expected_deliverables: (
-                                p.expected_deliverables || []
-                              ).filter((_, j) => j !== i),
-                            }))
-                          }
-                          className="text-slate-500 hover:text-rose-400 transition-all shrink-0"
-                          title={t("staff.opReport.remove")}
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  {!readOnly && !isHistorical && (
-                    <div className="flex gap-2">
-                      <input
-                        value={newDeliverable}
-                        onChange={(e) => setNewDeliverable(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            addDeliverable();
-                          }
-                        }}
-                        placeholder={t("staff.opReport.deliverablesPlaceholder")}
-                        className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all"
-                      />
-                      <button
-                        onClick={addDeliverable}
-                        className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all shrink-0"
-                      >
-                        + {t("staff.opReport.addItem")}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               {/* Section 2 — Weekly Focus */}
               <div>
                 <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
@@ -4047,25 +3739,6 @@ function StaffOpReport() {
                 />
               </div>
 
-              {/* Additional Notes */}
-              <div>
-                <h3 className="text-[11px] font-semibold text-slate-500 mb-2">
-                  {t("staff.opReport.additionalNotes")}
-                </h3>
-                <textarea
-                  value={form.additional_notes}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      additional_notes: e.target.value,
-                    }))
-                  }
-                  rows={2}
-                  placeholder={t("staff.opReport.anythingElseNote")}
-                  disabled={readOnly || isHistorical}
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-2.5 text-xs outline-none font-bold text-[var(--text-primary)] focus:border-slate-500 transition-all resize-none disabled:opacity-60 disabled:cursor-not-allowed"
-                />
-              </div>
             </div>
 
             {/* Action Buttons */}

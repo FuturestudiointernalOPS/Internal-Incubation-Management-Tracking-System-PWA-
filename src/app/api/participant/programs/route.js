@@ -118,21 +118,38 @@ export async function GET(req) {
       const totalDeliverables = unlockedDeliverables.length || 1;
       const completedDeliverables = unlockedDeliverables.filter((d) =>
         submissions.some(
-          (s) => (s.deliverable_id || s.document_id) === d.id && s.status === "approved",
+          (s) =>
+            String(s.deliverable_id || s.document_id) === String(d.id) &&
+            s.status === "approved",
         ),
       ).length;
-      const percentComplete = Math.round(
+      let percentComplete = Math.round(
         (completedDeliverables / totalDeliverables) * 100,
       );
 
-      const attendedSessions = attendance.filter(
-        (a) => a.status === "present",
-      ).length;
-      const expectedDaysRes = await db.execute({
-        sql: "SELECT COUNT(DISTINCT date) as total_days FROM v2_attendance WHERE program_id::text = ?",
-        args: [program.id]
+      // Count distinct sessions with a "present" mark, restricted to unlocked
+      // sessions, so duplicate attendance rows (same session recorded on
+      // multiple dates) can never push the rate above 100%.
+      const unlockedSessionIds = new Set(
+        unlockedSessions.map((s) => String(s.id)),
+      );
+      const attendedSessions = new Set(
+        attendance
+          .filter(
+            (a) =>
+              a.status === "present" &&
+              unlockedSessionIds.has(String(a.session_id)),
+          )
+          .map((a) => String(a.session_id)),
+      ).size;
+      // Expected attendance = sessions unlocked so far (future sessions don't count).
+      const totalExpectedDays = unlockedSessions.length || 1;
+      // A program "tracks" attendance only when attendance records actually exist.
+      const attMetaRes = await db.execute({
+        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
+        args: [program.id],
       });
-      const totalExpectedDays = parseInt(expectedDaysRes.rows[0]?.total_days) || 1;
+      const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
       );
@@ -144,6 +161,12 @@ export async function GET(req) {
       const assignmentCompletion = Math.round(
         (approvedSubmissions / totalSubmissions) * 100,
       );
+
+      // No deliverables tracked for this program → fall back to submissions so
+      // Progress stays consistent with Assignments instead of a misleading 0%.
+      if (unlockedDeliverables.length === 0 && submissions.length > 0) {
+        percentComplete = assignmentCompletion;
+      }
 
       // ─── KPI Progress — per participant ───
       // Average across the program's KPIs, where each KPI counts as "achieved"
@@ -172,18 +195,22 @@ export async function GET(req) {
           deliverableIdsByKpi.get(key).add(String(d.id));
         }
       }
-      if ((kpis || []).length > 0) {
-        const perKpi = kpis.map((kpi) => {
-          const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
-          const achieved = approvedSubs.some((s) =>
-            linked.has(String(s.deliverable_id)),
-          );
-          return achieved ? 100 : 0;
-        });
-        kpiCompletion = Math.round(
-          perKpi.reduce((sum, v) => sum + v, 0) / perKpi.length,
+      // Attendance counts as an extra factor in KPI achievement when the
+      // program actually tracks attendance (at least one record exists).
+      const kpiFactors = (kpis || []).map((kpi) => {
+        const linked = deliverableIdsByKpi.get(String(kpi.id)) || new Set();
+        const achieved = approvedSubs.some((s) =>
+          linked.has(String(s.deliverable_id)),
         );
-      }
+        return achieved ? 100 : 0;
+      });
+      if (attendanceTracked) kpiFactors.push(attendanceRate);
+      kpiCompletion =
+        kpiFactors.length > 0
+          ? Math.round(
+              kpiFactors.reduce((sum, v) => sum + v, 0) / kpiFactors.length,
+            )
+          : 0;
 
       const facilitators = (staffRes.rows || []).map((s) => ({
         id: s.staff_id,

@@ -36,6 +36,8 @@ import {
   RefreshCw,
   Bell,
   Copy,
+  Pencil,
+  Check,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -203,6 +205,8 @@ function ProgramWorkspace() {
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [editingScoreFor, setEditingScoreFor] = useState(null); // participant id being edited
+  const [scoreDraft, setScoreDraft] = useState(""); // in-progress marks value
   const [promoteTarget, setPromoteTarget] = useState(null); // { team, action: 'approve' | 'promote' }
 
   // Load existing attendance when modal opens
@@ -1129,7 +1133,11 @@ function ProgramWorkspace() {
   };
 
   const updateParticipantScores = async (participantId, score) => {
-    if (!score) return;
+    const numericScore = parseInt(score, 10);
+    if (Number.isNaN(numericScore) || numericScore < 0 || numericScore > 100) {
+      notify(t("pmMisc.workspace.invalidScore"), "error");
+      return;
+    }
     setIsSaving(true);
     try {
       const res = await fetch("/api/submissions", {
@@ -1138,12 +1146,16 @@ function ProgramWorkspace() {
         body: JSON.stringify({
           participant_id: participantId,
           program_id: id,
-          score: parseInt(score),
+          score: numericScore,
         }),
       });
       if ((await res.json()).success) {
-        notify(t("pmMisc.workspace.scoresSynced", { score }));
+        notify(t("pmMisc.workspace.scoresSynced", { score: numericScore }));
+        setEditingScoreFor(null);
+        setScoreDraft("");
         fetchProgramData(true);
+      } else {
+        notify(t("pmMisc.workspace.syncFailed"), "error");
       }
     } catch (e) {
       notify(t("pmMisc.workspace.syncFailed"), "error");
@@ -6017,7 +6029,12 @@ function ProgramWorkspace() {
         {showTeamDetails && selectedTeam && (
           <div
             className="fixed inset-0 z-[500] bg-black/60 backdrop-blur-sm flex items-center justify-center p-6"
-            onClick={() => setShowTeamDetails(false)}
+            onClick={() => {
+              setShowTeamDetails(false);
+              setSelectedTeam(null);
+              setEditingScoreFor(null);
+              setScoreDraft("");
+            }}
           >
             <div
               className="card w-full max-w-5xl max-h-[85vh] flex flex-col p-0 overflow-hidden shadow-2xl border-indigo-500/30"
@@ -6034,7 +6051,12 @@ function ProgramWorkspace() {
                   </p>
                 </div>
                 <button
-                  onClick={() => setShowTeamDetails(false)}
+                  onClick={() => {
+                    setShowTeamDetails(false);
+                    setSelectedTeam(null);
+                    setEditingScoreFor(null);
+                    setScoreDraft("");
+                  }}
                   className="p-2 hover:bg-rose-500/10 hover:text-rose-500 rounded-xl transition-all"
                 >
                   <X className="w-6 h-6" />
@@ -6057,20 +6079,30 @@ function ProgramWorkspace() {
                         {participants
                           .filter((p) => p.v2_team_id === selectedTeam.id)
                           .map((p) => {
+                            const pid = String(p.cid || p.id);
+                            // Match submissions made by the participant directly
+                            // OR by their team (team-level submissions carry team_id).
                             const participantSubmissions = submissions.filter(
                               (s) =>
-                                String(s.participant_id) ===
-                                String(p.cid || p.id),
+                                String(s.participant_id) === pid ||
+                                (selectedTeam.id &&
+                                  String(s.team_id) === String(selectedTeam.id)),
+                            );
+                            const scoredSubmissions = participantSubmissions.filter(
+                              (s) =>
+                                (s.score ?? s.evaluation_score ?? null) != null,
                             );
                             const avgScore =
-                              participantSubmissions.length > 0
+                              scoredSubmissions.length > 0
                                 ? Math.round(
-                                  participantSubmissions.reduce(
-                                    (acc, s) => acc + (s.score || 0),
+                                  scoredSubmissions.reduce(
+                                    (acc, s) =>
+                                      acc + (s.score ?? s.evaluation_score ?? 0),
                                     0,
-                                  ) / participantSubmissions.length,
+                                  ) / scoredSubmissions.length,
                                 )
                                 : 0;
+                            const isEditing = editingScoreFor === pid;
 
                             return (
                               <tr
@@ -6102,18 +6134,24 @@ function ProgramWorkspace() {
                                         <button
                                           onClick={() =>
                                             setActivePDF({
-                                              url: sub.file_url,
-                                              name: `Submission_${sub.id}`,
+                                              url:
+                                                sub.file_url ||
+                                                sub.submission_url ||
+                                                sub.submission_link ||
+                                                "#",
+                                              name:
+                                                sub.deliverable_title ||
+                                                `Submission_${sub.id}`,
                                             })
                                           }
                                           className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary rounded-lg border border-[var(--border-primary)] hover:border-emerald-500/50 transition-all"
                                         >
                                           <FileText className="w-3.5 h-3.5 text-emerald-500" />
                                           <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-                                            {t("pmMisc.workspace.artifact")}
+                                            {sub.deliverable_title || t("pmMisc.workspace.artifact")}
                                           </span>
                                           <span className="text-[10px] font-black text-emerald-500">
-                                            [{sub.score || "??"}]
+                                            [{(sub.score ?? sub.evaluation_score ?? "—")}]
                                           </span>
                                         </button>
                                       </div>
@@ -6132,26 +6170,65 @@ function ProgramWorkspace() {
                                     >
                                       {avgScore}%
                                     </div>
-                                    <select
-                                      className="bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[9px] font-black uppercase outline-none focus:border-indigo-500 cursor-pointer"
-                                      value={avgScore}
-                                      onChange={(e) =>
-                                        updateParticipantScores(
-                                          p.cid || p.id,
-                                          e.target.value,
-                                        )
-                                      }
-                                    >
-                                      <option value="">{t("pmMisc.workspace.auditMarks")}</option>
-                                      {[
-                                        100, 90, 80, 70, 60, 50, 40, 30, 20, 10,
-                                        0,
-                                      ].map((m) => (
-                                        <option key={m} value={m}>
-                                          {m}% {t("pmMisc.workspace.awarded")}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    {isEditing ? (
+                                      <div className="flex items-center gap-1.5">
+                                        <input
+                                          type="number"
+                                          min={0}
+                                          max={100}
+                                          value={scoreDraft}
+                                          onChange={(e) =>
+                                            setScoreDraft(e.target.value)
+                                          }
+                                          onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                              updateParticipantScores(
+                                                pid,
+                                                scoreDraft,
+                                              );
+                                            }
+                                          }}
+                                          className="w-20 bg-tertiary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[11px] font-black text-center outline-none focus:border-indigo-500"
+                                          autoFocus
+                                        />
+                                        <button
+                                          onClick={() =>
+                                            updateParticipantScores(
+                                              pid,
+                                              scoreDraft,
+                                            )
+                                          }
+                                          disabled={isSaving}
+                                          className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-all disabled:opacity-40"
+                                          title={t("pmMisc.workspace.saveMarks")}
+                                        >
+                                          <Check className="w-3.5 h-3.5" />
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            setEditingScoreFor(null);
+                                            setScoreDraft("");
+                                          }}
+                                          className="p-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+                                          title={t("pmMisc.workspace.cancel")}
+                                        >
+                                          <X className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <button
+                                        onClick={() => {
+                                          setEditingScoreFor(pid);
+                                          setScoreDraft(String(avgScore || ""));
+                                        }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] rounded-lg hover:border-indigo-500/50 transition-all"
+                                      >
+                                        <Pencil className="w-3 h-3 text-indigo-400" />
+                                        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                                          {t("pmMisc.workspace.editMarks")}
+                                        </span>
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -6162,7 +6239,7 @@ function ProgramWorkspace() {
                   </div>
 
                   {participants.filter(
-                    (p) => p.group_name === selectedTeam.name,
+                    (p) => p.v2_team_id === selectedTeam.id,
                   ).length === 0 && (
                       <div className="py-20 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-3xl opacity-30">
                         <Users className="w-12 h-12 mb-4" />
@@ -6176,95 +6253,20 @@ function ProgramWorkspace() {
 
               <div className="p-6 bg-tertiary border-t border-[var(--border-primary)] flex justify-end gap-3">
                 <button
-                  onClick={() => setShowTeamDetails(false)}
+                  onClick={() => {
+                    setShowTeamDetails(false);
+                    setSelectedTeam(null);
+                    setEditingScoreFor(null);
+                    setScoreDraft("");
+                  }}
                   className="btn btn-secondary px-8"
                 >
                   {t("pmMisc.workspace.closeAudit")}
-                </button>
-                <button className="btn btn-primary px-8 gap-2">
-                  <Save className="w-4 h-4" />
-                  {t("pmMisc.workspace.saveAdjustments")}
                 </button>
               </div>
             </div>
           </div>
         )}
-
-      {/* Team Details Modal */}
-      {showTeamDetails && selectedTeam && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }}
-          style={{ background: "rgba(0,0,0,0.6)" }}
-        >
-          <div
-            className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between p-6 border-b border-gray-800">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Target className="w-5 h-5 text-[var(--brand-orange)]" />
-                {selectedTeam.name}
-              </h2>
-              <button onClick={() => { setShowTeamDetails(false); setSelectedTeam(null); }} className="p-2 hover:bg-white/5 rounded-lg">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.program")}</p>
-                  <p className="font-medium">{program?.name || t("pmMisc.workspace.na")}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.tableStatus")}</p>
-                  <span className={"text-xs px-2.5 py-1 rounded-full " + (selectedTeam.is_venture_ready ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400")}>
-                    {selectedTeam.is_venture_ready ? t("pmMisc.workspace.ventureReady") : t("pmMisc.workspace.inProgram")}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.teamLead")}</p>
-                  <p className="font-medium">{selectedTeam.leader_name || selectedTeam.leader_id || t("pmMisc.workspace.na")}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.handler")}</p>
-                  <p className="font-medium">{selectedTeam.handler_name || t("pmMisc.workspace.unassigned")}</p>
-                </div>
-                {selectedTeam.venture_id && (
-                  <div className="col-span-2">
-                    <p className="text-xs text-gray-500 mb-1">{t("pmMisc.workspace.ventureId")}</p>
-                    <p className="font-mono text-sm text-[var(--brand-orange)]">{selectedTeam.venture_id}</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-gray-800">
-                <h3 className="text-sm font-medium mb-3">
-                  {t("pmMisc.workspace.members")} ({participants.filter(p => p.v2_team_id === selectedTeam.id).length})
-                </h3>
-                <div className="space-y-2">
-                  {participants
-                    .filter(p => p.v2_team_id === selectedTeam.id)
-                    .map(p => (
-                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg bg-[#020617]">
-                        <div className="w-8 h-8 rounded-full bg-tertiary flex items-center justify-center text-xs font-bold">
-                          {p.name?.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{p.name}</p>
-                          <p className="text-xs text-gray-500">{p.email}</p>
-                        </div>
-                      </div>
-                    ))}
-                  {participants.filter(p => p.v2_team_id === selectedTeam.id).length === 0 && (
-                    <p className="text-sm text-gray-500">{t("pmMisc.workspace.noMembersAssigned")}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Confirmation Modal for Approve/Promote */}
       {promoteTarget && (

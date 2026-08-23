@@ -90,7 +90,9 @@ export async function GET(req) {
         for (const d of deliverables) {
           // Match by document_id (preferred) or deliverable_id (legacy/int compat)
           const sub = submissions.find(
-            (s) => s.document_id === d.id || s.deliverable_id == d.id
+            (s) =>
+              String(s.document_id) === String(d.id) ||
+              String(s.deliverable_id) === String(d.id),
           );
         allAssignments.push({
           id: d.id,

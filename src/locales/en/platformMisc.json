@@ -844,7 +844,10 @@
       "exportScope": "Scope",
       "exportSelected": "Export Selected ({count})",
       "exportFiltered": "Export All Filtered ({count})",
-      "exportAction": "Export"
+      "exportAction": "Export",
+      "exportDesc": "Download the responses as a structured Excel or PDF file and share it directly.",
+      "exportExcel": "Export Excel",
+      "exportPdf": "Export PDF"
     },
     "runSubmit": {
       "platform": "Platform",

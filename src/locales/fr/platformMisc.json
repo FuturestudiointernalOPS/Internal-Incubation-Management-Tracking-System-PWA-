@@ -844,7 +844,10 @@
       "exportScope": "Périmètre",
       "exportSelected": "Exporter la sélection ({count})",
       "exportFiltered": "Exporter tous les filtrés ({count})",
-      "exportAction": "Exporter"
+      "exportAction": "Exporter",
+      "exportDesc": "Téléchargez les réponses sous forme de fichier Excel ou PDF structuré et partagez-le directement.",
+      "exportExcel": "Exporter Excel",
+      "exportPdf": "Exporter PDF"
     },
     "runSubmit": {
       "platform": "Plateforme",
