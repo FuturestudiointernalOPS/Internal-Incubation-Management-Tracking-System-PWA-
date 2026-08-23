@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, enforceFacilitatorProgramAccess, hasProgramManagementAccess } from "@/lib/auth";
+import { getSession, requireAssignmentAccess, hasProgramManagementAccess } from "@/lib/auth";
 
 export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "teacher", "facilitator"] }, async (req) => {
   const body = await req.json();
@@ -17,11 +17,12 @@ export const POST = createHandler({ roles: ["staff", "super_admin", "program_man
   // Server-side enforcement: non-management roles must be assigned and hold sessions.conduct
   const session = await getSession();
   if (session && !hasProgramManagementAccess(session.role)) {
-    const facError = await enforceFacilitatorProgramAccess(
-      program_id,
-      "sessions.conduct",
-      1,
-    );
+    const facError = await requireAssignmentAccess({
+      resource: "program",
+      contextId: program_id,
+      capability: "sessions.conduct",
+      minLevel: 1,
+    });
     if (facError) return facError;
   }
 
@@ -59,11 +60,12 @@ export const GET = createHandler({ roles: ["staff", "super_admin", "program_mana
   if (program_id) {
     const session = await getSession();
     if (session && !hasProgramManagementAccess(session.role)) {
-      const facError = await enforceFacilitatorProgramAccess(
-        program_id,
-        "sessions.conduct",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: program_id,
+        capability: "sessions.conduct",
+        minLevel: 1,
+      });
       if (facError) return facError;
     }
   }

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import db from "@/lib/db";
+import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   getProjectTimeline,
   getGanttData,
@@ -16,6 +18,8 @@ import {
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const view = new URL(req.url).searchParams.get("view") || "timeline";
 
   if (view === "gantt") {
@@ -45,6 +49,8 @@ export const GET = createHandler(async (req, { params }) => {
  */
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const body = await req.json();
 
   if (body.action === "add_dependency") {

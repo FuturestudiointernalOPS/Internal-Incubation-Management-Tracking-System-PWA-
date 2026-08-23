@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { getTaskById } from "@/lib/db/queries/tasks";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 
@@ -62,8 +62,9 @@ export async function POST(req) {
       );
     }
 
-    // Verify the user is the assigned person
-    if (String(task.assigned_to) !== String(user_id)) {
+    // Verify the authenticated user is the assigned person
+    const session = await getSession();
+    if (String(task.assigned_to) !== String(session.cid)) {
       return NextResponse.json(
         {
           success: false,

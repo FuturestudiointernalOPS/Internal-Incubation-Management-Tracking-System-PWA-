@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 
 export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   const { group_name, program_id, program_name } = await req.json();
@@ -58,6 +59,13 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
     // Sync participant_programs junction table
     if (contact.cid) {
       try {
+        // Same-program conflict guard (Phase 2A).
+        const conflictError = await assertNoParticipantFacilitatorConflict(
+          program_id,
+          contact.cid,
+          contact.email || null,
+        );
+        if (conflictError) continue;
         await db.execute({
           sql: `INSERT INTO participant_programs (participant_id, program_id)
                 VALUES (?, ?)

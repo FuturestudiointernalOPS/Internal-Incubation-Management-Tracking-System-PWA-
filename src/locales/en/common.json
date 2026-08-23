@@ -69,7 +69,21 @@
       "myDashboard": "My Dashboard",
       "logout": "Log out",
       "profile": "Profile",
-      "role": "Role"
+      "role": "Role",
+      "groupFutureStudio": "Future Studio",
+      "groupPrograms": "Programs",
+      "groupVentures": "Ventures",
+      "completedViewOnly": "Completed · View Only",
+      "contexts": "My Contexts",
+      "roleFacilitator": "Facilitator",
+      "roleParticipant": "Participant",
+      "roleStaff": "Staff",
+      "roleProgramManager": "Program Manager",
+      "roleTeacher": "Teacher",
+      "roleVentureMember": "Venture Member",
+      "roleFinance": "Finance",
+      "roleIntern": "Intern",
+      "roleOther": "Member"
     }
   },
   "dashboard": {

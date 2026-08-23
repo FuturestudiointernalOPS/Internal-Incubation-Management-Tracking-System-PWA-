@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getQueueStats, getLatestQueueStats } from "@/lib/ventures";
 
 export const GET = createHandler(
+  { roles: ["super_admin"] },
   async (req) => {
     const s = new URL(req.url).searchParams;
     const type = s.get("type");
@@ -18,6 +19,5 @@ export const GET = createHandler(
 
     const results = await getQueueStats({ queueName, limit, offset });
     return NextResponse.json({ success: true, results });
-  },
-  { roles: ["super_admin"] }
+  }
 );

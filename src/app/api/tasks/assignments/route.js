@@ -12,8 +12,28 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
     const { searchParams } = new URL(req.url);
-    const assignee_id = searchParams.get("assignee_id");
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    let assignee_id = searchParams.get("assignee_id");
+    if (!staffSide.includes(session.role)) {
+      if (assignee_id && String(assignee_id) !== String(session.cid)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "You can only view your own assignments.",
+          },
+          { status: 403 },
+        );
+      }
+      assignee_id = assignee_id || session.cid;
+    }
     const status = searchParams.get("status") || "pending";
 
     let sql =

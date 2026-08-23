@@ -4,7 +4,31 @@ import { createHandler } from "@/lib/api/createHandler";
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const user_id = searchParams.get("user_id");
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+  const staffSide = [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ];
+  let user_id = searchParams.get("user_id");
+  if (!staffSide.includes(session.role)) {
+    if (user_id && String(user_id) !== String(session.cid)) {
+      return NextResponse.json(
+        { success: false, error: "You can only view your own tasks." },
+        { status: 403 },
+      );
+    }
+    user_id = user_id || session.cid;
+  }
   const week_number = searchParams.get("week");
   const year = searchParams.get("year");
 

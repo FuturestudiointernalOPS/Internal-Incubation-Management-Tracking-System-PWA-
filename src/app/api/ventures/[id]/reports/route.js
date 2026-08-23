@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import db from "@/lib/db";
+import { requireVentureAccess } from "@/lib/ventureAuth";
 import {
   getVentureAnalytics,
   getMilestonesReport,
@@ -13,6 +15,8 @@ import {
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const s = new URL(req.url).searchParams;
   const type = s.get("type") || "analytics";
 

@@ -1,9 +1,12 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireVentureAccess } from "@/lib/ventureAuth";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
   const ventureDbId = ventureRes.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -13,6 +16,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const body = await req.json();
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
@@ -31,6 +36,9 @@ export const POST = createHandler(async (req, { params }) => {
 });
 
 export const PATCH = createHandler(async (req, { params }) => {
+  const { id } = await params;
+  const { session } = await requireVentureAccess(id, db);
+  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const { searchParams } = new URL(req.url);
   const mid = searchParams.get("id");
   if (!mid) return NextResponse.json({ success: false, error: "Milestone ID required." }, { status: 400 });

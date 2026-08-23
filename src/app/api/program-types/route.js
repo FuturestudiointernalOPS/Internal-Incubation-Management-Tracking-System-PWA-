@@ -1,11 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth } from "@/lib/auth";
 
 /**
  * GET /api/program-types — Returns all custom program types
  * POST /api/program-types — Adds a new custom program type
  */
 export async function GET() {
+  const authError = await requireAuth();
+  if (authError) return authError;
   try {
     await initDb();
     await db.execute(
@@ -23,6 +26,8 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const authError = await requireAuth(["super_admin", "developer"]);
+    if (authError) return authError;
     await initDb();
     await db.execute(
       "CREATE TABLE IF NOT EXISTS program_type_options (id SERIAL PRIMARY KEY, type_key TEXT UNIQUE NOT NULL, display_name TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"

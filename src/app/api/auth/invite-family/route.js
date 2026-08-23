@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -91,6 +91,13 @@ export async function POST(req) {
         // Sync participant_programs junction table if programId is provided
         if (programId) {
           try {
+            // Same-program conflict guard (Phase 2A).
+            const conflictError = await assertNoParticipantFacilitatorConflict(
+              programId,
+              cid,
+              memberEmail,
+            );
+            if (conflictError) return conflictError;
             await db.execute({
               sql: `INSERT INTO participant_programs (participant_id, program_id)
                     VALUES (?, ?)

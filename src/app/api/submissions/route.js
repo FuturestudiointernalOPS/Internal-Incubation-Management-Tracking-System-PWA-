@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -44,7 +44,8 @@ export async function POST(req) {
 
     // View-only gate: participants/teams cannot submit into a program that is
     // no longer active (completed/archived). Staff/PM/SA manage programs
-    // regardless of its status.
+    // regardless of its status. Also blocks a participant whose own membership
+    // is completed even when the program is still active (Phase 2 acceptance).
     const session = await getSession();
     if (session && ["participant", "team"].includes(session.role)) {
       try {
@@ -58,6 +59,23 @@ export async function POST(req) {
             { success: false, error: "errors.programCompletedViewOnly" },
             { status: 403 },
           );
+        }
+        // Person-level completion: the participant's own membership is closed
+        // even if the program itself is still active.
+        if (session.role === "participant") {
+          const ppCheck = await db.execute({
+            sql: `SELECT status FROM participant_programs
+                  WHERE participant_id = ? AND program_id::text = ?
+                  LIMIT 1`,
+            args: [session.cid, String(program_id)],
+          });
+          const ppStatus = String(ppCheck.rows[0]?.status || "").toLowerCase();
+          if (ppStatus === "completed") {
+            return NextResponse.json(
+              { success: false, error: "errors.programCompletedViewOnly" },
+              { status: 403 },
+            );
+          }
         }
       } catch (_) {}
     }
@@ -189,11 +207,12 @@ export async function PATCH(req) {
           { status: 404 },
         );
       }
-      const facError = await enforceFacilitatorProgramAccess(
-        progId,
-        "assignments.grade",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: progId,
+        capability: "assignments.grade",
+        minLevel: 1,
+      });
       if (facError) return facError;
       const scope = await getFacilitatorTeamScope(progId, session.cid);
       if (scope.scope !== "all" && scope.teamIds.length > 0) {
@@ -418,11 +437,12 @@ export async function GET(req) {
     let facScopeFilter = null;
     let facScopeArgs = [];
     if (session && program_id && session.role === "facilitator") {
-      const facError = await enforceFacilitatorProgramAccess(
-        program_id,
-        "assignments.view",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: program_id,
+        capability: "assignments.view",
+        minLevel: 1,
+      });
       if (facError) return facError;
       const scope = await getFacilitatorTeamScope(program_id, session.cid);
       if (scope.scope !== "all") {

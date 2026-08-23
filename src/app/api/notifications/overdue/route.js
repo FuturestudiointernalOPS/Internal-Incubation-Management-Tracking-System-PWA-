@@ -15,12 +15,19 @@ import { NextResponse } from "next/server";
  * Intended to be called by a cron / scheduled job.
  */
 
-const OVERDUE_SECRET = process.env.OVERDUE_SECRET_KEY || "changeme";
+const OVERDUE_SECRET = process.env.OVERDUE_SECRET_KEY;
 
 export async function POST(req) {
   try {
     const { searchParams } = new URL(req.url);
     const key = searchParams.get("key");
+
+    if (!OVERDUE_SECRET) {
+      return NextResponse.json(
+        { success: false, error: "Service not configured." },
+        { status: 503 },
+      );
+    }
 
     if (!key || key !== OVERDUE_SECRET) {
       return NextResponse.json(

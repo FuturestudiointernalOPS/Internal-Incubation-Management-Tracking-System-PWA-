@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth, requireCapabilityV2 } from "@/lib/auth";
+import { requireAuth, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
@@ -182,6 +182,17 @@ export async function POST(req) {
 
         for (const pid of programIdsToAssign) {
           try {
+            // Same-program conflict guard (Phase 2A): skip programs where the
+            // person already holds a facilitator assignment.
+            const conflictError = await assertNoParticipantFacilitatorConflict(
+              pid,
+              vc.cid,
+              vc.email,
+            );
+            if (conflictError) {
+              errors.push({ email: vc.email, program_id: pid, error: "errors.roleConflictParticipantFacilitator" });
+              continue;
+            }
             await db.execute({
               sql: `INSERT INTO participant_programs (participant_id, program_id)
                     VALUES (?, ?)
@@ -347,6 +358,17 @@ export async function PUT(req) {
         }
       }
 
+      // Same-program conflict guard (Phase 2A): reject the update before any
+      // membership mutation if the person is a facilitator in a target program.
+      for (const pid of data.program_ids) {
+        const conflictError = await assertNoParticipantFacilitatorConflict(
+          pid,
+          data.cid,
+          data.email || null,
+        );
+        if (conflictError) return conflictError;
+      }
+
       // Remove existing assignments not in the new list
       if (data.program_ids.length > 0) {
         const placeholders = data.program_ids.map(() => "?").join(",");
@@ -386,6 +408,13 @@ export async function PUT(req) {
     } else if (data.program_id) {
       // Single program_id fallback — ensure at least this one exists
       try {
+        // Same-program conflict guard (Phase 2A).
+        const conflictError = await assertNoParticipantFacilitatorConflict(
+          data.program_id,
+          data.cid,
+          data.email || null,
+        );
+        if (conflictError) return conflictError;
         await db.execute({
           sql: `INSERT INTO participant_programs (participant_id, program_id)
                 VALUES (?, ?)

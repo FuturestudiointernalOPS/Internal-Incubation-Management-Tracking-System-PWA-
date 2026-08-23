@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import {
   requireAuth,
   getSession,
-  requireProgramFacilitator,
+  requireAssignmentAccess,
   hasProgramManagementAccess,
 } from "@/lib/auth";
 
@@ -140,7 +140,10 @@ export async function POST(req) {
 
     // Enforce program assignment for non-management roles
     if (session && !hasProgramManagementAccess(session.role)) {
-      const guardError = await requireProgramFacilitator(program_id);
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: program_id,
+      });
       if (guardError) return guardError;
     }
 

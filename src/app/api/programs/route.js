@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 
 export async function POST(req) {
   try {
@@ -232,11 +232,18 @@ export async function PUT(req) {
           // Legacy contacts.program_id/program_name and v2_participants writes
           // have been removed.
           const contactsRes = await db.execute({
-            sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
+            sql: `SELECT cid, email FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
             args: [familyName],
           });
           for (const contact of contactsRes.rows) {
             if (!contact.cid) continue;
+            // Same-program conflict guard (Phase 2A).
+            const conflictError = await assertNoParticipantFacilitatorConflict(
+              programId,
+              contact.cid,
+              contact.email || null,
+            );
+            if (conflictError) continue;
             try {
               await db.execute({
                 sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
 
 /**
  * PROJECTS API
@@ -18,7 +18,13 @@ import { requireAuth } from "@/lib/auth";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ]);
     if (authError) return authError;
     const body = await req.json();
     const {
@@ -123,6 +129,27 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
     const user_cid = searchParams.get("user_cid");
     const include_archived = searchParams.get("include_archived");
+    const session = await getSession();
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    let filterCid = user_cid;
+    if (!staffSide.includes(session.role)) {
+      if (filterCid && String(filterCid) !== String(session.cid)) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "You can only view your own projects.",
+          },
+          { status: 403 },
+        );
+      }
+      filterCid = filterCid || session.cid;
+    }
 
     let query = `
       SELECT p.*, pr.name as program_name
@@ -139,11 +166,11 @@ export async function GET(req) {
     }
 
     // Filter by user membership (project_members OR owner_id)
-    if (user_cid) {
+    if (filterCid) {
       conditions.push(
         "(EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?) OR p.owner_id = ?)",
       );
-      args.push(user_cid, user_cid);
+      args.push(filterCid, filterCid);
     }
 
     // Exclude archived unless explicitly requested
@@ -239,6 +266,19 @@ export async function PUT(req) {
         { success: false, error: "Project ID is required." },
         { status: 400 },
       );
+    }
+
+    const session = await getSession();
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    if (!staffSide.includes(session.role)) {
+      const authError = await requireProjectAccess(id);
+      if (authError) return authError;
     }
 
     const updateFields = [];
@@ -364,7 +404,12 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

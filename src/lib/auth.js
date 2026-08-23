@@ -630,7 +630,13 @@ export async function logPermissionAudit({
 //     (families.lead_facilitator_id)
 // =============================================================================
 
-const FACILITATOR_BYPASS_ROLES = ["super_admin", "staff", "program_manager", "teacher"];
+const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager", "teacher"];
+
+// NOTE: this list MUST stay aligned with hasProgramManagementAccess() below.
+// "staff" is deliberately NOT included: staff program-delivery access is
+// assignment-derived (enforced through the assignment guard), matching the
+// live routes' gate. Keeping staff in the bypass list here would silently
+// expand staff access when requireAssignmentAccess() is used.
 
 /**
  * Roles with system-defined, program-wide management access. These roles keep
@@ -955,6 +961,49 @@ export async function enforceFacilitatorProgramAccess(programId, capability = nu
       { success: false, error: "errors.authzSystemFailure" },
       { status: 500 },
     );
+  }
+}
+
+/**
+ * Same-program conflict guard (Phase 2A): rejects participant enrollment when
+ * the person already holds a facilitator assignment in the SAME program.
+ *
+ * Returns a 409 NextResponse when a conflict exists, otherwise null.
+ * Fail-open on lookup errors so enrollment flows never break on transient
+ * issues (the guard is a consistency layer; the facilitator-assignment side
+ * already enforces the same rule at write time).
+ */
+export async function assertNoParticipantFacilitatorConflict(
+  programId,
+  contactCid,
+  contactEmail = null,
+) {
+  try {
+    await initDb();
+    if (!programId || !contactCid) return null;
+    const hasEmail = !!(contactEmail && String(contactEmail).trim());
+    const sql = hasEmail
+      ? `SELECT 1 FROM v2_program_staff
+         WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator'
+           AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?))
+         LIMIT 1`
+      : `SELECT 1 FROM v2_program_staff
+         WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND staff_id = ?
+         LIMIT 1`;
+    const args = hasEmail
+      ? [String(programId), String(contactCid), String(contactEmail).trim()]
+      : [String(programId), String(contactCid)];
+    const res = await db.execute({ sql, args });
+    if (res.rows.length > 0) {
+      return NextResponse.json(
+        { success: false, error: "errors.roleConflictParticipantFacilitator" },
+        { status: 409 },
+      );
+    }
+    return null;
+  } catch (e) {
+    console.error("assertNoParticipantFacilitatorConflict error:", e.message);
+    return null;
   }
 }
 

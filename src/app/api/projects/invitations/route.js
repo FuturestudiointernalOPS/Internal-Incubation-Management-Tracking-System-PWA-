@@ -4,7 +4,31 @@ import { createHandler } from "@/lib/api/createHandler";
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
-  const invitee_id = searchParams.get("invitee_id");
+  const { getSession } = await import("@/lib/auth");
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+  const staffSide = [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ];
+  let invitee_id = searchParams.get("invitee_id");
+  if (!staffSide.includes(session.role)) {
+    if (invitee_id && String(invitee_id) !== String(session.cid)) {
+      return NextResponse.json(
+        { success: false, error: "You can only view your own invitations." },
+        { status: 403 },
+      );
+    }
+    invitee_id = invitee_id || session.cid;
+  }
   const status = searchParams.get("status") || "pending";
   const project_id = searchParams.get("project_id");
 

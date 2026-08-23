@@ -198,6 +198,19 @@ export async function GET(req) {
         user.role,
       );
 
+      // Get the persisted supervisor relationship (contact_roles,
+      // context_type='supervision'). Null when none exists.
+      let supervisorCid = null;
+      try {
+        const supRes = await db.execute({
+          sql: `SELECT context_id AS supervisor_cid FROM contact_roles
+                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true
+                ORDER BY started_at DESC LIMIT 1`,
+          args: [userCid],
+        });
+        supervisorCid = supRes.rows[0]?.supervisor_cid || null;
+      } catch (_) {}
+
       return NextResponse.json({
         success: true,
         user: {
@@ -207,6 +220,7 @@ export async function GET(req) {
           role: user.role,
           status: user.status,
           access_profile_id: user.access_profile_id,
+          supervisor_cid: supervisorCid,
         },
         groups,
         effectiveProfile,
@@ -496,17 +510,50 @@ export async function PUT(req) {
         });
         break;
 
-      case "set_supervisor":
-        // supervisor_cid column does not exist on contacts — no-op until migration adds it
+      case "set_supervisor": {
+        const supervisorCid = body.supervisor_cid;
+        if (!supervisorCid) {
+          return NextResponse.json(
+            { success: false, error: "supervisor_cid is required" },
+            { status: 400 },
+          );
+        }
+        // Validate the supervisor is a real contact.
+        const supCheck = await db.execute({
+          sql: "SELECT 1 FROM contacts WHERE cid = ? LIMIT 1",
+          args: [supervisorCid],
+        });
+        if (supCheck.rows.length === 0) {
+          return NextResponse.json(
+            { success: false, error: "Supervisor contact not found" },
+            { status: 400 },
+          );
+        }
+        // Persist the supervision relationship in the generalized assignment
+        // table (context_type='supervision', context_id = supervisor cid).
+        // Additive, idempotent: any current supervision row is ended first.
+        await db.execute({
+          sql: `UPDATE contact_roles
+                SET is_current = false, ended_at = NOW(), status = 'removed'
+                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true`,
+          args: [user_cid],
+        });
+        await db.execute({
+          sql: `INSERT INTO contact_roles
+                  (contact_cid, role, context_type, context_id, is_current, title, scope, status, assigned_by)
+                VALUES (?, 'intern', 'supervision', ?, true, 'supervised_by', '{}'::jsonb, 'active', ?)`,
+          args: [user_cid, supervisorCid, actor.cid || "system"],
+        });
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
           targetCid: user_cid,
           targetName,
           action: "supervisor_assigned",
-          details: `Supervisor set to ${body.supervisor_cid || "none"} (not persisted — column missing)`,
+          details: `Supervisor set to ${supervisorCid} (persisted via contact_roles)`,
         });
         break;
+      }
 
       case "set_status":
         if (!body.status) {

@@ -87,6 +87,23 @@ export async function GET(req) {
         { status: 403 },
       );
     }
+    // Non-staff-side roles (participants, etc.) may only view their own tasks:
+    // force the user filter to the session user and reject foreign assignee filters.
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    const notStaffSide = !staffSide.includes(session.role);
+    let effectiveUserId = user_id || (notStaffSide ? sessionCid : null);
+    if (notStaffSide && assigned_to && String(assigned_to) !== String(sessionCid)) {
+      return NextResponse.json(
+        { success: false, error: "You can only view your own tasks." },
+        { status: 403 },
+      );
+    }
     const status = searchParams.get("status");
     const week_number = searchParams.get("week");
     const year = searchParams.get("year");
@@ -154,10 +171,10 @@ export async function GET(req) {
         // No user/assignee filter given (with or without project_id): force scope to session user
         sql += " AND (user_id = ? OR assigned_to = ? OR supervisor_id = ?)";
         args.push(sessionCid, sessionCid, sessionCid);
-      } else if (user_id) {
+      } else if (effectiveUserId) {
         // Explicit user_id filter (pre-authorized above): scope to that user
         sql += " AND user_id = ?";
-        args.push(user_id);
+        args.push(effectiveUserId);
         if (assigned_to) {
           sql += " AND assigned_to = ?";
           args.push(assigned_to);
@@ -175,9 +192,9 @@ export async function GET(req) {
       }
     } else {
       // Super admin: apply filters as requested
-      if (user_id) {
+      if (effectiveUserId) {
         sql += " AND user_id = ?";
-        args.push(user_id);
+        args.push(effectiveUserId);
       }
       if (assigned_to) {
         sql += " AND assigned_to = ?";
@@ -357,9 +374,11 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
     const body = await req.json();
+    let { user_id } = body;
     const {
-      user_id,
       user_name,
       title,
       description,
@@ -389,6 +408,20 @@ export async function POST(req) {
         },
         { status: 400 },
       );
+    }
+
+    // Non-privileged users can only create tasks for themselves
+    if (
+      ![
+        "super_admin",
+        "staff",
+        "program_manager",
+        "teacher",
+        "developer",
+        "team",
+      ].includes(session.role)
+    ) {
+      user_id = session.cid;
     }
 
     // Phase 1: Inherit project/category from parent task if creating a sub-task

@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getLocalToday } from "@/lib/constants";
 
@@ -50,11 +50,12 @@ export async function POST(req) {
           { status: 403 },
         );
       }
-      const facError = await enforceFacilitatorProgramAccess(
-        progId,
-        "attendance.record",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: progId,
+        capability: "attendance.record",
+        minLevel: 1,
+      });
       if (facError) return facError;
 
       const scope = await getFacilitatorTeamScope(progId, session.cid);
@@ -179,11 +180,12 @@ export async function GET(req) {
     let facGroupFilter = null;
     let facGroupArgs = [];
     if (session && programId && !hasProgramManagementAccess(session.role)) {
-      const facError = await enforceFacilitatorProgramAccess(
-        programId,
-        "attendance.view",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: programId,
+        capability: "attendance.view",
+        minLevel: 1,
+      });
       if (facError) return facError;
       const scope = await getFacilitatorTeamScope(programId, session.cid);
       if (scope.scope !== "all") {

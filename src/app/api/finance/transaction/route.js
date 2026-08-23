@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireCapabilityV2 } from "@/lib/auth";
 import { insertTransaction } from "@/lib/finance/queries";
 
-export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
+export const POST = createHandler({ roles: ["super_admin", "staff"] }, async (req) => {
+  const capError = await requireCapabilityV2("finance", "create");
+  if (capError) return capError;
   const body = await req.json();
   if (!body.date || !body.amount) {
     return NextResponse.json(

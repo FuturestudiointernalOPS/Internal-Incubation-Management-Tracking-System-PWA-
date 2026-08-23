@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
 
@@ -29,6 +29,30 @@ export async function POST(req) {
       );
     }
 
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    if (
+      !staffSide.includes(session.role) &&
+      String(user_id) !== String(session.cid)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You can only reconcile your own tasks." },
+        { status: 403 },
+      );
+    }
+
     const results = [];
 
     for (const task of tasks) {
@@ -46,6 +70,24 @@ export async function POST(req) {
           error: `Invalid status: ${status}`,
         });
         continue;
+      }
+
+      // Non-staff-side users may only reconcile their own tasks
+      if (!staffSide.includes(session.role)) {
+        const taskRes = await db.execute({
+          sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
+          args: [parseInt(id)],
+        });
+        const t = taskRes.rows[0];
+        if (
+          !t ||
+          (String(t.user_id) !== String(session.cid) &&
+            String(t.assigned_to || "") !== String(session.cid) &&
+            String(t.supervisor_id || "") !== String(session.cid))
+        ) {
+          results.push({ id, success: false, error: "Not your task" });
+          continue;
+        }
       }
 
       try {

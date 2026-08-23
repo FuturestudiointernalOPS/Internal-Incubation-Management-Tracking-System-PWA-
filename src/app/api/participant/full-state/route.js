@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 export async function GET(req) {
   try {
@@ -10,6 +10,22 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const email = searchParams.get("email");
     const groupName = searchParams.get("group_name");
+
+    const session = await getSession();
+    if (!session)
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    if (
+      !["super_admin", "staff", "program_manager", "teacher"].includes(session.role) &&
+      String(session.email || "").toLowerCase() !== String(email || "").trim().toLowerCase()
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You can only access your own data." },
+        { status: 403 },
+      );
+    }
 
     if (!email || !groupName)
       return NextResponse.json({

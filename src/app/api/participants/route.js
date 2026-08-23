@@ -3,7 +3,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
-import { requireAuth, getSession, enforceFacilitatorProgramAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -58,6 +58,15 @@ export async function POST(req) {
       });
       if (cRes.rows.length > 0) contactCid = cRes.rows[0].cid;
     } catch (_) {}
+
+    // Same-program conflict guard (Phase 2A): a facilitator in this program
+    // cannot also be enrolled as a participant in the same program.
+    const conflictError = await assertNoParticipantFacilitatorConflict(
+      program_id,
+      contactCid,
+      email,
+    );
+    if (conflictError) return conflictError;
 
     // Keep participant_programs (canonical membership) in sync so direct-add
     // participants show up in the Program Participants view once active.
@@ -115,12 +124,14 @@ export async function GET(req) {
 
     // Server-side enforcement: non-management roles (facilitator, staff, …)
     // must be assigned to the program and hold participants.view at level >= 1.
+    // Assignment seam: delegates to the proven facilitator resolution chain.
     if (session && !hasProgramManagementAccess(session.role)) {
-      const facError = await enforceFacilitatorProgramAccess(
-        program_id,
-        "participants.view",
-        1,
-      );
+      const facError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: program_id,
+        capability: "participants.view",
+        minLevel: 1,
+      });
       if (facError) return facError;
     }
 

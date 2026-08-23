@@ -17,6 +17,14 @@ export async function POST(req) {
     return NextResponse.json({ error: "errors.notFound" }, { status: 404 });
   }
 
+  const isProduction =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production";
+  if (isProduction) {
+    console.log("[quick-login] BLOCKED - production environment");
+    return NextResponse.json({ error: "errors.notFound" }, { status: 404 });
+  }
+
   try {
     await initDb();
     await ensureTokenHashColumns();
@@ -60,6 +68,17 @@ export async function POST(req) {
         if (pmCheck.rows.length > 0) finalRole = "program_manager";
       } catch (_) {}
     }
+
+    const { logAuditEvent } = await import("@/lib/audit");
+    await logAuditEvent({
+      entity_type: "auth",
+      entity_id: user.cid,
+      user_id: user.cid,
+      user_name: user.name || "",
+      action: "impersonate",
+      details: `Impersonation session created for ${user.email || user.cid}`,
+      metadata: { target_role: finalRole, source: "quick-login" },
+    });
 
     // Create session directly
     const token = uuidv4();

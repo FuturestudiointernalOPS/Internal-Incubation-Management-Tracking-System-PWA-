@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireVentureAccess } from "@/lib/ventureAuth";
 import { getSession } from "@/lib/auth";
 import {
   getOrCreateStartupProfile,
@@ -17,6 +18,8 @@ import {
 export const GET = createHandler(
   async (req, { params }) => {
     const { id } = await params;
+    const { session } = await requireVentureAccess(id, db);
+    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const start = Date.now();
 
     // ── Profile Completion ──

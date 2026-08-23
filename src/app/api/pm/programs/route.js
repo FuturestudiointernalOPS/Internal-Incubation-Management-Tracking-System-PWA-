@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
@@ -577,7 +577,7 @@ export async function PUT(req) {
           //    removed; participant_programs is now authoritative.)
           if (familyName) {
             const contactsRes = await db.execute({
-              sql: "SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
+              sql: "SELECT cid, email FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
               args: [familyName],
             });
 
@@ -585,6 +585,13 @@ export async function PUT(req) {
               for (const contact of contactsRes.rows) {
                 const cCid = contact.cid;
                 if (!cCid) continue;
+                // Same-program conflict guard (Phase 2A).
+                const conflictError = await assertNoParticipantFacilitatorConflict(
+                  id,
+                  cCid,
+                  contact.email || null,
+                );
+                if (conflictError) continue;
                 try {
                   await db.execute({
                     sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)

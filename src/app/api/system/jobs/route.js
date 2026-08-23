@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getJobs, getJobStats, retryJob } from "@/lib/ventures";
 
 export const GET = createHandler(
+  { roles: ["super_admin"] },
   async (req) => {
     const s = new URL(req.url).searchParams;
     const type = s.get("type");
@@ -19,11 +20,11 @@ export const GET = createHandler(
 
     const results = await getJobs({ status, jobType, limit, offset });
     return NextResponse.json({ success: true, results });
-  },
-  { roles: ["super_admin"] }
+  }
 );
 
 export const POST = createHandler(
+  { roles: ["super_admin"] },
   async (req) => {
     const body = await req.json();
     const { action, job_id } = body;
@@ -37,6 +38,5 @@ export const POST = createHandler(
       { success: false, error: "Invalid action" },
       { status: 400 }
     );
-  },
-  { roles: ["super_admin"] }
+  }
 );

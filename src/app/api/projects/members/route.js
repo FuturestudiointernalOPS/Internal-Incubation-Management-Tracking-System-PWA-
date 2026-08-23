@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
 
 /**
  * PROJECT MEMBERS API
@@ -23,6 +23,19 @@ export async function GET(req) {
         { success: false, error: "project_id is required" },
         { status: 400 },
       );
+    }
+
+    const session = await getSession();
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    if (!staffSide.includes(session.role)) {
+      const authError = await requireProjectAccess(projectId);
+      if (authError) return authError;
     }
 
     // Get members with names from contacts
@@ -48,7 +61,12 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { project_id, user_cid, role } = await req.json();
 
@@ -107,7 +125,12 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth();
+    const authError = await requireAuth([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+    ]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");

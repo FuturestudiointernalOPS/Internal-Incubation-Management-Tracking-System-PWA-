@@ -1,7 +1,7 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession, requireProgramFacilitator, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import { getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 
 async function ensureFollowupSchema() {
   try {
@@ -25,7 +25,10 @@ async function getFacilitatorScopeGuard(req, programId) {
       ),
     };
   }
-  const guardError = await requireProgramFacilitator(programId);
+  const guardError = await requireAssignmentAccess({
+    resource: "program",
+    contextId: programId,
+  });
   if (guardError) return { deny: true, response: guardError };
   const scope = await getFacilitatorTeamScope(programId, session.cid);
   return { scope };

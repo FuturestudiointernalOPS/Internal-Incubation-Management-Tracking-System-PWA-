@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSystemReports, generateSystemReport } from "@/lib/ventures";
 
 export const GET = createHandler(
+  { roles: ["super_admin"] },
   async (req) => {
     const s = new URL(req.url).searchParams;
     const type = s.get("type");
@@ -27,6 +28,5 @@ export const GET = createHandler(
       offset,
     });
     return NextResponse.json({ success: true, results });
-  },
-  { roles: ["super_admin"] }
+  }
 );

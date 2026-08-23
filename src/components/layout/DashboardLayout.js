@@ -45,6 +45,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
+import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 
@@ -901,6 +902,21 @@ const NAVIGATION_MATRIX = {
       href: "/investor/profile",
     },
   ],
+
+  finance: [
+    {
+      id: "dashboard",
+      name: "FINANCE",
+      icon: BarChart3,
+      href: "/finance",
+    },
+    {
+      id: "profile",
+      name: "PROFILE",
+      icon: User,
+      href: "/participant/profile",
+    },
+  ],
 };
 
 // =============================================================================
@@ -1663,6 +1679,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 ml-auto relative z-10">
+              {/* Context Switcher — navigate between legitimate contexts (Phase 2C) */}
+              <ContextSwitcher />
               {/* Theme Selector */}
               <div className="relative hidden sm:block">
                 <button

@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { taskExists } from "@/lib/db/queries/tasks";
 import { createHandler } from "@/lib/api/createHandler";
+import { getSession } from "@/lib/auth";
 
 /**
  * TASK COMMENTS API (Ticket 1.3 / 1.9 / 4.2 — Task Discussions)
@@ -28,6 +29,43 @@ export const GET = createHandler(async (req) => {
     );
   }
 
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+  const taskRes = await db.execute({
+    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
+    args: [parseInt(task_id)],
+  });
+  const t = taskRes.rows[0];
+  if (!t) {
+    return NextResponse.json(
+      { success: false, error: "Task not found" },
+      { status: 404 },
+    );
+  }
+  const staffSide = [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ];
+  if (
+    !staffSide.includes(session.role) &&
+    String(t.user_id) !== String(session.cid) &&
+    String(t.assigned_to || "") !== String(session.cid) &&
+    String(t.supervisor_id || "") !== String(session.cid)
+  ) {
+    return NextResponse.json(
+      { success: false, error: "You do not have access to this task." },
+      { status: 403 },
+    );
+  }
+
   const result = await db.execute({
     sql: `SELECT id, task_id, sender_id, sender_name, body, parent_id, is_edited, edited_at, created_at
           FROM v2_task_comments
@@ -41,9 +79,9 @@ export const GET = createHandler(async (req) => {
 
 export const POST = createHandler(async (req) => {
   const body = await req.json();
+  let { sender_id } = body;
   const {
     task_id,
-    sender_id,
     sender_name,
     body: commentBody,
     parent_id,
@@ -62,6 +100,45 @@ export const POST = createHandler(async (req) => {
       { status: 404 },
     );
   }
+
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
+  const taskRes = await db.execute({
+    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
+    args: [parseInt(task_id)],
+  });
+  const t = taskRes.rows[0];
+  if (!t) {
+    return NextResponse.json(
+      { success: false, error: "Task not found" },
+      { status: 404 },
+    );
+  }
+  const staffSide = [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ];
+  if (
+    !staffSide.includes(session.role) &&
+    String(t.user_id) !== String(session.cid) &&
+    String(t.assigned_to || "") !== String(session.cid) &&
+    String(t.supervisor_id || "") !== String(session.cid)
+  ) {
+    return NextResponse.json(
+      { success: false, error: "You do not have access to this task." },
+      { status: 403 },
+    );
+  }
+  // Sender is always the authenticated session user, not a client-supplied value
+  sender_id = session.cid;
 
   const result = await db.execute({
     sql: `INSERT INTO v2_task_comments (task_id, sender_id, sender_name, body, parent_id)
@@ -148,9 +225,16 @@ export const POST = createHandler(async (req) => {
 });
 
 export const DELETE = createHandler(async (req) => {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-  const user_id = searchParams.get("user_id");
+  const user_id = searchParams.get("user_id"); // kept for backward compatibility, ignored
 
   if (!id) {
     return NextResponse.json(
@@ -166,9 +250,15 @@ export const DELETE = createHandler(async (req) => {
 
   if (commentRes.rows.length > 0) {
     const comment = commentRes.rows[0];
-    if (user_id && user_id !== comment.sender_id) {
+    if (
+      String(comment.sender_id) !== String(session.cid) &&
+      session.role !== "super_admin"
+    ) {
       return NextResponse.json(
-        { success: false, error: "Only the author can delete this comment" },
+        {
+          success: false,
+          error: "Only the author can delete this comment.",
+        },
         { status: 403 },
       );
     }
@@ -182,6 +272,13 @@ export const DELETE = createHandler(async (req) => {
 });
 
 export const PUT = createHandler(async (req) => {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "Authentication required." },
+      { status: 401 },
+    );
+  }
   const body = await req.json();
   const { id, user_id, body: newBody } = body;
 
@@ -204,9 +301,10 @@ export const PUT = createHandler(async (req) => {
     );
   }
 
-  if (user_id !== commentRes.rows[0].sender_id) {
+  if (String(commentRes.rows[0].sender_id) !== String(session.cid) &&
+      session.role !== "super_admin") {
     return NextResponse.json(
-      { success: false, error: "Only the author can edit this comment" },
+      { success: false, error: "Only the author can edit this comment." },
       { status: 403 },
     );
   }

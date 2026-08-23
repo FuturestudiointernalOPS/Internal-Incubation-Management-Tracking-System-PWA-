@@ -15,12 +15,19 @@ import { NextResponse } from "next/server";
  * Intended to be called by a cron / scheduled job.
  */
 
-const REMINDERS_SECRET = process.env.REMINDERS_SECRET_KEY || "changeme";
+const REMINDERS_SECRET = process.env.REMINDERS_SECRET_KEY;
 
 export async function POST(req) {
   try {
     const { searchParams } = new URL(req.url);
     const key = searchParams.get("key");
+
+    if (!REMINDERS_SECRET) {
+      return NextResponse.json(
+        { success: false, error: "Service not configured." },
+        { status: 503 },
+      );
+    }
 
     if (!key || key !== REMINDERS_SECRET) {
       return NextResponse.json(

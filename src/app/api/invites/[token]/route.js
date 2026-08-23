@@ -2,6 +2,7 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,14 @@ export async function POST(req, { params }) {
     // membership). The legacy v2_participants write was removed (Phase 3).
     if (contact.program_id) {
       try {
+        // Same-program conflict guard (Phase 2A): a facilitator in this program
+        // cannot also be activated as a participant in the same program.
+        const conflictError = await assertNoParticipantFacilitatorConflict(
+          contact.program_id,
+          contactCid,
+          contactEmail,
+        );
+        if (conflictError) return conflictError;
         await db.execute({
           sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
                 VALUES (?, ?, 'active', NOW())

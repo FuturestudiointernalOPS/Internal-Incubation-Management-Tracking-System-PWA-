@@ -6,15 +6,30 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { LayoutGrid, LogOut, Loader2, ArrowRight, User } from "lucide-react";
+import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
 
 /**
- * WORKSPACES HUB
- * Neutral post-login landing page. Lists the authenticated user's active
- * assignments (derived server-side) and links to the fallback role dashboard.
+ * WORKSPACES HUB — CONTEXTUAL SELECTOR (Phase 2B)
+ *
+ * Lists every legitimate context the authenticated user holds, grouped by
+ * area (Future Studio / Programs / Ventures). All data is derived server-side
+ * by /api/workspaces from the existing contextual tables. Selecting a context
+ * navigates to its existing workspace; the server still enforces every
+ * relationship, capability and scope on the destination pages.
+ *
  * A user with no assignments sees an empty state — having no assignment is a
  * valid platform state.
  */
+
+const ROLE_LABEL_KEY = {
+  facilitator: "roleFacilitator",
+  participant: "roleParticipant",
+  staff: "roleStaff",
+  program_manager: "roleProgramManager",
+  teacher: "roleTeacher",
+  finance: "roleFinance",
+  intern: "roleIntern",
+};
 
 export default function WorkspacesPage() {
   const { t } = useI18n();
@@ -48,6 +63,67 @@ export default function WorkspacesPage() {
     localStorage.clear();
     router.replace("/login");
   };
+
+  const roleLabel = (role) => {
+    const key = ROLE_LABEL_KEY[String(role || "").toLowerCase()] || "roleOther";
+    return t(`common.workspaces.${key}`);
+  };
+
+  const orgLabel = (groupName) => {
+    return /intern/i.test(String(groupName || ""))
+      ? roleLabel("intern")
+      : roleLabel("staff");
+  };
+
+  const contexts = data?.contexts || null;
+  const hasAny =
+    !!contexts &&
+    (contexts.program_assignments.length > 0 ||
+      contexts.program_participations.length > 0 ||
+      contexts.org_memberships.length > 0 ||
+      contexts.responsibilities.length > 0 ||
+      contexts.venture_memberships.length > 0);
+
+  // Legacy fallback: environments where the contextual tables are absent still
+  // show the previous flat assignment list instead of an empty state.
+  const hasLegacy = !hasAny && (data?.workspaces?.length || 0) > 0;
+
+  const ContextCard = ({ title, role, href, completed, badge }) => (
+    <Link
+      href={href || "/workspaces"}
+      className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary hover:border-[var(--brand-orange)] transition-all"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
+            {title}
+          </p>
+          {(completed || badge) && (
+            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+              {t("common.workspaces.completedViewOnly")}
+            </span>
+          )}
+        </div>
+        <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
+          {role}
+        </p>
+      </div>
+      <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
+        {t("common.workspaces.open")}
+        <ArrowRight className="w-3.5 h-3.5" />
+      </span>
+    </Link>
+  );
+
+  const Group = ({ icon: Icon, label, children }) => (
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+        <Icon className="w-4 h-4" />
+        {label}
+      </h2>
+      <div className="grid gap-3">{children}</div>
+    </section>
+  );
 
   if (loading) {
     return (
@@ -98,27 +174,78 @@ export default function WorkspacesPage() {
               </p>
             )}
 
-            {data?.workspaces?.length > 0 ? (
+            {hasAny ? (
+              <div className="space-y-8">
+                {/* Future Studio — org memberships + responsibilities */}
+                {(contexts.org_memberships.length > 0 ||
+                  contexts.responsibilities.length > 0) && (
+                  <Group icon={Building2} label={t("common.workspaces.groupFutureStudio")}>
+                    {contexts.org_memberships.map((g, i) => (
+                      <ContextCard
+                        key={`org-${g.group_name}-${i}`}
+                        title={g.group_name}
+                        role={orgLabel(g.group_name)}
+                        href={g.href}
+                      />
+                    ))}
+                    {contexts.responsibilities.map((r, i) => (
+                      <ContextCard
+                        key={`resp-${r.key}-${i}`}
+                        title={r.name}
+                        role={roleLabel(r.key)}
+                        href={r.href}
+                      />
+                    ))}
+                  </Group>
+                )}
+
+                {/* Programs — assignments + participations */}
+                {(contexts.program_assignments.length > 0 ||
+                  contexts.program_participations.length > 0) && (
+                  <Group icon={GraduationCap} label={t("common.workspaces.groupPrograms")}>
+                    {contexts.program_assignments.map((a, i) => (
+                      <ContextCard
+                        key={`assign-${a.program_id}-${i}`}
+                        title={a.program_name || a.program_id}
+                        role={roleLabel(a.role || a.title)}
+                        href={a.href}
+                      />
+                    ))}
+                    {contexts.program_participations.map((p, i) => (
+                      <ContextCard
+                        key={`part-${p.program_id}-${i}`}
+                        title={p.program_name || p.program_id}
+                        role={roleLabel("participant")}
+                        href={p.href}
+                        completed={p.completed}
+                      />
+                    ))}
+                  </Group>
+                )}
+
+                {/* Ventures — existing memberships */}
+                {contexts.venture_memberships.length > 0 && (
+                  <Group icon={Rocket} label={t("common.workspaces.groupVentures")}>
+                    {contexts.venture_memberships.map((v, i) => (
+                      <ContextCard
+                        key={`venture-${v.venture_id}-${i}`}
+                        title={v.venture_name || v.venture_id}
+                        role={roleLabel("participant")}
+                        href={v.href}
+                      />
+                    ))}
+                  </Group>
+                )}
+              </div>
+            ) : hasLegacy ? (
               <div className="grid gap-3">
                 {data.workspaces.map((w, i) => (
-                  <Link
+                  <ContextCard
                     key={`${w.program_id}-${i}`}
+                    title={w.program_name}
+                    role={`${t("common.workspaces.role")}: ${w.title}`}
                     href={w.href}
-                    className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary hover:border-[var(--brand-orange)] transition-all"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
-                        {w.program_name}
-                      </p>
-                      <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
-                        {t("common.workspaces.role")}: {w.title}
-                      </p>
-                    </div>
-                    <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
-                      {t("common.workspaces.open")}
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </span>
-                  </Link>
+                  />
                 ))}
               </div>
             ) : (

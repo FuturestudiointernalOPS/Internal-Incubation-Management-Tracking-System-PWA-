@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -13,6 +13,7 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
     const { recipient_id, title, message, type } = await req.json();
 
     if (!title || !message) {
@@ -22,10 +23,22 @@ export async function POST(req) {
       );
     }
 
+    const recipientId = recipient_id || session.cid;
+    if (
+      recipient_id &&
+      String(recipient_id) !== String(session.cid) &&
+      !["super_admin", "staff", "program_manager"].includes(session.role)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You cannot create notifications for other users." },
+        { status: 403 },
+      );
+    }
+
     await db.execute({
       sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
             VALUES (?, ?, ?, ?, 0, NOW())`,
-      args: [recipient_id || "sa", title, message, type || "general"],
+      args: [recipientId, title, message, type || "general"],
     });
 
     return NextResponse.json({ success: true });
@@ -42,7 +55,6 @@ export async function GET(req) {
   try {
     await initDb();
     const { searchParams } = new URL(req.url);
-    const recipientId = searchParams.get("recipient_id") || "sa";
 
     // Try to get notifications — if auth fails, return empty (graceful degradation)
     try {
@@ -52,6 +64,17 @@ export async function GET(req) {
       }
     } catch (_) {
       return NextResponse.json({ success: true, notifications: [] });
+    }
+
+    const session = await getSession();
+    let recipientId = searchParams.get("recipient_id") || session?.cid || "sa";
+    if (
+      session &&
+      searchParams.get("recipient_id") &&
+      String(searchParams.get("recipient_id")) !== String(session.cid) &&
+      !["super_admin", "staff", "program_manager"].includes(session.role)
+    ) {
+      recipientId = session.cid; // force own inbox, no info leak
     }
 
     let rows = [];
@@ -81,9 +104,29 @@ export async function PATCH(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
     const { id, action } = await req.json();
 
     if (action === "read") {
+      const nRes = await db.execute({
+        sql: "SELECT recipient_id FROM v2_notifications WHERE id = ?",
+        args: [parseInt(id)],
+      });
+      if (!nRes.rows || nRes.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Notification not found." },
+          { status: 404 },
+        );
+      }
+      if (
+        String(nRes.rows[0].recipient_id) !== String(session.cid) &&
+        !["super_admin", "staff", "program_manager"].includes(session.role)
+      ) {
+        return NextResponse.json(
+          { success: false, error: "You cannot modify this notification." },
+          { status: 403 },
+        );
+      }
       await db.execute({
         sql: "UPDATE v2_notifications SET is_read = 1 WHERE id = ?",
         args: [id],

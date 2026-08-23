@@ -23,6 +23,14 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 
+  const isProduction =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production";
+  if (isProduction) {
+    console.log("[impersonate:POST] BLOCKED - production environment");
+    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  }
+
   try {
     await initDb();
     const body = await req.json();
@@ -138,6 +146,17 @@ export async function POST(req) {
 
     console.log("[impersonate:POST] Resolved role:", finalRole);
 
+    const { logAuditEvent } = await import("@/lib/audit");
+    await logAuditEvent({
+      entity_type: "auth",
+      entity_id: user.cid,
+      user_id: user.cid,
+      user_name: user.name || "",
+      action: "impersonate",
+      details: `Impersonation session created for ${user.email || user.cid}`,
+      metadata: { target_role: finalRole, source: "impersonate" },
+    });
+
     // Build response user
     const responseUser = {
       cid: userCid,
@@ -197,6 +216,14 @@ export async function GET() {
 
   if (!impersonationAllowed) {
     console.log("[impersonate:GET] BLOCKED");
+    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  }
+
+  const isProduction =
+    process.env.VERCEL_ENV === "production" ||
+    process.env.NODE_ENV === "production";
+  if (isProduction) {
+    console.log("[impersonate:GET] BLOCKED - production environment");
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   }
 

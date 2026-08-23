@@ -1,26 +1,29 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * LANGUAGE PREFERENCE API
  *
  * PUT /api/auth/language
- *   - Updates the user's language preference in the contacts table
- *   - Body: { user_id, language }
+ *   - Updates the current user's language preference in the contacts table
+ *   - Body: { language }
  *   - language must be 'en' or 'fr'
  */
 
 export async function PUT(req) {
   try {
-    await initDb();
-    const { user_id, language } = await req.json();
-
-    if (!user_id) {
+    const authError = await requireAuth();
+    if (authError) return authError;
+    const session = await getSession();
+    if (!session)
       return NextResponse.json(
-        { success: false, error: "user_id is required" },
-        { status: 400 },
+        { success: false, error: "Authentication required." },
+        { status: 401 },
       );
-    }
+    await initDb();
+    const { language } = await req.json();
+    const user_id = session.cid;
 
     if (!language || !["en", "fr"].includes(language)) {
       return NextResponse.json(

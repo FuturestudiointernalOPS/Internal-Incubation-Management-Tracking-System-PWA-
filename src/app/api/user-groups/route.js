@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 
 /**
  * GET /api/user-groups?user_cid=X
@@ -12,16 +12,19 @@ export async function GET(req) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    await initDb();
+    const session = await getSession();
+    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     const { searchParams } = new URL(req.url);
-    const userCid = searchParams.get("user_cid");
-
-    if (!userCid) {
-      return NextResponse.json(
-        { success: false, error: "user_cid required" },
-        { status: 400 },
-      );
+    let userCid = searchParams.get("user_cid");
+    if (session.role !== "super_admin") {
+      if (userCid && String(userCid) !== String(session.cid)) {
+        return NextResponse.json({ success: false, error: "You can only view your own groups." }, { status: 403 });
+      }
+      userCid = userCid || session.cid;
     }
+    if (!userCid) return NextResponse.json({ success: false, error: "user_cid required" }, { status: 400 });
+
+    await initDb();
 
     // First try user_groups table (may not exist yet — migration pending)
     let groups = [];

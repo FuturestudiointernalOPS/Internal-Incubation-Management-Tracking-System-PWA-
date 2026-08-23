@@ -43,6 +43,36 @@ export async function POST(req) {
       );
     }
 
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "Authentication required." },
+        { status: 401 },
+      );
+    }
+    const staffSide = [
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ];
+    if (
+      !staffSide.includes(session.role) &&
+      String(task.user_id) !== String(session.cid) &&
+      String(task.assigned_to || "") !== String(session.cid) &&
+      String(task.supervisor_id || "") !== String(session.cid)
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "You do not have permission to duplicate this task.",
+        },
+        { status: 403 },
+      );
+    }
+
     const now = new Date();
     const created_week = getWeekNumber(now);
     const created_year = now.getFullYear();

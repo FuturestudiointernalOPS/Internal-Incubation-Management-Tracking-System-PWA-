@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
+import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 
 /**
  * PUBLIC endpoint — no auth required.
@@ -67,6 +68,19 @@ export async function POST(req) {
     if (group.program_id) {
       try {
         const contactCid = existCheck.rows.length > 0 ? existCheck.rows[0].cid : cid;
+        // Same-program conflict guard (Phase 2A): a facilitator in this program
+        // cannot register as a participant in the same program.
+        const conflictError = await assertNoParticipantFacilitatorConflict(
+          group.program_id,
+          contactCid,
+          normalizedEmail,
+        );
+        if (conflictError) {
+          return NextResponse.json(
+            { success: false, error: "errors.roleConflictParticipantFacilitator", message: "You are already assigned as a facilitator in this program." },
+            { status: 409 },
+          );
+        }
         await db.execute({
           sql: "INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW()) ON CONFLICT DO NOTHING",
           args: [group.program_id, contactCid, name, normalizedEmail, phone || null],

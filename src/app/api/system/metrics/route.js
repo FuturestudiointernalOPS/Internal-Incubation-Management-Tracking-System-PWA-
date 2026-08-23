@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getMetrics, getRecentMetrics } from "@/lib/ventures";
 
 export const GET = createHandler(
+  { roles: ["super_admin"] },
   async (req) => {
     const s = new URL(req.url).searchParams;
     const type = s.get("type");
@@ -24,6 +25,5 @@ export const GET = createHandler(
       aggregate,
     });
     return NextResponse.json({ success: true, results });
-  },
-  { roles: ["super_admin"] }
+  }
 );
