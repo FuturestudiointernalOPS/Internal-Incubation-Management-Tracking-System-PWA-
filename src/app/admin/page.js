@@ -293,6 +293,11 @@ export default function AdminDashboard() {
   const [blockersLoading, setBlockersLoading] = useState(false);
   const [resolvingBlocker, setResolvingBlocker] = useState(null);
   const [kpiSummary, setKpiSummary] = useState([]);
+  
+  // Pagination and UI state
+  const [assignmentsPage, setAssignmentsPage] = useState(1);
+  const ASSIGNMENTS_PER_PAGE = 5;
+  const [expandedCalendarDays, setExpandedCalendarDays] = useState({});
 
   const toggleSection = (id) => {
     setExpandedSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -663,8 +668,8 @@ export default function AdminDashboard() {
                           </span>
                         )}
                       </div>
-                      <div className="space-y-0.5 max-h-[80px] overflow-y-auto custom-scrollbar">
-                        {dayTasks.map((task) => {
+                      <div className={`space-y-0.5 ${expandedCalendarDays[dateStr] ? "max-h-[200px]" : ""} overflow-y-auto custom-scrollbar`}>
+                        {dayTasks.slice(0, expandedCalendarDays[dateStr] ? undefined : 3).map((task) => {
                           const priorityColor =
                             task.priority === "critical"
                               ? "bg-red-500/20 text-red-400"
@@ -688,6 +693,22 @@ export default function AdminDashboard() {
                             </button>
                           );
                         })}
+                        {dayTasks.length > 3 && !expandedCalendarDays[dateStr] && (
+                          <button
+                            onClick={() => setExpandedCalendarDays(prev => ({ ...prev, [dateStr]: true }))}
+                            className="w-full text-center py-0.5 text-[8px] font-bold text-slate-400 hover:text-[var(--text-primary)] hover:bg-slate-500/10 rounded transition-all"
+                          >
+                            +{dayTasks.length - 3} more
+                          </button>
+                        )}
+                        {expandedCalendarDays[dateStr] && dayTasks.length > 3 && (
+                          <button
+                            onClick={() => setExpandedCalendarDays(prev => ({ ...prev, [dateStr]: false }))}
+                            className="w-full text-center py-0.5 text-[8px] font-bold text-slate-400 hover:text-[var(--text-primary)] hover:bg-slate-500/10 rounded transition-all"
+                          >
+                            Show less
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
@@ -877,6 +898,7 @@ export default function AdminDashboard() {
               <div className="space-y-1.5">
                 {assignments
                   .filter((a) => a.status !== "completed")
+                  .slice((assignmentsPage - 1) * ASSIGNMENTS_PER_PAGE, assignmentsPage * ASSIGNMENTS_PER_PAGE)
                   .map((task) => {
                     const isPending = task.status === "pending";
                     return (
@@ -1001,6 +1023,31 @@ export default function AdminDashboard() {
                     );
                   })}
               </div>
+              
+              {/* Pagination Controls */}
+              {assignments.filter((a) => a.status !== "completed").length > ASSIGNMENTS_PER_PAGE && (
+                <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-primary)]">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                    {t("common.page")} {assignmentsPage} {t("common.of")} {Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE)}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setAssignmentsPage(p => Math.max(1, p - 1))}
+                      disabled={assignmentsPage === 1}
+                      className="p-1.5 rounded-lg border border-[var(--border-primary)] text-slate-400 hover:text-[var(--text-primary)] hover:bg-tertiary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setAssignmentsPage(p => Math.min(Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE), p + 1))}
+                      disabled={assignmentsPage === Math.ceil(assignments.filter((a) => a.status !== "completed").length / ASSIGNMENTS_PER_PAGE)}
+                      className="p-1.5 rounded-lg border border-[var(--border-primary)] text-slate-400 hover:text-[var(--text-primary)] hover:bg-tertiary transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
