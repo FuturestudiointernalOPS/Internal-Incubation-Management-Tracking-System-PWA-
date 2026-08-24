@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, requireCapabilityV2 } from "@/lib/auth";
 
 export async function GET(req) {
   try {
@@ -44,6 +44,12 @@ export async function POST(req) {
       "teacher",
     ]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
+    const gateSession = await getSession();
+    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "edit");
+      if (capError) return capError;
+    }
     const data = await req.json();
     const {
       program_id,
@@ -193,6 +199,12 @@ export async function PATCH(req) {
       "teacher",
     ]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
+    const gateSession = await getSession();
+    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "edit");
+      if (capError) return capError;
+    }
     const { team_id, member_ids, action, is_venture_ready, is_management_group } = await req.json();
 
     // Support set_venture_ready action (used by venture approval workflow)
@@ -305,6 +317,12 @@ export async function DELETE(req) {
       "teacher",
     ]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
+    const gateSession = await getSession();
+    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "edit");
+      if (capError) return capError;
+    }
     const { id } = await req.json();
     await db.execute({
       sql: "DELETE FROM v2_teams WHERE id = ?",

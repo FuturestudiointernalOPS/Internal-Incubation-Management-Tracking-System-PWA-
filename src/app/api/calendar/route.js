@@ -123,7 +123,7 @@ export async function GET(req) {
     // 2. Programs (v2_programs)
     try {
       const programs = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)${programTableScopeSql}`,
+        sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL) AND (is_archived IS NULL OR is_archived = 0)${programTableScopeSql}`,
         args: [...programScopeArgs],
       });
       for (const p of programs.rows) {
@@ -165,7 +165,7 @@ export async function GET(req) {
       const sessions = await db.execute({
         sql: `SELECT s.id, s.title, s.start_at, s.type, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
-              LEFT JOIN v2_programs p ON s.program_id = p.id
+              LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
               WHERE s.start_at IS NOT NULL${programScopeSql}`,
         args: [...programScopeArgs],
       });
@@ -194,7 +194,7 @@ export async function GET(req) {
       const deliverables = await db.execute({
         sql: `SELECT d.id, d.title, d.due_date, d.week_number, d.program_id, p.name AS program_name
               FROM v2_deliverables d
-              LEFT JOIN v2_programs p ON d.program_id = p.id
+              LEFT JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
               WHERE d.due_date IS NOT NULL${programScopeSql}`,
         args: [...programScopeArgs],
       });

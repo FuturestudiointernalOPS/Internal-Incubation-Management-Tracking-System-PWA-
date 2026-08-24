@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, requireCapabilityV2 } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 
 /**
@@ -34,6 +34,12 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff).
+    const gateSession = await getSession();
+    if (gateSession && !["staff"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "create");
+      if (capError) return capError;
+    }
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action");

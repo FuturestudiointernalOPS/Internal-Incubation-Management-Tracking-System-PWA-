@@ -1,6 +1,7 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,20 @@ export const GET = createHandler(
       return NextResponse.json(
         { success: false, error: "assigned_pm_id is required" },
         { status: 400 },
+      );
+    }
+
+    // Phase 3C-9: non-Super-Admin users may only read submissions for their
+    // OWN PM scope (assigned_pm_id must equal the session cid). A staff member
+    // cannot pass another person's id to read their submissions.
+    const session = await getSession();
+    if (
+      session?.role !== "super_admin" &&
+      String(assignedPmId) !== String(session?.cid)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
       );
     }
 

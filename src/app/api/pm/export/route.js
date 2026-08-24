@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession, requireCapabilityV2 } from "@/lib/auth";
 import * as XLSX from "xlsx";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,13 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin", "program_manager", "teacher"]);
     if (authError) return authError;
+
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
+    const gateSession = await getSession();
+    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("reports", "export");
+      if (capError) return capError;
+    }
 
     const { searchParams } = new URL(req.url);
     const type = searchParams.get("type") || "participants";

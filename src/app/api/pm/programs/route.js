@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth, getSession, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
@@ -237,6 +237,12 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff).
+    const gateSession = await getSession();
+    if (gateSession && !["staff"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "create");
+      if (capError) return capError;
+    }
     const {
       name,
       description,
@@ -409,6 +415,12 @@ export async function PUT(req) {
       "admin",
     ]);
     if (authError) return authError;
+    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher/admin).
+    const gateSession = await getSession();
+    if (gateSession && !["staff", "teacher", "admin"].includes(gateSession.role)) {
+      const capError = await requireCapabilityV2("programs", "edit");
+      if (capError) return capError;
+    }
     const {
       id,
       name,
@@ -629,6 +641,12 @@ export async function DELETE(req) {
       "teacher",
     ]);
     if (authError) return authError;
+
+    // Phase 3C-7: permanent deletion is Super Admin-only. Only the Super Admin
+    // Default profile holds programs.delete — no staff/PM/teacher bypass.
+    const capError = await requireCapabilityV2("programs", "delete");
+    if (capError) return capError;
+
     const { id } = await req.json();
 
     if (!id)
@@ -636,6 +654,29 @@ export async function DELETE(req) {
         { success: false, error: "ID required" },
         { status: 400 },
       );
+
+    // Phase 3C-7: refuse permanent deletion when the program carries protected
+    // historical data (participants, sessions, submissions, deliverables).
+    // Server-side enforcement — instruct to archive instead.
+    const protectedRes = await db.execute({
+      sql: `SELECT
+              (SELECT COUNT(*) FROM participant_programs WHERE CAST(program_id AS TEXT) = ?) +
+              (SELECT COUNT(*) FROM v2_sessions WHERE CAST(program_id AS TEXT) = ?) +
+              (SELECT COUNT(*) FROM v2_submissions WHERE CAST(program_id AS TEXT) = ?) +
+              (SELECT COUNT(*) FROM v2_deliverables WHERE CAST(program_id AS TEXT) = ?)
+            AS protected_count`,
+      args: [id, id, id, id],
+    });
+    if (Number(protectedRes.rows[0]?.protected_count || 0) > 0) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "Program contains protected data (participants, sessions, submissions, or deliverables). Archive it instead of deleting.",
+        },
+        { status: 409 },
+      );
+    }
 
     await db.execute({
       sql: "DELETE FROM v2_programs WHERE id = ?",

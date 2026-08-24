@@ -103,6 +103,7 @@ export async function GET(req) {
         sql: `SELECT id, name, start_date, end_date, assigned_pm_id
               FROM v2_programs
               WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
+                AND (is_archived IS NULL OR is_archived = 0)
                 AND (assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
         args: [userId, role],
       }),
@@ -111,7 +112,7 @@ export async function GET(req) {
       db.execute({
         sql: `SELECT s.id, s.title, s.start_at, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
-              LEFT JOIN v2_programs p ON s.program_id = p.id
+              LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
               WHERE s.start_at IS NOT NULL
                 AND (s.teacher_id = ? OR s.program_id IN (
                   SELECT id FROM v2_programs WHERE assigned_pm_id = ?
@@ -123,7 +124,7 @@ export async function GET(req) {
       db.execute({
         sql: `SELECT d.id, d.title, d.due_date, d.program_id
               FROM v2_deliverables d
-              JOIN v2_programs p ON d.program_id = p.id
+              JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
               WHERE d.due_date IS NOT NULL
                 AND (p.assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
         args: [userId, role],
@@ -167,8 +168,9 @@ export async function GET(req) {
       db.execute({
         sql: `SELECT id, name, status
               FROM v2_programs
-              WHERE assigned_pm_id = ?
-                 OR ? IN ('super_admin', 'admin')
+              WHERE (is_archived IS NULL OR is_archived = 0)
+                AND (assigned_pm_id = ?
+                 OR ? IN ('super_admin', 'admin'))
               ORDER BY created_at DESC`,
         args: [userId, role],
       }),
