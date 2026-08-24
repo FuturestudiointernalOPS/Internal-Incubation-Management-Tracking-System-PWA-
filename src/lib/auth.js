@@ -1626,6 +1626,25 @@ export async function ensureResponsibilitiesSchema() {
       )`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_resp_cid ON user_responsibilities(user_cid)`);
       await db.execute(`CREATE INDEX IF NOT EXISTS idx_user_resp_id ON user_responsibilities(responsibility_id)`);
+
+      // Defensive self-heal: tables created by older migrations may lack the
+      // columns and UNIQUE constraints that the seed (ON CONFLICT) and the
+      // toggle queries rely on. All statements are idempotent.
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS name TEXT`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS key TEXT`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT ''`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+      await db.execute(`ALTER TABLE responsibilities DROP CONSTRAINT IF EXISTS responsibilities_name_key`);
+      await db.execute(`ALTER TABLE responsibilities ADD CONSTRAINT responsibilities_name_key UNIQUE (name)`);
+      await db.execute(`ALTER TABLE responsibilities DROP CONSTRAINT IF EXISTS responsibilities_key_key`);
+      await db.execute(`ALTER TABLE responsibilities ADD CONSTRAINT responsibilities_key_key UNIQUE (key)`);
+      await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_by TEXT`);
+      await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
+      await db.execute(`ALTER TABLE user_responsibilities DROP CONSTRAINT IF EXISTS user_responsibilities_user_cid_responsibility_id_key`);
+      await db.execute(`ALTER TABLE user_responsibilities ADD CONSTRAINT user_responsibilities_user_cid_responsibility_id_key UNIQUE (user_cid, responsibility_id)`);
       return true;
     })().catch((e) => {
       console.warn("[Auth] ensureResponsibilitiesSchema failed:", e.message);
