@@ -26,6 +26,12 @@ import {
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import {
+  isResponsibilityBlockedForRole,
+  normalizeAllowedRoles,
+  defaultAllowedRoles,
+  ALL_FEATURE_ROLES,
+} from "@/lib/featureAccess";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -358,6 +364,12 @@ export default function PermissionManager() {
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             {t("engineering.permissions.tabResponsibilities")}
+          </button>
+          <button
+            onClick={() => setActiveTab("access")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "access" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            {t("engineering.permissions.tabResponsibilityAccess")}
           </button>
         </div>
 
@@ -862,6 +874,7 @@ export default function PermissionManager() {
         {activeTab === "seed" && <SeedView />}
         {activeTab === "profiles" && <AccessProfilesView />}
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
+        {activeTab === "access" && <ResponsibilityAccessView />}
       </div>
     </DashboardLayout>
   );
@@ -2011,6 +2024,33 @@ function ResponsibilitiesView() {
             </div>
           )}
 
+          {(() => {
+            const blockedAssigned = responsibilities.filter(
+              (r) =>
+                r.assigned &&
+                isResponsibilityBlockedForRole(
+                  selectedUser.role,
+                  r.key,
+                  r.allowed_roles,
+                ),
+            );
+            if (blockedAssigned.length === 0) return null;
+            return (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                <p className="text-[10px] font-bold text-amber-400 flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  {t("engineering.permissions.responsibilityRoleWarningTitle")}
+                </p>
+                <p className="text-[9px] font-bold text-amber-400/90 mt-1">
+                  {t("engineering.permissions.responsibilityRoleWarningBody", {
+                    role: selectedUser.role,
+                    features: blockedAssigned.map((r) => r.name).join(", "),
+                  })}
+                </p>
+              </div>
+            );
+          })()}
+
           {loading ? (
             <div className="flex items-center justify-center py-10">
               <div
@@ -2071,10 +2111,228 @@ function ResponsibilitiesView() {
                       )}
                     </div>
                   </div>
+                  {isResponsibilityBlockedForRole(
+                    selectedUser.role,
+                    resp.key,
+                    resp.allowed_roles,
+                  ) && (
+                    <p className="mt-2 flex items-start gap-1 text-[8px] font-bold text-amber-400">
+                      <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                      <span>
+                        {t("engineering.permissions.responsibilityRoleWarning", {
+                          role: selectedUser.role,
+                          feature: resp.name,
+                          roles: (normalizeAllowedRoles(resp.allowed_roles) ??
+                            defaultAllowedRoles(resp.key) ??
+                            []
+                          ).join(", "),
+                        })}
+                      </span>
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ResponsibilityAccessView() {
+  const { t } = useI18n();
+  const [responsibilities, setResponsibilities] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [saveMsg, setSaveMsg] = useState("");
+  const [saveError, setSaveError] = useState("");
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/responsibilities");
+      const data = await res.json();
+      if (data.success) setResponsibilities(data.responsibilities || []);
+    } catch (e) {
+      console.error("Failed to fetch responsibilities", e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const effectiveRoles = (resp) =>
+    normalizeAllowedRoles(resp.allowed_roles) ??
+    defaultAllowedRoles(resp.key) ??
+    [];
+
+  const saveAccess = async (resp, allowedRoles) => {
+    setSavingId(resp.id);
+    setSaveMsg("");
+    setSaveError("");
+    // Optimistic update
+    setResponsibilities((prev) =>
+      prev.map((r) =>
+        r.id === resp.id ? { ...r, allowed_roles: [...allowedRoles] } : r,
+      ),
+    );
+    try {
+      const res = await fetch("/api/responsibilities/access", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: resp.id, allowed_roles: allowedRoles }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSaveMsg(t("engineering.permissions.accessSaved"));
+        setTimeout(() => setSaveMsg(""), 2500);
+      } else {
+        setSaveError(t((data.error || t("engineering.permissions.accessSaveFailed")) || "") || (data.error || t("engineering.permissions.accessSaveFailed")));
+        fetchAll();
+      }
+    } catch (e) {
+      setSaveError(t("engineering.permissions.networkError"));
+      fetchAll();
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const toggleRole = (resp, role) => {
+    const current = effectiveRoles(resp);
+    const next = current.includes(role)
+      ? current.filter((r) => r !== role)
+      : [...current, role];
+    saveAccess(resp, next);
+  };
+
+  const resetAccess = async (resp) => {
+    setSavingId(resp.id);
+    setSaveMsg("");
+    setSaveError("");
+    try {
+      const res = await fetch("/api/responsibilities/access", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: resp.id, allowed_roles: null }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setResponsibilities((prev) =>
+          prev.map((r) =>
+            r.id === resp.id ? { ...r, allowed_roles: null } : r,
+          ),
+        );
+        setSaveMsg(t("engineering.permissions.accessReset"));
+        setTimeout(() => setSaveMsg(""), 2500);
+      } else {
+        setSaveError(t((data.error || t("engineering.permissions.accessSaveFailed")) || "") || (data.error || t("engineering.permissions.accessSaveFailed")));
+      }
+    } catch (e) {
+      setSaveError(t("engineering.permissions.networkError"));
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs font-bold text-[var(--text-secondary)]">
+        {t("engineering.permissions.responsibilityAccessIntro")}
+      </p>
+
+      {saveMsg && (
+        <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+          <p className="text-[10px] font-bold text-emerald-400">{saveMsg}</p>
+        </div>
+      )}
+      {saveError && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-[10px] font-bold text-red-400">{saveError}</p>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="flex items-center justify-center py-10">
+          <div
+            className="w-6 h-6 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+            style={{
+              borderColor: "rgba(255,102,0,0.1)",
+              borderTopColor: "var(--brand-orange)",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {responsibilities.map((resp) => {
+            const effective = effectiveRoles(resp);
+            const isCustom = resp.allowed_roles !== null;
+            return (
+              <div
+                key={resp.id}
+                className="ios-card !p-5 border-[var(--border-primary)]"
+              >
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                        {resp.name}
+                      </p>
+                      <span
+                        className={`text-[7px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          isCustom
+                            ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                            : "bg-slate-500/10 text-slate-400"
+                        }`}
+                      >
+                        {isCustom
+                          ? t("engineering.permissions.accessCustom")
+                          : t("engineering.permissions.accessDefaults")}
+                      </span>
+                    </div>
+                    {resp.description && (
+                      <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+                        {resp.description}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => resetAccess(resp)}
+                    disabled={savingId === resp.id}
+                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
+                  >
+                    {t("engineering.permissions.accessReset")}
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {ALL_FEATURE_ROLES.map((role) => {
+                    const active = effective.includes(role);
+                    const saving = savingId === resp.id;
+                    return (
+                      <button
+                        key={role}
+                        onClick={() => toggleRole(resp, role)}
+                        disabled={saving}
+                        title={role}
+                        className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+                          active
+                            ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]"
+                            : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        {role}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

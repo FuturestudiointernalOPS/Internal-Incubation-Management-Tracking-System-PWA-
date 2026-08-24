@@ -8,6 +8,7 @@ import {
   logPermissionAudit,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
+import { normalizeAllowedRoles } from "@/lib/featureAccess";
 
 /**
  * GET /api/responsibilities
@@ -33,14 +34,20 @@ export async function GET(req) {
       return NextResponse.json({
         success: true,
         user_cid: userCid,
-        responsibilities,
+        responsibilities: responsibilities.map((r) => ({
+          ...r,
+          allowed_roles: normalizeAllowedRoles(r.allowed_roles),
+        })),
       });
     }
 
     const all = await getAllResponsibilities();
     return NextResponse.json({
       success: true,
-      responsibilities: all,
+      responsibilities: all.map((r) => ({
+        ...r,
+        allowed_roles: normalizeAllowedRoles(r.allowed_roles),
+      })),
     });
   } catch (err) {
     console.error("[Responsibilities] GET error:", err);

@@ -42,7 +42,10 @@
       "accessLevelCreate": "Create",
       "accessLevelEdit": "Edit",
       "accessLevelDelete": "Delete",
-      "accessLevelFull": "Full"
+      "accessLevelFull": "Full",
+      "roleIncompatibilityTitle": "Role incompatibility detected",
+      "roleIncompatibilityBody": "{role} cannot access: {features}",
+      "assignmentRoleWarning": "{role} cannot access: {features}"
     },
     "auditLogs": {
       "title": "Audit Logs",

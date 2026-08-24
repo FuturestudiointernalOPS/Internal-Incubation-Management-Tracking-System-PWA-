@@ -122,7 +122,17 @@
       "enableProfile": "Activer le profil",
       "responsibilitiesIntro": "Les responsabilités définissent le périmètre opérationnel — les tableaux de bord, la navigation et les rapports qu'un utilisateur voit. Ce ne sont PAS des permissions.",
       "responsibilitiesSearchPlaceholder": "Rechercher un utilisateur par nom, e-mail ou CID...",
-      "noUsersFound": "Aucun utilisateur trouvé"
+      "noUsersFound": "Aucun utilisateur trouvé",
+      "tabResponsibilityAccess": "Accès aux responsabilités",
+      "responsibilityAccessIntro": "Choisissez quels rôles peuvent réellement utiliser la fonctionnalité que chaque responsabilité accorde. Les avertissements de l'application lisent cette configuration et elle s'applique immédiatement.",
+      "accessCustom": "Personnalisé",
+      "accessDefaults": "Défauts",
+      "accessReset": "Réinitialiser",
+      "accessSaved": "Enregistré",
+      "accessSaveFailed": "Impossible d'enregistrer la configuration d'accès",
+      "responsibilityRoleWarning": "{role} ne peut pas accéder à {feature} — rôles autorisés : {roles}",
+      "responsibilityRoleWarningTitle": "Incompatibilité de rôle détectée",
+      "responsibilityRoleWarningBody": "{role} ne peut pas accéder à : {features}"
     },
     "errorLogs": {
       "title": "Journal des erreurs",

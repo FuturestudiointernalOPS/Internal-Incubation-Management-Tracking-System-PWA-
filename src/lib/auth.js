@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { cookies } from "next/headers";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { RESPONSIBILITY_FEATURE_ROLES } from "@/lib/featureAccess";
 
 import { NextResponse } from "next/server";
 
@@ -1635,6 +1636,10 @@ export async function ensureResponsibilitiesSchema() {
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS description TEXT DEFAULT ''`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS icon TEXT DEFAULT ''`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`);
+      // allowed_roles = JSON array of roles that can access this responsibility's
+      // feature. NULL means "not configured" → the seed defaults apply. An empty
+      // array is a REAL state: explicitly nobody. Editable by the Super Admin.
+      await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS allowed_roles TEXT`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
       // Unique indexes (not constraints) satisfy the ON CONFLICT clauses and
@@ -1757,7 +1762,7 @@ export async function getUserResponsibilities(userCid) {
     await initDb();
     await ensureResponsibilitiesSchema();
     const result = await db.execute({
-      sql: `SELECT r.id, r.name, r.key, r.description, r.icon
+      sql: `SELECT r.id, r.name, r.key, r.description, r.icon, r.allowed_roles
             FROM responsibilities r
             JOIN user_responsibilities ur ON ur.responsibility_id = r.id
             WHERE ur.user_cid = ? AND r.is_active = 1
@@ -1909,19 +1914,36 @@ export async function seedDefaultResponsibilities() {
     ];
 
     for (const resp of defaults) {
+      const defaultRoles = JSON.stringify(
+        RESPONSIBILITY_FEATURE_ROLES[resp.key] || [],
+      );
       await db.execute({
-        sql: `INSERT INTO responsibilities (name, key, description, icon, is_active)
-              VALUES (?, ?, ?, ?, 1)
+        sql: `INSERT INTO responsibilities (name, key, description, icon, allowed_roles, is_active)
+              VALUES (?, ?, ?, ?, ?, 1)
               ON CONFLICT (key) DO UPDATE SET name = ?, description = ?, icon = ?`,
         args: [
           resp.name,
           resp.key,
           resp.description,
           resp.icon,
+          defaultRoles,
           resp.name,
           resp.description,
           resp.icon,
         ],
+      });
+    }
+
+    // Backfill allowed_roles ONLY where it has never been configured. Manual
+    // Super Admin edits (including an explicit empty list) are never touched.
+    for (const resp of defaults) {
+      const defaultRoles = JSON.stringify(
+        RESPONSIBILITY_FEATURE_ROLES[resp.key] || [],
+      );
+      await db.execute({
+        sql: `UPDATE responsibilities SET allowed_roles = ?
+              WHERE key = ? AND (allowed_roles IS NULL OR TRIM(allowed_roles) = '')`,
+        args: [defaultRoles, resp.key],
       });
     }
 

@@ -122,7 +122,17 @@
       "enableProfile": "Enable profile",
       "responsibilitiesIntro": "Responsibilities define operational ownership — what dashboards, navigation, and reports a user sees. They are NOT permissions.",
       "responsibilitiesSearchPlaceholder": "Search user by name, email, or CID...",
-      "noUsersFound": "No users found"
+      "noUsersFound": "No users found",
+      "tabResponsibilityAccess": "Responsibility Access",
+      "responsibilityAccessIntro": "Choose which roles can actually use the feature each responsibility grants. The warnings across the app read this configuration and it applies immediately.",
+      "accessCustom": "Custom",
+      "accessDefaults": "Defaults",
+      "accessReset": "Reset to defaults",
+      "accessSaved": "Saved",
+      "accessSaveFailed": "Could not save access configuration",
+      "responsibilityRoleWarning": "{role} cannot access {feature} — allowed roles: {roles}",
+      "responsibilityRoleWarningTitle": "Role incompatibility detected",
+      "responsibilityRoleWarningBody": "{role} cannot access: {features}"
     },
     "errorLogs": {
       "title": "Error Logs",

@@ -42,7 +42,10 @@
       "accessLevelCreate": "Création",
       "accessLevelEdit": "Modification",
       "accessLevelDelete": "Suppression",
-      "accessLevelFull": "Complet"
+      "accessLevelFull": "Complet",
+      "roleIncompatibilityTitle": "Incompatibilité de rôle détectée",
+      "roleIncompatibilityBody": "{role} ne peut pas accéder à : {features}",
+      "assignmentRoleWarning": "{role} ne peut pas accéder à : {features}"
     },
     "auditLogs": {
       "title": "Journaux d'audit",

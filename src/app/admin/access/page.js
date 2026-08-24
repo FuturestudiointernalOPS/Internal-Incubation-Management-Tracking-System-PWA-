@@ -19,6 +19,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { isResponsibilityBlockedForRole } from "@/lib/featureAccess";
 
 const ACCESS_LEVEL_KEYS = {
   0: "adminMisc.access.accessLevelNone",
@@ -451,15 +452,49 @@ export default function UserAccessSummary() {
                         {(userData.responsibilities || []).length}
                       </span>
                     </div>
+                    {(() => {
+                      const userRole = userData.user?.role || selectedUser?.role;
+                      const blocked = (userData.responsibilities || []).filter((r) =>
+                        isResponsibilityBlockedForRole(userRole, r.key, r.allowed_roles),
+                      );
+                      if (blocked.length === 0) return null;
+                      return (
+                        <div className="mb-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                          <p className="text-[9px] font-bold text-amber-400 flex items-center gap-1.5">
+                            <AlertTriangle className="w-3 h-3" />
+                            {t("adminMisc.access.roleIncompatibilityTitle")}
+                          </p>
+                          <p className="text-[8px] font-bold text-amber-400/90 mt-1">
+                            {t("adminMisc.access.roleIncompatibilityBody", {
+                              role: userRole,
+                              features: blocked.map((b) => b.name).join(", "),
+                            })}
+                          </p>
+                        </div>
+                      );
+                    })()}
                     {userData.responsibilities.length === 0 ? (
                       <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noResponsibilities")}</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {userData.responsibilities.map((r) => (
-                          <span key={r.id} className="text-[8px] font-bold px-2 py-1 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] uppercase tracking-wider">
-                            {r.name}
-                          </span>
-                        ))}
+                        {userData.responsibilities.map((r) => {
+                          const userRole = userData.user?.role || selectedUser?.role;
+                          const blocked = isResponsibilityBlockedForRole(userRole, r.key, r.allowed_roles);
+                          return (
+                            <span
+                              key={r.id}
+                              title={blocked ? t("adminMisc.access.roleIncompatibilityTitle") : undefined}
+                              className={`text-[8px] font-bold px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1 ${
+                                blocked
+                                  ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
+                                  : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                              }`}
+                            >
+                              {blocked && <AlertTriangle className="w-2.5 h-2.5" />}
+                              {r.name}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -535,6 +570,23 @@ export default function UserAccessSummary() {
                                       ))}
                                     </div>
                                   )}
+                                {(() => {
+                                  const blockedFeatures = (userData.responsibilities || [])
+                                    .filter((r) => isResponsibilityBlockedForRole(a.role, r.key, r.allowed_roles))
+                                    .map((r) => r.name);
+                                  if (blockedFeatures.length === 0) return null;
+                                  return (
+                                    <p className="flex items-start gap-1 text-[8px] font-bold text-amber-400 pt-1">
+                                      <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                                      <span>
+                                        {t("adminMisc.access.assignmentRoleWarning", {
+                                          role: a.role,
+                                          features: blockedFeatures.join(", "),
+                                        })}
+                                      </span>
+                                    </p>
+                                  );
+                                })()}
                               </div>
                             </div>
                           );

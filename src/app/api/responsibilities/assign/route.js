@@ -9,6 +9,7 @@ import {
   getAllResponsibilities,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
+import { normalizeAllowedRoles } from "@/lib/featureAccess";
 
 /**
  * PUT /api/responsibilities/assign
@@ -154,6 +155,7 @@ export async function GET(req) {
     const responsibilities = all.map((r) => ({
       ...r,
       assigned: assignedIds.has(r.id),
+      allowed_roles: normalizeAllowedRoles(r.allowed_roles),
     }));
 
     const user = await db.execute({

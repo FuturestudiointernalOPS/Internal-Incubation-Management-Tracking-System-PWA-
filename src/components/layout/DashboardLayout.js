@@ -1305,6 +1305,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const onRefresh = () => {
       fetchNotifications();
       fetchSubmissionCount();
+      fetchPendingInvites();
+      fetchPendingAssignments();
       fetchAnnouncements();
       fetchUnreadMessageCount();
       fetchPendingUsersCount();
@@ -1314,29 +1316,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   }, [
     fetchNotifications,
     fetchSubmissionCount,
-    fetchAnnouncements,
-    fetchUnreadMessageCount,
-    fetchPendingUsersCount,
-  ]);
-
-  useEffect(() => {
-    // Poll every 30s for real-time notifications
-    const id = setInterval(() => {
-      fetchNotifications();
-      fetchSubmissionCount();
-      fetchPendingInvites();
-      fetchPendingAssignments();
-      fetchAnnouncements();
-      fetchUnreadMessageCount();
-      fetchPendingUsersCount();
-    }, 30000);
-    return () => clearInterval(id);
-  }, [
-    fetchNotifications,
-    fetchSubmissionCount,
     fetchPendingInvites,
     fetchPendingAssignments,
     fetchAnnouncements,
+    fetchUnreadMessageCount,
     fetchPendingUsersCount,
   ]);
 
@@ -1424,6 +1407,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
           fetchUnreadMessageCount();
           // Pre-fetch pending users count
           fetchPendingUsersCount();
+          // Pre-fetch pending invitations & task assignments for banners
+          fetchPendingInvites();
+          fetchPendingAssignments();
         } else {
           // Session API failed — fallback to localStorage
           const savedUser = localStorage.getItem("user");
