@@ -997,6 +997,28 @@ const NAV_RESPONSIBILITY_MAP = {
 // Roles that bypass responsibility filtering entirely
 const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
 
+// The sidebar follows the page context: a user acting under another role
+// (e.g. a staff member assigned as Program Manager) sees that role's nav
+// while on its pages. Order matters only where prefixes overlap — they do not.
+const PATH_CONTEXT_ROLES = [
+  { prefix: "/admin", role: "super_admin" },
+  { prefix: "/pm", role: "program_manager" },
+  { prefix: "/staff", role: "staff" },
+  { prefix: "/teacher", role: "teacher" },
+  { prefix: "/facilitator", role: "facilitator" },
+  { prefix: "/participant", role: "participant" },
+  { prefix: "/developer", role: "developer" },
+  { prefix: "/finance", role: "finance" },
+];
+
+function contextRoleFromPathname(pathname) {
+  if (!pathname) return null;
+  for (const { prefix, role } of PATH_CONTEXT_ROLES) {
+    if (pathname.startsWith(prefix)) return role;
+  }
+  return null;
+}
+
 /**
  * Build nav items from responsibilities across ALL role matrices.
  * Collects items from every role's matrix where the required responsibility
@@ -1428,22 +1450,29 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     initAuth();
   }, []);
 
-  // Fetch PM programs when user changes
+  // Fetch PM programs when user changes or when the user is acting in the PM
+  // context (e.g. a staff member assigned as Program Manager on /pm/*).
   useEffect(() => {
     if (!user.cid && !user.id) return;
-    if (user.role === "program_manager" || user.role === "super_admin") {
-      const url =
-        user.role === "super_admin"
-          ? "/api/pm/programs"
-          : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
-      fetch(url)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) setPmPrograms(data.programs || []);
-        })
-        .catch((e) => console.error(e));
+    const inPmContext = (pathname || "").startsWith("/pm");
+    if (
+      !inPmContext &&
+      user.role !== "program_manager" &&
+      user.role !== "super_admin"
+    ) {
+      return;
     }
-  }, [user.role, user.cid, user.id]);
+    const url =
+      user.role === "super_admin"
+        ? "/api/pm/programs"
+        : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
+    fetch(url)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) setPmPrograms(data.programs || []);
+      })
+      .catch((e) => console.error(e));
+  }, [user.role, user.cid, user.id, pathname]);
 
   // Pre-open menus that have an active child route
   // useEffect(() => {
@@ -1510,8 +1539,15 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   }, [unreadByType]);
 
   const navItems = useMemo(() => {
-    // Priority: user.role (from session) > role (from prop) > fallback 'admin'
-    const activeRole = user.role || role || "admin";
+    // Priority: page context > user.role (from session) > role (from prop) > fallback 'admin'.
+    // The sidebar follows the page context so a user acting under another role
+    // (e.g. a staff member assigned as Program Manager) sees that role's nav
+    // while on its pages. Super Admin and developer always keep their own.
+    const sessionRole = user.role || role || "admin";
+    const activeRole =
+      sessionRole === "super_admin" || sessionRole === "developer"
+        ? sessionRole
+        : contextRoleFromPathname(pathname) || sessionRole;
 
     // Check if user belongs to Future Studio Interns group
     const userGroups = user.groups || [];
@@ -1609,7 +1645,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     }
 
     return filterNavByResponsibilities(items, userResponsibilities, bypass);
-  }, [user.role, user.groups, role, pmPrograms, userResponsibilities]);
+  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname]);
 
   const handleLogout = async () => {
     try {
@@ -1621,7 +1657,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
-  const activeRole = user.role || role || "admin";
+  const activeRole =
+    user.role === "super_admin" || user.role === "developer"
+      ? user.role
+      : contextRoleFromPathname(pathname) || user.role || role || "admin";
   const commonProps = {
     collapsed,
     role: activeRole,
