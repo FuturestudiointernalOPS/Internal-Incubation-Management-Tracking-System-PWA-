@@ -196,6 +196,11 @@ function ProgramWorkspace() {
   const [selectedSessionForAttendance, setSelectedSessionForAttendance] =
     useState(null);
   const [attendanceRecords, setAttendanceRecords] = useState({});
+  // Snapshot of the marks as loaded when the modal opened — used to send
+  // only the participants whose mark actually changed on save, so saving
+  // never rewrites or clears marks recorded elsewhere (e.g. by a facilitator
+  // for their team).
+  const [attendanceLoaded, setAttendanceLoaded] = useState({});
   const [attendanceDate, setAttendanceDate] = useState(
     () => getLocalToday()
   );
@@ -224,11 +229,14 @@ function ProgramWorkspace() {
             records[a.participant_id] = a.status;
           });
           setAttendanceRecords(records);
+          setAttendanceLoaded(records);
         } else {
           setAttendanceRecords({});
+          setAttendanceLoaded({});
         }
       } catch (_) {
         setAttendanceRecords({});
+        setAttendanceLoaded({});
       }
     };
     loadAttendance();
@@ -5133,16 +5141,27 @@ function ProgramWorkspace() {
                     if (!selectedSessionForAttendance || !attendanceDate) return;
                     setIsSaving(true);
                     try {
-                      const records = participants.map((p) => {
-                        const pid = p.user_id || p.cid || p.id;
-                        return {
-                          session_id: selectedSessionForAttendance.id,
-                          program_id: id,
-                          participant_id: pid,
-                          status: attendanceRecords[pid] || "",
-                          date: attendanceDate,
-                        };
-                      });
+                      // Delta-only save: send only participants whose mark
+                      // changed since the modal opened (empty = explicit
+                      // clear). Marks the PM did not touch — including those
+                      // recorded by a facilitator for their team — are left
+                      // exactly as they are.
+                      const records = participants
+                        .map((p) => {
+                          const pid = p.user_id || p.cid || p.id;
+                          return {
+                            session_id: selectedSessionForAttendance.id,
+                            program_id: id,
+                            participant_id: pid,
+                            status: attendanceRecords[pid] || "",
+                            date: attendanceDate,
+                          };
+                        })
+                        .filter(
+                          (r) =>
+                            r.participant_id &&
+                            r.status !== (attendanceLoaded[r.participant_id] || ""),
+                        );
                       const res = await fetch("/api/attendance", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
@@ -5153,6 +5172,7 @@ function ProgramWorkspace() {
                       notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});
+                      setAttendanceLoaded({});
                     } catch (e) {
                       notify(
                         (e && e.message) ||

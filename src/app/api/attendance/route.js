@@ -32,6 +32,19 @@ export async function POST(req) {
       await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS program_id TEXT", args: [] });
       await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE", args: [] });
       await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()", args: [] });
+      // Dedupe legacy duplicate rows (same session+date+participant), keeping
+      // the most recently updated one, then enforce uniqueness so attendance
+      // saves stay idempotent: one mark per participant per session per day.
+      await db.execute({
+        sql: `DELETE FROM v2_attendance a USING v2_attendance b
+              WHERE a.session_id = b.session_id AND a.date = b.date AND a.participant_id = b.participant_id
+                AND a.updated_at < b.updated_at`,
+        args: [],
+      });
+      await db.execute({
+        sql: "CREATE UNIQUE INDEX IF NOT EXISTS uq_v2_attendance_session_date_participant ON v2_attendance (session_id, date, participant_id)",
+        args: [],
+      });
     } catch (_) {}
 
     const body = await req.json();
@@ -78,10 +91,6 @@ export async function POST(req) {
         )
       : records;
 
-    // Only "present" and "absent" are real decisions. A participant left on
-    // "Select" (empty status) means no decision yet and must NOT be stored.
-    const valid = scoped.filter((r) => r.session_id && r.participant_id && r.status);
-
     if (scoped.length === 0) {
       return NextResponse.json({ success: true, upserted: 0 });
     }
@@ -111,39 +120,31 @@ export async function POST(req) {
       );
     }
 
-    const sessionId = scoped[0].session_id;
-    const date = requestedDate;
-    const submittedIds = [...new Set(scoped.map((r) => r.participant_id).filter(Boolean))];
-    const ph = submittedIds.map(() => "?").join(",");
-
-    // 1. Delete existing records ONLY for the submitted participants so a
-    //    facilitator saving their group never wipes another group's marks.
-    await db.execute({
-      sql: `DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id IN (${ph})`,
-      args: [sessionId, date, ...submittedIds],
-    });
-
-    // 2. Batch insert only the records that have a real decision (present/absent).
-    if (valid.length > 0) {
-      const valueTuples = valid.map(() => "(gen_random_uuid(), ?, ?, ?, ?, ?)").join(", ");
-      const insertArgs = [];
-      for (const r of valid) {
-        insertArgs.push(
-          r.session_id,
-          r.program_id || null,
-          r.participant_id,
-          r.status,
-          date
-        );
-      }
+    // Apply each record individually: a save only ever touches the
+    // participants it explicitly lists (facilitators are additionally
+    // restricted to their team by the scope filter above), so marks recorded
+    // for other participants — e.g. by the PM for another team — are never
+    // deleted or rewritten.
+    //   - empty status   → delete that participant's mark (explicit clear)
+    //   - present/absent → delete then re-insert (idempotent upsert)
+    let upserted = 0;
+    for (const r of scoped) {
+      if (!r.session_id || !r.participant_id) continue;
+      const recordDate = r.date || requestedDate;
       await db.execute({
-        sql: `INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date)
-              VALUES ${valueTuples}`,
-        args: insertArgs,
+        sql: "DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id = ?",
+        args: [r.session_id, recordDate, r.participant_id],
       });
+      if (r.status) {
+        await db.execute({
+          sql: "INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)",
+          args: [r.session_id, r.program_id || null, r.participant_id, r.status, recordDate],
+        });
+        upserted++;
+      }
     }
 
-    return NextResponse.json({ success: true, upserted: valid.length });
+    return NextResponse.json({ success: true, upserted });
   } catch (e) {
     console.error("Attendance error:", e);
     return NextResponse.json(
