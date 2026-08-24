@@ -205,7 +205,33 @@ export async function PATCH(req) {
       const capError = await requireCapabilityV2("programs", "edit");
       if (capError) return capError;
     }
-    const { team_id, member_ids, action, is_venture_ready, is_management_group } = await req.json();
+    const { team_id, member_ids, member_id, action, handler_id, handler_name, is_venture_ready, is_management_group } = await req.json();
+
+    // Support update_handler action (reassign the team's facilitator/oversight)
+    if (action === "update_handler" && team_id) {
+      await db.execute({
+        sql: "UPDATE v2_teams SET handler_id = ?, handler_name = ? WHERE id = ?",
+        args: [handler_id || null, handler_name || null, team_id],
+      });
+      return NextResponse.json({ success: true });
+    }
+
+    // Support remove_member action (unassign a participant from a team)
+    if (action === "remove_member" && team_id && member_id) {
+      const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (UUID_RE.test(String(member_id))) {
+        await db.execute({
+          sql: "UPDATE v2_participants SET v2_team_id = NULL WHERE id = ? AND v2_team_id = ?",
+          args: [String(member_id), team_id],
+        });
+      } else {
+        await db.execute({
+          sql: "UPDATE contacts SET v2_team_id = NULL WHERE cid = ? AND v2_team_id = ?",
+          args: [String(member_id), team_id],
+        });
+      }
+      return NextResponse.json({ success: true });
+    }
 
     // Support set_venture_ready action (used by venture approval workflow)
     if (action === "set_venture_ready" && team_id) {
