@@ -649,6 +649,25 @@ export function hasProgramManagementAccess(role) {
 }
 
 /**
+ * Returns true when the user is the explicitly assigned PM of a specific
+ * program (v2_programs.assigned_pm_id = userCid). Used to grant staff members
+ * who hold a PM role on a program the same bypass as a program_manager role.
+ */
+export async function isAssignedPmForProgram(programId, userCid) {
+  if (!programId || !userCid) return false;
+  try {
+    await initDb();
+    const res = await db.execute({
+      sql: "SELECT 1 FROM v2_programs WHERE CAST(id AS TEXT) = ? AND CAST(assigned_pm_id AS TEXT) = ? LIMIT 1",
+      args: [String(programId), String(userCid)],
+    });
+    return res.rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Returns the facilitator assignment row for (program, user) or null.
  * Matches by contact cid or email so legacy rows that stored the email
  * still resolve correctly.

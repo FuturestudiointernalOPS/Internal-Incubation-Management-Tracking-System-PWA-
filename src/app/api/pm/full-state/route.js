@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess } from "@/lib/auth";
+import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess, isAssignedPmForProgram } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 export const dynamic = "force-dynamic";
@@ -16,13 +16,18 @@ export async function GET(req) {
       "facilitator",
     ]);
     if (authError) return authError;
-    // Facilitators must be assigned to this program before seeing its data
-    if (requireProgramFacilitator) {
-      const { searchParams: sp } = new URL(req.url);
-      const progId = sp.get("id");
-      if (progId) {
-        const session = await getSession();
-        if (session && !hasProgramManagementAccess(session.role)) {
+
+    const { searchParams: sp } = new URL(req.url);
+    const progId = sp.get("id");
+
+    // Facilitators must be assigned to this program before seeing its data.
+    // Bypass for: super_admin, program_manager, teacher (hasProgramManagementAccess)
+    // AND for any staff member who is the explicitly assigned PM of this program.
+    if (progId) {
+      const session = await getSession();
+      if (session && !hasProgramManagementAccess(session.role)) {
+        const isPm = await isAssignedPmForProgram(progId, session.cid);
+        if (!isPm) {
           const guardError = await requireProgramFacilitator(progId);
           if (guardError) return guardError;
         }
