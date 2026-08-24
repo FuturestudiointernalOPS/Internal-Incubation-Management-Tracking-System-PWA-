@@ -23,7 +23,8 @@ import pg from "pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
-const ENV_FILE = path.join(PROJECT_ROOT, ".env.audit-readonly");
+// Optional: node run-readonly.mjs <sql-file> <env-file> (default .env.audit-readonly)
+const ENV_FILE = path.join(PROJECT_ROOT, process.argv[3] || ".env.audit-readonly");
 
 const sqlFile = process.argv[2];
 if (!sqlFile) {
