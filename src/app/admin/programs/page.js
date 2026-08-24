@@ -51,9 +51,37 @@ export default function ProgramManagement() {
   const [search, setSearch] = useState("");
   const [activeTab, setTab] = useState("all");
   const [editingProgram, setEditingProgram] = useState(null);
+  const [programDateError, setProgramDateError] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+
+  // Validate that the edited dates and duration are consistent:
+  // end must be strictly after start, and duration (weeks) must match the
+  // span between the two dates. Returns an error message or "" when valid.
+  const validateEditDates = (start, end, durationWeeks) => {
+    if (!start || !end) return ""; // dates are optional when editing
+    const s = new Date(start);
+    const e = new Date(end);
+    if (isNaN(s.getTime()) || isNaN(e.getTime())) return "";
+    if (e.getTime() < s.getTime()) {
+      return t("adminMisc.programs.dateErrorOrder");
+    }
+    if (e.getTime() === s.getTime()) {
+      return t("adminMisc.programs.dateErrorSameDay");
+    }
+    const diffDays = Math.round((e - s) / (1000 * 60 * 60 * 24));
+    const computedWeeks = Math.max(1, Math.ceil(diffDays / 7));
+    const inputWeeks = parseInt(durationWeeks, 10);
+    if (inputWeeks && inputWeeks !== computedWeeks) {
+      return t("adminMisc.programs.dateErrorDurationMismatch", {
+        actual: inputWeeks,
+        expected: computedWeeks,
+      });
+    }
+    return "";
+  };
+
   const [newGroup, setNewGroup] = useState({
     name: "",
     description: "",
@@ -421,6 +449,20 @@ export default function ProgramManagement() {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!editingProgram?.id) return;
+    const vErr = validateEditDates(
+      editingProgram?.start_date,
+      editingProgram?.end_date,
+      editingProgram?.duration_weeks,
+    );
+    if (vErr) {
+      setProgramDateError(vErr);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: vErr },
+        }),
+      );
+      return;
+    }
     setIsUpdating(true);
     try {
       const res = await fetch("/api/pm/programs", {
@@ -859,6 +901,7 @@ export default function ProgramManagement() {
                                   formatted.end_date = d.toISOString().split('T')[0];
                                 }
                                 setEditingProgram(formatted);
+                                setProgramDateError("");
                               }}
                               title={t("admin.edit")}
                               className="p-2 hover:text-[var(--brand-orange)]"
@@ -945,12 +988,17 @@ export default function ProgramManagement() {
                   <input
                     type="date"
                     value={editingProgram?.start_date || ""}
-                    onChange={(e) =>
-                      setEditingProgram({
-                        ...editingProgram,
-                        start_date: e.target.value,
-                      })
-                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditingProgram({ ...editingProgram, start_date: v });
+                      setProgramDateError(
+                        validateEditDates(
+                          v,
+                          editingProgram?.end_date,
+                          editingProgram?.duration_weeks,
+                        ),
+                      );
+                    }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
@@ -961,16 +1009,27 @@ export default function ProgramManagement() {
                   <input
                     type="date"
                     value={editingProgram?.end_date || ""}
-                    onChange={(e) =>
-                      setEditingProgram({
-                        ...editingProgram,
-                        end_date: e.target.value,
-                      })
-                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setEditingProgram({ ...editingProgram, end_date: v });
+                      setProgramDateError(
+                        validateEditDates(
+                          editingProgram?.start_date,
+                          v,
+                          editingProgram?.duration_weeks,
+                        ),
+                      );
+                    }}
                     className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                   />
                 </div>
               </div>
+
+              {programDateError && (
+                <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest mt-1 ml-2">
+                  {programDateError}
+                </p>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1322,12 +1381,17 @@ export default function ProgramManagement() {
                 <input
                   type="number"
                   value={editingProgram?.duration_weeks || 4}
-                  onChange={(e) =>
-                    setEditingProgram({
-                      ...editingProgram,
-                      duration_weeks: parseInt(e.target.value) || 4,
-                    })
-                  }
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value) || 4;
+                    setEditingProgram({ ...editingProgram, duration_weeks: v });
+                    setProgramDateError(
+                      validateEditDates(
+                        editingProgram?.start_date,
+                        editingProgram?.end_date,
+                        v,
+                      ),
+                    );
+                  }}
                   className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>

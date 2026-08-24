@@ -91,6 +91,10 @@ export default function NewProgram() {
       setDateError(t("adminMisc.newProgram.dateErrorOrder"));
       return false;
     }
+    if (new Date(end).getTime() === new Date(start).getTime()) {
+      setDateError(t("adminMisc.newProgram.dateErrorSameDay"));
+      return false;
+    }
     setDateError("");
     return true;
   };
@@ -545,6 +549,21 @@ export default function NewProgram() {
                   {dateError}
                 </p>
               )}
+              {program.start_date &&
+                program.end_date &&
+                !dateError &&
+                (() => {
+                  const diffDays = Math.ceil(
+                    (new Date(program.end_date) - new Date(program.start_date)) /
+                      (1000 * 60 * 60 * 24),
+                  );
+                  const weeks = Math.max(1, Math.ceil(diffDays / 7));
+                  return (
+                    <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mt-1 ml-2">
+                      {t("adminMisc.newProgram.computedDuration", { weeks })}
+                    </p>
+                  );
+                })()}
             </div>
           </div>
 

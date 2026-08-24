@@ -309,6 +309,14 @@ export async function POST(req) {
       }
     }
 
+    // Prevent end date before start date
+    if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+      return NextResponse.json(
+        { success: false, error: "End date cannot be earlier than start date." },
+        { status: 400 },
+      );
+    }
+
     await db.execute({
       sql: `INSERT INTO v2_programs (id, name, slug, description, concept_note, vision, objectives, expected_outcomes, success_metrics, program_type, visibility, language, note_id, assigned_pm_id, assigned_assistant_id, duration_weeks, status, is_archived, materials, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
@@ -495,6 +503,14 @@ export async function PUT(req) {
         args: [is_archived, newStatus, id],
       });
       return NextResponse.json({ success: true });
+    }
+
+    // Prevent end date before start date
+    if (start_date && end_date && new Date(end_date) < new Date(start_date)) {
+      return NextResponse.json(
+        { success: false, error: "End date cannot be earlier than start date." },
+        { status: 400 },
+      );
     }
 
     // Sync status: if setting to archived, also mark is_archived
