@@ -62,8 +62,21 @@ export async function GET(req) {
     }
     if (assignedPmId) {
       baseQuery +=
-        " AND (p.assigned_pm_id = ? OR p.assigned_assistant_id LIKE ? OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?))";
-      args.push(assignedPmId, `%${assignedPmId}%`, assignedPmId);
+        " AND (" +
+        "p.assigned_pm_id = ?" +
+        " OR p.assigned_assistant_id LIKE ?" +
+        " OR p.id IN (SELECT program_id FROM v2_teams WHERE handler_id = ?)" +
+        " OR p.id IN (SELECT program_id FROM v2_program_staff WHERE role = 'program_manager' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)))" +
+        " OR p.id::text IN (SELECT context_id FROM contact_roles WHERE role = 'program_manager' AND context_type = 'program' AND is_current = true AND contact_cid = ?)" +
+        ")";
+      args.push(
+        assignedPmId,
+        `%${assignedPmId}%`,
+        assignedPmId,
+        session.cid,
+        session.email || "",
+        session.cid,
+      );
     }
     // Facilitators only see programs they are assigned to (matched by cid or
     // email so legacy rows that stored the email still resolve correctly).
