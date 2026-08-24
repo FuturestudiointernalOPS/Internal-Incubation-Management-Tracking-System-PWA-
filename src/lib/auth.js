@@ -1637,14 +1637,13 @@ export async function ensureResponsibilitiesSchema() {
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS is_active INTEGER NOT NULL DEFAULT 1`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
       await db.execute(`ALTER TABLE responsibilities ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
-      await db.execute(`ALTER TABLE responsibilities DROP CONSTRAINT IF EXISTS responsibilities_name_key`);
-      await db.execute(`ALTER TABLE responsibilities ADD CONSTRAINT responsibilities_name_key UNIQUE (name)`);
-      await db.execute(`ALTER TABLE responsibilities DROP CONSTRAINT IF EXISTS responsibilities_key_key`);
-      await db.execute(`ALTER TABLE responsibilities ADD CONSTRAINT responsibilities_key_key UNIQUE (key)`);
+      // Unique indexes (not constraints) satisfy the ON CONFLICT clauses and
+      // cannot collide with pre-existing constraint names from older migrations.
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS responsibilities_name_key ON responsibilities (name)`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS responsibilities_key_key ON responsibilities (key)`);
       await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_by TEXT`);
       await db.execute(`ALTER TABLE user_responsibilities ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()`);
-      await db.execute(`ALTER TABLE user_responsibilities DROP CONSTRAINT IF EXISTS user_responsibilities_user_cid_responsibility_id_key`);
-      await db.execute(`ALTER TABLE user_responsibilities ADD CONSTRAINT user_responsibilities_user_cid_responsibility_id_key UNIQUE (user_cid, responsibility_id)`);
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS user_responsibilities_user_cid_responsibility_id_key ON user_responsibilities (user_cid, responsibility_id)`);
       return true;
     })().catch((e) => {
       console.warn("[Auth] ensureResponsibilitiesSchema failed:", e.message);
