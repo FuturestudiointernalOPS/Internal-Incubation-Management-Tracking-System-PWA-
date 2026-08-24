@@ -847,7 +847,8 @@
       "exportAction": "Export",
       "exportDesc": "Download the responses as a structured Excel or PDF file and share it directly.",
       "exportExcel": "Export Excel",
-      "exportPdf": "Export PDF"
+      "exportPdf": "Export PDF",
+      "excelExportFailed": "Excel export failed"
     },
     "runSubmit": {
       "platform": "Platform",

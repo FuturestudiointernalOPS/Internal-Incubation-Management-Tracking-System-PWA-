@@ -847,7 +847,8 @@
       "exportAction": "Exporter",
       "exportDesc": "Téléchargez les réponses sous forme de fichier Excel ou PDF structuré et partagez-le directement.",
       "exportExcel": "Exporter Excel",
-      "exportPdf": "Exporter PDF"
+      "exportPdf": "Exporter PDF",
+      "excelExportFailed": "Échec de l'export Excel"
     },
     "runSubmit": {
       "platform": "Plateforme",
