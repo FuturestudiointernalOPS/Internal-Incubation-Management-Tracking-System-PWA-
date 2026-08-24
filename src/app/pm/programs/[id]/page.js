@@ -1174,7 +1174,21 @@ function ProgramWorkspace() {
 
   useEffect(() => {
     const savedUser = localStorage.getItem("user");
-    if (savedUser) setUser(JSON.parse(savedUser));
+    const parsed = savedUser ? JSON.parse(savedUser) : {};
+    if (savedUser) setUser(parsed);
+    // Prefer the server session for the role so a stale localStorage value
+    // (from an old login or impersonation) can't hide role-gated UI like the
+    // curriculum "create" button or the configuration tab.
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          const merged = { ...parsed, ...d.user };
+          setUser(merged);
+          localStorage.setItem("user", JSON.stringify(merged));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const fetchProgramData = useCallback(
@@ -1257,21 +1271,30 @@ function ProgramWorkspace() {
     },
   ];
 
-  const tabs = allTabs.filter(
-    (tab) => !tab.roles || tab.roles.includes(user.role),
-  );
-
-  const canEdit =
-    user.role === "super_admin" || user.role === "program_manager";
   const isAssignedPm =
     user.role === "super_admin" ||
     (program?.assigned_pm_id &&
       (user.cid === program.assigned_pm_id ||
         user.id === program.assigned_pm_id));
+
+  // A staff member who is the program's assigned PM can manage it the same as
+  // a program_manager (their contact role stays "staff", but they own it).
+  const canEdit =
+    user.role === "super_admin" ||
+    user.role === "program_manager" ||
+    isAssignedPm;
+
   const isTeamMember = programTeamMembers.some(
     (m) => m.cid === (user.cid || user.id),
   );
   const canContribute = canEdit || isTeamMember;
+
+  const tabs = allTabs.filter(
+    (tab) =>
+      !tab.roles ||
+      tab.roles.includes(user.role) ||
+      (isAssignedPm && tab.roles.includes("program_manager")),
+  );
 
   // curriculum content moved inline below
 
