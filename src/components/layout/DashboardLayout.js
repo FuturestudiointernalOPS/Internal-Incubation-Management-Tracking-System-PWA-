@@ -1003,32 +1003,43 @@ const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
  * matches the user's assigned responsibilities. Items with no responsibility
  * requirement are always included (dashboard, profile, logout).
  */
-function buildNavFromResponsibilities(userRespKeys) {
+function buildNavFromResponsibilities(userRespKeys, activeRole) {
+  const ownMatrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
+  const otherMatrices = Object.values(NAVIGATION_MATRIX).filter(
+    (m) => m !== ownMatrix,
+  );
   const allItems = [];
   const seenIds = new Set();
 
-  for (const matrix of Object.values(NAVIGATION_MATRIX)) {
+  const collect = (matrix, fromOwnMatrix) => {
     for (const item of matrix) {
       if (seenIds.has(item.id)) continue;
-      seenIds.add(item.id);
-
       const required = NAV_RESPONSIBILITY_MAP[item.id];
-      // Include if no responsibility required OR user has the required responsibility
-      if (!required || userRespKeys.has(required)) {
-        if (item.subItems) {
-          const filteredSubs = item.subItems.filter((sub) => {
-            const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-            return !subRequired || userRespKeys.has(subRequired);
-          });
-          if (filteredSubs.length > 0) {
-            allItems.push({ ...item, subItems: filteredSubs });
-          }
-        } else {
-          allItems.push(item);
+      // The user's own role matrix is the baseline (always shown). Items from
+      // other role matrices appear ONLY when a responsibility explicitly
+      // grants them — unmapped items from other roles must never leak in.
+      const includeItem =
+        fromOwnMatrix || (required && userRespKeys.has(required));
+      if (!includeItem) continue;
+      seenIds.add(item.id);
+      if (item.subItems) {
+        const filteredSubs = item.subItems.filter((sub) => {
+          const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+          return fromOwnMatrix
+            ? true
+            : subRequired && userRespKeys.has(subRequired);
+        });
+        if (filteredSubs.length > 0) {
+          allItems.push({ ...item, subItems: filteredSubs });
         }
+      } else {
+        allItems.push(item);
       }
     }
-  }
+  };
+
+  collect(ownMatrix, true);
+  for (const matrix of otherMatrices) collect(matrix, false);
   return allItems;
 }
 
@@ -1568,7 +1579,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // across ALL role matrices instead of just the user's role matrix
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
       const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      return buildNavFromResponsibilities(respKeys);
+      return buildNavFromResponsibilities(respKeys, activeRole);
     }
 
     // Fallback: role-based matrix (backward compatible)
