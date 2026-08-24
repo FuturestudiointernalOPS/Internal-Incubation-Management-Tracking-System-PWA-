@@ -21,7 +21,7 @@ export async function GET(req) {
       if (authError) return authError;
       const kpiRes = await db.execute({
         sql: `SELECT p.id, p.name, p.status,
-                     ROUND(AVG(kp.completion_rate)) AS avg_kpi_rate,
+                     ROUND(AVG(kp.progress)) AS avg_kpi_rate,
                      COUNT(DISTINCT kp.kpi_id) AS kpi_count
               FROM v2_programs p
               LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
