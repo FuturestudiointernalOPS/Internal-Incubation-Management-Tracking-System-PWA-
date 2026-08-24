@@ -133,7 +133,12 @@ export async function POST(req) {
                   address = EXCLUDED.address,
                   status = EXCLUDED.status,
                   role = EXCLUDED.role,
-                  group_name = EXCLUDED.group_name`,
+                  group_name = EXCLUDED.group_name,
+                  deleted = 0,
+                  deleted_at = NULL,
+                  deleted_by = NULL,
+                  archived_at = NULL,
+                  archived_by = NULL`,
           args: [
             vc.cid,
             vc.name,
@@ -596,7 +601,10 @@ export async function GET(req) {
 
 /**
  * DELETE — Soft-delete a contact (never physically deletes).
- * Sets deleted_at and deleted_by. Contact disappears from all views.
+ * Sets deleted_at/deleted_by/deleted and frees the email by replacing it with
+ * a unique placeholder that keeps the original address for audit, so a new
+ * contact can be created later with the same email without tripping the
+ * contacts_email_key unique constraint. The contact disappears from all views.
  */
 export async function DELETE(req) {
   try {
@@ -619,8 +627,14 @@ export async function DELETE(req) {
     const session = await getSession();
     const deletedBy = session?.name || session?.email || session?.cid || "unknown";
 
+    // '__deleted_' || cid || '__' || email is unique because cid is the
+    // primary key, so it can never collide with another row (or with a real
+    // address), and the original email stays visible inside the placeholder.
     const result = await db.execute({
-      sql: `UPDATE contacts SET deleted_at = NOW(), deleted_by = ? WHERE cid = ?`,
+      sql: `UPDATE contacts
+            SET deleted_at = NOW(), deleted_by = ?, deleted = 1,
+                email = '__deleted_' || cid || '__' || email
+            WHERE cid = ? AND deleted_at IS NULL`,
       args: [deletedBy, cid],
     });
 

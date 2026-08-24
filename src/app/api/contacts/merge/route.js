@@ -48,9 +48,14 @@ export async function POST(req) {
       args: [survivor_cid, `Merged from ${duplicate_cid}`, session.cid, JSON.stringify({ merged_from: duplicate_cid, counts })],
     });
 
-    // Soft-delete the duplicate
+    // Soft-delete the duplicate and free its email (unique placeholder) so
+    // the address can be reused by a new contact later without tripping the
+    // contacts_email_key unique constraint.
     await db.execute({
-      sql: "UPDATE contacts SET deleted_at = NOW(), deleted_by = ? WHERE cid = ?",
+      sql: `UPDATE contacts
+            SET deleted_at = NOW(), deleted_by = ?, deleted = 1,
+                email = '__deleted_' || cid || '__' || email
+            WHERE cid = ?`,
       args: [session.cid, duplicate_cid],
     });
 
