@@ -1,8 +1,15 @@
 import pg from 'pg';
 const { Pool } = pg;
 
+// SECURITY: connection string must come from the environment, never hardcoded.
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  console.error("Missing DATABASE_URL environment variable.");
+  process.exit(1);
+}
+
 const pool = new Pool({
-  connectionString: "postgresql://postgres.yakxdxdzuojafzdkqhjd:G8%26bM%3F!KujZwXDe@aws-0-eu-west-1.pooler.supabase.com:6543/postgres",
+  connectionString,
   ssl: { rejectUnauthorized: false }
 });
 
