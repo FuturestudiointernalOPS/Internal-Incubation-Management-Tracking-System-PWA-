@@ -647,6 +647,12 @@ const NAVIGATION_MATRIX = {
       href: "/staff/op-report",
     },
     {
+      id: "programs",
+      name: "PROGRAMS",
+      icon: Briefcase,
+      href: "/pm/programs",
+    },
+    {
       id: "my_projects",
       name: "MY PROJECTS",
       icon: Briefcase,
