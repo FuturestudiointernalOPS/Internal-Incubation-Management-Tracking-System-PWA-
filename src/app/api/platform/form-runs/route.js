@@ -1,9 +1,8 @@
- import db, { initDb } from "@/lib/db";
+import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun } from "@/lib/email";
-import { v4 as uuidv4 } from "uuid";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 

@@ -173,6 +173,10 @@ export default function FacilitatorProgram({ params }) {
   const saveAttendance = async (sessionId) => {
     setSavingAtt(true);
     try {
+      // Send only participants that have a real decision (present/absent).
+      // Clearing a mark is handled per-participant on select change, so this
+      // bulk save can never wipe marks it did not explicitly set — e.g. marks
+      // the PM recorded for this team.
       const records = participants
         .map((p) => ({
           session_id: sessionId,
@@ -181,7 +185,7 @@ export default function FacilitatorProgram({ params }) {
           status: attendance[`${sessionId}:${p.id || p.user_id}`] || "",
           date: attendanceDate,
         }))
-        .filter((r) => r.participant_id);
+        .filter((r) => r.participant_id && r.status);
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -198,7 +202,8 @@ export default function FacilitatorProgram({ params }) {
   };
 
   const saveAttendanceForParticipant = async (sessionId, participantId, status) => {
-    if (!status) return;
+    // Always send the record, even with an empty status: empty means the
+    // facilitator explicitly cleared this participant's mark for the session.
     try {
       const res = await fetch("/api/attendance", {
         method: "POST",

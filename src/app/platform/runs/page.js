@@ -1572,7 +1572,7 @@ export default function FormRunsPage() {
         XLSX.utils.book_append_sheet(wb, ws, "Participants");
         XLSX.writeFile(wb, `${baseName}.xlsx`);
       } catch (_) {
-        notify("Excel export failed");
+        notify(t("platformMisc.runs.excelExportFailed"));
       }
     } else {
       const esc = (v) => {
