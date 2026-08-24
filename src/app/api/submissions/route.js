@@ -195,6 +195,8 @@ export async function PATCH(req) {
     // Server-side enforcement: facilitators must be assigned to the program
     // and hold assignments.grade to review submissions.
     const session = await getSession();
+    // Ensure role-lock column exists before we read it below.
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS reviewed_by_role TEXT DEFAULT NULL"); } catch (_) {}
     if (session && !hasProgramManagementAccess(session.role)) {
       const subRow = await db.execute({
         sql: "SELECT program_id FROM v2_submissions WHERE id::text = ?",
@@ -253,6 +255,7 @@ export async function PATCH(req) {
     const subRes = await db.execute({
       sql: `
            SELECT s.id, s.program_id, s.participant_id, s.team_id,
+                  s.status, s.reviewed_by_role, s.teacher_id,
                   c.email, c.name as participant_name,
                   d.title as deliverable_title, prog.assigned_pm_id,
                   prog.name as program_name
@@ -267,25 +270,60 @@ export async function PATCH(req) {
 
     const sub = subRes.rows[0];
 
+    // ─── Role Lock: a facilitator and program management cannot override
+    //     each other's decisions. Once a final decision (approved/rejected)
+    //     exists, only the role that made it may change it. super_admin and
+    //     staff are exempt.
+    const roleCamp = (role) => {
+      if (role === "facilitator") return "facilitator";
+      if (role === "program_manager" || role === "teacher") return "management";
+      return null; // super_admin / staff → not locked
+    };
+    const FINAL_STATUSES = ["approved", "rejected"];
+    if (sub && FINAL_STATUSES.includes(sub.status) && sub.reviewed_by_role) {
+      const requesterCamp = roleCamp(session?.role);
+      const reviewerCamp = roleCamp(sub.reviewed_by_role);
+      if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
+        const actorLabel =
+          reviewerCamp === "facilitator"
+            ? "a facilitator"
+            : "the program manager";
+        return NextResponse.json(
+          {
+            success: false,
+            error: `This submission was already ${sub.status} by ${actorLabel}. Only that role can change the decision.`,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     // 2. Ensure score column exists (migration safety)
     try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL"); } catch (_) {}
+    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS reviewed_by_role TEXT DEFAULT NULL"); } catch (_) {}
     try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"); } catch (_) {}
     try { await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS participant_cid TEXT DEFAULT NULL"); } catch (_) {}
 
     // 3. Update Database with all review fields
+    // Preserve an existing score when the reviewer does not send a new one
+    // (facilitators review without a score; the PM grades via the dashboard).
+    const hasNewScore = score !== undefined && score !== null && score !== "";
     await db.execute({
       sql: `UPDATE v2_submissions SET
-              status = ?, feedback = ?, score = ?,
+              status = ?, feedback = ?, score = COALESCE(?, score),
               review_action = ?, rejection_reason = ?,
+              reviewed_by_role = ?, teacher_id = ?,
               approved_at = CURRENT_TIMESTAMP,
               updated_at = NOW()
             WHERE id = ?`,
       args: [
         status,
         feedback || null,
-        score || null,
+        hasNewScore ? parseInt(score) : null,
         review_action || null,
         rejection_reason || null,
+        session?.role || null,
+        session?.cid || session?.email || null,
         id,
       ],
     });
@@ -358,30 +396,44 @@ export async function PATCH(req) {
     }
 
     // 5. Group Assessment Propagation: if this submission belongs to a team,
-    //    propagate the same score/status to all team members for this deliverable
+    //    propagate the same score/status to all team members for this deliverable.
+    //    Never overwrite a sibling submission that was already decided by the
+    //    other role camp (role lock).
     if (sub?.team_id && (score != null || status === "approved")) {
       try {
+        const requesterCampForProp = roleCamp(session?.role);
         const propagateSql = `UPDATE v2_submissions SET
-              status = ?, score = ?, feedback = ?,
+              status = ?, score = COALESCE(?, score), feedback = ?,
               review_action = ?, rejection_reason = ?,
+              reviewed_by_role = ?, teacher_id = ?,
               approved_at = CURRENT_TIMESTAMP, updated_at = NOW()
             WHERE team_id::text = ?
               AND (deliverable_id::text = ? OR document_id::text = ?)
-              AND id::text != ?`;
-        await db.execute({
-          sql: propagateSql,
-          args: [
-            status,
-            score || null,
-            feedback || null,
-            review_action || null,
-            rejection_reason || null,
-            sub.team_id,
-            sub.deliverable_id || String(sub.document_id),
-            sub.document_id != null ? String(sub.document_id) : sub.deliverable_id,
-            id,
-          ],
-        });
+              AND id::text != ?
+              ${
+                requesterCampForProp
+                  ? `AND NOT (
+                      status IN ('approved','rejected')
+                      AND reviewed_by_role IS NOT NULL
+                      AND reviewed_by_role != ?
+                    )`
+                  : ""
+              }`;
+        const propArgs = [
+          status,
+          hasNewScore ? parseInt(score) : null,
+          feedback || null,
+          review_action || null,
+          rejection_reason || null,
+          session?.role || null,
+          session?.cid || session?.email || null,
+          sub.team_id,
+          sub.deliverable_id || String(sub.document_id),
+          sub.document_id != null ? String(sub.document_id) : sub.deliverable_id,
+          id,
+        ];
+        if (requesterCampForProp) propArgs.push(requesterCampForProp);
+        await db.execute({ sql: propagateSql, args: propArgs });
       } catch (_) {}
     }
 
