@@ -1,5 +1,14 @@
 {
   "crm": {
+    "hub": {
+      "title": "CRM Workspace",
+      "subtitle": "Your CRM tools — forms, messages, and people management",
+      "formsTitle": "Forms",
+      "formsSubtitle": "Create and manage collection forms and runs",
+      "messagesTitle": "Messages",
+      "messagesSubtitle": "Internal communications and announcements",
+      "adminOnlyNote": "Full CRM administration (people, timeline, duplicates, pending approvals, bulk import) is available to Super Admins."
+    },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",
     "campaigns": {

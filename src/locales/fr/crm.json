@@ -1,5 +1,14 @@
 {
   "crm": {
+    "hub": {
+      "title": "Espace CRM",
+      "subtitle": "Vos outils CRM — formulaires, messages et gestion des personnes",
+      "formsTitle": "Formulaires",
+      "formsSubtitle": "Créer et gérer des formulaires de collecte et des exécutions",
+      "messagesTitle": "Messages",
+      "messagesSubtitle": "Communications internes et annonces",
+      "adminOnlyNote": "L'administration complète du CRM (personnes, historique, doublons, approbations en attente, import en masse) est réservée aux Super Admins."
+    },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",
     "campaigns": {

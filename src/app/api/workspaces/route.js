@@ -200,7 +200,9 @@ export async function GET(req) {
           ? "/finance"
           : String(r.key || "").toLowerCase().includes("engineering")
             ? "/developer"
-            : "/workspaces",
+            : String(r.key || "").toLowerCase().includes("crm")
+              ? "/crm"
+              : "/workspaces",
       }));
     } catch (_) {}
 

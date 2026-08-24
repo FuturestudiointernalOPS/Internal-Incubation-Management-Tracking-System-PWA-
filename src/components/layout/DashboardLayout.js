@@ -923,6 +923,21 @@ const NAVIGATION_MATRIX = {
       href: "/participant/profile",
     },
   ],
+
+  crm: [
+    {
+      id: "crm_dashboard",
+      name: "CRM",
+      icon: Users,
+      href: "/crm",
+    },
+    {
+      id: "forms",
+      name: "FORMS",
+      icon: FileText,
+      href: "/platform",
+    },
+  ],
 };
 
 // =============================================================================
@@ -1003,6 +1018,16 @@ const NAV_RESPONSIBILITY_MAP = {
 // Roles that bypass responsibility filtering entirely
 const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
 
+// Admin-only destinations remapped to a page the role can actually open when a
+// responsibility grants a nav item that normally points at /admin/*. Items with
+// no fallback are dropped for non-admin roles instead of leading to a login
+// redirect. Super Admin and developer keep the original admin hrefs.
+const NON_ADMIN_HREF_FALLBACKS = {
+  finance: "/finance",
+  crm_dashboard: "/crm",
+  forms: "/platform",
+};
+
 // The sidebar follows the page context: a user acting under another role
 // (e.g. a staff member assigned as Program Manager) sees that role's nav
 // while on its pages. Order matters only where prefixes overlap — they do not.
@@ -1015,6 +1040,7 @@ const PATH_CONTEXT_ROLES = [
   { prefix: "/participant", role: "participant" },
   { prefix: "/developer", role: "developer" },
   { prefix: "/finance", role: "finance" },
+  { prefix: "/crm", role: "crm" },
 ];
 
 function contextRoleFromPathname(pathname) {
@@ -1038,6 +1064,17 @@ function buildNavFromResponsibilities(userRespKeys, activeRole) {
   );
   const allItems = [];
   const seenIds = new Set();
+  // Only Super Admin and developer can open /admin/* pages.
+  const canOpenAdmin = activeRole === "super_admin" || activeRole === "developer";
+
+  // Items granted from OTHER matrices may point at admin-only pages the user
+  // cannot open. Remap them to a role-appropriate page, or drop them entirely.
+  const resolveHref = (itemId, href) => {
+    if (canOpenAdmin || !href) return href;
+    const fallback = NON_ADMIN_HREF_FALLBACKS[itemId];
+    if (fallback) return fallback;
+    return href.startsWith("/admin/") ? null : href;
+  };
 
   const collect = (matrix, fromOwnMatrix) => {
     for (const item of matrix) {
@@ -1051,17 +1088,26 @@ function buildNavFromResponsibilities(userRespKeys, activeRole) {
       if (!includeItem) continue;
       seenIds.add(item.id);
       if (item.subItems) {
-        const filteredSubs = item.subItems.filter((sub) => {
-          const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-          return fromOwnMatrix
-            ? true
-            : subRequired && userRespKeys.has(subRequired);
-        });
+        const filteredSubs = item.subItems
+          .filter((sub) => {
+            const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+            return fromOwnMatrix
+              ? true
+              : subRequired && userRespKeys.has(subRequired);
+          })
+          .map((sub) =>
+            fromOwnMatrix
+              ? sub
+              : { ...sub, href: resolveHref(sub.id, sub.href) },
+          )
+          .filter((sub) => sub.href !== null);
         if (filteredSubs.length > 0) {
           allItems.push({ ...item, subItems: filteredSubs });
         }
       } else {
-        allItems.push(item);
+        const href = fromOwnMatrix ? item.href : resolveHref(item.id, item.href);
+        if (href === null) continue;
+        allItems.push({ ...item, href });
       }
     }
   };
