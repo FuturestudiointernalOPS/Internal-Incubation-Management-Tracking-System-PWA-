@@ -136,7 +136,8 @@ export async function GET(req, { params }) {
     today.setHours(0, 0, 0, 0);
 
     const checkUnlocked = (s) => {
-      if (s.status === "active" || s.status === "in progress" || s.status === "completed") return true;
+      const st = String(s.status || "").toLowerCase();
+      if (["active", "in progress", "completed"].includes(st)) return true;
       if (!s.scheduled_date) return true;
       const sched = new Date(s.scheduled_date);
       sched.setHours(0, 0, 0, 0);
@@ -185,9 +186,11 @@ export async function GET(req, { params }) {
       weekMap.get(wn).sessions.push(s);
     }
     for (const d of deliverables) {
-      const wn = d.session_id
-        ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
-        : d.week_number || 1;
+      const wn =
+        d.session_id != null
+          ? sessions.find((s) => String(s.id) === String(d.session_id))
+              ?.week_number ?? d.week_number ?? 1
+          : d.week_number ?? 1;
       if (!weekMap.has(wn))
         weekMap.set(wn, {
           number: wn,

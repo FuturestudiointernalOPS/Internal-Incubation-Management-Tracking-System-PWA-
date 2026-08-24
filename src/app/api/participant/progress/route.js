@@ -125,26 +125,39 @@ export async function GET(req) {
       totalRetros += retros.length;
       totalReflections += reflections.length;
 
-      // ─── Determine unlocked sessions based on scheduled_date ───
+      // ─── Determine unlocked sessions: a session unlocks once its status is
+      // active/in progress/completed (PM marks the current week), its
+      // scheduled_date has passed, or it has no date yet. Aligned with the
+      // program detail route so the dashboard week matches the detail view. ───
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      const unlockedSessions = sessions.filter((s) => {
+      const checkUnlocked = (s) => {
+        const st = String(s.status || "").toLowerCase();
+        if (["active", "in progress", "completed"].includes(st)) return true;
         if (!s.scheduled_date) return true;
         const sched = new Date(s.scheduled_date);
         sched.setHours(0, 0, 0, 0);
         return sched <= today;
-      });
+      };
+
+      const unlockedSessions = sessions.filter(checkUnlocked);
 
       const unlockedSessionWeekNumbers = new Set(
         unlockedSessions.map((s) => s.week_number || 1),
       );
-      const unlockedDeliverables = deliverables.filter((d) => {
-        const wn = d.session_id
-          ? sessions.find((s) => s.id === d.session_id)?.week_number || 1
-          : d.week_number || 1;
-        return unlockedSessionWeekNumbers.has(wn);
-      });
+      // Resolve a deliverable's week from its session (type-safe string
+      // comparison), falling back to its own week_number, then to 1.
+      const deliverableWeek = (d) => {
+        if (d.session_id != null) {
+          const s = sessions.find((x) => String(x.id) === String(d.session_id));
+          if (s?.week_number != null) return s.week_number;
+        }
+        return d.week_number ?? 1;
+      };
+      const unlockedDeliverables = deliverables.filter((d) =>
+        unlockedSessionWeekNumbers.has(deliverableWeek(d)),
+      );
 
       const currentWeek =
         unlockedSessions.length > 0
