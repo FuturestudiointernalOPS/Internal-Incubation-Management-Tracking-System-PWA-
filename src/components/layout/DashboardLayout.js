@@ -809,12 +809,6 @@ const NAVIGATION_MATRIX = {
       href: "/participant/dashboard",
     },
     {
-      id: "timeline",
-      name: "MY TIMELINE",
-      icon: Clock,
-      href: "/participant/profile#timeline",
-    },
-    {
       id: "certificates",
       name: "MY CERTIFICATES",
       icon: FileText,
