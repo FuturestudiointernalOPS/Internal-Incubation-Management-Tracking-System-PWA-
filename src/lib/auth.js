@@ -1008,6 +1008,30 @@ export async function assertNoParticipantFacilitatorConflict(
 }
 
 /**
+ * Returns true when `supervisorCid` is the CURRENT supervisor of
+ * `superviseeCid` (a `contact_roles` relationship persisted in Phase 2A).
+ * Used for read-only supervisor visibility into a supervisee's standup/retro/
+ * blockers. This grants NO write access — it only widens read scoping.
+ */
+export async function isSupervisorOf(supervisorCid, superviseeCid) {
+  try {
+    await initDb();
+    if (!supervisorCid || !superviseeCid) return false;
+    const res = await db.execute({
+      sql: `SELECT 1 FROM contact_roles
+            WHERE contact_cid = ? AND context_type = 'supervision'
+              AND context_id = ? AND is_current = true
+            LIMIT 1`,
+      args: [superviseeCid, supervisorCid],
+    });
+    return res.rows.length > 0;
+  } catch (e) {
+    console.error("isSupervisorOf error:", e.message);
+    return false;
+  }
+}
+
+/**
  * Returns the current status of a person's assignment within a resource.
  * Defaults to "active" when no explicit assignment record exists, so this
  * never introduces a new denial for legacy rows.

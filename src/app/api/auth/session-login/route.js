@@ -137,49 +137,6 @@ export async function POST(req) {
     } else if (isFamilyLogin) {
       finalRole = "participant";
     } else {
-      const pmLeadAssignment = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
-        args: [userCid],
-      });
-
-      // Resolve teacher/assistant role: check v2_programs (assigned_assistant_id,
-      // which may not exist in fresh DBs), and v2_teams (handler_id).
-      // Wrapped in try/catch for schema compatibility across environments.
-      let activeTeammateAssignment = { rows: [] };
-      try {
-        activeTeammateAssignment = await db.execute({
-          sql: `SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ?
-                UNION
-                SELECT id::text FROM v2_teams WHERE handler_id = ?
-                LIMIT 1`,
-          args: [`%${userCid}%`, userCid],
-        });
-      } catch (_) {
-        // v2_programs.assigned_assistant_id may not exist — fall back to v2_teams only
-        try {
-          activeTeammateAssignment = await db.execute({
-            sql: "SELECT id::text FROM v2_teams WHERE handler_id = ? LIMIT 1",
-            args: [userCid],
-          });
-        } catch (__) {
-          // v2_teams may also be unavailable — leave rows empty
-        }
-      }
-
-      // External facilitators are program-scoped: only resolved when they hold
-      // a facilitator assignment (or carry the facilitator contact role).
-      const hasFacilitatorAssignment = async (cid, email) => {
-        try {
-          const facRes = await db.execute({
-            sql: "SELECT 1 FROM v2_program_staff WHERE role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
-            args: [cid, email || ""],
-          });
-          return facRes.rows.length > 0;
-        } catch (_) {
-          return false;
-        }
-      };
-
       if (user.role === "super_admin" || user.id === "sa") {
         finalRole = "super_admin";
       } else if (user.role === "developer") {
@@ -188,8 +145,6 @@ export async function POST(req) {
         finalRole = "investor";
       } else if (user.role === "founder") {
         finalRole = "founder";
-      } else if (pmLeadAssignment.rows.length > 0) {
-        finalRole = "program_manager";
       } else if (user.role === "program_manager") {
         finalRole = "program_manager";
       } else if (
@@ -201,15 +156,10 @@ export async function POST(req) {
         // Internal Future Studio staff keep their identity — being assigned as
         // a program assistant / team handler must NOT turn them into a teacher.
         finalRole = "staff";
-      } else if (
-        user.role === "facilitator" ||
-        (await hasFacilitatorAssignment(userCid, user.email))
-      ) {
-        // External program facilitators are program-scoped; they get the
-        // facilitator dashboard which only lists their assigned programs.
+      } else if (user.role === "facilitator") {
+        // Explicit facilitator role; program-scoped access is still resolved
+        // per assignment by the facilitator workspace and its guards.
         finalRole = "facilitator";
-      } else if (activeTeammateAssignment.rows.length > 0) {
-        finalRole = "teacher";
       } else if (user.role === "teacher") {
         finalRole = "teacher";
       } else if (user.role === "investor") {

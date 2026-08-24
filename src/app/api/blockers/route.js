@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isSupervisorOf } from "@/lib/auth";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
 
 /**
@@ -41,18 +41,25 @@ export async function GET(req) {
 
     // SECURITY (Phase 0): Non-SA users can only see blockers on their own tasks
     // or tasks assigned to them.
+    // (Phase 3B): a supervisor may also read their supervisee's blockers.
     if (session.role !== "super_admin") {
-      if (user_id && String(user_id) !== String(session.cid)) {
+      const viewingOther = user_id && String(user_id) !== String(session.cid);
+      const isSupervisor = viewingOther
+        ? await isSupervisorOf(session.cid, user_id)
+        : false;
+      if (viewingOther && !isSupervisor) {
         return NextResponse.json(
           { success: false, error: "You can only view your own blockers." },
           { status: 403 },
         );
       }
-      // Scope to blockers where the task belongs to, assigned to, or supervised by the user
+      // Scope to blockers where the task belongs to, assigned to, or supervised
+      // by the user; when acting as a supervisor, scope to the supervisee's tasks.
+      const scopeCid = isSupervisor ? String(user_id) : String(session.cid);
       let sql = `SELECT b.* FROM blockers b
         JOIN tasks t ON b.task_id = t.id
         WHERE (t.user_id = ? OR t.assigned_to = ? OR t.supervisor_id = ?)`;
-      const args = [String(session.cid), String(session.cid), String(session.cid)];
+      const args = [scopeCid, scopeCid, scopeCid];
 
       if (id) {
         sql += " AND b.id = ?";
@@ -62,7 +69,7 @@ export async function GET(req) {
         sql += " AND b.task_id = ?";
         args.push(parseInt(task_id));
       }
-      if (user_id) {
+      if (user_id && !isSupervisor) {
         sql += " AND b.user_id = ?";
         args.push(user_id);
       }

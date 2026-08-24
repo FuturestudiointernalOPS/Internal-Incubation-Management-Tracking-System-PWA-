@@ -81,39 +81,8 @@ export async function POST(req) {
     let finalRole = "participant";
     const userCid = user.cid;
 
-    const pmLeadAssignment = await db.execute({
-      sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
-      args: [userCid],
-    });
-
-    let activeTeammateAssignment = { rows: [] };
-    try {
-      activeTeammateAssignment = await db.execute({
-        sql: "SELECT id::text FROM v2_programs WHERE assigned_assistant_id LIKE ? UNION SELECT id::text FROM v2_teams WHERE handler_id = ? LIMIT 1",
-        args: ["%" + userCid + "%", userCid],
-      });
-    } catch (_) {
-      try {
-        activeTeammateAssignment = await db.execute({
-          sql: "SELECT id::text FROM v2_teams WHERE handler_id = ? LIMIT 1",
-          args: [userCid],
-        });
-      } catch (__) {}
-    }
-
-    // External facilitators are program-scoped: only resolved when they hold
-    // a facilitator assignment (or carry the facilitator contact role).
-    const hasFacilitatorAssignment = async (cid, email) => {
-      try {
-        const facRes = await db.execute({
-          sql: "SELECT 1 FROM v2_program_staff WHERE role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
-          args: [cid, email || ""],
-        });
-        return facRes.rows.length > 0;
-      } catch (_) {
-        return false;
-      }
-    };
+    // External facilitators are program-scoped; the explicit role branch below
+    // remains the only way to receive the facilitator global role at login.
 
     if (user.role === "super_admin" || user.id === "sa") {
       finalRole = "super_admin";
@@ -123,8 +92,6 @@ export async function POST(req) {
       finalRole = "investor";
     } else if (user.role === "founder") {
       finalRole = "founder";
-    } else if (pmLeadAssignment.rows.length > 0) {
-      finalRole = "program_manager";
     } else if (user.role === "program_manager") {
       finalRole = "program_manager";
     } else if (
@@ -134,10 +101,8 @@ export async function POST(req) {
       // Internal Future Studio staff keep their identity — being assigned as
       // a program assistant / team handler must NOT turn them into a teacher.
       finalRole = "staff";
-    } else if (user.role === "facilitator" || (await hasFacilitatorAssignment(userCid, user.email))) {
+    } else if (user.role === "facilitator") {
       finalRole = "facilitator";
-    } else if (activeTeammateAssignment.rows.length > 0) {
-      finalRole = "teacher";
     } else if (user.role === "teacher") {
       finalRole = "teacher";
     } else if (user.role === "participant") {

@@ -58,17 +58,6 @@ export async function POST(req) {
     else if (user.role === "teacher") finalRole = "teacher";
     else if (user.role === "staff" || user.role === "admin" || (user.group_name || "").toUpperCase() === "FUTURE STUDIO") finalRole = "staff";
 
-    // Also check pm assignment
-    if (finalRole === "participant") {
-      try {
-        const pmCheck = await db.execute({
-          sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ? LIMIT 1",
-          args: [userCid],
-        });
-        if (pmCheck.rows.length > 0) finalRole = "program_manager";
-      } catch (_) {}
-    }
-
     const { logAuditEvent } = await import("@/lib/audit");
     await logAuditEvent({
       entity_type: "auth",

@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, isSupervisorOf } from "@/lib/auth";
 
 /**
  * GET /api/standups/current
@@ -56,9 +56,11 @@ export async function GET(req) {
     }
 
     // SECURITY (Phase 0): Non-SA users can only view their own standup.
+    // (Phase 3B): a supervisor may also view their supervisee's standup (read-only).
     if (
       session.role !== "super_admin" &&
-      String(user_id) !== String(session.cid)
+      String(user_id) !== String(session.cid) &&
+      !(await isSupervisorOf(session.cid, user_id))
     ) {
       return NextResponse.json(
         { success: false, error: "You can only view your own standup." },
