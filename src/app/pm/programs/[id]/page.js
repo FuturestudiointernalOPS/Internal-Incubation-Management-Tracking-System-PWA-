@@ -1273,27 +1273,32 @@ function ProgramWorkspace() {
 
   const isAssignedPm =
     user.role === "super_admin" ||
-    (program?.assigned_pm_id &&
+    (!!program?.assigned_pm_id &&
       (user.cid === program.assigned_pm_id ||
         user.id === program.assigned_pm_id));
 
-  // A staff member who is the program's assigned PM can manage it the same as
-  // a program_manager (their contact role stays "staff", but they own it).
-  const canEdit =
-    user.role === "super_admin" ||
-    user.role === "program_manager" ||
-    isAssignedPm;
-
+  // Assistants / associates listed in assigned_assistant_id are "team members"
   const isTeamMember = programTeamMembers.some(
     (m) => m.cid === (user.cid || user.id),
   );
-  const canContribute = canEdit || isTeamMember;
 
+  // A staff member who is the program's assigned PM, OR a team member
+  // (assistant/associate), can manage the program the same as a program_manager.
+  const canEdit =
+    user.role === "super_admin" ||
+    user.role === "program_manager" ||
+    isAssignedPm ||
+    isTeamMember;
+
+  const canContribute = canEdit;
+
+  // Tabs: show all tabs to anyone with edit rights, otherwise filter by roles array
   const tabs = allTabs.filter(
     (tab) =>
       !tab.roles ||
       tab.roles.includes(user.role) ||
-      (isAssignedPm && tab.roles.includes("program_manager")),
+      isAssignedPm ||
+      isTeamMember,
   );
 
   // curriculum content moved inline below
