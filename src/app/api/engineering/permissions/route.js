@@ -555,6 +555,25 @@ export async function PUT(req) {
         break;
       }
 
+      case "remove_supervisor": {
+        // End any current supervision relationship (additive, idempotent).
+        await db.execute({
+          sql: `UPDATE contact_roles
+                SET is_current = false, ended_at = NOW(), status = 'removed'
+                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true`,
+          args: [user_cid],
+        });
+        await logPermissionAudit({
+          actorCid: actor.cid,
+          actorName: actor.name,
+          targetCid: user_cid,
+          targetName,
+          action: "supervisor_removed",
+          details: "Supervisor relationship ended (context_type=supervision)",
+        });
+        break;
+      }
+
       case "set_status":
         if (!body.status) {
           return NextResponse.json(

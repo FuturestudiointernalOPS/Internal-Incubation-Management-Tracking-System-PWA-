@@ -16,6 +16,7 @@ import {
   Clock,
   RefreshCw,
   Briefcase,
+  UserCheck,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
@@ -56,6 +57,11 @@ export default function UserAccessSummary() {
   const [modules, setModules] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 20;
+  const [supervisorQuery, setSupervisorQuery] = useState("");
+  const [showSupervisorPicker, setShowSupervisorPicker] = useState(false);
+  const [savingSupervisor, setSavingSupervisor] = useState(false);
+  const [supervisorMsg, setSupervisorMsg] = useState("");
+  const [supervisorError, setSupervisorError] = useState("");
 
   useEffect(() => {
     fetchUsers();
@@ -144,6 +150,89 @@ export default function UserAccessSummary() {
       console.error("Failed to fetch user summary", e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const currentSupervisor = userData?.user?.supervisor_cid
+    ? allUsers.find((u) => u.cid === userData.user.supervisor_cid) || {
+        cid: userData.user.supervisor_cid,
+        name: userData.user.supervisor_cid,
+        email: "",
+      }
+    : null;
+
+  const filteredSupervisors = (() => {
+    if (!supervisorQuery.trim()) return allUsers.slice(0, 8);
+    const q = supervisorQuery.toLowerCase();
+    return allUsers
+      .filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(q) ||
+          (u.email || "").toLowerCase().includes(q),
+      )
+      .slice(0, 8);
+  })();
+
+  const assignSupervisor = async (supervisor) => {
+    setSavingSupervisor(true);
+    setSupervisorMsg("");
+    setSupervisorError("");
+    try {
+      const res = await fetch("/api/engineering/permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set_supervisor",
+          user_cid: selectedUser.cid,
+          supervisor_cid: supervisor.cid,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSupervisorMsg(t("adminMisc.access.supervisorAssigned"));
+        setShowSupervisorPicker(false);
+        setSupervisorQuery("");
+        await fetchUserSummary(selectedUser);
+      } else {
+        setSupervisorError(
+          t((data.error || t("adminMisc.access.supervisorError")) || "") ||
+            (data.error || t("adminMisc.access.supervisorError")),
+        );
+      }
+    } catch (e) {
+      setSupervisorError(t("adminMisc.access.supervisorError"));
+    } finally {
+      setSavingSupervisor(false);
+    }
+  };
+
+  const removeSupervisor = async () => {
+    setSavingSupervisor(true);
+    setSupervisorMsg("");
+    setSupervisorError("");
+    try {
+      const res = await fetch("/api/engineering/permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "remove_supervisor",
+          user_cid: selectedUser.cid,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSupervisorMsg(t("adminMisc.access.supervisorRemoved"));
+        await fetchUserSummary(selectedUser);
+      } else {
+        setSupervisorError(
+          t((data.error || t("adminMisc.access.supervisorError")) || "") ||
+            (data.error || t("adminMisc.access.supervisorError")),
+        );
+      }
+    } catch (e) {
+      setSupervisorError(t("adminMisc.access.supervisorError"));
+    } finally {
+      setSavingSupervisor(false);
     }
   };
 
@@ -451,6 +540,101 @@ export default function UserAccessSummary() {
                           );
                         })}
                       </div>
+                    )}
+                  </div>
+
+                  {/* Supervisor Card */}
+                  <div className="ios-card !p-5 border-[var(--border-primary)]">
+                    <div className="flex items-center gap-2 mb-4">
+                      <UserCheck className="w-4 h-4 text-[var(--brand-orange)]" />
+                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                        {t("adminMisc.access.supervisor")}
+                      </h3>
+                    </div>
+
+                    {supervisorMsg && (
+                      <p className="text-[8px] font-bold text-emerald-400 mb-2">
+                        {supervisorMsg}
+                      </p>
+                    )}
+                    {supervisorError && (
+                      <p className="text-[8px] font-bold text-red-400 mb-2">
+                        {supervisorError}
+                      </p>
+                    )}
+
+                    {currentSupervisor ? (
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider truncate">
+                            {currentSupervisor.name}
+                          </p>
+                          {currentSupervisor.email && (
+                            <p className="text-[8px] font-bold text-[var(--text-secondary)] truncate">
+                              {currentSupervisor.email}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={removeSupervisor}
+                          disabled={savingSupervisor}
+                          className="shrink-0 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40"
+                        >
+                          {t("adminMisc.access.removeSupervisor")}
+                        </button>
+                      </div>
+                    ) : showSupervisorPicker ? (
+                      <div className="space-y-2">
+                        <input
+                          value={supervisorQuery}
+                          onChange={(e) => setSupervisorQuery(e.target.value)}
+                          placeholder={t("adminMisc.access.supervisorSearchPlaceholder")}
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                        />
+                        <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                          {filteredSupervisors.map((u) => (
+                            <button
+                              key={u.cid}
+                              onClick={() => assignSupervisor(u)}
+                              disabled={savingSupervisor}
+                              className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-tertiary transition-all text-left"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wide truncate">
+                                  {u.name || u.cid}
+                                </p>
+                                <p className="text-[7px] font-bold text-[var(--text-secondary)] truncate">
+                                  {u.email}
+                                </p>
+                              </div>
+                              <span className="text-[7px] font-bold text-[var(--brand-orange)] shrink-0">
+                                {u.role}
+                              </span>
+                            </button>
+                          ))}
+                          {filteredSupervisors.length === 0 && (
+                            <p className="text-[8px] font-bold text-slate-500 py-2 text-center">
+                              {t("adminMisc.access.supervisorNoResults")}
+                            </p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setShowSupervisorPicker(false);
+                            setSupervisorQuery("");
+                          }}
+                          className="text-[8px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          {t("common.cancel")}
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowSupervisorPicker(true)}
+                        className="w-full px-3 py-2 rounded-lg bg-secondary border border-dashed border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/40 transition-all"
+                      >
+                        {t("adminMisc.access.assignSupervisor")}
+                      </button>
                     )}
                   </div>
 
