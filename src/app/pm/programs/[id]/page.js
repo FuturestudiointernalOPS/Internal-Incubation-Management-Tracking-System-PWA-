@@ -206,8 +206,8 @@ function ProgramWorkspace() {
     () => getLocalToday()
   );
   const [pmReportAttachments, setPmReportAttachments] = useState({
-    type: "text",
-    content: "",
+    type: "",
+    url: "",
   });
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
@@ -806,6 +806,35 @@ function ProgramWorkspace() {
     }
   };
 
+  // Upload a PDF attachment for the weekly report (stored in Supabase storage).
+  const handleReportAttachmentUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.type !== "application/pdf" && !/\.pdf$/i.test(file.name)) {
+      notify(t("pmMisc.workspace.attachmentPdfOnly"), "error");
+      e.target.value = "";
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.success && data.url) {
+        setPmReportAttachments((p) => ({ ...p, type: "file", url: data.url }));
+        notify(t("pmMisc.workspace.attachmentUploaded"));
+      } else {
+        notify(t((data.error || t("pmMisc.workspace.attachmentUploadFailed")) || "") || (data.error || t("pmMisc.workspace.attachmentUploadFailed")), "error");
+      }
+    } catch (_) {
+      notify(t("pmMisc.workspace.attachmentUploadFailed"), "error");
+    } finally {
+      setIsSaving(false);
+      e.target.value = "";
+    }
+  };
+
   const submitPMReport = async () => {
     // Validate required fields
     if (
@@ -857,6 +886,8 @@ function ProgramWorkspace() {
         additional_issue_note: newPMReport.additional_issue_note || null,
         program_on_track: newPMReport.program_on_track,
         planned_adjustments: newPMReport.planned_adjustments || null,
+        attachment_type: pmReportAttachments.type || null,
+        attachment_url: pmReportAttachments.url || null,
       };
       const res = await fetch("/api/pm/curriculum", {
         method: "POST",
@@ -867,6 +898,7 @@ function ProgramWorkspace() {
       if (data.success) {
         notify(t("pmMisc.workspace.reportTransmitted"));
         setShowPMReportModal(false);
+        setPmReportAttachments({ type: "", url: "" });
         setNewPMReport({
           summary: "",
           status: "optimal",
@@ -6201,6 +6233,99 @@ function ProgramWorkspace() {
                       className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all resize-none"
                       placeholder={t("pmMisc.workspace.additionalNotesPlaceholder")}
                     />
+                  </div>
+
+                  {/* Attachment: URL link or PDF upload */}
+                  <div className="space-y-1.5">
+                    <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                      {t("pmMisc.workspace.reportAttachment")}
+                    </label>
+                    <div className="flex gap-2 flex-wrap items-center">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPmReportAttachments((p) => ({
+                            type: "link",
+                            url: p.type === "link" ? p.url : "",
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${pmReportAttachments.type === "link"
+                          ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
+                          : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                      >
+                        {t("pmMisc.workspace.attachmentLink")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPmReportAttachments((p) => ({
+                            type: "file",
+                            url: p.type === "file" ? p.url : "",
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest transition-all ${pmReportAttachments.type === "file"
+                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500"
+                          : "bg-transparent border-white/10 text-slate-500 hover:border-white/30"
+                          }`}
+                      >
+                        {t("pmMisc.workspace.attachmentPdf")}
+                      </button>
+                      {pmReportAttachments.url && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPmReportAttachments({ type: "", url: "" })
+                          }
+                          className="ml-auto flex items-center gap-1 px-2 py-1.5 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all text-[9px] font-black uppercase tracking-widest"
+                        >
+                          <X className="w-3 h-3" />{" "}
+                          {t("pmMisc.workspace.attachmentRemove")}
+                        </button>
+                      )}
+                    </div>
+
+                    {pmReportAttachments.type === "link" && (
+                      <input
+                        type="url"
+                        value={pmReportAttachments.url}
+                        onChange={(e) =>
+                          setPmReportAttachments((p) => ({
+                            ...p,
+                            url: e.target.value,
+                          }))
+                        }
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm outline-none font-bold text-[var(--text-primary)] focus:border-[var(--brand-orange)] transition-all"
+                        placeholder={t("pmMisc.workspace.attachmentUrlPlaceholder")}
+                      />
+                    )}
+
+                    {pmReportAttachments.type === "file" && (
+                      <div className="flex items-center gap-3">
+                        <label className="btn btn-secondary btn-sm cursor-pointer">
+                          {isSaving && !pmReportAttachments.url
+                            ? t("pmMisc.workspace.attachmentUploading")
+                            : t("pmMisc.workspace.attachmentChoosePdf")}
+                          <input
+                            type="file"
+                            accept="application/pdf,.pdf"
+                            className="hidden"
+                            onChange={handleReportAttachmentUpload}
+                            disabled={isSaving}
+                          />
+                        </label>
+                        {pmReportAttachments.url && (
+                          <a
+                            href={pmReportAttachments.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[9px] font-black text-emerald-500 uppercase tracking-widest truncate max-w-[220px] hover:underline"
+                          >
+                            {t("pmMisc.workspace.attachmentUploaded")}
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

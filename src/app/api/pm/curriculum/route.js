@@ -43,6 +43,19 @@ async function ensureDeliverableResourceSchema() {
 }
 
 /**
+ * Ensure the weekly-report attachment columns exist (URL link or PDF upload).
+ * Idempotent and additive — mirrors the other ensure* schema helpers.
+ */
+async function ensureWeeklyReportAttachmentSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_type TEXT", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_url TEXT", args: [] });
+  } catch (_) {}
+}
+
+/**
  * Save a version snapshot before updating a session.
  */
 async function saveSessionVersion(sessionId, userId) {
@@ -84,6 +97,7 @@ export async function POST(req) {
     await initDb();
     await ensureVersioningSchema();
     await ensureDeliverableResourceSchema();
+    await ensureWeeklyReportAttachmentSchema();
     const authError = await requireAuth([
       "staff",
       "super_admin",
@@ -362,6 +376,8 @@ export async function POST(req) {
         additional_issue_note,
         program_on_track,
         planned_adjustments,
+        attachment_type,
+        attachment_url,
       } = payload;
 
       await db.execute({
@@ -375,7 +391,8 @@ export async function POST(req) {
                    delivery_quality, participant_understanding,
                    delivery_challenges, delivery_challenge_note,
                    had_issues, issue_types, requires_admin_attention, additional_issue_note,
-                   program_on_track, planned_adjustments)
+                   program_on_track, planned_adjustments,
+                   attachment_type, attachment_url)
                   VALUES (?, ?, ?, ?, ?, ?,
                    ?, ?, ?,
                    ?, ?, ?, ?,
@@ -384,7 +401,9 @@ export async function POST(req) {
                    ?, ?,
                    ?, ?,
                    ?, ?,
+                   ?, ?,
                    ?, ?, ?, ?,
+                   ?, ?,
                    ?, ?)
                   ON CONFLICT (program_id, week_number, teacher_id)
                   DO UPDATE SET
@@ -413,7 +432,9 @@ export async function POST(req) {
                     requires_admin_attention = EXCLUDED.requires_admin_attention,
                     additional_issue_note = EXCLUDED.additional_issue_note,
                     program_on_track = EXCLUDED.program_on_track,
-                    planned_adjustments = EXCLUDED.planned_adjustments`,
+                    planned_adjustments = EXCLUDED.planned_adjustments,
+                    attachment_type = EXCLUDED.attachment_type,
+                    attachment_url = EXCLUDED.attachment_url`,
         args: [
           program_id,
           week_number,
@@ -466,6 +487,8 @@ export async function POST(req) {
           additional_issue_note || null,
           program_on_track != null ? (program_on_track ? 1 : 0) : null,
           planned_adjustments || null,
+          attachment_type || null,
+          attachment_url || null,
         ],
       });
       return NextResponse.json({ success: true });
