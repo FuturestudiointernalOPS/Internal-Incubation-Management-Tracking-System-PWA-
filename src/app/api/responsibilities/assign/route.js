@@ -7,6 +7,7 @@ import {
   removeResponsibility,
   logPermissionAudit,
   getAllResponsibilities,
+  seedDefaultResponsibilities,
 } from "@/lib/auth";
 
 /**
