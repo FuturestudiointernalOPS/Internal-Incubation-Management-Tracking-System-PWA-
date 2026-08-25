@@ -1124,6 +1124,7 @@ function ContactsPageContent() {
                   <option value="participant">{t("crm.contacts.roleParticipant")}</option>
                   <option value="member">{t("crm.contacts.roleMember")}</option>
                   <option value="intern">{t("crm.contacts.roleIntern")}</option>
+                  <option value="facilitator">{t("crm.contacts.roleFacilitator")}</option>
                 </select>
                 <p className="text-[8px] text-[var(--text-secondary)] ml-1 opacity-60">
                   {t("crm.contacts.roleHelper")}

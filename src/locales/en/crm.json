@@ -148,6 +148,7 @@
       "roleParticipant": "Participant",
       "roleMember": "Member (no role yet)",
       "roleIntern": "Intern",
+      "roleFacilitator": "Facilitator",
       "roleHelper": "Leave as Auto-detect for most users. Set to Developer for dev account only.",
       "programAssignment": "Program Assignment",
       "programHelper": "Select the program for this user.",
