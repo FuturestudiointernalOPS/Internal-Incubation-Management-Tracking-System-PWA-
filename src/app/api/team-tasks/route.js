@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * Team Tasks API — lightweight task board for teams
@@ -14,13 +14,8 @@ import { requireAuth } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("tasks", "view");
+    if (capError) return capError;
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get("team_id");
 
@@ -60,13 +55,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("tasks", "create");
+    if (capError) return capError;
     const { team_id, title, description, status, priority, assigned_to, created_by } =
       await req.json();
 
@@ -103,13 +93,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("tasks", "edit");
+    if (capError) return capError;
     const { id, title, description, status, priority, assigned_to } =
       await req.json();
 
@@ -154,13 +139,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("tasks", "delete");
+    if (capError) return capError;
     const { id } = await req.json();
 
     if (!id) {

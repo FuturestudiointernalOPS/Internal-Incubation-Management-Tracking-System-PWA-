@@ -3,6 +3,7 @@ import db, { initDb } from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { updateVenture } from "@/lib/ventures";
 
 /**
@@ -57,10 +58,10 @@ export const GET = createHandler(
  * POST /api/ventures
  * Create a new venture.
  */
-export const POST = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
-  async (req) => {
-    const { name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id } = await req.json();
+export const POST = createHandler(async (req) => {
+  const capError = await requireAuthorization("ventures", "create");
+  if (capError) return capError;
+  const { name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id } = await req.json();
     if (!name) {
       return NextResponse.json({ success: false, error: "name is required" }, { status: 400 });
     }
@@ -99,17 +100,16 @@ export const POST = createHandler(
     } catch (_) {}
 
     return NextResponse.json({ success: true, id, venture_id });
-  },
-);
+});
 
 /**
  * PUT /api/ventures
  * Update a venture. Expects { id: venture_id, ...fields } in body.
  */
-export const PUT = createHandler(
-  { roles: ["super_admin"] },
-  async (req) => {
-    const body = await req.json();
+export const PUT = createHandler(async (req) => {
+  const capError = await requireAuthorization("ventures", "edit");
+  if (capError) return capError;
+  const body = await req.json();
     const { id, ...updates } = body;
     if (!id) {
       return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
@@ -136,5 +136,4 @@ export const PUT = createHandler(
     }
 
     return NextResponse.json({ success: true, ...result });
-  },
-);
+});

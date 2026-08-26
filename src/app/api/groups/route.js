@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 export const dynamic = "force-dynamic";
 
 /**
@@ -50,8 +51,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const body = await req.json();
     const { program_id, name, type, description, default_role } = body;
@@ -105,8 +106,8 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const { id, name, type, description, is_archived, default_role } = await req.json();
 
@@ -160,8 +161,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const { id } = await req.json();
 

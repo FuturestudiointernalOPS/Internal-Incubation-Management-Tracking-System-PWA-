@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   getVentureById,
   updateVenture,
@@ -47,10 +48,10 @@ export const GET = createHandler(
  * Update a venture's information.
  * Only super_admin can update.
  */
-export const PATCH = createHandler(
-  { roles: ["super_admin"] },
-  async (req, { params }) => {
-    const { id } = await params;
+export const PATCH = createHandler(async (req, { params }) => {
+  const capError = await requireAuthorization("ventures", "edit");
+  if (capError) return capError;
+  const { id } = await params;
 
     // Check venture exists
     const existingVenture = await getVentureById(id);
@@ -106,5 +107,4 @@ export const PATCH = createHandler(
       success: true,
       venture: updatedVenture,
     });
-  },
-);
+});

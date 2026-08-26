@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/lib/authorization";
 import { getSystemReports, generateSystemReport } from "@/lib/ventures";
 
-export const GET = createHandler(
-  { roles: ["super_admin"] },
-  async (req) => {
-    const s = new URL(req.url).searchParams;
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
+  const s = new URL(req.url).searchParams;
     const type = s.get("type");
     const limit = s.get("limit") ? parseInt(s.get("limit"), 10) : undefined;
     const offset = s.get("offset") ? parseInt(s.get("offset"), 10) : undefined;

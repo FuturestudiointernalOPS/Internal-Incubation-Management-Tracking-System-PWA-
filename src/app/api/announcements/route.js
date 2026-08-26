@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/announcements
@@ -91,12 +91,10 @@ export async function POST(req) {
         { status: 401 },
       );
     }
-    const authError = await requireAuth([
-      "super_admin",
-      "program_manager",
-      "admin",
-      "staff",
-    ]);
+    const authError = await requireAuthorization(
+      "internal_comms",
+      "create_announcements",
+    );
     if (authError) return authError;
 
     // Ensure table exists (safe migration)
@@ -208,12 +206,7 @@ export async function PUT(req) {
         { status: 401 },
       );
     }
-    const authError = await requireAuth([
-      "super_admin",
-      "program_manager",
-      "admin",
-      "staff",
-    ]);
+    const authError = await requireAuthorization("internal_comms", "moderate");
     if (authError) return authError;
 
     const { id, is_archived, is_pinned, title, body } = await req.json();
@@ -307,12 +300,7 @@ export async function DELETE(req) {
         { status: 401 },
       );
     }
-    const authError = await requireAuth([
-      "super_admin",
-      "program_manager",
-      "admin",
-      "staff",
-    ]);
+    const authError = await requireAuthorization("internal_comms", "moderate");
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);

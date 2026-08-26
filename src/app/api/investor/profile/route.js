@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /** GET  /api/investor/profile — current investor's profile */
 export async function GET(req) {
@@ -33,8 +34,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "create");
+    if (capError) return capError;
 
     const session = await getSession();
     const user = session;

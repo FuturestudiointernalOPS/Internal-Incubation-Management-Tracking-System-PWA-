@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
@@ -269,15 +270,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "participant",
-    ]);
-    if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "edit");
+    const capError = await requireAuthorization("contacts", "edit");
     if (capError) return capError;
 
     const data = await req.json();
@@ -609,9 +602,7 @@ export async function GET(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "delete");
+    const capError = await requireAuthorization("contacts", "delete");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);

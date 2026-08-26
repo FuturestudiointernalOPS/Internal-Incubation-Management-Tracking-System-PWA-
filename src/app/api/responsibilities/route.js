@@ -8,6 +8,7 @@ import {
   logPermissionAudit,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 
 /**
@@ -66,8 +67,8 @@ export async function GET(req) {
  */
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const body = await req.json();
     const { name, key, description, icon } = body;
@@ -108,8 +109,8 @@ export async function POST(req) {
  */
 export async function PUT(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const body = await req.json();
     const { id, name, key, description, icon, is_active } = body;
@@ -174,8 +175,8 @@ export async function PUT(req) {
  */
 export async function DELETE(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

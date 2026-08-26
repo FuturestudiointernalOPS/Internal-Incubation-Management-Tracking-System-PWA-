@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession, logPermissionAudit } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/assign
@@ -10,8 +11,8 @@ import { requireAuth, getSession, logPermissionAudit } from "@/lib/auth";
  */
 export async function PUT(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const session = await getSession();
     await initDb();
@@ -116,8 +117,8 @@ export async function PUT(req) {
  */
 export async function GET(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "view_matrix");
+    if (capError) return capError;
 
     await initDb();
     const { searchParams } = new URL(req.url);

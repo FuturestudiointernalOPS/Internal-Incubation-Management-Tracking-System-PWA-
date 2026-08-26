@@ -41,6 +41,13 @@ jest.mock("@/lib/audit", () => ({
   logAuditEvent: jest.fn().mockResolvedValue(true),
 }));
 
+// Phase 3: the submit routes now gate through the canonical authorization
+// resolver. Authorization is out of scope for these business-logic tests,
+// so the gate is mocked as granted.
+jest.mock("@/lib/authorization", () => ({
+  requireAuthorization: jest.fn().mockResolvedValue(null),
+}));
+
 jest.mock("@/lib/db/queries/tasks", () => ({
   getTaskTitleById: jest.fn().mockResolvedValue("Some task"),
 }));

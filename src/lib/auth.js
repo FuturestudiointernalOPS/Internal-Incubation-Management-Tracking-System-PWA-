@@ -412,6 +412,22 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create", "edit", "delete", "export"],
   },
   settings: { name: "System Settings", capabilities: ["view", "edit"] },
+  knowledge: {
+    name: "Knowledge Base",
+    capabilities: ["view", "create", "edit", "delete"],
+  },
+  tasks: {
+    name: "Tasks",
+    capabilities: ["view", "create", "edit", "delete"],
+  },
+  ventures: {
+    name: "Ventures",
+    capabilities: ["view", "create", "edit", "delete"],
+  },
+  investor: {
+    name: "Investor",
+    capabilities: ["view", "create", "edit", "delete"],
+  },
   facilitator: {
     name: "Program Facilitator",
     capabilities: [
@@ -458,124 +474,6 @@ export async function getUserGroups(userCid) {
     return [];
   } catch {
     return [];
-  }
-}
-
-export async function getUserEffectiveCapabilities(userCid, userRole, module) {
-  try {
-    await initDb();
-    const groups = await getUserGroups(userCid);
-    const role = await db.execute({
-      sql: "SELECT capability, access_level FROM role_capabilities WHERE role = ? AND module = ?",
-      args: [userRole, module],
-    });
-    let group = [];
-    if (groups.length > 0) {
-      const ph = groups.map(() => "?").join(",");
-      group = (
-        await db.execute({
-          sql: `SELECT capability, access_level FROM group_capabilities WHERE group_name IN (${ph}) AND module = ?`,
-          args: [...groups, module],
-        })
-      ).rows;
-    }
-    const grants = (
-      await db.execute({
-        sql: "SELECT capability, access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid, module],
-      })
-    ).rows;
-    const restricts = new Set(
-      (
-        await db.execute({
-          sql: "SELECT capability FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
-          args: [userCid, module],
-        })
-      ).rows.map((r) => r.capability),
-    );
-    const merged = new Map();
-    const add = (cap, lvl) => {
-      const e = merged.get(cap) || 0;
-      if (lvl > e) merged.set(cap, lvl);
-    };
-    role.rows.forEach((r) => add(r.capability, r.access_level));
-    group.forEach((r) => add(r.capability, r.access_level));
-    grants.forEach((r) => add(r.capability, r.access_level));
-    restricts.forEach((c) => merged.delete(c));
-    return merged;
-  } catch {
-    return new Map();
-  }
-}
-
-export async function getUserFullPermissionMatrix(userCid, userRole) {
-  const result = {};
-  for (const mod of Object.keys(PERMISSION_MODULES)) {
-    const caps = await getUserEffectiveCapabilities(userCid, userRole, mod);
-    result[mod] = {};
-    for (const [capability, level] of caps) result[mod][capability] = level;
-  }
-  return result;
-}
-
-export async function hasCapability(
-  userCid,
-  userRole,
-  module,
-  capability,
-  minLevel = 1,
-) {
-  try {
-    await initDb();
-    if (userRole === "super_admin") {
-      const r = await db.execute({
-        sql: "SELECT 1 FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid, module, capability],
-      });
-      if (r.rows.length === 0) {
-        const g = await db.execute({
-          sql: "SELECT access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-          args: [userCid, module, capability],
-        });
-        if (g.rows.length > 0)
-          return parseInt(g.rows[0].access_level) >= minLevel;
-        return true;
-      }
-      return false;
-    }
-    const caps = await getUserEffectiveCapabilities(userCid, userRole, module);
-    return (caps.get(capability) || 0) >= minLevel;
-  } catch {
-    return false;
-  }
-}
-
-export async function requireCapability(module, capability, minLevel = 1) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    const has = await hasCapability(
-      session.cid,
-      session.role,
-      module,
-      capability,
-      minLevel,
-    );
-    if (!has)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
   }
 }
 
@@ -1397,8 +1295,7 @@ export async function hasCapabilityV2(
 }
 
 /**
- * Require capability using V2 resolution. Works as a drop-in replacement
- * for requireCapability() with the new profile system.
+ * Require capability using V2 (Access Profile) resolution.
  */
 export async function requireCapabilityV2(module, capability, minLevel = 1) {
   try {

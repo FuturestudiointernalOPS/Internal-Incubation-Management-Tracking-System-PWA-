@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 export const dynamic = "force-dynamic";
 
 // Body parser size limit for file uploads
@@ -14,8 +14,8 @@ export const maxDuration = 30;
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("knowledge", "create");
+    if (capError) return capError;
     const body = await req.json();
     const { title, description, files } = body;
 
@@ -67,8 +67,8 @@ export async function POST(req) {
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("knowledge", "view");
+    if (capError) return capError;
     // Use BigInt safe query
     const notesRes = await db.execute(
       "SELECT * FROM v2_knowledge_bank ORDER BY created_at DESC"
@@ -103,8 +103,8 @@ export async function GET() {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("knowledge", "edit");
+    if (capError) return capError;
     const body = await req.json();
     const { id, action } = body;
 
@@ -153,8 +153,8 @@ export async function PATCH(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("knowledge", "delete");
+    if (capError) return capError;
     const { id } = await req.json();
     await db.execute({
       sql: "DELETE FROM v2_knowledge_bank WHERE id = ?",

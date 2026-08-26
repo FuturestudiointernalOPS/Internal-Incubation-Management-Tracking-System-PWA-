@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
 
@@ -15,8 +15,6 @@ export const dynamic = "force-dynamic";
  * manually (email, WhatsApp, Drive...). No share links, no tokens.
  * Admin roles only; read-only fetch.
  */
-
-const ADMIN_ROLES = ["super_admin", "admin", "program_manager", "staff", "teacher"];
 
 /** Flatten one submission's data JSONB into { label: displayValue }, skipping internal keys. */
 function flattenData(data) {
@@ -45,8 +43,8 @@ function slugify(name) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(ADMIN_ROLES);
-    if (authError) return authError;
+    const capError = await requireAuthorization("reports", "export");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const runId = searchParams.get("id");

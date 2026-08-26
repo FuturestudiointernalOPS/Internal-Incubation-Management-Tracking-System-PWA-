@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/investor/relationships/meetings
@@ -9,8 +10,8 @@ import { requireAuth, getSession } from "@/lib/auth";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspace_id");

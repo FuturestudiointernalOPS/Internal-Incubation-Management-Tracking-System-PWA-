@@ -1,14 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager", "staff", "teacher"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("contacts", "view");
+    if (capError) return capError;
 
     const { cid } = await params;
     const result = await db.execute({

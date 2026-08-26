@@ -1,17 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, requireCapabilityV2, getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff", "super_admin", "program_manager", "teacher", "participant", "founder",
-    ]);
-    if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "view");
+    const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
 
     const session = await getSession();
@@ -61,9 +58,7 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
-    if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "edit");
+    const capError = await requireAuthorization("contacts", "edit");
     if (capError) return capError;
 
     const session = await getSession();

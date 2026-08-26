@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { reconcileProgramGroups } from "@/lib/contact-group-sync";
 import { attachInvitationStatus } from "@/lib/invitations";
 
@@ -12,13 +12,8 @@ import { attachInvitationStatus } from "@/lib/invitations";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("contacts", "view");
+    if (capError) return capError;
 
     // Self-heal existing records: fill missing group/program links idempotently
     // so previously-approved participants/facilitators stop showing as UNASSIGNED.

@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * Auto-categorize an error based on its properties.
@@ -199,9 +200,12 @@ export async function POST(request) {
 
 /**
  * GET /api/errors — Returns error logs with optional filtering.
+ * Phase 8: now gated behind engineering.manage_errors (was PUBLIC).
  */
 export async function GET(request) {
   try {
+    const capError = await requireAuthorization("engineering", "manage_errors");
+    if (capError) return capError;
     const { searchParams } = new URL(request.url);
     const severity = searchParams.get("severity");
     const resolved = searchParams.get("resolved");
@@ -250,9 +254,12 @@ export async function GET(request) {
 
 /**
  * PATCH /api/errors — Updates an error log's status.
+ * Phase 8: now gated behind engineering.manage_errors (was PUBLIC).
  */
 export async function PATCH(request) {
   try {
+    const capError = await requireAuthorization("engineering", "manage_errors");
+    if (capError) return capError;
     const { id, resolved, resolution_notes, task_id } = await request.json();
 
     if (!id) {

@@ -1,13 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /** GET /api/investor/meetings?venture_id=X */
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
@@ -36,8 +37,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "create");
+    if (capError) return capError;
 
     const session = await getSession();
     const { venture_id, title, description, start_time, end_time, location } = await req.json();

@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * PROJECT MEMBERS API
@@ -61,13 +62,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("projects", "edit");
+    if (capError) return capError;
     const { project_id, user_cid, role } = await req.json();
 
     if (!project_id || !user_cid) {
@@ -125,13 +121,8 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("projects", "edit");
+    if (capError) return capError;
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("project_id");
     const userCid = searchParams.get("user_cid");

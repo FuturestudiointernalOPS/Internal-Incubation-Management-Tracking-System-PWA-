@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/engineering/dashboard
@@ -11,8 +11,8 @@ import { requireAuth } from "@/lib/auth";
  */
 export async function GET(request) {
   try {
-    const authError = await requireAuth(["super_admin", "developer"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("engineering", "view");
+    if (capError) return capError;
 
     await initDb();
 

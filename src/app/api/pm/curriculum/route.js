@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
-import { requireAuth, getSession, requireCapabilityV2 } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 
 /**
@@ -98,19 +99,8 @@ export async function POST(req) {
     await ensureVersioningSchema();
     await ensureDeliverableResourceSchema();
     await ensureWeeklyReportAttachmentSchema();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
-    const gateSession = await getSession();
-    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
-      const capError = await requireCapabilityV2("programs", "edit");
-      if (capError) return capError;
-    }
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
     const payload = await req.json();
     const { program_id, action } = payload;
 
@@ -512,19 +502,9 @@ export async function PUT(req) {
     await initDb();
     await ensureVersioningSchema();
     await ensureDeliverableResourceSchema();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
     const session = await getSession();
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
-    if (session && !["staff", "teacher"].includes(session.role)) {
-      const capError = await requireCapabilityV2("programs", "edit");
-      if (capError) return capError;
-    }
     const userId = session?.cid || session?.id || null;
     const payload = await req.json();
     const { id, sessionId, field, value, handlerName, type, program_id } =
@@ -700,19 +680,8 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher).
-    const gateSession = await getSession();
-    if (gateSession && !["staff", "teacher"].includes(gateSession.role)) {
-      const capError = await requireCapabilityV2("programs", "edit");
-      if (capError) return capError;
-    }
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
     const { id, type, program_id } = await req.json();
     let targetProgramId = program_id;
 

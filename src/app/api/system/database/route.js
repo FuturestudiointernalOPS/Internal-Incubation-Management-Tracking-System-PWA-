@@ -2,12 +2,13 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getDatabaseInfo } from "@/lib/ventures";
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
-export const GET = createHandler(
-  { roles: ["super_admin"] },
-  async () => {
-    const db = await getDatabaseInfo();
+export const GET = createHandler(async () => {
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
+  const db = await getDatabaseInfo();
     return NextResponse.json({ success: true, ...db });
   }
 );
@@ -20,8 +21,8 @@ export const GET = createHandler(
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const results = [];
 

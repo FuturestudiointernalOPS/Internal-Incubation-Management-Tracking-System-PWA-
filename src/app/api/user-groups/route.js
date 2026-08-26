@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/user-groups?user_cid=X
@@ -70,8 +71,8 @@ export async function GET(req) {
  */
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     await initDb();
     const { user_cid, group_name } = await req.json();
@@ -111,8 +112,8 @@ export async function POST(req) {
  */
 export async function DELETE(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     await initDb();
     const body = await req.json();

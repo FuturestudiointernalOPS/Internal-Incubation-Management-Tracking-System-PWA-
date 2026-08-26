@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, seedDefaultAccessProfiles } from "@/lib/auth";
+import { seedDefaultAccessProfiles } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/engineering/permissions/seed-access-profiles
@@ -10,8 +11,8 @@ import { requireAuth, seedDefaultAccessProfiles } from "@/lib/auth";
  */
 export async function GET() {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "view_matrix");
+    if (capError) return capError;
 
     const result = await seedDefaultAccessProfiles();
     return NextResponse.json(result);

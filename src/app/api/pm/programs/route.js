@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth, getSession, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
 
@@ -663,17 +664,7 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
-    if (authError) return authError;
-
-    // Phase 3C-7: permanent deletion is Super Admin-only. Only the Super Admin
-    // Default profile holds programs.delete — no staff/PM/teacher bypass.
-    const capError = await requireCapabilityV2("programs", "delete");
+    const capError = await requireAuthorization("programs", "delete");
     if (capError) return capError;
 
     const { id } = await req.json();

@@ -1,5 +1,5 @@
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import Papa from "papaparse";
@@ -24,8 +24,8 @@ import Papa from "papaparse";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const formData = await req.formData();
     const file = formData.get("file");

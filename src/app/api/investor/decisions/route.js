@@ -1,13 +1,14 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /** GET /api/investor/decisions — all decisions for current investor */
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "view");
+    if (capError) return capError;
 
     const session = await getSession();
     const prof = await db.execute({
@@ -71,8 +72,8 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("investor", "create");
+    if (capError) return capError;
 
     const { pipeline_id, decision_type, investment_amount, decision_notes } = await req.json();
 

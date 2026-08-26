@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireCapabilityV2 } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { getBudgetLines } from "@/lib/finance/queries";
 
-export const GET = createHandler({ roles: ["super_admin", "staff"] }, async (req) => {
-  const capError = await requireCapabilityV2("finance", "view");
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("finance", "view");
   if (capError) return capError;
   const { searchParams } = new URL(req.url);
   const dataSourceId = searchParams.get("dataSourceId") || null;

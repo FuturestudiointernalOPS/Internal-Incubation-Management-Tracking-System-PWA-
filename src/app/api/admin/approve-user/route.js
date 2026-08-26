@@ -1,5 +1,5 @@
 import db, { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "@/lib/mailer";
@@ -23,8 +23,8 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureTokenHashColumns();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
     const { user_cid, admin_name, role } = await req.json();
 
     if (!user_cid) {

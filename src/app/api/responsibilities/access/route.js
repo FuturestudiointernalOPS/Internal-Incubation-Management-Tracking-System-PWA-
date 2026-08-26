@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, logPermissionAudit } from "@/lib/auth";
+import { getSession, logPermissionAudit } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
 
 export const dynamic = "force-dynamic";
@@ -19,8 +20,8 @@ export const dynamic = "force-dynamic";
  */
 export async function PUT(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const session = await getSession();
     const body = await req.json();

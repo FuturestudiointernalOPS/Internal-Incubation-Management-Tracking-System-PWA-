@@ -1,11 +1,9 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
-  requireAuth,
   getSession,
   PERMISSION_MODULES,
   ACCESS_LEVELS,
-  getUserFullPermissionMatrix,
   getUserGroups,
   getUserEffectiveProfile,
   logPermissionAudit,
@@ -14,6 +12,12 @@ import {
   ensurePermissionsSchema,
   seedDefaultResponsibilities,
 } from "@/lib/auth";
+import {
+  getAuthorizationContext,
+  effectivePermissionsFromContext,
+  invalidateAuthorizationContext,
+  requireAuthorization,
+} from "@/lib/authorization";
 
 /**
  * GET /api/engineering/permissions
@@ -36,8 +40,8 @@ async function safeQuery(sql, args = []) {
 
 export async function GET(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "view_matrix");
+    if (capError) return capError;
 
     await initDb();
     await ensureResponsibilitiesSchema();
@@ -178,7 +182,15 @@ export async function GET(req) {
       }
       const user = userRes.rows[0];
       const groups = await getUserGroups(userCid);
-      const matrix = await getUserFullPermissionMatrix(userCid, user.role);
+      // Canonical authorization context (V2-equivalent + eligibility).
+      // Phase 0: the admin UI no longer depends on V1 for the effective
+      // permission matrix; V1 remains in the codebase but is unused here.
+      const authzCtx = await getAuthorizationContext({
+        cid: userCid,
+        role: user.role,
+        group_name: user.group_name,
+      });
+      const matrix = effectivePermissionsFromContext(authzCtx);
 
       // Get individual grants
       const grants = await safeQuery(
@@ -267,8 +279,8 @@ export async function GET(req) {
  */
 export async function PUT(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const session = await getSession();
     if (!session) {
@@ -314,6 +326,7 @@ export async function PUT(req) {
         action: "role_changed",
         details: `Promoted to super_admin`,
       });
+      invalidateAuthorizationContext(user_cid);
       return NextResponse.json({
         success: true,
         message: "User promoted to Super Admin",
@@ -333,6 +346,7 @@ export async function PUT(req) {
         action: "role_changed",
         details: "Super Admin status removed",
       });
+      invalidateAuthorizationContext(user_cid);
       return NextResponse.json({
         success: true,
         message: "Super Admin status removed",
@@ -602,6 +616,7 @@ export async function PUT(req) {
         );
     }
 
+    invalidateAuthorizationContext(user_cid);
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[Permissions] PUT error:", err);

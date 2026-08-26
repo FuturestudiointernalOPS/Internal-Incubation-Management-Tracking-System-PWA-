@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   getIntegrationProviders,
   getIntegrations,
   createIntegration,
 } from "@/lib/ventures";
 
-export const GET = createHandler(
-  { roles: ["super_admin"] },
-  async (req) => {
-    const s = new URL(req.url).searchParams;
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
+  const s = new URL(req.url).searchParams;
     const type = s.get("type");
 
     if (type === "providers") {
@@ -30,10 +32,11 @@ export const GET = createHandler(
   },
 );
 
-export const POST = createHandler(
-  { roles: ["super_admin"] },
-  async (req) => {
-    const body = await req.json();
+export const POST = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "edit");
+  if (capError) return capError;
+
+  const body = await req.json();
     const id = await createIntegration({
       provider: body.provider,
       label: body.label,

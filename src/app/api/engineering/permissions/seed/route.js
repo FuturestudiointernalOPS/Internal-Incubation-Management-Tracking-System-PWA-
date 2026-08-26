@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
-import { requireAuth, seedDefaultRoleCapabilities } from "@/lib/auth";
+import { seedDefaultRoleCapabilities } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 /**
  * GET /api/engineering/permissions/seed
  */
 export async function GET() {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "view_matrix");
+    if (capError) return capError;
 
     const result = await seedDefaultRoleCapabilities();
     return NextResponse.json(result);
@@ -28,8 +29,8 @@ export async function GET() {
  */
 export async function POST() {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("permissions", "assign_capabilities");
+    if (capError) return capError;
 
     const result = await seedDefaultRoleCapabilities();
     return NextResponse.json(result);

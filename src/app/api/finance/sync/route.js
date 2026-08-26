@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireCapabilityV2 } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { syncDataSource } from "@/lib/finance/ingest";
 
-export const POST = createHandler({ roles: ["super_admin", "staff"] }, async (req) => {
-  const capError = await requireCapabilityV2("finance", "create");
+export const POST = createHandler(async (req) => {
+  const capError = await requireAuthorization("finance", "create");
   if (capError) return capError;
   const { searchParams } = new URL(req.url);
   const dataSourceId = searchParams.get("dataSourceId");

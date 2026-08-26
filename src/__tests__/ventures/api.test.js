@@ -34,6 +34,13 @@ jest.mock("uuid", () => ({
   v4: jest.fn().mockReturnValue("mock-uuid-1234567890abcdef"),
 }));
 
+// Phase 10: migrated venture routes gate through the canonical authorization
+// resolver. Authorization is out of scope for these business-logic tests,
+// so the gate is mocked as granted.
+jest.mock("@/lib/authorization", () => ({
+  requireAuthorization: jest.fn().mockResolvedValue(null),
+}));
+
 // Mock createHandler to simulate session
 jest.mock("@/lib/api/createHandler", () => {
   const actualModule = jest.requireActual("@/lib/api/createHandler");
