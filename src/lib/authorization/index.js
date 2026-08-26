@@ -17,6 +17,7 @@ export {
   resolveAuthorizationContext,
   mergeEffectiveCapabilities,
   effectivePermissionsFromContext,
+  buildPermissionExplanation,
   rowsToCaps,
   rowsToRestrictions,
 } from "./resolver";

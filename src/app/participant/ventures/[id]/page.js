@@ -421,7 +421,12 @@ export default function VentureDetail() {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+      // Scoped to the venture's program: external users may only search
+      // within their own program context (MVP boundary), never the general
+      // Future Studio CRM directory.
+      const programId = venture?.program_id;
+      if (!programId) { setSearchResults([]); return; }
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}&program_id=${encodeURIComponent(programId)}`);
       const d = await res.json();
       if (d.success) {
         const existingIds = new Set(members.map(m => m.contact_id));

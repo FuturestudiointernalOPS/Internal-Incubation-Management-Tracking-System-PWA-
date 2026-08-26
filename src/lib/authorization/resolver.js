@@ -146,6 +146,7 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
   // Super Admin: allowed unless explicitly restricted (V2 L1370-1385).
   // Eligibility is bypassed entirely — SA is eligible for every feature.
   if (role === "super_admin") {
+    const saMatrix = buildSuperAdminMatrix();
     return {
       cid,
       role,
@@ -153,12 +154,10 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
       groups: [],
       profile: null,
       eligibility: null,
-      effective: mergeEffectiveCapabilities(
-        buildSuperAdminMatrix(),
-        {},
-        grants,
-        restrictions,
-      ),
+      eligibilityRows: [],
+      baseCaps: saMatrix,
+      groupCaps: {},
+      effective: mergeEffectiveCapabilities(saMatrix, {}, grants, restrictions),
       grants,
       restrictions,
     };
@@ -276,6 +275,9 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
     groups,
     profile: { profileId, profileName, profileSource },
     eligibility,
+    eligibilityRows: eligRows,
+    baseCaps,
+    groupCaps,
     effective,
     grants,
     restrictions,
@@ -332,6 +334,58 @@ export function authorize(ctx, module, capability, minLevel = 1) {
 /** Effective permission matrix ({module:{capability:level}}) for UI display. */
 export function effectivePermissionsFromContext(ctx) {
   return ctx?.effective || {};
+}
+
+/**
+ * Pure "who has access and why" explanation for a resolved context.
+ * Returns per-feature eligibility (with the identity rows that produced it)
+ * and the raw capability inputs per module (profile/role base, group caps,
+ * individual grants) alongside the merged effective matrix.
+ */
+export function buildPermissionExplanation(ctx) {
+  if (!ctx) return null;
+
+  if (ctx.isSuperAdmin) {
+    const eligibility = {};
+    for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+      eligibility[featureKey] = {
+        eligible: true,
+        source: "super_admin bypass",
+      };
+    }
+    return {
+      eligibility,
+      sources: {
+        profile: ctx.baseCaps || {},
+        groups: ctx.groupCaps || {},
+        grants: ctx.grants || {},
+      },
+    };
+  }
+
+  const eligibility = {};
+  for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+    const rows = (ctx.eligibilityRows || []).filter(
+      (r) => r.feature_key === featureKey,
+    );
+    eligibility[featureKey] = {
+      eligible: evaluateEligibility(rows, featureKey),
+      sources: rows.map((r) => ({
+        identity_type: r.identity_type,
+        identity_value: r.identity_value,
+        eligible: Number(r.eligible),
+      })),
+    };
+  }
+
+  return {
+    eligibility,
+    sources: {
+      profile: ctx.baseCaps || {},
+      groups: ctx.groupCaps || {},
+      grants: ctx.grants || {},
+    },
+  };
 }
 
 /**

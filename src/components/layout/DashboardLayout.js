@@ -683,11 +683,6 @@ const NAVIGATION_MATRIX = {
           name: "GROUPS",
           href: "/pm/communications/contacts",
         },
-        {
-          id: "messages",
-          name: "MESSAGES",
-          href: "/teacher/messages",
-        },
       ],
     },
     {
@@ -787,12 +782,6 @@ const NAVIGATION_MATRIX = {
       icon: LayoutDashboard,
       href: "/workspaces",
     },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: MessageSquare,
-      href: "/participant/messages",
-    },
   ],
 
   participant: [
@@ -813,12 +802,6 @@ const NAVIGATION_MATRIX = {
       name: "MY CERTIFICATES",
       icon: FileText,
       href: "/participant/certificates",
-    },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: MessageSquare,
-      href: "/participant/messages",
     },
   ],
 
@@ -846,12 +829,6 @@ const NAVIGATION_MATRIX = {
       name: "MY TIMELINE",
       icon: Clock,
       href: "/participant/profile#timeline",
-    },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: MessageSquare,
-      href: "/participant/messages",
     },
   ],
 

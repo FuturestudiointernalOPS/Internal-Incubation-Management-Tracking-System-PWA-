@@ -53,6 +53,8 @@
     "typeDiscussion": "Share an update or question...",
     "postDiscussion": "Post",
     "loadingDiscussions": "Loading discussions...",
-    "noDiscussions": "No discussions yet. Start the conversation."
+    "noDiscussions": "No discussions yet. Start the conversation.",
+    "accessDeniedTitle": "403 — Access Denied",
+    "accessDeniedSubtitle": "Messaging is restricted to Future Studio internal staff."
   }
 }

@@ -668,6 +668,100 @@ describe("investor module (Phase 11)", () => {
   });
 });
 
+// ─── messaging module (MVP: internal-only policy) ───────────────────────────
+
+describe("messaging module (MVP internal-only)", () => {
+  test("messaging eligibility defaults are internal staff only", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.messaging).toEqual([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "developer",
+    ]);
+  });
+
+  test("participant/teacher are denied messaging even with profile caps (not eligible)", () => {
+    const participant = staffCtx({
+      role: "participant",
+      isSuperAdmin: false,
+      eligibility: { messaging: false },
+      effective: { messaging: { view: 1, send: 2 } }, // profile caps but ineligible
+    });
+    const teacher = staffCtx({
+      role: "teacher",
+      isSuperAdmin: false,
+      eligibility: { messaging: false },
+      effective: { messaging: { view: 1, send: 2 } },
+    });
+    expect(authorize(participant, "messaging", "view")).toBe(false);
+    expect(authorize(teacher, "messaging", "send")).toBe(false);
+  });
+
+  test("internal staff with messaging caps are allowed", () => {
+    const staff = staffCtx({
+      eligibility: { messaging: true },
+      effective: { messaging: { view: 1, send: 2 } },
+    });
+    expect(authorize(staff, "messaging", "view")).toBe(true);
+    expect(authorize(staff, "messaging", "send")).toBe(true);
+  });
+});
+
+// ─── buildPermissionExplanation (explainability) ────────────────────────────
+
+describe("buildPermissionExplanation (who has access + why)", () => {
+  test("non-SA: eligibility verdict with identity sources + capability inputs", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const ctx = {
+      isSuperAdmin: false,
+      eligibilityRows: [
+        {
+          feature_key: "finance",
+          identity_type: "role",
+          identity_value: "staff",
+          eligible: 1,
+        },
+      ],
+      baseCaps: { finance: { view: 1 } },
+      groupCaps: { finance: { view: 3 } },
+      grants: { finance: { export: 3 } },
+    };
+    const ex = buildPermissionExplanation(ctx);
+    expect(ex.eligibility.finance).toEqual({
+      eligible: true,
+      sources: [{ identity_type: "role", identity_value: "staff", eligible: 1 }],
+    });
+    expect(ex.eligibility.crm.eligible).toBe(false); // no rows → not eligible
+    expect(ex.sources.profile.finance.view).toBe(1);
+    expect(ex.sources.groups.finance.view).toBe(3);
+    expect(ex.sources.grants.finance.export).toBe(3);
+  });
+
+  test("SA: eligible everywhere by super_admin bypass", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const ex = buildPermissionExplanation({
+      isSuperAdmin: true,
+      baseCaps: {},
+      groupCaps: {},
+      grants: {},
+    });
+    expect(ex.eligibility.finance).toEqual({
+      eligible: true,
+      source: "super_admin bypass",
+    });
+    expect(ex.eligibility.crm).toEqual({
+      eligible: true,
+      source: "super_admin bypass",
+    });
+  });
+
+  test("null context → null", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    expect(buildPermissionExplanation(null)).toBeNull();
+  });
+});
+
 // ─── requireAuthorization route helper ──────────────────────────────────────
 
 describe("requireAuthorization", () => {

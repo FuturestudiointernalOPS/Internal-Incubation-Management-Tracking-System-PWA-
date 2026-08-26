@@ -41,6 +41,7 @@ export function ensureCapabilityBackfills() {
         await ensureProgramsBackfill();
         await ensureVenturesBackfill();
         await ensureInvestorBackfill();
+        await ensureMessagingPolicyBackfill();
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
@@ -795,5 +796,57 @@ async function ensureInvestorBackfill() {
         args: [role, module, capability, level],
       });
     }
+  }
+}
+
+// ─── Messaging: FINAL MVP POLICY (internal-only) ────────────────────────────
+// Decision: Messaging is a Future Studio internal-operations feature.
+// Only the internal staff roles keep it: super_admin, staff, program_manager,
+// developer. Teacher (external "Active Teammate"), participant, founder and
+// member are REMOVED from messaging eligibility.
+//
+// This is a configuration change (DELETE of eligibility rows) — messaging
+// conversation DATA is untouched. Enforcement is server-side:
+//   - /api/internal-comms now gates through requireAuthorization("messaging")
+//   - the DELETE /api/internal-comms handler is removed (messages are never
+//     deleted; retention rule)
+//   - the participant/founder /api/messaging/contacts route is removed
+//   - navigation entries removed for external roles
+//   - direct URL access is blocked by server-side layout guards on the
+//     messages pages
+
+const MESSAGING_INTERNAL_ROLES = [
+  "super_admin",
+  "staff",
+  "program_manager",
+  "developer",
+];
+
+const MESSAGING_REMOVED_ROLES = ["teacher", "participant", "founder", "member"];
+
+async function ensureMessagingPolicyBackfill() {
+  await ensurePermissionsSchema();
+
+  // 1. Remove external roles from messaging eligibility (existing DBs seeded
+  //    before this policy had them eligible).
+  for (const role of MESSAGING_REMOVED_ROLES) {
+    await db.execute({
+      sql: `DELETE FROM feature_eligibility
+            WHERE feature_key = 'messaging' AND identity_type = 'role' AND identity_value = ?`,
+      args: [role],
+    });
+  }
+
+  // 2. Ensure the internal roles are present (idempotent; fresh DBs get the
+  //    updated seed, existing DBs already have these rows).
+  for (const role of MESSAGING_INTERNAL_ROLES) {
+    await db.execute({
+      sql: `INSERT INTO feature_eligibility
+              (feature_key, identity_type, identity_value, eligible)
+            VALUES ('messaging', 'role', ?, 1)
+            ON CONFLICT (feature_key, identity_type, identity_value)
+            DO NOTHING`,
+      args: [role],
+    });
   }
 }
