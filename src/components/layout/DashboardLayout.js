@@ -94,6 +94,7 @@ const NAV_KEY_MAP = {
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
   communication: "navigation.communication",
+  administration: "navigation.administration",
 
   forms: "navigation.forms",
   all_contacts: "navigation.contacts",
@@ -458,6 +459,7 @@ const NAVIGATION_MATRIX = {
       href: "/admin",
     },
 
+    // CRM — people data only (communication moved to its own section)
     {
       id: "crm",
       name: "CRM",
@@ -467,12 +469,18 @@ const NAVIGATION_MATRIX = {
         { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
         { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
         { id: "crm_duplicates", name: "DUPLICATES", href: "/admin/crm/duplicates" },
-        { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
-        { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
-        { id: "forms", name: "FORMS", href: "/platform" },
+      ],
+    },
+
+    // Communication — messaging, announcements, forms
+    {
+      id: "communication",
+      name: "COMMUNICATION",
+      icon: MessageSquare,
+      subItems: [
         { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
         { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
-
+        { id: "forms", name: "FORMS", href: "/platform" },
       ],
     },
 
@@ -488,11 +496,6 @@ const NAVIGATION_MATRIX = {
           href: "/admin/programs/new",
         },
         { id: "progress", name: "PROGRESS", href: "/admin/progress" },
-        {
-          id: "program_reports",
-          name: "PROGRAM REPORTS",
-          href: "/admin/reports/responses",
-        },
       ],
     },
 
@@ -520,18 +523,31 @@ const NAVIGATION_MATRIX = {
       ],
     },
 
+    { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
+
     {
       id: "operations",
       name: "OPERATIONS",
       icon: ListTodo,
       subItems: [
-        { id: "internal_ops_board", name: "WORKSPACE", href: "/admin/work" },
+        { id: "internal_ops_board", name: "OPS BOARD", href: "/admin/work" },
         { id: "all_projects", name: "PROJECTS", href: "/admin/projects" },
         { id: "create_project", name: "CREATE PROJECT", href: "/admin/projects?action=create" },
         { id: "tasks", name: "TASKS", href: "/admin/tasks" },
         { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
-        { id: "standup", name: "STANDUP", href: "/staff/op-report" },
-        { id: "retro", name: "RETRO", href: "/staff/op-report" },
+        { id: "standup", name: "STANDUP", href: "/staff/op-report?tab=standup" },
+        { id: "retro", name: "RETRO", href: "/staff/op-report?tab=retro" },
+      ],
+    },
+
+    {
+      id: "reports",
+      name: "REPORTS",
+      icon: FileText,
+      subItems: [
+        { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
+        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
+        { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
       ],
     },
 
@@ -545,28 +561,37 @@ const NAVIGATION_MATRIX = {
       ],
     },
 
-    { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
+    // Administration — users & access
     {
-      id: "reports",
-      name: "REPORTS",
-      icon: FileText,
+      id: "administration",
+      name: "ADMINISTRATION",
+      icon: UserCheck,
       subItems: [
-        { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
-        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
-        { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
+        { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
+        { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
+        { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+        { id: "permissions", name: "PERMISSIONS", href: "/admin/engineering/permissions" },
       ],
     },
 
+    // Security & compliance
+    {
+      id: "security",
+      name: "SECURITY",
+      icon: ShieldCheck,
+      subItems: [
+        { id: "security", name: "SECURITY", href: "/admin/security" },
+        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+      ],
+    },
+
+    // System configuration
     {
       id: "settings",
       name: "SETTINGS",
       icon: Wrench,
       subItems: [
-        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-        { id: "security", name: "SECURITY", href: "/admin/security" },
         { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
-        { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
-        { id: "permissions", name: "PERMISSIONS", href: "/admin/engineering/permissions" },
         { id: "engineering_dashboard", name: "ENGINEERING", href: "/admin/engineering" },
         { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
       ],
@@ -925,11 +950,14 @@ const NAV_RESPONSIBILITY_MAP = {
   crm_dashboard: "crm",
   crm_timeline: "crm",
   all_contacts: "crm",
-  pending_users: "crm",
-  bulk_upload: "crm",
   forms: "crm",
   messages: "crm",
   announcements: "crm",
+
+  // Administration (user tools moved out of CRM — kept under user_management)
+  administration: "user_management",
+  pending_users: "user_management",
+  bulk_upload: "user_management",
 
   // Programs
   programs: "program_management",
