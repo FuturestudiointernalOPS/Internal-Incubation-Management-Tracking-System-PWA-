@@ -33,6 +33,7 @@ jest.mock("@/lib/auth", () => {
         "assign_responsibilities",
         "promote_super_admin",
         "remove_super_admin",
+        "configure_eligibility",
       ],
     },
     engineering: {
@@ -850,5 +851,169 @@ describe("final eligibility policy (#3)", () => {
     expect(allSql).toMatch(/feature_key\s*=\s*'crm'/);
     expect(allSql).toMatch(/identity_value\s*=\s*'admin'/);
     expect(allSql).toMatch(/identity_value\s*IN\s*\(\s*'participant',\s*'founder'\s*\)/);
+  });
+});
+
+// ─── Phase A — Permissions control center ───────────────────────────────────
+// Dedicated configure_eligibility authority, one-time policy migrations, and
+// eligibility change validation (the UI writes the same rows the resolver
+// reads — the API only validates/normalizes them).
+
+describe("permissions.configure_eligibility (Phase A)", () => {
+  test("is part of the permissions module capability set", () => {
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    expect(PERMISSION_MODULES.permissions.capabilities).toContain(
+      "configure_eligibility",
+    );
+  });
+
+  test("SA may configure eligibility (bypass)", () => {
+    expect(authorize(saCtx(), "permissions", "configure_eligibility")).toBe(
+      true,
+    );
+  });
+
+  test("holder of the capability may configure; others are denied", () => {
+    const admin = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { view_matrix: 1, configure_eligibility: 1 } },
+    });
+    const viewer = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { view_matrix: 1 } }, // no configure cap
+    });
+    expect(authorize(admin, "permissions", "configure_eligibility")).toBe(
+      true,
+    );
+    expect(authorize(viewer, "permissions", "configure_eligibility")).toBe(
+      false,
+    );
+  });
+
+  test("configure_eligibility is separate from assign_capabilities", () => {
+    const ctx = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { assign_capabilities: 2 } }, // different power
+    });
+    expect(authorize(ctx, "permissions", "configure_eligibility")).toBe(
+      false,
+    );
+    expect(authorize(ctx, "permissions", "assign_capabilities")).toBe(true);
+  });
+});
+
+describe("runAuthzMigration (one-time policy migrations)", () => {
+  test("runs once per database, then never again", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { runAuthzMigration } = require("@/lib/authorization");
+    let markerPresent = false;
+    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+      const s = typeof sql === "string" ? sql : sql || "";
+      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+        return { rows: markerPresent ? [{ name: "test-mig" }] : [] };
+      }
+      if (s.includes("INSERT INTO authz_migrations")) {
+        markerPresent = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const fn1 = jest.fn(async () => {});
+    const first = await runAuthzMigration("test-mig", fn1);
+    expect(first.applied).toBe(true);
+    expect(fn1).toHaveBeenCalledTimes(1);
+
+    const fn2 = jest.fn(async () => {});
+    const second = await runAuthzMigration("test-mig", fn2);
+    expect(second.applied).toBe(false);
+    expect(fn2).not.toHaveBeenCalled();
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+
+  test("does not record the migration when the work throws (retries next boot)", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { runAuthzMigration } = require("@/lib/authorization");
+    let markerPresent = false;
+    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+      const s = typeof sql === "string" ? sql : sql || "";
+      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+        return { rows: markerPresent ? [{ name: "boom-mig" }] : [] };
+      }
+      if (s.includes("INSERT INTO authz_migrations")) {
+        markerPresent = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const failing = jest.fn(async () => {
+      throw new Error("boom");
+    });
+    await expect(runAuthzMigration("boom-mig", failing)).rejects.toThrow(
+      "boom",
+    );
+    expect(markerPresent).toBe(false);
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+});
+
+describe("validateEligibilityChanges (eligibility API)", () => {
+  test("normalizes a valid batch (1, 0 and null → delete)", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const r = validateEligibilityChanges([
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+    ]);
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
+    expect(r.normalized).toEqual([
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+    ]);
+  });
+
+  test("rejects unknown features, identity types, empty values and bad eligible values", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const r = validateEligibilityChanges([
+      { feature_key: "not_a_feature", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "finance", identity_type: "planet", identity_value: "staff", eligible: 1 },
+      { feature_key: "finance", identity_type: "role", identity_value: "  ", eligible: 1 },
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 7 },
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: "yes" },
+    ]);
+    expect(r.valid).toBe(false);
+    expect(r.errors.length).toBe(5);
+    expect(r.normalized).toEqual([]);
+  });
+
+  test("rejects an empty batch", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    expect(validateEligibilityChanges([]).valid).toBe(false);
+    expect(validateEligibilityChanges(null).valid).toBe(false);
+    expect(validateEligibilityChanges(undefined).valid).toBe(false);
+  });
+
+  test("feature catalog covers every module-mapped and seeded feature", () => {
+    const { FEATURE_KEYS } = require("@/lib/authorization");
+    expect(FEATURE_KEYS).toEqual(
+      expect.arrayContaining([
+        "crm",
+        "finance",
+        "program_management",
+        "reporting",
+        "messaging",
+        "internal_comms",
+        "user_management",
+        "system_settings",
+      ]),
+    );
   });
 });

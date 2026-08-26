@@ -10,6 +10,7 @@
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
     "authRequired": "Authentification requise.",
     "insufficientPermissions": "Permissions insuffisantes.",
+    "invalidEligibilityChanges": "Configuration d'éligibilité invalide.",
     "roleConflictParticipantFacilitator": "Conflit de rôle : cette personne est déjà participante dans ce programme et ne peut pas également être affectée comme facilitateur.",
     "roleConflictFacilitatorParticipant": "Conflit de rôle : cette personne est déjà affectée comme facilitateur pour ce programme et ne peut pas également être ajoutée comme participante.",
     "programCompletedViewOnly": "Ce programme est terminé et en lecture seule. Les soumissions sont fermées.",

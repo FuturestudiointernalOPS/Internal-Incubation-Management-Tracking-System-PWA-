@@ -348,6 +348,12 @@ export default function PermissionManager() {
             {t("engineering.permissions.tabRoleDefaults")}
           </button>
           <button
+            onClick={() => setActiveTab("eligibility")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "eligibility" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            {t("engineering.permissions.tabEligibility")}
+          </button>
+          <button
             onClick={() => setActiveTab("seed")}
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "seed" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
@@ -871,6 +877,7 @@ export default function PermissionManager() {
         )}
 
         {activeTab === "roles" && <RoleDefaultsView />}
+        {activeTab === "eligibility" && <EligibilityView />}
         {activeTab === "seed" && <SeedView />}
         {activeTab === "profiles" && <AccessProfilesView />}
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
@@ -2333,6 +2340,308 @@ function ResponsibilityAccessView() {
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Eligibility configuration (Phase A — Permissions control center) ───────
+// Membership/Identity → Feature → Eligible / Not Eligible / Unset.
+// Persisted in feature_eligibility; consumed by the same resolver that
+// enforces every API route. Read = permissions.view_matrix; write =
+// permissions.configure_eligibility (a dedicated authority, deliberately
+// separate from assign_capabilities).
+
+function EligibilityView() {
+  const { t } = useI18n();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [identityType, setIdentityType] = useState("role");
+  const [identityValue, setIdentityValue] = useState("");
+  const [draft, setDraft] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/engineering/permissions/eligibility");
+      const d = await res.json();
+      if (d.success) {
+        setData(d);
+        setErr("");
+      } else {
+        setErr(t(d.error || "errors.somethingWrong"));
+      }
+    } catch {
+      setErr(t("engineering.permissions.networkError"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  // Rebuild the draft whenever the identity changes.
+  useEffect(() => {
+    if (!data) return;
+    const rows = (data.rows || []).filter(
+      (r) =>
+        r.identity_type === identityType &&
+        r.identity_value === identityValue,
+    );
+    const next = {};
+    for (const r of rows) next[r.feature_key] = Number(r.eligible);
+    setDraft(next);
+    setMsg("");
+    setErr("");
+  }, [identityType, identityValue, data]);
+
+  const identities =
+    (identityType === "role" ? data?.roles : data?.groups) || [];
+  const canConfigure = !!data?.canConfigure;
+  const selected = identityValue || null;
+
+  const currentRows = {};
+  if (data && selected) {
+    for (const r of data.rows || []) {
+      if (
+        r.identity_type === identityType &&
+        r.identity_value === selected
+      ) {
+        currentRows[r.feature_key] = Number(r.eligible);
+      }
+    }
+  }
+
+  const hasChanges = (data?.features || []).some((f) => {
+    const cur = currentRows[f] ?? null;
+    const next = draft[f] ?? null;
+    return cur !== next;
+  });
+
+  const setFeature = (featureKey, value) => {
+    setDraft((prev) => ({ ...prev, [featureKey]: value }));
+  };
+
+  const save = async () => {
+    if (!selected || !hasChanges) return;
+    setSaving(true);
+    const changes = [];
+    for (const f of data.features || []) {
+      const cur = currentRows[f] ?? null;
+      const next = draft[f] ?? null;
+      if (cur !== next) {
+        changes.push({
+          feature_key: f,
+          identity_type: identityType,
+          identity_value: selected,
+          eligible: next,
+        });
+      }
+    }
+    try {
+      const res = await fetch("/api/engineering/permissions/eligibility", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ changes }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        setData((prev) => ({ ...prev, rows: d.rows }));
+        setMsg(t("engineering.permissions.eligibilitySaved"));
+        setTimeout(() => setMsg(""), 2500);
+      } else if (res.status === 403) {
+        setErr(t("engineering.permissions.eligibilityNoPermission"));
+      } else {
+        setErr(t("engineering.permissions.eligibilitySaveFailed"));
+      }
+    } catch {
+      setErr(t("engineering.permissions.networkError"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const stateBtn = (featureKey, value, labelKey, activeCls) => {
+    const active = draft[featureKey] === value;
+    return (
+      <button
+        onClick={() => setFeature(featureKey, value)}
+        disabled={!canConfigure}
+        title={t(labelKey)}
+        className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-40 ${active ? activeCls : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60 hover:opacity-100"}`}
+      >
+        {t(labelKey)}
+      </button>
+    );
+  };
+
+  if (loading && !data) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-6 h-6 text-[var(--brand-orange)] animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
+        <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
+        <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+          {t("engineering.permissions.eligibilityHint")}
+        </p>
+      </div>
+
+      {!canConfigure && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+          <p className="text-[9px] font-bold text-amber-400">
+            {t("engineering.permissions.eligibilityReadOnly")}
+          </p>
+        </div>
+      )}
+
+      {/* Identity selector */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
+            {t("engineering.permissions.eligibilityIdentityType")}
+          </p>
+          <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
+            {["role", "group"].map((type) => (
+              <button
+                key={type}
+                onClick={() => {
+                  setIdentityType(type);
+                  setIdentityValue("");
+                }}
+                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${identityType === type ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              >
+                {type === "role"
+                  ? t("engineering.permissions.eligibilityRole")
+                  : t("engineering.permissions.eligibilityGroup")}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex-1 min-w-[200px]">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
+            {t("engineering.permissions.eligibilityIdentity")}
+          </p>
+          <select
+            value={identityValue}
+            onChange={(e) => setIdentityValue(e.target.value)}
+            className="w-full px-3 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
+          >
+            <option value="">
+              {t("engineering.permissions.eligibilitySelectIdentity")}
+            </option>
+            {identities.map((id) => (
+              <option key={id} value={id}>
+                {id}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      {selected ? (
+        <>
+          <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
+            <div className="p-3 bg-secondary border-b border-[var(--border-primary)] flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                {identityType === "role"
+                  ? t("engineering.permissions.eligibilityRole")
+                  : t("engineering.permissions.eligibilityGroup")}
+                : {selected}
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {msg && (
+                  <span className="text-[9px] font-bold text-emerald-400">
+                    {msg}
+                  </span>
+                )}
+                {err && (
+                  <span className="text-[9px] font-bold text-red-400">
+                    {err}
+                  </span>
+                )}
+                <button
+                  onClick={save}
+                  disabled={!canConfigure || !hasChanges || saving}
+                  className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                >
+                  {saving
+                    ? t("engineering.permissions.eligibilitySaving")
+                    : t("engineering.permissions.eligibilitySave")}
+                </button>
+              </div>
+            </div>
+            <div className="divide-y divide-[var(--border-primary)]">
+              {(data?.features || []).map((featureKey) => {
+                const state = draft[featureKey];
+                const cur = currentRows[featureKey] ?? null;
+                const dirty = cur !== (state ?? null);
+                return (
+                  <div
+                    key={featureKey}
+                    className={`flex items-center justify-between gap-3 px-4 py-2.5 ${dirty ? "bg-[var(--brand-orange)]/5" : ""}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                        {featureKey}
+                      </p>
+                      <p className="text-[8px] font-bold text-[var(--text-secondary)] opacity-60">
+                        {state === 1
+                          ? t("engineering.permissions.eligibilityEligible")
+                          : state === 0
+                            ? t("engineering.permissions.eligibilityNotEligible")
+                            : t("engineering.permissions.eligibilityUnset")}
+                        {dirty
+                          ? " • " + t("engineering.permissions.eligibilityDirty")
+                          : ""}
+                      </p>
+                    </div>
+                    <div className="flex gap-1.5 shrink-0">
+                      {stateBtn(
+                        featureKey,
+                        1,
+                        "engineering.permissions.eligibilityEligible",
+                        "bg-emerald-500/15 border-emerald-500/40 text-emerald-400",
+                      )}
+                      {stateBtn(
+                        featureKey,
+                        0,
+                        "engineering.permissions.eligibilityNotEligible",
+                        "bg-red-500/15 border-red-500/40 text-red-400",
+                      )}
+                      {stateBtn(
+                        featureKey,
+                        null,
+                        "engineering.permissions.eligibilityUnset",
+                        "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+            {t("engineering.permissions.eligibilityLegend")}
+          </p>
+        </>
+      ) : (
+        <div className="py-10 text-center opacity-40">
+          <Shield className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">
+            {t("engineering.permissions.eligibilityNoIdentity")}
+          </p>
         </div>
       )}
     </div>

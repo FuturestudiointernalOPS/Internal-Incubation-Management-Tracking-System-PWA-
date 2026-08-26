@@ -396,6 +396,7 @@ export const PERMISSION_MODULES = {
       "assign_responsibilities",
       "promote_super_admin",
       "remove_super_admin",
+      "configure_eligibility",
     ],
   },
   engineering: {

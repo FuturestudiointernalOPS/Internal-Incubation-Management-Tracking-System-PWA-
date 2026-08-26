@@ -26,6 +26,7 @@ import {
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
+import { runAuthzMigration } from "./migrations";
 
 const AUTHZ_CONTEXT_TTL_MS = 10000; // short-TTL context cache (mirrors _sessionCache pattern)
 const _authzContextCache = new Map();
@@ -33,14 +34,17 @@ const _authzContextCache = new Map();
 let eligibilitySeeded = false;
 let eligibilitySeedPromise = null;
 
-/** Seed the eligibility table once per process (idempotent, egress-safe). */
+/** Seed the eligibility table ONCE per database (bootstrap), then stop. */
 function ensureEligibilitySeeded() {
   if (!eligibilitySeeded) {
     if (!eligibilitySeedPromise) {
       eligibilitySeedPromise = (async () => {
         await ensureEligibilitySchema();
-        const r = await seedDefaultEligibility();
-        if (r.success) eligibilitySeeded = true;
+        await runAuthzMigration(
+          "eligibility-bootstrap-seed",
+          seedDefaultEligibility,
+        );
+        eligibilitySeeded = true;
       })().finally(() => {
         eligibilitySeedPromise = null;
       });
@@ -305,6 +309,15 @@ export function invalidateAuthorizationContext(cid) {
   for (const key of _authzContextCache.keys()) {
     if (key.startsWith(`${cid}|`)) _authzContextCache.delete(key);
   }
+}
+
+/**
+ * Drop ALL cached contexts (call after eligibility configuration writes — a
+ * role/group change can affect any user). The cache is small and short-TTL
+ * (10s), so a full clear is egress-safe.
+ */
+export function invalidateAllAuthorizationContexts() {
+  _authzContextCache.clear();
 }
 
 // ─── Authorization decision ─────────────────────────────────────────────────

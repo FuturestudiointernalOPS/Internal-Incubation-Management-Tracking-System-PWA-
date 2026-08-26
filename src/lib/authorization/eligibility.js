@@ -7,14 +7,13 @@
  *     ELIGIBLE ≠ GRANTED
  *
  * - Stored in the `feature_eligibility` table (self-healing, idempotent).
- * - Seeds reproduce TODAY'S route allowlists (verified in the authorization
- *   inventory) — NOT featureAccess.js, which is known to drift from routes.
+ * - The seed (FEATURE_ELIGIBILITY_DEFAULTS) runs ONCE per database as the
+ *   "eligibility-bootstrap-seed" migration (see migrations.js) — it fills
+ *   rows that have never been configured, then the Permissions UI owns the
+ *   configuration. Nothing at boot ever overwrites an administrator's edit.
  * - Missing rows = NOT eligible (fail closed).
  * - An explicit `eligible = 0` row wins over any `eligible = 1` row.
  * - Super Admin bypasses eligibility entirely (preserved V2 behavior).
- *
- * Phase 0: no feature route enforces this yet. The resolver makes it
- * available so feature-by-feature migration can safely happen later.
  */
 
 import db from "@/lib/db";

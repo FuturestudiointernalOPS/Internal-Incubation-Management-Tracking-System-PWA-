@@ -13,6 +13,7 @@ export {
   can,
   getAuthorizationContext,
   invalidateAuthorizationContext,
+  invalidateAllAuthorizationContexts,
   requireAuthorization,
   resolveAuthorizationContext,
   mergeEffectiveCapabilities,
@@ -29,3 +30,12 @@ export {
   MODULE_TO_FEATURE,
   FEATURE_ELIGIBILITY_DEFAULTS,
 } from "./eligibility";
+
+export { runAuthzMigration } from "./migrations";
+
+export {
+  FEATURE_KEYS,
+  IDENTITY_TYPES,
+  ROLE_CATALOG,
+  validateEligibilityChanges,
+} from "./eligibility-admin";
