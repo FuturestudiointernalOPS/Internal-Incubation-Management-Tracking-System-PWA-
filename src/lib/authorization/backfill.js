@@ -42,6 +42,7 @@ export function ensureCapabilityBackfills() {
         await ensureVenturesBackfill();
         await ensureInvestorBackfill();
         await ensureMessagingPolicyBackfill();
+        await ensureFinalPolicyBackfill();
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
@@ -849,4 +850,36 @@ async function ensureMessagingPolicyBackfill() {
       args: [role],
     });
   }
+}
+
+// ─── Final eligibility policy (#3) ──────────────────────────────────────────
+// Product Owner-approved final eligibility values:
+//   - `admin` is NOT eligible for internal_comms (announcements) or reporting
+//     (op-reports / standups / retros / run-export / pm-export). The previous
+//     seed included admin; existing DBs must have those rows removed.
+//   - `participant` / `founder` are NOT eligible for crm. Removal is
+//     zero-impact: they hold no contacts capabilities — self-service reads are
+//     role-gated, not eligibility-gated (verified by the read-only dry-run,
+//     scripts/dryrun-eligibility-policy.mjs: zero decision changes for every
+//     user in the production database).
+//
+// DELETES ROLE ROWS ONLY — group eligibility rows are sacred and untouched.
+// Idempotent: fresh DBs seed the updated FEATURE_ELIGIBILITY_DEFAULTS and have
+// nothing to delete; existing DBs converge on the first process that runs
+// this. This is a deliberate policy enforcement: a re-added row for one of
+// these identities is removed again on the next boot (same pattern as the
+// messaging MVP policy above).
+
+export async function ensureFinalPolicyBackfill() {
+  await ensurePermissionsSchema();
+  await db.execute({
+    sql: `DELETE FROM feature_eligibility
+          WHERE identity_type = 'role'
+            AND (
+              (feature_key = 'internal_comms' AND identity_value = 'admin')
+              OR (feature_key = 'reporting' AND identity_value = 'admin')
+              OR (feature_key = 'crm' AND identity_value IN ('participant', 'founder'))
+            )`,
+    args: [],
+  });
 }

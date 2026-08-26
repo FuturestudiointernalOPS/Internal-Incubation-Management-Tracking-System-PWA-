@@ -62,6 +62,7 @@ jest.mock("@/lib/auth", () => {
     PERMISSION_MODULES,
     ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
     getSession: jest.fn(async () => null),
+    ensurePermissionsSchema: jest.fn(async () => {}),
   };
 });
 
@@ -284,12 +285,13 @@ describe("reports module (Phase 3)", () => {
     expect(MODULE_TO_FEATURE.reports).toBe("reporting");
   });
 
-  test("reporting eligibility defaults include admin and developer (submit routes)", () => {
+  test("reporting eligibility defaults cover the submit routes (admin removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     const reporting = FEATURE_ELIGIBILITY_DEFAULTS.reporting;
     expect(reporting).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "admin", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(reporting).not.toContain("admin");
   });
 
   test("developer with reports.create is allowed on the submit routes", () => {
@@ -323,19 +325,13 @@ describe("contacts module (Phase 4)", () => {
     expect(MODULE_TO_FEATURE.contacts).toBe("crm");
   });
 
-  test("crm eligibility defaults include participant and founder (self-scoped reads)", () => {
+  test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
-      expect.arrayContaining([
-        "super_admin",
-        "staff",
-        "program_manager",
-        "teacher",
-        "developer",
-        "participant",
-        "founder",
-      ]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
   });
 
   test("eligible staff with contacts.view is allowed; edit requires higher capability", () => {
@@ -378,11 +374,12 @@ describe("internal_comms module (Phase 5)", () => {
     expect(MODULE_TO_FEATURE.internal_comms).toBe("internal_comms");
   });
 
-  test("internal_comms eligibility defaults include admin (announcements allowlist)", () => {
+  test("internal_comms eligibility defaults no longer include admin (policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "admin"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
   });
 
   test("staff with create_announcements can post; teacher without it cannot", () => {
@@ -768,5 +765,90 @@ describe("requireAuthorization", () => {
   test("returns 401 without a session", async () => {
     const res = await requireAuthorization("finance", "view");
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── Final eligibility policy (#3) — admin / participant / founder values ───
+// Product Owner-approved final eligibility values:
+//   - admin           → NOT eligible for internal_comms or reporting
+//   - participant     → NOT eligible for crm
+//   - founder         → NOT eligible for crm
+// Verified against the production database by the read-only dry-run
+// (scripts/dryrun-eligibility-policy.mjs): zero decision changes for every
+// existing user (no admin-role users exist; participants/founders hold no
+// contacts capabilities). These tests lock in the resolver behavior that the
+// backfill (ensureFinalPolicyBackfill) and the updated seeds enforce.
+
+describe("final eligibility policy (#3)", () => {
+  test("admin is NOT eligible for internal_comms or reporting", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.reporting).not.toContain("admin");
+  });
+
+  test("participant and founder are NOT crm-eligible", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
+  });
+
+  test("admin with announcement caps is DENIED post-policy", () => {
+    const admin = staffCtx({
+      role: "admin",
+      isSuperAdmin: false,
+      eligibility: { internal_comms: false, reporting: false },
+      effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
+    });
+    expect(authorize(admin, "internal_comms", "create_announcements")).toBe(false);
+    expect(authorize(admin, "internal_comms", "moderate")).toBe(false);
+    expect(authorize(admin, "internal_comms", "view")).toBe(false);
+  });
+
+  test("admin with reports caps is DENIED post-policy (submit + export routes)", () => {
+    const admin = staffCtx({
+      role: "admin",
+      isSuperAdmin: false,
+      eligibility: { internal_comms: false, reporting: false },
+      effective: { reports: { view: 1, create: 2, export: 3 } },
+    });
+    expect(authorize(admin, "reports", "create")).toBe(false);
+    expect(authorize(admin, "reports", "export")).toBe(false);
+  });
+
+  test("participant with a contacts grant is DENIED post-policy (eligibility boundary)", () => {
+    const participant = staffCtx({
+      role: "participant",
+      isSuperAdmin: false,
+      eligibility: { crm: false },
+      effective: { contacts: { view: 5 } },
+      grants: { contacts: { view: 5 } },
+    });
+    expect(authorize(participant, "contacts", "view")).toBe(false);
+  });
+
+  test("super_admin is unaffected by the policy (bypass preserved)", () => {
+    expect(authorize(saCtx(), "internal_comms", "create_announcements")).toBe(true);
+    expect(authorize(saCtx(), "reports", "export")).toBe(true);
+    expect(authorize(saCtx(), "contacts", "view")).toBe(true);
+  });
+
+  test("ensureFinalPolicyBackfill deletes ONLY the four role rows (group rows sacred)", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { ensureFinalPolicyBackfill } = require("@/lib/authorization/backfill");
+    dbMock.execute.mockClear();
+    await ensureFinalPolicyBackfill();
+    const deletes = dbMock.execute.mock.calls
+      .map((c) => (typeof c[0] === "string" ? c[0] : c[0]?.sql))
+      .filter((sql) => sql && sql.includes("DELETE FROM feature_eligibility"));
+    expect(deletes.length).toBeGreaterThan(0);
+    const allSql = deletes.join("\n");
+    for (const sql of deletes) {
+      expect(sql).toMatch(/identity_type\s*=\s*'role'/);
+    }
+    expect(allSql).toMatch(/feature_key\s*=\s*'internal_comms'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'reporting'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'crm'/);
+    expect(allSql).toMatch(/identity_value\s*=\s*'admin'/);
+    expect(allSql).toMatch(/identity_value\s*IN\s*\(\s*'participant',\s*'founder'\s*\)/);
   });
 });

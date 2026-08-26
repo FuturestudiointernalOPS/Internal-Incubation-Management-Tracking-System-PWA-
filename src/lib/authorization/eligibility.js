@@ -53,8 +53,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "program_manager",
     "teacher",
     "developer",
-    "participant",
-    "founder",
   ],
   finance: ["super_admin", "staff"],
   program_management: ["super_admin", "staff", "program_manager", "teacher"],
@@ -71,7 +69,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "staff",
     "program_manager",
     "teacher",
-    "admin",
     "developer",
   ],
   knowledge_base: ["super_admin", "staff"],
@@ -90,7 +87,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "teacher",
     "developer",
     "participant",
-    "admin",
   ],
 };
 
