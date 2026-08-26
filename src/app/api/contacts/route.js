@@ -338,7 +338,18 @@ export async function PUT(req) {
     });
 
     // Sync participant_programs if program_ids array is provided
-    if (Array.isArray(data.program_ids)) {
+    const NON_PARTICIPANT_ROLES = ["facilitator", "teacher", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
+    const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
+
+    if (isRolePromotion) {
+      // Role is being changed to a non-participant role.
+      // Automatically remove from participant_programs — they are no longer a participant.
+      // Skip the conflict guard entirely since we're intentionally changing their role.
+      await db.execute({
+        sql: "DELETE FROM participant_programs WHERE participant_id = ?",
+        args: [data.cid],
+      });
+    } else if (Array.isArray(data.program_ids)) {
       // Verify all programs exist before assigning
       for (const pid of data.program_ids) {
         const check = await db.execute({
