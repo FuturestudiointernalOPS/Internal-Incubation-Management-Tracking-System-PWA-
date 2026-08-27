@@ -3,11 +3,12 @@
 import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail } from "lucide-react";
+import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
+import MembershipSection from "@/components/membership/MembershipSection";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -342,6 +343,7 @@ export default function CrmDetailPage({ params }) {
           {[
             { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
             { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket },
+            { key: "membership", label: t("crm.people.tabMembership"), icon: Building2 },
             { key: "notes", label: t("crm.people.tabNotes"), icon: FileText },
             { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase },
             { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload },
@@ -626,6 +628,15 @@ export default function CrmDetailPage({ params }) {
                 ))}
               </>
             )}
+          </div>
+        )}
+
+        {/* Membership Tab — organizational/group memberships (CRM relationship) */}
+        {tab === "membership" && (
+          <div
+            className="bg-primary border border-[var(--border-primary)] rounded-2xl p-6"
+          >
+            <MembershipSection cid={cid} t={t} lang={lang} />
           </div>
         )}
 

@@ -94,6 +94,11 @@
       "success": "Adhésion créée",
       "error": "Impossible d'ajouter le membre"
     },
+    "section": {
+      "current": "Adhésions actuelles",
+      "past": "Adhésions passées",
+      "empty": "Aucune adhésion organisationnelle — ajoutez-en une pour enregistrer l'appartenance de cette personne."
+    },
     "detail": {
       "title": "Détail du membre",
       "personSection": "Personne",

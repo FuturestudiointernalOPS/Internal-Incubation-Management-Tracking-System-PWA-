@@ -94,6 +94,11 @@
       "success": "Membership created",
       "error": "Could not add member"
     },
+    "section": {
+      "current": "Current Memberships",
+      "past": "Past Memberships",
+      "empty": "No organizational membership yet — add one to record where this person belongs."
+    },
     "detail": {
       "title": "Member Detail",
       "personSection": "Person",
