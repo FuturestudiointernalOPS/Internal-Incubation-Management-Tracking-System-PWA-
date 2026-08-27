@@ -72,7 +72,7 @@ export async function GET(req) {
     const memberships = (
       await db.execute({
         sql: `SELECT gm.user_cid, gm.group_name, gm.started_at, gm.expires_at,
-                     gm.status, c.name, c.email
+                     gm.status, c.name, c.email, c.role, c.status AS account_status
               FROM group_memberships gm
               LEFT JOIN contacts c ON c.cid = gm.user_cid
               ${whereSql}
@@ -86,20 +86,23 @@ export async function GET(req) {
       const evWhere = [];
       const evArgs = [];
       if (group) {
-        evWhere.push("group_name = ?");
+        evWhere.push("ev.group_name = ?");
         evArgs.push(normalizeGroupName(group));
       }
       if (userCid) {
-        evWhere.push("user_cid = ?");
+        evWhere.push("ev.user_cid = ?");
         evArgs.push(userCid);
       }
       const evWhereSql = evWhere.length ? `WHERE ${evWhere.join(" AND ")}` : "";
       events = (
         await db.execute({
-          sql: `SELECT user_cid, group_name, action, actor_cid, note, created_at
-                FROM group_membership_events
+          sql: `SELECT ev.user_cid, ev.group_name, ev.action, ev.actor_cid,
+                       ev.note, ev.created_at,
+                       actor.name AS actor_name
+                FROM group_membership_events ev
+                LEFT JOIN contacts actor ON actor.cid = ev.actor_cid
                 ${evWhereSql}
-                ORDER BY created_at DESC
+                ORDER BY ev.created_at DESC
                 LIMIT 200`,
           args: evArgs,
         })

@@ -1,10 +1,18 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/lib/authorization";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "program_manager"] },
+  // Outer gate mirrors the program list endpoint's authenticated identities;
+  // the capability check below is the actual decision (Phase 3: staff with
+  // programs.view — default or individually granted — may view program
+  // detail; everyone else is denied by the resolver, not by a hard-coded
+  // role list).
+  { roles: ["super_admin", "program_manager", "staff", "teacher"] },
   async (req, { params }) => {
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
     const { id } = await params;
     const result = await db.execute({
       sql: `SELECT p.*, c1.name as pm_name, c2.name as assistant_name, k.title as note_title

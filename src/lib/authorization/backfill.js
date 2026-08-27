@@ -33,15 +33,22 @@ export function ensureCapabilityBackfills() {
   if (!backfillsSeeded) {
     if (!backfillPromise) {
       backfillPromise = (async () => {
-        await ensureKnowledgeBackfill();
-        await ensureReportsBackfill();
-        await ensureAnnouncementsBackfill();
-        await ensureProjectsBackfill();
-        await ensureTasksBackfill();
-        await ensureEngineeringBackfill();
-        await ensureProgramsBackfill();
-        await ensureVenturesBackfill();
-        await ensureInvestorBackfill();
+        // Capability backfills — ONE-TIME per database (runAuthzMigration).
+        // Previously these ran on every process boot with INSERT … ON CONFLICT
+        // DO NOTHING, silently re-adding profile capabilities that an
+        // administrator had removed through the Permissions Control Center.
+        // Recording them as one-time migrations keeps administrator
+        // configuration authoritative after the first boot following this
+        // change (Phase A requirement: no boot-time policy overwrites).
+        await runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill);
+        await runAuthzMigration("cap-backfill-reports", ensureReportsBackfill);
+        await runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill);
+        await runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill);
+        await runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill);
+        await runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill);
+        await runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill);
+        await runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill);
+        await runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill);
         // One-time policy migrations — run once per database, then the
         // Permissions UI owns eligibility configuration (see migrations.js).
         await runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill);

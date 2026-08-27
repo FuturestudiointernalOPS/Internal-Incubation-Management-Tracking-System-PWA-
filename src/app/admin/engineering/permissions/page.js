@@ -92,6 +92,15 @@ export default function PermissionManager() {
   const [expandedModules, setExpandedModules] = useState({});
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+  const [pendingCid, setPendingCid] = useState(null);
+
+  // Deep-link support: /admin/engineering/permissions?cid=X preselects a user
+  // (used by the Membership Control Center's "View Effective Access").
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const cid = new URLSearchParams(window.location.search).get("cid");
+    if (cid) setPendingCid(cid);
+  }, []);
 
   useEffect(() => {
     fetchModules();
@@ -128,6 +137,14 @@ export default function PermissionManager() {
         });
         setAllUsers(sorted);
         setSearchResults(sorted);
+        // Deep-link: preselect the user requested via ?cid=
+        if (pendingCid) {
+          const match = sorted.find((u) => String(u.cid) === String(pendingCid));
+          if (match) {
+            selectUser(match);
+            setPendingCid(null);
+          }
+        }
       }
     } catch (e) {
       console.error("Failed to fetch users", e);
