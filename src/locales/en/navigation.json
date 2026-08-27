@@ -91,6 +91,8 @@
     "collections": "Collections",
     "modules": "Modules",
     "submissions": "Submissions",
-    "manageTeams": "Manage Teams"
+    "manageTeams": "Manage Teams",
+    "lms": "LMS",
+    "lmsCourses": "Courses"
   }
 }

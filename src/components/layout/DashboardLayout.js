@@ -40,6 +40,7 @@ import {
   HeartPulse,
   Blocks,
   Clock,
+  GraduationCap,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
@@ -162,6 +163,8 @@ const NAV_KEY_MAP = {
   crm_duplicates: "navigation.crmDuplicates",
   pending_users: "navigation.pendingUsers",
   bulk_upload: "navigation.bulkUpload",
+  lms: "navigation.lms",
+  lms_courses: "navigation.lmsCourses",
 };
 
 function tnav(key) {
@@ -542,6 +545,15 @@ const NAVIGATION_MATRIX = {
       subItems: [
         { id: "knowledge_base", name: "KNOWLEDGE BASE", href: "/admin/knowledge" },
         { id: "intelligence", name: "INTELLIGENCE", href: "/admin/intelligence" },
+      ],
+    },
+
+    {
+      id: "lms",
+      name: "LMS",
+      icon: GraduationCap,
+      subItems: [
+        { id: "lms_courses", name: "COURSES", href: "/admin/lms/courses" },
       ],
     },
 
