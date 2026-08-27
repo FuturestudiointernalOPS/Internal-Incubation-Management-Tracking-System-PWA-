@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveEffectiveRole } from "@/lib/platform/roles";
+import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
@@ -149,11 +150,14 @@ export async function POST(req) {
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
     // Canonical rule (src/lib/platform/roles.js, resolveEffectiveRole):
     //   privileged identities win; staff-family roles normalize to staff;
-    //   FUTURE STUDIO group membership = internal staff membership;
+    //   an ACTIVE FUTURE STUDIO membership = internal staff membership;
     //   everything else keeps its role (participant default).
+    // The membership layer decides which groups are currently effective —
+    // expired/ended FUTURE STUDIO memberships no longer produce staff.
+    const activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
     let finalRole = resolveEffectiveRole({
       role: user.role,
-      group_name: user.group_name,
+      groups: activeGroups,
       isTeam: isTeamLogin,
       isFamily: isFamilyLogin,
       legacySa: user.id === "sa",

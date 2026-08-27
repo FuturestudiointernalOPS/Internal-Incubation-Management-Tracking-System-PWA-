@@ -413,6 +413,10 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create", "edit", "delete", "export"],
   },
   settings: { name: "System Settings", capabilities: ["view", "edit"] },
+  org_membership: {
+    name: "Organizational Membership",
+    capabilities: ["view", "manage"],
+  },
   knowledge: {
     name: "Knowledge Base",
     capabilities: ["view", "create", "edit", "delete"],

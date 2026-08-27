@@ -41,6 +41,7 @@ jest.mock("@/lib/auth", () => {
     },
     finance: { capabilities: ["view", "create", "edit", "delete", "export"] },
     settings: { capabilities: ["view", "edit"] },
+    org_membership: { capabilities: ["view", "manage"] },
     facilitator: {
       capabilities: [
         "participants.view",
@@ -1015,5 +1016,34 @@ describe("validateEligibilityChanges (eligibility API)", () => {
         "system_settings",
       ]),
     );
+  });
+});
+
+describe("org_membership capability (Phase 1 — protected groups)", () => {
+  test("is part of the module set; SA bypasses", () => {
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    expect(PERMISSION_MODULES.org_membership.capabilities).toEqual([
+      "view",
+      "manage",
+    ]);
+    expect(authorize(saCtx(), "org_membership", "manage")).toBe(true);
+    expect(authorize(saCtx(), "org_membership", "view")).toBe(true);
+  });
+
+  test("holders may manage membership; assign_capabilities does NOT imply it", () => {
+    const manager = staffCtx({
+      role: "staff",
+      eligibility: {},
+      effective: { org_membership: { view: 1, manage: 2 } },
+    });
+    const capAssigner = staffCtx({
+      role: "staff",
+      eligibility: {},
+      effective: { permissions: { assign_capabilities: 2 } }, // different power
+    });
+    expect(authorize(manager, "org_membership", "manage")).toBe(true);
+    expect(authorize(manager, "org_membership", "view")).toBe(true);
+    expect(authorize(capAssigner, "org_membership", "manage")).toBe(false);
+    expect(authorize(capAssigner, "org_membership", "view")).toBe(false);
   });
 });

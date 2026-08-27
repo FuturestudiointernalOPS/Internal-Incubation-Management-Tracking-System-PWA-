@@ -48,29 +48,33 @@ export const INTERNAL_GROUP = "FUTURE STUDIO";
 /**
  * CANONICAL LOGIN IDENTITY RESOLUTION
  *
- * Policy: FUTURE STUDIO group membership = internal staff membership.
+ * Policy: an ACTIVE FUTURE STUDIO membership = internal staff membership.
  *
  * Precedence (high → low):
  *   1. Team / Family entity logins keep their entity identity.
  *   2. Privileged identities ALWAYS win and are never overridden by group
  *      membership — this is what protects Super Admin from demotion/lockout.
  *   3. Staff-family roles (staff / project_manager / admin) normalize to staff.
- *   4. FUTURE STUDIO group membership ⇒ staff  (the rule).
+ *   4. An ACTIVE FUTURE STUDIO membership ⇒ staff  (the rule). Expired or
+ *      ended memberships must NOT produce staff — the caller passes the
+ *      EFFECTIVE (active, unexpired) group list from the membership layer.
  *   5. All other identities (participant, member, facilitator, teacher, ...)
  *      keep their role; unknown/empty roles default to participant.
  *
  * Known conflicts (deliberate, per policy):
- *   - A participant in the FUTURE STUDIO group is resolved as staff at login
- *     (their participant identity is overridden; enrollments stay visible via
- *     the Workspaces hub).
- *   - A facilitator/teacher in the FUTURE STUDIO group is resolved as staff.
- *     If an external facilitator must keep their facilitator identity even
- *     inside the group, move facilitator/teacher before the group rule.
- *   - The rule applies at login (session snapshot). Group changes mid-session
- *     take effect on the next login.
+ *   - A participant with an active FUTURE STUDIO membership is resolved as
+ *     staff at login (their participant identity is overridden; enrollments
+ *     stay visible via the Workspaces hub).
+ *   - A facilitator/teacher with an active FUTURE STUDIO membership is
+ *     resolved as staff. If an external facilitator must keep their
+ *     facilitator identity even inside the group, move facilitator/teacher
+ *     before the group rule.
+ *   - The rule applies at login (session snapshot). Membership changes
+ *     mid-session take effect on the next login.
  */
 export function resolveEffectiveRole({
   role,
+  groups = [],
   group_name,
   isTeam = false,
   isFamily = false,
@@ -89,10 +93,15 @@ export function resolveEffectiveRole({
   // Staff-family identities normalize to staff.
   if (r === "staff" || r === "project_manager" || r === "admin") return "staff";
 
-  // THE RULE — FUTURE STUDIO group membership = internal staff membership.
-  if (String(group_name || "").trim().toUpperCase() === INTERNAL_GROUP) {
-    return "staff";
-  }
+  // THE RULE — active FUTURE STUDIO membership = internal staff membership.
+  // `group_name` is accepted as a compatibility fallback for callers that
+  // only have the raw contact column (it must then be a CURRENT group value).
+  const memberGroups = Array.isArray(groups) ? groups : [];
+  if (group_name) memberGroups.push(group_name);
+  const isInternal = memberGroups.some(
+    (g) => String(g || "").trim().toUpperCase() === INTERNAL_GROUP,
+  );
+  if (isInternal) return "staff";
 
   // Explicit identities are preserved outside the group.
   if (["participant", "member", "facilitator", "teacher"].includes(r)) return r;

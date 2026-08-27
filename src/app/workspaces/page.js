@@ -81,6 +81,7 @@ export default function WorkspacesPage() {
     (contexts.program_assignments.length > 0 ||
       contexts.program_participations.length > 0 ||
       contexts.org_memberships.length > 0 ||
+      contexts.org_history.length > 0 ||
       contexts.responsibilities.length > 0 ||
       contexts.venture_memberships.length > 0);
 
@@ -195,6 +196,37 @@ export default function WorkspacesPage() {
                         role={roleLabel(r.key)}
                         href={r.href}
                       />
+                    ))}
+                  </Group>
+                )}
+
+                {/* Past / ended organizational memberships — history is preserved */}
+                {contexts.org_history.length > 0 && (
+                  <Group
+                    icon={Building2}
+                    label={t("common.workspaces.groupPast")}
+                  >
+                    {contexts.org_history.map((m, i) => (
+                      <div
+                        key={`past-${m.group_name}-${i}`}
+                        className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary opacity-60"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
+                            {m.group_name}
+                          </p>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
+                            {m.status}
+                            {m.started_at
+                              ? ` · ${new Date(m.started_at).toLocaleDateString()} → ${
+                                  m.expires_at
+                                    ? new Date(m.expires_at).toLocaleDateString()
+                                    : "…"
+                                }`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
                     ))}
                   </Group>
                 )}

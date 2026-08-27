@@ -27,6 +27,7 @@ import {
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
 import { runAuthzMigration } from "./migrations";
+import { getEffectiveGroupsForUser } from "./membership";
 
 const AUTHZ_CONTEXT_TTL_MS = 10000; // short-TTL context cache (mirrors _sessionCache pattern)
 const _authzContextCache = new Map();
@@ -231,13 +232,12 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
     baseCaps = rowsToCaps(rows);
   }
 
-  // 4. Groups (V2 order: user_groups → contacts.group_name fallback).
-  let groups = (
-    await db.execute({
-      sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
-      args: [cid],
-    })
-  ).rows.map((r) => r.group_name);
+  // 4. Groups (membership-aware — Phase 1). Only ACTIVE, unexpired
+  //    memberships contribute; legacy user_groups edges auto-heal until the
+  //    bootstrap migration creates their membership records. Expiry/ending
+  //    stops group eligibility + group capabilities without touching the
+  //    person, account, CRM record or history.
+  let groups = await getEffectiveGroupsForUser(cid);
   if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
 
   // 5. Group capabilities (all modules in one query).

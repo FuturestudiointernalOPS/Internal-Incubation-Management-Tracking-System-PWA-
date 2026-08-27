@@ -1,5 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
+import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import Papa from "papaparse";
@@ -61,6 +62,18 @@ export async function POST(req) {
         { success: false, error: "CSV file is empty." },
         { status: 400 },
       );
+    }
+
+    // Protected group boundary: bulk-importing people INTO FUTURE STUDIO is
+    // an organizational-membership action — assign_capabilities alone must
+    // not grant it (only org_membership.manage).
+    const wantsInternal = data.some(
+      (row) =>
+        normalizeGroupName(row?.group_name || row?.group) === INTERNAL_GROUP,
+    );
+    if (wantsInternal) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
     }
 
     // ── PHASE 1: Validate all rows ──

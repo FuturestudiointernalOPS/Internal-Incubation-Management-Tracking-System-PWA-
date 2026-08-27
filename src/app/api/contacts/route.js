@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { requireAuth, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
@@ -55,6 +56,17 @@ export async function POST(req) {
 
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
+
+    // Protected group boundary: creating a FUTURE STUDIO contact creates an
+    // internal member (auto-role staff). Only org_membership.manage holders
+    // may do that — generic contacts.create must never grant it.
+    const wantsInternal = contacts.some(
+      (c) => normalizeGroupName(c?.group_name) === INTERNAL_GROUP,
+    );
+    if (wantsInternal) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
+    }
 
     console.log("--- CONTACT REGISTRATION START ---", {
       count: contacts.length,
@@ -280,6 +292,13 @@ export async function PUT(req) {
         { success: false, error: "Contact ID (cid) is required for update." },
         { status: 400 },
       );
+    }
+
+    // Protected group boundary: moving a contact into FUTURE STUDIO via a
+    // generic contact edit is an organizational-membership action.
+    if (normalizeGroupName(data?.group_name) === INTERNAL_GROUP) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
     }
 
     const fieldsToUpdate = [];

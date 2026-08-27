@@ -33,26 +33,41 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
     }
   });
 
-  test("FUTURE STUDIO group membership = staff for every other identity", () => {
+  test("FUTURE STUDIO active membership = staff for every other identity", () => {
     expect(
-      resolveEffectiveRole({ role: "member", group_name: INTERNAL_GROUP }),
+      resolveEffectiveRole({ role: "member", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     expect(
-      resolveEffectiveRole({ role: "participant", group_name: INTERNAL_GROUP }),
+      resolveEffectiveRole({ role: "participant", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     expect(
-      resolveEffectiveRole({ role: "facilitator", group_name: INTERNAL_GROUP }),
+      resolveEffectiveRole({ role: "facilitator", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     expect(
-      resolveEffectiveRole({ role: "teacher", group_name: INTERNAL_GROUP }),
+      resolveEffectiveRole({ role: "teacher", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
     expect(
-      resolveEffectiveRole({ role: "", group_name: INTERNAL_GROUP }),
+      resolveEffectiveRole({ role: "", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
-    // case-insensitive
+    // case-insensitive + raw group_name compat fallback
     expect(
       resolveEffectiveRole({ role: null, group_name: "future studio" }),
     ).toBe("staff");
+  });
+
+  test("EXPIRED/ENDED FUTURE STUDIO membership produces NO staff (Phase 1)", () => {
+    // The caller passes only EFFECTIVE (active, unexpired) groups — an
+    // expired membership is not in the list, so the person keeps their
+    // explicit identity instead of being promoted to staff.
+    expect(
+      resolveEffectiveRole({ role: "participant", groups: [] }),
+    ).toBe("participant");
+    expect(
+      resolveEffectiveRole({ role: "member", groups: ["COME UP"] }),
+    ).toBe("member");
+    expect(
+      resolveEffectiveRole({ role: "", groups: [] }),
+    ).toBe("participant");
   });
 
   test("outside the group, explicit identities are preserved", () => {

@@ -1,6 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
+import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail, recordEmailSent } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -32,6 +34,14 @@ export async function POST(req) {
 
     if (!email) {
       return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
+    }
+
+    // Protected group boundary: inviting someone INTO FUTURE STUDIO is an
+    // organizational-membership action — staff/PM invite powers must not
+    // grant it (only org_membership.manage).
+    if (group_id && normalizeGroupName(group_id) === INTERNAL_GROUP) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
     }
 
     const cleanEmail = normalizeEmail(email);

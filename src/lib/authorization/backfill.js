@@ -15,6 +15,7 @@
 import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/lib/auth";
 import { runAuthzMigration } from "./migrations";
+import { ensureMembershipBootstrap } from "./membership";
 
 // Phase 2: Knowledge Base.
 // /api/knowledge (GET/POST/PATCH/DELETE) previously allowed staff + super_admin
@@ -45,6 +46,10 @@ export function ensureCapabilityBackfills() {
         // Permissions UI owns eligibility configuration (see migrations.js).
         await runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill);
         await runAuthzMigration("eligibility-policy-3", ensureFinalPolicyBackfill);
+        // Phase 1: organizational membership bootstrap — existing group edges
+        // become active, no-expiry memberships (zero behavior change at
+        // cutover; see membership.js).
+        await runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap);
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
