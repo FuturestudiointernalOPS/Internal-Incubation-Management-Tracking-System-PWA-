@@ -19,6 +19,7 @@ import {
   buildPermissionExplanation,
   MODULE_TO_FEATURE,
 } from "@/lib/authorization";
+import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 
 /**
  * GET /api/engineering/permissions
@@ -162,6 +163,7 @@ export async function GET(req) {
         success: true,
         modules: PERMISSION_MODULES,
         accessLevels: ACCESS_LEVELS,
+        catalog: CAPABILITY_CATALOG,
         roleDefaults: roleCaps.rows,
         groupDefaults: groupCaps.rows,
         accessProfiles,

@@ -38,4 +38,6 @@ export {
   IDENTITY_TYPES,
   ROLE_CATALOG,
   validateEligibilityChanges,
+  validateCapabilitiesWithinEligibility,
+  assertTemplateCapsEligible,
 } from "./eligibility-admin";

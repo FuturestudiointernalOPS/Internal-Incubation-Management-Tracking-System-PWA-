@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/assign
@@ -49,6 +49,31 @@ export async function PUT(req) {
         return NextResponse.json(
           { success: false, error: "Access profile not found or inactive" },
           { status: 404 },
+        );
+      }
+
+      // Phase 2: eligibility is the boundary — a template assigned to a
+      // person must never grant capabilities the person's identity is not
+      // eligible for.
+      const groups = (
+        await db.execute({
+          sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
+          args: [user_cid],
+        })
+      ).rows.map((r) => r.group_name);
+      const { valid, violations } = await assertTemplateCapsEligible({
+        role: user.rows[0].role,
+        groups,
+        profileId: profile_id,
+      });
+      if (!valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "errors.ineligibleTemplateCaps",
+            violations,
+          },
+          { status: 400 },
         );
       }
 

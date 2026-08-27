@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
   requireAuthorization,
   invalidateAllAuthorizationContexts,
@@ -209,6 +209,16 @@ export async function PUT(req) {
               (user_cid, group_name, action, actor_cid, note)
             VALUES (?, ?, ?, ?, ?)`,
       args: [userCid, groupName, event.action, event.actor_cid, event.note],
+    });
+
+    // Unified permission audit trail (in addition to the membership events).
+    await logPermissionAudit({
+      actorCid: actor,
+      actorName: session?.name || null,
+      targetCid: userCid,
+      targetName: `membership:${groupName}`,
+      action: "membership_changed",
+      details: `${action} → status ${row.status}`,
     });
 
     // Membership changes affect identity + authorization — drop the cache.

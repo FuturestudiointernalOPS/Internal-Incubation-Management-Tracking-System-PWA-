@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
   requireAuthorization,
   getAuthorizationContext,
@@ -116,6 +116,16 @@ export async function PUT(req) {
     }
 
     for (const c of normalized) {
+      // Read the previous value for the audit trail.
+      const prev = (
+        await db.execute({
+          sql: `SELECT eligible FROM feature_eligibility
+                WHERE feature_key = ? AND identity_type = ? AND identity_value = ?`,
+          args: [c.feature_key, c.identity_type, c.identity_value],
+        })
+      ).rows[0];
+      const prevValue = prev ? Number(prev.eligible) : null;
+
       if (c.eligible === null) {
         await db.execute({
           sql: `DELETE FROM feature_eligibility
@@ -132,6 +142,18 @@ export async function PUT(req) {
           args: [c.feature_key, c.identity_type, c.identity_value, c.eligible],
         });
       }
+
+      const session = await getSession();
+      await logPermissionAudit({
+        actorCid: session?.cid,
+        actorName: session?.name,
+        targetCid: "system",
+        targetName: `${c.identity_type}:${c.identity_value}`,
+        action: "eligibility_changed",
+        details:
+          `${c.feature_key} ${c.identity_type}:${c.identity_value} ` +
+          `${prevValue === null ? "unset" : prevValue} → ${c.eligible === null ? "unset" : c.eligible}`,
+      });
     }
 
     // Eligibility changes can affect any user — drop the short-TTL context

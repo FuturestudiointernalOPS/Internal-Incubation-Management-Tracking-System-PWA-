@@ -1017,6 +1017,62 @@ describe("validateEligibilityChanges (eligibility API)", () => {
       ]),
     );
   });
+
+  test("capabilities within eligibility are valid (Phase 2)", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { programs: { view: 1 }, contacts: { view: 1 } },
+      { program_management: true, crm: true },
+    );
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  test("ineligible feature capabilities are rejected (template boundary)", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { programs: { view: 1 }, finance: { view: 1 } },
+      { program_management: true, finance: false },
+    );
+    expect(r.valid).toBe(false);
+    expect(r.violations).toEqual([
+      { module: "finance", capability: "view", feature: "finance" },
+    ]);
+  });
+
+  test("unset eligibility (missing = fail closed) rejects template caps", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { finance: { view: 1 } },
+      { program_management: true }, // finance row missing entirely
+    );
+    expect(r.valid).toBe(false);
+    expect(r.violations[0]).toEqual({
+      module: "finance",
+      capability: "view",
+      feature: "finance",
+    });
+  });
+
+  test("infra modules without a feature mapping are not eligibility-bound", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { org_membership: { manage: 2 } },
+      {},
+    );
+    expect(r.valid).toBe(true);
+  });
+
+  test("capability catalog exposes labels and risk for every module", () => {
+    const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
+      expect(CAPABILITY_CATALOG[mod]).toBeDefined();
+      for (const cap of def.capabilities) {
+        expect(CAPABILITY_CATALOG[mod].capabilities[cap]).toBeDefined();
+      }
+    }
+  });
 });
 
 describe("org_membership capability (Phase 1 — protected groups)", () => {

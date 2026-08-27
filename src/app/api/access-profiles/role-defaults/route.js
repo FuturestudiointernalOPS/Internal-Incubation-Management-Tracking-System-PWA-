@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/role-defaults
@@ -34,6 +34,24 @@ export async function PUT(req) {
       return NextResponse.json(
         { success: false, error: "Access profile not found or inactive" },
         { status: 404 },
+      );
+    }
+
+    // Phase 2: eligibility is the boundary — a default template must never
+    // grant capabilities whose feature the role is not eligible for.
+    const { valid, violations } = await assertTemplateCapsEligible({
+      role: role_name,
+      groups: [],
+      profileId: profile_id,
+    });
+    if (!valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "errors.ineligibleTemplateCaps",
+          violations,
+        },
+        { status: 400 },
       );
     }
 

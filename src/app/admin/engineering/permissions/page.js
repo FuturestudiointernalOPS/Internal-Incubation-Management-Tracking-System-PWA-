@@ -584,6 +584,14 @@ export default function PermissionManager() {
                   </span>
                 </div>
 
+                {/* Access explanation — who has access and why */}
+                {userPerms.explanation && (
+                  <AccessExplanationPanel
+                    explanation={userPerms.explanation}
+                    t={t}
+                  />
+                )}
+
                 {/* Permission Tables */}
                 {loadingPerms ? (
                   <div className="flex items-center justify-center py-20">
@@ -2363,6 +2371,7 @@ function EligibilityView() {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+  const [viewMode, setViewMode] = useState("identity"); // identity | matrix
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -2491,6 +2500,101 @@ function EligibilityView() {
 
   return (
     <div className="space-y-4">
+      {/* View toggle: identity editor vs roles × features matrix */}
+      <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
+        <button
+          onClick={() => setViewMode("identity")}
+          className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === "identity" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+        >
+          {t("engineering.permissions.eligibilityIdentityView")}
+        </button>
+        <button
+          onClick={() => setViewMode("matrix")}
+          className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === "matrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+        >
+          {t("engineering.permissions.eligibilityMatrixView")}
+        </button>
+      </div>
+
+      {/* Matrix view: roles × features — click a cell to edit that identity */}
+      {viewMode === "matrix" && data && (
+        <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
+          <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
+            <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+              {t("engineering.permissions.eligibilityMatrixTitle")}
+            </p>
+            <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+              {t("engineering.permissions.eligibilityMatrixHint")}
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[var(--border-primary)]">
+                  <th className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
+                    {t("engineering.permissions.eligibilityIdentity")}
+                  </th>
+                  {(data.features || []).map((f) => (
+                    <th
+                      key={f}
+                      className="px-2 py-2 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap"
+                    >
+                      {f}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(data.roles || []).map((role) => (
+                  <tr
+                    key={role}
+                    className="border-b border-[var(--border-primary)] last:border-0"
+                  >
+                    <td className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
+                      {role}
+                    </td>
+                    {(data.features || []).map((f) => {
+                      const row = (data.rows || []).find(
+                        (r) =>
+                          r.identity_type === "role" &&
+                          r.identity_value === role &&
+                          r.feature_key === f,
+                      );
+                      const value = row ? Number(row.eligible) : null;
+                      return (
+                        <td key={f} className="px-2 py-1.5 text-center">
+                          <button
+                            onClick={() => {
+                              setIdentityType("role");
+                              setIdentityValue(role);
+                              setViewMode("identity");
+                            }}
+                            title={`${role} → ${f}: ${value === 1 ? t("engineering.permissions.eligibilityEligible") : value === 0 ? t("engineering.permissions.eligibilityNotEligible") : t("engineering.permissions.eligibilityUnset")}`}
+                            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                              value === 1
+                                ? "bg-emerald-500/15 text-emerald-400"
+                                : value === 0
+                                  ? "bg-red-500/15 text-red-400"
+                                  : "bg-primary text-[var(--text-secondary)] opacity-50"
+                            }`}
+                          >
+                            {value === 1
+                              ? "E"
+                              : value === 0
+                                ? "D"
+                                : "—"}
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
         <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
         <p className="text-[9px] font-bold text-[var(--text-secondary)]">
@@ -2642,6 +2746,130 @@ function EligibilityView() {
           <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">
             {t("engineering.permissions.eligibilityNoIdentity")}
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Access explanation (Phase 2 — “who has access and why”) ─────────────────
+// Renders the resolver's buildPermissionExplanation output: per-feature
+// eligibility (with the identity rows that produced it) + the capability
+// inputs (Default Access base, group capabilities, individual grants).
+
+function AccessExplanationPanel({ explanation, t }) {
+  const [open, setOpen] = useState(false);
+  const eligibility = explanation.eligibility || {};
+  const sources = explanation.sources || {};
+  const hasEligibility = Object.keys(eligibility).length > 0;
+  const hasSources =
+    (sources.profile && Object.keys(sources.profile).length > 0) ||
+    (sources.groups && Object.keys(sources.groups).length > 0) ||
+    (sources.grants && Object.keys(sources.grants).length > 0);
+
+  if (!hasEligibility && !hasSources) return null;
+
+  const sourceBlock = (labelKey, data) => {
+    const entries = Object.entries(data || {}).filter(
+      ([, caps]) => caps && Object.keys(caps).length > 0,
+    );
+    if (entries.length === 0) return null;
+    return (
+      <div>
+        <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+          {t(labelKey)}
+        </p>
+        <p className="text-[9px] font-bold text-[var(--text-primary)] mt-0.5">
+          {entries
+            .map(([mod, caps]) =>
+              `${mod}: ${Object.entries(caps)
+                .map(([cap, lvl]) => `${cap}=${lvl}`)
+                .join(", ")}`,
+            )
+            .join(" · ")}
+        </p>
+      </div>
+    );
+  };
+
+  return (
+    <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-tertiary/30 hover:bg-tertiary/50 transition-all"
+      >
+        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] flex items-center gap-2">
+          <Info className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+          {t("engineering.permissions.explanationTitle")}
+        </span>
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+        ) : (
+          <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
+        )}
+      </button>
+      {open && (
+        <div className="p-4 space-y-3 divide-y divide-[var(--border-primary)]">
+          <div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("engineering.permissions.explanationEligibility")}
+            </p>
+            {Object.keys(eligibility).length === 0 ? (
+              <p className="text-[9px] font-bold text-slate-500 mt-1">
+                {t("engineering.permissions.explanationNone")}
+              </p>
+            ) : (
+              <div className="mt-1.5 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+                {Object.entries(eligibility).map(([feature, info]) => (
+                  <div key={feature} className="flex items-start gap-2">
+                    <span
+                      className={`mt-0.5 w-1.5 h-1.5 rounded-full shrink-0 ${
+                        info.eligible ? "bg-emerald-400" : "bg-red-400"
+                      }`}
+                    />
+                    <div>
+                      <p className="text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                        {feature}
+                      </p>
+                      <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                        {info.eligible
+                          ? t("engineering.permissions.eligibilityEligible")
+                          : t("engineering.permissions.eligibilityNotEligible")}
+                        {(info.sources || []).length > 0 &&
+                          ` — ${info.sources
+                            .map(
+                              (s) => `${s.identity_type}:${s.identity_value}${Number(s.eligible) === 0 ? " (deny)" : ""}`,
+                            )
+                            .join(", ")}`}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="pt-3 space-y-2">
+            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("engineering.permissions.explanationSources")}
+            </p>
+            {sourceBlock(
+              "engineering.permissions.explanationDefaultAccess",
+              sources.profile,
+            )}
+            {sourceBlock(
+              "engineering.permissions.explanationGroups",
+              sources.groups,
+            )}
+            {sourceBlock(
+              "engineering.permissions.explanationGrants",
+              sources.grants,
+            )}
+            {!hasSources && (
+              <p className="text-[9px] font-bold text-slate-500">
+                {t("engineering.permissions.explanationNone")}
+              </p>
+            )}
+          </div>
         </div>
       )}
     </div>

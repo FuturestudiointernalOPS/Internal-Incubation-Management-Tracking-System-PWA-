@@ -14,8 +14,9 @@
  * configuration the engine enforces.
  */
 
-import { MODULE_TO_FEATURE } from "./eligibility";
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility";
+import db from "@/lib/db";
+
+import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS, evaluateEligibility } from "./eligibility";
 
 /** Every configurable feature (module-mapped features + seeded features). */
 export const FEATURE_KEYS = [
@@ -49,6 +50,31 @@ export const ROLE_CATALOG = [
     "intern",
   ]),
 ].sort();
+
+/**
+ * Validate that a set of template capabilities stays within an eligibility
+ * boundary. Eligibility is the HARD ceiling: a default template (access
+ * profile) or an individual grant must never grant a capability whose
+ * feature the identity is not eligible for.
+ *
+ * @param {Object} caps  {module: {capability: level}} (template/grants)
+ * @param {Object} eligibility  {featureKey: boolean} (from evaluateEligibility)
+ * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
+ *   Unset/missing eligibility rows count as NOT eligible (fail closed).
+ */
+export function validateCapabilitiesWithinEligibility(caps, eligibility) {
+  const violations = [];
+  for (const [module, capMap] of Object.entries(caps || {})) {
+    const feature = MODULE_TO_FEATURE[module];
+    if (!feature) continue; // infra modules without a feature are capability-only
+    if (eligibility?.[feature] !== true) {
+      for (const capability of Object.keys(capMap || {})) {
+        violations.push({ module, capability, feature });
+      }
+    }
+  }
+  return { valid: violations.length === 0, violations };
+}
 
 /**
  * Validate + normalize an eligibility change batch.
@@ -89,4 +115,44 @@ export function validateEligibilityChanges(changes) {
     normalized.push({ feature_key: featureKey, identity_type: identityType, identity_value: identityValue, eligible });
   }
   return { valid: errors.length === 0 && normalized.length > 0, errors, normalized };
+}
+
+/**
+ * Server-side enforcement (Phase 2): a DEFAULT ACCESS TEMPLATE (access
+ * profile) can never grant capabilities whose feature the target identity is
+ * not eligible for. Eligibility is the boundary.
+ *
+ * @param {string} role  the identity role (or the user's role)
+ * @param {string[]} groups  the identity's effective groups (or [] for roles)
+ * @param {number|string} profileId
+ * @returns {{valid: boolean, violations: Array<{module, capability, feature}>}}
+ */
+export async function assertTemplateCapsEligible({ role, groups = [], profileId }) {
+  const capsRes = await db.execute({
+    sql: `SELECT module, capability, access_level
+          FROM access_profile_capabilities WHERE profile_id = ?`,
+    args: [profileId],
+  });
+  const caps = {};
+  for (const r of capsRes.rows) {
+    caps[r.module] ??= {};
+    if (Number(r.access_level) > (caps[r.module][r.capability] ?? 0)) {
+      caps[r.module][r.capability] = Number(r.access_level);
+    }
+  }
+
+  const ph = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  const eligRes = await db.execute({
+    sql: `SELECT feature_key, identity_type, identity_value, eligible
+          FROM feature_eligibility
+          WHERE (identity_type = 'role' AND identity_value = ?)
+             OR (identity_type = 'group' AND identity_value IN (${ph}))`,
+    args: [role, ...groups],
+  });
+  const eligibility = {};
+  for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+    eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);
+  }
+
+  return validateCapabilitiesWithinEligibility(caps, eligibility);
 }
