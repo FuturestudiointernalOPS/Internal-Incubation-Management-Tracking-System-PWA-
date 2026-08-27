@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Rocket, Archive, Eye, Trash2, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Rocket, Archive, Eye, Trash2, Save, AlertCircle, Users } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppCard from "@/components/ui/AppCard";
 import CourseStatusBadge from "./CourseStatusBadge";
 import CourseFormFields from "./CourseFormFields";
 import SectionsManager from "./SectionsManager";
 import CoursePreviewModal from "./CoursePreviewModal";
+import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 
@@ -26,6 +27,7 @@ export default function CourseEditor({ courseId }) {
   const [details, setDetails] = useState(null);
   const [saving, setSaving] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [enrollOpen, setEnrollOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
 
   const fetchCourse = useCallback(async () => {
@@ -174,6 +176,9 @@ export default function CourseEditor({ courseId }) {
             <AppButton variant="ghost" icon={Eye} onClick={() => setPreviewOpen(true)}>
               {t("lms.courses.preview")}
             </AppButton>
+            <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
+              {t("lms.enroll.title")}
+            </AppButton>
             {course.status === "draft" && (
               <AppButton variant="primary" icon={Rocket} onClick={publish}>
                 {t("lms.courses.publish")}
@@ -229,6 +234,7 @@ export default function CourseEditor({ courseId }) {
       </AppCard>
 
       <CoursePreviewModal isOpen={previewOpen} onClose={() => setPreviewOpen(false)} course={course} />
+      <EnrollModal isOpen={enrollOpen} onClose={() => setEnrollOpen(false)} courseId={course.id} />
     </div>
   );
 }
