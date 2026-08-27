@@ -325,6 +325,16 @@ export async function ensureMembershipBootstrap() {
             ON CONFLICT (user_cid, group_name) DO NOTHING`,
       args: [edge.user_cid, normalizeGroupName(edge.group_name)],
     });
+    // Mirror into user_groups so legacy consumers (workspaces hub org
+    // memberships, role_in_group lookups) see the same edge. Production
+    // membership lives on contacts.group_name with an empty user_groups, so
+    // without this mirror the hub would stay blank after bootstrap.
+    await db.execute({
+      sql: `INSERT INTO user_groups (user_cid, group_name, assigned_by)
+            VALUES (?, ?, 'system')
+            ON CONFLICT (user_cid, group_name) DO NOTHING`,
+      args: [edge.user_cid, normalizeGroupName(edge.group_name)],
+    });
     // Event only when the membership was actually inserted (idempotent retry).
     if (ins.rowsAffected > 0) {
       await db.execute({
