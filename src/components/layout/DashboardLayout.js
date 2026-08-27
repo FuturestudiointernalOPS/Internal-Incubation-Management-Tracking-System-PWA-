@@ -165,6 +165,7 @@ const NAV_KEY_MAP = {
   bulk_upload: "navigation.bulkUpload",
   lms: "navigation.lms",
   lms_courses: "navigation.lmsCourses",
+  learning: "navigation.learning",
 };
 
 function tnav(key) {
@@ -813,6 +814,12 @@ const NAVIGATION_MATRIX = {
       name: "DASHBOARD",
       icon: LayoutDashboard,
       href: "/participant",
+    },
+    {
+      id: "learning",
+      name: "MY LEARNING",
+      icon: GraduationCap,
+      href: "/participant/learning",
     },
     {
       id: "programs",

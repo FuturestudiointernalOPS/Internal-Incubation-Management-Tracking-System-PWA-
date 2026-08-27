@@ -24,6 +24,49 @@
       "archived": "Course archived",
       "deleted": "Course deleted"
     },
+    "learning": {
+      "title": "My Learning",
+      "emptyTitle": "You don't have any courses yet",
+      "emptyDescription": "Courses assigned to you will appear here.",
+      "continue": "Continue Learning",
+      "review": "Review Course",
+      "courseCompleted": "Course completed",
+      "completedLessons": "{completed} of {total} lessons completed",
+      "notStarted": "Not started",
+      "inProgress": "In progress",
+      "completed": "Completed",
+      "loadFailed": "We couldn't load your learning."
+    },
+    "player": {
+      "markComplete": "Mark Lesson Complete",
+      "completed": "Completed",
+      "previous": "Previous Lesson",
+      "next": "Next Lesson",
+      "courseContent": "Course Content",
+      "videoUnavailable": "This lesson's video is unavailable.",
+      "lessonCompleted": "Lesson completed",
+      "saveProgressFailed": "We couldn't save your progress. Please try again.",
+      "noAccess": "You no longer have access to this course.",
+      "startAssessment": "Start Assessment",
+      "assessmentSoon": "Assessments are coming in a future phase.",
+      "courseCompletedBanner": "You have completed all the required lessons in this course.",
+      "sectionComplete": "Complete"
+    },
+    "enroll": {
+      "title": "Learners",
+      "add": "Enroll Learner",
+      "emailOrCid": "Email or user ID",
+      "emailOrCidPlaceholder": "learner@future.studio or U-XXXX",
+      "enroll": "Enroll",
+      "enrolled": "Learner enrolled",
+      "alreadyEnrolled": "Already enrolled",
+      "userNotFound": "No user found with that email or ID.",
+      "empty": "No learners enrolled yet",
+      "source": "Source",
+      "status": "Status",
+      "enrolledAt": "Enrolled",
+      "loadFailed": "Couldn't load the learners."
+    },
     "fields": {
       "title": "Course title",
       "titlePlaceholder": "e.g. Customer Discovery Fundamentals",
@@ -186,7 +229,9 @@
       "notPublished": "Only published courses can be archived.",
       "loadFailed": "Failed to load courses.",
       "loadFailedCourse": "Failed to load the course.",
-      "saveFailed": "Failed to save."
+      "saveFailed": "Failed to save.",
+      "notEnrolled": "You are not enrolled in this course.",
+      "userNotFound": "No user found with that email or ID."
     }
   }
 }

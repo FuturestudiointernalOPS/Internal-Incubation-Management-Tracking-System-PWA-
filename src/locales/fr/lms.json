@@ -24,6 +24,49 @@
       "archived": "Cours archivé",
       "deleted": "Cours supprimé"
     },
+    "learning": {
+      "title": "Mon apprentissage",
+      "emptyTitle": "Vous n'avez encore aucun cours",
+      "emptyDescription": "Les cours qui vous sont assignés apparaîtront ici.",
+      "continue": "Continuer l'apprentissage",
+      "review": "Revoir le cours",
+      "courseCompleted": "Cours terminé",
+      "completedLessons": "{completed} leçons terminées sur {total}",
+      "notStarted": "Non commencé",
+      "inProgress": "En cours",
+      "completed": "Terminé",
+      "loadFailed": "Impossible de charger votre apprentissage."
+    },
+    "player": {
+      "markComplete": "Marquer la leçon comme terminée",
+      "completed": "Terminée",
+      "previous": "Leçon précédente",
+      "next": "Leçon suivante",
+      "courseContent": "Contenu du cours",
+      "videoUnavailable": "La vidéo de cette leçon est indisponible.",
+      "lessonCompleted": "Leçon terminée",
+      "saveProgressFailed": "Impossible d'enregistrer votre progression. Veuillez réessayer.",
+      "noAccess": "Vous n'avez plus accès à ce cours.",
+      "startAssessment": "Commencer l'évaluation",
+      "assessmentSoon": "Les évaluations arrivent dans une phase future.",
+      "courseCompletedBanner": "Vous avez terminé toutes les leçons obligatoires de ce cours.",
+      "sectionComplete": "Terminée"
+    },
+    "enroll": {
+      "title": "Apprenants",
+      "add": "Inscrire un apprenant",
+      "emailOrCid": "E-mail ou identifiant utilisateur",
+      "emailOrCidPlaceholder": "apprenant@future.studio ou U-XXXX",
+      "enroll": "Inscrire",
+      "enrolled": "Apprenant inscrit",
+      "alreadyEnrolled": "Déjà inscrit",
+      "userNotFound": "Aucun utilisateur trouvé avec cet e-mail ou identifiant.",
+      "empty": "Aucun apprenant inscrit pour l'instant",
+      "source": "Source",
+      "status": "Statut",
+      "enrolledAt": "Inscrit le",
+      "loadFailed": "Impossible de charger les apprenants."
+    },
     "fields": {
       "title": "Titre du cours",
       "titlePlaceholder": "ex. Fondamentaux de la découverte client",
@@ -186,7 +229,9 @@
       "notPublished": "Seuls les cours publiés peuvent être archivés.",
       "loadFailed": "Échec du chargement des cours.",
       "loadFailedCourse": "Échec du chargement du cours.",
-      "saveFailed": "Échec de l'enregistrement."
+      "saveFailed": "Échec de l'enregistrement.",
+      "notEnrolled": "Vous n'êtes pas inscrit à ce cours.",
+      "userNotFound": "Aucun utilisateur trouvé avec cet e-mail ou identifiant."
     }
   }
 }
