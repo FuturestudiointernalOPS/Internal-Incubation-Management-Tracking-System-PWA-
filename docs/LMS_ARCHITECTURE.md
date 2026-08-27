@@ -237,15 +237,18 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 - Every user-visible string goes through `t()` with `en/` + `fr/` locale entries
   (see `AGENTS.md`). Planned namespace: `lms.*` in a new `src/locales/en/lms.json` + `fr/lms.json`.
 
-## 6. Planned route map (NOT implemented in Phase 1)
+## 6. Route map
 
-| Route | Phase | Purpose |
+| Route | Status | Purpose |
 |---|---|---|
-| `/api/lms/courses` + `/api/lms/courses/[id]` | 2 | course + section + lesson CRUD (admin) |
-| `/api/lms/courses/[id]/enroll` | 2/3 | enrollment (admin, program, self) |
-| `/api/lms/my-courses` | 3 | learner's courses + progress |
-| `/api/lms/courses/[id]/lesson/[lessonId]/complete` | 3 | sequential lesson completion |
-| `/api/lms/assessments/[id]/submit` | 4 | server-side scoring + attempt row |
+| `/api/lms/courses` + `/api/lms/courses/[id]` | ✅ Phase 2 | course + section + lesson CRUD (admin) |
+| `/api/lms/courses/[id]/publish` · `/archive` | ✅ Phase 2 | status transitions (admin) |
+| `/api/lms/sections/*` · `/lessons/*` · `/assessments/*` · `/questions/*` | ✅ Phase 2 | content authoring (admin) |
+| `/api/lms/enrollments` + `/api/lms/courses/[id]/enrollments` | ✅ Phase 3 (minimal enabler) | admin enrollment (lms.enroll) |
+| `/api/lms/my-learning` | ✅ Phase 3 | learner's enrolled courses + progress |
+| `/api/lms/courses/[id]/learn` | ✅ Phase 3 | learner-scoped course view (enrollment-gated) |
+| `/api/lms/lessons/[lessonId]/complete` | ✅ Phase 3 | idempotent lesson completion |
+| `/api/lms/assessments/[id]/submit` | Phase 4 | server-side scoring + attempt row |
 | `/api/lms/certificates` | later | certificate records (table deferred) |
 | `/api/lms/program-requirements` | later | Program → Course links |
 
@@ -297,3 +300,45 @@ INSERT INTO lms_courses (title) VALUES ('Smoke') RETURNING id;
   enrollment/access checks for the learner experience belong to the learner phase.
 - Do not introduce RLS-only gating: app-level checks are the ImpactOS convention
   (`docs/ARCHITECTURE.md`, `.ai/PROJECT.md` rule 10).
+
+## 10. Learner experience (Phase 3)
+
+### Access model
+
+User → valid `lms_enrollments` row → Course → Access. Learner endpoints use `requireAuth()`
+(any authenticated user) and then derive access **server-side from the enrollment table** —
+never from client-supplied course/enrollment IDs and never from `lms.*` capabilities (learners
+have none). A non-enrolled user gets 403 even if they know the course ID. Draft courses are
+never exposed to learners; archived courses remain accessible to enrolled learners.
+
+### Progress
+
+- Storage: `lms_lesson_progress` (one row per `(enrollment_id, lesson_id)`, unique —
+  completion is idempotent; a second click never duplicates the row).
+- Formula (single, deterministic — matches the future completion engine):
+  `percent = round(completed required lessons / total required lessons × 100)`. Optional
+  lessons never block completion. Edge cases: all-optional course completes when every lesson
+  is done; a course with zero lessons is 0%.
+- Resume/Continue: the first lesson in section/lesson order whose progress is not `completed`
+  (`findContinueLesson`). Never-started → first lesson; in-progress → next incomplete;
+  completed → completion state (enrollment `status = 'completed'`, `completed_at` set — this
+  is the Phase 5-compatible completion state; certificates are NOT issued here).
+- Course completion is stored on the enrollment; section progress is derived per request.
+
+### Video embedding
+
+- Embed built from the stored 11-char ID only: `https://www.youtube-nocookie.com/embed/<id>
+  ?rel=0&modestbranding=1&playsinline=1&color=white` (privacy-enhanced domain; plays inline on
+  mobile). No raw URL is ever shown; invalid/missing IDs render a graceful fallback.
+- YouTube hides share/copy controls within its own iframe UI where supported, but **we make no
+  DRM or non-copyability claims** — an Unlisted video can still be extracted or shared by a
+  determined user. That limitation is intentionally documented, not hidden.
+- Completion is **manual** (`Mark Lesson Complete`). YouTube playback events are deliberately
+  not relied on, so a learner can never be permanently blocked by a missed event.
+
+### Admin enrollment enabler
+
+Phase 3 requires enrollments to exist. `POST /api/lms/enrollments` (guarded by the Phase 1
+`lms.enroll` capability) enrolls a learner by cid or email, idempotently. A minimal
+"Learners" modal in the course editor lists and adds learners. A full enrollment management
+suite is a later phase; self-enrollment belongs to the enrollment phase.

@@ -83,7 +83,37 @@
 | File | Exports | Purpose |
 |---|---|---|
 | `src/lib/lms/constants.js` | LMS_COURSE_STATUSES, LMS_COURSE_VISIBILITY, LMS_ENROLLMENT_SOURCES, LMS_ENROLLMENT_STATUSES, LMS_PROGRESS_STATUSES, LMS_LESSON_CONTENT_TYPES, LMS_QUESTION_TYPES | LMS domain vocabulary — mirrors the CHECK-constraint values in `supabase/migrations/20260827_lms_foundation.sql`; the schema test (`src/__tests__/lms-foundation.test.js`) guards against drift. |
-| `src/lib/lms/index.js` | re-exports `./constants` | Canonical entry point for LMS domain modules; future service modules (courses, enrollments, progress, assessments) live in this directory. |
+| `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID; the only video data the LMS stores. |
+| `src/lib/lms/validation.js` | validateCourseForPublish | Pure publish-validation rules (sections, lessons, video refs, MC/TF questions, pass mark). |
+| `src/lib/lms/errors.js` | LmsError, lmsErrorResponse | Domain error with i18n key + HTTP status; standard route error responses (never leak raw DB errors). |
+| `src/lib/lms/helpers.js` | nextPosition, groupBy | Ordering helper (max+1 position) and row grouping. |
+| `src/lib/lms/courses.js` | listCourses, getCourse, getCourseStructure, createCourse, updateCourse, deleteCourse, publishCourse, archiveCourse | Course lifecycle + authoring structure assembly (admin). |
+| `src/lib/lms/sections.js` | getSection, createSection, updateSection, moveSection, deleteSection | Section authoring + ordering (admin). |
+| `src/lib/lms/lessons.js` | getLesson, createLesson, updateLesson, moveLesson, deleteLesson | Lesson authoring + ordering + YouTube normalization (admin). |
+| `src/lib/lms/assessments.js` | getAssessment, getQuestion, createAssessment, updateAssessment, deleteAssessment, createQuestion, updateQuestion, moveQuestion, deleteQuestion | Assessment/question authoring (admin). |
+| `src/lib/lms/learning.js` | computeCourseProgress, findContinueLesson, getLearnerCourses, getLearnerCourse, completeLesson, enrollLearner, listEnrollments | Learner experience: enrollment-gated access, deterministic progress, idempotent completion, admin enrollment enabler. |
+| `src/lib/lms/index.js` | re-exports constants/youtube/validation | Canonical entry point for LMS domain modules. |
+
+## components/lms
+
+| File | Exports | Purpose |
+|---|---|---|
+| `src/components/lms/CourseStatusBadge.js` | CourseStatusBadge | Draft/published/archived pill for authoring UI. |
+| `src/components/lms/CourseFormFields.js` | CourseFormFields | Shared course metadata form (title, description, thumbnail, visibility, free/paid + price). |
+| `src/components/lms/CourseList.js` | CourseList | Admin course list: search, status filter, open/publish/archive. |
+| `src/components/lms/CourseEditor.js` | CourseEditor | Admin authoring workspace (details + sections + lessons + assessments + preview + publish). |
+| `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals. |
+| `src/components/lms/LessonModal.js` | LessonModal | Lesson create/edit with live YouTube validation. |
+| `src/components/lms/AssessmentModal.js` | AssessmentModal | Assessment create/edit with question management. |
+| `src/components/lms/QuestionModal.js` | QuestionModal | MC / True-False question authoring. |
+| `src/components/lms/CoursePreviewModal.js` | CoursePreviewModal | Read-only author preview of the course structure. |
+| `src/components/lms/EnrollModal.js` | EnrollModal | Admin enrollment enabler (list learners, enroll by email/cid). |
+| `src/components/lms/LearnerProgressBar.js` | LearnerProgressBar | Accessible progress bar (role=progressbar, design-system colors). |
+| `src/components/lms/LessonStateIcon.js` | LessonStateIcon | ✓ completed / ▶ current / ○ not-started lesson states. |
+| `src/components/lms/LearnerLearning.js` | LearnerLearning | My Learning: enrolled courses, progress, Continue Learning. |
+| `src/components/lms/LearnerCourse.js` | LearnerCourse | Course overview: progress, sections, resume point. |
+| `src/components/lms/LearnerPlayer.js` | LearnerPlayer | Course player: embedded YouTube, prev/next, Mark Complete, content panel. |
+| `src/components/lms/notify.js` | notify | Toast helper (dispatches `impactos:notify` for GlobalToast). |
 
 ## lib/hooks
 
