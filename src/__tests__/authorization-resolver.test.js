@@ -57,6 +57,7 @@ jest.mock("@/lib/auth", () => {
         "reviews.submit",
       ],
     },
+    lms: { capabilities: ["view", "create", "edit", "delete", "publish", "enroll"] },
   };
   return {
     PERMISSION_MODULES,
@@ -674,5 +675,44 @@ describe("requireAuthorization", () => {
   test("returns 401 without a session", async () => {
     const res = await requireAuthorization("finance", "view");
     expect(res.status).toBe(401);
+  });
+});
+
+// ─── LMS module (Phase 12) — capability-only, no eligibility entry ──────────
+
+describe("lms module", () => {
+  test("MODULE_TO_FEATURE does not map lms — capability-only in Phase 1", () => {
+    const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
+    expect(MODULE_TO_FEATURE.lms).toBeUndefined();
+  });
+
+  test("delegated staff with lms.create is allowed", () => {
+    const ctx = staffCtx({
+      eligibility: {},
+      effective: { lms: { view: 1, create: 2 } },
+    });
+    expect(authorize(ctx, "lms", "create")).toBe(true);
+    expect(authorize(ctx, "lms", "enroll")).toBe(false);
+  });
+
+  test("staff without lms capabilities is denied (no default grant)", () => {
+    const ctx = staffCtx({ eligibility: {}, effective: { programs: { view: 1 } } });
+    expect(authorize(ctx, "lms", "view")).toBe(false);
+  });
+
+  test("super admin is allowed without explicit lms rows (matrix bypass)", () => {
+    expect(authorize(saCtx(), "lms", "create")).toBe(true);
+    expect(authorize(saCtx(), "lms", "publish")).toBe(true);
+  });
+
+  test("super admin with an explicit lms restriction is denied", () => {
+    const ctx = saCtx({ restrictions: { lms: new Set(["publish"]) } });
+    expect(authorize(ctx, "lms", "publish")).toBe(false);
+    expect(authorize(ctx, "lms", "view")).toBe(true); // unrelated cap unaffected
+  });
+
+  test("missing capability → denied (fail closed)", () => {
+    const ctx = staffCtx({ eligibility: {}, effective: {} });
+    expect(authorize(ctx, "lms", "enroll")).toBe(false);
   });
 });

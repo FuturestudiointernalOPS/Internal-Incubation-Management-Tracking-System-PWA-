@@ -416,6 +416,10 @@ export const PERMISSION_MODULES = {
     name: "Knowledge Base",
     capabilities: ["view", "create", "edit", "delete"],
   },
+  lms: {
+    name: "LMS",
+    capabilities: ["view", "create", "edit", "delete", "publish", "enroll"],
+  },
   tasks: {
     name: "Tasks",
     capabilities: ["view", "create", "edit", "delete"],

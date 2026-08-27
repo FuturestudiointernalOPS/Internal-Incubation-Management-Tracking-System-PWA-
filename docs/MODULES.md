@@ -78,6 +78,13 @@
 | `src/lib/supabase.js` | supabase | Initialises the Supabase client with the anonymous (anon) key for client‑side usage; provides a shared Supabase instance for basic CRUD operations that respect Row Level Security. |
 | `src/lib/taskAudit.js` | logTaskEvent, ACTION_TYPES | Immutable audit logger for task actions (create, assign, update, etc.) that writes to the task_assignment_log table; exists to maintain a write‑only history for compliance and debugging. |
 
+## lib/lms
+
+| File | Exports | Purpose |
+|---|---|---|
+| `src/lib/lms/constants.js` | LMS_COURSE_STATUSES, LMS_COURSE_VISIBILITY, LMS_ENROLLMENT_SOURCES, LMS_ENROLLMENT_STATUSES, LMS_PROGRESS_STATUSES, LMS_LESSON_CONTENT_TYPES, LMS_QUESTION_TYPES | LMS domain vocabulary — mirrors the CHECK-constraint values in `supabase/migrations/20260827_lms_foundation.sql`; the schema test (`src/__tests__/lms-foundation.test.js`) guards against drift. |
+| `src/lib/lms/index.js` | re-exports `./constants` | Canonical entry point for LMS domain modules; future service modules (courses, enrollments, progress, assessments) live in this directory. |
+
 ## lib/hooks
 
 | File | Exports | Purpose |
