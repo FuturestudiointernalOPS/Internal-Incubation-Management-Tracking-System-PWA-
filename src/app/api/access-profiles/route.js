@@ -213,6 +213,26 @@ export async function PUT(req) {
       });
     }
     if (is_active !== undefined) {
+      // Phase 7 governance: a profile that is a role default must never be
+      // disabled through the API — that would silently drop the role's
+      // default access (resolver falls back to legacy role_capabilities).
+      // Change the role default first.
+      if (!is_active) {
+        const refs = await db.execute({
+          sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
+          args: [id],
+        });
+        if (refs.rows.length > 0) {
+          const roles = refs.rows.map((r) => r.role_name).join(", ");
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Cannot disable: profile is the default for role(s): ${roles}. Change the role default first.`,
+            },
+            { status: 400 },
+          );
+        }
+      }
       await db.execute({
         sql: "UPDATE access_profiles SET is_active = ?, updated_at = NOW() WHERE id = ?",
         args: [is_active ? 1 : 0, id],

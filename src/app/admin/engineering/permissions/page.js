@@ -26,8 +26,10 @@ import {
   Pencil,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
-import { capabilityLabel } from "@/lib/authorization/capability-catalog";
+import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
+import { deriveMembershipStatus } from "@/lib/membership-ui";
 import {
   isResponsibilityBlockedForRole,
   normalizeAllowedRoles,
@@ -81,7 +83,7 @@ const MODULE_CATEGORIES = [
 ];
 
 export default function PermissionManager() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [activeTab, setActiveTab] = useState("search");
   const [searchQuery, setSearchQuery] = useState("");
   const [allUsers, setAllUsers] = useState([]);
@@ -95,6 +97,7 @@ export default function PermissionManager() {
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
   const [pendingCid, setPendingCid] = useState(null);
+  const [whyTarget, setWhyTarget] = useState(null); // { module, capability } for the explanation modal
 
   // Deep-link support: /admin/engineering/permissions?cid=X preselects a user
   // (used by the Membership Control Center's "View Effective Access").
@@ -377,6 +380,18 @@ export default function PermissionManager() {
             className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             {t("engineering.permissions.tabUserSearch")}
+          </button>
+          <button
+            onClick={() => setActiveTab("audit")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "audit" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            {t("engineering.permissions.tabAudit")}
+          </button>
+          <button
+            onClick={() => setActiveTab("governance")}
+            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "governance" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          >
+            {t("engineering.permissions.tabGovernance")}
           </button>
           <button
             onClick={() => setActiveTab("responsibilities")}
@@ -849,6 +864,13 @@ export default function PermissionManager() {
                                             {/* Actions column */}
                                             <td className="px-3 py-3 text-center">
                                               <div className="flex items-center justify-center gap-1">
+                                                <button
+                                                  onClick={() => setWhyTarget({ module: modKey, capability: cap })}
+                                                  className="p-1.5 rounded-lg hover:bg-blue-500/10 transition-all"
+                                                  title={t("engineering.permissions.whyAccess")}
+                                                >
+                                                  <Info className="w-3 h-3 text-blue-400" />
+                                                </button>
                                                 {origin === "granted" && (
                                                   <button
                                                     onClick={() =>
@@ -902,6 +924,18 @@ export default function PermissionManager() {
 
         {activeTab === "responsibilities" && <ResponsibilitiesView />}
         {activeTab === "access" && <ResponsibilityAccessView />}
+        {activeTab === "audit" && <AuditView />}
+        {activeTab === "governance" && <GovernanceView />}
+        {whyTarget && (
+          <CapabilityWhyModal
+            userPerms={userPerms}
+            module={whyTarget.module}
+            capability={whyTarget.capability}
+            t={t}
+            lang={lang}
+            onClose={() => setWhyTarget(null)}
+          />
+        )}
       </div>
     </DashboardLayout>
   );
@@ -2985,6 +3019,733 @@ function AccessExplanationPanel({ explanation, t }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ─── Phase 7: Permission Audit viewer ───────────────────────────────────── */
+
+const AUDIT_ACTIONS = [
+  "granted",
+  "revoked",
+  "restricted",
+  "unrestricted",
+  "eligibility_changed",
+  "profile_created",
+  "profile_updated",
+  "profile_deleted",
+  "role_default_changed",
+  "access_profile_changed",
+  "membership_changed",
+  "role_changed",
+];
+
+function AuditView() {
+  const { t } = useI18n();
+  const [entries, setEntries] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filters, setFilters] = useState({ q: "", action: "", module: "", capability: "", from: "", to: "" });
+  const [applied, setApplied] = useState(filters);
+  const [detail, setDetail] = useState(null);
+
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
+  const applyFilters = () => setApplied(filters);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+        for (const [k, v] of Object.entries(applied)) {
+          if (v) params.set(k, v);
+        }
+        const res = await fetch(`/api/engineering/permissions/audit?${params.toString()}`);
+        const data = await res.json();
+        if (!cancelled) {
+          if (data.success) {
+            setEntries(data.entries || []);
+            setTotal(data.total || 0);
+          } else {
+            setError(data.error || "—");
+          }
+        }
+      } catch {
+        if (!cancelled) setError("—");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applied, page, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const moduleOptions = Object.keys(CAPABILITY_CATALOG).sort();
+
+  const fmtDate = (v) => {
+    if (!v) return "—";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[200px]">
+          <input
+            value={filters.q}
+            onChange={(e) => updateFilter("q", e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            placeholder={t("engineering.permissions.auditSearch")}
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+          />
+        </div>
+        <select
+          value={filters.action}
+          onChange={(e) => updateFilter("action", e.target.value)}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        >
+          <option value="">{t("engineering.permissions.auditAllActions")}</option>
+          {AUDIT_ACTIONS.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+        <select
+          value={filters.module}
+          onChange={(e) => updateFilter("module", e.target.value)}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        >
+          <option value="">{t("engineering.permissions.auditAllModules")}</option>
+          {moduleOptions.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <input
+          type="date"
+          value={filters.from}
+          onChange={(e) => updateFilter("from", e.target.value)}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        />
+        <input
+          type="date"
+          value={filters.to}
+          onChange={(e) => updateFilter("to", e.target.value)}
+          className="bg-secondary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold text-[var(--text-primary)] outline-none"
+        />
+        <button
+          onClick={applyFilters}
+          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+        >
+          {t("engineering.permissions.eligibilitySave")}
+        </button>
+      </div>
+
+      {error && (
+        <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+          <p className="text-[10px] font-bold text-red-400">{error}</p>
+        </div>
+      )}
+
+      <div
+        className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
+      >
+        <div className="px-5 py-3 bg-secondary border-b border-[var(--border-primary)] flex items-center justify-between">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+            {t("engineering.permissions.auditTotal", { total })}
+          </p>
+          <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+            {t("engineering.permissions.auditReadOnly")}
+          </p>
+        </div>
+        {loading ? (
+          <div className="p-8 space-y-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="h-10 rounded-lg animate-pulse" style={{ background: "var(--surface-3)" }} />
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="py-12 text-center opacity-50">
+            <Clock className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase">
+              {t("engineering.permissions.auditNoResults")}
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-[var(--border-primary)] text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditDate")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditActor")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditTarget")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditAction")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditObject")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.auditChange")}</th>
+                  <th className="px-4 py-2.5">{t("engineering.permissions.actions")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {entries.map((e) => (
+                  <tr key={e.id} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
+                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                      {fmtDate(e.created_at)}
+                    </td>
+                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-primary)]">
+                      {e.actor_name || e.actor_cid || "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-primary)]">
+                      {e.target_name || e.target_cid || "—"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-blue-500/10 text-blue-400">
+                        {e.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)]">
+                      {e.module ? `${e.module}.${e.capability || "*"}` : e.details ? String(e.details).slice(0, 48) : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                      {e.previous_value || e.new_value ? (
+                        <span>
+                          <span className="text-slate-500 line-through">{e.previous_value || "—"}</span>
+                          {" → "}
+                          <span className="text-emerald-400">{e.new_value || "—"}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <button
+                        onClick={() => setDetail(e)}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                      >
+                        {t("engineering.permissions.auditViewDetail")}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {!loading && entries.length > 0 && (
+          <div className="px-5 py-3 border-t border-[var(--border-primary)]">
+            <AppPagination currentPage={page} totalPages={totalPages} onPageChange={setPage} />
+          </div>
+        )}
+      </div>
+
+      {/* Detail modal — read-only */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)" }} onClick={() => setDetail(null)} />
+          <div
+            className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+            style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
+                {t("engineering.permissions.auditDetailTitle")}
+              </h4>
+              <button onClick={() => setDetail(null)} className="p-2 hover:bg-tertiary rounded-lg transition-all">
+                <X className="w-4 h-4 text-[var(--text-secondary)]" />
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-[10px]">
+              <Field label={t("engineering.permissions.auditActor")} value={detail.actor_name || detail.actor_cid || "—"} />
+              <Field label={t("engineering.permissions.auditTarget")} value={detail.target_name || detail.target_cid || "—"} />
+              <Field label={t("engineering.permissions.auditDate")} value={fmtDate(detail.created_at)} />
+              <Field label={t("engineering.permissions.auditAction")} value={detail.action} />
+              <Field
+                label={t("engineering.permissions.auditObject")}
+                value={detail.module ? `${detail.module}.${detail.capability || "*"}` : "—"}
+              />
+              <Field
+                label={t("engineering.permissions.auditChange")}
+                value={
+                  detail.previous_value || detail.new_value
+                    ? `${detail.previous_value || "—"} → ${detail.new_value || "—"}`
+                    : t("engineering.permissions.auditNotAvailable")
+                }
+              />
+              <div className="col-span-2">
+                <Field
+                  label={t("engineering.permissions.auditDetails")}
+                  value={detail.details || t("engineering.permissions.auditNotAvailable")}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value }) {
+  return (
+    <div>
+      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">{label}</p>
+      <p className="text-[10px] font-bold text-[var(--text-primary)] break-words">{value}</p>
+    </div>
+  );
+}
+
+/* ─── Phase 7: Governance overview ───────────────────────────────────────── */
+
+function GovernanceView() {
+  const { t } = useI18n();
+  const [memberships, setMemberships] = useState(null);
+  const [protectedMap, setProtectedMap] = useState({});
+  const [recent, setRecent] = useState([]);
+  const [roleDefaults, setRoleDefaults] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [memRes, audRes, profRes] = await Promise.all([
+          fetch("/api/org-membership"),
+          fetch("/api/engineering/permissions/audit?pageSize=10"),
+          fetch("/api/access-profiles"),
+        ]);
+        const memData = await memRes.json();
+        const audData = await audRes.json();
+        const profData = await profRes.json();
+        if (!cancelled) {
+          if (memData.success) {
+            setMemberships(memData.memberships || []);
+            setProtectedMap(memData.protected || {});
+          }
+          if (audData.success) setRecent(audData.entries || []);
+          if (profData.success) setRoleDefaults(profData.roleDefaults || {});
+        }
+      } catch {
+        /* informational view — degrade gracefully */
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const fs = (memberships || []).filter((m) => m.group_name === "FUTURE STUDIO");
+  const stats = { active: 0, expiringSoon: 0, expired: 0, ended: 0 };
+  for (const m of fs) {
+    const s = deriveMembershipStatus(m);
+    stats[s] = (stats[s] || 0) + 1;
+  }
+
+  const protectedGroups = Object.entries(protectedMap)
+    .filter(([, p]) => p)
+    .map(([name]) => name);
+  const defaultProfiles = Object.entries(roleDefaults).map(([role, v]) => ({
+    role,
+    profileName: v?.profileName || v?.profileId,
+  }));
+
+  const statCard = (label, value, color) => (
+    <div
+      className="rounded-xl p-4"
+      style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
+    >
+      <p className="text-2xl font-black" style={{ color }}>
+        {value}
+      </p>
+      <p className="text-[8px] font-black uppercase tracking-widest mt-1" style={{ color: "var(--text-secondary)" }}>
+        {label}
+      </p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs font-bold text-[var(--text-secondary)]">
+        {t("engineering.permissions.governanceIntro")}
+      </p>
+
+      {loading ? (
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-20 rounded-xl animate-pulse" style={{ background: "var(--surface-3)" }} />
+          ))}
+        </div>
+      ) : (
+        <>
+          {/* Membership status — FUTURE STUDIO */}
+          <div className="space-y-2">
+            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("engineering.permissions.governanceMembership")}
+            </h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {statCard(t("engineering.permissions.governanceActive"), stats.active, "#10B981")}
+              {statCard(t("engineering.permissions.governanceExpiringSoon"), stats.expiringSoon, "#F59E0B")}
+              {statCard(t("engineering.permissions.governanceExpired"), stats.expired, "#EF4444")}
+              {statCard(t("engineering.permissions.governanceEnded"), stats.ended, "#94A3B8")}
+            </div>
+          </div>
+
+          {/* Recent permission changes */}
+          <div className="space-y-2">
+            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("engineering.permissions.governanceRecent")}
+            </h3>
+            {recent.length === 0 ? (
+              <div
+                className="rounded-xl p-4 text-[10px]"
+                style={{
+                  background: "var(--surface-2)",
+                  border: "1px dashed var(--border-primary)",
+                  color: "var(--text-tertiary)",
+                }}
+              >
+                {t("engineering.permissions.governanceNoRecent")}
+              </div>
+            ) : (
+              <div
+                className="rounded-xl divide-y overflow-hidden"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
+              >
+                {recent.map((e) => (
+                  <div key={e.id} className="px-4 py-2.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                        {e.actor_name || e.actor_cid} → {e.target_name || e.target_cid}
+                      </p>
+                      <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                        {e.action}
+                        {e.module ? ` · ${e.module}.${e.capability || "*"}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-[8px] font-bold text-[var(--text-tertiary)] whitespace-nowrap">
+                      {e.created_at ? new Date(e.created_at).toLocaleDateString("en-GB") : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Protected configuration */}
+          <div className="space-y-2">
+            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("engineering.permissions.governanceProtected")}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
+              >
+                <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
+                  {t("engineering.permissions.governanceProtectedGroups")}
+                </p>
+                {protectedGroups.length === 0 ? (
+                  <p className="text-[10px] text-[var(--text-tertiary)]">—</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {protectedGroups.map((g) => (
+                      <span
+                        key={g}
+                        className="px-2 py-1 rounded-md text-[8px] font-black uppercase bg-amber-500/10 text-amber-400"
+                      >
+                        {g}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div
+                className="rounded-xl p-4"
+                style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
+              >
+                <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
+                  {t("engineering.permissions.governanceDefaultProfiles")}
+                </p>
+                {defaultProfiles.length === 0 ? (
+                  <p className="text-[10px] text-[var(--text-tertiary)]">—</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {defaultProfiles.map((p) => (
+                      <span
+                        key={p.role}
+                        className="px-2 py-1 rounded-md text-[8px] font-black uppercase bg-teal-500/10 text-teal-400"
+                      >
+                        {p.role} → {p.profileName}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Phase 7: "Why this access?" per-capability explanation ────────────── */
+
+function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose }) {
+  const [memberships, setMemberships] = useState(null);
+  const cid = userPerms?.user?.cid;
+
+  useEffect(() => {
+    if (!cid) return;
+    let cancelled = false;
+    fetch(`/api/org-membership?user_cid=${encodeURIComponent(cid)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!cancelled && d.success) setMemberships(d.memberships || []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [cid]);
+
+  if (!userPerms) return null;
+
+  const user = userPerms.user || {};
+  const feature = userPerms.moduleToFeature?.[module] || module;
+  const eligibility = userPerms.explanation?.eligibility?.[feature] || { eligible: false, sources: [] };
+  const sources = userPerms.explanation?.sources || {};
+  const baseLevel = sources.profile?.[module]?.[capability] || 0;
+  const groupLevel = sources.groups?.[module]?.[capability] || 0;
+  const grant = (userPerms.individualGrants || []).find((g) => g.module === module && g.capability === capability);
+  const restriction = (userPerms.individualRestrictions || []).find(
+    (r) => r.module === module && r.capability === capability,
+  );
+  const effective = userPerms.effectivePermissions?.[module]?.[capability] || 0;
+  const allowed = effective > 0;
+  const profile = userPerms.effectiveProfile;
+
+  const levelLabel = (lvl) =>
+    t(ACCESS_LEVEL_KEYS[lvl] || "engineering.permissions.accessLevelNone");
+
+  const fmtDate = (v) => {
+    if (!v) return "—";
+    const d = new Date(v);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const memberRows = memberships || [];
+  const activeMembers = memberRows.filter((m) =>
+    ["active", "expiringSoon"].includes(deriveMembershipStatus(m)),
+  );
+  const inactiveMembers = memberRows.filter((m) =>
+    ["expired", "ended"].includes(deriveMembershipStatus(m)),
+  );
+
+  const row = (label, value, strong) => (
+    <div className="flex items-start justify-between gap-3 py-1.5">
+      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">
+        {label}
+      </span>
+      <span
+        className={`text-[10px] font-bold text-right ${strong ? "" : "text-[var(--text-primary)]"}`}
+        style={strong ? { color: strong } : undefined}
+      >
+        {value}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)" }} onClick={onClose} />
+      <div
+        className="relative w-full max-w-lg rounded-2xl p-6 shadow-2xl max-h-[85vh] overflow-y-auto"
+        style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h4 className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
+              {capabilityLabel(module, capability)}
+            </h4>
+            <p className="text-[9px] font-bold text-[var(--text-tertiary)]">
+              {module}.{capability} — {feature}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${
+                allowed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
+              }`}
+            >
+              {allowed ? t("engineering.permissions.whyAllowed") : t("engineering.permissions.whyDenied")}
+            </span>
+            <button onClick={onClose} className="p-2 hover:bg-tertiary rounded-lg transition-all">
+              <X className="w-4 h-4 text-[var(--text-secondary)]" />
+            </button>
+          </div>
+        </div>
+
+        <div className="divide-y divide-[var(--border-primary)]">
+          {/* Identity */}
+          <div className="py-2">
+            {row(t("engineering.permissions.whyIdentity"), user.role || "—")}
+            {(userPerms.groups || []).map((g) => row(t("engineering.permissions.whyMembership"), g))}
+          </div>
+
+          {/* Eligibility */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyEligibility"),
+              eligibility.eligible
+                ? t("engineering.permissions.whyEligibleFor", { identity: user.role || "—", feature })
+                : t("engineering.permissions.whyNotEligible"),
+              eligibility.eligible ? "#10B981" : "#EF4444",
+            )}
+            {(eligibility.sources || []).length > 0 && (
+              <p className="text-[8px] font-bold text-[var(--text-tertiary)] text-right">
+                {eligibility.sources
+                  .map((s) => `${s.identity_type}:${s.identity_value}${Number(s.eligible) === 0 ? " (deny)" : ""}`)
+                  .join(", ")}
+              </p>
+            )}
+          </div>
+
+          {/* Membership contribution */}
+          <div className="py-2">
+            {activeMembers.length === 0 && inactiveMembers.length === 0 ? (
+              row(t("engineering.permissions.whyMembership"), "—")
+            ) : (
+              <>
+                {activeMembers.map((m) => (
+                  <div key={`${m.user_cid}|${m.group_name}`} className="text-right mb-1">
+                    <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {m.group_name}{" "}
+                      <span className="text-emerald-400">
+                        {t("engineering.permissions.whyMembershipActive")}
+                      </span>
+                    </span>
+                    <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                      {t("engineering.permissions.whyExpires")}: {m.expires_at ? fmtDate(m.expires_at) : t("membership.status.never")}
+                    </p>
+                  </div>
+                ))}
+                {inactiveMembers.map((m) => (
+                  <div key={`${m.user_cid}|${m.group_name}`} className="text-right mb-1">
+                    <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                      {m.group_name}{" "}
+                      <span className="text-red-400">
+                        {t("engineering.permissions.whyMembershipExpired")}
+                      </span>
+                    </span>
+                    <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                      {t("engineering.permissions.whyMembershipNotContributing")}
+                    </p>
+                  </div>
+                ))}
+                {inactiveMembers.length > 0 && (
+                  <p className="text-[8px] font-bold text-right mt-1" style={{ color: "var(--text-tertiary)" }}>
+                    {t("engineering.permissions.whyAccountIntact")}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Default Access */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyDefaultAccess"),
+              profile?.profileName
+                ? `${profile.profileName} (${profile.source === "user" ? t("engineering.permissions.whySourceIndividual") : t("engineering.permissions.whySourceRole")})`
+                : "—",
+            )}
+            {row(
+              t("engineering.permissions.whyProfileCapability"),
+              baseLevel > 0 ? levelLabel(baseLevel) : t("engineering.permissions.whyNone"),
+            )}
+          </div>
+
+          {/* Group capabilities */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyGroupCapabilities"),
+              groupLevel > 0 ? levelLabel(groupLevel) : t("engineering.permissions.whyNone"),
+            )}
+          </div>
+
+          {/* Individual grant */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyIndividualGrant"),
+              grant ? `${levelLabel(Number(grant.access_level))}` : t("engineering.permissions.whyNone"),
+            )}
+          </div>
+
+          {/* Restriction — strongest block */}
+          <div className="py-2">
+            {row(
+              t("engineering.permissions.whyRestriction"),
+              restriction ? t("engineering.permissions.whyRestricted") : t("engineering.permissions.whyNone"),
+              restriction ? "#EF4444" : undefined,
+            )}
+            {restriction && (
+              <p className="text-[8px] font-bold text-right" style={{ color: "#EF4444" }}>
+                {t("engineering.permissions.whyRestrictionPrecedence")}
+              </p>
+            )}
+          </div>
+
+          {/* Context / Assignment — deferred layer */}
+          <div className="py-2">
+            {row(t("engineering.permissions.whyContext"), t("engineering.permissions.whyContextPlaceholder"))}
+          </div>
+
+          {/* Final result */}
+          <div className="py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">
+                {t("engineering.permissions.whyFinal")}
+              </span>
+              <span
+                className={`text-[11px] font-black uppercase ${
+                  allowed ? "text-emerald-400" : "text-red-400"
+                }`}
+              >
+                {allowed
+                  ? `${t("engineering.permissions.whyAllowed")} (${levelLabel(effective)})`
+                  : t("engineering.permissions.whyDenied")}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

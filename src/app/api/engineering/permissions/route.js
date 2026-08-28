@@ -245,6 +245,7 @@ export async function GET(req) {
         effectiveProfile,
         effectivePermissions: matrix,
         explanation,
+        moduleToFeature: MODULE_TO_FEATURE,
         individualGrants: grants.rows,
         individualRestrictions: restrictions.rows,
       });
