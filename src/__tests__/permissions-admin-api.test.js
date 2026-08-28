@@ -36,13 +36,21 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 let mockAuthzDecision = null; // null = granted (route proceeds)
-const mockActualAuthz = jest.requireActual("@/lib/authorization");
+const mockRealEligAdmin = jest.requireActual("@/lib/authorization/eligibility-admin");
+const mockRealEligibility = jest.requireActual("@/lib/authorization/eligibility");
 jest.mock("@/lib/authorization", () => ({
-  ...mockActualAuthz,
   requireAuthorization: jest.fn().mockImplementation(async () => mockAuthzDecision),
   invalidateAllAuthorizationContexts: jest.fn(),
+  invalidateAuthorizationContext: jest.fn(),
+  effectivePermissionsFromContext: jest.fn().mockReturnValue({}),
+  buildPermissionExplanation: jest.fn().mockReturnValue(null),
   assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true, eligibility: {} }),
+  FEATURE_KEYS: mockRealEligAdmin.FEATURE_KEYS,
+  IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
+  ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,
+  validateEligibilityChanges: mockRealEligAdmin.validateEligibilityChanges,
+  MODULE_TO_FEATURE: mockRealEligibility.MODULE_TO_FEATURE,
 }));
 
 const { requireAuthorization, invalidateAllAuthorizationContexts, assertTemplateCapsEligible, getAuthorizationContext } =

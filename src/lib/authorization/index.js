@@ -34,6 +34,12 @@ export {
 export { runAuthzMigration } from "./migrations";
 
 export {
+  requireScopedAccess,
+  resolveContextAssignment,
+  CONTEXT_RESOURCES,
+} from "./context";
+
+export {
   FEATURE_KEYS,
   IDENTITY_TYPES,
   ROLE_CATALOG,
