@@ -40,23 +40,30 @@ export function ensureCapabilityBackfills() {
         // Recording them as one-time migrations keeps administrator
         // configuration authoritative after the first boot following this
         // change (Phase A requirement: no boot-time policy overwrites).
-        await runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill);
-        await runAuthzMigration("cap-backfill-reports", ensureReportsBackfill);
-        await runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill);
-        await runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill);
-        await runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill);
-        await runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill);
-        await runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill);
-        await runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill);
-        await runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill);
-        // One-time policy migrations — run once per database, then the
-        // Permissions UI owns eligibility configuration (see migrations.js).
-        await runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill);
-        await runAuthzMigration("eligibility-policy-3", ensureFinalPolicyBackfill);
-        // Phase 1: organizational membership bootstrap — existing group edges
-        // become active, no-expiry memberships (zero behavior change at
-        // cutover; see membership.js).
-        await runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap);
+        //
+        // All migrations are idempotent, write disjoint rows and record only
+        // their own name — running the checks in parallel avoids ~13
+        // sequential round-trips on every cold serverless instance (timeout
+        // risk on slow databases).
+        await Promise.all([
+          runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill),
+          runAuthzMigration("cap-backfill-reports", ensureReportsBackfill),
+          runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill),
+          runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill),
+          runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill),
+          runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill),
+          runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
+          runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
+          runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          // One-time policy migrations — run once per database, then the
+          // Permissions UI owns eligibility configuration (see migrations.js).
+          runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill),
+          runAuthzMigration("eligibility-policy-3", ensureFinalPolicyBackfill),
+          // Phase 1: organizational membership bootstrap — existing group edges
+          // become active, no-expiry memberships (zero behavior change at
+          // cutover; see membership.js).
+          runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap),
+        ]);
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
