@@ -44,6 +44,22 @@ async function ensureDeliverableResourceSchema() {
 }
 
 /**
+ * Ensure the assignee columns exist on requirements (add_session and
+ * add_requirement INSERT them). Production was missing these — without the
+ * columns, the session INSERT committed but the Attendance requirement
+ * INSERT threw, so the route returned 501 "Curriculum feature not available"
+ * even though the session was created. Self-healing prevents that drift.
+ */
+async function ensureRequirementAssigneeSchema() {
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_type TEXT", args: [] });
+  } catch (_) {}
+  try {
+    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_id TEXT", args: [] });
+  } catch (_) {}
+}
+
+/**
  * Ensure the weekly-report attachment columns exist (URL link or PDF upload).
  * Idempotent and additive — mirrors the other ensure* schema helpers.
  */
@@ -98,6 +114,7 @@ export async function POST(req) {
     await initDb();
     await ensureVersioningSchema();
     await ensureDeliverableResourceSchema();
+    await ensureRequirementAssigneeSchema();
     await ensureWeeklyReportAttachmentSchema();
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
@@ -502,6 +519,7 @@ export async function PUT(req) {
     await initDb();
     await ensureVersioningSchema();
     await ensureDeliverableResourceSchema();
+    await ensureRequirementAssigneeSchema();
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
     const session = await getSession();
