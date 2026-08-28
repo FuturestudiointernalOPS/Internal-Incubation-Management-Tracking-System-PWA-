@@ -1380,10 +1380,11 @@ function AccessProfilesView() {
   const [actionError, setActionError] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newProfile, setNewProfile] = useState({ name: "", description: "" });
-  const [editingCap, setEditingCap] = useState(null);
-  const [editValue, setEditValue] = useState(0);
   const [safetyAck, setSafetyAck] = useState(false); // confirmed role-bound profile edits
-  const [pendingCapEdit, setPendingCapEdit] = useState(null); // { module, capability, level, roles }
+  const [pendingSaveConfirm, setPendingSaveConfirm] = useState(null); // roles[] when saving changes to a role-default profile
+  const [draftCaps, setDraftCaps] = useState({}); // working copy {module:{capability:level}}
+  const [savedCaps, setSavedCaps] = useState({}); // last-saved state for change detection
+  const [saving, setSaving] = useState(false);
   const [renameMode, setRenameMode] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
@@ -1416,13 +1417,30 @@ function AccessProfilesView() {
     fetchProfiles();
   }, [fetchProfiles]);
 
+  const capsToObject = (rows) => {
+    const o = {};
+    for (const r of rows || []) {
+      o[r.module] ??= {};
+      o[r.module][r.capability] = Number(r.access_level);
+    }
+    return o;
+  };
+
   const selectProfile = async (profile) => {
     setSelectedProfile(profile);
+    setSafetyAck(false);
+    setPendingSaveConfirm(null);
+    setRenameMode(false);
+    setActionMsg("");
+    setActionError("");
     try {
       const res = await fetch(`/api/access-profiles?id=${profile.id}`);
       const data = await res.json();
       if (data.success) {
         setProfileCaps(data.capabilities || []);
+        const saved = capsToObject(data.capabilities);
+        setSavedCaps(saved);
+        setDraftCaps(JSON.parse(JSON.stringify(saved)));
       }
     } catch (e) {
       console.error("Failed to load profile capabilities", e);
@@ -1524,61 +1542,84 @@ function AccessProfilesView() {
     }
   };
 
-  const updateCapability = async (module, capability, level) => {
+  // ── Draft-based matrix editing: changes are staged, then saved explicitly. ──
+  const defaultRolesFor = (profileId) =>
+    Object.entries(roleDefaults)
+      .filter(([, v]) => v.profileId === profileId)
+      .map(([role]) => role);
+
+  const getDraftLevel = (mod, cap) => draftCaps[mod]?.[cap] ?? 0;
+  const isChanged = (mod, cap) =>
+    (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
+
+  const setDraftLevel = (mod, cap, level) => {
+    setDraftCaps((prev) => {
+      const next = { ...prev, [mod]: { ...(prev[mod] || {}) } };
+      next[mod][cap] = level;
+      return next;
+    });
+  };
+
+  const persistCaps = async () => {
     if (!selectedProfile) return;
+    setSaving(true);
+    setActionMsg("");
+    setActionError("");
     try {
-      // Fetch current caps
-      const currentCaps = {};
-      for (const c of profileCaps) {
-        if (!currentCaps[c.module]) currentCaps[c.module] = {};
-        currentCaps[c.module][c.capability] = c.access_level;
-      }
-
-      // Update the specific capability
-      if (!currentCaps[module]) currentCaps[module] = {};
-      currentCaps[module][capability] = level;
-
       const res = await fetch("/api/access-profiles", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: selectedProfile.id,
-          capabilities: currentCaps,
+          capabilities: draftCaps,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        // Refresh caps
-        selectProfile(selectedProfile);
-        setEditingCap(null);
-        setActionMsg(t("engineering.permissions.capabilityUpdated"));
+        await selectProfile(selectedProfile); // reload the saved state
+        setActionMsg(t("engineering.permissions.permissionsSaved"));
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
+    } finally {
+      setSaving(false);
     }
   };
 
-  // Profile safety (Phase 6): editing a profile that is a role default is
-  // consequential — require an explicit confirmation on the first change.
-  const requestCapabilityEdit = (module, capability, level) => {
-    if (!selectedProfile) return;
-    const defaultFor = Object.entries(roleDefaults)
-      .filter(([, v]) => v.profileId === selectedProfile.id)
-      .map(([role]) => role);
+  // Profile safety: saving changes to a role-default profile requires one
+  // explicit confirmation (the warning is not an authorization mechanism —
+  // the server still authorizes the mutation).
+  const saveChanges = () => {
+    if (!selectedProfile || computeChanges() === 0) return;
+    const defaultFor = defaultRolesFor(selectedProfile.id);
     if (defaultFor.length > 0 && !safetyAck) {
-      setPendingCapEdit({ module, capability, level, roles: defaultFor });
+      setPendingSaveConfirm(defaultFor);
       return;
     }
-    updateCapability(module, capability, level);
+    persistCaps();
   };
 
-  const confirmCapabilityEdit = () => {
-    if (!pendingCapEdit) return;
+  const confirmSave = () => {
     setSafetyAck(true);
-    updateCapability(pendingCapEdit.module, pendingCapEdit.capability, pendingCapEdit.level);
-    setPendingCapEdit(null);
+    setPendingSaveConfirm(null);
+    persistCaps();
+  };
+
+  const discardChanges = () => {
+    setDraftCaps(JSON.parse(JSON.stringify(savedCaps)));
+  };
+
+  // Lazy: availableModules is defined later in the component body.
+  const computeChanges = () => {
+    let count = 0;
+    for (const [modKey, mod] of Object.entries(availableModules)) {
+      for (const cap of mod.capabilities) {
+        if (isChanged(modKey, cap)) count += 1;
+      }
+    }
+    return count;
   };
 
   const renameProfile = async () => {
@@ -1692,252 +1733,13 @@ function AccessProfilesView() {
     );
   }
 
-  // ─── DETAIL VIEW ───
-  if (selectedProfile) {
-    const getLevel = (mod, cap) => {
-      const found = profileCaps.find(
-        (c) => c.module === mod && c.capability === cap,
-      );
-      return found ? found.access_level : 0;
-    };
+  const changesCount = computeChanges();
+  const selectedIsDefaultFor = selectedProfile
+    ? defaultRolesFor(selectedProfile.id)
+    : [];
 
-    // Roles that use this profile as their default — drives the safety notice.
-    const isDefaultFor = Object.entries(roleDefaults)
-      .filter(([, v]) => v.profileId === selectedProfile.id)
-      .map(([role]) => role);
-
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setSelectedProfile(null);
-                setProfileCaps([]);
-                setSafetyAck(false);
-              }}
-              className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-            >
-              {t("engineering.permissions.back")}
-            </button>
-            <div>
-              {renameMode ? (
-                <div className="flex items-center gap-2">
-                  <input
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    placeholder={t("engineering.permissions.renamePlaceholder")}
-                    className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
-                  />
-                  <button
-                    onClick={renameProfile}
-                    disabled={!renameValue.trim()}
-                    className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
-                  >
-                    {t("common.save")}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRenameMode(false);
-                      setRenameValue("");
-                    }}
-                    className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-                  >
-                    {t("engineering.permissions.cancel")}
-                  </button>
-                </div>
-              ) : (
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
-                  {selectedProfile.name}
-                </h3>
-              )}
-              {selectedProfile.description && (
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-0.5">
-                  {selectedProfile.description}
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setRenameMode(!renameMode);
-                setRenameValue(selectedProfile.name);
-              }}
-              className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              title={t("engineering.permissions.renameProfile")}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-            <span
-              className={`text-[9px] font-black px-2 py-1 rounded ${
-                selectedProfile.is_active
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-red-500/10 text-red-400"
-              }`}
-            >
-              {selectedProfile.is_active
-                ? t("engineering.permissions.active")
-                : t("engineering.permissions.disabled")}
-            </span>
-          </div>
-        </div>
-
-        {isDefaultFor.length > 0 && (
-          <div
-            className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30"
-          >
-            <p className="text-[9px] font-bold text-amber-400">
-              {t("engineering.permissions.profileInUseWarning", {
-                roles: isDefaultFor.join(", "),
-              })}
-            </p>
-          </div>
-        )}
-
-        {actionMsg && (
-          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-            <p className="text-[10px] font-bold text-emerald-400">
-              {actionMsg}
-            </p>
-          </div>
-        )}
-        {actionError && (
-          <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20">
-            <p className="text-[10px] font-bold text-red-400">{actionError}</p>
-          </div>
-        )}
-
-        <div className="space-y-4">
-          {Object.entries(availableModules).map(([modKey, mod]) => (
-            <div
-              key={modKey}
-              className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
-            >
-              <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)]">
-                <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-                  {mod.name}
-                </h4>
-              </div>
-              <div className="p-3">
-                <div className="flex flex-wrap gap-2">
-                  {mod.capabilities.map((cap) => {
-                    const level = getLevel(modKey, cap);
-                    const isEditing = editingCap === `${modKey}:${cap}`;
-                    return (
-                      <div key={cap} className="relative group">
-                        <button
-                          onClick={() => {
-                            if (isEditing) {
-                              requestCapabilityEdit(modKey, cap, editValue);
-                            } else {
-                              setEditingCap(`${modKey}:${cap}`);
-                              setEditValue(level);
-                            }
-                          }}
-                          className={`px-3 py-2 rounded-lg border text-[8px] font-black uppercase tracking-wider transition-all ${
-                            level > 0
-                              ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
-                              : "bg-secondary border-[var(--border-primary)] text-slate-500 opacity-50 hover:opacity-100"
-                          }`}
-                        >
-                          {capabilityLabel(modKey, cap)}
-                          <span
-                            className={`ml-1.5 ${ACCESS_COLORS[level] || "text-slate-500"}`}
-                          >
-                            {ACCESS_SHORT[level] || "—"}
-                          </span>
-                        </button>
-                        {isEditing && (
-                          <div className="absolute top-full left-0 mt-2 p-2 bg-secondary border border-[var(--border-primary)] rounded-xl shadow-xl z-10 flex gap-1">
-                            {LEVELS_ORDER.map((l) => (
-                              <button
-                                key={l}
-                                onClick={() => {
-                                  setEditValue(l);
-                                  requestCapabilityEdit(modKey, cap, l);
-                                }}
-                                className={`w-7 h-7 rounded text-[8px] font-black transition-all ${
-                                  editValue === l
-                                    ? "bg-[var(--brand-orange)] text-black"
-                                    : "bg-tertiary text-[var(--text-secondary)] hover:bg-[var(--brand-orange)]/30"
-                                }`}
-                              >
-                                {ACCESS_SHORT[l]}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Profile-safety confirmation for role-bound profiles */}
-        {pendingCapEdit && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="absolute inset-0"
-              style={{ background: "rgba(0,0,0,0.7)" }}
-              onClick={() => setPendingCapEdit(null)}
-            />
-            <div
-              className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
-              style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
-            >
-              <h4 className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
-                {t("engineering.permissions.confirmChanges")}
-              </h4>
-              <p className="text-[10px] font-bold mt-2" style={{ color: "var(--text-secondary)" }}>
-                {t("engineering.permissions.profileInUseWarning", {
-                  roles: pendingCapEdit.roles.join(", "),
-                })}
-              </p>
-              <p className="text-[10px] font-bold mt-1" style={{ color: "var(--text-tertiary)" }}>
-                {capabilityLabel(pendingCapEdit.module, pendingCapEdit.capability)} → {t(ACCESS_LEVEL_KEYS[pendingCapEdit.level] || "engineering.permissions.accessLevelNone")}
-              </p>
-              <div className="flex justify-end gap-2 mt-5">
-                <button
-                  onClick={() => setPendingCapEdit(null)}
-                  className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-                >
-                  {t("engineering.permissions.cancel")}
-                </button>
-                <button
-                  onClick={confirmCapabilityEdit}
-                  className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-                >
-                  {t("engineering.permissions.confirmChanges")}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // ─── LIST VIEW ───
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-bold text-[var(--text-secondary)]">
-          {t("engineering.permissions.profilesIntro")}
-        </p>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowCreateForm(!showCreateForm)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-          >
-            <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
-          </button>
-        </div>
-      </div>
-
       {actionMsg && (
         <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
           <p className="text-[10px] font-bold text-emerald-400">{actionMsg}</p>
@@ -1949,133 +1751,389 @@ function AccessProfilesView() {
         </div>
       )}
 
-      {/* Create Form */}
-      {showCreateForm && (
-        <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
-          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-            {t("engineering.permissions.newAccessProfile")}
-          </h4>
-          <div className="space-y-3">
-            <input
-              value={newProfile.name}
-              onChange={(e) =>
-                setNewProfile({ ...newProfile, name: e.target.value })
-              }
-              placeholder={t("engineering.permissions.profileNamePlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
-            />
-            <input
-              value={newProfile.description}
-              onChange={(e) =>
-                setNewProfile({ ...newProfile, description: e.target.value })
-              }
-              placeholder={t("engineering.permissions.descriptionOptional")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
-            />
-            <div className="flex gap-2">
+      <div className="lg:grid lg:grid-cols-[300px_1fr] lg:gap-6 space-y-6 lg:space-y-0">
+        {/* LEFT — Access Profiles list (master) */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-bold text-[var(--text-secondary)]">
+              {t("engineering.permissions.profilesIntro")}
+            </p>
+            <button
+              onClick={() => setShowCreateForm(!showCreateForm)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
+            >
+              <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
+            </button>
+          </div>
+
+          {showCreateForm && (
+            <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
+              <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                {t("engineering.permissions.newAccessProfile")}
+              </h4>
+              <div className="space-y-3">
+                <input
+                  value={newProfile.name}
+                  onChange={(e) =>
+                    setNewProfile({ ...newProfile, name: e.target.value })
+                  }
+                  placeholder={t("engineering.permissions.profileNamePlaceholder")}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                />
+                <input
+                  value={newProfile.description}
+                  onChange={(e) =>
+                    setNewProfile({ ...newProfile, description: e.target.value })
+                  }
+                  placeholder={t("engineering.permissions.descriptionOptional")}
+                  className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={createProfile}
+                    disabled={!newProfile.name.trim()}
+                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                  >
+                    {t("engineering.permissions.create")}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowCreateForm(false);
+                      setNewProfile({ name: "", description: "" });
+                    }}
+                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                  >
+                    {t("engineering.permissions.cancel")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {profiles.length === 0 ? (
+            <div className="py-10 text-center opacity-40">
+              <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
+              <p className="text-sm font-black text-[var(--text-primary)] uppercase">
+                {t("engineering.permissions.noAccessProfiles")}
+              </p>
+              <p className="text-[10px] font-bold text-slate-500 mt-1">
+                {t("engineering.permissions.noAccessProfilesHint")}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2 lg:max-h-[75vh] lg:overflow-y-auto pr-1">
+              {profiles.map((profile) => {
+                const isDefaultFor = defaultRolesFor(profile.id);
+                const isSelected = selectedProfile?.id === profile.id;
+                return (
+                  <div
+                    key={profile.id}
+                    className={`ios-card !p-0 border overflow-hidden transition-all ${isSelected ? "border-[var(--brand-orange)]/60" : "border-[var(--border-primary)]"} ${!profile.is_active ? "opacity-50" : ""}`}
+                  >
+                    <div className="p-3 flex items-center justify-between gap-2">
+                      <button
+                        onClick={() => selectProfile(profile)}
+                        className="flex-1 text-left min-w-0"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Layers className={`w-3.5 h-3.5 shrink-0 ${isSelected ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`} />
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
+                              {profile.name}
+                            </p>
+                            <p className="text-[8px] font-bold text-[var(--text-secondary)] truncate">
+                              {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
+                              {isDefaultFor.length > 0
+                                ? ` · ${t("engineering.permissions.defaultFor", { roles: isDefaultFor.join(", ") })}`
+                                : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-0.5 shrink-0">
+                        <button
+                          onClick={() => duplicateProfile(profile)}
+                          title={t("engineering.permissions.duplicateProfileTitle")}
+                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => toggleProfileActive(profile)}
+                          title={
+                            profile.is_active
+                              ? t("engineering.permissions.disableProfile")
+                              : t("engineering.permissions.enableProfile")
+                          }
+                          className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        >
+                          {profile.is_active ? (
+                            <EyeOff className="w-3.5 h-3.5" />
+                          ) : (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — selected profile details (detail) */}
+        <div className="space-y-6 min-w-0">
+          {selectedProfile ? (
+            <>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  {renameMode ? (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        placeholder={t("engineering.permissions.renamePlaceholder")}
+                        className="w-56 bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                      />
+                      <button
+                        onClick={renameProfile}
+                        disabled={!renameValue.trim()}
+                        className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+                      >
+                        {t("common.save")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setRenameMode(false);
+                          setRenameValue("");
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                      >
+                        {t("engineering.permissions.cancel")}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">
+                        {selectedProfile.name}
+                      </h3>
+                      <button
+                        onClick={() => {
+                          setRenameMode(true);
+                          setRenameValue(selectedProfile.name);
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        title={t("engineering.permissions.renameProfile")}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                  {selectedProfile.description && (
+                    <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-0.5">
+                      {selectedProfile.description}
+                    </p>
+                  )}
+                </div>
+                <span
+                  className={`text-[9px] font-black px-2 py-1 rounded shrink-0 ${
+                    selectedProfile.is_active
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-red-500/10 text-red-400"
+                  }`}
+                >
+                  {selectedProfile.is_active
+                    ? t("engineering.permissions.active")
+                    : t("engineering.permissions.disabled")}
+                </span>
+              </div>
+
+              {selectedIsDefaultFor.length > 0 && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <p className="text-[9px] font-bold text-amber-400">
+                    {t("engineering.permissions.profileInUseWarning", {
+                      roles: selectedIsDefaultFor.join(", "),
+                    })}
+                  </p>
+                  <p className="text-[8px] font-bold text-amber-400/70 mt-0.5">
+                    {t("engineering.permissions.profileChangeAffectsUsers")}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  {changesCount > 0
+                    ? t("engineering.permissions.changesPending", {
+                        count: changesCount,
+                      })
+                    : t("engineering.permissions.noPendingChanges")}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={discardChanges}
+                    disabled={changesCount === 0 || saving}
+                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
+                  >
+                    {t("engineering.permissions.discardChanges")}
+                  </button>
+                  <button
+                    onClick={saveChanges}
+                    disabled={changesCount === 0 || saving}
+                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+                  >
+                    {saving
+                      ? t("engineering.permissions.saving")
+                      : t("engineering.permissions.saveChanges")}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {Object.entries(availableModules).map(([modKey, mod]) => {
+                  const moduleChanged = mod.capabilities.some((cap) =>
+                    isChanged(modKey, cap),
+                  );
+                  return (
+                    <div
+                      key={modKey}
+                      className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden"
+                    >
+                      <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
+                        <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                          {mod.name}
+                        </h4>
+                        {moduleChanged && (
+                          <span className="text-[8px] font-black text-amber-400 uppercase tracking-wider">
+                            {t("engineering.permissions.changedBadge")}
+                          </span>
+                        )}
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left min-w-[480px]">
+                          <thead>
+                            <tr className="border-b border-[var(--border-primary)]">
+                              <th className="px-4 py-2.5 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                                {t("engineering.permissions.capability")}
+                              </th>
+                              {LEVELS_ORDER.map((l) => (
+                                <th
+                                  key={l}
+                                  className="px-1 py-2.5 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest"
+                                >
+                                  {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {mod.capabilities.map((cap) => {
+                              const level = getDraftLevel(modKey, cap);
+                              const changed = isChanged(modKey, cap);
+                              return (
+                                <tr
+                                  key={cap}
+                                  className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
+                                >
+                                  <td className="px-4 py-2 text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                                    {capabilityLabel(modKey, cap)}
+                                    {changed && (
+                                      <span className="ml-2 text-[7px] font-black text-amber-400 uppercase tracking-wider">
+                                        {t("engineering.permissions.changedBadge")}
+                                      </span>
+                                    )}
+                                  </td>
+                                  {LEVELS_ORDER.map((l) => (
+                                    <td key={l} className="px-1 py-1.5 text-center">
+                                      <button
+                                        onClick={() => setDraftLevel(modKey, cap, l)}
+                                        title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
+                                        className={`w-8 h-8 rounded-lg border text-[8px] font-black transition-all ${
+                                          level === l
+                                            ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
+                                            : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
+                                        } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
+                                      >
+                                        {ACCESS_SHORT[l]}
+                                      </button>
+                                    </td>
+                                  ))}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="ios-card !p-10 border border-[var(--border-primary)] flex flex-col items-center justify-center text-center opacity-60 space-y-2">
+              <Layers className="w-10 h-10 text-slate-500" />
+              <p className="text-xs font-black text-[var(--text-primary)] uppercase">
+                {t("engineering.permissions.selectProfilePromptTitle")}
+              </p>
+              <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                {t("engineering.permissions.selectProfilePrompt")}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Profile-safety confirmation for role-bound profiles */}
+      {pendingSaveConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0"
+            style={{ background: "rgba(0,0,0,0.7)" }}
+            onClick={() => setPendingSaveConfirm(null)}
+          />
+          <div
+            className="relative w-full max-w-md rounded-2xl p-6 shadow-2xl"
+            style={{
+              background: "var(--surface-1)",
+              border: "1px solid var(--border-primary)",
+            }}
+          >
+            <h4
+              className="text-sm font-black uppercase tracking-tight"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {t("engineering.permissions.confirmChanges")}
+            </h4>
+            <p
+              className="text-[10px] font-bold mt-2"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("engineering.permissions.profileInUseWarning", {
+                roles: pendingSaveConfirm.join(", "),
+              })}
+            </p>
+            <p
+              className="text-[10px] font-bold mt-1"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              {t("engineering.permissions.profileChangeAffectsUsers")}
+            </p>
+            <div className="flex justify-end gap-2 mt-5">
               <button
-                onClick={createProfile}
-                disabled={!newProfile.name.trim()}
-                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
-              >
-                {t("engineering.permissions.create")}
-              </button>
-              <button
-                onClick={() => {
-                  setShowCreateForm(false);
-                  setNewProfile({ name: "", description: "" });
-                }}
+                onClick={() => setPendingSaveConfirm(null)}
                 className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("engineering.permissions.cancel")}
               </button>
+              <button
+                onClick={confirmSave}
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+              >
+                {t("engineering.permissions.confirmChanges")}
+              </button>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Profile List */}
-      {profiles.length === 0 ? (
-        <div className="py-10 text-center opacity-40">
-          <Layers className="w-12 h-12 text-slate-500 mx-auto mb-3" />
-          <p className="text-sm font-black text-[var(--text-primary)] uppercase">
-            {t("engineering.permissions.noAccessProfiles")}
-          </p>
-          <p className="text-[10px] font-bold text-slate-500 mt-1">
-            {t("engineering.permissions.noAccessProfilesHint")}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {profiles.map((profile) => {
-            const isDefaultFor = Object.entries(roleDefaults)
-              .filter(([, v]) => v.profileId === profile.id)
-              .map(([role]) => role);
-
-            return (
-              <div
-                key={profile.id}
-                className={`ios-card !p-0 border-[var(--border-primary)] overflow-hidden transition-all ${
-                  !profile.is_active ? "opacity-50" : ""
-                }`}
-              >
-                <div className="p-4 flex items-center justify-between">
-                  <button
-                    onClick={() => selectProfile(profile)}
-                    className="flex-1 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Layers className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <div>
-                        <h4 className="text-xs font-black text-[var(--text-primary)] uppercase">
-                          {profile.name}
-                        </h4>
-                        <div className="flex items-center gap-3 mt-0.5">
-                          <span className="text-[8px] font-bold text-[var(--text-secondary)]">
-                            {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
-                          </span>
-                          {isDefaultFor.length > 0 && (
-                            <span className="text-[8px] font-bold text-blue-400">
-                              {t("engineering.permissions.defaultFor", { roles: isDefaultFor.join(", ") })}
-                            </span>
-                          )}
-                          {profile.description && (
-                            <span className="text-[8px] font-bold text-slate-500 truncate max-w-[200px]">
-                              {profile.description}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => duplicateProfile(profile)}
-                      title={t("engineering.permissions.duplicateProfileTitle")}
-                      className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => toggleProfileActive(profile)}
-                      title={
-                        profile.is_active
-                          ? t("engineering.permissions.disableProfile")
-                          : t("engineering.permissions.enableProfile")
-                      }
-                      className="p-2 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                    >
-                      {profile.is_active ? (
-                        <EyeOff className="w-3.5 h-3.5" />
-                      ) : (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
