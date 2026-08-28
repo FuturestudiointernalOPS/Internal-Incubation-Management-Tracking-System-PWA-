@@ -17,6 +17,7 @@ import {
   effectivePermissionsFromContext,
   invalidateAuthorizationContext,
   buildPermissionExplanation,
+  requireAuthorization,
   MODULE_TO_FEATURE,
 } from "@/lib/authorization";
 import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
