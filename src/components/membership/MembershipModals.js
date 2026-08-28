@@ -301,9 +301,17 @@ export function AddMemberModal({ groups, defaultGroup, isProtected, existing, t,
               />
             </div>
             {isProtected(group) && (
-              <p className="text-[10px] flex items-center gap-1.5" style={{ color: "#F59E0B" }}>
-                <Shield className="w-3.5 h-3.5" /> {t("membership.page.protected")}
-              </p>
+              <div
+                className="rounded-xl p-3 space-y-1.5"
+                style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}
+              >
+                <p className="text-[10px] flex items-center gap-1.5" style={{ color: "#F59E0B" }}>
+                  <Shield className="w-3.5 h-3.5" /> {t("membership.page.protected")}
+                </p>
+                <p className="text-[10px] leading-relaxed" style={{ color: "var(--text-secondary)" }}>
+                  {t("membership.add.protectedConfirm")}
+                </p>
+              </div>
             )}
             {alreadyMember && (
               <p className="text-[10px]" style={{ color: "#F59E0B" }}>

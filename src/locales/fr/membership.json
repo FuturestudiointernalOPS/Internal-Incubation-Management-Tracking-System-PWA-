@@ -82,6 +82,7 @@
       "noResults": "Aucun contact trouvé",
       "searchHint": "Seuls les contacts CRM existants peuvent être ajoutés — aucun doublon n'est jamais créé.",
       "alreadyMember": "Déjà membre de ce groupe — confirmer réactivera l'adhésion existante.",
+      "protectedConfirm": "Vous ajoutez cette personne à l'organisation protégée FUTURE STUDIO.",
       "groupLabel": "Groupe",
       "startLabel": "Date de début",
       "expiresLabel": "Date d'expiration (facultatif)",
