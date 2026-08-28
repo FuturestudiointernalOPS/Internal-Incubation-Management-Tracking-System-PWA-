@@ -1082,6 +1082,10 @@ function AccessProfilesView() {
     user_cid: "",
     profile_id: "",
   });
+  const [assignUsers, setAssignUsers] = useState([]); // full user list for the picker
+  const [assignQuery, setAssignQuery] = useState("");
+  const [assignResults, setAssignResults] = useState([]);
+  const [assignPicked, setAssignPicked] = useState(null); // { cid, name, email, role }
   const [roleDefaultData, setRoleDefaultData] = useState({
     role_name: "",
     profile_id: "",
@@ -1101,7 +1105,14 @@ function AccessProfilesView() {
       if (data.success) {
         setProfiles(data.profiles || []);
         setRoleDefaults(data.roleDefaults || {});
-        // Collect roles that have defaults
+      }
+      // Full role catalog (ROLE_CATALOG) — not just roles that already have
+      // a default — so every role can be configured in the form dropdown.
+      const eligRes = await fetch("/api/engineering/permissions/eligibility");
+      const eligData = await eligRes.json();
+      if (eligData.success) {
+        setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
+      } else {
         setAllRoles(Object.keys(data.roleDefaults || {}));
       }
     } catch (e) {
@@ -1114,6 +1125,14 @@ function AccessProfilesView() {
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
+
+  // Load the user list lazily when the Assign Profile form opens.
+  useEffect(() => {
+    if (showAssignForm && assignUsers.length === 0) {
+      loadAssignUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAssignForm]);
 
   const selectProfile = async (profile) => {
     setSelectedProfile(profile);
@@ -1305,7 +1324,9 @@ function AccessProfilesView() {
   };
 
   const assignProfileToUser = async () => {
-    if (!assignData.user_cid || !assignData.profile_id) return;
+    // Empty profile_id = remove the override (the API supports it; the form
+    // hint explains it). Only a target user is required.
+    if (!assignData.user_cid) return;
     try {
       const res = await fetch("/api/access-profiles/assign", {
         method: "PUT",
@@ -1317,12 +1338,62 @@ function AccessProfilesView() {
         setActionMsg(t(data.message || "") || data.message);
         setShowAssignForm(false);
         setAssignData({ user_cid: "", profile_id: "" });
+        setAssignPicked(null);
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToAssign")) || "") || (data.error || t("engineering.permissions.failedToAssign")));
       }
     } catch (e) {
       setActionError(t("engineering.permissions.networkError"));
     }
+  };
+
+  const loadAssignUsers = async () => {
+    try {
+      const res = await fetch("/api/contacts");
+      const data = await res.json();
+      if (data.success) {
+        // Sort: active first, then by name (same ordering as the
+        // Individual Access search tab).
+        const sorted = (data.contacts || []).sort((a, b) => {
+          if (a.status === "active" && b.status !== "active") return -1;
+          if (a.status !== "active" && b.status === "active") return 1;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        setAssignUsers(sorted);
+        setAssignResults(sorted);
+      }
+    } catch (e) {
+      console.error("Failed to load users", e);
+    }
+  };
+
+  const searchAssignUsers = (query) => {
+    setAssignQuery(query);
+    if (!query.trim()) {
+      setAssignResults(assignUsers);
+      return;
+    }
+    const q = query.toLowerCase();
+    setAssignResults(
+      assignUsers.filter(
+        (u) =>
+          (u.name || "").toLowerCase().includes(q) ||
+          (u.email || "").toLowerCase().includes(q) ||
+          (u.cid || "").toLowerCase().includes(q),
+      ),
+    );
+  };
+
+  const pickAssignUser = (u) => {
+    setAssignData({ ...assignData, user_cid: u.cid });
+    setAssignPicked(u);
+    setAssignQuery("");
+    setAssignResults([]);
+  };
+
+  const clearAssignUser = () => {
+    setAssignData({ ...assignData, user_cid: "" });
+    setAssignPicked(null);
   };
 
   const setRoleDefault = async () => {
@@ -1758,14 +1829,60 @@ function AccessProfilesView() {
             {t("engineering.permissions.assignHint")}
           </p>
           <div className="space-y-3">
-            <input
-              value={assignData.user_cid}
-              onChange={(e) =>
-                setAssignData({ ...assignData, user_cid: e.target.value })
-              }
-              placeholder={t("engineering.permissions.userCid")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
-            />
+            {/* User picker — search & select instead of typing a CID */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+              <input
+                value={assignQuery}
+                onChange={(e) => searchAssignUsers(e.target.value)}
+                placeholder={t("engineering.permissions.searchPlaceholder")}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
+              />
+            </div>
+            {assignPicked ? (
+              <div className="flex items-center justify-between gap-2 bg-teal-500/10 border border-teal-500/20 rounded-xl px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-black text-[var(--text-primary)] uppercase tracking-tight truncate">
+                    {assignPicked.name}
+                  </p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] truncate">
+                    {assignPicked.email} · {assignPicked.role} ·{" "}
+                    <span className="text-[var(--brand-orange)]">
+                      {assignPicked.cid}
+                    </span>
+                  </p>
+                </div>
+                <button
+                  onClick={clearAssignUser}
+                  className="p-1.5 rounded-lg hover:bg-tertiary transition-all shrink-0"
+                  title={t("engineering.permissions.clear")}
+                >
+                  <X className="w-4 h-4 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+            ) : (
+              assignResults.length > 0 && (
+                <div className="max-h-44 overflow-y-auto space-y-1">
+                  {assignResults.slice(0, 30).map((u) => (
+                    <button
+                      key={u.cid}
+                      onClick={() => pickAssignUser(u)}
+                      className="w-full flex items-center justify-between gap-2 bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 hover:border-[var(--brand-orange)]/30 transition-all text-left"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight truncate">
+                          {u.name}
+                        </p>
+                        <p className="text-[9px] font-bold text-[var(--text-secondary)] truncate">
+                          {u.email} · {u.role} · {u.status}
+                        </p>
+                      </div>
+                      <ChevronRight className="w-3.5 h-3.5 text-[var(--text-secondary)] shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
             <select
               value={assignData.profile_id}
               onChange={(e) =>
@@ -1783,7 +1900,6 @@ function AccessProfilesView() {
                     {p.name}
                   </option>
                 ))}
-              <option value="">{t("engineering.permissions.clearOverride")}</option>
             </select>
             <div className="flex gap-2">
               <button
@@ -1797,6 +1913,7 @@ function AccessProfilesView() {
                 onClick={() => {
                   setShowAssignForm(false);
                   setAssignData({ user_cid: "", profile_id: "" });
+                  setAssignPicked(null);
                 }}
                 className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
               >
@@ -1828,18 +1945,7 @@ function AccessProfilesView() {
               className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all"
             >
               <option value="">{t("engineering.permissions.selectRole")}</option>
-              {[
-                "super_admin",
-                "staff",
-                "participant",
-                "developer",
-                "intern",
-                "program_manager",
-                "teacher",
-                "admin",
-                "investor",
-                "mentor",
-              ].map((r) => (
+              {allRoles.map((r) => (
                 <option key={r} value={r}>
                   {r.replace(/_/g, " ")}
                   {roleDefaults[r]
