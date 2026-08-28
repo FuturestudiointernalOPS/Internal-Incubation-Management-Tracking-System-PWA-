@@ -11,10 +11,21 @@ let pgPool = null;
 let poolErrorCount = 0;
 const MAX_POOL_ERRORS = 5;
 
+// Minimum elapsed time before a FULL pool teardown is allowed after the
+// previous one. Prevents a burst of transient errors from repeatedly dropping
+// every socket (a cascade that itself thrashes Supabase). Bounded recovery:
+// a single flake triggers a targeted prune; only sustained failure tears down.
+let lastFullResetAt = 0;
+const FULL_RESET_MIN_INTERVAL_MS = 2000;
+
 /**
  * Reset the pool entirely, forcing creation of fresh connections.
  */
 const resetPool = () => {
+  const now = Date.now();
+  if (now - lastFullResetAt < FULL_RESET_MIN_INTERVAL_MS) {
+    return false; // bounded: skip a repeat teardown within the backoff window
+  }
   if (pgPool) {
     try {
       pgPool.end().catch(() => {});
@@ -22,6 +33,8 @@ const resetPool = () => {
     pgPool = null;
   }
   poolErrorCount = 0;
+  lastFullResetAt = now;
+  return true;
 };
 
 const getPool = () => {
@@ -41,10 +54,16 @@ const getPool = () => {
       ssl: { rejectUnauthorized: false },
       max: 10,
       idleTimeoutMillis: 60000, // Recycle idle connections after 60s instead of 300s
-      connectionTimeoutMillis: 10000, // More time for initial connection
+      connectionTimeoutMillis: 10000, // Time to establish a NEW connection
       query_timeout: 30000, // Kill queries running longer than 30s (client-side)
       keepAlive: true,
       keepAliveInitialDelayMillis: 10000,
+      // MAXIMUM time waiting for a free slot from an exhausted pool. Without
+      // this, pool.connect() blocks indefinitely once all `max` connections
+      // are busy, which under load hangs requests and cascades into the
+      // failure cache. 5s lets a slow batch drain without hard-failing normal
+      // bursts, and turns true exhaustion into a fast, actionable error.
+      acquireTimeoutMillis: 5000,
     });
 
     // Set statement timeout at the session level for all pooled connections
@@ -138,9 +157,13 @@ const execute = async (queryObj) => {
 
     if (isConnError) {
       console.warn(
-        ` forensics | Connection error detected, recycling pool and retrying...`,
+        ` forensics | Connection error detected, recovering and retrying...`,
       );
-      resetPool();
+      // Bounded recovery: only tear down the whole pool when allowed by the
+      // backoff window; otherwise this is a transient per-connection flake.
+      if (!resetPool()) {
+        await new Promise((r) => setTimeout(r, 150)); // small jitter before retry
+      }
       const freshPool = getPool();
       if (freshPool) {
         try {

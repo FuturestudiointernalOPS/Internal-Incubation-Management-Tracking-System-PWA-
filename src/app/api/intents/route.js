@@ -97,27 +97,35 @@ export async function GET(req) {
 
     const result = await db.execute({ sql, args });
 
-    // Attach task counts per intent
-    const intents = await Promise.all(
-      result.rows.map(async (intent) => {
-        const countRes = await db.execute({
-          sql: `SELECT
+    // Batch per-intent task counts into ONE grouped query instead of one
+    // query per intent. Produces identical `taskCounts` per intent.
+    const intentIds = result.rows.map((i) => String(i.id));
+    const countMap = {};
+    if (intentIds.length > 0) {
+      const idsPh = intentIds.map(() => "?").join(",");
+      const countRes = await db.execute({
+        sql: `SELECT intent_id::text AS iid,
             COUNT(*) FILTER (WHERE status NOT IN ('completed','archived')) AS active_count,
             COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
             COUNT(*) AS total_count
-            FROM tasks WHERE intent_id = ?`,
-          args: [intent.id],
-        });
-        return {
-          ...intent,
-          taskCounts: countRes.rows[0] || {
-            active_count: 0,
-            completed_count: 0,
-            total_count: 0,
-          },
-        };
-      }),
-    );
+            FROM tasks WHERE intent_id::text IN (${idsPh})
+            GROUP BY intent_id::text`,
+        args: intentIds,
+      });
+      for (const r of countRes.rows || []) countMap[r.iid] = r;
+    }
+
+    const intents = result.rows.map((intent) => {
+      const iid = String(intent.id);
+      return {
+        ...intent,
+        taskCounts: countMap[iid] || {
+          active_count: 0,
+          completed_count: 0,
+          total_count: 0,
+        },
+      };
+    });
 
     return NextResponse.json({ success: true, intents });
   } catch (error) {

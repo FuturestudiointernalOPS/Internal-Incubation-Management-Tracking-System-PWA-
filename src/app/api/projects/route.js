@@ -201,30 +201,38 @@ export async function GET(req) {
       memberMap[pid].push({ user_cid: m.user_cid, role: m.role });
     }
 
-    // For each project, aggregate task stats
-    const projectsWithStats = await Promise.all(
-      result.rows.map(async (row) => {
-        const meta =
-          (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
-          {};
-        const taskStats = await db.execute({
-          sql: `SELECT
-            COUNT(*) AS total,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-            FROM tasks WHERE project_id::text = ?`,
-          args: [String(row.id)],
-        });
-        return {
-          ...row,
-          meta,
-          members: memberMap[String(row.id)] || [],
-          task_summary: {
-            total: taskStats.rows[0]?.total || 0,
-            completed: taskStats.rows[0]?.completed || 0,
-          },
-        };
-      }),
-    );
+    // Batch per-project task stats into ONE grouped query instead of one
+    // COUNT per project. Produces identical { total, completed } per project.
+    const taskMap = {};
+    if (projectIds.length > 0) {
+      const idsPh = projectIds.map(() => "?").join(",");
+      const taskRes = await db.execute({
+        sql: `SELECT project_id::text AS pid,
+              COUNT(*) AS total,
+              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+              FROM tasks WHERE project_id::text IN (${idsPh})
+              GROUP BY project_id::text`,
+        args: projectIds,
+      });
+      for (const r of taskRes.rows || []) taskMap[r.pid] = r;
+    }
+
+    const projectsWithStats = result.rows.map((row) => {
+      const meta =
+        (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
+        {};
+      const pidKey = String(row.id);
+      const ts = taskMap[pidKey] || {};
+      return {
+        ...row,
+        meta,
+        members: memberMap[pidKey] || [],
+        task_summary: {
+          total: ts.total || 0,
+          completed: ts.completed || 0,
+        },
+      };
+    });
 
     return NextResponse.json({ success: true, projects: projectsWithStats });
   } catch (error) {

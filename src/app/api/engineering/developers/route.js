@@ -31,19 +31,30 @@ export async function GET(request) {
 
     const result = await db.execute({ sql, args });
 
-    // For each developer, fetch their active task count
-    const developers = await Promise.all(
-      result.rows.map(async (dev) => {
-        const taskRes = await db.execute({
-          sql: "SELECT COUNT(*) as count FROM tasks WHERE assigned_to = ? AND status NOT IN ('completed', 'archived')",
-          args: [dev.cid],
-        });
-        return {
-          ...dev,
-          active_tasks: parseInt(taskRes.rows[0]?.count || 0),
-        };
-      }),
-    );
+    // Batch the per-developer active-task count into ONE grouped query instead
+    // of one COUNT per developer. `assigned_to` may be a cid OR numeric id, so
+    // count both, matching the original per-dev query which compared by string.
+    const devIds = result.rows.map((d) => d.cid);
+    let activeByCid = {};
+    if (devIds.length > 0) {
+      const idsPh = devIds.map(() => "?").join(",");
+      const taskRes = await db.execute({
+        sql: `SELECT assigned_to::text AS who, COUNT(*) AS cnt
+              FROM tasks
+              WHERE assigned_to::text IN (${idsPh})
+                AND status NOT IN ('completed', 'archived')
+              GROUP BY assigned_to::text`,
+        args: devIds,
+      });
+      for (const r of taskRes.rows || []) {
+        activeByCid[r.who] = parseInt(r.cnt, 10) || 0;
+      }
+    }
+
+    const developers = result.rows.map((dev) => ({
+      ...dev,
+      active_tasks: activeByCid[dev.cid] || 0,
+    }));
 
     return NextResponse.json({ success: true, developers });
   } catch (err) {

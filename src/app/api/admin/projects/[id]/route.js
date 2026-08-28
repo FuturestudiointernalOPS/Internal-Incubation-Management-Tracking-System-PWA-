@@ -89,27 +89,48 @@ export async function GET(req, { params }) {
       }
     }
 
-    // Attach blockers and subtasks to each task
-    const tasksWithBlockers = await Promise.all(
-      (tasksRes.rows || []).map(async (task) => {
-        const [blockerRes, subtaskRes] = await Promise.all([
-          db.execute({
-            sql: "SELECT id, title, status, severity, description, reference_url, notes, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-            args: [task.id],
-          }),
-          db.execute({
-            sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC",
-            args: [task.id],
-          }),
-        ]);
-        return {
-          ...task,
-          blockers: blockerRes.rows || [],
-          subtasks: subtaskRes.rows || [],
-          resources: resourcesByTask[task.id] || [],
-        };
-      }),
-    );
+    // Attach blockers and subtasks to each task — batched into two IN queries
+    // instead of 2 DB round-trips PER task. Produces identical per-task
+    // `blockers` (ordered created_at DESC) and `subtasks` (created_at ASC)
+    // arrays, preserving the original nested shape.
+    let blockersByTask = {};
+    let subtasksByTask = {};
+    if (allTaskIds.length > 0) {
+      const idsPh = allTaskIds.map(() => "?").join(",");
+      const [blockerRes, subtaskRes] = await Promise.all([
+        db.execute({
+          sql: `SELECT id, title, status, severity, description, reference_url, notes, created_at, resolved_at, task_id
+                FROM blockers WHERE task_id IN (${idsPh}) ORDER BY created_at DESC`,
+          args: allTaskIds,
+        }),
+        db.execute({
+          sql: `SELECT id, title, status, parent_task_id AS task_id
+                FROM tasks WHERE parent_task_id IN (${idsPh}) ORDER BY created_at ASC`,
+          args: allTaskIds,
+        }),
+      ]);
+      for (const r of blockerRes.rows || []) {
+        const id = String(r.task_id);
+        if (!blockersByTask[id]) blockersByTask[id] = [];
+        const { task_id, ...rest } = r;
+        blockersByTask[id].push(rest);
+      }
+      for (const r of subtaskRes.rows || []) {
+        const id = String(r.task_id);
+        if (!subtasksByTask[id]) subtasksByTask[id] = [];
+        const { task_id, ...rest } = r;
+        subtasksByTask[id].push(rest);
+      }
+    }
+
+    const tasksWithBlockers = (tasksRes.rows || []).map((task) => {
+      return {
+        ...task,
+        blockers: blockersByTask[String(task.id)] || [],
+        subtasks: subtasksByTask[String(task.id)] || [],
+        resources: resourcesByTask[task.id] || [],
+      };
+    });
 
     // 4. All blockers for this project
     const blockersRes = await db.execute({

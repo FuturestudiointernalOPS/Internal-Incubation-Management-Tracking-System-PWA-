@@ -16,6 +16,12 @@ const _sessionCache = new Map();
 const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
 const FAILURE_CACHE_TTL = 5000; // If DB fails, don't retry for 5s (avoids 30s lockouts on transient errors)
 
+// Hard cap on the in-memory session cache so a warm serverless instance that
+// rotates many tokens cannot grow the Map unboundedly. Simple LRU: when full,
+// evict the oldest entry. Purely a memory bound — never changes which sessions
+// are valid, only how many are kept warm between requests.
+const SESSION_CACHE_MAX = 5000;
+
 /**
  * Creates a new session for a user.
  * Stores session in database and returns the token and maxAge.
@@ -174,6 +180,11 @@ export async function getSession() {
       session: result_session,
       expires: Date.now() + SESSION_CACHE_TTL,
     });
+    // Bounded session cache: evict the oldest entry when over the cap.
+    if (_sessionCache.size > SESSION_CACHE_MAX) {
+      const oldestKey = _sessionCache.keys().next().value;
+      if (oldestKey !== undefined) _sessionCache.delete(oldestKey);
+    }
 
     return result_session;
   } catch (error) {
@@ -230,6 +241,9 @@ export async function destroySession() {
         sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",
         args: [tokenHash, token],
       });
+      // Immediately evict the cached session so a just-logged-out token cannot
+      // be re-validated from the in-memory cache for the remaining TTL.
+      _sessionCache.delete(token);
     }
 
     cookieStore.delete(SESSION_COOKIE_NAME);
@@ -1246,15 +1260,87 @@ export async function getUserEffectiveCapabilitiesV2(
 
 /**
  * Gets the full permission matrix using V2 (Access Profile) resolution.
+ *
+ * Returns the exact same shape as the previous per-module loop
+ * ({ module: { capability: level } }) but in a fixed number of queries
+ * instead of ~6 × #modules round-trips. Resolver semantics are unchanged:
+ * profile ∪ group ∪ grant ∖ restriction, per module, per capability.
  */
 export async function getUserFullPermissionMatrixV2(userCid, userRole) {
   const result = {};
-  for (const mod of Object.keys(PERMISSION_MODULES)) {
-    const caps = await getUserEffectiveCapabilitiesV2(userCid, userRole, mod);
-    result[mod] = {};
-    for (const [capability, level] of caps) result[mod][capability] = level;
+  for (const mod of Object.keys(PERMISSION_MODULES)) result[mod] = {};
+
+  try {
+    await initDb();
+    const profile = await getUserEffectiveProfile(userCid, userRole);
+
+    // 1) Profile (or legacy role) capabilities for ALL modules in one query.
+    const profileCaps = [];
+    if (profile.profileId) {
+      const rows = await db.execute({
+        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
+        args: [profile.profileId],
+      });
+      profileCaps.push(...rows.rows);
+    } else {
+      const rows = await db.execute({
+        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
+        args: [userRole],
+      });
+      profileCaps.push(...rows.rows);
+    }
+
+    // 2) Group capabilities across ALL modules/groups in one query.
+    const groups = await getUserGroups(userCid);
+    const groupCaps = [];
+    if (groups.length > 0) {
+      const ph = groups.map(() => "?").join(",");
+      const rows = await db.execute({
+        sql: `SELECT module, capability, access_level FROM group_capabilities WHERE group_name IN (${ph})`,
+        args: groups,
+      });
+      groupCaps.push(...rows.rows);
+    }
+
+    // 3) Individual grants and restrictions across ALL modules in one query each.
+    const grants = (
+      await db.execute({
+        sql: "SELECT module, capability, access_level FROM user_capabilities WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+        args: [userCid],
+      })
+    ).rows;
+    const restrictions = new Set(
+      (
+        await db.execute({
+          sql: "SELECT module || ':' || capability AS key FROM user_capability_restrictions WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())",
+          args: [userCid],
+        })
+      ).rows.map((r) => r.key),
+    );
+
+    // 4) Merge same as getUserEffectiveCapabilitiesV2 per (module, capability).
+    const merged = {};
+    const add = (mod, cap, lvl) => {
+      const l = merged[mod] || (merged[mod] = {});
+      if ((l[cap] || 0) < lvl) l[cap] = lvl;
+    };
+    for (const c of profileCaps) add(c.module, c.capability, c.access_level);
+    for (const c of groupCaps) add(c.module, c.capability, c.access_level);
+    for (const c of grants) add(c.module, c.capability, c.access_level);
+
+    for (const [modKey, caps] of Object.entries(merged)) {
+      if (!result[modKey]) result[modKey] = {};
+      for (const [cap, lvl] of Object.entries(caps)) {
+        if (restrictions.has(`${modKey}:${cap}`)) continue;
+        result[modKey][cap] = lvl;
+      }
+    }
+
+    return result;
+  } catch (e) {
+    console.error("getUserFullPermissionMatrixV2 error:", e.message);
+    return result; // empty matrix on error, same as old per-module catch
   }
-  return result;
 }
 
 /**
@@ -1271,22 +1357,31 @@ export async function hasCapabilityV2(
   try {
     await initDb();
     if (userRole === "super_admin") {
-      // Check if explicitly restricted
+      // Super Admin bypass with explicit restriction/grant overrides, resolved
+      // in ONE query. A NULL access_level means no grant (default allow); a
+      // grant row carries its level; a restriction row is signalled by the
+      // is_restricted flag. Logic is identical to the previous two queries.
       const r = await db.execute({
-        sql: "SELECT 1 FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid, module, capability],
+        sql: `SELECT
+                MAX(CASE WHEN c.type = 'restriction' THEN 1 ELSE 0 END) AS is_restricted,
+                MAX(CASE WHEN c.type = 'grant' THEN c.access_level END) AS grant_level
+              FROM (
+                SELECT 'restriction' AS type, 0 AS access_level
+                  FROM user_capability_restrictions
+                 WHERE user_cid = ? AND module = ? AND capability = ?
+                   AND (expires_at IS NULL OR expires_at > NOW())
+                UNION ALL
+                SELECT 'grant' AS type, access_level
+                  FROM user_capabilities
+                 WHERE user_cid = ? AND module = ? AND capability = ?
+                   AND (expires_at IS NULL OR expires_at > NOW())
+              ) c`,
+        args: [userCid, module, capability, userCid, module, capability],
       });
-      if (r.rows.length === 0) {
-        // Check if explicitly granted (even super_admin can have limited grants)
-        const g = await db.execute({
-          sql: "SELECT access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-          args: [userCid, module, capability],
-        });
-        if (g.rows.length > 0)
-          return parseInt(g.rows[0].access_level) >= minLevel;
-        return true; // Super Admin default: yes
-      }
-      return false;
+      const row = r.rows[0] || {};
+      if (Number(row.is_restricted) === 1) return false;
+      if (row.grant_level == null) return true; // Super Admin default: yes
+      return parseInt(row.grant_level, 10) >= minLevel;
     }
     const caps = await getUserEffectiveCapabilitiesV2(
       userCid,

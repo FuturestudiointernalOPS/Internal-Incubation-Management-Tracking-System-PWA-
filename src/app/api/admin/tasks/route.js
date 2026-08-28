@@ -25,14 +25,31 @@ export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
   sql += " ORDER BY t.created_at DESC LIMIT 200";
 
   const result = await db.execute({ sql, args });
-  const tasks = await Promise.all(
-    result.rows.map(async (task) => {
-      const blockerRes = await db.execute({
-        sql: "SELECT id, title, status, severity, created_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-        args: [task.id],
-      });
-      return { ...task, blockers: blockerRes.rows || [] };
-    }),
-  );
-  return NextResponse.json({ success: true, tasks });
+  const tasks = result.rows;
+
+  // Batch the per-task blocker query into one IN query instead of 1 DB
+  // round-trip PER task (up to 200). Produces identical per-task `blockers`
+  // arrays ordered created_at DESC.
+  const taskIds = tasks.map((t) => t.id);
+  let blockersByTask = {};
+  if (taskIds.length > 0) {
+    const idsPh = taskIds.map(() => "?").join(",");
+    const blockerRes = await db.execute({
+      sql: `SELECT id, title, status, severity, created_at, task_id
+            FROM blockers WHERE task_id IN (${idsPh}) ORDER BY created_at DESC`,
+      args: taskIds,
+    });
+    for (const r of blockerRes.rows || []) {
+      const id = String(r.task_id);
+      if (!blockersByTask[id]) blockersByTask[id] = [];
+      const { task_id, ...rest } = r;
+      blockersByTask[id].push(rest);
+    }
+  }
+
+  const enriched = tasks.map((task) => ({
+    ...task,
+    blockers: blockersByTask[String(task.id)] || [],
+  }));
+  return NextResponse.json({ success: true, tasks: enriched });
 });
