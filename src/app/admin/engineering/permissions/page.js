@@ -386,8 +386,10 @@ export default function PermissionManager() {
   return (
     <DashboardLayout role="super_admin" activeTab="engineering">
       <div className="space-y-8 pb-20">
+        {/* Sticky page head — title + tabs stay visible while scrolling */}
+        <div className="sticky top-0 z-30 bg-primary border-b border-[var(--border-primary)] -mx-6 lg:-mx-10 px-6 lg:px-10 pt-6 pb-5">
         {/* Header */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8">
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -459,6 +461,7 @@ export default function PermissionManager() {
             </button>
           </div>
         </div>
+        </div>
 
         {activeTab === "eligibility" && <EligibilityView />}
         {activeTab === "setup" && (
@@ -483,7 +486,7 @@ export default function PermissionManager() {
             {setupSection === "profiles" ? (
               <AccessProfilesView />
             ) : (
-              <RoleDefaultsView onManageProfiles={() => setSetupSection("profiles")} />
+              <RoleDefaultsView />
             )}
           </div>
         )}
@@ -1117,7 +1120,7 @@ export default function PermissionManager() {
   );
 }
 
-function RoleDefaultsView({ onManageProfiles }) {
+function RoleDefaultsView() {
   const { t } = useI18n();
   const [roleDefaults, setRoleDefaults] = useState({});
   const [profiles, setProfiles] = useState([]);
@@ -1324,9 +1327,6 @@ function RoleDefaultsView({ onManageProfiles }) {
                 <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
                   {t("engineering.permissions.defaultProfileColumn")}
                 </th>
-                <th className="text-right px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                  {t("engineering.permissions.actions")}
-                </th>
               </tr>
             </thead>
             <tbody>
@@ -1353,14 +1353,6 @@ function RoleDefaultsView({ onManageProfiles }) {
                           {t("engineering.permissions.noDefaultProfile")}
                         </span>
                       )}
-                    </td>
-                    <td className="px-5 py-3.5 text-right">
-                      <button
-                        onClick={onManageProfiles}
-                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-                      >
-                        {t("engineering.permissions.manageProfiles")}
-                      </button>
                     </td>
                   </tr>
                 );
