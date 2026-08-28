@@ -243,7 +243,7 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
   const groupCaps = rowsToCaps(groupCapsRes.rows);
 
   const eligibility = {};
-  for (const featureKey of Object.keys(MODULE_TO_FEATURE)) {
+  for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
     eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);
   }
 
