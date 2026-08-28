@@ -46,6 +46,7 @@ jest.mock("@/lib/authorization", () => ({
   buildPermissionExplanation: jest.fn().mockReturnValue(null),
   assertTemplateCapsEligible: jest.fn().mockResolvedValue({ valid: true, violations: [] }),
   getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true, eligibility: {} }),
+  authorize: jest.fn().mockReturnValue(true), // used by the eligibility route for the canConfigure flag
   FEATURE_KEYS: mockRealEligAdmin.FEATURE_KEYS,
   IDENTITY_TYPES: mockRealEligAdmin.IDENTITY_TYPES,
   ROLE_CATALOG: mockRealEligAdmin.ROLE_CATALOG,

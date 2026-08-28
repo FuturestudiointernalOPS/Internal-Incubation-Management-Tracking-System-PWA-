@@ -9,6 +9,9 @@
  *
  * Used by scripts/dryrun-eligibility-policy.mjs via module.register().
  */
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
 export async function resolve(specifier, context, nextResolve) {
   if (specifier === "next/headers" || specifier === "next/server") {
     return {
@@ -18,11 +21,17 @@ export async function resolve(specifier, context, nextResolve) {
     };
   }
   if (specifier.startsWith("@/")) {
-    return {
-      url: new URL(`${specifier.slice(2)}.js`, new URL("../../src/", import.meta.url))
-        .href,
-      shortCircuit: true,
-    };
+    // Next-style alias: prefer the exact file, fall back to directory
+    // resolution (src/<path>/index.js), mirroring Next's resolver.
+    const srcBase = fileURLToPath(new URL("../../src/", import.meta.url));
+    const rel = specifier.slice(2);
+    const asFile = `${srcBase}${rel}.js`;
+    const asDir = `${srcBase}${rel}/index.js`;
+    const url = new URL(
+      existsSync(asFile) ? `${rel}.js` : `${rel}/index.js`,
+      new URL("../../src/", import.meta.url)
+    ).href;
+    return { url, shortCircuit: true };
   }
   if (
     (specifier.startsWith("./") || specifier.startsWith("../")) &&
