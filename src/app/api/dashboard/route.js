@@ -188,12 +188,12 @@ export async function GET(req) {
                        COUNT(*) AS total,
                        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
                 FROM tasks GROUP BY project_id
-              ) t_stats ON p.id = t_stats.project_id
+              ) t_stats ON p.id::text = t_stats.project_id
               LEFT JOIN (
                 SELECT t.project_id, COUNT(*) AS active
                 FROM blockers b JOIN tasks t ON b.task_id = t.id
                 WHERE b.status = 'active' GROUP BY t.project_id
-              ) b_stats ON p.id = b_stats.project_id
+              ) b_stats ON p.id::text = b_stats.project_id
               WHERE (p.owner_id::text = ?::text OR EXISTS (
                 SELECT 1 FROM project_members pm
                 WHERE pm.project_id::text = p.id::text AND pm.user_cid::text = ?::text AND pm.role = 'lead'
@@ -257,8 +257,8 @@ export async function GET(req) {
         sql: `SELECT kp.program_id, kp.kpi_id, k.title, k.weight, k.target_value, k.auto_weight,
                      kp.approved_count, kp.participant_count, kp.completion_rate
               FROM kpi_progress kp
-              JOIN v2_kpis k ON kp.kpi_id = k.id AND kp.program_id::text = k.program_id::text
-              WHERE kp.program_id IN (SELECT program_id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
+              JOIN v2_kpis k ON kp.kpi_id::text = k.id::text AND kp.program_id::text = k.program_id::text
+              WHERE kp.program_id IN (SELECT id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
               ORDER BY kp.program_id, kp.kpi_id`,
         args: [userId, `%${userId}%`, userId],
       }),
@@ -563,12 +563,12 @@ export async function GET(req) {
                     SELECT project_id, COUNT(*) AS total,
                            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
                     FROM tasks GROUP BY project_id
-                  ) t_stats ON p.id = t_stats.project_id
+                  ) t_stats ON p.id::text = t_stats.project_id
                   LEFT JOIN (
                     SELECT t.project_id, COUNT(*) AS active
                     FROM blockers b JOIN tasks t ON b.task_id = t.id
                     WHERE b.status = 'active' GROUP BY t.project_id
-                  ) b_stats ON p.id = b_stats.project_id
+                  ) b_stats ON p.id::text = b_stats.project_id
                   WHERE p.id IN (${placeholders})
                   ORDER BY p.created_at DESC`,
             args: collabProjectIds,
