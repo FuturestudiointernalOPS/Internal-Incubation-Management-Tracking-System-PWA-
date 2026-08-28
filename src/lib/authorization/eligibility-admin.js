@@ -48,6 +48,7 @@ export const ROLE_CATALOG = [
     "team",
     "admin",
     "intern",
+    "security_officer",
   ]),
 ].sort();
 
