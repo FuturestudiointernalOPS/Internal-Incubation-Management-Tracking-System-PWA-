@@ -18,6 +18,7 @@ import {
   Info,
   Layers,
   Copy,
+  Eye,
   EyeOff,
   Award,
   SwitchCamera,
@@ -1868,9 +1869,9 @@ function AccessProfilesView() {
                           className="p-1.5 rounded-lg hover:bg-tertiary transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         >
                           {profile.is_active ? (
-                            <EyeOff className="w-3.5 h-3.5" />
+                            <Eye className="w-3.5 h-3.5" />
                           ) : (
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                            <EyeOff className="w-3.5 h-3.5 text-slate-400" />
                           )}
                         </button>
                       </div>
