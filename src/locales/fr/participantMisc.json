@@ -41,11 +41,14 @@
       "filterSubmitted": "Soumis",
       "filterApproved": "Approuvés",
       "filterRejected": "Rejetés",
+      "filterRevision": "Révision demandée",
       "overdue": "En retard",
       "due": "· Échéance {date}",
       "score": "· Score : {score}",
       "submit": "Soumettre",
       "redo": "Refaire",
+      "resubmit": "Resoumettre",
+      "feedbackLabel": "Retour du formateur",
       "openResource": "Ouvrir la ressource",
       "requiredError": "Veuillez fournir une URL ou un fichier à soumettre.",
       "invalidUrl": "Veuillez saisir une URL http(s) valide.",
@@ -62,6 +65,7 @@
       "statusPending": "En attente",
       "statusAwaitingReview": "Soumis — En attente de correction",
       "statusRejected": "Rejeté",
+      "statusRevisionRequested": "Révision demandée",
       "statusDraft": "Brouillon"
     },
     "progress": {

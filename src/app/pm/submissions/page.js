@@ -112,20 +112,30 @@ export default function PMSubmissions() {
   const handleReview = async (submissionId, newStatus) => {
     setActionLoading(true);
     try {
-      await fetch("/api/submissions", {
+      const trimmedFeedback = feedback.trim() || null;
+      const res = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: submissionId,
           status: newStatus,
-          feedback: feedback.trim() || null,
+          review_action: newStatus === "reviewed" ? null : newStatus,
+          feedback: trimmedFeedback,
+          rejection_reason:
+            newStatus === "rejected" ? trimmedFeedback : null,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && !data.success) {
+        alert(data.error || t("pmMisc.submissions.reviewFailed"));
+        return;
+      }
       setReviewModal(null);
       setFeedback("");
       fetchSubmissions();
     } catch (e) {
       console.error("Review failed", e);
+      alert(t("pmMisc.submissions.reviewFailed"));
     }
     setActionLoading(false);
   };

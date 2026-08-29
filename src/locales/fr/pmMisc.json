@@ -43,7 +43,8 @@
       "location": "Lieu",
       "locationPlaceholder": "ex. Salle 301, lien Zoom...",
       "reviewMeetingFor": "Réunion de révision pour {deliverable}",
-      "schedule": "Planifier"
+      "schedule": "Planifier",
+      "reviewFailed": "Échec de l'action de révision. Veuillez réessayer."
     },
     "promote": {
       "failedToLoadProgram": "Échec du chargement des données du programme",

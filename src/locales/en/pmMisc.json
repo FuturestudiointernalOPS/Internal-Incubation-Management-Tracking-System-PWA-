@@ -43,7 +43,8 @@
       "location": "Location",
       "locationPlaceholder": "e.g. Room 301, Zoom link...",
       "reviewMeetingFor": "Review meeting for {deliverable}",
-      "schedule": "Schedule"
+      "schedule": "Schedule",
+      "reviewFailed": "Review action failed. Please try again."
     },
     "promote": {
       "failedToLoadProgram": "Failed to load program data",

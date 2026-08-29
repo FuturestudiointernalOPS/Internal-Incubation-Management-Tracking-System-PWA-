@@ -41,11 +41,14 @@
       "filterSubmitted": "Submitted",
       "filterApproved": "Approved",
       "filterRejected": "Rejected",
+      "filterRevision": "Revision Requested",
       "overdue": "Overdue",
       "due": "· Due {date}",
       "score": "· Score: {score}",
       "submit": "Submit",
       "redo": "Redo",
+      "resubmit": "Resubmit",
+      "feedbackLabel": "Instructor Feedback",
       "openResource": "Open Resource",
       "requiredError": "Please provide a URL or file to submit.",
       "invalidUrl": "Please enter a valid http(s) URL.",
@@ -62,6 +65,7 @@
       "statusPending": "Pending",
       "statusAwaitingReview": "Submitted — Awaiting review",
       "statusRejected": "Rejected",
+      "statusRevisionRequested": "Revision Requested",
       "statusDraft": "Draft"
     },
     "progress": {
