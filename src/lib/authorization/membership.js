@@ -285,7 +285,10 @@ export async function ensureMembershipBootstrap() {
   ];
 
   // 2. groups metadata (INSERT-only; never overwrites admin metadata).
-  for (const name of groupNames) {
+  //    Names are normalized to UPPERCASE so one group can never exist as
+  //    multiple case variants in the metadata table.
+  for (const raw of groupNames) {
+    const name = normalizeGroupName(raw);
     await db.execute({
       sql: `INSERT INTO groups (name, description, is_protected, is_active)
             VALUES (?, '', CASE WHEN UPPER(?) = ? THEN 1 ELSE 0 END, 1)

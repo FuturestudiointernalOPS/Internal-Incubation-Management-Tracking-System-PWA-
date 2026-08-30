@@ -28,15 +28,16 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
     );
   }
 
-  // Update all contacts in the group with the program_id
+  // Update all contacts in the group with the program_id (case-insensitive:
+  // group names are normalized to UPPERCASE in contacts).
   await db.execute({
-    sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE group_name = ?",
+    sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
     args: [program_id, program_name || null, group_name],
   });
 
   // Also update v2_participants if they exist for these contacts
   const contactsRes = await db.execute({
-    sql: "SELECT cid, email, name, phone FROM contacts WHERE group_name = ?",
+    sql: "SELECT cid, email, name, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
     args: [group_name],
   });
 

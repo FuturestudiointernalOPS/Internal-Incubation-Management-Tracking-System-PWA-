@@ -104,25 +104,29 @@ export async function POST(req) {
 
     const accountActivated = !!(existingContact.rows[0] && String(existingContact.rows[0].password || "").trim());
 
+    // Group names are normalized to UPPERCASE at write time so case
+    // variants can never be re-created.
+    const normGroup = group_id ? String(group_id).trim().toUpperCase() : null;
+
     if (existingContact.rows.length > 0) {
       contactCid = existingContact.rows[0].cid;
       // Never blank an existing name when the inviter did not provide one.
       if ((name || "").trim()) {
         await db.execute({
           sql: "UPDATE contacts SET name = ?, group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [name.trim(), group_id || null, contactCid],
+          args: [name.trim(), normGroup, contactCid],
         });
       } else if (group_id) {
         await db.execute({
           sql: "UPDATE contacts SET group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [group_id, contactCid],
+          args: [normGroup, contactCid],
         });
       }
     } else {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)",
-        args: [contactCid, displayName, cleanEmail, role || "participant", group_id || null],
+        args: [contactCid, displayName, cleanEmail, role || "participant", normGroup],
       });
     }
 

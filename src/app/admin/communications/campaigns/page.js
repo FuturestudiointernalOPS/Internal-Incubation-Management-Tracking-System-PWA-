@@ -242,7 +242,13 @@ export default function CampaignsPage() {
   };
 
   const selectFamily = (familyName, isEditing = false) => {
-    const familyCids = contacts.filter(c => c.group_name === familyName).map(c => c.cid);
+    const familyCids = contacts
+      .filter(
+        (c) =>
+          String(c.group_name || "").trim().toUpperCase() ===
+          String(familyName || "").trim().toUpperCase(),
+      )
+      .map((c) => c.cid);
     if (isEditing) {
        const nextCids = [...new Set([...selectedCampaign.cids, ...familyCids])];
        setSelectedCampaign({...selectedCampaign, cids: nextCids});

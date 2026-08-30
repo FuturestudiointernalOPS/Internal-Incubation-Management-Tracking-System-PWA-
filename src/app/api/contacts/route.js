@@ -331,6 +331,11 @@ export async function PUT(req) {
         if (col === "email") {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(val.toLowerCase());
+        } else if (col === "group_name") {
+          // Normalize group names to UPPERCASE at write time (matches the
+          // membership layer) so case variants can never be re-created.
+          fieldsToUpdate.push("group_name = ?");
+          args.push(String(val || "").trim().toUpperCase());
         } else if (col === "archived_at" || col === "archived_by") {
           // Allow NULL for restore, or timestamp/text for archive
           fieldsToUpdate.push(`${col} = ?`);

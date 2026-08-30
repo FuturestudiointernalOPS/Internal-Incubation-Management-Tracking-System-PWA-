@@ -189,7 +189,7 @@ export async function POST(req) {
             args: [
               row.name,
               row.phone || null,
-              row.groupName,
+              String(row.groupName || "").trim().toUpperCase(),
               row.role,
               hashedPassword,
               row.email,
@@ -208,7 +208,7 @@ export async function POST(req) {
               row.phone || null,
               hashedPassword,
               row.role,
-              row.groupName,
+              String(row.groupName || "").trim().toUpperCase(),
             ],
           });
           results.created++;
