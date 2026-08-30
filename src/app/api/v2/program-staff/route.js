@@ -8,6 +8,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
 
 async function logFacilitatorTimeline(staffId, programId, eventType, description, extra = {}) {
   try {
@@ -59,8 +60,18 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
     const { program_id, staff_id, role, permissions } = await req.json();
+    const roleLower = String(role || "").toLowerCase();
 
-    if (String(role || "").toLowerCase() === "facilitator") {
+    // Same safeguard as the v1 program-staff and bulk-invite paths: an empty
+    // permissions payload must never silently strip a facilitator's access.
+    const finalPermissions =
+      permissions && Object.keys(permissions).length > 0
+        ? permissions
+        : roleLower === "facilitator"
+          ? buildFullFacilitatorPermissions()
+          : {};
+
+    if (roleLower === "facilitator") {
       const contactRes = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [staff_id] });
       const contactEmail = contactRes.rows[0]?.email || "";
       const conflict = await db.execute({
@@ -77,9 +88,9 @@ export async function POST(req) {
 
     const res = await db.execute({
       sql: "INSERT INTO v2_program_staff (program_id, staff_id, role, permissions) VALUES (?, ?, ?, ?::jsonb) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, permissions = COALESCE(EXCLUDED.permissions, v2_program_staff.permissions), updated_at = NOW() RETURNING id",
-      args: [program_id, staff_id, role || "staff", JSON.stringify(permissions || {})],
+      args: [program_id, staff_id, role || "staff", JSON.stringify(finalPermissions)],
     });
-    if (String(role || "").toLowerCase() === "facilitator") {
+    if (roleLower === "facilitator") {
       await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
     }
 
@@ -108,7 +119,7 @@ export async function POST(req) {
           mirrorRole,
           String(program_id),
           mirrorRole,
-          JSON.stringify(permissions || {}),
+          JSON.stringify(finalPermissions),
           actor?.cid || "system",
           staff_id,
           staff_id,
@@ -147,10 +158,23 @@ export async function PUT(req) {
       args.push(role);
     }
     if (permissions !== undefined) {
+      const target = await db.execute({
+        sql: "SELECT role FROM v2_program_staff WHERE id = ?",
+        args: [id],
+      });
+      const targetIsFacilitator =
+        String(target.rows[0]?.role || "").toLowerCase() === "facilitator";
+      const hasPerms =
+        permissions &&
+        typeof permissions === "object" &&
+        Object.keys(permissions).length > 0;
+      const resolved = hasPerms
+        ? permissions
+        : targetIsFacilitator
+          ? buildFullFacilitatorPermissions()
+          : {};
       fields.push("permissions = ?");
-      args.push(
-        typeof permissions === "string" ? permissions : JSON.stringify(permissions || {}),
-      );
+      args.push(JSON.stringify(resolved));
     }
     if (fields.length === 0) {
       return NextResponse.json({ success: true, message: "No fields to update." });
