@@ -306,6 +306,19 @@ const SidebarContent = ({
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
+  // Hover-expand state (expanded sidebar): hovering a section previews its
+  // children; clicking still pins/unpins via openMenus.
+  const [hoverMenus, setHoverMenus] = useState({});
+  const hoverTimer = useRef(null);
+
+  // Clear pending hover/flyout timers on unmount.
+  useEffect(
+    () => () => {
+      clearTimeout(hoverTimer.current);
+      clearTimeout(flyoutTimer.current);
+    },
+    [],
+  );
 
   const label = (item) =>
     item.id?.startsWith("prog_")
@@ -320,6 +333,21 @@ const SidebarContent = ({
     clearTimeout(flyoutTimer.current);
     flyoutTimer.current = setTimeout(() => setFlyout(null), 200);
   };
+  // Hover intent for the expanded sidebar: open after a short delay (prevents
+  // flicker when crossing adjacent items), close after the same 200ms delay
+  // used by the collapsed-rail flyout — consistent hover timing everywhere.
+  const scheduleHoverOpen = (id) => {
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setHoverMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
+    }, 150);
+  };
+  const scheduleHoverClose = (id) => {
+    clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setHoverMenus((prev) => (prev[id] ? { ...prev, [id]: false } : prev));
+    }, 200);
+  };
 
   // Recursive nav renderer: a node with children renders as an expandable
   // group; a node without children renders as a link (leaf). showLabels forces
@@ -333,14 +361,24 @@ const SidebarContent = ({
 
     if (hasKids) {
       const isOpen = openMenus[item.id] || false;
+      const hoverOpen = hoverMenus[item.id] || false;
+      const expanded = isOpen || hoverOpen;
       return (
-        <div key={item.id} className="space-y-1">
+        <div
+          key={item.id}
+          className="space-y-1"
+          onMouseLeave={
+            collapsed ? undefined : () => scheduleHoverClose(item.id)
+          }
+        >
           <button
             onClick={() => toggleMenu(item.id)}
             onMouseEnter={
               collapsed && !showLabels
                 ? (e) => openFlyout(e, item.id)
-                : undefined
+                : collapsed
+                  ? undefined
+                  : () => scheduleHoverOpen(item.id)
             }
             onMouseLeave={
               collapsed && !showLabels ? scheduleFlyoutClose : undefined
@@ -378,11 +416,11 @@ const SidebarContent = ({
             )}
             {show && (
               <ChevronDown
-                className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`}
               />
             )}
           </button>
-          {isOpen && show && (
+          {expanded && show && (
             <div className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
               {kids.map((kid) => renderNavItem(kid, depth + 1, showLabels))}
             </div>
