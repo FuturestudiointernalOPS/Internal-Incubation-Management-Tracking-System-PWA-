@@ -210,15 +210,6 @@ export default function PlatformLayout({ children }) {
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-[100] bg-secondary border-b border-[var(--border-primary)] px-4 lg:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 relative z-20">
-            <Link
-              href="/admin/crm"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)] transition-colors relative z-10 cursor-pointer"
-            >
-              ← {t("crm.backToCrm")}
-            </Link>
-          </div>
-
           <div className="flex items-center gap-3">
             <button
               onClick={() => switchLang(lang === "en" ? "fr" : "en")}
