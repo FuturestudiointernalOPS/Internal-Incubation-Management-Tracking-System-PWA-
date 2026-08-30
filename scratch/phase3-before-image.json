@@ -1,0 +1,282 @@
+{
+  "PROD": [
+    {
+      "profile_id": 2,
+      "module": "internal_comms",
+      "capability": "create_announcements",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "internal_comms",
+      "capability": "moderate",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "investor",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "investor",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "investor",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 2,
+      "module": "knowledge",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "knowledge",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 2,
+      "module": "knowledge",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "knowledge",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 2,
+      "module": "messaging",
+      "capability": "send",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "messaging",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 2,
+      "module": "programs",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "projects",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 2,
+      "module": "reports",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "reports",
+      "capability": "export",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "tasks",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 2,
+      "module": "tasks",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 2,
+      "module": "tasks",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 2,
+      "module": "tasks",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 2,
+      "module": "ventures",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 3,
+      "module": "messaging",
+      "capability": "send",
+      "access_level": 2
+    },
+    {
+      "profile_id": 3,
+      "module": "messaging",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 3,
+      "module": "projects",
+      "capability": "view",
+      "access_level": 1
+    }
+  ],
+  "STAGE": [
+    {
+      "profile_id": 10,
+      "module": "messaging",
+      "capability": "send",
+      "access_level": 2
+    },
+    {
+      "profile_id": 10,
+      "module": "messaging",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 10,
+      "module": "projects",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 13,
+      "module": "internal_comms",
+      "capability": "create_announcements",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "internal_comms",
+      "capability": "moderate",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "investor",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "investor",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "investor",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 13,
+      "module": "knowledge",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "knowledge",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 13,
+      "module": "knowledge",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "knowledge",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 13,
+      "module": "messaging",
+      "capability": "send",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "messaging",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 13,
+      "module": "programs",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "projects",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 13,
+      "module": "reports",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "reports",
+      "capability": "export",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "tasks",
+      "capability": "create",
+      "access_level": 2
+    },
+    {
+      "profile_id": 13,
+      "module": "tasks",
+      "capability": "delete",
+      "access_level": 4
+    },
+    {
+      "profile_id": 13,
+      "module": "tasks",
+      "capability": "edit",
+      "access_level": 3
+    },
+    {
+      "profile_id": 13,
+      "module": "tasks",
+      "capability": "view",
+      "access_level": 1
+    },
+    {
+      "profile_id": 13,
+      "module": "ventures",
+      "capability": "create",
+      "access_level": 2
+    }
+  ]
+}

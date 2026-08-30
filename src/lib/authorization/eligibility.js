@@ -54,7 +54,7 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "developer",
   ],
   finance: ["super_admin", "staff"],
-  program_management: ["super_admin", "staff", "program_manager", "teacher"],
+  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
   project_ownership: [
     "super_admin",
     "staff",
@@ -73,11 +73,11 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   knowledge_base: ["super_admin", "staff"],
   intelligence: ["super_admin", "developer"],
   engineering: ["super_admin", "developer"],
-  user_management: ["super_admin"],
-  system_settings: ["super_admin"],
+  user_management: ["super_admin", "staff"],
+  system_settings: ["super_admin", "staff"],
   messaging: ["super_admin", "staff", "program_manager", "developer"],
   tasks: ["super_admin", "staff", "program_manager", "team"],
-  ventures: ["super_admin", "staff", "program_manager"],
+  ventures: ["super_admin", "staff", "program_manager", "investor"],
   investor: ["super_admin", "staff", "investor"],
   internal_comms: [
     "super_admin",
