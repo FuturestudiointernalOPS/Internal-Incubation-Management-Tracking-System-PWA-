@@ -47,7 +47,7 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
-import { buildRoleNav, NAV_ROLE_KEYS } from "@/lib/masterNavigation";
+import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -686,7 +686,10 @@ const NAV_ICONS = {
 function attachIcons(items) {
   return (items || []).map((item) => ({
     ...item,
-    icon: item.icon ? NAV_ICONS[item.icon] : undefined,
+    // Idempotent: string names are resolved to components; already-resolved
+    // components (from a previous pass) pass through untouched.
+    icon:
+      typeof item.icon === "string" ? NAV_ICONS[item.icon] : item.icon,
     subItems: item.subItems ? attachIcons(item.subItems) : item.subItems,
   }));
 }
@@ -1077,6 +1080,22 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
+  // Effective capability matrix for visibility projection (server remains authoritative).
+  const [effectiveCaps, setEffectiveCaps] = useState(null);
+
+  // Load the current user's effective permissions once (resolver-cached server-side).
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/me/permissions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d.success) setEffectiveCaps(d.effective || null);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
@@ -1372,8 +1391,11 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
-    return filterNavByResponsibilities(items, userResponsibilities, bypass);
-  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname]);
+    const base = filterNavByResponsibilities(items, userResponsibilities, bypass);
+    // Capability projection (visibility only — the server remains authoritative).
+    // Currently applies to staff (incl. PM-as-staff); other roles pass through.
+    return attachIcons(projectNavForCapabilities(base, effectiveCaps, activeRole));
+  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname, effectiveCaps]);
 
   // Active navigation path — the current page plus every ancestor node id.
   const activePathIds = useMemo(

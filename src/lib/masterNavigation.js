@@ -347,6 +347,108 @@ export const ROLE_ACCESS = {
 
 export const NAV_ROLE_KEYS = Object.keys(ROLE_ACCESS);
 
+// ─── Capability-projected navigation (Phase: nav reflects effective access) ──
+// Nodes that represent GLOBAL-management sections carry a capability
+// requirement. The projection only touches nodes listed here — everything
+// else stays role-mask-driven, and roles without projection rules are
+// untouched. Server-side authorization remains authoritative; this is
+// visibility only.
+export const NAV_CAPABILITY_REQUIREMENTS = {
+  crm: { module: "contacts", capability: "view" },
+  finance: { module: "finance", capability: "view" },
+  security: { module: "settings", capability: "view" },
+  programs: { module: "programs", capability: "view" },
+  knowledge: { module: "knowledge", capability: "view" },
+  reports: { module: "reports", capability: "view" },
+  ventures: { module: "ventures", capability: "view" },
+  investors: { module: "investor", capability: "view" },
+  communication: { module: "messaging", capability: "view" },
+  weekly_ops: { module: "reports", capability: "create" },
+  my_projects: { module: "projects", capability: "view" },
+  messages: { module: "messaging", capability: "view" },
+  projects: { module: "projects", capability: "view" },
+  operations: { module: "tasks", capability: "view" },
+  settings: { module: "settings", capability: "view" },
+};
+
+// Per-role projection rules. Only Staff (incl. PM-as-staff, which resolves to
+// the staff session role) is projected today: nodes in `hide` disappear when
+// the capability is missing, sections in `show` appear when the capability is
+// present (e.g. CRM for a Staff member granted contacts.view). Other roles
+// keep their role masks exactly as before.
+export const ROLE_NAV_PROJECTION = {
+  staff: {
+    hide: ["programs", "weekly_ops", "my_projects", "messages"],
+    show: ["crm", "finance", "security", "knowledge", "reports", "ventures", "investors"],
+  },
+};
+
+// Primary landing URL for sections added by the projection (rendered as leaf
+// links — never the full admin child list, which may be admin-only).
+export const EXTRA_SECTION_HREFS = {
+  crm: "/admin/crm",
+  finance: "/admin/finance",
+  security: "/admin/security",
+  knowledge: "/admin/knowledge",
+  reports: "/admin/reports/responses",
+  ventures: "/admin/ventures",
+  investors: "/admin/investors",
+};
+
+/** Pure capability check against an effective matrix. */
+export function hasCapability(effective, module, capability, minLevel = 1) {
+  return Number(effective?.[module]?.[capability] ?? 0) >= minLevel;
+}
+
+/**
+ * Project a role's navigation against the user's effective capabilities.
+ * Returns the same items when: no projection rules exist for the role, no
+ * effective matrix is available (fail-open on visibility — the server remains
+ * authoritative), or the node has no capability requirement.
+ */
+export function projectNavForCapabilities(navItems, effective, role) {
+  if (!effective) return navItems;
+  const rules = ROLE_NAV_PROJECTION[role];
+  if (!rules) return navItems;
+  const req = NAV_CAPABILITY_REQUIREMENTS;
+  const passes = (node) => {
+    if (!req[node.id]) return true; // role-mask driven — never filtered
+    return hasCapability(effective, req[node.id].module, req[node.id].capability);
+  };
+
+  const filterNode = (node) => {
+    if (node.subItems && node.subItems.length > 0) {
+      const kids = node.subItems.map(filterNode).filter(Boolean);
+      if (kids.length > 0) return { ...node, subItems: kids };
+      // Empty section: keep only when the section itself passes its requirement.
+      return passes(node) ? node : null;
+    }
+    if ((rules.hide || []).includes(node.id) && !passes(node)) return null;
+    return node;
+  };
+
+  const filtered = (navItems || []).map(filterNode).filter(Boolean);
+
+  // Add sections the user now has the capability for, as leaf links to the
+  // section's primary page (e.g. CRM for a Staff member granted contacts.view).
+  const extras = (rules.show || [])
+    .filter((id) => req[id] && hasCapability(effective, req[id].module, req[id].capability))
+    .map((id) => {
+      const node = NAV_NODE_INDEX[id];
+      if (!node) return null;
+      return {
+        id: node.id,
+        name: node.name,
+        icon: node.icon,
+        href: EXTRA_SECTION_HREFS[id] || node.href,
+      };
+    })
+    .filter(Boolean)
+    .filter((n) => !filtered.some((f) => f.id === n.id));
+
+  return [...filtered, ...extras];
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Node index — id → node. Every node in the master tree is reachable by id,
 // so role masks can hoist any node to any position without duplicating it.
