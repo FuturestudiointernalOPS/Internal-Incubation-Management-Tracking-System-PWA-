@@ -651,7 +651,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               <AppButton variant="ghost" size="sm" icon={History} onClick={onHistory}>
                 {t("membership.actions.history")}
               </AppButton>
-              <a href={`/admin/engineering/permissions?cid=${encodeURIComponent(member.user_cid)}`}>
+              <a href={`/admin/security/permissions?cid=${encodeURIComponent(member.user_cid)}`}>
                 <AppButton variant="secondary" size="sm" icon={Eye}>
                   {t("membership.detail.viewEffectiveAccess")}
                 </AppButton>

@@ -19,7 +19,6 @@ import {
   Search,
   RefreshCw,
   Calendar,
-  Shield,
   BarChart3,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -260,22 +259,6 @@ export default function EngineeringOperations() {
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.reportsSubtitle")}
-                  </p>
-                </div>
-              </button>
-              <button
-                onClick={() => router.push("/admin/engineering/permissions")}
-                className="ios-card !p-6 flex items-center gap-4 hover:border-purple-500/30 transition-all text-left"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-purple-500/10">
-                  <Shield className="w-6 h-6 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    {t("engineering.overview.permissions")}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    {t("engineering.overview.permissionsSubtitle")}
                   </p>
                 </div>
               </button>

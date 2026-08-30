@@ -6,7 +6,7 @@
  * The runtime source of truth is the `allowed_roles` column on the
  * `responsibilities` table, editable by the Super Admin from the
  * "Responsibility Access" tab in the Permission Manager
- * (/admin/engineering/permissions).
+ * (/admin/security/permissions).
  *
  * - When a responsibility has NO saved config (allowed_roles IS NULL) the
  *   app falls back to the defaults below.
@@ -16,7 +16,7 @@
  * A responsibility grants navigation + dashboards. But if the underlying
  * feature API rejects the user's role, the nav item appears and clicking it
  * fails (redirect to login / 403). This module powers the amber warnings in:
- *   - /admin/engineering/permissions  (Responsibilities tab, assignment UI)
+ *   - /admin/security/permissions  (Responsibilities tab, assignment UI)
  *   - /admin/access                   (User Access Summary)
  *
  * NOTE: This is informational. It NEVER blocks an assignment. To change what

@@ -105,7 +105,7 @@ export default function PermissionManager() {
   const [assignErr, setAssignErr] = useState("");
   const [assignBusy, setAssignBusy] = useState(false);
 
-  // Deep-link support: /admin/engineering/permissions?cid=X preselects a user
+  // Deep-link support: /admin/security/permissions?cid=X preselects a user
   // (used by the Membership Control Center's "View Effective Access").
   useEffect(() => {
     if (typeof window === "undefined") return;

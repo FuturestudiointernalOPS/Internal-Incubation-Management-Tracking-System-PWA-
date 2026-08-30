@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Sun,
   Moon,
@@ -30,7 +30,6 @@ import {
   Library,
   Globe,
   BarChart3,
-  UserCheck,
   UploadCloud,
   ListTodo,
   ClipboardList,
@@ -48,6 +47,7 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
+import { buildRoleNav, NAV_ROLE_KEYS } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -243,6 +243,44 @@ function navCrumb(pathname) {
 }
 
 /**
+ * Resolve the active navigation path for the current route.
+ * Walks the nav tree and returns the set of node ids on the single most
+ * specific matching branch: an exact href match wins, otherwise the longest
+ * segment-boundary prefix (so /admin/engineering matches
+ * /admin/engineering/error-logs but never /admin/engineer-x). Hrefs that
+ * contain a query string are skipped — they cannot be resolved from the
+ * pathname alone (e.g. /staff/op-report?tab=standup keeps current behavior).
+ */
+function getActivePathIds(navItems, pathname) {
+  if (!pathname) return new Set();
+  let best = null; // { score, ids }
+  const visit = (items, chain) => {
+    (items || []).forEach((item) => {
+      const nextChain = chain.concat(item.id);
+      const kids = item.children || item.subItems;
+      if (kids && kids.length > 0) {
+        visit(kids, nextChain);
+        return;
+      }
+      if (!item.href || item.href.includes("?")) return;
+      let score = 0;
+      if (pathname === item.href) score = 1000;
+      else if (
+        item.href.split("/").filter(Boolean).length >= 2 &&
+        pathname.startsWith(item.href + "/")
+      ) {
+        score = item.href.length;
+      }
+      if (score > 0 && (!best || score > best.score)) {
+        best = { score, ids: nextChain };
+      }
+    });
+  };
+  visit(navItems, []);
+  return best ? new Set(best.ids) : new Set();
+}
+
+/**
  * IMPACTOS OPERATIONAL CONTROL ÔÇö GLOBAL LAYOUT
  * Simplified, high-performance frame with i18n and theme support.
  */
@@ -255,6 +293,7 @@ const SidebarContent = ({
   openMenus,
   toggleMenu,
   pathname,
+  activePathIds,
   setMobileMenuOpen,
   handleLogout,
   t,
@@ -264,6 +303,131 @@ const SidebarContent = ({
 }) => {
   const { switchLang } = useI18n();
   const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
+
+  const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
+  const flyoutTimer = useRef(null);
+
+  const label = (item) =>
+    item.id?.startsWith("prog_")
+      ? item.name
+      : t(tnav(item.id)) || item.name;
+
+  const openFlyout = (e, id) => {
+    clearTimeout(flyoutTimer.current);
+    setFlyout({ id, top: e.currentTarget.getBoundingClientRect().top });
+  };
+  const scheduleFlyoutClose = () => {
+    clearTimeout(flyoutTimer.current);
+    flyoutTimer.current = setTimeout(() => setFlyout(null), 200);
+  };
+
+  // Recursive nav renderer: a node with children renders as an expandable
+  // group; a node without children renders as a link (leaf). showLabels forces
+  // labels/chevrons visible even when the rail is collapsed (flyout usage).
+  const renderNavItem = (item, depth, showLabels) => {
+    const kids = item.children || item.subItems;
+    const hasKids = Array.isArray(kids) && kids.length > 0;
+    const isTop = depth === 0;
+    const onPath = activePathIds.has(item.id);
+    const show = !collapsed || showLabels;
+
+    if (hasKids) {
+      const isOpen = openMenus[item.id] || false;
+      return (
+        <div key={item.id} className="space-y-1">
+          <button
+            onClick={() => toggleMenu(item.id)}
+            onMouseEnter={
+              collapsed && !showLabels
+                ? (e) => openFlyout(e, item.id)
+                : undefined
+            }
+            onMouseLeave={
+              collapsed && !showLabels ? scheduleFlyoutClose : undefined
+            }
+            className={`w-full flex items-center justify-between transition-all font-bold uppercase ${
+              isTop
+                ? "px-4 py-3.5 rounded-xl text-[12px] tracking-wider"
+                : "px-4 py-2 rounded-lg text-[11px] tracking-wide"
+            } ${
+              onPath
+                ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                {item.icon && (
+                  <item.icon
+                    className={`w-4 h-4 flex-shrink-0 ${onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+                  />
+                )}
+                {item.id === "communication" && hasCommunicationActivity && (
+                  <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
+                )}
+              </div>
+              {show && <span className="truncate">{label(item)}</span>}
+            </div>
+            {show && item.id === "programs" && submissionCount > 0 && (
+              <span className="text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full mr-2">
+                {submissionCount}
+              </span>
+            )}
+            {show && item.id === "communication" && hasCommunicationActivity && (
+              <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
+            )}
+            {show && (
+              <ChevronDown
+                className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
+              />
+            )}
+          </button>
+          {isOpen && show && (
+            <div className={`space-y-1 py-1 ${isTop ? "pl-8" : "pl-6"}`}>
+              {kids.map((kid) => renderNavItem(kid, depth + 1, showLabels))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    const isActive = pathname === item.href;
+    return (
+      <Link
+        key={item.id || item.href}
+        href={item.href}
+        onClick={() => {
+          setMobileMenuOpen(false);
+          setFlyout(null);
+        }}
+        className={`w-full flex items-center transition-all font-bold uppercase ${
+          isTop
+            ? "gap-4 px-4 py-3.5 rounded-xl text-[12px] tracking-wider"
+            : "gap-3 px-4 py-2 rounded-lg text-[11px] tracking-wide"
+        } ${
+          isActive
+            ? isTop
+              ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic"
+              : "text-[var(--brand-orange)] bg-tertiary"
+            : onPath
+              ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
+              : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
+        }`}
+      >
+        {item.icon && (
+          <item.icon
+            className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+          />
+        )}
+        {show && <span className="truncate">{label(item)}</span>}
+        {show && unreadByType && unreadByType[item.id] > 0 && (
+          <span className="ml-auto w-5 h-5 rounded-full bg-[var(--brand-orange)] text-black text-[8px] font-black flex items-center justify-center shrink-0">
+            {unreadByType[item.id]}
+          </span>
+        )}
+      </Link>
+    );
+  };
   return (
     <>
       <div className="flex items-center gap-4 px-3 mb-14 mt-4">
@@ -293,103 +457,28 @@ const SidebarContent = ({
       )}
 
       <nav className="flex-1 space-y-2 overflow-y-auto min-h-0 pr-1">
-        {(navItems || []).map((item) => {
-          if (item.subItems) {
-            const isChildActive = item.subItems.some((sub) =>
-              pathname?.startsWith(sub.href),
-            );
-            const isOpen = openMenus[item.id] || false;
-
-            return (
-              <div key={item.id} className="space-y-1">
-                <button
-                  onClick={() => toggleMenu(item.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isChildActive ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <item.icon
-                        className={`w-4 h-4 flex-shrink-0 ${isChildActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
-                      />
-                      {item.id === "communication" &&
-                        hasCommunicationActivity && (
-                          <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
-                        )}
-                    </div>
-                    {!collapsed && (
-                      <span className="truncate">
-                        {t(tnav(item.id)) || item.name}
-                      </span>
-                    )}
-                  </div>
-                  {!collapsed &&
-                    item.id === "programs" &&
-                    submissionCount > 0 && (
-                      <span className="text-[8px] font-black bg-[var(--brand-orange)] text-black px-1.5 py-0.5 rounded-full mr-2">
-                        {submissionCount}
-                      </span>
-                    )}
-                  {!collapsed &&
-                    item.id === "communication" &&
-                    hasCommunicationActivity && (
-                      <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)] shrink-0" />
-                    )}
-                  {!collapsed && (
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                    />
-                  )}
-                </button>
-                {isOpen && !collapsed && (
-                  <div className="pl-8 space-y-1 py-1">
-                    {item.subItems.map((subItem) => {
-                      const isSubActive = pathname === subItem.href;
-                      return (
-                        <Link
-                          key={subItem.id || subItem.href}
-                          href={subItem.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all font-bold text-[11px] uppercase tracking-wide ${isSubActive ? "text-[var(--brand-orange)] bg-tertiary" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
-                        >
-                          <span className="truncate">
-                            {subItem.id?.startsWith("prog_")
-                              ? subItem.name
-                              : t(tnav(subItem.id)) || subItem.name}
-                          </span>
-                          {unreadByType && unreadByType[subItem.id] > 0 && (
-                            <span className="ml-auto w-5 h-5 rounded-full bg-[var(--brand-orange)] text-black text-[8px] font-black flex items-center justify-center shrink-0">
-                              {unreadByType[subItem.id]}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          }
-
-          const isActive = pathname === item.href;
-          return (
-            <Link
-              key={item.id || item.href}
-              href={item.href}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-bold text-[12px] uppercase tracking-wider ${isActive ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
-            >
-              <item.icon
-                className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : "text-[var(--text-secondary)]"}`}
-              />
-              {!collapsed && (
-                <span className="truncate">
-                  {t(tnav(item.id)) || item.name}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+        {(navItems || []).map((item) => renderNavItem(item, 0, false))}
       </nav>
+
+      {/* Collapsed-rail flyout: reach a section's children from the icon rail */}
+      {collapsed && flyout && (() => {
+        const parent = (navItems || []).find((i) => i.id === flyout.id);
+        if (!parent) return null;
+        const kids = parent.children || parent.subItems || [];
+        return (
+          <div
+            className="fixed z-[120] w-64 max-h-[70vh] overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] p-2 shadow-xl"
+            style={{ left: 76, top: flyout.top }}
+            onMouseEnter={() => clearTimeout(flyoutTimer.current)}
+            onMouseLeave={scheduleFlyoutClose}
+          >
+            <p className="px-3 py-1.5 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-40">
+              {label(parent)}
+            </p>
+            {kids.map((kid) => renderNavItem(kid, 1, true))}
+          </div>
+        );
+      })()}
 
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
         {!collapsed && (
@@ -452,492 +541,8 @@ const SidebarContent = ({
   );
 };
 
-const NAVIGATION_MATRIX = {
-  super_admin: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/admin",
-    },
 
-    // CRM — people data only (communication moved to its own section)
-    {
-      id: "crm",
-      name: "CRM",
-      icon: Users,
-      subItems: [
-        { id: "crm_dashboard", name: "DASHBOARD", href: "/admin/crm" },
-        { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
-        { id: "crm_membership", name: "MEMBERSHIP", href: "/admin/crm/membership" },
-        { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
-        { id: "crm_duplicates", name: "DUPLICATES", href: "/admin/crm/duplicates" },
-      ],
-    },
 
-    // Communication — messaging, announcements, forms
-    {
-      id: "communication",
-      name: "COMMUNICATION",
-      icon: MessageSquare,
-      subItems: [
-        { id: "messages", name: "MESSAGES", href: "/admin/internal-comms" },
-        { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
-        { id: "forms", name: "FORMS", href: "/platform" },
-      ],
-    },
-
-    {
-      id: "programs",
-      name: "PROGRAMS",
-      icon: Briefcase,
-      subItems: [
-        { id: "all_programs", name: "ALL PROGRAMS", href: "/admin/programs" },
-        {
-          id: "create_program",
-          name: "CREATE PROGRAM",
-          href: "/admin/programs/new",
-        },
-        { id: "progress", name: "PROGRESS", href: "/admin/progress" },
-      ],
-    },
-
-    {
-      id: "ventures",
-      name: "VENTURES",
-      icon: Rocket,
-      subItems: [
-        { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
-        { id: "register_venture", name: "REGISTER STARTUP", href: "/admin/ventures/register" },
-      ],
-    },
-
-    {
-      id: "investors",
-      name: "INVESTORS",
-      icon: Briefcase,
-      subItems: [
-        { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
-        { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
-        { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
-        { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
-        { id: "investors_campaigns", name: "CAMPAIGNS", href: "/admin/investors/campaigns" },
-        { id: "investors_relationships", name: "RELATIONSHIPS", href: "/admin/investors/relationships" },
-      ],
-    },
-
-    { id: "finance", name: "FINANCE", icon: BarChart3, href: "/admin/finance" },
-
-    {
-      id: "operations",
-      name: "OPERATIONS",
-      icon: ListTodo,
-      subItems: [
-        { id: "internal_ops_board", name: "OPS BOARD", href: "/admin/work" },
-        { id: "all_projects", name: "PROJECTS", href: "/admin/projects" },
-        { id: "create_project", name: "CREATE PROJECT", href: "/admin/projects?action=create" },
-        { id: "tasks", name: "TASKS", href: "/admin/tasks" },
-        { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
-        { id: "standup", name: "STANDUP", href: "/staff/op-report?tab=standup" },
-        { id: "retro", name: "RETRO", href: "/staff/op-report?tab=retro" },
-      ],
-    },
-
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: FileText,
-      subItems: [
-        { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
-        { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
-        { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
-      ],
-    },
-
-    {
-      id: "knowledge",
-      name: "KNOWLEDGE",
-      icon: Library,
-      subItems: [
-        { id: "knowledge_base", name: "KNOWLEDGE BASE", href: "/admin/knowledge" },
-        { id: "intelligence", name: "INTELLIGENCE", href: "/admin/intelligence" },
-      ],
-    },
-
-    // Administration — users & access
-    {
-      id: "administration",
-      name: "ADMINISTRATION",
-      icon: UserCheck,
-      subItems: [
-        { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
-        { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
-        { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
-        { id: "permissions", name: "PERMISSIONS", href: "/admin/engineering/permissions" },
-      ],
-    },
-
-    // Security & compliance
-    {
-      id: "security",
-      name: "SECURITY",
-      icon: ShieldCheck,
-      subItems: [
-        { id: "security", name: "SECURITY", href: "/admin/security" },
-        { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-      ],
-    },
-
-    // System configuration
-    {
-      id: "settings",
-      name: "SETTINGS",
-      icon: Wrench,
-      subItems: [
-        { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
-        { id: "engineering_dashboard", name: "ENGINEERING", href: "/admin/engineering" },
-        { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
-      ],
-    },
-  ],
-  admin: [
-    { id: "dashboard", name: "DASHBOARD", icon: ShieldCheck, href: "/admin" },
-    {
-      id: "personnel",
-      name: "TEAM SETTINGS",
-      icon: Users,
-      href: "/admin/personnel",
-    },
-    {
-      id: "projects",
-      name: "PROJECTS",
-      icon: Rocket,
-      href: "/admin/projects",
-    },
-    { id: "logs", name: "ACTIVITY LOGS", icon: FileText, href: "/admin/logs" },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-
-      href: "/admin/reports",
-    },
-  ],
-  program_manager: [
-    { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: "/pm" },
-    { id: "programs", name: "PROGRAMS", icon: Briefcase, href: "/pm/programs" },
-    {
-      id: "communication",
-      name: "COMMUNICATION",
-      icon: MessageSquare,
-      subItems: [
-        {
-          id: "groups",
-          name: "GROUPS",
-          href: "/pm/communications/contacts",
-        },
-        {
-          id: "messages",
-          name: "MESSAGES",
-          href: "/pm/messages",
-        },
-      ],
-    },
-    {
-      id: "reports",
-      name: "REPORTS",
-      icon: BarChart3,
-      subItems: [
-        {
-          id: "internal_reports",
-          name: "INTERNAL REPORTS",
-          href: "/staff/op-report",
-        },
-        {
-          id: "my_projects",
-          name: "MY PROJECTS",
-          href: "/staff/projects",
-        },
-      ],
-    },
-  ],
-  staff: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/staff",
-    },
-    {
-      id: "weekly_ops",
-      name: "WEEKLY OPS",
-      icon: Calendar,
-      href: "/staff/op-report",
-    },
-    {
-      id: "programs",
-      name: "PROGRAMS",
-      icon: Briefcase,
-      href: "/pm/programs",
-    },
-    {
-      id: "my_projects",
-      name: "MY PROJECTS",
-      icon: Briefcase,
-      href: "/staff/projects",
-    },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: Send,
-      href: "/staff/messages",
-    },
-  ],
-
-  teacher: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/teacher",
-    },
-    {
-      id: "communication",
-      name: "COMMUNICATION",
-      icon: MessageSquare,
-      subItems: [
-        {
-          id: "groups",
-          name: "GROUPS",
-          href: "/pm/communications/contacts",
-        },
-      ],
-    },
-    {
-      id: "programs",
-      name: "PROGRAMS",
-      icon: Briefcase,
-      subItems: [
-        { id: "all_programs", name: "ALL PROGRAMS", href: "/pm/programs" },
-      ],
-    },
-  ],
-  facilitator: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/facilitator",
-    },
-    {
-      id: "my_programs",
-      name: "MY PROGRAMS",
-      icon: Briefcase,
-      href: "/facilitator/programs",
-    },
-    {
-      id: "reviews",
-      name: "MY REVIEWS",
-      icon: ClipboardList,
-      href: "/facilitator/reviews",
-    },
-    {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/facilitator/profile",
-    },
-  ],
-  developer: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/developer",
-    },
-    {
-      id: "my_tasks",
-      name: "MY TASKS",
-      icon: CheckSquare,
-      href: "/developer/my-tasks",
-    },
-    {
-      id: "assigned_tasks",
-      name: "ASSIGNED TASKS",
-      icon: ListTodo,
-      href: "/developer/assigned-tasks",
-    },
-    {
-      id: "rituals",
-      name: "STANDUPS & RETROS",
-      icon: MessageSquare,
-      subItems: [
-        {
-          id: "standup",
-          name: "STANDUP",
-          href: "/staff/op-report?tab=standup",
-        },
-        { id: "retro", name: "RETRO", href: "/staff/op-report?tab=retro" },
-      ],
-    },
-    {
-      id: "projects",
-      name: "PROJECTS",
-      icon: Briefcase,
-      href: "/staff/projects",
-    },
-    {
-      id: "notifications",
-      name: "NOTIFICATIONS",
-      icon: Bell,
-      href: "/developer/notifications",
-    },
-    {
-      id: "messages",
-      name: "MESSAGES",
-      icon: Send,
-      href: "/staff/messages",
-    },
-  ],
-
-  // Neutral member: a valid person with no program/group/assignment yet.
-  // Only genuinely global surfaces — no program-specific items that would
-  // immediately 403 with "not enrolled".
-  member: [
-    {
-      id: "dashboard",
-      name: "WORKSPACES",
-      icon: LayoutDashboard,
-      href: "/workspaces",
-    },
-  ],
-
-  participant: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/participant",
-    },
-    {
-      id: "programs",
-      name: "MY PROGRAMS",
-      icon: Briefcase,
-      href: "/participant/dashboard",
-    },
-    {
-      id: "certificates",
-      name: "MY CERTIFICATES",
-      icon: FileText,
-      href: "/participant/certificates",
-    },
-  ],
-
-  founder: [
-    {
-      id: "dashboard",
-      name: "DASHBOARD",
-      icon: LayoutDashboard,
-      href: "/participant",
-    },
-    {
-      id: "programs",
-      name: "MY PROGRAMS",
-      icon: Briefcase,
-      href: "/participant/dashboard",
-    },
-    {
-      id: "ventures",
-      name: "MY VENTURES",
-      icon: Rocket,
-      href: "/participant/ventures",
-    },
-    {
-      id: "timeline",
-      name: "MY TIMELINE",
-      icon: Clock,
-      href: "/participant/profile#timeline",
-    },
-  ],
-
-  team: [
-    {
-      id: "dashboard",
-      name: "TEAM WORKSPACE",
-      icon: LayoutDashboard,
-      href: "/team",
-    },
-    {
-      id: "programs",
-      name: "DELIVERABLES",
-      icon: FileText,
-      href: "/team",
-    },
-  ],
-
-  investor: [
-    {
-      id: "dashboard",
-      name: "DISCOVER",
-      icon: LayoutDashboard,
-      href: "/investor/dashboard",
-    },
-    {
-      id: "pipeline",
-      name: "PIPELINE",
-      icon: BarChart3,
-      href: "/investor/pipeline",
-    },
-    {
-      id: "portfolio",
-      name: "PORTFOLIO",
-      icon: TrendingUp,
-      href: "/investor/portfolio",
-    },
-    {
-      id: "activity",
-      name: "ACTIVITY",
-      icon: Clock,
-      href: "/investor/history",
-    },
-    {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/investor/profile",
-    },
-  ],
-
-  finance: [
-    {
-      id: "dashboard",
-      name: "FINANCE",
-      icon: BarChart3,
-      href: "/finance",
-    },
-    {
-      id: "profile",
-      name: "PROFILE",
-      icon: User,
-      href: "/participant/profile",
-    },
-  ],
-
-  crm: [
-    {
-      id: "crm_dashboard",
-      name: "CRM",
-      icon: Users,
-      href: "/crm",
-    },
-    {
-      id: "forms",
-      name: "FORMS",
-      icon: FileText,
-      href: "/platform",
-    },
-  ],
-};
 
 // =============================================================================
 // RESPONSIBILITY-GATED NAVIGATION
@@ -959,7 +564,6 @@ const NAV_RESPONSIBILITY_MAP = {
   announcements: "crm",
 
   // Administration (user tools moved out of CRM — kept under user_management)
-  administration: "user_management",
   pending_users: "user_management",
   bulk_upload: "user_management",
 
@@ -1018,6 +622,37 @@ const NAV_RESPONSIBILITY_MAP = {
   rituals: "operations",
 };
 
+// Resolve icon names from the master navigation module into components.
+const NAV_ICONS = {
+  layoutDashboard: LayoutDashboard,
+  users: Users,
+  messageSquare: MessageSquare,
+  briefcase: Briefcase,
+  rocket: Rocket,
+  barChart3: BarChart3,
+  listTodo: ListTodo,
+  fileText: FileText,
+  library: Library,
+  shieldCheck: ShieldCheck,
+  wrench: Wrench,
+  calendar: Calendar,
+  send: Send,
+  checkSquare: CheckSquare,
+  bell: Bell,
+  clipboardList: ClipboardList,
+  user: User,
+  trendingUp: TrendingUp,
+  clock: Clock,
+};
+
+function attachIcons(items) {
+  return (items || []).map((item) => ({
+    ...item,
+    icon: item.icon ? NAV_ICONS[item.icon] : undefined,
+    subItems: item.subItems ? attachIcons(item.subItems) : item.subItems,
+  }));
+}
+
 // Roles that bypass responsibility filtering entirely
 const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
 
@@ -1061,9 +696,9 @@ function contextRoleFromPathname(pathname) {
  * requirement are always included (dashboard, profile, logout).
  */
 function buildNavFromResponsibilities(userRespKeys, activeRole) {
-  const ownMatrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
-  const otherMatrices = Object.values(NAVIGATION_MATRIX).filter(
-    (m) => m !== ownMatrix,
+  const ownItems = buildRoleNav(activeRole);
+  const otherItems = NAV_ROLE_KEYS.filter((r) => r !== activeRole).map((r) =>
+    buildRoleNav(r),
   );
   const allItems = [];
   const seenIds = new Set();
@@ -1115,8 +750,8 @@ function buildNavFromResponsibilities(userRespKeys, activeRole) {
     }
   };
 
-  collect(ownMatrix, true);
-  for (const matrix of otherMatrices) collect(matrix, false);
+  collect(ownItems, true);
+  for (const items of otherItems) collect(items, false);
   return allItems;
 }
 
@@ -1542,7 +1177,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   //       }
   //     });
   //   };
-  //   Object.values(NAVIGATION_MATRIX).forEach((matrix) => checkItems(matrix));
+  //   Object.keys(ROLE_ACCESS).forEach((role) => checkItems(buildRoleNav(role)));
   //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
   // }, [pathname]);
 
@@ -1649,18 +1284,18 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       ];
     }
 
-    const matrix = NAVIGATION_MATRIX[activeRole] || NAVIGATION_MATRIX.admin;
+    const matrix = buildRoleNav(activeRole);
     const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
 
     // If user has responsibilities assigned, build nav from responsibilities
-    // across ALL role matrices instead of just the user's role matrix
+    // across ALL role views instead of just the user's role view
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
       const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      return buildNavFromResponsibilities(respKeys, activeRole);
+      return attachIcons(buildNavFromResponsibilities(respKeys, activeRole));
     }
 
-    // Fallback: role-based matrix (backward compatible)
-    const items = [...matrix];
+    // Fallback: role view (backward compatible)
+    const items = attachIcons(matrix);
 
     if (
       (activeRole === "program_manager" || activeRole === "super_admin") &&
@@ -1702,6 +1337,34 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     return filterNavByResponsibilities(items, userResponsibilities, bypass);
   }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname]);
 
+  // Active navigation path — the current page plus every ancestor node id.
+  const activePathIds = useMemo(
+    () => getActivePathIds(navItems, pathname),
+    [navItems, pathname],
+  );
+  const activePathKey = useMemo(
+    () => [...(activePathIds || [])].join("|"),
+    [activePathIds],
+  );
+
+  // Auto-expand the active route's ancestors. Merge-only: never force-closes
+  // sections the user opened manually.
+  useEffect(() => {
+    if (!activePathKey) return;
+    const ids = activePathKey.split("|").filter(Boolean);
+    setOpenMenus((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const id of ids) {
+        if (!next[id]) {
+          next[id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [activePathKey]);
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/session-logout", { method: "POST" });
@@ -1724,6 +1387,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     openMenus,
     toggleMenu,
     pathname,
+    activePathIds,
     setMobileMenuOpen,
     handleLogout,
     t,

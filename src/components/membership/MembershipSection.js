@@ -241,7 +241,7 @@ export default function MembershipSection({ cid, t, lang }) {
           <AppButton variant="ghost" size="sm" icon={UserPlus} onClick={() => setAddOpen(true)}>
             {t("membership.page.addMember")}
           </AppButton>
-          <a href={`/admin/engineering/permissions?cid=${encodeURIComponent(cid)}`}>
+          <a href={`/admin/security/permissions?cid=${encodeURIComponent(cid)}`}>
             <AppButton variant="secondary" size="sm" icon={Eye}>
               {t("membership.detail.viewEffectiveAccess")}
             </AppButton>
