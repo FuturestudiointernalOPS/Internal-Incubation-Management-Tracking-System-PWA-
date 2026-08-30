@@ -89,10 +89,17 @@ describe("Configuration-driven permission model (Phase 3)", () => {
     expect(authorize(ctx, "reports", "delete")).toBe(false);
   });
 
-  test("TEST 9 — Participant default (no projects): global Projects denied", () => {
-    const participantDefault = { messaging: { view: 1, send: 2 } };
-    const ctx = resolveCtx({ role: "participant", eligibility: { internal_comms: true }, profileCaps: participantDefault });
+  test("TEST 9 — Participant default (no projects, no messaging): global Projects and messaging denied", () => {
+    // Post Phase 3/3b: Participant Default carries no capabilities at all.
+    const participantDefault = {};
+    const ctx = resolveCtx({
+      role: "participant",
+      eligibility: { internal_comms: true },
+      profileCaps: participantDefault,
+    });
     expect(authorize(ctx, "projects", "view")).toBe(false);
+    expect(authorize(ctx, "messaging", "view")).toBe(false);
+    expect(authorize(ctx, "messaging", "send")).toBe(false);
   });
 
   test("TEST 10 — knowledge/programs/ventures are eligible for Staff but NOT in the new default", () => {
