@@ -90,8 +90,10 @@ export function resolveEffectiveRole({
   if (r === "investor") return "investor";
   if (r === "founder") return "founder";
 
-  // Staff-family identities normalize to staff.
-  if (r === "staff" || r === "project_manager" || r === "admin") return "staff";
+  // Staff-family identities normalize to staff. Program Manager is a function
+  // layered on Staff (not a separate global identity) — a PM contact must
+  // resolve to staff at login, never fall through to participant.
+  if (r === "staff" || r === "program_manager" || r === "project_manager" || r === "admin") return "staff";
 
   // THE RULE — active FUTURE STUDIO membership = internal staff membership.
   // `group_name` is accepted as a compatibility fallback for callers that

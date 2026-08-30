@@ -7,8 +7,33 @@
 // =============================================================================
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, getSession, isAssignedPmForProgram } from "@/lib/auth";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
+
+/**
+ * PM-scope guard: staff may only manage a program's staff/facilitators when
+ * they are the assigned PM of that program (Phase 10 model — PM is a function
+ * layered on Staff). SA and legacy bypass roles pass through.
+ */
+async function assertPmScope(programId) {
+  const session = await getSession();
+  if (!session) {
+    return NextResponse.json(
+      { success: false, error: "errors.authRequired" },
+      { status: 401 },
+    );
+  }
+  if (session.role === "super_admin") return null;
+  if (["program_manager", "teacher"].includes(session.role)) return null;
+  if (session.role === "staff") {
+    const isPm = await isAssignedPmForProgram(programId, session.cid);
+    if (isPm) return null;
+  }
+  return NextResponse.json(
+    { success: false, error: "errors.insufficientPermissions" },
+    { status: 403 },
+  );
+}
 
 async function logFacilitatorTimeline(staffId, programId, eventType, description, extra = {}) {
   try {
@@ -23,11 +48,32 @@ async function logFacilitatorTimeline(staffId, programId, eventType, description
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const staffId = searchParams.get("staff_id");
     const programId = searchParams.get("program_id");
+
+    // Staff may only read their own assignments or assignments of a program
+    // they are the assigned PM of (never the whole table).
+    const session = await getSession();
+    if (session?.role === "staff") {
+      if (staffId && String(staffId) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      if (programId) {
+        const scopeError = await assertPmScope(programId);
+        if (scopeError) return scopeError;
+      } else if (!staffId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
 
     let query = `
       SELECT ps.*, p.name as program_name, p.status as program_status
@@ -57,10 +103,16 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const { program_id, staff_id, role, permissions } = await req.json();
     const roleLower = String(role || "").toLowerCase();
+
+    const session = await getSession();
+    if (session?.role === "staff") {
+      const scopeError = await assertPmScope(program_id);
+      if (scopeError) return scopeError;
+    }
 
     // Same safeguard as the v1 program-staff and bulk-invite paths: an empty
     // permissions payload must never silently strip a facilitator's access.
@@ -141,7 +193,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const { id, role, permissions } = await req.json();
     if (!id) {
@@ -151,6 +203,16 @@ export async function PUT(req) {
       );
     }
 
+    const session = await getSession();
+    const target = await db.execute({
+      sql: "SELECT role, program_id FROM v2_program_staff WHERE id = ?",
+      args: [id],
+    });
+    if (session?.role === "staff" && target.rows[0]?.program_id) {
+      const scopeError = await assertPmScope(target.rows[0].program_id);
+      if (scopeError) return scopeError;
+    }
+
     const fields = [];
     const args = [];
     if (role !== undefined) {
@@ -158,10 +220,6 @@ export async function PUT(req) {
       args.push(role);
     }
     if (permissions !== undefined) {
-      const target = await db.execute({
-        sql: "SELECT role FROM v2_program_staff WHERE id = ?",
-        args: [id],
-      });
       const targetIsFacilitator =
         String(target.rows[0]?.role || "").toLowerCase() === "facilitator";
       const hasPerms =
@@ -229,10 +287,15 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const { id } = await req.json();
     const row = await db.execute({ sql: "SELECT staff_id, program_id FROM v2_program_staff WHERE id = ?", args: [id] });
+    const session = await getSession();
+    if (session?.role === "staff" && row.rows[0]?.program_id) {
+      const scopeError = await assertPmScope(row.rows[0].program_id);
+      if (scopeError) return scopeError;
+    }
     await db.execute({
       sql: "DELETE FROM v2_program_staff WHERE id = ?",
       args: [id],

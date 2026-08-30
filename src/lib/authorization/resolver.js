@@ -29,7 +29,7 @@ import { ensureCapabilityBackfills } from "./backfill";
 import { runAuthzMigration } from "./migrations";
 import { getEffectiveGroupsForUser } from "./membership";
 
-const AUTHZ_CONTEXT_TTL_MS = 10000; // short-TTL context cache (mirrors _sessionCache pattern)
+const AUTHZ_CONTEXT_TTL_MS = 60000; // 60s context cache (egress-neutral; invalidated immediately on permission writes)
 const _authzContextCache = new Map();
 
 let eligibilitySeeded = false;
