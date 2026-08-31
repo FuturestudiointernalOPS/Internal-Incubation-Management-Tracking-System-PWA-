@@ -2,7 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { attachInvitationStatus } from "@/lib/invitations";
@@ -45,14 +45,13 @@ export async function POST(req) {
   try {
     await initDb();
     // Auth is optional — public forms create contacts without login.
-    // If authenticated, check capability.
-    try {
-      const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
-      if (!authError) {
-        const capError = await requireCapabilityV2("contacts", "create");
-        if (capError) return capError;
-      }
-    } catch (_) {}
+    // If authenticated, the resolver enforces the capability (eligibility
+    // boundary included); unauthenticated submissions keep working.
+    const session = await getSession();
+    if (session) {
+      const capError = await requireAuthorization("contacts", "create");
+      if (capError) return capError;
+    }
 
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];

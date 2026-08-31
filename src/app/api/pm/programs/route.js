@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { requireAuth, getSession, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { logAuditEvent } from "@/lib/audit";
 export const dynamic = "force-dynamic";
@@ -251,12 +251,10 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff).
-    const gateSession = await getSession();
-    if (gateSession && !["staff"].includes(gateSession.role)) {
-      const capError = await requireCapabilityV2("programs", "create");
-      if (capError) return capError;
-    }
+    // Phase 2 (legacy cleanup): no more staff compatibility bypass — program
+    // creation requires the programs.create capability through the resolver.
+    const capError = await requireAuthorization("programs", "create");
+    if (capError) return capError;
     const {
       name,
       description,
@@ -437,12 +435,12 @@ export async function PUT(req) {
       "admin",
     ]);
     if (authError) return authError;
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff/teacher/admin).
-    const gateSession = await getSession();
-    if (gateSession && !["staff", "teacher", "admin"].includes(gateSession.role)) {
-      const capError = await requireCapabilityV2("programs", "edit");
-      if (capError) return capError;
-    }
+    // Phase 2 (legacy cleanup): no more staff/teacher/admin compatibility
+    // bypass — program editing requires the programs.edit capability through
+    // the resolver (eligibility boundary included). PMs hold it via their
+    // profile; plain staff without it are denied (intended model).
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
     const {
       id,
       name,

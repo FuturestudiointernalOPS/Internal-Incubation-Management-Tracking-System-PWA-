@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, requireCapabilityV2 } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +10,7 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
-    const capError = await requireCapabilityV2("contacts", "view");
+    const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
