@@ -3,6 +3,7 @@ import { LmsError } from "./errors";
 import { getCourse } from "./courses";
 import { getAssessment } from "./assessments";
 import { scoreAssessment } from "./scoring";
+import { ensureCertificateForEnrollment } from "./certificates";
 
 /**
  * LMS learner experience services.
@@ -21,7 +22,41 @@ import { scoreAssessment } from "./scoring";
  *   Unlimited retries; every attempt is persisted; attempt numbers are derived
  *   server-side inside a transaction (UNIQUE(user_cid, assessment_id,
  *   attempt_number) guards concurrent submissions).
+ *
+ * Certificate flow (Phase 5):
+ *   The completion decision stays HERE (single authoritative engine). When a
+ *   course becomes complete, the enrollment is marked completed (first
+ *   `completed_at` wins) and a certificate is issued idempotently — one
+ *   certificate per completed enrollment, server-side only.
  */
+
+// ─── Completion + certificate (single authoritative path) ───────────────────
+
+/**
+ * Persist course completion and issue the certificate — the ONLY place where
+ * an enrollment transitions to completed. Both mutation entry points
+ * (completeLesson, submitAssessment) and the read surfaces funnel through the
+ * same completion engine + this finalizer, so there is never a second,
+ * conflicting completion calculation (spec §5).
+ *
+ * - Completion never moves backwards: the enrollment is only ever updated to
+ *   'completed' and the original completed_at is preserved (COALESCE).
+ * - The persisted enrollment status is authoritative: an enrollment completed
+ *   before this phase shipped receives its certificate lazily (idempotent),
+ *   even if current content edits would change the computed progress.
+ * - Certificate issuance is idempotent (one per completed enrollment).
+ */
+async function finalizeCourseCompletion({ course, enrollment, courseProgress }) {
+  if (courseProgress.complete && enrollment.status !== "completed") {
+    await db.execute({
+      sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
+      args: [enrollment.id],
+    });
+    enrollment = { ...enrollment, status: "completed" };
+  }
+  // Null while the enrollment is not completed; existing certificate otherwise.
+  return ensureCertificateForEnrollment({ course, enrollment });
+}
 
 // ─── Pure progress logic (unit-tested) ─────────────────────────────────────
 
@@ -258,11 +293,13 @@ export async function getLearnerCourses(userCid) {
       passed: s.passed,
     }));
     const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
+    const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
     result.push({
       enrollment,
       course,
       progress: courseProgress,
       continueLesson: courseProgress.complete ? null : findContinueLesson(structure, progress),
+      certificate,
     });
   }
   return result;
@@ -292,6 +329,7 @@ export async function getLearnerCourse(courseId, userCid) {
   }));
   const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
   const continueLesson = courseProgress.complete ? null : findContinueLesson(structure, progress);
+  const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
 
   const sections = structure.map((s) => {
     const completedInSection = s.lessons.filter((l) => progress[String(l.id)] === "completed").length;
@@ -341,6 +379,7 @@ export async function getLearnerCourse(courseId, userCid) {
     },
     progress: courseProgress,
     continueLesson,
+    certificate,
     sections,
     courseAssessments,
   };
@@ -394,13 +433,14 @@ export async function completeLesson(lessonId, userCid) {
   }
 
   const courseProgress = await computeEnrollmentProgress(course.id, enrollment, userCid);
-  if (courseProgress.complete && enrollment.status !== "completed") {
-    await db.execute({
-      sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
-      args: [enrollment.id],
-    });
-  }
-  return { success: true, lessonId, courseProgress, courseCompleted: courseProgress.complete };
+  const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
+  return {
+    success: true,
+    lessonId,
+    courseProgress,
+    courseCompleted: courseProgress.complete,
+    certificate,
+  };
 }
 
 /** Course progress for one enrollment (lessons + assessment satisfaction). */
@@ -489,7 +529,7 @@ export async function getAssessmentForTake(assessmentId, userCid) {
 export async function submitAssessment(assessmentId, userCid, submittedAnswers) {
   const assessment = await getAssessment(assessmentId);
   if (!assessment) throw new LmsError("lms.errors.assessmentNotFound", 404);
-  const { enrollment } = await assertAssessmentAccess(assessment, userCid);
+  const { course, enrollment } = await assertAssessmentAccess(assessment, userCid);
 
   const questionRows = await loadAssessmentQuestions(assessmentId);
   const questions = questionRows.map((q) => ({
@@ -516,12 +556,7 @@ export async function submitAssessment(assessmentId, userCid, submittedAnswers) 
   }
 
   const courseProgress = await computeEnrollmentProgress(assessment.course_id, enrollment, userCid);
-  if (courseProgress.complete && enrollment.status !== "completed") {
-    await db.execute({
-      sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
-      args: [enrollment.id],
-    });
-  }
+  const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
 
   return {
     success: true,
@@ -535,6 +570,7 @@ export async function submitAssessment(assessmentId, userCid, submittedAnswers) 
     },
     courseProgress,
     courseCompleted: courseProgress.complete,
+    certificate,
   };
 }
 
