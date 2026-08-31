@@ -1,8 +1,9 @@
 # LMS Architecture — ImpactOS Learning Management System
 
-> Phase 1 foundation. Status: **READY FOR REVIEW** (see the Phase 1 implementation report).
-> This document is the source of truth for subsequent LMS phases (course builder, learner
-> experience, assessments UI, certificates, program integration).
+> Phase 1 foundation (implemented). Phase 3 learner experience, Phase 4 assessments,
+> and Phase 5 certificates are implemented on top of it.
+> This document is the source of truth for the LMS domain (course builder, learner
+> experience, assessments, certificates, and the future program integration).
 
 ## 1. Placement
 
@@ -22,7 +23,8 @@ ImpactOS
     ├── lms_courses → lms_course_sections → lms_lessons (YouTube video)
     ├── lms_enrollments + lms_lesson_progress
     ├── lms_assessments → lms_assessment_questions → lms_assessment_attempts
-    ├── lms_program_requirements (Program → Course link)
+    ├── lms_certificates (Phase 5 — one per completed enrollment)
+    └── lms_program_requirements (Program → Course link)
     └── (certificates: intentionally deferred — see §8)
 ```
 
@@ -44,6 +46,8 @@ erDiagram
     lms_assessments ||--o{ lms_assessment_attempts : "attempted"
     lms_courses ||--o{ lms_enrollments : "enrolled in"
     lms_enrollments ||--o{ lms_lesson_progress : "progress"
+    lms_enrollments ||--o| lms_certificates : "one certificate"
+    lms_courses ||--o{ lms_certificates : "certifies"
     lms_lessons ||--o{ lms_lesson_progress : "progress on"
     lms_courses ||--o{ lms_program_requirements : "required by program"
     v2_programs ||--o{ lms_program_requirements : "requires"
@@ -195,6 +199,25 @@ Index: `(assessment_id)`.
 Constraint: `UNIQUE (program_id, course_id)` — a course is required at most once per program.
 Index: `(course_id)`.
 
+### 2.10 lms_certificates (Phase 5)
+
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID PK | internal id — NEVER exposed as the certificate number |
+| certificate_number | TEXT UNIQUE | public-facing id `CERT-<YYYY>-<NNNNNN>`; unique, stable, human-readable |
+| verification_token | TEXT UNIQUE | random (24 hex); used by the public verification URL — not enumerable |
+| enrollment_id | UUID NOT NULL UNIQUE FK → lms_enrollments | `ON DELETE CASCADE`; **one certificate per completed enrollment** (DB-enforced) |
+| course_id | UUID NOT NULL FK → lms_courses | `ON DELETE CASCADE` |
+| user_cid | TEXT NOT NULL FK → contacts(cid) | existing ImpactOS identity — no second identity system |
+| learner_name | TEXT NOT NULL | authoritative snapshot at issuance (historical integrity) |
+| course_title | TEXT NOT NULL | authoritative snapshot at issuance (historical integrity) |
+| issued_at | TIMESTAMPTZ | default now; the real issuance moment |
+| status | TEXT CHECK | `valid` \| `revoked` (V1); records are NEVER deleted |
+| revoked_at | TIMESTAMPTZ | set on revocation |
+| created_at / updated_at | TIMESTAMPTZ | |
+
+Indexes: `(user_cid)`, `(course_id)`, `(status)`.
+
 ## 3. Conventions
 
 - **IDs**: UUID PKs via `gen_random_uuid()` (matches `v2_programs`/`v2_sessions` style). User
@@ -248,8 +271,13 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/my-learning` | ✅ Phase 3 | learner's enrolled courses + progress |
 | `/api/lms/courses/[id]/learn` | ✅ Phase 3 | learner-scoped course view (enrollment-gated) |
 | `/api/lms/lessons/[lessonId]/complete` | ✅ Phase 3 | idempotent lesson completion |
-| `/api/lms/assessments/[id]/submit` | Phase 4 | server-side scoring + attempt row |
-| `/api/lms/certificates` | later | certificate records (table deferred) |
+| `/api/lms/assessments/[id]/submit` | ✅ Phase 4 | server-side scoring + attempt row |
+| `/api/lms/certificates` | ✅ Phase 5 | learner's own certificates (auth) |
+| `/api/lms/certificates/[id]` | ✅ Phase 5 | ownership-scoped certificate detail (auth) |
+| `/api/lms/certificates/[id]/download` | ✅ Phase 5 | server-built PDF download (auth + ownership) |
+| `/api/lms/certificates/[id]/revoke` | ✅ Phase 5 | minimal admin revocation (`lms.edit`) |
+| `/api/verify/certificate/[token]` | ✅ Phase 5 | PUBLIC verification — public fields only, no auth |
+| `/verify/certificate/[token]` (page) | ✅ Phase 5 | public verification page |
 | `/api/lms/program-requirements` | later | Program → Course links |
 
 ## 7. Migration & verification
@@ -281,7 +309,7 @@ INSERT INTO lms_courses (title) VALUES ('Smoke') RETURNING id;
 
 | Topic | Decision | Rationale |
 |---|---|---|
-| Certificates | **Deferred — no `lms_certificates` table in Phase 1** | Explicit product instruction ("leave certificate for now"). The course table has no `certificate_enabled` flag either; add both in the certificates phase (one small additive migration). |
+| Certificates | **Implemented in Phase 5** — `lms_certificates` (one small additive migration) | Completion stays authoritative on `lms_enrollments`; the certificate is a consequence. One certificate per completed enrollment (DB UNIQUE on enrollment_id). Snapshots of learner_name + course_title preserve historical integrity. |
 | Course `price` | Column exists; payment processing out of scope | Self-enrollment must support free AND paid courses, but checkout is a future phase. |
 | `program_id` no FK | `lms_program_requirements.program_id` and `lms_enrollments.program_id` are TEXT without FK | ImpactOS has a known UUID-vs-TEXT ambiguity on `v2_programs.id` (app generates `P-2026-…` TEXT ids; schema declares UUID; code casts everywhere). A live-DB FK is unsafe until the id-space is confirmed. Service layer must validate program existence. |
 | Progress keyed by enrollment | `lms_lesson_progress.enrollment_id` (not `user_cid`) | Ticket §20 + clean domain separation from `v2_progress`. |
@@ -395,3 +423,77 @@ persists an attempt, and returns the result + refreshed course progress.
   (`completed_at` set) — the Phase 5-compatible state. Certificates are NOT issued here.
 - "Continue Course" after a pass returns the learner to the course overview; the
   certificate flow belongs to Phase 5.
+
+## 12. Certificates (Phase 5)
+
+### Completion engine (single source of truth)
+
+Course completion is **not** recomputed anywhere new. `computeCourseProgress`
+(`src/lib/lms/learning.js`) remains the ONLY completion calculation, and every
+surface (My Learning, course overview, player, lesson completion, assessment
+submission) consumes its result. When a course becomes complete:
+
+1. `finalizeCourseCompletion` (the only place an enrollment transitions to
+   `completed`) persists `lms_enrollments.status = 'completed'` — the first
+   `completed_at` wins (COALESCE); the state never moves backwards.
+2. The same finalizer calls `ensureCertificateForEnrollment`
+   (`src/lib/lms/certificates.js`) — idempotent, one certificate per completed
+   enrollment.
+3. Read surfaces (My Learning, course overview) lazily issue certificates for
+   enrollments completed before this phase shipped.
+
+Optional lessons/assessments never block completion; a later failed assessment
+retake never invalidates an existing completion (an assessment stays "passed"
+once any attempt passed, and the persisted enrollment state is authoritative).
+
+### Certificate record
+
+`lms_certificates` (§2.10) is linked to the existing learner (`contacts.cid`),
+course, and enrollment — no second identity system. It snapshots `learner_name`
+and `course_title` at issuance so later renames never rewrite an issued
+certificate (historical integrity). The public-facing `certificate_number`
+(`CERT-<YYYY>-<NNNNNN>`, per-year count) is unique and human-readable but NEVER
+the internal DB id; a random `verification_token` powers the public URL.
+
+### Issuance & duplicate prevention
+
+- Issuance is server-side only: `issueCertificate` requires a persisted
+  `completed` enrollment (409 otherwise). A client can never POST a fake
+  completion flag.
+- DB `UNIQUE (enrollment_id)` + an existing-record check make issuance
+  idempotent: a retry returns the existing certificate. `certificate_number`
+  collisions under concurrency retry with a fresh number.
+
+### Status & revocation (V1)
+
+Status is `valid` → `revoked` (minimal). Revocation is a single admin endpoint
+(`POST /api/lms/certificates/[id]/revoke`, guarded by `lms.edit`; super admin
+bypasses through the resolver). Revocation NEVER deletes the record — the
+historical record stays auditable and public verification reflects REVOKED.
+
+### Public verification
+
+`GET /api/verify/certificate/[token]` (no auth) resolves the token (or the
+certificate number for convenience) and returns ONLY the deliberately public
+fields: certificate number, learner name, course title, issue date, status.
+Never emails, user ids, enrollment data, internal ids, or the token itself.
+The page `/verify/certificate/[token]` renders valid/revoked with text labels
+(never color alone).
+
+### PDF download
+
+`GET /api/lms/certificates/[id]/download` (auth + ownership) builds the PDF
+server-side with the existing `jspdf` dependency from the authoritative record
+(`src/lib/lms/certificate-pdf.js`) — the browser can never supply arbitrary
+name/course/date/id content. Revoked certificates cannot be downloaded. Labels
+are English for V1; the builder accepts a `labels` map + `lang` so
+multi-language PDFs extend cleanly later. No email delivery in this phase.
+
+### Learner surface
+
+Certificates are discoverable from My Learning (completed course cards show
+"Certificate available" + View) and from the course overview (CertificateCard
+with the full certificate + Download). The existing `/participant/certificates`
+page belongs to the PROGRAM certificate system (`participant_programs.
+certificate_issued`) — LMS certificates are intentionally kept separate until
+the Program ↔ LMS integration phase.
