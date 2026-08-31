@@ -90,4 +90,21 @@ describe("Phase 9 — model consistency", () => {
       ].sort(),
     );
   });
+
+  test("eligibility UI identities are the agreed matrix columns and stay within ROLE_CATALOG", () => {
+    const { ELIGIBILITY_IDENTITIES } = require("@/lib/authorization/eligibility-admin");
+    expect(ELIGIBILITY_IDENTITIES).toEqual([
+      "super_admin",
+      "staff",
+      "member",
+      "participant",
+      "facilitator",
+      "investor",
+    ]);
+    // Every UI identity must exist in the technical catalog (gate validation
+    // and legacy lookups keep working); functions are intentionally excluded.
+    for (const ident of ELIGIBILITY_IDENTITIES) {
+      expect(ROLE_CATALOG).toContain(ident);
+    }
+  });
 });

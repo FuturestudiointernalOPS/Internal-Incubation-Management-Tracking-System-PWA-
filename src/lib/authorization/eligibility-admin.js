@@ -28,6 +28,24 @@ export const FEATURE_KEYS = [
 
 export const IDENTITY_TYPES = ["role", "group"];
 
+/**
+ * The agreed eligibility-matrix identities — the ONLY identities the
+ * Permission UI shows/configures (Super Admin, Staff, Member, Participant,
+ * Facilitator, Investor). Functions (developer, teacher, program_manager,
+ * intern, ...) are deliberately NOT eligibility identities — they are
+ * profiles/assignments layered on Staff. ROLE_CATALOG remains the full
+ * technical catalog (used by the gate-validation tests); this list is the
+ * UI-facing subset.
+ */
+export const ELIGIBILITY_IDENTITIES = [
+  "super_admin",
+  "staff",
+  "member",
+  "participant",
+  "facilitator",
+  "investor",
+];
+
 /** Canonical role catalog: every role referenced by seeds/config plus the
  *  platform role list (teams included via the tasks seed). */
 export const ROLE_CATALOG = [

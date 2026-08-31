@@ -8,7 +8,7 @@ import {
   invalidateAllAuthorizationContexts,
   FEATURE_KEYS,
   IDENTITY_TYPES,
-  ROLE_CATALOG,
+  ELIGIBILITY_IDENTITIES,
   validateEligibilityChanges,
 } from "@/lib/authorization";
 
@@ -77,7 +77,10 @@ export async function GET() {
       success: true,
       features: FEATURE_KEYS,
       identityTypes: IDENTITY_TYPES,
-      roles: ROLE_CATALOG,
+      // Agreed eligibility identities only (functions like developer/teacher/
+      // program_manager are not eligibility identities). ROLE_CATALOG stays
+      // the full technical catalog for gate validation.
+      roles: ELIGIBILITY_IDENTITIES,
       groups,
       rows,
       canConfigure: !!canConfigure,

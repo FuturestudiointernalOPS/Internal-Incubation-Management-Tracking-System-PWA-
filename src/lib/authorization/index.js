@@ -43,6 +43,7 @@ export {
   FEATURE_KEYS,
   IDENTITY_TYPES,
   ROLE_CATALOG,
+  ELIGIBILITY_IDENTITIES,
   validateEligibilityChanges,
   validateCapabilitiesWithinEligibility,
   assertTemplateCapsEligible,
