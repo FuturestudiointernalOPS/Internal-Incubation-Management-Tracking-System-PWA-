@@ -93,6 +93,9 @@ export default function AssessmentTake({ courseId, assessmentId }) {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "lms.assessment.submitFailed");
+      if (json.courseCompleted && json.certificate) {
+        notify("success", "lms.certificate.courseCompleted");
+      }
       setResult(json);
       setAttempts((prev) => [...prev, json.attempt]);
       setView("result");

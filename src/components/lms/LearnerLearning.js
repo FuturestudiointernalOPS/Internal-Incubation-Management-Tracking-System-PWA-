@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { BookOpen, PlayCircle, CheckCircle2, AlertCircle } from "lucide-react";
+import { BookOpen, PlayCircle, CheckCircle2, AlertCircle, Award } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import LearnerProgressBar from "./LearnerProgressBar";
@@ -83,7 +83,7 @@ export default function LearnerLearning() {
         </div>
       ) : (
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {courses.map(({ course, enrollment, progress, continueLesson }) => (
+          {courses.map(({ course, enrollment, progress, continueLesson, certificate }) => (
             <div
               key={course.id}
               className="rounded-xl border overflow-hidden"
@@ -142,7 +142,16 @@ export default function LearnerLearning() {
                   })}
                 </p>
 
-                <div className="mt-4">
+                {certificate && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <Award className="w-4 h-4 shrink-0" style={{ color: "var(--brand-orange)" }} />
+                    <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--brand-orange)" }}>
+                      {t("lms.certificate.available")}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-4 flex flex-wrap gap-2">
                   {continueLesson ? (
                     <AppButton
                       variant="primary"
@@ -151,6 +160,15 @@ export default function LearnerLearning() {
                     >
                       {t("lms.learning.continue")}
                     </AppButton>
+                  ) : certificate ? (
+                    <>
+                      <AppButton variant="primary" icon={Award} onClick={() => openCourse(course, null)}>
+                        {t("lms.certificate.view")}
+                      </AppButton>
+                      <AppButton variant="secondary" icon={BookOpen} onClick={() => openCourse(course, null)}>
+                        {t("lms.learning.review")}
+                      </AppButton>
+                    </>
                   ) : (
                     <AppButton variant="secondary" icon={BookOpen} onClick={() => openCourse(course, null)}>
                       {t("lms.learning.review")}

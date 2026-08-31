@@ -6,6 +6,7 @@ import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle } from "luci
 import AppButton from "@/components/ui/AppButton";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
+import CertificateCard from "./CertificateCard";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -60,7 +61,7 @@ export default function LearnerCourse({ courseId }) {
     );
   }
 
-  const { course, progress, continueLesson, sections } = data;
+  const { course, progress, continueLesson, sections, certificate } = data;
 
   const openLesson = (lessonId) =>
     router.push(`/participant/learning/${course.id}/lessons/${lessonId}`);
@@ -129,6 +130,9 @@ export default function LearnerCourse({ courseId }) {
           )
         )}
       </div>
+
+      {/* Certificate — available once the course is completed */}
+      {certificate && <CertificateCard certificate={certificate} />}
 
       {/* Sections */}
       <div className="space-y-3">

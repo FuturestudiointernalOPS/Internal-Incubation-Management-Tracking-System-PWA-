@@ -77,7 +77,11 @@ export default function LearnerPlayer({ courseId, lessonId }) {
       const res = await fetch(`/api/lms/lessons/${lesson.id}/complete`, { method: "POST" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "lms.errors.saveFailed");
-      notify("success", "lms.player.lessonCompleted");
+      if (json.courseCompleted && json.certificate) {
+        notify("success", "lms.certificate.courseCompleted");
+      } else {
+        notify("success", "lms.player.lessonCompleted");
+      }
       fetchCourse(); // refresh progress + states (server is the source of truth)
     } catch (e) {
       notify("error", "lms.player.saveProgressFailed");
