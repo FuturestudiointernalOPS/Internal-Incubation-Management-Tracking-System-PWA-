@@ -1,6 +1,8 @@
 import db from "@/lib/db";
 import { LmsError } from "./errors";
 import { getCourse } from "./courses";
+import { getAssessment } from "./assessments";
+import { scoreAssessment } from "./scoring";
 
 /**
  * LMS learner experience services.
@@ -8,50 +10,68 @@ import { getCourse } from "./courses";
  * Access model (server-side, never trust client IDs):
  *   User → valid lms_enrollment → Course → Access
  *
- * Progress model (Phase 1 schema — lms_lesson_progress):
- *   progress = completed required lessons / total required lessons × 100
- *   Optional lessons never block completion.
- *   One progress row per (enrollment, lesson) — completion is idempotent.
+ * Progress model (Phase 1 schema):
+ *   - lessons:  lms_lesson_progress (one row per enrollment+lesson, idempotent)
+ *   - progress = completed required components / total required components × 100
+ *     where a required assessment counts when the learner has PASSED it
+ *     (Phase 4). Optional components never block completion.
+ *
+ * Assessment flow (Phase 4):
+ *   start → answer → submit → server-side scoring → attempt row → PASS/FAIL
+ *   Unlimited retries; every attempt is persisted; attempt numbers are derived
+ *   server-side inside a transaction (UNIQUE(user_cid, assessment_id,
+ *   attempt_number) guards concurrent submissions).
  */
 
 // ─── Pure progress logic (unit-tested) ─────────────────────────────────────
 
 /**
- * Compute course progress from the structure and per-lesson progress.
+ * Compute course progress.
  *
  * @param {Array<{lessons: Array}>} sections
  * @param {Record<string,string>} progress  lessonId -> status
+ * @param {Array<{id, is_required, passed}>} assessments
  * @returns {{percent: number, status: string, complete: boolean,
  *            completedLessons: number, totalLessons: number,
  *            completedRequired: number, totalRequired: number}}
  */
-export function computeCourseProgress(sections = [], progress = {}) {
+export function computeCourseProgress(sections = [], progress = {}, assessments = []) {
   const lessons = (sections || []).flatMap((s) => s.lessons || []);
   const total = lessons.length;
-  const required = lessons.filter((l) => l.is_required !== false);
-  const totalRequired = required.length;
-  const completed = lessons.filter((l) => progress[l.id] === "completed").length;
-  const completedRequired = required.filter((l) => progress[l.id] === "completed").length;
+  const requiredLessons = lessons.filter((l) => l.is_required !== false);
+  const totalRequiredLessons = requiredLessons.length;
+  const completedLessons = lessons.filter((l) => progress[l.id] === "completed").length;
+  const completedRequiredLessons = requiredLessons.filter(
+    (l) => progress[l.id] === "completed",
+  ).length;
+
+  const requiredAssessments = (assessments || []).filter((a) => a.is_required !== false);
+  const satisfiedRequiredAssessments = requiredAssessments.filter((a) => a.passed).length;
+  const allRequiredAssessmentsPassed = requiredAssessments.every((a) => a.passed);
+
+  const totalRequired = totalRequiredLessons + requiredAssessments.length;
+  const completedRequired = completedRequiredLessons + satisfiedRequiredAssessments;
 
   let percent;
   if (totalRequired > 0) percent = Math.round((completedRequired / totalRequired) * 100);
-  else if (total > 0) percent = completed === total ? 100 : 0;
+  else if (total > 0) percent = completedLessons === total ? 100 : 0;
   else percent = 0;
 
-  const complete =
-    totalRequired > 0
-      ? completedRequired === totalRequired
-      : total > 0 && completed === total;
+  const lessonsComplete =
+    totalRequiredLessons > 0
+      ? completedRequiredLessons === totalRequiredLessons
+      : total > 0 && completedLessons === total;
+  const complete = lessonsComplete && allRequiredAssessmentsPassed;
 
   let status = "not_started";
   if (complete) status = "completed";
-  else if (completed > 0) status = "in_progress";
+  else if (completedLessons > 0 || satisfiedRequiredAssessments > 0) status = "in_progress";
 
   return {
     percent,
     status,
     complete,
-    completedLessons: completed,
+    completedLessons,
     totalLessons: total,
     completedRequired,
     totalRequired,
@@ -60,7 +80,7 @@ export function computeCourseProgress(sections = [], progress = {}) {
 
 /**
  * First lesson (in section/lesson order) that is not completed — the resume
- * point. Returns null when the course learning content is complete.
+ * point. Returns null when every lesson is complete.
  */
 export function findContinueLesson(sections = [], progress = {}) {
   for (const section of sections || []) {
@@ -78,7 +98,19 @@ export function findContinueLesson(sections = [], progress = {}) {
   return null;
 }
 
-// ─── Data loaders ──────────────────────────────────────────────────────────
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function parseJson(value, fallback = []) {
+  if (value == null) return fallback;
+  if (typeof value === "string") {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return fallback;
+    }
+  }
+  return value;
+}
 
 async function loadEnrollmentProgress(enrollmentId) {
   const res = await db.execute({
@@ -90,7 +122,7 @@ async function loadEnrollmentProgress(enrollmentId) {
   return byLesson;
 }
 
-/** Sections + lessons + assessments (NO questions/answers — learner-safe). */
+/** Sections + lessons + section-anchored assessment (NO questions). */
 async function loadStructure(courseId) {
   const sectionsRes = await db.execute({
     sql: "SELECT * FROM lms_course_sections WHERE course_id = ? ORDER BY position, created_at",
@@ -138,9 +170,61 @@ async function getEnrollment(courseId, userCid) {
   return res.rows[0] || null;
 }
 
-function learnerAssessment(a) {
-  if (!a) return null;
-  return { id: a.id, title: a.title, pass_mark: a.pass_mark, is_required: a.is_required };
+/**
+ * Per-learner assessment states for a course:
+ * { [assessmentId]: { id, title, pass_mark, is_required, section_id,
+ *                     passed, attempted, bestPercent } }
+ */
+async function loadAssessmentStates(userCid, courseId) {
+  const assessmentsRes = await db.execute({
+    sql: "SELECT * FROM lms_assessments WHERE course_id = ? ORDER BY position, created_at",
+    args: [courseId],
+  });
+  const byId = new Map();
+  for (const a of assessmentsRes.rows) {
+    byId.set(String(a.id), {
+      id: a.id,
+      title: a.title,
+      pass_mark: a.pass_mark,
+      is_required: a.is_required,
+      section_id: a.section_id,
+      passed: false,
+      attempted: false,
+      bestPercent: null,
+    });
+  }
+
+  const ids = [...byId.keys()];
+  if (ids.length > 0) {
+    const attemptsRes = await db.execute({
+      sql: `SELECT assessment_id, score, total_points, passed FROM lms_assessment_attempts
+            WHERE user_cid = ? AND assessment_id IN (${ids.map(() => "?").join(",")})`,
+      args: [userCid, ...ids],
+    });
+    for (const row of attemptsRes.rows) {
+      const s = byId.get(String(row.assessment_id));
+      if (!s) continue;
+      s.attempted = true;
+      const percent =
+        row.total_points > 0 ? Math.round((row.score / row.total_points) * 100) : 0;
+      if (s.bestPercent == null || percent > s.bestPercent) s.bestPercent = percent;
+      if (row.passed) s.passed = true;
+    }
+  }
+  return byId;
+}
+
+function learnerAssessment(state) {
+  if (!state) return null;
+  return {
+    id: state.id,
+    title: state.title,
+    pass_mark: state.pass_mark,
+    is_required: state.is_required,
+    passed: state.passed,
+    attempted: state.attempted,
+    bestPercent: state.bestPercent,
+  };
 }
 
 // ─── Learner-facing services ───────────────────────────────────────────────
@@ -167,7 +251,13 @@ export async function getLearnerCourses(userCid) {
     if (!course) continue;
     const structure = await loadStructure(course.id);
     const progress = await loadEnrollmentProgress(enrollment.id);
-    const courseProgress = computeCourseProgress(structure, progress);
+    const assessmentStates = await loadAssessmentStates(userCid, course.id);
+    const assessmentProgress = [...assessmentStates.values()].map((s) => ({
+      id: s.id,
+      is_required: s.is_required,
+      passed: s.passed,
+    }));
+    const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
     result.push({
       enrollment,
       course,
@@ -180,7 +270,7 @@ export async function getLearnerCourses(userCid) {
 
 /**
  * Learner-scoped course view. Enforces enrollment server-side.
- * Assessments are exposed WITHOUT questions/answers.
+ * Assessments carry per-learner state but NEVER questions/answers.
  */
 export async function getLearnerCourse(courseId, userCid) {
   const course = await getCourse(courseId);
@@ -194,7 +284,13 @@ export async function getLearnerCourse(courseId, userCid) {
 
   const structure = await loadStructure(courseId);
   const progress = await loadEnrollmentProgress(enrollment.id);
-  const courseProgress = computeCourseProgress(structure, progress);
+  const assessmentStates = await loadAssessmentStates(userCid, courseId);
+  const assessmentProgress = [...assessmentStates.values()].map((s) => ({
+    id: s.id,
+    is_required: s.is_required,
+    passed: s.passed,
+  }));
+  const courseProgress = computeCourseProgress(structure, progress, assessmentProgress);
   const continueLesson = courseProgress.complete ? null : findContinueLesson(structure, progress);
 
   const sections = structure.map((s) => {
@@ -203,7 +299,7 @@ export async function getLearnerCourse(courseId, userCid) {
       id: s.id,
       title: s.title,
       position: s.position,
-      assessment: learnerAssessment(s.assessment),
+      assessment: s.assessment ? learnerAssessment(assessmentStates.get(String(s.assessment.id))) : null,
       progress: { completed: completedInSection, total: s.lessons.length },
       lessons: s.lessons.map((l) => ({
         id: l.id,
@@ -216,7 +312,6 @@ export async function getLearnerCourse(courseId, userCid) {
       })),
     };
   });
-  // Mark the resume lesson as the "current" one.
   if (continueLesson) {
     for (const section of sections) {
       for (const lesson of section.lessons) {
@@ -225,10 +320,9 @@ export async function getLearnerCourse(courseId, userCid) {
     }
   }
 
-  const courseLevel = await db.execute({
-    sql: "SELECT * FROM lms_assessments WHERE course_id = ? AND section_id IS NULL ORDER BY position, created_at",
-    args: [courseId],
-  });
+  const courseAssessments = [...assessmentStates.values()]
+    .filter((s) => !s.section_id)
+    .map(learnerAssessment);
 
   return {
     course: {
@@ -248,15 +342,15 @@ export async function getLearnerCourse(courseId, userCid) {
     progress: courseProgress,
     continueLesson,
     sections,
-    courseAssessments: courseLevel.rows.map(learnerAssessment),
+    courseAssessments,
   };
 }
 
 /**
- * Mark a lesson complete (idempotent). The lesson → section → course chain is
- * derived server-side, so a learner can never target lessons outside their
- * enrolled course. Marks the enrollment completed when all required lessons
- * are done (course-completion state for Phase 5; no certificates here).
+ * Mark a lesson complete (idempotent). Lesson → section → course is derived
+ * server-side; the learner must have a valid enrollment. Marks the enrollment
+ * completed when all required components (lessons + passed assessments) are
+ * done. Passing assessments NEVER completes lessons and vice versa.
  */
 export async function completeLesson(lessonId, userCid) {
   const lessonRes = await db.execute({
@@ -299,11 +393,129 @@ export async function completeLesson(lessonId, userCid) {
     });
   }
 
-  // Recompute course progress + completion state.
-  const structure = await loadStructure(course.id);
-  const progress = await loadEnrollmentProgress(enrollment.id);
-  const courseProgress = computeCourseProgress(structure, progress);
+  const courseProgress = await computeEnrollmentProgress(course.id, enrollment, userCid);
+  if (courseProgress.complete && enrollment.status !== "completed") {
+    await db.execute({
+      sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
+      args: [enrollment.id],
+    });
+  }
+  return { success: true, lessonId, courseProgress, courseCompleted: courseProgress.complete };
+}
 
+/** Course progress for one enrollment (lessons + assessment satisfaction). */
+async function computeEnrollmentProgress(courseId, enrollment, userCid) {
+  const structure = await loadStructure(courseId);
+  const progress = await loadEnrollmentProgress(enrollment.id);
+  const assessmentStates = await loadAssessmentStates(userCid, courseId);
+  const assessmentProgress = [...assessmentStates.values()].map((s) => ({
+    id: s.id,
+    is_required: s.is_required,
+    passed: s.passed,
+  }));
+  return computeCourseProgress(structure, progress, assessmentProgress);
+}
+
+// ─── Assessment taking (Phase 4) ───────────────────────────────────────────
+
+async function assertAssessmentAccess(assessment, userCid) {
+  const course = await getCourse(assessment.course_id);
+  if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
+  if (course.status === "draft") throw new LmsError("lms.errors.assessmentUnavailable", 403);
+  const enrollment = await getEnrollment(course.id, userCid);
+  if (!enrollment || enrollment.status === "suspended") {
+    throw new LmsError("lms.errors.notEnrolled", 403);
+  }
+  return { course, enrollment };
+}
+
+async function loadAssessmentQuestions(assessmentId) {
+  const res = await db.execute({
+    sql: "SELECT * FROM lms_assessment_questions WHERE assessment_id = ? ORDER BY position, created_at",
+    args: [assessmentId],
+  });
+  return res.rows;
+}
+
+/**
+ * Learner view of an assessment: metadata + questions (options only, NEVER
+ * correct answers) + attempt history. Enrollment-gated.
+ */
+export async function getAssessmentForTake(assessmentId, userCid) {
+  const assessment = await getAssessment(assessmentId);
+  if (!assessment) throw new LmsError("lms.errors.assessmentNotFound", 404);
+  await assertAssessmentAccess(assessment, userCid);
+
+  const questions = await loadAssessmentQuestions(assessmentId);
+  const attemptsRes = await db.execute({
+    sql: `SELECT attempt_number, score, total_points, passed, completed_at
+          FROM lms_assessment_attempts WHERE user_cid = ? AND assessment_id = ?
+          ORDER BY attempt_number ASC`,
+    args: [userCid, assessmentId],
+  });
+
+  return {
+    assessment: {
+      id: assessment.id,
+      course_id: assessment.course_id,
+      section_id: assessment.section_id,
+      title: assessment.title,
+      description: assessment.description,
+      pass_mark: assessment.pass_mark,
+      is_required: assessment.is_required,
+    },
+    questions: questions.map((q) => ({
+      id: q.id,
+      question: q.question,
+      question_type: q.question_type,
+      options: parseJson(q.options),
+      points: q.points,
+      position: q.position,
+    })),
+    attempts: attemptsRes.rows,
+    passed: attemptsRes.rows.some((a) => a.passed),
+  };
+}
+
+/**
+ * Submit an assessment attempt. The server:
+ *   1. verifies the learner's enrollment for the owning course,
+ *   2. validates every submitted answer against the configured questions,
+ *   3. computes score + pass/fail (never trusts the client),
+ *   4. derives attempt_number inside a transaction (UNIQUE constraint guards
+ *      concurrent submissions; one retry on conflict),
+ *   5. returns the result + refreshed course progress.
+ */
+export async function submitAssessment(assessmentId, userCid, submittedAnswers) {
+  const assessment = await getAssessment(assessmentId);
+  if (!assessment) throw new LmsError("lms.errors.assessmentNotFound", 404);
+  const { enrollment } = await assertAssessmentAccess(assessment, userCid);
+
+  const questionRows = await loadAssessmentQuestions(assessmentId);
+  const questions = questionRows.map((q) => ({
+    ...q,
+    options: parseJson(q.options),
+    correct_answer: parseJson(q.correct_answer, []),
+  }));
+
+  const result = scoreAssessment(questions, submittedAnswers);
+  if (!result.valid) throw new LmsError(result.error, 400);
+
+  const passMark = assessment.pass_mark != null ? Number(assessment.pass_mark) : 70;
+  const passed = result.percent >= passMark;
+
+  // Attempt number + insert, inside a transaction. The Phase 1
+  // UNIQUE(user_cid, assessment_id, attempt_number) constraint makes concurrent
+  // double-submissions safe; retry once on a unique violation.
+  let attempt;
+  try {
+    attempt = await insertAttemptTransaction(userCid, assessmentId, result, passed, submittedAnswers);
+  } catch (e) {
+    if (!/unique/i.test(String(e.message))) throw e;
+    attempt = await insertAttemptTransaction(userCid, assessmentId, result, passed, submittedAnswers);
+  }
+
+  const courseProgress = await computeEnrollmentProgress(assessment.course_id, enrollment, userCid);
   if (courseProgress.complete && enrollment.status !== "completed") {
     await db.execute({
       sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
@@ -313,13 +525,46 @@ export async function completeLesson(lessonId, userCid) {
 
   return {
     success: true,
-    lessonId,
+    attempt: {
+      id: attempt.id,
+      attempt_number: attempt.attempt_number,
+      score: attempt.score,
+      total_points: attempt.total_points,
+      percent: result.percent,
+      passed,
+    },
     courseProgress,
     courseCompleted: courseProgress.complete,
   };
 }
 
-// ─── Admin enrollment enabler (Phase 3 needs enrollments to exist) ─────────
+async function insertAttemptTransaction(userCid, assessmentId, result, passed, submittedAnswers) {
+  return db.transaction(async (query) => {
+    const maxRes = await query(
+      `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next
+       FROM lms_assessment_attempts WHERE user_cid = ? AND assessment_id = ?`,
+      [userCid, assessmentId],
+    );
+    const attemptNumber = maxRes.rows[0].next;
+    const ins = await query(
+      `INSERT INTO lms_assessment_attempts
+         (user_cid, assessment_id, attempt_number, score, total_points, passed, answers, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, NOW()) RETURNING *`,
+      [
+        userCid,
+        assessmentId,
+        attemptNumber,
+        result.correctCount,
+        result.total,
+        passed,
+        JSON.stringify(submittedAnswers),
+      ],
+    );
+    return ins.rows[0];
+  });
+}
+
+// ─── Admin enrollment enabler ──────────────────────────────────────────────
 
 export async function enrollLearner({ courseId, userCid, userEmail, source, assignedBy }) {
   const course = await getCourse(courseId);
