@@ -1315,19 +1315,32 @@ function RoleDefaultsView() {
           </div>
         </div>
       )}
-      <div
-        className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
-      >
+      {/* Matrix view: roles × profiles — a cell marks the profile that is the
+          default for that role; click a cell to set/change the default. */}
+      <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
+        <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+            {t("engineering.permissions.roleDefaultsMatrixTitle")}
+          </p>
+          <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+            {t("engineering.permissions.roleDefaultsMatrixHint")}
+          </p>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--border-primary)]">
-                <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <th className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
                   {t("engineering.permissions.roleColumn")}
                 </th>
-                <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
-                  {t("engineering.permissions.defaultProfileColumn")}
-                </th>
+                {profiles.map((p) => (
+                  <th
+                    key={p.id}
+                    className={`px-2 py-2 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap ${p.is_active ? "" : "opacity-40"}`}
+                  >
+                    {p.name}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
@@ -1336,25 +1349,46 @@ function RoleDefaultsView() {
                 return (
                   <tr
                     key={role}
-                    className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all"
+                    className="border-b border-[var(--border-primary)] last:border-0"
                   >
-                    <td className="px-5 py-3.5">
-                      <span className="text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wider">
-                        {role}
-                      </span>
+                    <td className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
+                      {role}
                     </td>
-                    <td className="px-5 py-3.5">
-                      {def ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-teal-500/10 text-teal-400">
-                          <Layers className="w-3 h-3" />
-                          {def.profileName || def.profileId}
-                        </span>
-                      ) : (
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
-                          {t("engineering.permissions.noDefaultProfile")}
-                        </span>
-                      )}
-                    </td>
+                    {profiles.map((p) => {
+                      const isDefault = Boolean(
+                        def && String(def.profileId) === String(p.id),
+                      );
+                      const interactive = Boolean(p.is_active);
+                      return (
+                        <td
+                          key={p.id}
+                          className={`px-2 py-1.5 text-center ${interactive ? "" : "opacity-40"}`}
+                        >
+                          <button
+                            onClick={() => {
+                              setRoleDefaultData({
+                                role_name: role,
+                                profile_id: p.id,
+                              });
+                              setShowForm(true);
+                            }}
+                            disabled={!interactive}
+                            title={
+                              isDefault
+                                ? t("engineering.permissions.roleDefaultsCellDefault", { role })
+                                : t("engineering.permissions.roleDefaultsCellSet", { role })
+                            }
+                            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all ${
+                              isDefault
+                                ? "bg-teal-500/15 text-teal-400"
+                                : "bg-primary text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:text-[var(--text-primary)]"
+                            } ${interactive ? "" : "cursor-not-allowed"}`}
+                          >
+                            {isDefault ? "✓" : "—"}
+                          </button>
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })}
