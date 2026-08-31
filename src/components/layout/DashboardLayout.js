@@ -306,9 +306,9 @@ const SidebarContent = ({
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
-  // Hover-expand state (expanded sidebar): hovering a section previews its
-  // children; clicking still pins/unpins via openMenus.
-  const [hoverMenus, setHoverMenus] = useState({});
+  // Hover-expand state (expanded sidebar): a SINGLE hover target at a time —
+  // hovering the next section collapses the previous one (accordion).
+  const [hoverMenu, setHoverMenu] = useState(null);
   const hoverTimer = useRef(null);
 
   // Clear pending hover/flyout timers on unmount.
@@ -338,15 +338,21 @@ const SidebarContent = ({
   // used by the collapsed-rail flyout — consistent hover timing everywhere.
   const scheduleHoverOpen = (id) => {
     clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => {
-      setHoverMenus((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
-    }, 150);
+    hoverTimer.current = setTimeout(() => setHoverMenu(id), 150);
   };
   const scheduleHoverClose = (id) => {
     clearTimeout(hoverTimer.current);
     hoverTimer.current = setTimeout(() => {
-      setHoverMenus((prev) => (prev[id] ? { ...prev, [id]: false } : prev));
+      setHoverMenu((prev) => (prev === id ? null : prev));
     }, 200);
+  };
+  // A section stays expanded while the hover target is itself or any of its
+  // descendants — hovering a nested parent keeps its ancestors open.
+  const isHoverTarget = (item, id) => {
+    if (!id) return false;
+    if (item.id === id) return true;
+    const kids = item.children || item.subItems;
+    return !!kids && kids.some((k) => isHoverTarget(k, id));
   };
 
   // Recursive nav renderer: a node with children renders as an expandable
@@ -361,8 +367,7 @@ const SidebarContent = ({
 
     if (hasKids) {
       const isOpen = openMenus[item.id] || false;
-      const hoverOpen = hoverMenus[item.id] || false;
-      const expanded = isOpen || hoverOpen;
+      const expanded = isOpen || isHoverTarget(item, hoverMenu);
       return (
         <div
           key={item.id}
@@ -1238,10 +1243,26 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
   // }, [pathname]);
 
-  const toggleMenu = useCallback((id) => {
-    if (!id) return;
-    setOpenMenus((prev) => ({ ...prev, [id]: !prev[id] }));
-  }, []);
+  const toggleMenu = useCallback(
+    (id) => {
+      if (!id) return;
+      setOpenMenus((prev) => {
+        const next = { ...prev };
+        if (next[id]) {
+          next[id] = false;
+          return next;
+        }
+        // Accordion: opening one section closes the other click-opened ones,
+        // except sections on the active path (they stay as context).
+        for (const key of Object.keys(next)) {
+          if (key !== id && !activePathIds.has(key)) next[key] = false;
+        }
+        next[id] = true;
+        return next;
+      });
+    },
+    [activePathIds],
+  );
 
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
@@ -1407,14 +1428,20 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     [activePathIds],
   );
 
-  // Auto-expand the active route's ancestors. Merge-only: never force-closes
-  // sections the user opened manually.
+  // Auto-expand the active route's ancestors and close everything else, so
+  // only the section(s) containing the current page stay open (accordion).
   useEffect(() => {
     if (!activePathKey) return;
     const ids = activePathKey.split("|").filter(Boolean);
     setOpenMenus((prev) => {
       const next = { ...prev };
       let changed = false;
+      for (const key of Object.keys(next)) {
+        if (!ids.includes(key)) {
+          next[key] = false;
+          changed = true;
+        }
+      }
       for (const id of ids) {
         if (!next[id]) {
           next[id] = true;
