@@ -90,6 +90,9 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const go = (targetLesson) =>
     router.push(`/participant/learning/${courseId}/lessons/${targetLesson.id}`);
 
+  const openAssessment = (assessmentId) =>
+    router.push(`/participant/learning/${courseId}/assessments/${assessmentId}`);
+
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -233,20 +236,20 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             <ListVideo className="w-4 h-4" />
             {t("lms.player.courseContent")}
           </button>
-          {contentOpen && <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} />}
+          {contentOpen && <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} onOpenAssessment={openAssessment} />}
         </div>
 
         {/* Sidebar (desktop) */}
         <div className="hidden lg:block">
-          <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} />
+          <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} onOpenAssessment={openAssessment} />
         </div>
       </div>
     </div>
   );
 }
 
-/** Course structure panel with lesson states + disabled assessment rows. */
-function CourseContent({ data, courseId, currentLessonId, onSelect }) {
+/** Course structure panel with lesson states + assessment links. */
+function CourseContent({ data, courseId, currentLessonId, onSelect, onOpenAssessment }) {
   const { t } = useI18n();
   return (
     <div className="rounded-xl border overflow-hidden" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
@@ -290,30 +293,47 @@ function CourseContent({ data, courseId, currentLessonId, onSelect }) {
                 );
               })}
               {section.assessment && (
-                <div
-                  className="flex items-center gap-2.5 px-2 py-2 rounded-lg opacity-70"
-                  style={{ color: "var(--text-tertiary)" }}
-                  title={t("lms.player.assessmentSoon")}
-                >
-                  <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
-                  <span className="text-xs font-bold truncate flex-1">{section.assessment.title}</span>
-                </div>
+                <SidebarAssessmentRow
+                  t={t}
+                  assessment={section.assessment}
+                  onOpen={onOpenAssessment}
+                />
               )}
             </div>
           </div>
         ))}
         {data.courseAssessments?.map((assessment) => (
-          <div
-            key={assessment.id}
-            className="flex items-center gap-2.5 px-2 py-2 rounded-lg opacity-70"
-            style={{ color: "var(--text-tertiary)" }}
-            title={t("lms.player.assessmentSoon")}
-          >
-            <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
-            <span className="text-xs font-bold truncate flex-1">{assessment.title}</span>
-          </div>
+          <SidebarAssessmentRow key={assessment.id} t={t} assessment={assessment} onOpen={onOpenAssessment} />
         ))}
       </div>
     </div>
+  );
+}
+
+/** Assessment link in the sidebar with learner state. */
+function SidebarAssessmentRow({ t, assessment, onOpen }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(assessment.id)}
+      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-colors"
+      style={{ color: "var(--text-primary)" }}
+    >
+      <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
+      <span className="text-xs font-bold truncate flex-1">{assessment.title}</span>
+      {assessment.passed ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-success)" }}>
+          ✓
+        </span>
+      ) : assessment.attempted ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-danger)" }}>
+          {t("lms.assessment.tryAgain")}
+        </span>
+      ) : (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--brand-blue)" }}>
+          {t("lms.assessment.start")}
+        </span>
+      )}
+    </button>
   );
 }

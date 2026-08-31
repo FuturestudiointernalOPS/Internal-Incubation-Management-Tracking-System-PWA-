@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2 } from "lucide-react";
+import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
@@ -64,6 +64,9 @@ export default function LearnerCourse({ courseId }) {
 
   const openLesson = (lessonId) =>
     router.push(`/participant/learning/${course.id}/lessons/${lessonId}`);
+
+  const openAssessment = (assessmentId) =>
+    router.push(`/participant/learning/${course.id}/assessments/${assessmentId}`);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -176,15 +179,11 @@ export default function LearnerCourse({ courseId }) {
                 </button>
               ))}
               {section.assessment && (
-                <div className="flex items-center gap-3 px-3 py-2.5 mt-1" style={{ color: "var(--text-tertiary)" }}>
-                  <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
-                  <span className="text-xs font-bold truncate flex-1" style={{ color: "var(--text-secondary)" }}>
-                    {t("lms.assessments.title")}: {section.assessment.title}
-                  </span>
-                  <span className="text-[9px] font-black uppercase tracking-wider shrink-0">
-                    {t("lms.player.assessmentSoon")}
-                  </span>
-                </div>
+                <AssessmentRow
+                  t={t}
+                  assessment={section.assessment}
+                  onOpen={openAssessment}
+                />
               )}
             </div>
           </div>
@@ -201,19 +200,50 @@ export default function LearnerCourse({ courseId }) {
           </div>
           <div className="p-3 space-y-1">
             {data.courseAssessments.map((assessment) => (
-              <div key={assessment.id} className="flex items-center gap-3 px-3 py-2.5" style={{ color: "var(--text-tertiary)" }}>
-                <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
-                <span className="text-xs font-bold truncate flex-1" style={{ color: "var(--text-secondary)" }}>
-                  {assessment.title}
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-wider shrink-0">
-                  {t("lms.player.assessmentSoon")}
-                </span>
-              </div>
+              <AssessmentRow key={assessment.id} t={t} assessment={assessment} onOpen={openAssessment} />
             ))}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+/** Assessment row with learner state: ✓ passed / ✕ try again / ○ start. */
+function AssessmentRow({ t, assessment, onOpen }) {
+  const passed = assessment.passed;
+  const attempted = assessment.attempted;
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen(assessment.id)}
+      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mt-1"
+      style={{ background: "var(--surface-2)", color: "var(--text-primary)" }}
+    >
+      {passed ? (
+        <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--chart-success)" }} />
+      ) : attempted ? (
+        <XCircle className="w-4 h-4 shrink-0" style={{ color: "var(--chart-danger)" }} />
+      ) : (
+        <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
+      )}
+      <span className="text-xs font-bold truncate flex-1" style={{ color: "var(--text-primary)" }}>
+        {t("lms.assessments.title")}: {assessment.title}
+      </span>
+      {passed ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-success)" }}>
+          {t("lms.assessment.passed")}
+          {assessment.bestPercent != null ? ` ${assessment.bestPercent}%` : ""}
+        </span>
+      ) : attempted ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-danger)" }}>
+          {t("lms.assessment.tryAgain")}
+        </span>
+      ) : (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--brand-blue)" }}>
+          {t("lms.assessment.start")}
+        </span>
+      )}
+    </button>
   );
 }
