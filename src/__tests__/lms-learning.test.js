@@ -253,7 +253,7 @@ describe("getLearnerCourse (course access, ticket §25)", () => {
     seedPublishedCourse();
     seedEnrollment();
     mockFake.seed("lms_assessments", [
-      { id: "A-1", course_id: "C-1", section_id: "S-1", title: "Quiz", position: 0 },
+      { id: "A-1", course_id: "C-1", section_id: "S-1", title: "Quiz", is_required: false, position: 0 },
     ]);
     mockFake.seed("lms_assessment_questions", [
       { id: "Q-1", assessment_id: "A-1", question: "Secret?", question_type: "multiple_choice", correct_answer: "[\"B\"]", position: 0 },

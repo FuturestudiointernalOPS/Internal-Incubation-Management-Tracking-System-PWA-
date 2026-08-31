@@ -13,7 +13,8 @@
  *   - DELETE ... WHERE id = ? (with minimal cascade)
  *   - guard queries (SELECT 1 ... LIMIT 1)
  *   - neighbor lookups (SELECT id, position ... WHERE parent = ? AND position <|> ?)
- *   - next-position queries (SELECT COALESCE(MAX(position), -1) + 1 ...)
+ *   - next-value queries (SELECT COALESCE(MAX(col), -1) + 1 ...) — used for
+ *     section/lesson ordering AND assessment attempt numbering
  *
  * Rows returned to services are immutable snapshots (real-DB semantics):
  * the service may hold references to pre-update rows, and an UPDATE must not
@@ -155,31 +156,40 @@ export function createFakeDb() {
     const cond = whereMatch[1];
     let argIndex = 0;
 
-    const inRe = /(\w+)\s+in\s*\(([^)]*)\)/gi;
+    // Conditions are evaluated in SQL order because placeholders consume args
+    // positionally: `user_cid = ? AND assessment_id IN (?, ?)` binds user_cid
+    // first. A single pass that processed IN clauses before `=` clauses would
+    // bind the IN list to the wrong args whenever an `=` clause precedes it.
+    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*=\s*\?/gi;
     let m;
-    while ((m = inRe.exec(cond))) {
-      const count = (m[2].match(/\?/g) || []).length;
-      const ids = args.slice(argIndex, argIndex + count).map((a) => String(a));
-      argIndex += count;
-      if (!ids.includes(String(row[m[1]]))) return false;
-    }
-
-    const eqRe = /(\w+)\s*=\s*\?/g;
-    let eq;
-    while ((eq = eqRe.exec(cond))) {
-      if (String(row[eq[1]]) !== String(args[argIndex])) return false;
-      argIndex++;
+    while ((m = condRe.exec(cond))) {
+      if (m[1]) {
+        const count = (m[2].match(/\?/g) || []).length;
+        const ids = args.slice(argIndex, argIndex + count).map((a) => String(a));
+        argIndex += count;
+        if (!ids.includes(String(row[m[1]]))) return false;
+      } else {
+        if (String(row[m[3]]) !== String(args[argIndex])) return false;
+        argIndex++;
+      }
     }
     return true;
   }
 
-  function nextPosition(sql, args) {
-    const m = /from (\w+) where (\w+) = \?/i.exec(sql);
+  function nextValue(sql, args) {
+    const m = /from (\w+)/i.exec(sql);
     const table = m[1];
-    const column = m[2];
-    const parentId = args[0];
-    const siblings = state[table].filter((r) => String(r[column]) === String(parentId));
-    const max = siblings.reduce((acc, r) => Math.max(acc, r.position ?? -1), -1);
+    // The floor comes from the SQL itself: section/lesson positions start at
+    // -1 (COALESCE(MAX(position), -1) + 1 → first position 0) while assessment
+    // attempt numbers start at 0 (COALESCE(MAX(attempt_number), 0) + 1 → first
+    // attempt 1).
+    const floorMatch = /coalesce\(max\(\w+\),\s*(-?\d+)\)\s*\+\s*1/i.exec(sql);
+    const floor = floorMatch ? parseInt(floorMatch[1], 10) : -1;
+    const siblings = state[table].filter((r) => evalWhere(sql, args, r));
+    const max = siblings.reduce(
+      (acc, r) => Math.max(acc, r.attempt_number ?? r.position ?? -1),
+      floor,
+    );
     return { rows: [{ next: max + 1 }] };
   }
 
@@ -224,7 +234,7 @@ export function createFakeDb() {
     if (/^insert into/i.test(s)) return insert(s, args);
     if (/^update/i.test(s)) return update(s, args);
     if (/^delete from/i.test(s)) return remove(s, args);
-    if (/coalesce\(max\(position\)/i.test(s)) return nextPosition(s, args);
+    if (/coalesce\(max\(/i.test(s)) return nextValue(s, args);
     if (/select id, position from/i.test(s)) return neighbor(s, args);
     if (/^select 1 from/i.test(s)) return guard(s, args);
     return selectAll(s, args);
