@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization, assertTemplateCapsEligible } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible, invalidateAuthorizationContext } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/assign
@@ -90,6 +90,7 @@ export async function PUT(req) {
         action: "profile_assigned",
         details: `Assigned access profile: ${profile.rows[0].name}`,
       });
+      invalidateAuthorizationContext(user_cid);
 
       return NextResponse.json({
         success: true,
@@ -120,6 +121,7 @@ export async function PUT(req) {
       action: "profile_removed",
       details: `Removed profile override, reverting to ${roleDefault.rows[0]?.name || "legacy"} default`,
     });
+    invalidateAuthorizationContext(user_cid);
 
     return NextResponse.json({
       success: true,

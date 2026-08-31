@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization, assertTemplateCapsEligible } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/role-defaults
@@ -70,6 +70,7 @@ export async function PUT(req) {
       action: "role_default_changed",
       details: `Set default access profile for role "${role_name}" to "${profile.rows[0].name}"`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,

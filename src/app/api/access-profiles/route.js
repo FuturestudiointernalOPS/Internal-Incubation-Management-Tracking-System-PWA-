@@ -5,7 +5,7 @@ import {
   PERMISSION_MODULES,
   logPermissionAudit,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, invalidateAllAuthorizationContexts } from "@/lib/authorization";
 
 /**
  * GET /api/access-profiles
@@ -148,6 +148,8 @@ export async function POST(req) {
       action: "profile_created",
       details: `Created access profile: ${name}`,
     });
+    // A new profile only matters once assigned/defaulted — safe to clear.
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,
@@ -265,10 +267,11 @@ export async function PUT(req) {
       actorCid: session?.cid,
       actorName: session?.name,
       targetCid: "system",
-      targetName: existing.rows[0].name,
+      targetName: profileName,
       action: "profile_updated",
-      details: `Updated access profile: ${existing.rows[0].name}`,
+      details: `Updated access profile: ${profileName}`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,
@@ -346,6 +349,7 @@ export async function DELETE(req) {
       action: "profile_deleted",
       details: `Deleted access profile with ${userRefs.rows[0]?.cnt || 0} users still assigned`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,

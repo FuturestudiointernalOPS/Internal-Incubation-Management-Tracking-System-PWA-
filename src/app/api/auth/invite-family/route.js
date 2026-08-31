@@ -36,7 +36,15 @@ export async function POST(req) {
       await req.json();
 
     // Staff may only invite families for programs they are the assigned PM of.
-    if (session?.role === "staff" && programId) {
+    // A program is REQUIRED for staff — otherwise any staff member could bulk-
+    // create arbitrary pending contacts without any program scope.
+    if (session?.role === "staff") {
+      if (!programId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
       const isPm = await isAssignedPmForProgram(programId, session.cid);
       if (!isPm) {
         return NextResponse.json(
