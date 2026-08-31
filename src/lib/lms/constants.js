@@ -21,3 +21,5 @@ export const LMS_PROGRESS_STATUSES = ["not_started", "in_progress", "completed"]
 export const LMS_LESSON_CONTENT_TYPES = ["video"];
 
 export const LMS_QUESTION_TYPES = ["multiple_choice", "true_false"];
+
+export const LMS_CERTIFICATE_STATUSES = ["valid", "revoked"];
