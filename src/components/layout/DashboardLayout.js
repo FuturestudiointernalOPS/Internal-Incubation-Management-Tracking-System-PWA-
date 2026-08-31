@@ -1243,27 +1243,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
   // }, [pathname]);
 
-  const toggleMenu = useCallback(
-    (id) => {
-      if (!id) return;
-      setOpenMenus((prev) => {
-        const next = { ...prev };
-        if (next[id]) {
-          next[id] = false;
-          return next;
-        }
-        // Accordion: opening one section closes the other click-opened ones,
-        // except sections on the active path (they stay as context).
-        for (const key of Object.keys(next)) {
-          if (key !== id && !activePathIds.has(key)) next[key] = false;
-        }
-        next[id] = true;
-        return next;
-      });
-    },
-    [activePathIds],
-  );
-
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
     const counts = {
@@ -1451,6 +1430,29 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       return changed ? next : prev;
     });
   }, [activePathKey]);
+
+  // Accordion toggle: opening one section closes the other click-opened ones,
+  // except sections on the active path (they stay as context). Defined AFTER
+  // activePathIds — referencing it in the dependency array before its
+  // declaration would hit the const temporal dead zone (build crash).
+  const toggleMenu = useCallback(
+    (id) => {
+      if (!id) return;
+      setOpenMenus((prev) => {
+        const next = { ...prev };
+        if (next[id]) {
+          next[id] = false;
+          return next;
+        }
+        for (const key of Object.keys(next)) {
+          if (key !== id && !activePathIds.has(key)) next[key] = false;
+        }
+        next[id] = true;
+        return next;
+      });
+    },
+    [activePathIds],
+  );
 
   const handleLogout = async () => {
     try {
