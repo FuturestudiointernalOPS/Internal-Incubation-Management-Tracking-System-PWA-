@@ -278,6 +278,11 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/certificates/[id]/revoke` | ✅ Phase 5 | minimal admin revocation (`lms.edit`) |
 | `/api/verify/certificate/[token]` | ✅ Phase 5 | PUBLIC verification — public fields only, no auth |
 | `/verify/certificate/[token]` (page) | ✅ Phase 5 | public verification page |
+| `/api/lms/program-requirements` + `[id]` | ✅ Phase 6 | Program → Course links (list/attach/update/detach; `lms.assign`) + auto-enrollment |
+| `/api/public/courses` + `[slug]` | ✅ Phase 7 | public catalogue + detail (marketing-safe) + free self-enrollment (`source 'self'`) |
+| `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
+
+Phase 6/7 implementation details, deviations and the final report: `docs/PHASE6_7_REPORT.md`.
 | `/api/lms/program-requirements` | later | Program → Course links |
 
 ## 7. Migration & verification
