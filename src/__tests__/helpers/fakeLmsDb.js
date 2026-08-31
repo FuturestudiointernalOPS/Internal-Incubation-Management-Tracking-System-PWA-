@@ -30,8 +30,15 @@ const TABLES = [
   "lms_enrollments",
   "lms_lesson_progress",
   "lms_assessment_attempts",
+  "lms_certificates",
   "contacts",
 ];
+
+// Column defaults applied when an INSERT omits a column (mirrors the real
+// schema's DEFAULT clauses so inserted rows look like real-DB rows).
+const TABLE_DEFAULTS = {
+  lms_certificates: { status: "valid" },
+};
 
 export function createFakeDb() {
   let state = Object.fromEntries(TABLES.map((t) => [t, []]));
@@ -80,6 +87,10 @@ export function createFakeDb() {
         row[column] = token.replace(/^'|'$/g, "");
       }
     });
+    // Apply schema defaults for omitted columns (e.g. certificate status).
+    for (const [col, val] of Object.entries(TABLE_DEFAULTS[table] || {})) {
+      if (row[col] === undefined) row[col] = val;
+    }
 
     if (/on conflict/i.test(sql)) {
       const conflictMatch = /on conflict \(([^)]+)\)/i.exec(sql);
@@ -119,6 +130,8 @@ export function createFakeDb() {
       else if (/position\s*=\s*-1/.test(part)) updated.position = -1;
       else if (/completed_at\s*=\s*coalesce/i.test(part))
         updated.completed_at = "2026-08-27T02:00:00Z";
+      else if (/revoked_at\s*=\s*now\(\)/i.test(part))
+        updated.revoked_at = "2026-08-27T03:00:00Z";
     }
     state[table] = state[table].map((r) => (r === row ? updated : r));
     return { rows: [updated], rowsAffected: 1 };
@@ -160,7 +173,7 @@ export function createFakeDb() {
     // positionally: `user_cid = ? AND assessment_id IN (?, ?)` binds user_cid
     // first. A single pass that processed IN clauses before `=` clauses would
     // bind the IN list to the wrong args whenever an `=` clause precedes it.
-    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*=\s*\?/gi;
+    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*=\s*\?|(\w+)\s+like\s*\?/gi;
     let m;
     while ((m = condRe.exec(cond))) {
       if (m[1]) {
@@ -168,12 +181,23 @@ export function createFakeDb() {
         const ids = args.slice(argIndex, argIndex + count).map((a) => String(a));
         argIndex += count;
         if (!ids.includes(String(row[m[1]]))) return false;
-      } else {
+      } else if (m[3]) {
         if (String(row[m[3]]) !== String(args[argIndex])) return false;
         argIndex++;
+      } else {
+        // LIKE ? — converts the SQL pattern (CERT-2026-%) into a regex.
+        const re = likeToRegExp(String(args[argIndex]));
+        argIndex++;
+        if (!re.test(String(row[m[4]]))) return false;
       }
     }
     return true;
+  }
+
+  /** SQL LIKE pattern (with % wildcards) → case-sensitive RegExp. */
+  function likeToRegExp(pattern) {
+    const escaped = String(pattern).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^${escaped.replace(/%/g, ".*")}$`);
   }
 
   function nextValue(sql, args) {
@@ -237,7 +261,14 @@ export function createFakeDb() {
     if (/coalesce\(max\(/i.test(s)) return nextValue(s, args);
     if (/select id, position from/i.test(s)) return neighbor(s, args);
     if (/^select 1 from/i.test(s)) return guard(s, args);
+    if (/^select count\(\*\)/i.test(s)) return countRows(s, args);
     return selectAll(s, args);
+  }
+
+  function countRows(sql, args) {
+    const table = /from (\w+)/i.exec(sql)[1];
+    const rows = state[table].filter((r) => evalWhere(sql, args, r));
+    return { rows: [{ n: rows.length }] };
   }
 
   return {
