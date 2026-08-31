@@ -9,6 +9,7 @@ import {
   FEATURE_KEYS,
   IDENTITY_TYPES,
   ELIGIBILITY_IDENTITIES,
+  MODULE_TO_FEATURE,
   validateEligibilityChanges,
 } from "@/lib/authorization";
 
@@ -77,6 +78,9 @@ export async function GET() {
       success: true,
       features: FEATURE_KEYS,
       identityTypes: IDENTITY_TYPES,
+      // Capability module → feature key, so the UI can filter which modules
+      // are relevant for a role based on its eligibility.
+      moduleToFeature: MODULE_TO_FEATURE,
       // Agreed eligibility identities only (functions like developer/teacher/
       // program_manager are not eligibility identities). ROLE_CATALOG stays
       // the full technical catalog for gate validation.

@@ -1408,6 +1408,8 @@ function AccessProfilesView() {
   const [profiles, setProfiles] = useState([]);
   const [roleDefaults, setRoleDefaults] = useState({});
   const [allRoles, setAllRoles] = useState([]);
+  const [eligibilityRows, setEligibilityRows] = useState([]); // feature_eligibility rows for role-based filtering
+  const [moduleToFeature, setModuleToFeature] = useState({}); // capability module → feature key
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState(null);
   const [profileCaps, setProfileCaps] = useState([]);
@@ -1434,10 +1436,13 @@ function AccessProfilesView() {
       }
       // Full role catalog (ROLE_CATALOG) — not just roles that already have
       // a default — so every role can be configured in the form dropdown.
+      // The same payload also feeds the role-based feature filter below.
       const eligRes = await fetch("/api/engineering/permissions/eligibility");
       const eligData = await eligRes.json();
       if (eligData.success) {
         setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
+        setEligibilityRows(eligData.rows || []);
+        setModuleToFeature(eligData.moduleToFeature || {});
       } else {
         setAllRoles(Object.keys(data.roleDefaults || {}));
       }
@@ -1773,6 +1778,38 @@ function AccessProfilesView() {
     ? defaultRolesFor(selectedProfile.id)
     : [];
 
+  // A role is eligible for a feature when at least one row says yes and no
+  // row explicitly denies it — mirrors the resolver's fail-closed semantics.
+  const isRoleEligibleForFeature = (role, feature) => {
+    let anyEligible = false;
+    for (const row of eligibilityRows) {
+      if (
+        row.identity_type !== "role" ||
+        row.identity_value !== role ||
+        row.feature_key !== feature
+      ) {
+        continue;
+      }
+      if (Number(row.eligible) === 1) anyEligible = true;
+      else return false; // explicit deny wins
+    }
+    return anyEligible;
+  };
+
+  // Only show the features the profile's default role(s) are eligible for.
+  // No role context (profile is not a default) or unknown mapping → keep the
+  // module visible rather than hiding capabilities the admin may need.
+  const visibleModules = Object.entries(availableModules).filter(
+    ([modKey]) => {
+      if (selectedIsDefaultFor.length === 0) return true;
+      const feature = moduleToFeature[modKey];
+      if (!feature) return true;
+      return selectedIsDefaultFor.some((role) =>
+        isRoleEligibleForFeature(role, feature),
+      );
+    },
+  );
+
   return (
     <div className="space-y-6">
       {actionMsg && (
@@ -2025,8 +2062,32 @@ function AccessProfilesView() {
                 </div>
               </div>
 
+              {selectedIsDefaultFor.length > 0 ? (
+                <div className="p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.profileEligibilityFilterHint", {
+                      roles: selectedIsDefaultFor.join(", "),
+                    })}
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-secondary/50 border border-[var(--border-primary)]">
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    {t("engineering.permissions.profileNoRolesHint")}
+                  </p>
+                </div>
+              )}
+
+              {visibleModules.length === 0 && (
+                <div className="py-10 text-center opacity-60">
+                  <p className="text-xs font-black text-[var(--text-primary)] uppercase">
+                    {t("engineering.permissions.profileNoEligibleFeatures")}
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-4">
-                {Object.entries(availableModules).map(([modKey, mod]) => {
+                {visibleModules.map(([modKey, mod]) => {
                   const moduleChanged = mod.capabilities.some((cap) =>
                     isChanged(modKey, cap),
                   );
