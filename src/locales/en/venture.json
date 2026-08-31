@@ -2,6 +2,11 @@
   "venture": {
     "title": "Ventures",
     "createVenture": "Create Venture",
+    "applyAsVenture": "Apply as a Venture",
+    "country": "Country",
+    "registrationStatus": "Business Registration Status",
+    "northStar": "North Star",
+    "registrationOptions": { "notRegistered": "Not registered", "registered": "Registered", "pendingRegistration": "Pending registration" },
     "namePlaceholder": "Venture name",
     "description": "Description",
     "mission": "Mission",

@@ -25,11 +25,11 @@ export async function POST(req) {
     const authError = await requireAuth(WRITE_ROLES);
     if (authError) return authError;
     const session = await getSession();
-    const { name, description, unit, auto_calc_source } = await req.json();
+    const { name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target } = await req.json();
     if (!name) return NextResponse.json({ success: false, error: "name required" }, { status: 400 });
     await db.execute({
-      sql: "INSERT INTO venture_kpi_definitions (name, description, unit, auto_calc_source, created_by) VALUES (?,?,?,?,?)",
-      args: [name, description || null, unit || null, auto_calc_source || null, session?.cid || null],
+      sql: "INSERT INTO venture_kpi_definitions (name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target, created_by) VALUES (?,?,?,?,?,?,?,?,?)",
+      args: [name, description || null, unit || null, auto_calc_source || null, formula || null, frequency || null, measurement_method || null, default_target ?? null, session?.cid || null],
     });
     return NextResponse.json({ success: true });
   } catch (e) {
@@ -42,7 +42,7 @@ export async function PATCH(req) {
     await initDb();
     const authError = await requireAuth(WRITE_ROLES);
     if (authError) return authError;
-    const { id, name, description, unit, auto_calc_source, is_active } = await req.json();
+    const { id, name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target, is_active } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });
     const updates = [];
     const args = [];
@@ -50,6 +50,10 @@ export async function PATCH(req) {
     if (description !== undefined) { updates.push("description = ?"); args.push(description); }
     if (unit !== undefined) { updates.push("unit = ?"); args.push(unit); }
     if (auto_calc_source !== undefined) { updates.push("auto_calc_source = ?"); args.push(auto_calc_source); }
+    if (formula !== undefined) { updates.push("formula = ?"); args.push(formula); }
+    if (frequency !== undefined) { updates.push("frequency = ?"); args.push(frequency); }
+    if (measurement_method !== undefined) { updates.push("measurement_method = ?"); args.push(measurement_method); }
+    if (default_target !== undefined) { updates.push("default_target = ?"); args.push(default_target); }
     if (is_active !== undefined) { updates.push("is_active = ?"); args.push(is_active); }
     if (!updates.length) return NextResponse.json({ success: false, error: "No fields" }, { status: 400 });
     args.push(id);

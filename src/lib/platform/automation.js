@@ -743,6 +743,28 @@ const RULES = [
       }
     },
   },
+
+  // ── Venture Application approval → create the Venture (Phase 2 pipeline) ──
+  // The single official Venture creation path. Form-scoped via
+  // settings.venture_application (set by the Venture Application form seed),
+  // so no other run/submission is affected.
+  {
+    event: PLATFORM_EVENTS.REVIEW_COMPLETED,
+    description: "Create Venture when a Venture Application submission is approved",
+    condition: (ctx) =>
+      ctx.review?.decision === "approved" &&
+      ctx.form?.settings?.venture_application === true,
+    action: async (ctx) => {
+      const { createVentureFromSubmission } = await import("@/lib/venturePipeline");
+      const result = await createVentureFromSubmission({
+        submission: ctx.submission,
+        run: ctx.run,
+        form: ctx.form,
+        review: ctx.review,
+      });
+      console.log("[Automation] Venture creation result:", result);
+    },
+  },
 ];
 
 // ─── ENGINE ────────────────────────────────────────────────────────

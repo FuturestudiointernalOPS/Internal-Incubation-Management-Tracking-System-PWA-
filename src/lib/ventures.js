@@ -141,6 +141,96 @@ export async function ensureVentureSchema() {
     "CREATE TABLE IF NOT EXISTS queue_statistics (id SERIAL PRIMARY KEY, queue_name TEXT NOT NULL, current_size INTEGER DEFAULT 0, processed_count INTEGER DEFAULT 0, failed_count INTEGER DEFAULT 0, average_wait_ms INTEGER, average_process_ms INTEGER, recorded_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_queue_statistics_name ON queue_statistics(queue_name)",
     "CREATE INDEX IF NOT EXISTS idx_queue_statistics_recorded ON queue_statistics(recorded_at DESC)",
+    // ─── Phase 1 — Venture Foundation (additive only) ───
+    // venture_members: single founder/member model (lead/owner/suspend/soft-delete)
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS contact_id TEXT",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS member_type TEXT DEFAULT 'team_member'",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member'",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS permissions TEXT DEFAULT 'edit'",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS invited_by TEXT",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS removed_at TIMESTAMP",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS lead_founder BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS is_owner BOOLEAN DEFAULT FALSE",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMP",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS suspended_by TEXT",
+    "ALTER TABLE venture_members ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT NOW()",
+    // venture_milestones: runtime columns the code already reads/writes
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0",
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS target_date TIMESTAMP",
+    // v2_teams: promotion columns the promote route already writes
+    "ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS venture_id TEXT",
+    "ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP",
+    // ventures: canonical origin/profile columns
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS program_id UUID REFERENCES v2_programs(id)",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS origin_team_id TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS graduated_at TIMESTAMP",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS graduation_notes TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS north_star TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS country TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS registration_status TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'private'",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS social_media JSONB",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS branding JSONB",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS language TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS sector TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS is_archived BOOLEAN DEFAULT FALSE",
+    // platform_form_submissions: submission → invitation link (Venture pipeline provenance)
+    "ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER",
+    "CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id)",
+    // venture_origins: 1:1 CRM provenance for every venture
+    "CREATE TABLE IF NOT EXISTS venture_origins (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL UNIQUE REFERENCES ventures(venture_id) ON DELETE CASCADE, source_type TEXT NOT NULL DEFAULT 'legacy', program_id TEXT, cohort_id TEXT, team_id TEXT, participant_cid TEXT, invited_by_cid TEXT, form_id INTEGER, run_id INTEGER, submission_id INTEGER, invitation_id INTEGER, approved_by_cid TEXT, approved_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS idx_venture_origins_source ON venture_origins(source_type)",
+    "CREATE INDEX IF NOT EXISTS idx_venture_origins_program ON venture_origins(program_id)",
+    "CREATE INDEX IF NOT EXISTS idx_venture_origins_team ON venture_origins(team_id)",
+    // venture_option_values: configurable taxonomies (stages, industry/sector, ...)
+    "CREATE TABLE IF NOT EXISTS venture_option_values (id SERIAL PRIMARY KEY, option_type TEXT NOT NULL, value TEXT NOT NULL, label TEXT, sort_order INTEGER DEFAULT 0, is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(option_type, value))",
+    // Seed default taxonomies (idempotent; staff can edit via Venture Setup later)
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'business_stage', 'idea', 'Idea', 1 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='business_stage' AND value='idea')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'business_stage', 'validation', 'Validation', 2 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='business_stage' AND value='validation')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'business_stage', 'mvp', 'MVP', 3 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='business_stage' AND value='mvp')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'business_stage', 'growth', 'Growth', 4 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='business_stage' AND value='growth')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'business_stage', 'scale', 'Scale', 5 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='business_stage' AND value='scale')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Fintech', 'Fintech', 1 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Fintech')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Healthtech', 'Healthtech', 2 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Healthtech')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Edtech', 'Edtech', 3 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Edtech')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Cleantech', 'Cleantech', 4 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Cleantech')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'SaaS', 'SaaS', 5 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='SaaS')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'E-commerce', 'E-commerce', 6 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='E-commerce')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Agritech', 'Agritech', 7 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Agritech')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Logistics', 'Logistics', 8 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Logistics')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'AI / ML', 'AI / ML', 9 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='AI / ML')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Blockchain', 'Blockchain', 10 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Blockchain')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Media & Entertainment', 'Media & Entertainment', 11 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Media & Entertainment')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Real Estate', 'Real Estate', 12 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Real Estate')",
+    "INSERT INTO venture_option_values (option_type, value, label, sort_order) SELECT 'industry', 'Other', 'Other', 13 WHERE NOT EXISTS (SELECT 1 FROM venture_option_values WHERE option_type='industry' AND value='Other')",
+    // platform_form_run_invitations: tracked invitations into the Venture Run
+    // (Phase 3 — Invitations & Team Promotion)
+    "CREATE TABLE IF NOT EXISTS platform_form_run_invitations (id SERIAL PRIMARY KEY, run_id INTEGER, contact_cid TEXT, email TEXT NOT NULL, source_type TEXT NOT NULL DEFAULT 'external', program_id TEXT, cohort_id TEXT, team_id TEXT, invited_by_cid TEXT, token TEXT, token_hash TEXT, expires_at TIMESTAMP, used_at TIMESTAMP, status TEXT NOT NULL DEFAULT 'sent', created_at TIMESTAMP DEFAULT NOW(), UNIQUE(token))",
+    "CREATE INDEX IF NOT EXISTS idx_run_invitations_token_hash ON platform_form_run_invitations(token_hash)",
+    "CREATE INDEX IF NOT EXISTS idx_run_invitations_email ON platform_form_run_invitations(email)",
+    "CREATE INDEX IF NOT EXISTS idx_run_invitations_status ON platform_form_run_invitations(status)",
+    // ─── Phase 5 — Configurable Venture Operating Model (additive) ───
+    // Reusable playbook templates (Future Studio defines, Ventures execute snapshots)
+    "CREATE TABLE IF NOT EXISTS venture_playbook_templates (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_playbook_template_stages (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL REFERENCES venture_playbook_templates(id) ON DELETE CASCADE, stage_order INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, objective TEXT, completion_criteria TEXT, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(template_id, stage_order))",
+    "CREATE TABLE IF NOT EXISTS venture_milestone_templates (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, expected_outcome TEXT, default_due_days INTEGER, is_active BOOLEAN DEFAULT TRUE, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_task_templates (id SERIAL PRIMARY KEY, milestone_template_id INTEGER REFERENCES venture_milestone_templates(id) ON DELETE SET NULL, name TEXT NOT NULL, description TEXT, requirement_type TEXT NOT NULL DEFAULT 'activity', is_active BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_playbook_stage_milestones (id SERIAL PRIMARY KEY, stage_id INTEGER NOT NULL REFERENCES venture_playbook_template_stages(id) ON DELETE CASCADE, milestone_template_id INTEGER NOT NULL REFERENCES venture_milestone_templates(id) ON DELETE CASCADE, sort_order INTEGER DEFAULT 0, UNIQUE(stage_id, milestone_template_id))",
+    // Per-venture playbook instance — a SNAPSHOT; template edits never rewrite it
+    "CREATE TABLE IF NOT EXISTS venture_playbook_instances (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, template_id INTEGER NOT NULL REFERENCES venture_playbook_templates(id), assigned_by TEXT, assigned_at TIMESTAMP DEFAULT NOW(), UNIQUE(venture_id))",
+    "CREATE TABLE IF NOT EXISTS venture_playbook_instance_stages (id SERIAL PRIMARY KEY, instance_id INTEGER NOT NULL REFERENCES venture_playbook_instances(id) ON DELETE CASCADE, template_stage_id INTEGER, stage_order INTEGER NOT NULL, name TEXT NOT NULL, description TEXT, objective TEXT, completion_criteria TEXT, status TEXT NOT NULL DEFAULT 'locked', completed_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(instance_id, stage_order))",
+    // Snapshot provenance on execution tables + task requirement types
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS template_id INTEGER",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS template_id INTEGER",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS requirement_type TEXT DEFAULT 'activity'",
+    // Task reviews (accept / reject / revision requested) with history
+    "CREATE TABLE IF NOT EXISTS venture_task_reviews (id SERIAL PRIMARY KEY, task_id INTEGER NOT NULL REFERENCES venture_tasks(id) ON DELETE CASCADE, reviewer_cid TEXT, reviewer_name TEXT, decision TEXT NOT NULL, comments TEXT, created_at TIMESTAMP DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS idx_venture_task_reviews_task ON venture_task_reviews(task_id)",
+    // KPI library extension (Phase 5 — formula/frequency/measurement)
+    "ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS formula TEXT",
+    "ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS frequency TEXT",
+    "ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS measurement_method TEXT",
+    "ALTER TABLE venture_kpi_definitions ADD COLUMN IF NOT EXISTS default_target NUMERIC",
   ];
 
   for (const sql of migrations) {
@@ -165,6 +255,29 @@ export async function ensureVentureSchema() {
 export function generateVentureId() {
   const suffix = uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase();
   return `${VENTURE_ID_PREFIX}-${suffix}`;
+}
+
+/**
+ * Resolve the members of a program team for Venture promotion.
+ *
+ * The canonical membership link is contacts.v2_team_id (written by /api/pm/teams);
+ * v2_participants.v2_team_id holds the same link for UUID-keyed participants.
+ * The old promote path queried v2_group_members (a v2_groups table — wrong) and
+ * fell back to ALL program participants — this helper fixes that.
+ */
+export async function resolveTeamMembersForPromotion(teamId) {
+  const res = await db.execute({
+    sql: `SELECT c.cid AS contact_id, c.name, c.email
+          FROM contacts c
+          WHERE c.v2_team_id = ? AND c.deleted = 0
+          UNION
+          SELECT p.user_id AS contact_id, c2.name, c2.email
+          FROM v2_participants p
+          JOIN contacts c2 ON c2.cid = p.user_id
+          WHERE p.v2_team_id = ? AND c2.deleted = 0`,
+    args: [teamId, teamId],
+  });
+  return (res.rows || []).filter((r) => r && r.contact_id);
 }
 
 /**
@@ -472,9 +585,24 @@ export async function sendFounderInvitation({ email, name, venture_name, token }
  * Get a venture by its venture_id with founder info.
  */
 export async function getVentureById(ventureId) {
+  // Normalize: routes may receive a numeric/UUID id (e.g. from list pages or
+  // pre-fix promoted ventures). Resolve it to the VNT business key first.
+  let key = ventureId;
+  if (ventureId && !/^VNT-/i.test(ventureId)) {
+    try {
+      const byId = await db.execute({
+        sql: "SELECT venture_id FROM ventures WHERE id::text = ?",
+        args: [ventureId],
+      });
+      if (byId.rows.length > 0 && byId.rows[0].venture_id) {
+        key = byId.rows[0].venture_id;
+      }
+    } catch (_) {}
+  }
+
   const ventureRes = await db.execute({
     sql: "SELECT * FROM ventures WHERE venture_id = ?",
-    args: [ventureId],
+    args: [key],
   });
 
   if (ventureRes.rows.length === 0) return null;
@@ -484,7 +612,7 @@ export async function getVentureById(ventureId) {
   // Get founders
   const foundersRes = await db.execute({
     sql: "SELECT * FROM venture_founders WHERE venture_id = ? ORDER BY created_at ASC",
-    args: [ventureId],
+    args: [key],
   });
 
   // Get members
@@ -493,19 +621,19 @@ export async function getVentureById(ventureId) {
           FROM venture_members vm
           LEFT JOIN contacts c ON vm.user_cid = c.cid
           WHERE vm.venture_id = ?`,
-    args: [ventureId],
+    args: [key],
   });
 
   // Get recent activity
   const activityRes = await db.execute({
     sql: "SELECT * FROM venture_activity_log WHERE venture_id = ? ORDER BY created_at DESC LIMIT 20",
-    args: [ventureId],
+    args: [key],
   });
 
   // Get history
   const historyRes = await db.execute({
     sql: "SELECT * FROM venture_history WHERE venture_id = ? ORDER BY created_at ASC",
-    args: [ventureId],
+    args: [key],
   });
 
   // Get startup profile progress
@@ -513,7 +641,7 @@ export async function getVentureById(ventureId) {
   try {
     const progressRes = await db.execute({
       sql: "SELECT * FROM startup_profile_progress WHERE venture_id = ?",
-      args: [ventureId],
+      args: [key],
     });
     profileProgress = progressRes.rows[0] || null;
   } catch (_) {}
@@ -549,6 +677,9 @@ export async function updateVenture(ventureId, updates) {
     "visibility",
     "language",
     "branding",
+    "country",
+    "registration_status",
+    "north_star",
   ];
 
   const setClauses = [];
@@ -574,6 +705,47 @@ export async function updateVenture(ventureId, updates) {
   });
 
   return { updated: true };
+}
+
+/**
+ * Change the lead founder / owner of a Venture (Phase 4).
+ *
+ * The new lead must be an existing active member. The previous lead is
+ * cleared, the new member becomes lead_founder + is_owner (member_type
+ * founder), the change is appended to ownership_history and audited.
+ * A Venture can never end up without a lead through this action.
+ */
+export async function changeVentureLead({ ventureId, memberId, actorCid, actorName }) {
+  const memberRes = await db.execute({
+    sql: "SELECT * FROM venture_members WHERE id = ? AND venture_id = ? AND removed_at IS NULL",
+    args: [memberId, ventureId],
+  });
+  const member = memberRes.rows[0];
+  if (!member) return { error: "Venture member not found." };
+
+  // Clear the current lead/owner (if any)
+  await db.execute({
+    sql: "UPDATE venture_members SET lead_founder = FALSE, is_owner = FALSE WHERE venture_id = ? AND (lead_founder = TRUE OR is_owner = TRUE)",
+    args: [ventureId],
+  });
+
+  // Promote the new lead
+  await db.execute({
+    sql: "UPDATE venture_members SET lead_founder = TRUE, is_owner = TRUE, member_type = 'founder', role = 'founder' WHERE id = ?",
+    args: [memberId],
+  });
+
+  // Append-only ownership history
+  try {
+    await db.execute({
+      sql: `INSERT INTO ownership_history (venture_id, previous_owner_id, previous_owner_email, previous_owner_name,
+            new_owner_id, new_owner_email, new_owner_name, transferred_by_id, transferred_by_email)
+            VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
+      args: [ventureId, member.contact_id || member.user_cid || memberId, "", member.name || "", actorCid || "system", ""],
+    });
+  } catch (_) {}
+
+  return { success: true };
 }
 
 // =============================================================================
@@ -2221,7 +2393,7 @@ export async function deleteDeliverable(deliverableId) {
 // ENHANCEMENT 2.3: TASK MANAGEMENT & KANBAN
 // =============================================================================
 
-export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
+export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "submitted", "under_review", "accepted", "rejected", "revision_requested", "done", "blocked", "cancelled"];
 export const TASK_PRIORITIES = ["low", "medium", "high", "critical"];
 
 export async function listTasks(ventureId, milestoneId, status, assignedCid) {

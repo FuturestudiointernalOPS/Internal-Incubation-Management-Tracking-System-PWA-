@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { v4 as uuidv4 } from "uuid";
+import { ensureVentureSchema, resolveTeamMembersForPromotion, generateVentureId } from "@/lib/ventures";
 
 /**
  * POST /api/ventures/promote
@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from "uuid";
 export async function POST(req) {
   try {
     await initDb();
+    await ensureVentureSchema();
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -129,9 +130,8 @@ export async function POST(req) {
       );
     }
 
-    // ─── 6. Generate Venture IDs ───
-    const ventureUuid = uuidv4();  // Real UUID for database
-    const ventureId = `VNT-${ventureUuid.replace(/-/g, "").substring(0, 8).toUpperCase()}`;  // Display ID
+    // ─── 6. Generate Venture ID (VNT business key is the single identifier) ───
+    const ventureId = generateVentureId();
     const now = new Date().toISOString();
 
     // Use provided company info or derive from team/program names
@@ -155,14 +155,15 @@ export async function POST(req) {
     try {
       // Try with both name and company_name
       await db.execute({
-        sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
+        sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, status, program_id, origin_team_id, created_by, created_at, updated_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
         args: [
-          ventureUuid, finalCompanyName, finalCompanyName,
+          ventureId, finalCompanyName, finalCompanyName,
           registration_number?.trim() || null,
           finalIndustry, finalStage,
           description?.trim() || `Promoted from program: ${program.name}`,
           website?.trim() || null, logo_url?.trim() || null,
+          team.program_id || null, team.id || null,
           session.cid || "system", now, now,
         ],
       });
@@ -173,7 +174,7 @@ export async function POST(req) {
           sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
           args: [
-            ventureUuid, finalCompanyName,
+            ventureId, finalCompanyName,
             registration_number?.trim() || null,
             finalIndustry, finalStage,
             description?.trim() || `Promoted from program: ${program.name}`,
@@ -189,40 +190,27 @@ export async function POST(req) {
     // ─── 8. Update team with venture_id ───
     await db.execute({
       sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id = ?",
-      args: [ventureUuid, now, team.id],
+      args: [ventureId, now, team.id],
     });
 
     // ─── 9. Update program with venture_id (non-blocking) ───
     try {
       await db.execute({
       sql: "UPDATE v2_programs SET venture_id = ? WHERE id = ?",
-      args: [ventureUuid, program.id],
+      args: [ventureId, program.id],
     });
     } catch (_) {}
 
-    // ─── 10. Copy founders ───
-    // Find team members via v2_group_members or v2_participants
-    let teamMembers = [];
-    try {
-      const memberRes = await db.execute({
-        sql: "SELECT contact_id, name FROM v2_group_members WHERE group_id = ?",
-        args: [team.id],
-      });
-      teamMembers = memberRes.rows || [];
-    } catch (_) {}
+    // ─── 10. Copy founders & members ───
+    // Resolve the real team membership (contacts.v2_team_id / v2_participants.v2_team_id).
+    const teamMembers = await resolveTeamMembersForPromotion(team.id);
 
-    // If no members found, try v2_participants
-    if (teamMembers.length === 0 && team.program_id) {
-      try {
-        const partRes = await db.execute({
-          sql: "SELECT user_id as contact_id, name FROM v2_participants WHERE program_id::text = ?",
-          args: [team.program_id],
-        });
-        teamMembers = partRes.rows || [];
-      } catch (_) {}
+    // Founders: team leader + handler. If neither exists, fall back to the
+    // first team member so the venture never has zero founders.
+    let founderIds = [team.leader_id, team.handler_id].filter(Boolean);
+    if (founderIds.length === 0 && teamMembers.length > 0) {
+      founderIds = [teamMembers[0].contact_id];
     }
-
-    const founderIds = [team.leader_id, team.handler_id].filter(Boolean);
     const uniqueFounders = new Set();
 
     // Add leader and handler as founders
@@ -249,22 +237,39 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // Add team members as venture members
+    // Add all team members as venture members (founders AND team members —
+    // workspace access runs off venture_members, so founders must be rows here too)
     for (const member of teamMembers) {
-      if (uniqueFounders.has(member.contact_id)) continue;
       try {
-        // venture_members stores venture_id as the VNT code (TEXT)
+        const isFounder = uniqueFounders.has(member.contact_id);
         await db.execute({
-          sql: `INSERT INTO venture_members (venture_id, user_cid, role, joined_at)
-                VALUES (?, ?, 'member', ?)
-                ON CONFLICT (venture_id, user_cid) DO NOTHING`,
-          args: [ventureId, String(member.contact_id), now],
+          sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, member_type, role, permissions, joined_at, lead_founder, is_owner)
+                VALUES (?, ?, ?, ?, ?, 'edit', ?, ?, ?)
+                ON CONFLICT DO NOTHING`,
+          args: [
+            ventureId,
+            String(member.contact_id),
+            String(member.contact_id),
+            isFounder ? "founder" : "team_member",
+            isFounder ? "founder" : "member",
+            now,
+            isFounder,
+            isFounder,
+          ],
         });
-        // Update user contact role to member
-        await db.execute({
-          sql: "UPDATE contacts SET role = 'member' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager', 'founder')",
-          args: [String(member.contact_id)],
-        });
+        if (isFounder) {
+          // Update user contact role to founder
+          await db.execute({
+            sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
+            args: [String(member.contact_id)],
+          });
+        } else {
+          // Update user contact role to member
+          await db.execute({
+            sql: "UPDATE contacts SET role = 'member' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager', 'founder')",
+            args: [String(member.contact_id)],
+          });
+        }
       } catch (_) {}
     }
 
@@ -274,7 +279,7 @@ export async function POST(req) {
       sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
             VALUES (?, 'PROGRAM_PROMOTED', ?, ?, ?::jsonb, ?)`,
       args: [
-        ventureUuid,
+        ventureId,
         session.cid || "system",
         session.name || "",
         JSON.stringify({
@@ -293,7 +298,7 @@ export async function POST(req) {
       sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
             VALUES (?, 'VENTURE_CREATED', ?, ?, ?::jsonb, ?)`,
       args: [
-        ventureUuid,
+        ventureId,
         session.cid || "system",
         session.name || "",
         JSON.stringify({
@@ -312,7 +317,7 @@ export async function POST(req) {
       sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata, created_at)
             VALUES (?, 'PROMOTED', ?, ?::jsonb, ?)`,
       args: [
-        ventureUuid,
+        ventureId,
         `Program-to-Venture promotion from "${program.name}"`,
         JSON.stringify({
           program_id: program.id,
@@ -324,6 +329,21 @@ export async function POST(req) {
         now,
       ],
     });
+    } catch (_) {}
+
+    // ─── 12b. Record venture origin (CRM provenance) ───
+    try {
+      await db.execute({
+        sql: `INSERT INTO venture_origins (venture_id, source_type, program_id, team_id, approved_by_cid, approved_at, created_at)
+              VALUES (?, 'team', ?, ?, ?, ?, ?)`,
+        args: [
+          ventureId,
+          team.program_id ? String(team.program_id) : null,
+          team.id || null,
+          session.cid || "system",
+          now, now,
+        ],
+      });
     } catch (_) {}
 
     // ─── 13. Send notifications ───

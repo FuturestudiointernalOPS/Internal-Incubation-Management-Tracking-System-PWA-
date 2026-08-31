@@ -28,6 +28,14 @@ export const GET = createHandler(
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
 
+    // Phase 5 hardening: founders are only visible to the venture's members
+    // and Future Studio staff — never to any authenticated user.
+    const { requireVentureAccess } = await import("@/lib/ventureAuth");
+    const access = await requireVentureAccess(id, db);
+    if (!access.session) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    }
+
     const founders = await listFounders(id);
 
     return NextResponse.json({ success: true, founders });

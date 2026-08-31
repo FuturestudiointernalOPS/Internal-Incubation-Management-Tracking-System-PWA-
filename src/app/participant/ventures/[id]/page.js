@@ -8,6 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 
 const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
+const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
 const STATUSES = ["active", "paused", "graduated", "archived"];
 const VISIBILITIES = ["private", "public", "inviteOnly"];
 
@@ -57,6 +58,25 @@ export default function VentureDetail() {
   const [standupForm, setStandupForm] = useState({});
   const [retroForm, setRetroForm] = useState({});
   const [blockerForm, setBlockerForm] = useState({});
+
+  // Configurable taxonomies (Phase 4 — Venture Setup): fall back to built-ins
+  const [optionLists, setOptionLists] = useState({ business_stage: [], industry: [] });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/venture-options");
+        const d = await res.json();
+        if (d.success) {
+          const byType = {};
+          for (const o of d.options || []) {
+            (byType[o.option_type] = byType[o.option_type] || []).push(o.value);
+          }
+          setOptionLists(byType);
+        }
+      } catch (_) {}
+    })();
+  }, []);
 
   // Track 4 state
   const [documents, setDocuments] = useState([]);
@@ -349,6 +369,8 @@ export default function VentureDetail() {
         mission: form.mission || null, vision: form.vision || null,
         industry: form.industry || null, sector: form.sector || null,
         business_stage: form.business_stage, website: form.website || null,
+        country: form.country || null, registration_status: form.registration_status || null,
+        north_star: form.north_star || null,
         social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "" },
         status: form.status, visibility: form.visibility, language: form.language,
         branding: { color: form.brandColor || "#f60" },
@@ -516,11 +538,19 @@ export default function VentureDetail() {
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} />
                 </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">{t("venture.northStar")}</label>
+                <textarea value={form.north_star} onChange={e => setForm({...form, north_star: e.target.value})}
+                  className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} />
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("venture.industry")}</label>
-                  <input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})}
+                  <input list="venture-industry-options" value={form.industry} onChange={e => setForm({...form, industry: e.target.value})}
                     className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
+                  <datalist id="venture-industry-options">
+                    {(optionLists.industry && optionLists.industry.length ? optionLists.industry : INDUSTRY_FALLBACK).map(i => <option key={i} value={i} />)}
+                  </datalist>
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">{t("venture.sector")}</label>
@@ -532,13 +562,30 @@ export default function VentureDetail() {
                 <label className="block text-sm font-medium mb-1">{t("venture.businessStage")}</label>
                 <select value={form.business_stage} onChange={e => setForm({...form, business_stage: e.target.value})}
                   className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-                  {STAGES.map(s => <option key={s} value={s}>{t(`venture.stages.${s}`)}</option>)}
+                  {(optionLists.business_stage && optionLists.business_stage.length ? optionLists.business_stage : STAGES).map(s => <option key={s} value={s}>{t(`venture.stages.${s}`) || s}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t("venture.website")}</label>
                 <input value={form.website} onChange={e => setForm({...form, website: e.target.value})}
                   className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder="https://" />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t("venture.country")}</label>
+                  <input value={form.country} onChange={e => setForm({...form, country: e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">{t("venture.registrationStatus")}</label>
+                  <select value={form.registration_status} onChange={e => setForm({...form, registration_status: e.target.value})}
+                    className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
+                    <option value="">—</option>
+                    <option value="Not registered">{t("venture.registrationOptions.notRegistered")}</option>
+                    <option value="Registered">{t("venture.registrationOptions.registered")}</option>
+                    <option value="Pending registration">{t("venture.registrationOptions.pendingRegistration")}</option>
+                  </select>
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t("venture.socialMedia")}</label>
@@ -578,7 +625,7 @@ export default function VentureDetail() {
                 <label className="block text-sm font-medium mb-1">{t("venture.businessStage")}</label>
                 <select value={form.business_stage} onChange={e => setForm({...form, business_stage: e.target.value})}
                   className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-                  {STAGES.map(s => <option key={s} value={s}>{t(`venture.stages.${s}`)}</option>)}
+                  {(optionLists.business_stage && optionLists.business_stage.length ? optionLists.business_stage : STAGES).map(s => <option key={s} value={s}>{t(`venture.stages.${s}`) || s}</option>)}
                 </select>
               </div>
               <div>
@@ -1747,6 +1794,7 @@ export default function VentureDetail() {
                   <option value="">{t('venture.manualEntry')}</option>
                   <option value="customer_interviews">{t('venture.autoCalculated')} — Customer Interviews</option>
                   <option value="milestones">{t('venture.autoCalculated')} — Milestones</option>
+                  <option value="tasks">{t('venture.autoCalculated')} — Tasks</option>
                 </select>
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>

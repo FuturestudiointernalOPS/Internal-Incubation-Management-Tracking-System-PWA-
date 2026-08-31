@@ -194,7 +194,11 @@ export default function PublicSubmitPage() {
       const res = await fetch("/api/s/public-submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug: runId, data: formData }),
+        body: JSON.stringify({
+          slug: runId,
+          data: formData,
+          invitation_token: new URLSearchParams(window.location.search).get("invitation") || undefined,
+        }),
       });
       const data = await res.json();
       if (data.success) {
