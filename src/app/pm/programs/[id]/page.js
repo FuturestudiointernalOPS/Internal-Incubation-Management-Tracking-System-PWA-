@@ -44,6 +44,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
+import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
 
 export const dynamic = "force-dynamic";
 
@@ -2749,6 +2750,17 @@ function ProgramWorkspace() {
                               </div>
                             </div>
                           </div>
+
+                          {/* SEPARATOR */}
+                          <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--brand-orange)]/20 to-transparent" />
+
+                          {/* PHASE 4: LEARNING (LMS — Phase 6) */}
+                          <ProgramLearningSection
+                            programId={id}
+                            weekNumber={session.week_number}
+                            sessionId={session.id}
+                            canEdit={canEdit}
+                          />
                         </div>
                       </div>
                     </div>

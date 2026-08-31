@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { isParticipantInProgram } from "@/lib/participant-membership";
+import { getProgramLearningForParticipant } from "@/lib/lms/programRequirements";
 
 export const dynamic = "force-dynamic";
 
@@ -244,6 +245,20 @@ export async function GET(req, { params }) {
       });
     }
     weeks.sort((a, b) => a.number - b.number);
+
+    // ─── Phase 6: LMS learning items per week (progress read from the LMS —
+    // the Program never stores a second progress counter).
+    const learningItems = await getProgramLearningForParticipant(programId, cid);
+    const learningByWeek = new Map();
+    for (const item of learningItems) {
+      const wn = item.week_number != null ? Number(item.week_number) : null;
+      if (wn == null) continue;
+      if (!learningByWeek.has(wn)) learningByWeek.set(wn, []);
+      learningByWeek.get(wn).push(item);
+    }
+    for (const w of weeks) {
+      w.learning = learningByWeek.get(Number(w.number)) || [];
+    }
 
     // Build resources with real attachment URLs
     const resources = knowledgeItems.map((item) => {

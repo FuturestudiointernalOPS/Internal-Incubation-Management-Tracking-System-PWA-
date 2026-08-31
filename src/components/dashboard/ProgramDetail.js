@@ -29,9 +29,11 @@ import {
   Mail,
   X,
   Upload,
-  Send
+  Send,
+  GraduationCap,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import NextLink from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
@@ -293,6 +295,84 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+          {/* Learning (LMS — Phase 6). Progress is read from the LMS; the
+              Program never stores a second progress counter. */}
+          {week.learning && week.learning.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-xs font-semibold text-[var(--text-secondary)] flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+                {t("participant.learning")}
+              </h4>
+              {week.learning.map((item) => {
+                const href =
+                  item.progress?.continueLesson && item.course?.id
+                    ? `/participant/learning/${item.course.id}/lessons/${item.progress.continueLesson.lessonId}`
+                    : item.course?.id
+                      ? `/participant/learning/${item.course.id}`
+                      : null;
+                const pct = item.progress?.percent || 0;
+                return (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-[var(--surface-2)]"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[var(--text-primary)] truncate">
+                          {item.title}
+                        </p>
+                        <span
+                          className={`shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${
+                            item.is_required
+                              ? "bg-rose-500/10 text-rose-400"
+                              : "bg-white/5 text-[var(--text-tertiary)]"
+                          }`}
+                        >
+                          {item.is_required
+                            ? t("participant.required")
+                            : t("participant.optional")}
+                        </span>
+                      </div>
+                      {item.progress?.status === "unavailable" ? (
+                        <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
+                          {t("participant.learningUnavailable")}
+                        </p>
+                      ) : (
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{
+                                width: `${pct}%`,
+                                background: "var(--brand-orange)",
+                              }}
+                            />
+                          </div>
+                          <span className="text-[9px] font-bold text-[var(--text-tertiary)] shrink-0">
+                            {pct}% · {item.progress.completedLessons} / {item.progress.totalLessons}{" "}
+                            {t("participant.lessons").toLowerCase()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    {href && (
+                      <NextLink
+                        href={href}
+                        className="shrink-0 text-xs font-medium text-[var(--brand-orange)] hover:underline flex items-center gap-1"
+                      >
+                        {item.progress?.status === "completed"
+                          ? t("participant.reviewCourse")
+                          : item.progress?.status === "in_progress"
+                            ? t("participant.continueLearning")
+                            : t("participant.startLearning")}
+                        <ChevronRight className="w-3 h-3" />
+                      </NextLink>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
