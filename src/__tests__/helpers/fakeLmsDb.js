@@ -31,6 +31,9 @@ const TABLES = [
   "lms_lesson_progress",
   "lms_assessment_attempts",
   "lms_certificates",
+  "lms_program_requirements",
+  "v2_programs",
+  "participant_programs",
   "contacts",
 ];
 
