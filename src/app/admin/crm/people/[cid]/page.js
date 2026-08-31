@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail } from "lucide-react";
+import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, GraduationCap } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
@@ -69,6 +69,7 @@ export default function CrmDetailPage({ params }) {
   const [loading, setLoading] = useState(true);
   const [moduleFilter, setModuleFilter] = useState("");
   const [tab, setTab] = useState("timeline");
+  const [learning, setLearning] = useState(null);
 
   // Note form
   const [noteText, setNoteText] = useState("");
@@ -94,16 +95,18 @@ export default function CrmDetailPage({ params }) {
     async function load() {
       setLoading(true);
       try {
-        const [contactRes, timelineRes, rolesRes, programsRes] = await Promise.all([
+        const [contactRes, timelineRes, rolesRes, programsRes, learningRes] = await Promise.all([
           fetch("/api/contacts?cid=" + cid).then(r => r.json()),
           fetch(`/api/contacts/${cid}/timeline?limit=200${moduleFilter ? "&module=" + moduleFilter : ""}`).then(r => r.json()),
           fetch(`/api/contacts/${cid}/roles`).then(r => r.json()),
           fetch(`/api/contacts/${cid}/programs`).then(r => r.json()),
+          fetch(`/api/contacts/${cid}/learning`).then(r => r.json()),
         ]);
         if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
         if (timelineRes.success) setEvents(timelineRes.events || []);
         if (rolesRes.success) setRoles(rolesRes.roles || []);
         if (programsRes.success) setPrograms(programsRes.history || []);
+        if (learningRes.success) setLearning(learningRes.learning || null);
       } catch (e) {
         console.error(e);
       }
@@ -342,6 +345,7 @@ export default function CrmDetailPage({ params }) {
           {[
             { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock },
             { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket },
+            { key: "learning", label: t("crm.people.tabLearning"), icon: GraduationCap },
             { key: "notes", label: t("crm.people.tabNotes"), icon: FileText },
             { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase },
             { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload },
@@ -624,6 +628,89 @@ export default function CrmDetailPage({ params }) {
                     </div>
                   </div>
                 ))}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Learning Tab (Phase 7 — CRM trace) */}
+        {tab === "learning" && (
+          <div className="space-y-6">
+            {learning === null ? (
+              <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
+                <p className="text-sm font-bold">{t("crm.people.loading")}</p>
+              </div>
+            ) : learning.courses.length === 0 && learning.certificates.length === 0 ? (
+              <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-8 text-center">
+                <GraduationCap className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" />
+                <p className="text-sm font-bold">{t("crm.people.noLearning")}</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                    {t("crm.people.learningCourses")}
+                  </h3>
+                  {learning.courses.map((item) => (
+                    <div
+                      key={item.course.id}
+                      className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold truncate">{item.course.title}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
+                          {item.progress?.percent || 0}% · {item.progress?.completedLessons || 0} / {item.progress?.totalLessons || 0}{" "}
+                          {t("crm.people.lessons").toLowerCase()}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                            item.progress?.status === "completed"
+                              ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                              : item.progress?.status === "in_progress"
+                                ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                                : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"
+                          }`}
+                        >
+                          {item.progress?.status === "completed"
+                            ? t("crm.people.completedStatus")
+                            : item.progress?.status === "in_progress"
+                              ? t("status.in_progress")
+                              : t("crm.people.notStarted")}
+                        </span>
+                        {item.certificate && (
+                          <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                            {t("crm.people.certificate")} · {item.certificate.certificate_number}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {learning.certificates.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                      {t("crm.people.learningCertificates")}
+                    </h3>
+                    {learning.certificates.map((cert) => (
+                      <div
+                        key={cert.certificate_number}
+                        className="flex items-center justify-between gap-3 p-4 rounded-xl border border-[var(--border-primary)] bg-primary"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold truncate">{cert.course_title}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
+                            {cert.certificate_number} · {cert.learner_name}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                          {cert.status === "valid" ? t("crm.people.certificateValid") : t("crm.people.certificateRevoked")}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
           </div>
