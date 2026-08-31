@@ -418,7 +418,7 @@ export const PERMISSION_MODULES = {
   },
   lms: {
     name: "LMS",
-    capabilities: ["view", "create", "edit", "delete", "publish", "enroll"],
+    capabilities: ["view", "create", "edit", "delete", "publish", "enroll", "assign"],
   },
   tasks: {
     name: "Tasks",
@@ -1394,6 +1394,7 @@ export async function seedDefaultAccessProfiles() {
           reports: { view: 1, create: 2, export: 3 },
           messaging: { view: 1, send: 2 },
           contacts: { view: 1, create: 2 },
+          lms: { view: 1, assign: 2 },
         },
       },
       "Project Owner": {

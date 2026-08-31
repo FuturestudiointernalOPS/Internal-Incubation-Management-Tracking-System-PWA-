@@ -147,7 +147,7 @@ function parseJson(value, fallback = []) {
   return value;
 }
 
-async function loadEnrollmentProgress(enrollmentId) {
+export async function loadEnrollmentProgress(enrollmentId) {
   const res = await db.execute({
     sql: "SELECT * FROM lms_lesson_progress WHERE enrollment_id = ?",
     args: [enrollmentId],
@@ -158,7 +158,7 @@ async function loadEnrollmentProgress(enrollmentId) {
 }
 
 /** Sections + lessons + section-anchored assessment (NO questions). */
-async function loadStructure(courseId) {
+export async function loadStructure(courseId) {
   const sectionsRes = await db.execute({
     sql: "SELECT * FROM lms_course_sections WHERE course_id = ? ORDER BY position, created_at",
     args: [courseId],
@@ -197,7 +197,7 @@ async function loadStructure(courseId) {
   }));
 }
 
-async function getEnrollment(courseId, userCid) {
+export async function getEnrollment(courseId, userCid) {
   const res = await db.execute({
     sql: "SELECT * FROM lms_enrollments WHERE course_id = ? AND user_cid = ? LIMIT 1",
     args: [courseId, userCid],
@@ -210,7 +210,7 @@ async function getEnrollment(courseId, userCid) {
  * { [assessmentId]: { id, title, pass_mark, is_required, section_id,
  *                     passed, attempted, bestPercent } }
  */
-async function loadAssessmentStates(userCid, courseId) {
+export async function loadAssessmentStates(userCid, courseId) {
   const assessmentsRes = await db.execute({
     sql: "SELECT * FROM lms_assessments WHERE course_id = ? ORDER BY position, created_at",
     args: [courseId],

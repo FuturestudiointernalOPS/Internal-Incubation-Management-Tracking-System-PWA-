@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
 export const dynamic = "force-dynamic";
 
 /**
@@ -111,6 +112,19 @@ export async function POST(req) {
             assigned_by || null,
           ],
         });
+
+        // Phase 6: auto-enroll added participants in every PUBLISHED course
+        // the program requires (server-side, idempotent).
+        if (action === "add") {
+          try {
+            await ensureProgramEnrollments(program_id, [participant_id]);
+          } catch (lmsErr) {
+            console.error(
+              `[participant-programs/bulk] auto LMS enrollment failed for ${participant_id} in ${program_id}:`,
+              lmsErr.message,
+            );
+          }
+        }
 
         results.push(participant_id);
       } catch (err) {
