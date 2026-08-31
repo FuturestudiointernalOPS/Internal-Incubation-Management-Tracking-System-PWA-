@@ -67,6 +67,32 @@
       "enrolledAt": "Enrolled",
       "loadFailed": "Couldn't load the learners."
     },
+    "assessment": {
+      "title": "Assessment",
+      "start": "Start Assessment",
+      "retake": "Retake",
+      "tryAgain": "Try Again",
+      "continueCourse": "Continue Course",
+      "next": "Next",
+      "previous": "Previous",
+      "submit": "Submit Assessment",
+      "questionOf": "Question {current} of {total}",
+      "questionsCount": "{count} questions",
+      "passMark": "Pass mark: {mark}%",
+      "yourScore": "Your Score",
+      "passed": "Passed",
+      "notPassed": "Not Passed",
+      "failed": "Failed",
+      "correct": "{correct} of {total} correct",
+      "resultTitle": "Assessment Complete",
+      "attempts": "Attempts",
+      "attempt": "Attempt {n}",
+      "noAttempts": "No attempts yet",
+      "unavailable": "This assessment is no longer available.",
+      "submitFailed": "We couldn't submit your assessment. Please try again.",
+      "noAccess": "You don't have access to this assessment.",
+      "bestScore": "Best score: {score}%"
+    },
     "fields": {
       "title": "Course title",
       "titlePlaceholder": "e.g. Customer Discovery Fundamentals",
@@ -231,7 +257,10 @@
       "loadFailedCourse": "Failed to load the course.",
       "saveFailed": "Failed to save.",
       "notEnrolled": "You are not enrolled in this course.",
-      "userNotFound": "No user found with that email or ID."
+      "userNotFound": "No user found with that email or ID.",
+      "assessmentUnavailable": "This assessment is no longer available.",
+      "invalidSubmission": "This submission is invalid.",
+      "answerRequired": "Please answer all questions before submitting."
     }
   }
 }

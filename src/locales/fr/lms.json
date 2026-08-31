@@ -67,6 +67,32 @@
       "enrolledAt": "Inscrit le",
       "loadFailed": "Impossible de charger les apprenants."
     },
+    "assessment": {
+      "title": "Évaluation",
+      "start": "Commencer l'évaluation",
+      "retake": "Refaire",
+      "tryAgain": "Réessayer",
+      "continueCourse": "Continuer le cours",
+      "next": "Suivant",
+      "previous": "Précédent",
+      "submit": "Soumettre l'évaluation",
+      "questionOf": "Question {current} sur {total}",
+      "questionsCount": "{count} questions",
+      "passMark": "Note de passage : {mark}%",
+      "yourScore": "Votre score",
+      "passed": "Réussi",
+      "notPassed": "Non réussi",
+      "failed": "Échoué",
+      "correct": "{correct} sur {total} correctes",
+      "resultTitle": "Évaluation terminée",
+      "attempts": "Tentatives",
+      "attempt": "Tentative {n}",
+      "noAttempts": "Aucune tentative pour l'instant",
+      "unavailable": "Cette évaluation n'est plus disponible.",
+      "submitFailed": "Impossible de soumettre votre évaluation. Veuillez réessayer.",
+      "noAccess": "Vous n'avez pas accès à cette évaluation.",
+      "bestScore": "Meilleur score : {score}%"
+    },
     "fields": {
       "title": "Titre du cours",
       "titlePlaceholder": "ex. Fondamentaux de la découverte client",
@@ -231,7 +257,10 @@
       "loadFailedCourse": "Échec du chargement du cours.",
       "saveFailed": "Échec de l'enregistrement.",
       "notEnrolled": "Vous n'êtes pas inscrit à ce cours.",
-      "userNotFound": "Aucun utilisateur trouvé avec cet e-mail ou identifiant."
+      "userNotFound": "Aucun utilisateur trouvé avec cet e-mail ou identifiant.",
+      "assessmentUnavailable": "Cette évaluation n'est plus disponible.",
+      "invalidSubmission": "Cette soumission est invalide.",
+      "answerRequired": "Veuillez répondre à toutes les questions avant de soumettre."
     }
   }
 }
