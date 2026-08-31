@@ -91,7 +91,8 @@
 | `src/lib/lms/sections.js` | getSection, createSection, updateSection, moveSection, deleteSection | Section authoring + ordering (admin). |
 | `src/lib/lms/lessons.js` | getLesson, createLesson, updateLesson, moveLesson, deleteLesson | Lesson authoring + ordering + YouTube normalization (admin). |
 | `src/lib/lms/assessments.js` | getAssessment, getQuestion, createAssessment, updateAssessment, deleteAssessment, createQuestion, updateQuestion, moveQuestion, deleteQuestion | Assessment/question authoring (admin). |
-| `src/lib/lms/learning.js` | computeCourseProgress, findContinueLesson, getLearnerCourses, getLearnerCourse, completeLesson, enrollLearner, listEnrollments | Learner experience: enrollment-gated access, deterministic progress, idempotent completion, admin enrollment enabler. |
+| `src/lib/lms/scoring.js` | scoreAssessment | **Phase 4** — pure server-side scoring: validates submitted answers against configured questions, computes correct count + `round(correct/total×100)`. Never trusts client scores. |
+| `src/lib/lms/learning.js` | computeCourseProgress, findContinueLesson, getLearnerCourses, getLearnerCourse, completeLesson, enrollLearner, listEnrollments, getAssessmentForTake, submitAssessment | Learner experience: enrollment-gated access, deterministic progress (required lessons + passed required assessments), idempotent completion, admin enrollment enabler, assessment taking + submission with server-derived attempt numbers. |
 | `src/lib/lms/index.js` | re-exports constants/youtube/validation | Canonical entry point for LMS domain modules. |
 
 ## components/lms
@@ -113,6 +114,7 @@
 | `src/components/lms/LearnerLearning.js` | LearnerLearning | My Learning: enrolled courses, progress, Continue Learning. |
 | `src/components/lms/LearnerCourse.js` | LearnerCourse | Course overview: progress, sections, resume point. |
 | `src/components/lms/LearnerPlayer.js` | LearnerPlayer | Course player: embedded YouTube, prev/next, Mark Complete, content panel. |
+| `src/components/lms/AssessmentTake.js` | AssessmentTake | **Phase 4** — learner assessment experience: entry (start/retry, pass mark, attempt history), question navigation with single-answer radio selection, server-scored submission, PASS/FAIL result views. |
 | `src/components/lms/notify.js` | notify | Toast helper (dispatches `impactos:notify` for GlobalToast). |
 
 ## lib/hooks

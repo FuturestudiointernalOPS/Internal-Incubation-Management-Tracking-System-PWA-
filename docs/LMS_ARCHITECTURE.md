@@ -316,9 +316,12 @@ never exposed to learners; archived courses remain accessible to enrolled learne
 - Storage: `lms_lesson_progress` (one row per `(enrollment_id, lesson_id)`, unique —
   completion is idempotent; a second click never duplicates the row).
 - Formula (single, deterministic — matches the future completion engine):
-  `percent = round(completed required lessons / total required lessons × 100)`. Optional
-  lessons never block completion. Edge cases: all-optional course completes when every lesson
-  is done; a course with zero lessons is 0%.
+  `percent = round(completed required components / total required components × 100)`
+  where a component is a required lesson (completed via `lms_lesson_progress`) or a
+  required assessment (counts once the learner has **passed** it — Phase 4). Optional
+  lessons and optional assessments never block completion. Edge cases: all-optional
+  course completes when every lesson is done; a course with zero lessons/required
+  components is 0%.
 - Resume/Continue: the first lesson in section/lesson order whose progress is not `completed`
   (`findContinueLesson`). Never-started → first lesson; in-progress → next incomplete;
   completed → completion state (enrollment `status = 'completed'`, `completed_at` set — this
@@ -342,3 +345,53 @@ Phase 3 requires enrollments to exist. `POST /api/lms/enrollments` (guarded by t
 `lms.enroll` capability) enrolls a learner by cid or email, idempotently. A minimal
 "Learners" modal in the course editor lists and adds learners. A full enrollment management
 suite is a later phase; self-enrollment belongs to the enrollment phase.
+
+## 11. Assessments (Phase 4)
+
+### Access model
+
+Same server-side chain as the learner course: authenticated user → valid `lms_enrollments`
+row → assessment belongs to an accessible course/section → access. Draft courses never
+serve assessments; archived courses remain takable by enrolled learners. Non-enrolled
+users get 403 even when they know the assessment ID.
+
+### Taking flow
+
+`GET /api/lms/assessments/[id]/take` returns assessment metadata + questions (options
+only — `correct_answer` is **never** exposed to learners) + the learner's attempt history.
+`POST /api/lms/assessments/[id]/submit` validates every answer against the configured
+questions, computes the score and pass/fail **server-side** (`src/lib/lms/scoring.js`),
+persists an attempt, and returns the result + refreshed course progress.
+
+### Scoring (single, deterministic)
+
+- `percent = round(correct answers / total questions × 100)` — one point per question
+  (the `points` column is persisted but does not weight V1 scoring).
+- Rounding is `Math.round`.
+- `PASS` when `percent >= pass_mark`; a NULL `pass_mark` defaults to **70**.
+- Answer validation (ticket §25): every question must be answered exactly once; question
+  IDs must belong to the assessment; MC answers must be an author-configured option key;
+  TF answers must be `true`/`false`. The client cannot submit arbitrary values, a fake
+  score, or a fake pass state.
+
+### Attempts
+
+- Unlimited retries; **every** attempt is persisted in `lms_assessment_attempts`.
+- `attempt_number` is derived server-side inside a transaction
+  (`COALESCE(MAX(attempt_number), 0) + 1`); the Phase 1 `UNIQUE(user_cid,
+  assessment_id, attempt_number)` constraint guards concurrent double-submissions
+  (one retry on conflict). The client never supplies the attempt number.
+- A passed assessment stays passed; later failures never overwrite historical attempts.
+- Partially completed in-session answers are **not** persisted — a refresh before submit
+  returns to the entry view without creating a false attempt.
+
+### Course completion integration
+
+- Passing an assessment never completes lessons and vice versa (`lms_lesson_progress` and
+  `lms_assessment_attempts` stay separate).
+- `computeCourseProgress` counts required assessments that have been passed toward
+  completion; optional assessments never block. When all required lessons are done AND
+  all required assessments are passed, the enrollment transitions to `completed`
+  (`completed_at` set) — the Phase 5-compatible state. Certificates are NOT issued here.
+- "Continue Course" after a pass returns the learner to the course overview; the
+  certificate flow belongs to Phase 5.
