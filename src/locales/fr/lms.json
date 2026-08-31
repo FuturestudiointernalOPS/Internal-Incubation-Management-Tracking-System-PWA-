@@ -93,6 +93,32 @@
       "noAccess": "Vous n'avez pas accès à cette évaluation.",
       "bestScore": "Meilleur score : {score}%"
     },
+    "certificate": {
+      "title": "Certificat d'achèvement",
+      "certifiesThat": "Ce certificat atteste que",
+      "hasCompleted": "a terminé avec succès",
+      "issuedBy": "Délivré par Future Studio",
+      "issued": "Délivré le",
+      "certificateId": "Numéro de certificat",
+      "status": "Statut",
+      "valid": "Valide",
+      "revoked": "Révoqué",
+      "courseCompleted": "Cours terminé. Votre certificat est maintenant disponible.",
+      "available": "Certificat disponible",
+      "view": "Voir le certificat",
+      "download": "Télécharger le certificat",
+      "downloaded": "Certificat téléchargé",
+      "downloadFailed": "Impossible de télécharger votre certificat. Veuillez réessayer.",
+      "loadFailed": "Impossible de charger le certificat.",
+      "verificationTitle": "Vérification de certificat",
+      "verified": "Certificat vérifié",
+      "revokedTitle": "Certificat révoqué",
+      "notFound": "Certificat introuvable.",
+      "learner": "Apprenant",
+      "course": "Cours",
+      "revokedByAdmin": "Certificat révoqué",
+      "revokeFailed": "Impossible de révoquer le certificat."
+    },
     "fields": {
       "title": "Titre du cours",
       "titlePlaceholder": "ex. Fondamentaux de la découverte client",
@@ -240,6 +266,11 @@
       "lessonNotFound": "Leçon introuvable.",
       "assessmentNotFound": "Évaluation introuvable.",
       "questionNotFound": "Question introuvable.",
+      "programIdRequired": "L'identifiant du programme est requis.",
+      "courseIdRequired": "L'identifiant du cours est requis.",
+      "programNotFound": "Programme introuvable.",
+      "requirementNotFound": "Exigence d'apprentissage introuvable.",
+      "paidCheckoutUnavailable": "Le paiement en ligne n'est pas encore disponible pour les cours payants.",
       "cannotDeleteCourse": "Seuls les brouillons sans inscriptions peuvent être supprimés.",
       "cannotDeleteWithProgress": "Ce contenu possède de la progression d'apprenant et ne peut pas être supprimé.",
       "cannotDeleteWithAttempts": "Cette évaluation possède des tentatives d'apprenants et ne peut pas être supprimée.",
@@ -260,7 +291,12 @@
       "userNotFound": "Aucun utilisateur trouvé avec cet e-mail ou identifiant.",
       "assessmentUnavailable": "Cette évaluation n'est plus disponible.",
       "invalidSubmission": "Cette soumission est invalide.",
-      "answerRequired": "Veuillez répondre à toutes les questions avant de soumettre."
+      "answerRequired": "Veuillez répondre à toutes les questions avant de soumettre.",
+      "notCompleted": "Le cours n'est pas encore terminé.",
+      "certificateNotFound": "Certificat introuvable.",
+      "noCertificateAccess": "Vous n'avez pas accès à ce certificat.",
+      "certificateRevoked": "Ce certificat a été révoqué.",
+      "certificateIssueFailed": "Impossible de délivrer le certificat."
     }
   }
 }

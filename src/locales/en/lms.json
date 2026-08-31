@@ -93,6 +93,32 @@
       "noAccess": "You don't have access to this assessment.",
       "bestScore": "Best score: {score}%"
     },
+    "certificate": {
+      "title": "Certificate of Completion",
+      "certifiesThat": "This certifies that",
+      "hasCompleted": "has successfully completed",
+      "issuedBy": "Issued by Future Studio",
+      "issued": "Issued",
+      "certificateId": "Certificate ID",
+      "status": "Status",
+      "valid": "Valid",
+      "revoked": "Revoked",
+      "courseCompleted": "Course completed. Your certificate is now available.",
+      "available": "Certificate available",
+      "view": "View Certificate",
+      "download": "Download Certificate",
+      "downloaded": "Certificate downloaded",
+      "downloadFailed": "We couldn't download your certificate. Please try again.",
+      "loadFailed": "We couldn't load the certificate.",
+      "verificationTitle": "Certificate Verification",
+      "verified": "Certificate Verified",
+      "revokedTitle": "Certificate Revoked",
+      "notFound": "Certificate not found.",
+      "learner": "Learner",
+      "course": "Course",
+      "revokedByAdmin": "Certificate revoked",
+      "revokeFailed": "We couldn't revoke the certificate."
+    },
     "fields": {
       "title": "Course title",
       "titlePlaceholder": "e.g. Customer Discovery Fundamentals",
@@ -240,6 +266,11 @@
       "lessonNotFound": "Lesson not found.",
       "assessmentNotFound": "Assessment not found.",
       "questionNotFound": "Question not found.",
+      "programIdRequired": "Program id is required.",
+      "courseIdRequired": "Course id is required.",
+      "programNotFound": "Program not found.",
+      "requirementNotFound": "Learning requirement not found.",
+      "paidCheckoutUnavailable": "Checkout is not available yet for paid courses.",
       "cannotDeleteCourse": "Only draft courses without enrollments can be deleted.",
       "cannotDeleteWithProgress": "This content has learner progress and cannot be deleted.",
       "cannotDeleteWithAttempts": "This assessment has learner attempts and cannot be deleted.",
@@ -260,7 +291,12 @@
       "userNotFound": "No user found with that email or ID.",
       "assessmentUnavailable": "This assessment is no longer available.",
       "invalidSubmission": "This submission is invalid.",
-      "answerRequired": "Please answer all questions before submitting."
+      "answerRequired": "Please answer all questions before submitting.",
+      "notCompleted": "The course is not complete yet.",
+      "certificateNotFound": "Certificate not found.",
+      "noCertificateAccess": "You don't have access to this certificate.",
+      "certificateRevoked": "This certificate has been revoked.",
+      "certificateIssueFailed": "We couldn't issue the certificate."
     }
   }
 }
