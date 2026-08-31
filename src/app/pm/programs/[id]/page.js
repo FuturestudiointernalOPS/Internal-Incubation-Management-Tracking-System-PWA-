@@ -4920,7 +4920,7 @@ function ProgramWorkspace() {
             onClick={() => setShowRequirementModal(false)}
           >
             <div
-              className="card w-full max-w-sm space-y-6"
+              className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center">
