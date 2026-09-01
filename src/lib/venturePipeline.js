@@ -249,8 +249,8 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   try {
     await createVentureNotification({
       recipient_id: submitterCid,
-      title: "Venture Approved",
-      message: `Your Venture "${companyName}" has been approved and created.`,
+      title: "Congratulations — You're Now a Venture",
+      message: `Congratulations! You have been approved to be a Venture at Future Studio. "${companyName}" is now active in your dashboard.`,
     });
     await createVentureNotification({
       recipient_id: "sa",

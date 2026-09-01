@@ -509,13 +509,13 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
               </h1>
               <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
 
-              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Your venture has been approved! 🎉</h2>
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">You have been approved to be a Venture at Future Studio! 🎉</h2>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
                 Hi <strong style="color: #f8fafc;">${name}</strong>,
               </p>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-                Great news — your venture <strong style="color: #ff6600;">${ventureName}</strong> has been
-                <strong style="color: #f8fafc;">approved</strong> and is now active on Venture OS.
+                Great news — you have been approved to be a Venture at Future Studio. Your venture
+                <strong style="color: #ff6600;">${ventureName}</strong> is now active on Venture OS.
                 ${setupUrl ? "Set your password below to access your dashboard." : "You can log in and start building."}
               </p>
 
