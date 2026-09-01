@@ -29,25 +29,35 @@ export default function DuplicatesPage() {
     try {
       const res = await fetch("/api/contacts/duplicates");
       const data = await res.json();
-      if (data.success) setFlags(data.flags || []);
-    } catch (_) {}
+      if (res.ok && data.success) setFlags(data.flags || []);
+      else notify(t(data?.error || "") || t("crm.duplicates.failedToLoad"), "error");
+    } catch (_) {
+      notify(t("crm.duplicates.failedToLoad"), "error");
+    }
     setLoading(false);
   }
 
   async function handleDismiss(flagId) {
     try {
-      await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
-      setFlags(f => f.filter(x => x.id !== flagId));
-      notify(t("crm.duplicates.duplicateFlagDismissed"), "success");
+      const res = await fetch(`/api/contacts/duplicates?id=${flagId}`, { method: "DELETE" });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setFlags(f => f.filter(x => x.id !== flagId));
+        notify(t("crm.duplicates.duplicateFlagDismissed"), "success");
+      } else {
+        notify(t(data?.error || "") || t("crm.duplicates.failedToDismiss"), "error");
+      }
     } catch (_) { notify(t("crm.duplicates.failedToDismiss"), "error"); }
   }
 
   async function handlePreview(aCid, bCid) {
     setMerging({ aCid, bCid });
+    setPreview(null);
     try {
       const res = await fetch(`/api/contacts/merge/preview?a=${aCid}&b=${bCid}`);
       const data = await res.json();
-      if (data.success) setPreview(data);
+      if (res.ok && data.success) setPreview(data);
+      else notify(t(data?.error || "") || t("crm.duplicates.failedToPreviewMerge"), "error");
     } catch (_) { notify(t("crm.duplicates.failedToPreviewMerge"), "error"); }
   }
 
