@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from "react";
+import { getDashboardSession, setDashboardSession } from "@/lib/dashboardSession";
 import {
   Sun,
   Moon,
@@ -1085,6 +1086,30 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
+
+  // Fast path: restore the cached session synchronously before first paint so
+  // navigating between pages doesn't flash an empty screen while initAuth()
+  // re-validates against the server in the background.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    // In-memory session (set by initAuth) is fresher than localStorage and
+    // survives navigation remounts — restore from it instantly while initAuth
+    // revalidates in the background.
+    const s = getDashboardSession();
+    if (s) {
+      if (s.user) setUser(s.user);
+      if (s.responsibilities) setUserResponsibilities(s.responsibilities);
+      setAuthChecked(true);
+      return;
+    }
+    try {
+      const cached = localStorage.getItem("user");
+      if (cached) {
+        setUser(JSON.parse(cached));
+        setAuthChecked(true);
+      }
+    } catch (_) {}
+  }, []);
   // Effective capability matrix for visibility projection (server remains authoritative).
   const [effectiveCaps, setEffectiveCaps] = useState(null);
 
@@ -1125,6 +1150,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
             group_name: sessionData.user.group_name,
           };
           setUser(userWithFullData);
+          setDashboardSession({ user: userWithFullData });
           // Sync localStorage for components that still read from it
           localStorage.setItem("user", JSON.stringify(userWithFullData));
 
@@ -1145,6 +1171,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                   groups: groupsData.groups,
                 };
                 setUser(updatedUser);
+                setDashboardSession({ user: updatedUser });
                 localStorage.setItem("user", JSON.stringify(updatedUser));
               }
             } catch (_) {}
@@ -1156,6 +1183,11 @@ export default function DashboardLayout({ children, role = "admin", modals, full
               const respData = await respRes.value.json();
               if (respData.success) {
                 setUserResponsibilities(respData.responsibilities || []);
+                const current = getDashboardSession() || {};
+                setDashboardSession({
+                  ...current,
+                  responsibilities: respData.responsibilities || [],
+                });
               }
             } catch (_) {}
           }
@@ -1189,12 +1221,16 @@ export default function DashboardLayout({ children, role = "admin", modals, full
           const savedUser = localStorage.getItem("user");
           if (savedUser) {
             setUser(JSON.parse(savedUser));
+            setDashboardSession({ user: JSON.parse(savedUser) });
           }
         }
       } catch (e) {
         // Network error — fallback to localStorage
         const savedUser = localStorage.getItem("user");
-        if (savedUser) setUser(JSON.parse(savedUser));
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+          setDashboardSession({ user: JSON.parse(savedUser) });
+        }
       } finally {
         setAuthChecked(true);
       }
@@ -1461,6 +1497,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       console.error("Logout error:", e);
     }
     localStorage.clear();
+    setDashboardSession(null);
     router.replace("/login");
   };
 
