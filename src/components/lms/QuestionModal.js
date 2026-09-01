@@ -204,7 +204,7 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
             <p className="text-[10px] font-bold uppercase tracking-wider ml-1 mb-2" style={{ color: "var(--text-secondary)" }}>
               {t("lms.questions.correctAnswer")}
             </p>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {["true", "false"].map((val) => (
                 <label
                   key={val}

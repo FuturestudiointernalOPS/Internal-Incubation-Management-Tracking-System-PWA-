@@ -20,7 +20,7 @@ export default function CoursePreviewModal({ isOpen, onClose, course }) {
 
   return (
     <AppModal isOpen={isOpen} onClose={onClose} title={t("lms.preview.title")} size="xl">
-      <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-1">
+      <div className="space-y-6 max-h-[60vh] sm:max-h-[65vh] overflow-y-auto pr-1">
         {/* Course summary */}
         <div className="rounded-xl border p-4" style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}>
           <p className="text-sm font-black" style={{ color: "var(--text-primary)" }}>

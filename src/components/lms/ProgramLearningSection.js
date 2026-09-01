@@ -238,7 +238,7 @@ export default function ProgramLearningSection({
         title={t("lms.programLearning.pickTitle")}
         size="lg"
       >
-        <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        <div className="space-y-2 max-h-[60vh] sm:max-h-[420px] overflow-y-auto pr-1">
           {courses === null ? (
             <div className="flex justify-center py-10">
               <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />

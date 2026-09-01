@@ -95,7 +95,7 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
               {enrollments.map((e) => (
                 <div
                   key={e.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border"
+                  className="flex items-center gap-3 p-3 rounded-lg border flex-wrap"
                   style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
                 >
                   <div className="flex-1 min-w-0">
@@ -106,7 +106,7 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
                       {e.learner?.email || e.user_cid} · {t(`lms.status.${e.status}`)?.replace("lms.status.", "") || e.status}
                     </p>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                  <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
                     {e.source} · {formatDate(e.enrolled_at)}
                   </span>
                 </div>

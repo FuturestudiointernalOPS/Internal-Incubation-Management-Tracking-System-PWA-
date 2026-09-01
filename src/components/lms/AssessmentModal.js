@@ -203,7 +203,7 @@ export default function AssessmentModal({
               {questions.map((q, index) => (
                 <div
                   key={q.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border"
+                  className="flex items-center gap-3 p-3 rounded-lg border flex-wrap"
                   style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
                 >
                   <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
@@ -216,7 +216,7 @@ export default function AssessmentModal({
                       {t("lms.questions.points")}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => moveQuestion(q, "up")}
