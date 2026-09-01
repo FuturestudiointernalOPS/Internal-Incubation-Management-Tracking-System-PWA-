@@ -24,7 +24,7 @@ export default function AppModal({ isOpen, onClose, title, children, size = "md"
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[500] flex items-center justify-center p-3 sm:p-6">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -39,18 +39,18 @@ export default function AppModal({ isOpen, onClose, title, children, size = "md"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className={`relative w-full ${widthMap[size] || widthMap.md} rounded-2xl p-8 shadow-2xl max-h-[85vh] overflow-y-auto`}
+            className={`relative w-full ${widthMap[size] || widthMap.md} rounded-2xl p-4 sm:p-6 lg:p-8 shadow-2xl max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-contain`}
             style={{ background: "var(--surface-1)", border: "1px solid var(--border-primary)" }}
           >
             {/* Header */}
             {title && (
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-bold uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
+              <div className="flex items-center justify-between gap-3 mb-6">
+                <h2 className="text-base sm:text-lg font-bold uppercase tracking-tight min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
                   {title}
                 </h2>
                 <button
                   onClick={onClose}
-                  className="p-2 rounded-lg transition-all hover:rotate-90"
+                  className="p-2 rounded-lg transition-all hover:rotate-90 shrink-0"
                   style={{ color: "var(--text-tertiary)" }}
                 >
                   <X className="w-5 h-5" />
