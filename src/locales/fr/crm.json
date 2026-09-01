@@ -224,6 +224,7 @@
       "title": "Doublons",
       "refresh": "Actualiser",
       "loading": "Chargement...",
+      "failedToLoad": "Impossible de charger les doublons.",
       "noDuplicates": "Aucun doublon trouvé",
       "noDuplicatesHint": "Vos contacts sont tous uniques pour le moment.",
       "match": "Correspondance · {reason} · {confidence}%",
