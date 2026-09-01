@@ -393,6 +393,8 @@
       "validationTitle": "Validation",
       "workflowAutomationActions": "Automation Actions",
       "workflowAutomationHint": "What happens automatically after form events. Defaults to full Program Application workflow.",
+      "ventureFormLabel": "This is the Venture Application form",
+      "ventureFormDesc": "Approving a submission of this form creates a Venture (Form → Run → Submission → Review → Approval → Venture).",
       "workflowConfigTitle": "Workflow Configuration",
       "workflowDecisionButtons": "Decision Buttons",
       "workflowHint": "Customize the decision labels and status names for this form's review workflow. Leave empty to use defaults (Approve / Reject / Request Revision).",
