@@ -10,6 +10,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function SuperAdminExecutiveView({ params }) {
   const unwrappedParams = use(params);
@@ -70,12 +71,16 @@ export default function SuperAdminExecutiveView({ params }) {
     fetchData();
   }, [id]);
 
-  const fetchData = async () => {
-    try {
+  const fetchData = async (bypassCache = false) => {
+    const urls = [
+      `/api/pm/full-state?id=${id}`,
+      `/api/teacher/reports?program_id=${id}`,
+      `/api/followups?program_id=${id}`,
+      `/api/attendance?program_id=${id}`,
+    ];
+    const apply = (progData, reportData, followupData, attData) => {
       // 1. Program & Curriculum
-      const progRes = await fetch(`/api/pm/full-state?id=${id}`);
-      const progData = await progRes.json();
-      if (progData.success) {
+      if (progData?.success) {
         setProgram(progData.program);
         setSessions(progData.sessions || []);
         setRequirements(progData.documents || []);
@@ -85,23 +90,41 @@ export default function SuperAdminExecutiveView({ params }) {
       }
 
       // 2. Weekly Reports
-      const reportRes = await fetch(`/api/teacher/reports?program_id=${id}`);
-      const reportData = await reportRes.json();
-      if (reportData.success) setReports(reportData.reports || []);
+      if (reportData?.success) setReports(reportData.reports || []);
 
       // 3. Follow-ups
-      const followupRes = await fetch(`/api/followups?program_id=${id}`);
-      const followupData = await followupRes.json();
-      if (followupData.success) setFollowups(followupData.followups || []);
+      if (followupData?.success) setFollowups(followupData.followups || []);
 
       // 4. Attendance (presence marks per session — drives the auto "Présence" task)
-      const attRes = await fetch(`/api/attendance?program_id=${id}`);
-      const attData = await attRes.json();
-      if (attData.success) setAttendance(attData.attendance || []);
-
+      if (attData?.success) setAttendance(attData.attendance || []);
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the lists always
+      // reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setIsLoaded(true);
+          painted = true;
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2], responses[3]);
       setIsLoaded(true);
     } catch (e) {
-      console.error(e);
+      if (!painted) console.error(e);
       setIsLoaded(true);
     }
   };
@@ -122,7 +145,7 @@ export default function SuperAdminExecutiveView({ params }) {
       });
       if ((await res.json()).success) {
         setNewFollowup({ week: null, session_id: null, comment: '' });
-        fetchData();
+        fetchData(true);
       }
     } catch (e) {
       console.error(e);
@@ -158,7 +181,7 @@ export default function SuperAdminExecutiveView({ params }) {
       if (res && (await res.json()).success) {
         setKpiForm({ title: '', target_value: '' });
         setIsEditingKpi(null);
-        fetchData();
+        fetchData(true);
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: action === 'create' ? t("adminMisc.programDetail.kpiCreated") : action === 'update' ? t("adminMisc.programDetail.kpiUpdated") : t("adminMisc.programDetail.kpiDeleted") } }));
       }
     } catch (e) {
