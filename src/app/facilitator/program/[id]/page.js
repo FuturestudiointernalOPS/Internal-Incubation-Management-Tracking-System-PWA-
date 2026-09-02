@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import {
   ChevronLeft,
   Users,
@@ -11,6 +11,10 @@ import {
   Loader2,
   LayoutDashboard,
   BookOpen,
+  ExternalLink,
+  MessageSquareText,
+  RotateCcw,
+  XCircle,
 } from "lucide-react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
@@ -496,7 +500,7 @@ export default function FacilitatorProgram({ params }) {
               </p>
             )}
             {submissions.map((s) => (
-              <SubmissionRow key={s.id} sub={s} onReview={reviewSubmission} />
+              <SubmissionRow key={s.id} sub={s} onReview={reviewSubmission} t={t} />
             ))}
           </div>
         )}
@@ -751,9 +755,25 @@ function ReviewSummaryRow({ label, value, note }) {
   );
 }
 
-function SubmissionRow({ sub, onReview }) {
+const MAX_FEEDBACK_HEIGHT = 240; // px — beyond this the box scrolls internally
+
+function SubmissionRow({ sub, onReview, t }) {
   const [feedback, setFeedback] = useState(sub.feedback || "");
   const [expanded, setExpanded] = useState(false);
+  const textareaRef = useRef(null);
+
+  // Auto-grow the textarea with its content so long suggestions stay readable
+  // instead of being trapped behind a fixed 2-row box.
+  useEffect(() => {
+    if (!expanded) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const overflows = el.scrollHeight > MAX_FEEDBACK_HEIGHT;
+    el.style.height = `${overflows ? MAX_FEEDBACK_HEIGHT : el.scrollHeight}px`;
+    el.style.overflowY = overflows ? "auto" : "hidden";
+  }, [expanded, feedback]);
+
   return (
     <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
       <button
@@ -783,42 +803,72 @@ function SubmissionRow({ sub, onReview }) {
         </span>
       </button>
       {expanded && (
-        <div className="space-y-2 pt-2">
-          {sub.file_url && (
-            <a
-              href={sub.file_url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[9px] font-black uppercase text-blue-400 hover:underline"
-            >
-              View submission ↗
-            </a>
-          )}
-          <textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            rows={2}
-            placeholder="Feedback…"
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
-          />
-          <div className="flex gap-2">
+        <div className="space-y-2.5 pt-2">
+          {/* Feedback composer */}
+          <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor={`submission-feedback-${sub.id}`}
+                className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
+              >
+                <MessageSquareText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
+                {t("pmMisc.submissions.feedbackLabel")}
+              </label>
+              {sub.file_url && (
+                <a
+                  href={sub.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[8px] font-black text-blue-400 hover:underline shrink-0"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" />
+                  {t("pmMisc.submissions.viewSubmissionFile")}
+                </a>
+              )}
+            </div>
+            <textarea
+              id={`submission-feedback-${sub.id}`}
+              ref={textareaRef}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={3}
+              placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
+              className="w-full resize-none overflow-hidden bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[11px] font-medium leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:font-normal outline-none focus:border-[var(--brand-orange)] transition-colors"
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                {t("pmMisc.submissions.feedbackHint")}
+              </p>
+              {feedback.length > 0 && (
+                <span className="text-[8px] font-black tabular-nums text-[var(--text-tertiary)] shrink-0">
+                  {t("pmMisc.submissions.charCount", { count: feedback.length })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Decision actions */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onReview(sub.id, "approved", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
             >
-              Approve
+              <CheckCircle2 className="w-3 h-3" />
+              {t("pmMisc.submissions.approve")}
             </button>
             <button
               onClick={() => onReview(sub.id, "revision_requested", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
             >
-              Request revision
+              <RotateCcw className="w-3 h-3" />
+              {t("pmMisc.submissions.requestRevision")}
             </button>
             <button
               onClick={() => onReview(sub.id, "rejected", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors"
             >
-              Reject
+              <XCircle className="w-3 h-3" />
+              {t("pmMisc.submissions.reject")}
             </button>
           </div>
         </div>
