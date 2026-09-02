@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, RefreshCw,
   Building2, Globe, Linkedin, DollarSign, Target, TrendingUp, Users, Star,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
@@ -25,19 +26,46 @@ export default function VentureInvestorsPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, mRes, iRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/investors?type=matches`),
-        fetch(`/api/ventures/${id}/investors?type=directory`),
-      ]);
-      const v = await vRes.json(); const m = await mRes.json(); const i = await iRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/investors?type=matches`,
+      `/api/ventures/${id}/investors?type=directory`,
+    ];
+    const apply = (v, m, i) => {
       if (v.success) setVenture(v.venture);
       if (m.success) setMatches(m.matches || []);
       if (i.success) setAllInvestors(i.investors || []);
-    } catch {} finally { setLoading(false); }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the
+      // investor lists always reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [vRes, mRes, iRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+      ]);
+      const v = await vRes.json(); const m = await mRes.json(); const i = await iRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (m.success) cacheSet(urls[1], m);
+      if (i.success) cacheSet(urls[2], i);
+      apply(v, m, i);
+    } catch (e) {
+      if (!painted) console.error("Failed to load investors data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -57,7 +85,7 @@ export default function VentureInvestorsPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update_match", match_id: matchId, status }),
     });
-    fetchAll();
+    fetchAll(true);
   };
 
   const handleCreateInvestor = async () => {
@@ -70,7 +98,7 @@ export default function VentureInvestorsPage() {
     setSaving(false);
     setShowCreateModal(false);
     setInvForm({ name: "", email: "", organization: "", industries: "", preferred_stage: "" });
-    fetchAll();
+    fetchAll(true);
   };
 
   const progressBar = (pct) => (
