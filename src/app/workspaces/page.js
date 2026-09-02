@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
 
 /**
@@ -39,21 +40,41 @@ export default function WorkspacesPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/workspaces")
-      .then(async (r) => {
-        if (r.status === 401) {
-          router.replace("/login");
-          return null;
-        }
-        return r.json();
-      })
-      .then((d) => {
+    const loadWorkspaces = async (bypassCache = false) => {
+      const url = "/api/workspaces";
+      const apply = (d) => {
         if (!d) return;
         if (d.success) setData(d);
         else setError(true);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      };
+      let painted = false;
+      setLoading(true);
+      try {
+        // Cache-first paint: returning to this page renders instantly from a fresh
+        // snapshot; the network refresh below converges.
+        if (!bypassCache) {
+          const cached = cacheGet(url);
+          if (cached !== null && cached.success) {
+            apply(cached);
+            setLoading(false);
+            painted = true;
+          }
+        }
+        const res = await fetch(url);
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        const d = await res.json();
+        if (d.success) cacheSet(url, d);
+        apply(d);
+      } catch (_) {
+        if (!painted) setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWorkspaces();
   }, [router]);
 
   const handleLogout = async () => {
