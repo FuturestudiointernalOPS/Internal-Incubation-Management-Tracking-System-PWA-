@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent, isTaskLocked } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
@@ -10,6 +10,55 @@ import {
   getTaskTitleById,
   getTaskEndDateById,
 } from "@/lib/db/queries/tasks";
+import {
+  assignTaskToUser,
+  completeSubtasks,
+  countIncompleteSubtasks,
+  createTask,
+  deleteBlockersForTaskAndSubtasks,
+  deleteSubtasksForTask,
+  deleteTaskById,
+  getActiveBlockersForTask,
+  getActiveBlockersForTaskWithTitle,
+  getActiveBlockersOnSubtasks,
+  getActiveSuperAdminCids,
+  getActiveSuperAdmins,
+  getBlockersForTask,
+  getBlockersForTasks,
+  getCommentCountsForTasks,
+  getContactNameByCid,
+  getContactRoleByCid,
+  getIntentResponsibleId,
+  getParentProjectCategory,
+  getPendingAssignmentByTaskAndAssignee,
+  getPendingAssignmentById,
+  getPendingAssignmentId,
+  getProjectMembership,
+  getProjectOwnerId,
+  getProjectStatus,
+  getResourcesForTasks,
+  getSubtasksForTask,
+  getSubtasksForTasks,
+  getSuperAdminContact,
+  getTaskDeleteInfo,
+  getTaskEndDateRowById,
+  getTaskRowById,
+  getTasksByFilters,
+  getTaskStandupInfo,
+  getTaskTitleRowById,
+  incrementTaskRescheduleCount,
+  insertNotification,
+  insertNotificationWithCreatedAt,
+  insertProjectApprovalRequest,
+  insertTaskAssignment,
+  insertTaskAuditLog,
+  markTaskCompleted,
+  reopenCompletedTask,
+  reopenCompletedSubtasks,
+  updateAssignmentStatus,
+  updateTaskEndDate,
+  updateTaskFields,
+} from "@/models/tasks";
 
 /**
  * TASKS API
@@ -114,13 +163,8 @@ export async function GET(req) {
     const brief = searchParams.get("brief") === "true";
     const priority = searchParams.get("priority");
 
-    let sql = "SELECT * FROM tasks WHERE 1=1";
-    const args = [];
-
     if (id) {
-      sql += " AND id = ?";
-      args.push(parseInt(id));
-      const result = await db.execute({ sql, args });
+      const result = await getTaskRowById(parseInt(id));
       if (result.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Task not found" },
@@ -144,14 +188,8 @@ export async function GET(req) {
       }
 
       // Fetch blockers + subtasks for this single task
-      const blockerRes = await db.execute({
-        sql: "SELECT id, title, status, severity, description, reference_url, notes FROM blockers WHERE task_id = ?",
-        args: [parseInt(id)],
-      });
-      const subtaskRes = await db.execute({
-        sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ?",
-        args: [parseInt(id)],
-      });
+      const blockerRes = await getBlockersForTask(parseInt(id));
+      const subtaskRes = await getSubtasksForTask(parseInt(id));
       return NextResponse.json({
         success: true,
         tasks: [
@@ -166,19 +204,15 @@ export async function GET(req) {
 
     // SECURITY (Phase 0/6): For non-SA users, scope to: owned tasks, assigned tasks, or supervised tasks.
     // When an explicit assigned_to filter is given, use that. Otherwise scope by session user.
+    // (The SQL for each scope is assembled in src/models/tasks.js — getTasksByFilters.)
+    let scope;
     if (session.role !== "super_admin") {
       if (!user_id && !assigned_to) {
         // No user/assignee filter given (with or without project_id): force scope to session user
-        sql += " AND (user_id = ? OR assigned_to = ? OR supervisor_id = ?)";
-        args.push(sessionCid, sessionCid, sessionCid);
+        scope = "self";
       } else if (effectiveUserId) {
         // Explicit user_id filter (pre-authorized above): scope to that user
-        sql += " AND user_id = ?";
-        args.push(effectiveUserId);
-        if (assigned_to) {
-          sql += " AND assigned_to = ?";
-          args.push(assigned_to);
-        }
+        scope = "user";
       } else if (assigned_to) {
         // Non-SA requesting by assigned_to: only allow viewing own assignments
         if (assigned_to !== sessionCid) {
@@ -187,68 +221,24 @@ export async function GET(req) {
             { status: 403 },
           );
         }
-        sql += " AND assigned_to = ?";
-        args.push(assigned_to);
-      }
-    } else {
-      // Super admin: apply filters as requested
-      if (effectiveUserId) {
-        sql += " AND user_id = ?";
-        args.push(effectiveUserId);
-      }
-      if (assigned_to) {
-        sql += " AND assigned_to = ?";
-        args.push(assigned_to);
+        scope = "assigned";
       }
     }
 
-    if (project_id_filter) {
-      sql += " AND project_id::text = ?";
-      args.push(project_id_filter);
-    }
-
-    if (status) {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-
-    if (priority) {
-      sql += " AND priority = ?";
-      args.push(priority);
-    }
-
-    if (week_number) {
-      sql += " AND created_week = ?";
-      args.push(parseInt(week_number));
-    }
-
-    if (year) {
-      sql += " AND created_year = ?";
-      args.push(parseInt(year));
-    }
-
-    // Sorting
-    switch (sort) {
-      case "oldest":
-        sql += " ORDER BY created_at ASC";
-        break;
-      case "updated":
-        sql += " ORDER BY updated_at DESC";
-        break;
-      case "priority":
-        sql +=
-          " ORDER BY CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, created_at DESC";
-        break;
-      default:
-        sql += " ORDER BY created_at DESC";
-    }
-
-    if (limit) {
-      sql += " LIMIT ?";
-      args.push(parseInt(limit));
-    }
-
-    const result = await db.execute({ sql, args });
+    const result = await getTasksByFilters({
+      isSuperAdmin: session.role === "super_admin",
+      scope,
+      sessionCid,
+      effectiveUserId,
+      assignedTo: assigned_to,
+      projectId: project_id_filter,
+      status,
+      priority,
+      week: week_number,
+      year,
+      sort,
+      limit,
+    });
 
     // For brief fetches (tasks tab), skip blockers/subtasks to avoid N+1 perf hit
     if (brief) {
@@ -265,10 +255,7 @@ export async function GET(req) {
 
     if (taskIds.length > 0) {
       // Single batch query for all blockers
-      const blockerRes = await db.execute({
-        sql: `SELECT id, title, status, severity, description, reference_url, notes, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
-        args: taskIds,
-      });
+      const blockerRes = await getBlockersForTasks(taskIds);
       for (const b of blockerRes.rows || []) {
         const tid = b.task_id;
         if (!blockersByTask[tid]) blockersByTask[tid] = [];
@@ -285,15 +272,7 @@ export async function GET(req) {
 
       // Single batch query for all subtasks — include full field set (Ticket 1.3)
       try {
-        const subtaskRes = await db.execute({
-          sql: `SELECT id, title, description, status, priority, assigned_to,
-                        start_date, end_date, created_week, created_year,
-                        link, parent_task_id
-                FROM tasks
-                WHERE parent_task_id IN (${taskIds.map(() => "?").join(",")})
-                ORDER BY created_at ASC`,
-          args: taskIds,
-        });
+        const subtaskRes = await getSubtasksForTasks(taskIds);
         for (const s of subtaskRes.rows || []) {
           const pid = s.parent_task_id;
           if (!subtasksByTask[pid]) subtasksByTask[pid] = [];
@@ -306,10 +285,7 @@ export async function GET(req) {
 
       // Single batch query for all resources (tasks + subtasks)
       try {
-        const resourceRes = await db.execute({
-          sql: `SELECT id, name, url, task_id, type, file_name, file_size, uploaded_by FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
-          args: allTaskIds,
-        });
+        const resourceRes = await getResourcesForTasks(allTaskIds);
         for (const r of resourceRes.rows || []) {
           const tid = r.task_id;
           if (!resourcesByTask[tid]) resourcesByTask[tid] = [];
@@ -329,10 +305,7 @@ export async function GET(req) {
 
       // Comment counts (tasks + subtasks) — full thread fetched on-demand per task
       try {
-        const commentRes = await db.execute({
-          sql: `SELECT task_id, COUNT(*) AS cnt FROM v2_task_comments WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) GROUP BY task_id`,
-          args: allTaskIds,
-        });
+        const commentRes = await getCommentCountsForTasks(allTaskIds);
         for (const c of commentRes.rows || []) {
           commentCountByTask[c.task_id] = parseInt(c.cnt) || 0;
         }
@@ -429,10 +402,7 @@ export async function POST(req) {
     let finalCategory = category;
     if (parent_task_id && !finalProjectId && !finalCategory) {
       try {
-        const parentRes = await db.execute({
-          sql: "SELECT project_id, category FROM tasks WHERE id = ?",
-          args: [parseInt(parent_task_id)],
-        });
+        const parentRes = await getParentProjectCategory(parseInt(parent_task_id));
         if (parentRes.rows.length > 0) {
           const p = parentRes.rows[0];
           if (!finalProjectId && p.project_id)
@@ -450,10 +420,7 @@ export async function POST(req) {
     // Prevent task creation on closed projects
     if (finalProjectId) {
       try {
-        const projCheck = await db.execute({
-          sql: "SELECT status FROM v2_projects WHERE id::text = ?",
-          args: [finalProjectId],
-        });
+        const projCheck = await getProjectStatus(finalProjectId);
         if (
           projCheck.rows.length > 0 &&
           (projCheck.rows[0].status === "Closed" ||
@@ -514,10 +481,7 @@ export async function POST(req) {
     // If task has a project but no assignee, default to project owner
     if (!finalAssignedTo && finalProjectId) {
       try {
-        const ownerRes = await db.execute({
-          sql: "SELECT owner_id FROM v2_projects WHERE id::text = ?",
-          args: [String(finalProjectId)],
-        });
+        const ownerRes = await getProjectOwnerId(finalProjectId);
         if (ownerRes.rows.length > 0 && ownerRes.rows[0].owner_id) {
           finalAssignedTo = ownerRes.rows[0].owner_id;
         }
@@ -527,10 +491,7 @@ export async function POST(req) {
     // Prevent assigning to super_admin (unless the creator IS the super admin assigning to themselves)
     if (finalAssignedTo) {
       try {
-        const saCheck = await db.execute({
-          sql: "SELECT role FROM contacts WHERE cid = ? AND role = 'super_admin'",
-          args: [finalAssignedTo],
-        });
+        const saCheck = await getSuperAdminContact(finalAssignedTo);
         if (saCheck.rows.length > 0 && finalAssignedTo !== user_id) {
           return NextResponse.json(
             {
@@ -576,37 +537,27 @@ export async function POST(req) {
       ? priority
       : "medium";
 
-    const result = await db.execute({
-      sql: `INSERT INTO tasks
-        (user_id, user_name, title, description, status, project_id, category,
-         created_week, created_year, carried_over_from_task_id,
-         parent_task_id, start_date, end_date, assigned_to, link, priority,
-         context_type, context_id, supervisor_id, intent_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                 ?, ?, ?, ?)
-         RETURNING id`,
-      args: [
-        user_id,
-        user_name || "",
-        title,
-        description || null,
-        finalStatus,
-        finalProjectId || null,
-        finalCategory || null,
-        created_week,
-        created_year,
-        carried_over_from_task_id || null,
-        parent_task_id || null,
-        finalStartDate,
-        finalEndDate,
-        effectiveAssignedTo,
-        link || null,
-        finalPriority,
-        context_type || "staff",
-        context_id || null,
-        supervisor_id || null,
-        intent_id || null,
-      ],
+    const result = await createTask({
+      user_id,
+      user_name,
+      title,
+      description,
+      status: finalStatus,
+      project_id: finalProjectId,
+      category: finalCategory,
+      created_week,
+      created_year,
+      carried_over_from_task_id,
+      parent_task_id,
+      start_date: finalStartDate,
+      end_date: finalEndDate,
+      assigned_to: effectiveAssignedTo,
+      link,
+      priority: finalPriority,
+      context_type,
+      context_id,
+      supervisor_id,
+      intent_id,
     });
 
     const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);
@@ -617,26 +568,14 @@ export async function POST(req) {
     //   - Any incomplete subtask exists → completed parent reopens to in_progress
     if (parent_task_id) {
       try {
-        const incompleteSubs = await db.execute({
-          sql: "SELECT COUNT(*) AS total FROM tasks WHERE parent_task_id = ? AND status NOT IN ('completed', 'archived')",
-          args: [parseInt(parent_task_id)],
-        });
+        const incompleteSubs = await countIncompleteSubtasks(parseInt(parent_task_id));
         if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
-          const parentBlockerRes = await db.execute({
-            sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active'",
-            args: [parseInt(parent_task_id)],
-          });
+          const parentBlockerRes = await getActiveBlockersForTask(parseInt(parent_task_id));
           if (parentBlockerRes.rows.length === 0) {
-            await db.execute({
-              sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived' AND status != 'completed'`,
-              args: [parseInt(parent_task_id)],
-            });
+            await markTaskCompleted(parseInt(parent_task_id));
           }
         } else {
-          await db.execute({
-            sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'completed'`,
-            args: [parseInt(parent_task_id)],
-          });
+          await reopenCompletedTask(parseInt(parent_task_id));
         }
       } catch (_) {}
     }
@@ -685,32 +624,22 @@ export async function POST(req) {
           (await getTaskTitleById(parent_task_id)) || "Unknown";
 
         // Fetch all super admins
-        const saRes = await db.execute({
-          sql: "SELECT cid, name FROM contacts WHERE role = 'super_admin' AND status = 'active'",
-          args: [],
-        });
+        const saRes = await getActiveSuperAdmins();
 
         for (const sa of saRes.rows) {
-          await db.execute({
-            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                  VALUES (?, ?, ?, ?, 0, NOW())`,
-            args: [
-              sa.cid,
-              "New Sub-task Created",
-              `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
-              "subtask",
-            ],
-          });
+          await insertNotificationWithCreatedAt(
+            sa.cid,
+            "New Sub-task Created",
+            `${user_name || user_id} added sub-task "${title}" under "${parentTitle}"`,
+            "subtask",
+          );
         }
       } catch (_) {}
     }
 
     // ─── Auto-upsert weekly standup (unified task→standup sync) ───
     try {
-      const userRes = await db.execute({
-        sql: "SELECT role FROM contacts WHERE cid = ? LIMIT 1",
-        args: [user_id],
-      });
+      const userRes = await getContactRoleByCid(user_id);
       const userRole = userRes.rows[0]?.role || "staff";
 
       await standupUpsert({
@@ -729,31 +658,22 @@ export async function POST(req) {
     // If assigned to someone else, create pending assignment (requires accept/decline)
     if (needsAssignment) {
       try {
-        await db.execute({
-          sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
-          args: [taskId, user_id, finalAssignedTo],
-        });
+        await insertTaskAssignment(taskId, user_id, finalAssignedTo);
         // Notify assignee — resolve display name if not provided
         const taskRef = title || "#" + taskId;
         let notifyName = user_name;
         if (!notifyName) {
           try {
-            const nameRes = await db.execute({
-              sql: "SELECT name FROM contacts WHERE cid = ?",
-              args: [user_id],
-            });
+            const nameRes = await getContactNameByCid(user_id);
             if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
           } catch (_) {}
         }
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-          args: [
-            finalAssignedTo,
-            "New Task Assignment",
-            `${notifyName || user_id} assigned you task "${taskRef}"`,
-            "task_assignment",
-          ],
-        });
+        await insertNotification(
+          finalAssignedTo,
+          "New Task Assignment",
+          `${notifyName || user_id} assigned you task "${taskRef}"`,
+          "task_assignment",
+        );
       } catch (e) {
         console.error("Task assignment creation failed:", e.message);
       }
@@ -767,10 +687,7 @@ export async function POST(req) {
           const parentEnd = new Date(parentEndStr);
           const subEnd = new Date(finalEndDate);
           if (subEnd > parentEnd) {
-            await db.execute({
-              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
-              args: [finalEndDate, parseInt(parent_task_id)],
-            });
+            await updateTaskEndDate(finalEndDate, parseInt(parent_task_id));
           }
         }
       } catch (_) {}
@@ -923,19 +840,10 @@ export async function PUT(req) {
 
     // Phase 5/7: Task completion protection
     if (status === "completed") {
-      const activeBlockers = await db.execute({
-        sql: "SELECT id, title FROM blockers WHERE task_id = ? AND status = 'active'",
-        args: [parseInt(id)],
-      });
+      const activeBlockers = await getActiveBlockersForTaskWithTitle(parseInt(id));
 
       // Also check blockers on subtasks (Rule 25)
-      const subtaskBlockers = await db.execute({
-        sql: `SELECT b.id, b.title, b.task_id, t.title AS task_title
-              FROM blockers b
-              JOIN tasks t ON b.task_id = t.id
-              WHERE t.parent_task_id = ? AND b.status = 'active'`,
-        args: [parseInt(id)],
-      });
+      const subtaskBlockers = await getActiveBlockersOnSubtasks(parseInt(id));
 
       const allBlockers = [
         ...activeBlockers.rows.map((b) => ({ ...b, source: "task" })),
@@ -997,27 +905,19 @@ export async function PUT(req) {
 
       if (projectChanged && project_id) {
         // Phase 5: Re-validate project assignment on change
-        const memberCheck = await db.execute({
-          sql: "SELECT id FROM project_members WHERE project_id = ? AND user_cid = ?",
-          args: [project_id, user_id || task.user_id],
-        });
+        const memberCheck = await getProjectMembership(project_id, user_id || task.user_id);
 
         if (memberCheck.rows.length === 0) {
           // Staff not assigned — reset to pending approval
           updateFields.push("status = 'pending_project_approval'");
           // Create new approval request
           try {
-            await db.execute({
-              sql: `INSERT INTO project_approval_requests
-                (task_id, requester_id, requester_name, project_id, status)
-                VALUES (?, ?, ?, ?, 'pending')`,
-              args: [
-                parseInt(id),
-                user_id || task.user_id,
-                user_name || task.user_name || "",
-                project_id,
-              ],
-            });
+            await insertProjectApprovalRequest(
+              parseInt(id),
+              user_id || task.user_id,
+              user_name || task.user_name || "",
+              project_id,
+            );
           } catch (e) {
             console.error(
               "Failed to insert project_approval_request:",
@@ -1052,10 +952,7 @@ export async function PUT(req) {
       // Auto-populate supervisor from intent if not explicitly set
       if (intent_id && !supervisor_id && !task.supervisor_id) {
         try {
-          const intentRes = await db.execute({
-            sql: "SELECT responsible_id FROM intents WHERE id = ?",
-            args: [intent_id],
-          });
+          const intentRes = await getIntentResponsibleId(intent_id);
           if (intentRes.rows.length > 0 && intentRes.rows[0].responsible_id) {
             updateFields.push("supervisor_id = ?");
             updateArgs.push(intentRes.rows[0].responsible_id);
@@ -1120,39 +1017,27 @@ export async function PUT(req) {
         auditDetails = `Task "${task.title}" pending assignment to user ${assigned_to}`;
 
         // Guard against duplicate pending rows
-        const dupCheck = await db.execute({
-          sql: "SELECT id FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
-          args: [parseInt(id), assigned_to],
-        });
+        const dupCheck = await getPendingAssignmentId(parseInt(id), assigned_to);
 
         if (dupCheck.rows.length === 0) {
-          await db.execute({
-            sql: "INSERT INTO task_assignments (task_id, assigner_id, assignee_id) VALUES (?, ?, ?)",
-            args: [parseInt(id), effectiveUserId, assigned_to],
-          });
+          await insertTaskAssignment(parseInt(id), effectiveUserId, assigned_to);
         }
 
         // Notify assignee via v2_notifications with richer messaging
         let notifyName = user_name || session.name;
         if (!notifyName) {
           try {
-            const nameRes = await db.execute({
-              sql: "SELECT name FROM contacts WHERE cid = ?",
-              args: [effectiveUserId],
-            });
+            const nameRes = await getContactNameByCid(effectiveUserId);
             if (nameRes.rows.length > 0) notifyName = nameRes.rows[0].name;
           } catch (_) {}
         }
         try {
-          await db.execute({
-            sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-            args: [
-              assigned_to,
-              "New Task Assignment",
-              `${notifyName || effectiveUserId} assigned you task "${task.title}" — please accept or decline this assignment.`,
-              "task_assignment",
-            ],
-          });
+          await insertNotification(
+            assigned_to,
+            "New Task Assignment",
+            `${notifyName || effectiveUserId} assigned you task "${task.title}" — please accept or decline this assignment.`,
+            "task_assignment",
+          );
         } catch (notifErr) {
           console.error("Assignment notification failed:", notifErr.message);
         }
@@ -1254,18 +1139,12 @@ export async function PUT(req) {
     updateFields.push("updated_at = CURRENT_TIMESTAMP");
     updateArgs.push(parseInt(id));
 
-    await db.execute({
-      sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
-      args: updateArgs,
-    });
+    await updateTaskFields(updateFields, updateArgs);
 
     // ─── Sync parent end_date if subtask extends further ───
     if (task.parent_task_id && end_date !== undefined) {
       try {
-        const parentEndRes = await db.execute({
-          sql: "SELECT end_date FROM tasks WHERE id = ?",
-          args: [parseInt(task.parent_task_id)],
-        });
+        const parentEndRes = await getTaskEndDateRowById(parseInt(task.parent_task_id));
         if (parentEndRes.rows.length > 0) {
           const subEnd = new Date(end_date || task.end_date);
           const currentParentEndStr = parentEndRes.rows[0].end_date;
@@ -1281,10 +1160,7 @@ export async function PUT(req) {
           }
 
           if (shouldUpdateParent) {
-            await db.execute({
-              sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
-              args: [end_date || task.end_date, parseInt(task.parent_task_id)],
-            });
+            await updateTaskEndDate(end_date || task.end_date, parseInt(task.parent_task_id));
           }
         }
       } catch (_) {}
@@ -1293,28 +1169,18 @@ export async function PUT(req) {
     // ─── Auto-complete sub-tasks when parent is completed ───
     if (status === "completed" && status !== task.status) {
       try {
-        const updatedSubs = await db.execute({
-          sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE parent_task_id = ? AND status != 'completed' AND status != 'archived'`,
-          args: [parseInt(id)],
-        });
+        const updatedSubs = await completeSubtasks(parseInt(id));
 
         // Notify super admins when sub-tasks are auto-completed
         if (updatedSubs.rowsAffected > 0) {
-          const saRes = await db.execute({
-            sql: "SELECT cid FROM contacts WHERE role = 'super_admin' AND status = 'active'",
-            args: [],
-          });
+          const saRes = await getActiveSuperAdminCids();
           for (const sa of saRes.rows) {
-            await db.execute({
-              sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                    VALUES (?, ?, ?, ?, 0, NOW())`,
-              args: [
-                sa.cid,
-                "Sub-tasks Auto-completed",
-                `Sub-tasks for task "${task.title}" were auto-completed by completing the parent task.`,
-                "subtask_auto_complete",
-              ],
-            });
+            await insertNotificationWithCreatedAt(
+              sa.cid,
+              "Sub-tasks Auto-completed",
+              `Sub-tasks for task "${task.title}" were auto-completed by completing the parent task.`,
+              "subtask_auto_complete",
+            );
           }
         }
       } catch (_) {}
@@ -1331,21 +1197,12 @@ export async function PUT(req) {
     //   - Any incomplete subtask exists → completed parent reopens to in_progress
     if (task.parent_task_id) {
       try {
-        const incompleteSubs = await db.execute({
-          sql: "SELECT COUNT(*) AS total FROM tasks WHERE parent_task_id = ? AND status NOT IN ('completed', 'archived')",
-          args: [parseInt(task.parent_task_id)],
-        });
+        const incompleteSubs = await countIncompleteSubtasks(parseInt(task.parent_task_id));
         if ((Number(incompleteSubs.rows[0]?.total) || 0) === 0) {
           // All subtasks complete → auto-complete the parent (unless it has active blockers)
-          const parentBlockerRes = await db.execute({
-            sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active'",
-            args: [parseInt(task.parent_task_id)],
-          });
+          const parentBlockerRes = await getActiveBlockersForTask(parseInt(task.parent_task_id));
           if (parentBlockerRes.rows.length === 0) {
-            const parentRes = await db.execute({
-              sql: `UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'archived' AND status != 'completed'`,
-              args: [parseInt(task.parent_task_id)],
-            });
+            const parentRes = await markTaskCompleted(parseInt(task.parent_task_id));
             if (parentRes.rowsAffected > 0) {
               try {
                 const pTitle =
@@ -1365,10 +1222,7 @@ export async function PUT(req) {
           }
         } else {
           // Some subtasks incomplete → reopen parent if it was completed
-          await db.execute({
-            sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'completed'`,
-            args: [parseInt(task.parent_task_id)],
-          });
+          await reopenCompletedTask(parseInt(task.parent_task_id));
         }
       } catch (_) {}
     }
@@ -1384,10 +1238,7 @@ export async function PUT(req) {
       status !== "carried_over"
     ) {
       try {
-        await db.execute({
-          sql: `UPDATE tasks SET status = 'in_progress', completed_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE parent_task_id = ? AND status = 'completed'`,
-          args: [parseInt(id)],
-        });
+        await reopenCompletedSubtasks(parseInt(id));
       } catch (_) {}
     }
 
@@ -1444,32 +1295,24 @@ export async function PUT(req) {
 
     // ─── Reschedule increment (Phase 2/11) ───
     if (needsRescheduleInc) {
-      await db.execute({
-        sql: "UPDATE tasks SET reschedule_count = COALESCE(reschedule_count, 0) + 1 WHERE id = ?",
-        args: [parseInt(id)],
-      });
+      await incrementTaskRescheduleCount(parseInt(id));
     }
 
     // ─── Task audit log for date changes (Phase 11) ───
     if (dateChangeLog) {
-      await db.execute({
-        sql: `INSERT INTO task_audit_logs
-          (task_id, user_id, action, field_name, old_value, new_value, metadata)
-          VALUES (?, ?, 'schedule_changed', ?, ?, ?, ?)`,
-        args: [
-          parseInt(id),
-          user_id || task.user_id,
-          dateChangeLog.field,
-          String(dateChangeLog.old_val || ""),
-          String(dateChangeLog.new_val || ""),
-          needsRescheduleInc
-            ? JSON.stringify({
-                drift: true,
-                reschedule_count_incremented: true,
-              })
-            : null,
-        ],
-      });
+      await insertTaskAuditLog(
+        parseInt(id),
+        user_id || task.user_id,
+        dateChangeLog.field,
+        String(dateChangeLog.old_val || ""),
+        String(dateChangeLog.new_val || ""),
+        needsRescheduleInc
+          ? JSON.stringify({
+              drift: true,
+              reschedule_count_incremented: true,
+            })
+          : null,
+      );
     }
 
     // Audit log
@@ -1536,10 +1379,7 @@ export async function PUT(req) {
             const pEnd = new Date(pEndStr);
             const sEnd = new Date(effEnd);
             if (sEnd > pEnd) {
-              await db.execute({
-                sql: "UPDATE tasks SET end_date = ? WHERE id = ?",
-                args: [effEnd, task.parent_task_id],
-              });
+              await updateTaskEndDate(effEnd, task.parent_task_id);
             }
           }
         }
@@ -1585,10 +1425,7 @@ export async function DELETE(req) {
     }
 
     // SECURITY (Phase 0/6): Only the task owner, assignee, supervisor, or SA can delete
-    const taskCheck = await db.execute({
-      sql: "SELECT user_id, assigned_to, supervisor_id, title, status FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const taskCheck = await getTaskDeleteInfo(parseInt(id));
     if (taskCheck.rows.length > 0) {
       const taskRow = taskCheck.rows[0];
       if (
@@ -1633,27 +1470,15 @@ export async function DELETE(req) {
     }
 
     // Get task info before deleting (need all fields for standup rebuild)
-    const taskInfo = await db.execute({
-      sql: "SELECT title, user_id, user_name, created_week, created_year FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const taskInfo = await getTaskStandupInfo(parseInt(id));
 
     // Delete associated blockers, subtasks, and audit logs first
-    await db.execute({
-      sql: "DELETE FROM blockers WHERE task_id IN (SELECT id FROM tasks WHERE id = ? OR parent_task_id = ?)",
-      args: [parseInt(id), parseInt(id)],
-    });
+    await deleteBlockersForTaskAndSubtasks(parseInt(id));
 
     // Delete subtasks first (parent_task_id pointing to this task)
-    await db.execute({
-      sql: "DELETE FROM tasks WHERE parent_task_id = ?",
-      args: [parseInt(id)],
-    });
+    await deleteSubtasksForTask(parseInt(id));
 
-    await db.execute({
-      sql: "DELETE FROM tasks WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    await deleteTaskById(parseInt(id));
 
     if (taskInfo.rows.length > 0) {
       const task = taskInfo.rows[0];
@@ -1742,16 +1567,10 @@ export async function PATCH(req) {
     // Look up pending assignment
     let assignment;
     if (task_assignment_id) {
-      const res = await db.execute({
-        sql: "SELECT * FROM task_assignments WHERE id = ? AND status = 'pending'",
-        args: [parseInt(task_assignment_id)],
-      });
+      const res = await getPendingAssignmentById(parseInt(task_assignment_id));
       assignment = res.rows[0];
     } else {
-      const res = await db.execute({
-        sql: "SELECT * FROM task_assignments WHERE task_id = ? AND assignee_id = ? AND status = 'pending'",
-        args: [parseInt(task_id), session.cid],
-      });
+      const res = await getPendingAssignmentByTaskAndAssignee(parseInt(task_id), session.cid);
       assignment = res.rows[0];
     }
 
@@ -1776,26 +1595,17 @@ export async function PATCH(req) {
     const newStatus = action === "accept" ? "accepted" : "declined";
 
     // Update the assignment status
-    await db.execute({
-      sql: "UPDATE task_assignments SET status = ? WHERE id = ?",
-      args: [newStatus, assignment.id],
-    });
+    await updateAssignmentStatus(newStatus, assignment.id);
 
     // If accepted, assign the task to the user
     if (action === "accept") {
-      await db.execute({
-        sql: "UPDATE tasks SET assigned_to = ? WHERE id = ?",
-        args: [assignment.assignee_id, assignment.task_id],
-      });
+      await assignTaskToUser(assignment.assignee_id, assignment.task_id);
     }
 
     // Fetch task title for notifications and audit
     let taskTitle = `Task #${assignment.task_id}`;
     try {
-      const taskRes = await db.execute({
-        sql: "SELECT title FROM tasks WHERE id = ?",
-        args: [assignment.task_id],
-      });
+      const taskRes = await getTaskTitleRowById(assignment.task_id);
       if (taskRes.rows.length > 0) {
         taskTitle = taskRes.rows[0].title;
       }
@@ -1812,15 +1622,12 @@ export async function PATCH(req) {
         : `${session.name || session.cid} declined your assignment for task "${taskTitle}"`;
 
     try {
-      await db.execute({
-        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-        args: [
-          assignment.assigner_id,
-          notificationTitle,
-          notificationMessage,
-          "task_assignment",
-        ],
-      });
+      await insertNotification(
+        assignment.assigner_id,
+        notificationTitle,
+        notificationMessage,
+        "task_assignment",
+      );
     } catch (notifErr) {
       console.error(
         "Assignment response notification failed:",
