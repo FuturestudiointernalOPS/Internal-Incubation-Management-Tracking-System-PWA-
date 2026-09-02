@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, isSupervisorOf } from "@/lib/auth";
+import {
+  getStandupReportByWeek,
+  getStandupWeekTasks,
+  getStandupCarryoverTasks,
+  getBlockersByTaskIds,
+} from "@/models/standups";
 
 /**
  * GET /api/standups/current
@@ -74,83 +80,40 @@ export async function GET(req) {
     // ── 1. Fetch existing standup report ──
     let report = null;
     if (w && y) {
-      let reportSql =
-        "SELECT * FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'standup'";
-      const reportArgs = [user_id, w, y];
-
-      if (context_id) {
-        reportSql += " AND context_id = ?";
-        reportArgs.push(context_id);
-      } else {
-        reportSql += " AND context_type = ?";
-        reportArgs.push(context_type);
-      }
-
-      reportSql += " LIMIT 1";
-      const reportRes = await db.execute({ sql: reportSql, args: reportArgs });
+      const reportRes = await getStandupReportByWeek(
+        user_id,
+        w,
+        y,
+        context_id,
+        context_type,
+      );
       if (reportRes.rows.length > 0) report = reportRes.rows[0];
     }
 
     // ── 2. Fetch current-week tasks ──
     // These are tasks created in the target week (owned OR assigned to the user).
-    let weekTaskSql = `SELECT * FROM tasks
-      WHERE (user_id = ? OR assigned_to = ?)
-      AND created_week = ? AND created_year = ?
-      AND context_type = ?`;
-
-    let weekTaskArgs = [user_id, user_id, w, y, context_type];
-    if (context_id) {
-      weekTaskSql += " AND context_id = ?";
-      weekTaskArgs.push(context_id);
-    }
-
-    // Archived tasks are soft-deleted and must not appear in the active
-    // dashboard view unless explicitly requested for historical reference.
-    if (!showAll) {
-      weekTaskSql += " AND status != 'archived'";
-    }
-
-    weekTaskSql += ` ORDER BY CASE priority
-        WHEN 'critical' THEN 0 WHEN 'high' THEN 1
-        WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4
-      END, created_at ASC`;
-
-    const weekTaskRes = await db.execute({
-      sql: weekTaskSql,
-      args: weekTaskArgs,
-    });
+    const weekTaskRes = await getStandupWeekTasks(
+      user_id,
+      w,
+      y,
+      context_type,
+      context_id,
+      showAll,
+    );
 
     // ── 3. Fetch carried-over tasks (prior weeks, still active) ──
     // These are uncompleted tasks from earlier weeks that still need work.
     // If show_all is true, include ALL tasks. Otherwise only active ones.
     let carryoverTasks = [];
     if (w && y) {
-      const carryStatuses = showAll
-        ? [] // Include everything
-        : ["in_progress", "blocked", "carried_over"];
-      let carrySql = `SELECT * FROM tasks
-        WHERE (user_id = ? OR assigned_to = ?)
-        AND (created_week < ? OR (created_year < ? AND created_year = ?))
-        AND context_type = ?`;
-
-      const carryArgs = [user_id, user_id, w, y, y, context_type];
-
-      if (context_id) {
-        carrySql += " AND context_id = ?";
-        carryArgs.push(context_id);
-      }
-
-      if (!showAll) {
-        carrySql += ` AND status IN (${carryStatuses.map(() => "?").join(",")})`;
-        carryArgs.push(...carryStatuses);
-      }
-
-      carrySql += ` ORDER BY CASE priority
-        WHEN 'critical' THEN 0 WHEN 'high' THEN 1
-        WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4
-      END, created_at ASC`;
-
-      const carryRes = await db.execute({ sql: carrySql, args: carryArgs });
+      const carryRes = await getStandupCarryoverTasks(
+        user_id,
+        w,
+        y,
+        context_type,
+        context_id,
+        showAll,
+      );
       carryoverTasks = carryRes.rows || [];
     }
 
@@ -169,10 +132,7 @@ export async function GET(req) {
     const taskIds = allTasks.map((t) => t.id);
     let blockersByTask = {};
     if (taskIds.length > 0) {
-      const blockerRes = await db.execute({
-        sql: `SELECT id, title, status, severity, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
-        args: taskIds,
-      });
+      const blockerRes = await getBlockersByTaskIds(taskIds);
       for (const b of blockerRes.rows || []) {
         if (!blockersByTask[b.task_id]) blockersByTask[b.task_id] = [];
         blockersByTask[b.task_id].push({
