@@ -5,7 +5,25 @@
 // All NEW features must go in V1 API routes (/api/pm/, /api/kpis/ etc.)
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
+import {
+  deleteV2ProgramStaffAssignmentById,
+  endV2MirroredProgramContactRole,
+  findParticipantFacilitatorConflict,
+  getContactEmailForRoleConflict,
+  getProgramStaffTargetForScopeCheck,
+  getV2ContactCidForProgramRoleCleanup,
+  getV2ContactCidForProgramRoleMirror,
+  getV2ProgramStaffAssignmentForDelete,
+  getV2ProgramStaffAssignmentWithPermissions,
+  insertGeneralizedProgramAssignmentV2,
+  insertV2FacilitatorTimelineEvent,
+  insertV2MirroredProgramContactRole,
+  listV2ProgramStaffAssignments,
+  updateV2MirroredProgramContactRole,
+  updateV2ProgramStaffAssignment,
+  upsertV2ProgramStaffAssignment,
+} from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, isAssignedPmForProgram } from "@/lib/auth";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
@@ -38,10 +56,14 @@ async function assertPmScope(programId) {
 async function logFacilitatorTimeline(staffId, programId, eventType, description, extra = {}) {
   try {
     const session = await getSession();
-    await db.execute({
-      sql: "INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata) VALUES (?, ?, ?, 'programs', ?, ?, ?::jsonb)",
-      args: [staffId, eventType, description, String(programId || ""), session?.cid || "system", JSON.stringify(extra)],
-    });
+    await insertV2FacilitatorTimelineEvent(
+      staffId,
+      eventType,
+      description,
+      String(programId || ""),
+      session?.cid || "system",
+      JSON.stringify(extra),
+    );
   } catch (_) {}
 }
 
@@ -75,22 +97,7 @@ export async function GET(req) {
       }
     }
 
-    let query = `
-      SELECT ps.*, p.name as program_name, p.status as program_status
-      FROM v2_program_staff ps
-      JOIN v2_programs p ON ps.program_id = p.id
-    `;
-    let args = [];
-
-    if (staffId) {
-      query += " WHERE ps.staff_id = ?";
-      args = [staffId];
-    } else if (programId) {
-      query += " WHERE ps.program_id = ?";
-      args = [programId];
-    }
-
-    const res = await db.execute({ sql: query, args });
+    const res = await listV2ProgramStaffAssignments(staffId, programId);
     return NextResponse.json({ success: true, assignments: res.rows });
   } catch (error) {
     return NextResponse.json(
@@ -124,24 +131,24 @@ export async function POST(req) {
           : {};
 
     if (roleLower === "facilitator") {
-      const contactRes = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [staff_id] });
+      const contactRes = await getContactEmailForRoleConflict(staff_id);
       const contactEmail = contactRes.rows[0]?.email || "";
-      const conflict = await db.execute({
-        sql: `SELECT 1 FROM participant_programs WHERE participant_id::text = ? AND program_id::text = ?
-              UNION
-              SELECT 1 FROM v2_participants WHERE program_id::text = ? AND (email = ? OR user_id = ?)
-              LIMIT 1`,
-        args: [String(staff_id), String(program_id), String(program_id), contactEmail, String(staff_id)],
-      });
+      const conflict = await findParticipantFacilitatorConflict(
+        staff_id,
+        program_id,
+        contactEmail,
+      );
       if (conflict.rows.length > 0) {
         return NextResponse.json({ success: false, error: "errors.roleConflictParticipantFacilitator" }, { status: 409 });
       }
     }
 
-    const res = await db.execute({
-      sql: "INSERT INTO v2_program_staff (program_id, staff_id, role, permissions) VALUES (?, ?, ?, ?::jsonb) ON CONFLICT (program_id, staff_id) DO UPDATE SET role = EXCLUDED.role, permissions = COALESCE(EXCLUDED.permissions, v2_program_staff.permissions), updated_at = NOW() RETURNING id",
-      args: [program_id, staff_id, role || "staff", JSON.stringify(finalPermissions)],
-    });
+    const res = await upsertV2ProgramStaffAssignment(
+      program_id,
+      staff_id,
+      role || "staff",
+      JSON.stringify(finalPermissions),
+    );
     if (roleLower === "facilitator") {
       await logFacilitatorTimeline(staff_id, program_id, "facilitator_assigned", "Assigned as facilitator to program", { role });
     }
@@ -152,33 +159,13 @@ export async function POST(req) {
     try {
       const actor = await getSession();
       const mirrorRole = String(role || "staff").toLowerCase();
-      await db.execute({
-        sql: `INSERT INTO contact_roles
-                (contact_cid, role, context_type, context_id, is_current, title, scope, status, capability_overrides, assigned_by)
-              SELECT c.cid, ?, 'program', ?, true, ?, '{"type":"program"}'::jsonb, 'active', ?::jsonb, ?
-              FROM contacts c
-              WHERE (c.cid = ? OR LOWER(c.email) = LOWER(?))
-                AND c.deleted = 0
-                AND NOT EXISTS (
-                  SELECT 1 FROM contact_roles cr
-                  WHERE cr.contact_cid = c.cid
-                    AND cr.role = ?
-                    AND cr.context_type = 'program'
-                    AND cr.context_id = ?
-                    AND cr.is_current = true
-                )`,
-        args: [
-          mirrorRole,
-          String(program_id),
-          mirrorRole,
-          JSON.stringify(finalPermissions),
-          actor?.cid || "system",
-          staff_id,
-          staff_id,
-          mirrorRole,
-          String(program_id),
-        ],
-      });
+      await insertGeneralizedProgramAssignmentV2(
+        mirrorRole,
+        String(program_id),
+        JSON.stringify(finalPermissions),
+        actor?.cid || "system",
+        staff_id,
+      );
     } catch (_) {}
 
     return NextResponse.json({ success: true, id: res.rows[0]?.id ?? res.lastInsertRowid });
@@ -204,10 +191,7 @@ export async function PUT(req) {
     }
 
     const session = await getSession();
-    const target = await db.execute({
-      sql: "SELECT role, program_id FROM v2_program_staff WHERE id = ?",
-      args: [id],
-    });
+    const target = await getProgramStaffTargetForScopeCheck(id);
     if (session?.role === "staff" && target.rows[0]?.program_id) {
       const scopeError = await assertPmScope(target.rows[0].program_id);
       if (scopeError) return scopeError;
@@ -239,38 +223,32 @@ export async function PUT(req) {
     }
     fields.push("updated_at = NOW()");
     args.push(id);
-    await db.execute({
-      sql: `UPDATE v2_program_staff SET ${fields.join(", ")} WHERE id = ?`,
-      args,
-    });
-    const row = await db.execute({ sql: "SELECT staff_id, program_id, role, permissions FROM v2_program_staff WHERE id = ?", args: [id] });
+    await updateV2ProgramStaffAssignment(fields, args);
+    const row = await getV2ProgramStaffAssignmentWithPermissions(id);
     if (row.rows[0]) {
       await logFacilitatorTimeline(row.rows[0].staff_id, row.rows[0].program_id, "facilitator_role_changed", "Facilitator program assignment updated", { role: row.rows[0].role, permissions: permissions || null });
 
       // Mirror the final assignment state into the generalized record.
       try {
         const assignment = row.rows[0];
-        const cidRes = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE (cid = ? OR LOWER(email) = LOWER(?)) AND deleted = 0 LIMIT 1",
-          args: [assignment.staff_id, assignment.staff_id],
-        });
+        const cidRes = await getV2ContactCidForProgramRoleMirror(assignment.staff_id);
         const contactCid = cidRes.rows[0]?.cid;
         if (contactCid) {
           const finalRole = assignment.role || "staff";
           const finalPerms = JSON.stringify(assignment.permissions || {});
-          const mirrorUpdate = await db.execute({
-            sql: `UPDATE contact_roles
-                  SET title = ?, capability_overrides = ?::jsonb
-                  WHERE contact_cid = ? AND context_type = 'program' AND context_id = ? AND is_current = true`,
-            args: [finalRole, finalPerms, contactCid, String(assignment.program_id)],
-          });
+          const mirrorUpdate = await updateV2MirroredProgramContactRole(
+            finalRole,
+            finalPerms,
+            contactCid,
+            String(assignment.program_id),
+          );
           if (mirrorUpdate.rowsAffected === 0) {
-            await db.execute({
-              sql: `INSERT INTO contact_roles
-                      (contact_cid, role, context_type, context_id, is_current, title, scope, status, capability_overrides, assigned_by)
-                    VALUES (?, ?, 'program', ?, true, ?, '{"type":"program"}'::jsonb, 'active', ?::jsonb, 'system')`,
-              args: [contactCid, finalRole, String(assignment.program_id), finalRole, finalPerms],
-            });
+            await insertV2MirroredProgramContactRole(
+              contactCid,
+              finalRole,
+              String(assignment.program_id),
+              finalPerms,
+            );
           }
         }
       } catch (_) {}
@@ -290,33 +268,22 @@ export async function DELETE(req) {
     const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
     const { id } = await req.json();
-    const row = await db.execute({ sql: "SELECT staff_id, program_id FROM v2_program_staff WHERE id = ?", args: [id] });
+    const row = await getV2ProgramStaffAssignmentForDelete(id);
     const session = await getSession();
     if (session?.role === "staff" && row.rows[0]?.program_id) {
       const scopeError = await assertPmScope(row.rows[0].program_id);
       if (scopeError) return scopeError;
     }
-    await db.execute({
-      sql: "DELETE FROM v2_program_staff WHERE id = ?",
-      args: [id],
-    });
+    await deleteV2ProgramStaffAssignmentById(id);
     if (row.rows[0]) {
       await logFacilitatorTimeline(row.rows[0].staff_id, row.rows[0].program_id, "facilitator_removed", "Removed from program (assignment only — CRM record untouched)");
 
       // Preserve assignment history in the generalized record: mark ended.
       try {
-        const cidRes = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE (cid = ? OR LOWER(email) = LOWER(?)) AND deleted = 0 LIMIT 1",
-          args: [row.rows[0].staff_id, row.rows[0].staff_id],
-        });
+        const cidRes = await getV2ContactCidForProgramRoleCleanup(row.rows[0].staff_id);
         const contactCid = cidRes.rows[0]?.cid;
         if (contactCid) {
-          await db.execute({
-            sql: `UPDATE contact_roles
-                  SET is_current = false, ended_at = NOW(), status = 'removed'
-                  WHERE contact_cid = ? AND context_type = 'program' AND context_id = ? AND is_current = true`,
-            args: [contactCid, String(row.rows[0].program_id)],
-          });
+          await endV2MirroredProgramContactRole(contactCid, String(row.rows[0].program_id));
         }
       } catch (_) {}
     }

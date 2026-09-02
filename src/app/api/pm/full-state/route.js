@@ -1,7 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireProgramFacilitator, hasProgramManagementAccess, isAssignedPmForProgram } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import {
+  getAssistantContactsByCids,
+  getPersistedKpiProgress,
+  getProgramFullStateData,
+  getProgramNoteAttachments,
+} from "@/models/programWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -39,114 +45,7 @@ export async function GET(req) {
 
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
-    const queries = [
-      {
-        name: "program",
-        sql: `SELECT p.*, k.title as note_title, k.url as note_files, k.description as note_description, c.name as pm_name, NULL as completion_index FROM v2_programs p LEFT JOIN v2_knowledge_bank k ON CAST(p.note_id AS TEXT) = CAST(k.id AS TEXT) LEFT JOIN contacts c ON p.assigned_pm_id = c.cid WHERE p.id = ?`,
-        args: [id],
-      },
-      {
-        // PARTICIPANTS = real participant_programs membership + active account
-        // + NOT a facilitator of the same program + not deleted/archived.
-        // v2_participants and contacts-by-group are intake/history only and are
-        // intentionally NOT treated as operational participant membership.
-        name: "participants",
-        sql: `SELECT CAST(c.cid AS TEXT) as id, pp.program_id, c.name, c.email, c.phone,
-                     COALESCE(pp.screening_status, 'pending') as screening_status, c.status, c.created_at, c.group_name,
-                     'enrolled' as source, c.v2_team_id
-              FROM participant_programs pp
-              JOIN contacts c ON pp.participant_id = c.cid
-              WHERE CAST(pp.program_id AS TEXT) = ?
-                AND c.deleted = 0
-                AND c.deleted_at IS NULL
-                AND c.archived_at IS NULL
-                AND LOWER(COALESCE(c.status, '')) = 'active'
-                AND NOT EXISTS (
-                  SELECT 1 FROM v2_program_staff ps
-                  WHERE CAST(ps.program_id AS TEXT) = ?
-                    AND ps.role = 'facilitator'
-                    AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
-                )`,
-        args: [String(id), String(id)],
-      },
-      {
-        name: "teams",
-        sql: "SELECT * FROM v2_teams WHERE program_id = ?",
-        args: [id],
-      },
-      {
-        name: "sessions",
-        sql: "SELECT * FROM v2_sessions WHERE program_id = ? AND (status IS NULL OR status != 'archived')",
-        args: [id],
-      },
-      {
-        name: "staffList",
-        sql: "SELECT cid, name, email, phone, role FROM contacts WHERE role IN ('teacher', 'staff', 'admin') AND deleted = 0",
-        args: [],
-      },
-      {
-        name: "events",
-        sql: "SELECT * FROM v2_events WHERE program_id = ?",
-        args: [id],
-      },
-      {
-        name: "kpis",
-        sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-        args: [id],
-      },
-      {
-        name: "documents",
-        sql: "SELECT * FROM v2_document_requirements WHERE program_id = ?",
-        args: [id],
-      },
-      {
-        name: "followups",
-        sql: "SELECT * FROM v2_followups WHERE program_id = ? ORDER BY created_at DESC",
-        args: [id],
-      },
-      {
-        name: "assignedStaff",
-        sql: `SELECT ps.id, c.cid, c.name, c.email, ps.role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id = c.cid OR LOWER(TRIM(c.email)) = LOWER(TRIM(ps.staff_id)) WHERE ps.program_id = ?`,
-        args: [id],
-      },
-      {
-        name: "submissions",
-        sql: `SELECT s.*, 
-                     c.name as participant_name, 
-                     d.title as deliverable_title
-              FROM v2_submissions s
-              LEFT JOIN contacts c ON s.participant_id::text = c.cid
-              LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
-              WHERE s.program_id::text = ?`,
-        args: [id],
-      },
-      {
-        name: "reports",
-        sql: "SELECT * FROM v2_weekly_reports WHERE program_id = ? ORDER BY week_number DESC",
-        args: [id],
-      },
-      {
-        name: "families",
-        sql: "SELECT * FROM families WHERE program_id = ?",
-        args: [id],
-      },
-      {
-        name: "deliverables",
-        sql: "SELECT * FROM v2_deliverables WHERE program_id = ? ORDER BY week_number ASC",
-        args: [id],
-      },
-    ];
-
-    const results = await Promise.all(
-      queries.map(async (q) => {
-        try {
-          return await db.execute({ sql: q.sql, args: q.args });
-        } catch (e) {
-          console.error(` forensic | Query [${q.name}] failed:`, e.message);
-          return { rows: [] };
-        }
-      }),
-    );
+    const results = await getProgramFullStateData(id);
 
     const [
       progRes,
@@ -221,10 +120,7 @@ export async function GET(req) {
         }
 
         if (program.note_id) {
-          const kbAttachmentsRes = await db.execute({
-            sql: "SELECT name, url FROM v2_knowledge_attachments WHERE CAST(note_id AS TEXT) = CAST(? AS TEXT)",
-            args: [program.note_id],
-          });
+          const kbAttachmentsRes = await getProgramNoteAttachments(program.note_id);
           program.knowledge_assets = kbAttachmentsRes.rows;
         } else {
           program.knowledge_assets = [];
@@ -288,10 +184,7 @@ export async function GET(req) {
       try {
         const assistantIds = JSON.parse(program.assigned_assistant_id);
         if (Array.isArray(assistantIds) && assistantIds.length > 0) {
-          const assistantsRes = await db.execute({
-            sql: `SELECT cid, name, email, phone, role FROM contacts WHERE cid IN (${assistantIds.map(() => "?").join(",")})`,
-            args: assistantIds,
-          });
+          const assistantsRes = await getAssistantContactsByCids(assistantIds);
           const merged = [...assignedStaff, ...assistantsRes.rows];
           assignedStaff = Array.from(
             new Map(merged.map((item) => [item.cid, item])).values(),
@@ -332,10 +225,7 @@ export async function GET(req) {
       // ─── PERSISTED KPI PROGRESS ───
       // Read from kpi_progress table (pre-calculated, updated on session/doc changes)
       try {
-        const progressRes = await db.execute({
-          sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-          args: [id],
-        });
+        const progressRes = await getPersistedKpiProgress(id);
         const persistedProgress = progressRes.rows || [];
 
         if (persistedProgress.length > 0) {

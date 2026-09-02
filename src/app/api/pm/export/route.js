@@ -1,7 +1,8 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import * as XLSX from "xlsx";
+import { getProgramExportRows } from "@/models/programWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -40,64 +41,29 @@ export async function GET(req) {
       return NextResponse.json({ error: "program_id required" }, { status: 400 });
     }
 
-    let sql;
     let filename;
 
     switch (type) {
       case "participants":
-        sql = `SELECT c.name, c.email, c.phone, c.status, c.created_at
-               FROM participant_programs pp
-               JOIN contacts c ON pp.participant_id = c.cid
-               WHERE CAST(pp.program_id AS TEXT) = $1
-                 AND c.deleted = 0 AND c.deleted_at IS NULL AND c.archived_at IS NULL
-                 AND LOWER(COALESCE(c.status, '')) = 'active'
-                 AND NOT EXISTS (
-                   SELECT 1 FROM v2_program_staff ps
-                   WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
-                     AND ps.role = 'facilitator'
-                     AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
-                 )
-               ORDER BY c.name`;
         filename = `participants-${programId}.csv`;
         break;
       case "attendance":
-        sql = `SELECT c.name, c.email, va.status as attendance_status, va.date as session_date, va.week_number
-               FROM v2_attendance va
-               JOIN contacts c ON va.participant_id = c.cid
-               WHERE va.program_id = $1
-               ORDER BY va.date, c.name`;
         filename = `attendance-${programId}.csv`;
         break;
       case "submissions":
-        sql = `SELECT c.name, c.email, vdr.title as requirement, vsb.submission_url, vsb.status, vsb.submitted_at
-               FROM v2_submissions vsb
-               JOIN contacts c ON vsb.participant_id = c.cid
-               JOIN v2_document_requirements vdr ON vsb.requirement_id = vdr.id
-               WHERE vdr.program_id = $1
-               ORDER BY c.name, vsb.submitted_at DESC`;
         filename = `submissions-${programId}.csv`;
         break;
       case "teams":
-        sql = `SELECT vt.name as team_name, COUNT(c.cid) as member_count, vt.handler_name
-               FROM v2_teams vt
-               LEFT JOIN contacts c ON c.v2_team_id = vt.id AND c.deleted = 0
-               WHERE vt.program_id = $1
-               GROUP BY vt.id, vt.name, vt.handler_name
-               ORDER BY vt.name`;
         filename = `teams-${programId}.csv`;
         break;
       case "ical":
-        sql = `SELECT vs.title as summary, vs.description, vs.scheduled_date, vs.start_time, vs.end_time, vs.timezone
-               FROM v2_sessions vs
-               WHERE vs.program_id = $1 AND vs.scheduled_date IS NOT NULL
-               ORDER BY vs.scheduled_date`;
         filename = `calendar-${programId}.ics`;
         break;
       default:
         return NextResponse.json({ error: "Invalid type" }, { status: 400 });
     }
 
-    const result = await db.execute({ sql, args: [programId] });
+    const result = await getProgramExportRows(type, programId);
     const rows = result.rows;
 
     if (format === "xlsx" || format === "excel") {

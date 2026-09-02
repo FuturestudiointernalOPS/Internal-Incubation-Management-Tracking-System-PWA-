@@ -1,7 +1,8 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { getProgramHistory } from "@/lib/program-history";
+import { getContactEmailForProgramHistory } from "@/models/programMembership";
 
 export const dynamic = "force-dynamic";
 
@@ -26,10 +27,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    const contactRes = await db.execute({
-      sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1",
-      args: [cid],
-    });
+    const contactRes = await getContactEmailForProgramHistory(cid);
     const email = contactRes.rows[0]?.email || "";
 
     const history = await getProgramHistory({ cid, email });
