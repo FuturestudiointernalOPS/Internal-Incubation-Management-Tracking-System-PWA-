@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Send, DollarSign, Calendar, Building2, FileText, CheckCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function FinanceEntryPage() {
   const { t } = useI18n();
@@ -22,13 +23,32 @@ export default function FinanceEntryPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
+  const loadBudgetLines = async (project, bypassCache = false) => {
+    const url = `/api/finance/budget-lines?project=${encodeURIComponent(project)}`;
+    const apply = (d) => {
+      if (d?.success) {
+        setBudgetLines(d.lines);
+        setFilteredLines(d.lines);
+      }
+    };
+    try {
+      // Cache-first paint: switching back to a previously selected project
+      // renders its budget lines instantly from a fresh snapshot.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const d = await res.json();
+      if (d?.success) {
+        cacheSet(url, d);
+        apply(d);
+      }
+    } catch (_) {}
+  };
+
   useEffect(() => {
-    if (form.project) {
-      fetch(`/api/finance/budget-lines?project=${encodeURIComponent(form.project)}`)
-        .then(r => r.json())
-        .then(d => { if (d.success) { setBudgetLines(d.lines); setFilteredLines(d.lines); } })
-        .catch(() => {});
-    }
+    if (form.project) loadBudgetLines(form.project);
   }, [form.project]);
 
   useEffect(() => {
