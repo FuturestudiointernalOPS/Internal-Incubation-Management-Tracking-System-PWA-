@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, DollarSign, Target, Calendar,
   TrendingUp, MessageCircle, Phone, Mail, Users,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STAGES = [
   { key: "prospect", label: "Prospect", color: "bg-slate-500/10 text-slate-400" },
@@ -41,25 +42,72 @@ export default function VentureFundraisingPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, oRes, aRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/fundraising`),
-        fetch(`/api/ventures/${id}/fundraising?type=analytics`),
-      ]);
-      const v = await vRes.json(); const o = await oRes.json(); const a = await aRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/fundraising`,
+      `/api/ventures/${id}/fundraising?type=analytics`,
+    ];
+    const apply = (v, o, a) => {
       if (v.success) setVenture(v.venture);
       if (o.success) setOpportunities(o.opportunities || []);
       if (a.success) setAnalytics(a);
-    } catch {} finally { setLoading(false); }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the
+      // pipeline always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [vRes, oRes, aRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+      ]);
+      const v = await vRes.json(); const o = await oRes.json(); const a = await aRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (o.success) cacheSet(urls[1], o);
+      if (a.success) cacheSet(urls[2], a);
+      apply(v, o, a);
+    } catch (e) {
+      if (!painted) console.error("Failed to load fundraising data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadDetail = async (oppId) => {
-    const res = await fetch(`/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`);
-    const d = await res.json();
-    if (d.success) { setSelectedOpp(d.opportunity); setShowDetail(true); }
+  const loadDetail = async (oppId, bypassCache = false) => {
+    const url = `/api/ventures/${id}/fundraising?type=detail&opportunity_id=${oppId}`;
+    const apply = (d) => {
+      if (d.success) { setSelectedOpp(d.opportunity); setShowDetail(true); }
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: re-opening the same opportunity renders instantly
+      // from a fresh snapshot; mutation flows pass bypassCache=true so the
+      // drawer always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const d = await res.json();
+      if (d.success) cacheSet(url, d);
+      apply(d);
+    } catch (e) {
+      if (!painted) console.error("Failed to load opportunity detail:", e);
+    }
   };
 
   const updateStage = async (oppId, newStage) => {
@@ -67,7 +115,7 @@ export default function VentureFundraisingPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "update", opportunity_id: oppId, updates: { stage: newStage } }),
     });
-    fetchAll();
+    fetchAll(true);
   };
 
   const createOpp = async () => {
@@ -79,7 +127,7 @@ export default function VentureFundraisingPage() {
     });
     setSaving(false); setShowCreateModal(false);
     setOForm({ investor_name: "", expected_amount: "", probability: "10", stage: "prospect", expected_close_date: "", next_action: "" });
-    fetchAll();
+    fetchAll(true);
   };
 
   const addNote = async () => {
@@ -88,7 +136,7 @@ export default function VentureFundraisingPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "add_note", opportunity_id: selectedOpp.id, content: noteText.trim() }),
     });
-    setNoteText(""); loadDetail(selectedOpp.id);
+    setNoteText(""); loadDetail(selectedOpp.id, true);
   };
 
   const addActivity = async () => {
@@ -97,7 +145,7 @@ export default function VentureFundraisingPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "add_activity", opportunity_id: selectedOpp.id, ...activityForm }),
     });
-    setActivityForm({ activity_type: "email", title: "" }); loadDetail(selectedOpp.id);
+    setActivityForm({ activity_type: "email", title: "" }); loadDetail(selectedOpp.id, true);
   };
 
   const progressBar = (pct) => (
