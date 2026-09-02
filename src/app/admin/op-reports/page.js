@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * SUPER ADMIN OPERATIONAL REPORTS DASHBOARD
@@ -117,7 +118,7 @@ export default function AdminOpReports() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const { t, lang } = useI18n();
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -127,31 +128,51 @@ export default function AdminOpReports() {
       const blockerUrl = isSA
         ? "/api/blockers"
         : `/api/blockers?user_id=${userId}`;
+      const urls = [
+        `/api/op-reports?workspace=${filterWorkspace}`,
+        "/api/projects",
+        blockerUrl,
+      ];
+      const apply = (data, pData, bData) => {
+        if (data.success) {
+          setReports(data.reports || []);
+          const userMap = {};
+          (data.reports || []).forEach((r) => {
+            if (r.user_id && !userMap[r.user_id]) {
+              userMap[r.user_id] = {
+                id: r.user_id,
+                name: r.user_name,
+                role: r.user_role,
+              };
+            }
+          });
+          setUsers(Object.values(userMap));
+        }
+        if (pData.success) setAllProjects(pData.projects || []);
+        if (bData.success) setBlockersList(bData.blockers || []);
+      };
 
-      const [rRes, pRes, bRes] = await Promise.all([
-        fetch(`/api/op-reports?workspace=${filterWorkspace}`),
-        fetch("/api/projects"),
-        fetch(blockerUrl),
-      ]);
-      const data = await rRes.json();
-      const pData = await pRes.json();
-      const bData = await bRes.json();
-      if (data.success) {
-        setReports(data.reports || []);
-        const userMap = {};
-        (data.reports || []).forEach((r) => {
-          if (r.user_id && !userMap[r.user_id]) {
-            userMap[r.user_id] = {
-              id: r.user_id,
-              name: r.user_name,
-              role: r.user_role,
-            };
-          }
-        });
-        setUsers(Object.values(userMap));
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the view always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+        }
       }
-      if (pData.success) setAllProjects(pData.projects || []);
-      if (bData.success) setBlockersList(bData.blockers || []);
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -164,7 +185,7 @@ export default function AdminOpReports() {
   }, [fetchData]);
 
   // Fetch tasks when tasks tab is active
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (bypassCache = false) => {
     setTasksLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -174,10 +195,25 @@ export default function AdminOpReports() {
       const taskUrl = isSA
         ? "/api/tasks?brief=true&limit=200"
         : `/api/tasks?user_id=${userId}&brief=true&limit=200`;
+      const apply = (data) => {
+        if (data.success) setAllTasks(data.tasks || []);
+      };
 
+      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
+      // task list always reflects the just-changed server state.
+      if (!bypassCache) {
+        const cached = cacheGet(taskUrl);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setTasksLoading(false);
+        }
+      }
       const res = await fetch(taskUrl);
       const data = await res.json();
-      if (data.success) setAllTasks(data.tasks || []);
+      if (data.success) {
+        cacheSet(taskUrl, data);
+        apply(data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
