@@ -1414,6 +1414,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
   const [pmPrograms, setPmPrograms] = useState([]);
+  // null = unknown (show by default), false = hide "My Learning"
+  const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
@@ -1539,6 +1541,39 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       .catch((e) => console.error(e));
   }, [user.role, user.cid, user.id, pathname]);
 
+  // "My Learning" only appears once the participant has subscribed to a course
+  // or been assigned one (admin/program enrollment). The flag is refreshed on
+  // every navigation inside the participant context so the entry appears as
+  // soon as an enrollment exists. null (unknown) keeps the entry visible
+  // instead of flashing it off for learners who are enrolled.
+  useEffect(() => {
+    const sessionRole = user.role || role || "";
+    const participantNavActive =
+      contextRoleFromPathname(pathname) === "participant" ||
+      sessionRole === "participant";
+    if (
+      sessionRole === "super_admin" ||
+      sessionRole === "developer" ||
+      !participantNavActive
+    ) {
+      setHasLmsEnrollments(null);
+      return;
+    }
+    let active = true;
+    fetch("/api/lms/my-learning?exists=1")
+      .then((res) => res.json())
+      .then((data) => {
+        if (!active) return;
+        setHasLmsEnrollments(data && data.success ? !!data.enrolled : null);
+      })
+      .catch(() => {
+        if (active) setHasLmsEnrollments(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user.role, user.cid, user.id, pathname, role]);
+
   // Pre-open menus that have an active child route
   // useEffect(() => {
   //   const toOpen = {};
@@ -1614,6 +1649,14 @@ export default function DashboardLayout({ children, role = "admin", modals, full
         ? sessionRole
         : contextRoleFromPathname(pathname) || sessionRole;
 
+    // "My Learning" is hidden until the participant actually has a course
+    // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
+    // is null while unknown, so the entry never flickers off for enrolled users.
+    const hideMyLearning =
+      activeRole === "participant" && hasLmsEnrollments === false;
+    const gateMyLearning = (items) =>
+      hideMyLearning ? items.filter((i) => i.id !== "learning") : items;
+
     // Check if user belongs to Future Studio Interns group
     const userGroups = user.groups || [];
     const isIntern = userGroups.some(
@@ -1666,7 +1709,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // across ALL role matrices instead of just the user's role matrix
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
       const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      return buildNavFromResponsibilities(respKeys, activeRole);
+      return gateMyLearning(buildNavFromResponsibilities(respKeys, activeRole));
     }
 
     // Fallback: role-based matrix (backward compatible)
@@ -1709,8 +1752,18 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
-    return filterNavByResponsibilities(items, userResponsibilities, bypass);
-  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname]);
+    return gateMyLearning(
+      filterNavByResponsibilities(items, userResponsibilities, bypass),
+    );
+  }, [
+    user.role,
+    user.groups,
+    role,
+    pmPrograms,
+    userResponsibilities,
+    pathname,
+    hasLmsEnrollments,
+  ]);
 
   const handleLogout = async () => {
     try {

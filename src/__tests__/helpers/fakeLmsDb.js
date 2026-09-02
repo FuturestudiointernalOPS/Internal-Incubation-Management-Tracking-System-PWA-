@@ -176,7 +176,7 @@ export function createFakeDb() {
     // positionally: `user_cid = ? AND assessment_id IN (?, ?)` binds user_cid
     // first. A single pass that processed IN clauses before `=` clauses would
     // bind the IN list to the wrong args whenever an `=` clause precedes it.
-    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*=\s*\?|(\w+)\s+like\s*\?/gi;
+    const condRe = /(\w+)\s+in\s*\(([^)]*)\)|(\w+)\s*(?:<>|!=)\s*'([^']+)'|(\w+)\s*=\s*\?|(\w+)\s+like\s*\?/gi;
     let m;
     while ((m = condRe.exec(cond))) {
       if (m[1]) {
@@ -185,13 +185,16 @@ export function createFakeDb() {
         argIndex += count;
         if (!ids.includes(String(row[m[1]]))) return false;
       } else if (m[3]) {
-        if (String(row[m[3]]) !== String(args[argIndex])) return false;
+        // col <> 'literal' / col != 'literal' (negation; consumes no args)
+        if (String(row[m[3]]) === m[4]) return false;
+      } else if (m[5]) {
+        if (String(row[m[5]]) !== String(args[argIndex])) return false;
         argIndex++;
       } else {
         // LIKE ? — converts the SQL pattern (CERT-2026-%) into a regex.
         const re = likeToRegExp(String(args[argIndex]));
         argIndex++;
-        if (!re.test(String(row[m[4]]))) return false;
+        if (!re.test(String(row[m[6]]))) return false;
       }
     }
     return true;

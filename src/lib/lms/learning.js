@@ -264,6 +264,22 @@ function learnerAssessment(state) {
 
 // ─── Learner-facing services ───────────────────────────────────────────────
 
+/**
+ * Whether a learner has at least one usable enrollment (self-subscribed or
+ * assigned via admin/program). Suspended enrollments do not grant access, so
+ * they do not count. Used by the UI to only surface "My Learning" for
+ * learners who actually have courses.
+ */
+export async function learnerHasEnrollments(userCid) {
+  const res = await db.execute({
+    sql: `SELECT 1 FROM lms_enrollments
+          WHERE user_cid = ? AND status <> 'suspended'
+          LIMIT 1`,
+    args: [userCid],
+  });
+  return res.rows.length > 0;
+}
+
 /** Enrolled courses + progress + resume point for the learner's My Learning. */
 export async function getLearnerCourses(userCid) {
   const enrollRes = await db.execute({

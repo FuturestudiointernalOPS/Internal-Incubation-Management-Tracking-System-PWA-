@@ -388,6 +388,39 @@ describe("Learner API routes", () => {
     expect(res.status).toBe(401);
   });
 
+  test("my-learning?exists=1 reports false while the learner has no course", async () => {
+    seedPublishedCourse();
+    const res = await myLearningGET(
+      new Request("http://localhost/api/lms/my-learning?exists=1"),
+    );
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data).toEqual({ success: true, enrolled: false });
+  });
+
+  test("my-learning?exists=1 reports true once subscribed or assigned", async () => {
+    seedPublishedCourse();
+    seedEnrollment();
+    const res = await myLearningGET(
+      new Request("http://localhost/api/lms/my-learning?exists=1"),
+    );
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data).toEqual({ success: true, enrolled: true });
+  });
+
+  test("suspended enrollments do not surface My Learning", async () => {
+    seedPublishedCourse();
+    mockFake.seed("lms_enrollments", [
+      { id: "E-1", course_id: "C-1", user_cid: "U-LEARNER", source: "admin", status: "suspended" },
+    ]);
+    const res = await myLearningGET(
+      new Request("http://localhost/api/lms/my-learning?exists=1"),
+    );
+    const data = await readJson(res);
+    expect(data.enrolled).toBe(false);
+  });
+
   test("unauthenticated users get 401 from lesson completion", async () => {
     requireAuth.mockResolvedValueOnce({ status: 401 });
     const res = await completePOST(jsonReq({}), { params: { id: "L-1" } });
