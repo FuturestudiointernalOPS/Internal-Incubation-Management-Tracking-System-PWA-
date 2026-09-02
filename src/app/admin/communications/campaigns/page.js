@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Send, CheckCircle, Search, Rocket, X, Users, Loader2, List, Trash2, Calendar, MailOpen, Clock, Settings2, ArrowRight, Save, ChevronRight, Power, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { IMPACT_CACHE } from '@/utils/impactCache';
+import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
 import { useSafeBack } from '@/lib/useSafeBack';
@@ -61,47 +61,46 @@ export default function CampaignsPage() {
   };
 
   useEffect(() => { 
-    const cachedCamps = IMPACT_CACHE.get('campaigns');
-    const cachedConts = IMPACT_CACHE.get('contacts');
-    const cachedForms = IMPACT_CACHE.get('forms');
-    if (cachedCamps) { setCampaigns(cachedCamps); setLoading(false); }
-    if (cachedConts) setContacts(cachedConts);
-    if (cachedForms) setForms(cachedForms);
     fetchData(); 
   }, []);
 
-  const fetchData = async () => {
-    try {
+  const fetchData = async (bypassCache = false) => {
+    const urls = ['/api/campaigns', '/api/contacts', '/api/forms', '/api/families'];
+    const apply = (campData, contData, formData, famData) => {
       // 1. Prioritize core campaign list for instant dashboard display
-      const campRes = await fetch('/api/campaigns');
-      const camps = await campRes.json();
-      if (camps.success) {
-        setCampaigns(camps.campaigns || []);
-        IMPACT_CACHE.set('campaigns', camps.campaigns);
+      if (campData?.success) setCampaigns(campData.campaigns || []);
+      // 2. Hydrate background data units so the create/details modals render instantly
+      if (contData?.success) setContacts(contData.contacts || []);
+      if (formData?.success) setForms(formData.forms || []);
+      if (famData?.success) setFamilies(famData.families || []);
+    };
+
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the dashboard always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setLoading(false);
+        }
       }
-      setLoading(false); // Move dashboard to interactive state immediately
-
-      // 2. Hydrate background data units individually (so forms/families load instantly)
-      fetch('/api/contacts').then(r => r.json()).then(data => {
-        if (data.success) {
-           setContacts(data.contacts || []);
-           IMPACT_CACHE.set('contacts', data.contacts);
-        }
-      }).catch(e => console.error(e));
-
-      fetch('/api/forms').then(r => r.json()).then(data => {
-        if (data.success) {
-           setForms(data.forms || []);
-           IMPACT_CACHE.set('forms', data.forms); // Sync the cache for the next reload
-        }
-      }).catch(e => console.error(e));
-
-      fetch('/api/families').then(r => r.json()).then(data => {
-        if (data.success) setFamilies(data.families || []);
-      }).catch(e => console.error(e));
-
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2], responses[3]);
     } catch (err) { 
       console.error(err); 
+    } finally {
       setLoading(false); 
     }
   };
@@ -146,7 +145,7 @@ export default function CampaignsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
+        fetchData(true);
         setShowDetailsModal(false);
         // Force sync automation
         fetch('/api/send-pending').catch(() => {});
@@ -172,7 +171,7 @@ export default function CampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setShowDetailsModal(false);
-        fetchData();
+        fetchData(true);
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
            detail: { type: 'success', message: t('crm.campaigns.deleted') } 
         }));
@@ -199,7 +198,7 @@ export default function CampaignsPage() {
       if (data.success) {
         setShowCreateModal(false);
         setForm({ name: '', form_id: '', cids: [], steps: form.steps });
-        fetchData();
+        fetchData(true);
         // Force sync automation
         fetch('/api/send-pending').catch(() => {});
         window.dispatchEvent(new CustomEvent('impactos:notify', { 
