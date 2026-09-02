@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Briefcase, ChevronRight, Users, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -15,14 +16,36 @@ export default function FacilitatorPrograms() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchPrograms = async (bypassCache = false) => {
+    const url = "/api/pm/programs?my_facilitator=1";
+    const apply = (data) => {
+      if (data?.success) setPrograms(data.programs || []);
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data?.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (_) {
+      setPrograms([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch("/api/pm/programs?my_facilitator=1")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.success) setPrograms(d.programs || []);
-      })
-      .catch(() => setPrograms([]))
-      .finally(() => setLoading(false));
+    fetchPrograms();
   }, []);
 
   return (
