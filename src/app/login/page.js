@@ -114,7 +114,9 @@ export default function LoginPage() {
         // Resolve target same as normal login
         var role = data.user.role;
         var target = roleHomeHref(role) || "/workspaces";
-        window.location.href = target;
+        // Client-side navigation: the destination section layout re-reads the
+        // localStorage user + session cookie and mounts the shell itself.
+        router.replace(target);
       } else {
         setImpersonateError(
           t((data.error || "Impersonation failed.") || "") ||
@@ -181,7 +183,7 @@ export default function LoginPage() {
             } catch (_) {}
           }
 
-          window.location.href = target;
+          router.replace(target);
         }, 800);
       } else {
         setErrorMsg(
