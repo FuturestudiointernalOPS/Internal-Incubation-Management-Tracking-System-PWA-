@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_ICONS = {
   pending_review: { icon: Clock, color: "text-amber-400" },
@@ -43,13 +44,29 @@ export default function AdminInvestorsPage() {
 
   useEffect(() => { fetchInvestors(); }, [statusFilter]);
 
-  const fetchInvestors = async () => {
+  const fetchInvestors = async (bypassCache = false) => {
     setLoading(true);
     try {
       const url = `/api/investor/approval?status=${statusFilter}${search ? `&search=${encodeURIComponent(search)}` : ""}`;
+      const apply = (data) => {
+        if (data.success) setInvestors(data.investors || []);
+      };
+      // Cache-first paint: switching filters / returning to the page renders
+      // instantly from fresh snapshots; mutation flows pass bypassCache=true
+      // so the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
       const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setInvestors(data.investors || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   };
@@ -65,7 +82,7 @@ export default function AdminInvestorsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.list.actionDone", { action: t(ACTION_LABELS[action]) }) });
-        fetchInvestors();
+        fetchInvestors(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
