@@ -9,6 +9,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -64,14 +65,11 @@ export default function SubmitFormPage() {
     loadRun();
   }, [runId]);
 
-  const loadRun = async () => {
+  const loadRun = async (bypassCache = false) => {
     setLoading(true);
     setError(null);
-    try {
-      // Load run detail + user's submission (participant endpoint)
-      const runRes = await fetch(`/api/platform/form-runs?id=${runId}&participant=true`);
-      const runData = await runRes.json();
-      if (!runData.success) throw new Error(t((runData.error || t("platformMisc.runSubmitDetail.runNotFound")) || "") || (runData.error || t("platformMisc.runSubmitDetail.runNotFound")));
+    const mainUrl = `/api/platform/form-runs?id=${runId}&participant=true`;
+    const applyRun = (runData) => {
       setRun(runData.run);
 
       // Set existing submission if any
@@ -81,11 +79,8 @@ export default function SubmitFormPage() {
           setFormData(runData.submission.data);
         }
       }
-
-      // Load form definition (participant can access single form)
-      const formRes = await fetch(`/api/platform/forms?id=${runData.run.form_id}`);
-      const formData = await formRes.json();
-      if (!formData.success) throw new Error(t("platformMisc.runSubmitDetail.formNotFound"));
+    };
+    const applyForm = (formData) => {
       setForm(formData.form);
       setSections(formData.sections || []);
       setFields(formData.fields || []);
@@ -94,9 +89,41 @@ export default function SubmitFormPage() {
       const expanded = {};
       (formData.sections || []).forEach((s) => { expanded[s.id] = true; });
       setExpandedSections(expanded);
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: revisiting the same run renders instantly from
+      // fresh snapshots when both GETs in the chain are cached; the network
+      // refresh keeps the run/form definition current in the background.
+      if (!bypassCache) {
+        const cachedRun = cacheGet(mainUrl);
+        const cachedForm =
+          cachedRun !== null && cachedRun.success
+            ? cacheGet(`/api/platform/forms?id=${cachedRun.run?.form_id}`)
+            : null;
+        if (cachedRun !== null && cachedRun.success && cachedForm !== null && cachedForm.success) {
+          applyRun(cachedRun);
+          applyForm(cachedForm);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      // Load run detail + user's submission (participant endpoint)
+      const runRes = await fetch(mainUrl);
+      const runData = await runRes.json();
+      if (!runData.success) throw new Error(t((runData.error || t("platformMisc.runSubmitDetail.runNotFound")) || "") || (runData.error || t("platformMisc.runSubmitDetail.runNotFound")));
+      cacheSet(mainUrl, runData);
+      applyRun(runData);
 
+      // Load form definition (participant can access single form)
+      const formUrl = `/api/platform/forms?id=${runData.run.form_id}`;
+      const formRes = await fetch(formUrl);
+      const formData = await formRes.json();
+      if (!formData.success) throw new Error(t("platformMisc.runSubmitDetail.formNotFound"));
+      cacheSet(formUrl, formData);
+      applyForm(formData);
     } catch (err) {
-      setError(t(err.message || "") || err.message);
+      if (!painted) setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };
