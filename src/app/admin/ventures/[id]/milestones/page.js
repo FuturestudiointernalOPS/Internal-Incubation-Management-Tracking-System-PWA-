@@ -8,6 +8,7 @@ import {
   BookOpen, BarChart3, Layers,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_CFG = {
   not_started: { label: "Not Started", color: "text-slate-400 bg-slate-500/10" },
@@ -57,17 +58,30 @@ export default function VentureMilestonesPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, mRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/milestones`),
-      ]);
-      const vData = await vRes.json();
-      const mData = await mRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/milestones`];
+    const apply = (vData, mData) => {
       if (vData.success) setVenture(vData.venture);
       if (mData.success) setMilestones(mData.milestones || []);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const [vRes, mRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const vData = await vRes.json();
+      const mData = await mRes.json();
+      if (vData.success) cacheSet(urls[0], vData);
+      if (mData.success) cacheSet(urls[1], mData);
+      apply(vData, mData);
     } catch {} finally { setLoading(false); }
   };
 
@@ -93,7 +107,7 @@ export default function VentureMilestonesPage() {
         body: JSON.stringify(mForm),
       });
       const data = await res.json();
-      if (data.success) { notify(t("vadmin.milestones.milestoneCreated")); setShowMilestoneModal(false); setMForm({ title: "", description: "", priority: "medium", due_date: "" }); fetchData(); }
+      if (data.success) { notify(t("vadmin.milestones.milestoneCreated")); setShowMilestoneModal(false); setMForm({ title: "", description: "", priority: "medium", due_date: "" }); fetchData(true); }
       else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
@@ -105,7 +119,7 @@ export default function VentureMilestonesPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
       });
       const data = await res.json();
-      if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(); }
+      if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(true); }
       else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
   };
@@ -154,7 +168,7 @@ export default function VentureMilestonesPage() {
       setSelectedDeliverable(null);
       setReviewForm({ decision: "approved", comments: "" });
       if (selectedMilestone) loadDeliverables(selectedMilestone);
-      fetchData();
+      fetchData(true);
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
   };
