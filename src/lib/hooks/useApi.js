@@ -49,6 +49,39 @@ export function cacheSet(url, data) {
   responseCache.set(url, { data, ts: Date.now() });
 }
 
+// ─── Shared SWR helpers (reused by DashboardLayout + page loaders) ───
+
+/**
+ * Background GET + cache write. Resolves with the parsed body when the
+ * response is a `success` payload (the app-wide API convention); otherwise it
+ * resolves silently and leaves the cache untouched.
+ */
+export function revalidateJson(url, apply) {
+  return fetch(url)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.success) {
+        cacheSet(url, data);
+        if (typeof apply === "function") apply(data);
+      }
+    })
+    .catch(() => {});
+}
+
+/**
+ * Cache-first GET (stale-while-revalidate). When a fresh (≤30s) payload
+ * exists it is applied synchronously and the network revalidation runs in the
+ * background, so shells and pages paint instantly on return visits.
+ */
+export function fetchSwrJson(url, apply) {
+  const hit = cacheGet(url);
+  if (hit !== null && hit.success) {
+    if (typeof apply === "function") apply(hit);
+    return revalidateJson(url, apply);
+  }
+  return revalidateJson(url, apply);
+}
+
 export function useApi(url, options = {}) {
   const {
     immediate = true,

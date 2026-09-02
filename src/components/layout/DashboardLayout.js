@@ -48,7 +48,7 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { fetchSwrJson } from "@/lib/hooks/useApi";
 import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
@@ -82,33 +82,6 @@ const isNewerThan = (dateValue, watermark) => {
   if (!Number.isFinite(ts)) return true;
   return ts > watermark;
 };
-
-// ── Cache-first JSON fetch (stale-while-revalidate) ──
-// The shell's badge/count fetchers fire on every layout mount (including
-// cross-section remounts). Sharing useApi's 30s in-memory GET cache lets those
-// endpoints render instantly from a fresh snapshot and revalidate in the
-// background instead of re-firing the network each time.
-function revalidateFetch(url, apply) {
-  return fetch(url)
-    .then((res) => res.json())
-    .then((data) => {
-      if (data && data.success) {
-        cacheSet(url, data);
-        apply(data);
-      }
-    })
-    .catch(() => {});
-}
-
-function fetchSwr(url, apply) {
-  const hit = cacheGet(url);
-  if (hit !== null && hit.success) {
-    apply(hit);
-    // Paint from cache, then refresh in the background so the value converges.
-    return revalidateFetch(url, apply);
-  }
-  return revalidateFetch(url, apply);
-}
 
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
@@ -890,7 +863,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   const fetchAnnouncements = useCallback(async () => {
-    fetchSwr("/api/announcements", (data) => {
+    fetchSwrJson("/api/announcements", (data) => {
       // Only keep pinned, non-archived announcements for the banner
       setPinnedAnnouncements(
         (data.announcements || []).filter(
@@ -913,7 +886,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       parsedUser.role === "super_admin"
         ? "sa"
         : parsedUser.cid || parsedUser.id;
-    fetchSwr(`/api/notifications?recipient_id=${recipientId}`, (data) => {
+    fetchSwrJson(`/api/notifications?recipient_id=${recipientId}`, (data) => {
       setNotifications(data.notifications || []);
       setUnreadCount(
         (data.notifications || []).filter((n) => !n.is_read).length,
@@ -933,7 +906,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     }
     const cid = parsedUser.cid || parsedUser.id;
     if (!cid) return;
-    fetchSwr(`/api/internal-comms?cid=${cid}`, (data) => {
+    fetchSwrJson(`/api/internal-comms?cid=${cid}`, (data) => {
       const seenAt = readSeenWatermark(SEEN_KEYS.messages);
       const myMessages = data.messages.filter(
         (m) =>
@@ -956,7 +929,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       return;
     }
     if (parsedUser.role !== "super_admin") return;
-    fetchSwr("/api/admin/pending-users", (data) => {
+    fetchSwrJson("/api/admin/pending-users", (data) => {
       const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
       setPendingUsersCount(
         (data.users || data.pendingUsers || []).filter(
@@ -980,7 +953,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     if (parsedUser.role !== "program_manager") return;
     const pmId = parsedUser.cid || parsedUser.id;
     if (!pmId) return;
-    fetchSwr(
+    fetchSwrJson(
       `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
       (data) => {
         const seenAt = readSeenWatermark(SEEN_KEYS.submissions);
@@ -1069,7 +1042,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     }
     const cid = parsedUser.cid || parsedUser.id;
     if (!cid) return;
-    fetchSwr(
+    fetchSwrJson(
       `/api/projects/invitations?invitee_id=${cid}&status=pending`,
       (data) => setPendingInvites(data.invitations || []),
     );
@@ -1086,7 +1059,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     }
     const cid = parsedUser.cid || parsedUser.id;
     if (!cid) return;
-    fetchSwr(
+    fetchSwrJson(
       `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
       (data) => setPendingAssignments(data.assignments || []),
     );
