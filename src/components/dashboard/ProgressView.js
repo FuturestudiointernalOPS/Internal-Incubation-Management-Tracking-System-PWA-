@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Target,
   Users,
@@ -194,15 +195,29 @@ export default function ProgressView({ programId: filterProgramId }) {
   const [showHistory, setShowHistory] = useState(true);
 
   const fetchProgress = useCallback(async () => {
+    const url = "/api/participant/progress";
+    const apply = (result) => {
+      if (result.success) setData(result);
+      else setError(t((result.error || "Failed to load") || "") || (result.error || "Failed to load"));
+    };
+    let painted = false;
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/participant/progress");
+      // Cache-first paint: returning to the progress hub renders instantly
+      // from a fresh snapshot; the network refresh below converges.
+      const cached = cacheGet(url);
+      if (cached !== null && cached.success) {
+        apply(cached);
+        setLoading(false);
+        painted = true;
+      }
+      const res = await fetch(url);
       const result = await res.json();
-      if (result.success) setData(result);
-      else setError(t((result.error || "Failed to load") || "") || (result.error || "Failed to load"));
+      if (result.success) cacheSet(url, result);
+      apply(result);
     } catch (e) {
-      setError("Network error");
+      if (!painted) setError("Network error");
     } finally {
       setLoading(false);
     }
