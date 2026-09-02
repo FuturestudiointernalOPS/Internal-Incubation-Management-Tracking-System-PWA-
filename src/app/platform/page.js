@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { FileText, BarChart3, FolderKanban, CheckCircle2, Clock, Activity } from "lucide-react";
 
 function cn(...classes) { return classes.filter(Boolean).join(" "); }
@@ -14,16 +15,40 @@ export default function PlatformDashboard() {
 
   useEffect(() => { loadOperationalData(); }, []);
 
-  const loadOperationalData = async () => {
+  const loadOperationalData = async (bypassCache = false) => {
+    const statsUrl = "/api/platform/form-runs?dashboard=true";
+    const activityUrl = "/api/platform/form-runs?activity=true";
+    const apply = (statsData, activityData) => {
+      if (statsData?.success) setOperationalStats(statsData.stats);
+      if (activityData?.success)
+        setRecentActivity(activityData.activity || []);
+    };
+    // Cache-first paint: returning to this page renders instantly when both
+    // snapshots are fresh; the network refresh below converges.
+    if (!bypassCache) {
+      const cachedStats = cacheGet(statsUrl);
+      const cachedActivity = cacheGet(activityUrl);
+      if (
+        cachedStats !== null &&
+        cachedStats.success &&
+        cachedActivity !== null &&
+        cachedActivity.success
+      ) {
+        apply(cachedStats, cachedActivity);
+        setLoading(false);
+      }
+    }
     try {
-      const resp = await fetch("/api/platform/form-runs?dashboard=true");
-      const data = await resp.json();
-      if (data.success) setOperationalStats(data.stats);
-    } catch (_) {}
-    try {
-      const resp = await fetch("/api/platform/form-runs?activity=true");
-      const data = await resp.json();
-      if (data.success) setRecentActivity(data.activity || []);
+      const [statsData, activityData] = await Promise.all(
+        [statsUrl, activityUrl].map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      if (statsData?.success) cacheSet(statsUrl, statsData);
+      if (activityData?.success) cacheSet(activityUrl, activityData);
+      apply(statsData, activityData);
     } catch (_) {}
     setLoading(false);
   };
