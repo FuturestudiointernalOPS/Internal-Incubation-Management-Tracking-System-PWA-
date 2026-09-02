@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { ClipboardList, Loader2, ChevronRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -38,12 +39,40 @@ export default function FacilitatorReviews() {
     return t("pmMisc.facilitators.weeklyReview.status_submitted");
   };
 
+  const loadReviews = async (bypassCache = false) => {
+    const url = "/api/facilitator-reviews";
+    const apply = (data) => {
+      if (data.success) setReviews(data.reviews || []);
+    };
+    let painted = false;
+    if (!bypassCache) setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot while the network refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (_) {
+      if (!painted) setReviews([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    fetch("/api/facilitator-reviews")
-      .then((r) => r.json())
-      .then((d) => setReviews(d.success ? d.reviews || [] : []))
-      .catch(() => setReviews([]))
-      .finally(() => setLoading(false));
+    loadReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
