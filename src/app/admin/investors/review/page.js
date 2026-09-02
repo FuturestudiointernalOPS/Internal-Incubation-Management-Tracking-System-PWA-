@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function InvestorReviewPage() {
   const goBack = useSafeBack("/admin/investors");
@@ -22,12 +23,29 @@ export default function InvestorReviewPage() {
 
   useEffect(() => { fetchInvestors(); }, []);
 
-  const fetchInvestors = async () => {
+  const fetchInvestors = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/approval?status=pending_review");
+      const url = "/api/investor/approval?status=pending_review";
+      const apply = (data) => {
+        if (data.success) setInvestors(data.investors || []);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setInvestors(data.investors || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   };
@@ -55,7 +73,7 @@ export default function InvestorReviewPage() {
         detail: { type: "success", message: action === "recommend" ? t("investorAdmin.review.recommendedForApproval") : t("investorAdmin.review.rejected") }
       }));
       setSelected(null);
-      fetchInvestors();
+      fetchInvestors(true);
     } catch (_) {}
     setSaving(false);
   };
