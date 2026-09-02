@@ -185,12 +185,33 @@ beforeEach(() => {
 });
 
 describe("POST /api/tasks — date validation", () => {
+  // ISO week helpers mirroring the route's UTC-based getWeekNumber().
+  // Dates/weeks are computed relative to "today" so these tests are
+  // time-independent (they previously hard-coded week 33 of 2026 and
+  // rotted once that week was no longer the current one).
+  const isoWeek = (date) => {
+    const d = new Date(
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+    );
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
+  };
+  const fmtDate = (date) => date.toISOString().split("T")[0];
+  const daysFromNow = (n) => {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + n);
+    return fmtDate(d);
+  };
+  const now = new Date();
+
   const base = {
     user_id: "staff-1",
     user_name: "Staff One",
     title: "Ship onboarding",
-    created_week: new Date().getFullYear() % 2 === 0 ? 33 : 33,
-    created_year: 2026,
+    created_week: isoWeek(now),
+    created_year: now.getFullYear(),
   };
 
   test("rejects a start date in the past for a current-week task", async () => {
@@ -198,7 +219,7 @@ describe("POST /api/tasks — date validation", () => {
       jsonReq({
         ...base,
         start_date: "2020-01-01",
-        end_date: "2026-08-30",
+        end_date: daysFromNow(5),
       }),
     );
     expect(res.status).toBe(400);
@@ -211,8 +232,8 @@ describe("POST /api/tasks — date validation", () => {
     const res = await POST(
       jsonReq({
         ...base,
-        start_date: "2026-08-20",
-        end_date: "2026-08-10",
+        start_date: daysFromNow(4),
+        end_date: daysFromNow(1),
       }),
     );
     expect(res.status).toBe(400);
@@ -236,8 +257,8 @@ describe("POST /api/tasks — date validation", () => {
     const res = await POST(
       jsonReq({
         ...base,
-        start_date: "2026-08-20",
-        end_date: "2026-08-25",
+        start_date: daysFromNow(1),
+        end_date: daysFromNow(3),
       }),
     );
     expect(res.status).toBe(200);
