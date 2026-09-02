@@ -21,6 +21,7 @@ import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
 import AppModal from "@/components/ui/AppModal";
 import AppEmptyState from "@/components/ui/AppEmptyState";
+import Link from "next/link";
 import { deriveMembershipStatus, sortGroups, EXPIRING_SOON_DAYS } from "@/lib/membership-ui";
 import {
   STATUS_STYLE,
@@ -650,11 +651,11 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               <AppButton variant="ghost" size="sm" icon={History} onClick={onHistory}>
                 {t("membership.actions.history")}
               </AppButton>
-              <a href={`/admin/security/permissions?cid=${encodeURIComponent(member.user_cid)}`}>
+              <Link href={`/admin/security/permissions?cid=${encodeURIComponent(member.user_cid)}`}>
                 <AppButton variant="secondary" size="sm" icon={Eye}>
                   {t("membership.detail.viewEffectiveAccess")}
                 </AppButton>
-              </a>
+              </Link>
             </div>
           </div>
         </section>
