@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  getProjectUpdates,
+  findProjectUpdateId,
+  updateProjectUpdate,
+  createProjectUpdate,
+} from "@/models/projects";
 
 /**
  * PROJECT UPDATES API
@@ -34,10 +40,7 @@ export async function GET(req, { params }) {
     const authError = await requireProjectAccess(id);
     if (authError) return authError;
 
-    const result = await db.execute({
-      sql: "SELECT * FROM v2_project_updates WHERE project_id::text = ? ORDER BY year DESC, week_number DESC",
-      args: [id],
-    });
+    const result = await getProjectUpdates(id);
 
     return NextResponse.json({ success: true, updates: result.rows });
   } catch (error) {
@@ -82,10 +85,7 @@ export async function POST(req, { params }) {
     const currentYear = year || new Date().getFullYear();
 
     // Check if an update already exists for this week
-    const existing = await db.execute({
-      sql: "SELECT id FROM v2_project_updates WHERE project_id::text = ? AND week_number = ? AND year = ?",
-      args: [id, currentWeek, currentYear],
-    });
+    const existing = await findProjectUpdateId(id, currentWeek, currentYear);
 
     if (existing.rows.length > 0) {
       // Update existing
@@ -114,10 +114,7 @@ export async function POST(req, { params }) {
         updateFields.push("updated_at = CURRENT_TIMESTAMP");
         updateArgs.push(existing.rows[0].id);
 
-        await db.execute({
-          sql: `UPDATE v2_project_updates SET ${updateFields.join(", ")} WHERE id = ?`,
-          args: updateArgs,
-        });
+        await updateProjectUpdate(updateFields, updateArgs);
       }
 
       return NextResponse.json({
@@ -130,29 +127,20 @@ export async function POST(req, { params }) {
     }
 
     // Create new
-    const result = await db.execute({
-      sql: `INSERT INTO v2_project_updates
-        (project_id, user_id, user_name, week_number, year, status,
-         accomplishments, current_focus, blockers, next_steps,
-         overall_status, notes)
-        VALUES (?, ?, ?, ?, ?, ?,
-         ?, ?, ?, ?,
-         ?, ?) RETURNING id`,
-      args: [
-        id,
-        user_id,
-        user_name || "",
-        currentWeek,
-        currentYear,
-        status || "draft",
-        accomplishments || null,
-        current_focus || null,
-        blockers || null,
-        next_steps || null,
-        overall_status || "on_track",
-        notes || null,
-      ],
-    });
+    const result = await createProjectUpdate(
+      id,
+      user_id,
+      user_name,
+      currentWeek,
+      currentYear,
+      status,
+      accomplishments,
+      current_focus,
+      blockers,
+      next_steps,
+      overall_status,
+      notes,
+    );
 
     return NextResponse.json({
       success: true,

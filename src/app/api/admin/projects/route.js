@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  getAdminProjects,
+  getAdminTaskStatsByProjectIds,
+  countDatedTasksByProjectIds,
+  getAdminBlockerStatsByProjectIds,
+} from "@/models/projects";
 
 /**
  * GET /api/admin/projects
@@ -19,42 +25,17 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
     const include_archived = searchParams.get("include_archived");
 
-    let projectSql = "SELECT * FROM v2_projects WHERE 1=1";
-    const projectArgs = [];
-
-    if (include_archived !== "true") {
-      projectSql += " AND status != 'Archived'";
-    }
-
-    if (program_id) {
-      projectSql += " AND program_id = ?";
-      projectArgs.push(program_id);
-    }
-    projectSql += " ORDER BY created_at DESC";
-
-    const projectRes = await db.execute({ sql: projectSql, args: projectArgs });
+    const projectRes = await getAdminProjects(include_archived, program_id);
     const projects = projectRes.rows;
 
     // Batched aggregation — 3 grouped queries over ALL project ids instead of
     // 3 queries PER project. Produces identical per-project numbers.
     const projectIds = projects.map((p) => String(p.id));
-    const idsPh = projectIds.map(() => "?").join(",");
 
     const taskStatsRes =
       projectIds.length === 0
         ? { rows: [] }
-        : await db.execute({
-            sql: `SELECT project_id::text AS pid,
-              COUNT(*) AS total,
-              SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
-              SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
-              SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
-              SUM(CASE WHEN status = 'carried_over' THEN 1 ELSE 0 END) AS carried_over,
-              SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
-              FROM tasks WHERE project_id::text IN (${idsPh})
-              GROUP BY project_id::text`,
-            args: projectIds,
-          });
+        : await getAdminTaskStatsByProjectIds(projectIds);
 
     // Timeline-health dated count: kept in its OWN batched query (with its own
     // resilience) so a missing start_date/end_date column never affects the
@@ -63,13 +44,7 @@ export async function GET(req) {
     let datedRes = { rows: [] };
     if (projectIds.length > 0) {
       try {
-        datedRes = await db.execute({
-          sql: `SELECT project_id::text AS pid,
-            SUM(CASE WHEN start_date IS NOT NULL AND end_date IS NOT NULL THEN 1 ELSE 0 END) AS dated
-            FROM tasks WHERE project_id::text IN (${idsPh})
-            GROUP BY project_id::text`,
-          args: projectIds,
-        });
+        datedRes = await countDatedTasksByProjectIds(projectIds);
       } catch (_) {
         datedRes = { rows: [] }; // columns missing / error → 0, same as before
       }
@@ -78,16 +53,7 @@ export async function GET(req) {
     const blockerStatsRes =
       projectIds.length === 0
         ? { rows: [] }
-        : await db.execute({
-            sql: `SELECT t.project_id::text AS pid,
-              COUNT(*) AS total,
-              SUM(CASE WHEN b.status = 'active' THEN 1 ELSE 0 END) AS active
-              FROM blockers b
-              JOIN tasks t ON b.task_id = t.id
-              WHERE t.project_id::text IN (${idsPh})
-              GROUP BY t.project_id::text`,
-            args: projectIds,
-          });
+        : await getAdminBlockerStatsByProjectIds(projectIds);
 
     // Index by project id for O(1) lookups.
     const taskMap = new Map();
