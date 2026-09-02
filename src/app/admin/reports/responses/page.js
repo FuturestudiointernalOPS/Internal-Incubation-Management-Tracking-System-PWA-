@@ -21,6 +21,7 @@ import {
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // Helper: formats snake_case labels to Title Case
 function formatLabel(val) {
@@ -59,24 +60,39 @@ export default function ReportResponses() {
   const [viewingReport, setViewingReport] = useState(null);
   const [kpis, setKpis] = useState([]);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const urls = ["/api/teacher/reports", "/api/pm/programs"];
+    const apply = (repData, progData) => {
+      if (repData?.success) setReports(repData.reports || []);
+      if (progData?.success) setPrograms(progData.programs || []);
+    };
     setLoading(true);
     try {
-      const [repRes, progRes] = await Promise.all([
-        fetch("/api/teacher/reports"),
-        fetch("/api/pm/programs"),
-      ]);
-      const [repData, progData] = await Promise.all([
-        repRes.json(),
-        progRes.json(),
-      ]);
-
-      if (repData.success) setReports(repData.reports || []);
-      if (progData.success) setPrograms(progData.programs || []);
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the feed always
+      // reflects the latest server state.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
 
       // Fetch KPIs for each program to resolve KPI names
       const allKpis = [];
-      for (const prog of (progData.programs || [])) {
+      for (const prog of (responses[1]?.programs || [])) {
         try {
           const kpiRes = await fetch(`/api/kpi-progress?program_id=${prog.id}`);
           const kpiData = await kpiRes.json();
