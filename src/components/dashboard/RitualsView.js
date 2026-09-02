@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Zap,
   CheckCircle2,
@@ -228,39 +229,59 @@ export default function RitualsView() {
   const [loading, setLoading] = useState(true);
 
   const fetchPrograms = useCallback(async () => {
-    try {
-      const res = await fetch("/api/participant/programs");
-      const data = await res.json();
+    const url = "/api/participant/programs";
+    const apply = (data) => {
       if (data.success) setPrograms(data.programs || []);
+    };
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) apply(cached);
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       /* ignore */
     }
   }, []);
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async (bypassCache = false) => {
     setLoading(true);
-    try {
-      const results = await Promise.all(
-        RITUAL_TYPES.map(async (rt) => {
-          const res = await fetch(`/api/participant/rituals/${rt.id}`);
-          const data = await res.json();
-          return {
-            type: rt.id,
-            data: data.success
-              ? data[`${rt.id}s`] || data[`${rt.id}ions`] || []
-              : [],
-          };
-        }),
-      );
+    const urls = RITUAL_TYPES.map((rt) => `/api/participant/rituals/${rt.id}`);
+    const apply = (perType) => {
       const hist = {};
-      results.forEach((r) => {
-        hist[r.type] = r.data;
+      RITUAL_TYPES.forEach((rt, i) => {
+        hist[rt.id] = perType[i] || [];
       });
       setHistory(hist);
+    };
+    const pick = (data, rt) =>
+      data && data.success ? data[`${rt.id}s`] || data[`${rt.id}ions`] || [] : [];
+    try {
+      // Cache-first paint on reads; submit flows pass bypassCache=true.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached.map((c, i) => pick(c, RITUAL_TYPES[i])));
+          setLoading(false);
+        }
+      }
+      const perType = await Promise.all(
+        RITUAL_TYPES.map(async (rt, i) => {
+          const res = await fetch(urls[i]);
+          const data = await res.json();
+          if (data.success) cacheSet(urls[i], data);
+          return pick(data, rt);
+        }),
+      );
+      apply(perType);
     } catch (e) {
       /* ignore */
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -275,7 +296,7 @@ export default function RitualsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      fetchHistory();
+      fetchHistory(true);
     } catch (e) {
       /* ignore */
     }
