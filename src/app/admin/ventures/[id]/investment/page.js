@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, TrendingUp, Target, RefreshCw,
   BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const CATEGORY_ICONS = {
   startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
@@ -30,16 +31,29 @@ export default function VentureInvestmentPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, iRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/investment`),
-      ]);
-      const v = await vRes.json(); const i = await iRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/investment`];
+    const apply = (v, i) => {
       if (v.success) setVenture(v.venture);
       if (i.success) setData(i);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; the assessment flow passes bypassCache=true so the
+      // data always reflects the last evaluation.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const [vRes, iRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const i = await iRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (i.success) cacheSet(urls[1], i);
+      apply(v, i);
     } catch {} finally { setLoading(false); }
   };
 
@@ -48,7 +62,7 @@ export default function VentureInvestmentPage() {
     try {
       const res = await fetch(`/api/ventures/${id}/investment`, { method: "POST" });
       const d = await res.json();
-      if (d.success) setData((prev) => ({ ...prev, ...d }));
+      if (d.success) fetchData(true);
     } catch {} finally { setEvaluating(false); }
   };
 
