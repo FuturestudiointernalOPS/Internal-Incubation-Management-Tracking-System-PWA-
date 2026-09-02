@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, FileText, Upload,
   Share2, Clock, Eye, Download, History, Trash2, Copy, Link as LinkIcon,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const CATEGORIES = [
   { value: "pitch_deck", label: "Pitch Deck", icon: FileText },
@@ -45,30 +46,61 @@ export default function VentureDataRoomPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, dRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/documents`),
-      ]);
-      const v = await vRes.json(); const d = await dRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/documents`];
+    const apply = (v, d) => {
       if (v.success) setVenture(v.venture);
       if (d.success) setDocuments(d.documents || []);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const [vRes, dRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const d = await dRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (d.success) cacheSet(urls[1], d);
+      apply(v, d);
     } catch {} finally { setLoading(false); }
   };
 
-  const loadDetail = async (docId) => {
-    const [dRes, sRes, lRes] = await Promise.all([
-      fetch(`/api/ventures/${id}/documents?type=detail&document_id=${docId}`),
-      fetch(`/api/ventures/${id}/documents?type=shares&document_id=${docId}`),
-      fetch(`/api/ventures/${id}/documents?type=access_logs&document_id=${docId}`),
-    ]);
-    const d = await dRes.json(); const s = await sRes.json(); const l = await lRes.json();
-    if (d.success) setSelectedDoc(d.document);
-    if (s.success) setShares(s.shares || []);
-    if (l.success) setAccessLogs(l.logs || []);
-    setShowDetail(true);
+  const loadDetail = async (docId, bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}/documents?type=detail&document_id=${docId}`,
+      `/api/ventures/${id}/documents?type=shares&document_id=${docId}`,
+      `/api/ventures/${id}/documents?type=access_logs&document_id=${docId}`,
+    ];
+    const apply = (d, s, l) => {
+      if (d.success) setSelectedDoc(d.document);
+      if (s.success) setShares(s.shares || []);
+      if (l.success) setAccessLogs(l.logs || []);
+      setShowDetail(true);
+    };
+    try {
+      // Cache-first paint: reopening a document renders instantly from a
+      // fresh snapshot; share/revoke flows pass bypassCache=true so the
+      // drawer always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+        }
+      }
+      const [dRes, sRes, lRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const d = await dRes.json(); const s = await sRes.json(); const l = await lRes.json();
+      if (d.success) cacheSet(urls[0], d);
+      if (s.success) cacheSet(urls[1], s);
+      if (l.success) cacheSet(urls[2], l);
+      apply(d, s, l);
+    } catch {}
   };
 
   const handleUpload = async () => {
@@ -80,7 +112,7 @@ export default function VentureDataRoomPage() {
         body: JSON.stringify({ action: "upload", ...uForm, file_name: uForm.file_name || uForm.title + ".pdf" }),
       });
       setShowUploadModal(false); setUForm({ title: "", description: "", category: "other", file_name: "", file_url: "", is_pitch_deck: false });
-      fetchAll();
+      fetchAll(true);
     } catch {} finally { setSaving(false); }
   };
 
@@ -95,7 +127,7 @@ export default function VentureDataRoomPage() {
       const d = await res.json();
       if (d.success) {
         navigator.clipboard?.writeText(`${window.location.origin}${d.share_url}`);
-        loadDetail(selectedDoc.id);
+        loadDetail(selectedDoc.id, true);
         setShowShareModal(false);
       }
     } catch {} finally { setSaving(false); }
@@ -106,7 +138,7 @@ export default function VentureDataRoomPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "revoke_share", share_id: shareId }),
     });
-    if (selectedDoc) loadDetail(selectedDoc.id);
+    if (selectedDoc) loadDetail(selectedDoc.id, true);
   };
 
   const handleDelete = async (docId) => {
@@ -114,7 +146,7 @@ export default function VentureDataRoomPage() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "delete", document_id: docId }),
     });
-    setShowDetail(false); setSelectedDoc(null); fetchAll();
+    setShowDetail(false); setSelectedDoc(null); fetchAll(true);
   };
 
   const filtered = documents.filter((d) => {
