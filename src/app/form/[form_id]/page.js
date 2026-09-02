@@ -6,6 +6,8 @@ import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import GlobalToast from '@/components/ui/GlobalToast';
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+
 function PublicFormContent() {
   const { t } = useI18n();
   const params = useParams();
@@ -28,17 +30,34 @@ function PublicFormContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form_id]);
 
-  const fetchForm = async () => {
+  const fetchForm = async (bypassCache = false) => {
+    const url = `/api/forms/${form_id}`;
+    const apply = (data) => {
+      if (!data || !data.success) return;
+      setForm(data.form);
+    };
+    let painted = false;
     try {
-      const res = await fetch(`/api/forms/${form_id}`);
+      // Cache-first paint: revisiting the same form renders instantly from a fresh
+      // snapshot while the network refresh below keeps the form definition current.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setForm(data.form);
+        cacheSet(url, data);
+        apply(data);
       } else {
         setError(t((data.error || t("rootMisc.form.formNotFound")) || "") || (data.error || t("rootMisc.form.formNotFound")));
       }
     } catch (err) {
-      setError(t("rootMisc.form.connectionError"));
+      if (!painted) setError(t("rootMisc.form.connectionError"));
     } finally {
       setLoading(false);
     }
