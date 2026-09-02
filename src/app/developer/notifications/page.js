@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { Bell, RefreshCw, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DeveloperNotifications() {
   const { t } = useI18n();
@@ -21,18 +22,30 @@ export default function DeveloperNotifications() {
   }, []);
 
   useEffect(() => {
-    const fetchNotifications = async () => {
+    const fetchNotifications = async (bypassCache = false) => {
       setLoading(true);
       try {
         const sessionRes = await fetch("/api/auth/session");
         const sessionData = await sessionRes.json();
         if (sessionData.authenticated) {
-          const res = await fetch(
-            `/api/notifications?recipient_id=${sessionData.user.cid}`,
-          );
+          const url = `/api/notifications?recipient_id=${sessionData.user.cid}`;
+          const apply = (data) => {
+            if (data.success) setNotifications(data.notifications || []);
+          };
+          // Cache-first paint: returning to this page renders instantly from a
+          // fresh snapshot; the network refresh below converges.
+          if (!bypassCache) {
+            const cached = cacheGet(url);
+            if (cached !== null && cached.success) {
+              apply(cached);
+              setLoading(false);
+            }
+          }
+          const res = await fetch(url);
           const data = await res.json();
           if (data.success) {
-            setNotifications(data.notifications || []);
+            cacheSet(url, data);
+            apply(data);
           }
         }
       } catch (e) {
