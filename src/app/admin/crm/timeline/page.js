@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -57,15 +58,30 @@ function TimelinePageContent() {
 
   useEffect(() => {
     if (!cid) return;
-    async function fetchTimeline() {
-      setLoading(true);
-      try {
-        const url = `/api/contacts/${cid}/timeline?limit=100${moduleFilter ? `&module=${moduleFilter}` : ""}`;
-        const res = await fetch(url);
-        const data = await res.json();
+    async function fetchTimeline(bypassCache = false) {
+      const url = `/api/contacts/${cid}/timeline?limit=100${moduleFilter ? `&module=${moduleFilter}` : ""}`;
+      const apply = (data) => {
         if (data.success) {
           setContact(data.contact);
           setEvents(data.events || []);
+        }
+      };
+      setLoading(true);
+      try {
+        // Cache-first paint: returning to this contact / switching filters
+        // renders instantly from a fresh snapshot.
+        if (!bypassCache) {
+          const cached = cacheGet(url);
+          if (cached !== null && cached.success) {
+            apply(cached);
+            setLoading(false);
+          }
+        }
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success) {
+          cacheSet(url, data);
+          apply(data);
         }
       } catch (e) {
         console.error("Timeline fetch error:", e);
