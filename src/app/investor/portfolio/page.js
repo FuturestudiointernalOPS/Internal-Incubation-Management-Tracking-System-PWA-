@@ -11,6 +11,7 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function PortfolioPage() {
   const goBack = useSafeBack("/investor");
@@ -51,48 +52,109 @@ export default function PortfolioPage() {
     }
   }, [selected]);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const dash = await fetch("/api/investor/dashboard");
+      const dashUrl = "/api/investor/dashboard";
+      const decUrl = "/api/investor/decisions";
+      const apply = (dashData, decData) => {
+        if (dashData.success) setPipeline(dashData.pipeline?.filter(p => p.stage === "invested") || []);
+        if (decData.success) { setDecisions(decData.decisions || []); setStats(decData.stats || {}); }
+      };
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots while the lists refresh in the background.
+      if (!bypassCache) {
+        const dashCached = cacheGet(dashUrl);
+        const decCached = cacheGet(decUrl);
+        if (dashCached !== null && dashCached.success && decCached !== null && decCached.success) {
+          apply(dashCached, decCached);
+          setLoading(false);
+        }
+      }
+      const dash = await fetch(dashUrl);
       const dashData = await dash.json();
-      if (dashData.success) setPipeline(dashData.pipeline?.filter(p => p.stage === "invested") || []);
-      const dec = await fetch("/api/investor/decisions");
+      if (dashData.success) cacheSet(dashUrl, dashData);
+      const dec = await fetch(decUrl);
       const decData = await dec.json();
-      if (decData.success) { setDecisions(decData.decisions || []); setStats(decData.stats || {}); }
+      if (decData.success) cacheSet(decUrl, decData);
+      apply(dashData, decData);
     } catch (_) {}
     setLoading(false);
   };
 
-  const fetchMeetings = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/meetings?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchMeetings = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/meetings?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setMeetings(data.meetings || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchNotes = async (pipelineId) => {
-    try {
-      const res = await fetch(`/api/investor/diligence?pipeline_id=${pipelineId}`);
-      const data = await res.json();
+  const fetchNotes = async (pipelineId, bypassCache = false) => {
+    const url = `/api/investor/diligence?pipeline_id=${pipelineId}`;
+    const apply = (data) => {
       if (data.success) setNotes(data.notes || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchUpdates = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/updates?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchUpdates = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/updates?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setUpdates(data.updates || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchKpis = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/venture-kpis?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchKpis = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/venture-kpis?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setKpis(data.kpis || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
@@ -105,7 +167,7 @@ export default function PortfolioPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: selected.id, action: "add_note", content: newNote, note_type: "private" }),
       });
-      if (res.ok) { setNewNote(""); fetchNotes(selected.id); }
+      if (res.ok) { setNewNote(""); fetchNotes(selected.id, true); }
     } catch (_) {}
   };
 
@@ -121,7 +183,7 @@ export default function PortfolioPage() {
         setToast({ type: "success", message: t("investorMisc.portfolio.meetingScheduled") });
         setShowMeetingForm(false);
         setMeetingForm({ title: "", description: "", start_time: "", end_time: "", location: "video" });
-        fetchMeetings(selected.venture_id);
+        fetchMeetings(selected.venture_id, true);
       }
     } catch (_) {}
     setSaving(false);
@@ -139,7 +201,7 @@ export default function PortfolioPage() {
         setToast({ type: "success", message: t("investorMisc.portfolio.updatePublished") });
         setShowUpdateForm(false);
         setUpdateForm({ title: "", content: "", update_type: "general" });
-        fetchUpdates(selected.venture_id);
+        fetchUpdates(selected.venture_id, true);
       }
     } catch (_) {}
     setSaving(false);
