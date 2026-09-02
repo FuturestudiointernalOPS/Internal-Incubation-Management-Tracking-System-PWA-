@@ -10,6 +10,7 @@ import { useSafeBack } from "@/lib/useSafeBack";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const INDUSTRY_OPTIONS = [
   "FinTech", "HealthTech", "AgriTech", "EdTech", "CleanTech",
@@ -43,23 +44,39 @@ export default function InvestorProfilePage() {
 
   useEffect(() => { fetchProfile(); }, []);
 
-  const fetchProfile = async () => {
+  const fetchProfile = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/profile");
+      const url = "/api/investor/profile";
+      const apply = (data) => {
+        if (data.success && data.profile) {
+          setProfile(data.profile);
+          setOrgName(data.profile.organization_name || "");
+          setBiography(data.profile.biography || "");
+          setWebsite(data.profile.website || "");
+          setLinkedin(data.profile.linkedin || "");
+          setIndustries(data.profile.industries || []);
+          setCountries(data.profile.countries || []);
+          setStages(data.profile.startup_stages || []);
+          setTicketMin(data.profile.ticket_size_min || "");
+          setTicketMax(data.profile.ticket_size_max || "");
+          setPhilosophy(data.profile.investment_philosophy || "");
+        }
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot while the profile refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success && data.profile) {
-        setProfile(data.profile);
-        setOrgName(data.profile.organization_name || "");
-        setBiography(data.profile.biography || "");
-        setWebsite(data.profile.website || "");
-        setLinkedin(data.profile.linkedin || "");
-        setIndustries(data.profile.industries || []);
-        setCountries(data.profile.countries || []);
-        setStages(data.profile.startup_stages || []);
-        setTicketMin(data.profile.ticket_size_min || "");
-        setTicketMax(data.profile.ticket_size_max || "");
-        setPhilosophy(data.profile.investment_philosophy || "");
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setLoading(false);
