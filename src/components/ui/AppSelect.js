@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
+
 export default function AppSelect({
   label,
   options = [],
@@ -25,7 +27,7 @@ export default function AppSelect({
           value={value}
           onChange={onChange}
           className={`
-            w-full rounded-md py-3 px-4 text-sm font-medium outline-none
+            w-full rounded-md py-3 px-4 pr-10 text-sm font-medium outline-none
             appearance-none cursor-pointer transition-all border
             ${Icon ? "pl-12" : ""}
             ${className}
@@ -46,6 +48,10 @@ export default function AppSelect({
             </option>
           ))}
         </select>
+        <ChevronDown
+          className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+          style={{ color: "var(--text-tertiary)" }}
+        />
       </div>
     </div>
   );
