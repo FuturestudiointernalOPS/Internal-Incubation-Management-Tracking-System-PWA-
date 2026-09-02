@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Search,
   FileText,
@@ -84,18 +85,32 @@ export default function PMSubmissions() {
     }
   }, [scheduleModal]);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (bypassCache = false) => {
     if (!user?.cid && !user?.id) return;
-    setLoading(true);
-    try {
-      const pmId = user.cid || user.id;
-      const res = await fetch(
-        `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
-      );
-      const data = await res.json();
+    const pmId = user.cid || user.id;
+    const url = `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`;
+    const apply = (data) => {
       if (data.success) {
         setSubmissions(data.submissions || []);
         setPrograms(data.programs || []);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint on reads; review flows pass bypassCache=true so the
+      // list always reflects the just-reviewed server state.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch submissions", e);
@@ -131,7 +146,7 @@ export default function PMSubmissions() {
       }
       setReviewModal(null);
       setFeedback("");
-      fetchSubmissions();
+      fetchSubmissions(true);
     } catch (e) {
       console.error("Review failed", e);
       alert(t("pmMisc.submissions.reviewFailed"));
