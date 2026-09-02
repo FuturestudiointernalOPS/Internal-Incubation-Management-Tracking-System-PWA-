@@ -16,6 +16,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DevelopersPage() {
   const { t } = useI18n();
@@ -27,13 +28,30 @@ export default function DevelopersPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
 
-  const fetchDevelopers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/engineering/developers");
-      const data = await res.json();
+  const fetchDevelopers = useCallback(async (bypassCache = false) => {
+    const url = "/api/engineering/developers";
+    const apply = (data) => {
       if (data.success) {
         setDevelopers(data.developers || []);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; promote/activate pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch developers", e);
@@ -66,7 +84,7 @@ export default function DevelopersPage() {
       if (data.success) {
         setActionMsg(t("engineering.developers.promoteSuccess", { role: newRole }));
         setShowPromoteModal(null);
-        fetchDevelopers();
+        fetchDevelopers(true);
       } else {
         setActionMsg(t((data.error || t("engineering.developers.promoteFailed")) || "") || (data.error || t("engineering.developers.promoteFailed")));
       }
@@ -87,7 +105,7 @@ export default function DevelopersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchDevelopers();
+        fetchDevelopers(true);
         window.dispatchEvent(new CustomEvent("notifications:refresh"));
       }
     } catch (e) {
