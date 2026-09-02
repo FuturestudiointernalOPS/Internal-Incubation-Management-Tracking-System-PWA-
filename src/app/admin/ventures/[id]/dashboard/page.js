@@ -33,6 +33,7 @@ import {
   Ban,
   Send,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -109,38 +110,74 @@ export default function VentureDashboardPage() {
     fetchDashboard();
   }, [refreshKey]);
 
-  const fetchVenture = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${id}`);
-      const data = await res.json();
+  const fetchVenture = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}`;
+    const apply = (data) => {
       if (data.success) setVenture(data.venture);
-    } catch {}
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the venture
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
+    } catch (e) {
+      if (!painted) setError("Failed to load venture data");
+    }
   };
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}/dashboard`;
+    const apply = (data) => {
+      if (!data.success) {
+        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
+        return;
+      }
+      setDashboard(data.dashboard);
+      // Set individual widget states based on which data loaded
+      const states = {};
+      for (const [key, val] of Object.entries(data.dashboard)) {
+        states[key] = {
+          loading: false,
+          error: val === null ? "Failed to load" : null,
+          empty: val === null ? false : isWidgetEmpty(key, val),
+          data: val,
+        };
+      }
+      setWidgetStates(states);
+    };
+    let painted = false;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/ventures/${id}/dashboard`);
-      const data = await res.json();
-      if (data.success) {
-        setDashboard(data.dashboard);
-        // Set individual widget states based on which data loaded
-        const states = {};
-        for (const [key, val] of Object.entries(data.dashboard)) {
-          states[key] = {
-            loading: false,
-            error: val === null ? "Failed to load" : null,
-            empty: val === null ? false : isWidgetEmpty(key, val),
-            data: val,
-          };
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the widgets
+      // always reflect the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
         }
-        setWidgetStates(states);
-      } else {
-        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
       }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError("Failed to load dashboard data");
+      if (!painted) setError("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
