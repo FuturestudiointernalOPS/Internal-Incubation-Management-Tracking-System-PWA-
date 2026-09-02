@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2, AlertTriangle, FileText, Clock, Info, ChevronDown, ChevronUp, Star, Globe, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -109,11 +110,10 @@ export default function PublicSubmitPage() {
     if (rawForm.current) translateFormContent(lang);
   }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadRun = async () => {
-    try {
-      const res = await fetch(`/api/s/public-run?slug=${runId}`);
-      const data = await res.json();
-      if (!data.success) throw new Error(t((data.error || "Run not found") || "") || (data.error || "Run not found"));
+  const loadRun = async (bypassCache = false) => {
+    const url = `/api/s/public-run?slug=${runId}`;
+    const apply = (data) => {
+      if (!data || !data.success) return;
       const loadedForm = { name: data.run.form_name || data.run.name, description: data.run.form_description || data.run.description };
       setRun(data.run);
       setSections(data.sections || []);
@@ -156,8 +156,26 @@ export default function PublicSubmitPage() {
       } else if (savedLang && savedLang !== "en") {
         translateFormContent(savedLang);
       }
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to the same public run paints instantly from a
+      // fresh snapshot while the network refresh below keeps the run/form current.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.success) throw new Error(t((data.error || "Run not found") || "") || (data.error || "Run not found"));
+      cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t(e.message || "") || e.message);
+      if (!painted) setError(t(e.message || "") || e.message);
     }
     setLoading(false);
   };
