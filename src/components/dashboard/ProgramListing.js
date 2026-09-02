@@ -18,6 +18,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 
@@ -260,6 +261,7 @@ export default function ProgramListing() {
   const [error, setError] = useState(null);
   const [contact, setContact] = useState(null);
   const { t } = useI18n();
+  const router = useRouter();
 
   const fetchPrograms = useCallback(async () => {
     try {
@@ -285,7 +287,10 @@ export default function ProgramListing() {
   }, [fetchPrograms]);
 
   const handleProgramSelect = (programId) => {
-    window.location.href = `/participant/${programId}`;
+    // Client-side navigation — ProgramListing lives inside the persistent
+    // /participant shell, so a full page reload would remount the whole
+    // dashboard (auth chain + badges) for no reason.
+    router.push(`/participant/${programId}`);
   };
 
   // ── Error State ──────────────────────────────────────────────────
