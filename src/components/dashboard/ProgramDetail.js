@@ -35,6 +35,7 @@ import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function translateStatus(raw, t) {
@@ -561,12 +562,9 @@ export default function ProgramDetail({ programId }) {
     setUser(u);
   }, []);
 
-  const fetchDetail = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/participant/programs/${programId}`);
-      const result = await res.json();
+  const fetchDetail = useCallback(async (bypassCache = false) => {
+    const url = `/api/participant/programs/${programId}`;
+    const apply = (result) => {
       if (result.success) {
         if (result.curriculum && result.curriculum.weeks) {
           result.curriculum.weeks = result.curriculum.weeks.map(w => ({
@@ -583,8 +581,27 @@ export default function ProgramDetail({ programId }) {
         const key = getServerErrorKey(result.error);
         setError(key ? t(key) : result.error || t("participant.failedToLoad"));
       }
+    };
+    let painted = false;
+    try {
+      setLoading(true);
+      setError(null);
+      // Cache-first paint: returning to a program detail page renders
+      // instantly from a fresh snapshot; submit flows pass bypassCache=true.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const result = await res.json();
+      if (result.success) cacheSet(url, result);
+      apply(result);
     } catch (e) {
-      setError(t("errors.networkError"));
+      if (!painted) setError(t("errors.networkError"));
     } finally {
       setLoading(false);
     }
@@ -1166,7 +1183,7 @@ export default function ProgramDetail({ programId }) {
               deliverableId={submitModal.deliverableId}
               onDone={() => {
                 setSubmitModal(null);
-                fetchDetail();
+                fetchDetail(true);
               }}
               readOnly={isViewOnlyProgram}
               deliverable={submitModal.deliverable}
