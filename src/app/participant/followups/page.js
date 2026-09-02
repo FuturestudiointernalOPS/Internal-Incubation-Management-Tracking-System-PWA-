@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Clock, ExternalLink, RefreshCw, Video, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function ParticipantFollowupsPage() {
   const [user, setUser] = useState({});
@@ -15,14 +16,26 @@ export default function ParticipantFollowupsPage() {
     setUser(stored);
   }, []);
 
-  const fetchFollowups = useCallback(async () => {
+  const fetchFollowups = useCallback(async (bypassCache = false) => {
+    const url = "/api/participant/followups";
+    const apply = (data) => {
+      if (data.success) setFollowups(data.followups || []);
+    };
     setLoading(true);
     try {
-      const res = await fetch("/api/participant/followups");
-      const data = await res.json();
-      if (data.success) {
-        setFollowups(data.followups || []);
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot while data refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
       }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
       console.error("Failed to load follow-ups", e);
     } finally {
