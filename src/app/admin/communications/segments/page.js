@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useI18n } from '@/lib/i18n';
 import { useSafeBack } from '@/lib/useSafeBack';
+import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 
 const SEGMENT_KEY_LABELS = {
   campaign_id: 'crm.segments.filterKeyCampaign',
@@ -43,19 +44,37 @@ export default function SegmentsPage() {
     fetchData(); 
   }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     try {
+      const urls = ['/api/segments', '/api/campaigns', '/api/forms'];
+      const apply = (segs, camps, fms) => {
+        if (segs?.success) setSegments(segs.segments || []);
+        if (camps?.success) setCampaigns(camps.campaigns || []);
+        if (fms?.success) setForms(fms.forms || []);
+      };
+
       setLoading(true);
-      const [segRes, campRes, formRes] = await Promise.all([
-        fetch('/api/segments'),
-        fetch('/api/campaigns'),
-        fetch('/api/forms').catch(() => ({ json: () => ({ forms: [] }) }))
-      ]);
-      const [segs, camps, fms] = await Promise.all([segRes.json(), campRes.json(), formRes.json()]);
-      
-      if (segs.success) setSegments(segs.segments || []);
-      if (camps.success) setCampaigns(camps.campaigns || []);
-      if (fms.success) setForms(fms.forms || []);
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; saving a segment passes bypassCache=true so the list always
+      // reflects the just-saved state.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -110,7 +129,7 @@ export default function SegmentsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
+        fetchData(true);
         setShowBuilder(false);
         setFilters({ campaign_id: '', status: '' });
         setSegmentName('');
