@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   FileText,
   CheckCircle2,
@@ -60,16 +61,12 @@ export default function AssignmentsView() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const fetchAssignments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const url =
-        filterProgram !== "all"
-          ? `/api/participant/assignments?program_id=${filterProgram}`
-          : "/api/participant/assignments";
-      const res = await fetch(url);
-      const data = await res.json();
+  const fetchAssignments = useCallback(async (bypassCache = false) => {
+    const url =
+      filterProgram !== "all"
+        ? `/api/participant/assignments?program_id=${filterProgram}`
+        : "/api/participant/assignments";
+    const apply = (data) => {
       if (data.success) {
         setAssignments(data.assignments || []);
         // Extract unique programs
@@ -83,8 +80,27 @@ export default function AssignmentsView() {
       } else {
         setError(t((data.error || "Failed to load") || "") || (data.error || "Failed to load"));
       }
+    };
+    let painted = false;
+    try {
+      setLoading(true);
+      setError(null);
+      // Cache-first paint on reads (incl. program filter switches); the
+      // submit flow passes bypassCache=true so it always reloads fresh.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError("Network error");
+      if (!painted) setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -150,7 +166,7 @@ export default function AssignmentsView() {
         setSubmitUrl("");
         setSubmitFile(null);
         setFeedback(null);
-        fetchAssignments();
+        fetchAssignments(true);
       } else {
         setFeedback({
           type: "error",
