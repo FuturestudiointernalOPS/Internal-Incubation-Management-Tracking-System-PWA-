@@ -299,7 +299,7 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/lms/courses/[id]/publish` · `/archive` | ✅ Phase 2 | status transitions (admin) |
 | `/api/lms/sections/*` · `/lessons/*` · `/assessments/*` · `/questions/*` | ✅ Phase 2 | content authoring (admin) |
 | `/api/lms/enrollments` + `/api/lms/courses/[id]/enrollments` | ✅ Phase 3 (minimal enabler) | admin enrollment (lms.enroll) |
-| `/api/lms/my-learning` | ✅ Phase 3 | learner's enrolled courses + progress |
+| `/api/lms/my-learning` (+ `?exists=1`) | ✅ Phase 3 | learner's enrolled courses + progress; `exists=1` returns a lightweight `{ enrolled }` flag used by the shell to only surface "My Learning" for learners who have subscribed to or been assigned a course |
 | `/api/lms/courses/[id]/learn` | ✅ Phase 3 | learner-scoped course view (enrollment-gated) |
 | `/api/lms/lessons/[lessonId]/complete` | ✅ Phase 3 | idempotent lesson completion |
 | `/api/lms/assessments/[id]/submit` | ✅ Phase 4 | server-side scoring + attempt row |
@@ -373,6 +373,10 @@ User → valid `lms_enrollments` row → Course → Access. Learner endpoints us
 never from client-supplied course/enrollment IDs and never from `lms.*` capabilities (learners
 have none). A non-enrolled user gets 403 even if they know the course ID. Draft courses are
 never exposed to learners; archived courses remain accessible to enrolled learners.
+
+- **"My Learning" visibility**: the sidebar entry only appears once the learner has at least one
+  usable enrollment (source `self`, `admin`, `program` or `purchase`; `suspended` rows do not
+  count). The shell polls `/api/lms/my-learning?exists=1` inside the participant context.
 
 ### Progress
 
