@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * SUPER ADMIN TASKS DASHBOARD
@@ -111,17 +112,35 @@ export default function AdminTasks() {
   const [assigningUser, setAssigningUser] = useState(false);
   const { t } = useI18n();
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (bypassCache = false) => {
+    const urls = [`/api/tasks?sort=${sortBy}`, "/api/projects"];
+    const apply = (taskData, projectData) => {
+      if (taskData?.success) setTasks(taskData.tasks || []);
+      if (projectData?.success) setProjects(projectData.projects || []);
+    };
     setLoading(true);
     try {
-      const [taskRes, projectRes] = await Promise.all([
-        fetch(`/api/tasks?sort=${sortBy}`),
-        fetch("/api/projects"),
-      ]);
-      const taskData = await taskRes.json();
-      const projectData = await projectRes.json();
-      if (taskData.success) setTasks(taskData.tasks || []);
-      if (projectData.success) setProjects(projectData.projects || []);
+      // Cache-first paint: switching sorts / returning to the page renders
+      // instantly from fresh snapshots; status mutations pass bypassCache=true
+      // so the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -256,7 +275,7 @@ export default function AdminTasks() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchTasks();
+        fetchTasks(true);
       } else if (data.hasActiveBlockers) {
         // Attempt with force_complete
         const retryRes = await fetch("/api/tasks", {
@@ -269,7 +288,7 @@ export default function AdminTasks() {
           }),
         });
         const retryData = await retryRes.json();
-        if (retryData.success) fetchTasks();
+        if (retryData.success) fetchTasks(true);
       }
     } catch (e) {
       console.error(e);
