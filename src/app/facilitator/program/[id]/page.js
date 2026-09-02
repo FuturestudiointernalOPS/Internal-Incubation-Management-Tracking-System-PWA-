@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -66,34 +67,25 @@ export default function FacilitatorProgram({ params }) {
     return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const progRes = await fetch(`/api/pm/full-state?id=${id}&t=${Date.now()}`);
-      const progData = await progRes.json();
+  const load = async (bypassCache = false) => {
+    const urls = [
+      `/api/pm/full-state?id=${id}`,
+      `/api/participants?program_id=${id}`,
+      `/api/submissions?program_id=${id}`,
+      `/api/facilitator-reviews?program_id=${id}`,
+      `/api/attendance?program_id=${id}&date=${attendanceDate}`,
+    ];
+    const apply = (progData, parData, subData, revData, attData) => {
       if (progData.success) {
         setProgram(progData.program);
         setSessions(progData.sessions || []);
         setReviewWeek(computeProgramWeek(progData.program));
       }
-
-      const parRes = await fetch(`/api/participants?program_id=${id}`);
-      const parData = await parRes.json();
       if (parData.success) setParticipants(parData.participants || []);
-
-      const subRes = await fetch(
-        `/api/submissions?program_id=${id}`,
-      );
-      const subData = await subRes.json();
       if (subData.success) setSubmissions(subData.submissions || []);
-
-      const revRes = await fetch(`/api/facilitator-reviews?program_id=${id}`);
-      const revData = await revRes.json();
       if (revData.success) setMyReviews(revData.reviews || []);
 
       // Load saved attendance so selections persist across refreshes.
-      const attRes = await fetch(`/api/attendance?program_id=${id}&date=${attendanceDate}`);
-      const attData = await attRes.json();
       if (attData.success) {
         const map = {};
         (attData.attendance || []).forEach((a) => {
@@ -101,8 +93,39 @@ export default function FacilitatorProgram({ params }) {
         });
         setAttendance(map);
       }
+    };
+    let painted = false;
+    // Post-mutation reloads pass bypassCache=true — they never flash the
+    // full-page spinner and always fetch fresh data.
+    if (!bypassCache) setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the lists
+      // always reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [progRes, parRes, subRes, revRes, attRes] = await Promise.all(
+        urls.map((u) => fetch(u)),
+      );
+      const progData = await progRes.json();
+      const parData = await parRes.json();
+      const subData = await subRes.json();
+      const revData = await revRes.json();
+      const attData = await attRes.json();
+      if (progData.success) cacheSet(urls[0], progData);
+      if (parData.success) cacheSet(urls[1], parData);
+      if (subData.success) cacheSet(urls[2], subData);
+      if (revData.success) cacheSet(urls[3], revData);
+      if (attData.success) cacheSet(urls[4], attData);
+      apply(progData, parData, subData, revData, attData);
     } catch (e) {
-      console.error(e);
+      if (!painted) console.error(e);
     } finally {
       setLoading(false);
     }
@@ -162,7 +185,7 @@ export default function FacilitatorProgram({ params }) {
           focus_next_week: "",
           additional_notes: "",
         });
-        load();
+        load(true);
       } else {
         notify("error", data.error || t("pmMisc.facilitators.weeklyReview.submitError"));
       }
@@ -244,7 +267,7 @@ export default function FacilitatorProgram({ params }) {
       const data = await res.json();
       if (data.success) {
         notify("success", "Submission updated");
-        load();
+        load(true);
       } else {
         notify("error", data.error || "Failed to update submission");
       }
