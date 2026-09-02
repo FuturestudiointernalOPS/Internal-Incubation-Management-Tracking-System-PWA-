@@ -48,6 +48,7 @@ import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
@@ -81,6 +82,33 @@ const isNewerThan = (dateValue, watermark) => {
   if (!Number.isFinite(ts)) return true;
   return ts > watermark;
 };
+
+// ── Cache-first JSON fetch (stale-while-revalidate) ──
+// The shell's badge/count fetchers fire on every layout mount (including
+// cross-section remounts). Sharing useApi's 30s in-memory GET cache lets those
+// endpoints render instantly from a fresh snapshot and revalidate in the
+// background instead of re-firing the network each time.
+function revalidateFetch(url, apply) {
+  return fetch(url)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    })
+    .catch(() => {});
+}
+
+function fetchSwr(url, apply) {
+  const hit = cacheGet(url);
+  if (hit !== null && hit.success) {
+    apply(hit);
+    // Paint from cache, then refresh in the background so the value converges.
+    return revalidateFetch(url, apply);
+  }
+  return revalidateFetch(url, apply);
+}
 
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
@@ -862,105 +890,106 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   const fetchAnnouncements = useCallback(async () => {
-    try {
-      const res = await fetch("/api/announcements");
-      const data = await res.json();
-      if (data.success) {
-        // Only keep pinned, non-archived announcements for the banner
-        setPinnedAnnouncements(
-          (data.announcements || []).filter(
-            (a) => a.is_pinned && !a.is_archived,
-          ),
-        );
-      }
-    } catch (_) {}
+    fetchSwr("/api/announcements", (data) => {
+      // Only keep pinned, non-archived announcements for the banner
+      setPinnedAnnouncements(
+        (data.announcements || []).filter(
+          (a) => a.is_pinned && !a.is_archived,
+        ),
+      );
+    });
   }, []);
 
   const fetchNotifications = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      const recipientId =
-        parsedUser.role === "super_admin"
-          ? "sa"
-          : parsedUser.cid || parsedUser.id;
-      const res = await fetch(`/api/notifications?recipient_id=${recipientId}`);
-      const data = await res.json();
-      if (data.success) {
-        setNotifications(data.notifications || []);
-        setUnreadCount(
-          (data.notifications || []).filter((n) => !n.is_read).length,
-        );
-      }
-    } catch (e) {}
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    const recipientId =
+      parsedUser.role === "super_admin"
+        ? "sa"
+        : parsedUser.cid || parsedUser.id;
+    fetchSwr(`/api/notifications?recipient_id=${recipientId}`, (data) => {
+      setNotifications(data.notifications || []);
+      setUnreadCount(
+        (data.notifications || []).filter((n) => !n.is_read).length,
+      );
+    });
   }, []);
 
   // ── Fetch actual unread message count (not from notifications) ──
   const fetchUnreadMessageCount = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      const cid = parsedUser.cid || parsedUser.id;
-      if (!cid) return;
-      const res = await fetch(`/api/internal-comms?cid=${cid}`);
-      const data = await res.json();
-      if (data.success) {
-        const seenAt = readSeenWatermark(SEEN_KEYS.messages);
-        const myMessages = data.messages.filter(
-          (m) =>
-            String(m.recipient_id) === String(cid) &&
-            (m.is_read === 0 || m.is_read === null) &&
-            isNewerThan(m.created_at, seenAt),
-        );
-        setUnreadMessageCount(myMessages.length);
-      }
-    } catch (_) {}
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    const cid = parsedUser.cid || parsedUser.id;
+    if (!cid) return;
+    fetchSwr(`/api/internal-comms?cid=${cid}`, (data) => {
+      const seenAt = readSeenWatermark(SEEN_KEYS.messages);
+      const myMessages = data.messages.filter(
+        (m) =>
+          String(m.recipient_id) === String(cid) &&
+          (m.is_read === 0 || m.is_read === null) &&
+          isNewerThan(m.created_at, seenAt),
+      );
+      setUnreadMessageCount(myMessages.length);
+    });
   }, []);
 
   // ── Fetch pending user approvals count ──
   const fetchPendingUsersCount = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      if (parsedUser.role !== "super_admin") return;
-      const res = await fetch("/api/admin/pending-users");
-      const data = await res.json();
-      if (data.success) {
-        const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
-        setPendingUsersCount(
-          (data.users || data.pendingUsers || []).filter(
-            (u) => u.status === "pending" && isNewerThan(u.created_at, seenAt),
-          ).length,
-        );
-      }
-    } catch (_) {}
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    if (parsedUser.role !== "super_admin") return;
+    fetchSwr("/api/admin/pending-users", (data) => {
+      const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
+      setPendingUsersCount(
+        (data.users || data.pendingUsers || []).filter(
+          (u) => u.status === "pending" && isNewerThan(u.created_at, seenAt),
+        ).length,
+      );
+    });
   }, []);
 
   // ── Fetch pending submission count for PM ──
   const [submissionCount, setSubmissionCount] = useState(0);
   const fetchSubmissionCount = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      if (parsedUser.role !== "program_manager") return;
-      const pmId = parsedUser.cid || parsedUser.id;
-      if (!pmId) return;
-      const res = await fetch(
-        `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
-      );
-      const data = await res.json();
-      if (data.success) {
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    if (parsedUser.role !== "program_manager") return;
+    const pmId = parsedUser.cid || parsedUser.id;
+    if (!pmId) return;
+    fetchSwr(
+      `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
+      (data) => {
         const seenAt = readSeenWatermark(SEEN_KEYS.submissions);
         const pending = (data.submissions || []).filter(
           (s) => s.status === "pending" && isNewerThan(s.created_at, seenAt),
         ).length;
         setSubmissionCount(pending);
-      }
-    } catch (_) {}
+      },
+    );
   }, []);
 
   // When a PM opens the submissions page (or a program's submissions tab),
@@ -1030,33 +1059,37 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   ]);
 
   const fetchPendingInvites = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      const cid = parsedUser.cid || parsedUser.id;
-      if (!cid) return;
-      const res = await fetch(
-        `/api/projects/invitations?invitee_id=${cid}&status=pending`,
-      );
-      const data = await res.json();
-      if (data.success) setPendingInvites(data.invitations || []);
-    } catch (_) {}
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    const cid = parsedUser.cid || parsedUser.id;
+    if (!cid) return;
+    fetchSwr(
+      `/api/projects/invitations?invitee_id=${cid}&status=pending`,
+      (data) => setPendingInvites(data.invitations || []),
+    );
   }, []);
 
   const fetchPendingAssignments = useCallback(async () => {
+    const savedUser = localStorage.getItem("user");
+    if (!savedUser) return;
+    let parsedUser;
     try {
-      const savedUser = localStorage.getItem("user");
-      if (!savedUser) return;
-      const parsedUser = JSON.parse(savedUser);
-      const cid = parsedUser.cid || parsedUser.id;
-      if (!cid) return;
-      const res = await fetch(
-        `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
-      );
-      const data = await res.json();
-      if (data.success) setPendingAssignments(data.assignments || []);
-    } catch (_) {}
+      parsedUser = JSON.parse(savedUser);
+    } catch {
+      return;
+    }
+    const cid = parsedUser.cid || parsedUser.id;
+    if (!cid) return;
+    fetchSwr(
+      `/api/tasks/assignments?assignee_id=${cid}&status=pending`,
+      (data) => setPendingAssignments(data.assignments || []),
+    );
   }, []);
 
   // Listen for manual refresh events from approve actions

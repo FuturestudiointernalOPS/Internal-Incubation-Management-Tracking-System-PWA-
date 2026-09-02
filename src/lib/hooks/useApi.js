@@ -33,7 +33,9 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const CACHE_TTL = 30_000;
 const responseCache = new Map();
 
-function cacheGet(url) {
+// cacheGet/cacheSet are exported so callers that fetch outside useApi (e.g. the
+// dashboard shell badge fetchers) can reuse the same in-memory GET cache.
+export function cacheGet(url) {
   const entry = responseCache.get(url);
   if (!entry) return null;
   if (Date.now() - entry.ts > CACHE_TTL) {
@@ -43,7 +45,7 @@ function cacheGet(url) {
   return entry.data;
 }
 
-function cacheSet(url, data) {
+export function cacheSet(url, data) {
   responseCache.set(url, { data, ts: Date.now() });
 }
 
