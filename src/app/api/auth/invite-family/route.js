@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth, assertNoParticipantFacilitatorConflict, getSession, isAssignedPmForProgram } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -21,7 +21,7 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureTokenHashColumns();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
 
     // Rate limit: 10 bulk invite batches per IP per 10 minutes
@@ -31,8 +31,28 @@ export async function POST(req) {
     });
     if (limited) return limited;
 
+    const session = await getSession();
     const { familyId, familyName, groupName, programId, emails } =
       await req.json();
+
+    // Staff may only invite families for programs they are the assigned PM of.
+    // A program is REQUIRED for staff — otherwise any staff member could bulk-
+    // create arbitrary pending contacts without any program scope.
+    if (session?.role === "staff") {
+      if (!programId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const isPm = await isAssignedPmForProgram(programId, session.cid);
+      if (!isPm) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
 
     if (!familyId) {
       return NextResponse.json(
@@ -83,7 +103,7 @@ export async function POST(req) {
             cid,
             memberName,
             memberEmail,
-            groupName || familyName || "",
+            groupName ? String(groupName || familyName || "").trim().toUpperCase() : null,
             programId || null,
           ],
         });

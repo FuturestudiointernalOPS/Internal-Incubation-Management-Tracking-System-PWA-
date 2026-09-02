@@ -16,16 +16,84 @@ export async function GET(req) {
             LEFT JOIN contacts c ON u.user_id = c.cid OR u.user_id = c.id ORDER BY name`,
     });
 
-    const users = [];
-    for (const user of usersRes.rows) {
-      if (filterUserId && user.id !== filterUserId) continue;
+    let userRows = usersRes.rows;
+    if (filterUserId) userRows = userRows.filter((u) => u.id === filterUserId);
+    const ids = userRows.map((u) => u.id);
 
-      const ts = (
-        await db.execute({
-          sql: "SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'completed')::int AS completed, COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress, COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked, COUNT(*) FILTER (WHERE status = 'carried_over')::int AS carried_over, COUNT(*) FILTER (WHERE status = 'pending')::int AS pending FROM tasks WHERE user_id = ?",
-          args: [user.id],
-        })
-      ).rows[0] || {
+    // Batch all five per-user aggregations into grouped queries over ALL ids
+    // instead of 5 DB round-trips PER user. Produces identical per-user values.
+    const taskMap = {};
+    const blockerMap = {};
+    const projMap = {};
+    const indepMap = {};
+    const reportMap = {};
+
+    if (ids.length > 0) {
+      const idsPh = ids.map(() => "?").join(",");
+
+      const [tasksRes, blockersRes, projRes, indepRes, reportsRes] = await Promise.all([
+        db.execute({
+          sql: `SELECT user_id::text AS uid,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
+                COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
+                COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
+                COUNT(*) FILTER (WHERE status = 'carried_over')::int AS carried_over,
+                COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
+                FROM tasks WHERE user_id::text IN (${idsPh})
+                GROUP BY user_id::text`,
+          args: ids,
+        }),
+        db.execute({
+          sql: `SELECT user_id::text AS uid,
+                COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE status = 'active')::int AS active
+                FROM blockers WHERE user_id::text IN (${idsPh})
+                GROUP BY user_id::text`,
+          args: ids,
+        }),
+        db.execute({
+          sql: `SELECT u.uid, COUNT(DISTINCT u.pid)::int AS count
+                FROM (
+                  SELECT user_id::text AS uid, NULL::text AS pid FROM tasks
+                    WHERE user_id::text IN (${idsPh}) AND project_id IS NOT NULL
+                  UNION ALL
+                  SELECT id::text AS uid, id::text AS pid FROM v2_projects
+                    WHERE owner_id::text IN (${idsPh})
+                ) u
+                GROUP BY u.uid`,
+          args: [...ids, ...ids],
+        }),
+        db.execute({
+          sql: `SELECT user_id::text AS uid, COUNT(*)::int AS count
+                FROM tasks WHERE user_id::text IN (${idsPh}) AND project_id IS NULL
+                GROUP BY user_id::text`,
+          args: ids,
+        }),
+        db.execute({
+          sql: `SELECT user_id::text AS uid,
+                COUNT(*) FILTER (WHERE report_type = 'standup')::int AS standups,
+                COUNT(*) FILTER (WHERE report_type = 'retro')::int AS retros
+                FROM v2_op_reports WHERE user_id::text IN (${idsPh})
+                  AND week_number >= ? AND year = ? AND status = 'submitted'
+                GROUP BY user_id::text`,
+          args: [...ids, wk - 4, yr],
+        }),
+      ]);
+
+      for (const r of tasksRes.rows || []) taskMap[r.uid] = r;
+      for (const r of blockersRes.rows || []) blockerMap[r.uid] = r;
+      for (const r of projRes.rows || []) projMap[r.uid] = r;
+      for (const r of indepRes.rows || []) indepMap[r.uid] = r;
+      for (const r of reportsRes.rows || []) reportMap[r.uid] = r;
+    }
+
+    const wk = getWeekNumber(new Date());
+    const yr = new Date().getFullYear();
+
+    const users = userRows.map((user) => {
+      const idKey = String(user.id);
+      const ts = taskMap[idKey] || {
         total: 0,
         completed: 0,
         in_progress: 0,
@@ -33,40 +101,12 @@ export async function GET(req) {
         carried_over: 0,
         pending: 0,
       };
+      const bs = blockerMap[idKey] || { total: 0, active: 0 };
+      const projCount = projMap[idKey]?.count || 0;
+      const indepCount = indepMap[idKey]?.count || 0;
+      const rs = reportMap[idKey] || { standups: 0, retros: 0 };
 
-      const bs = (
-        await db.execute({
-          sql: "SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE status = 'active')::int AS active FROM blockers WHERE user_id = ?",
-          args: [user.id],
-        })
-      ).rows[0] || { total: 0, active: 0 };
-
-      const projCount =
-        (
-          await db.execute({
-            sql: "SELECT COUNT(DISTINCT p.id)::int AS count FROM v2_projects p WHERE p.owner_id = ? OR p.id IN (SELECT DISTINCT project_id FROM tasks WHERE user_id = ? AND project_id IS NOT NULL)",
-            args: [user.id, user.id],
-          })
-        ).rows[0]?.count || 0;
-
-      const indepCount =
-        (
-          await db.execute({
-            sql: "SELECT COUNT(*)::int AS count FROM tasks WHERE user_id = ? AND project_id IS NULL",
-            args: [user.id],
-          })
-        ).rows[0]?.count || 0;
-
-      const wk = getWeekNumber(new Date());
-      const yr = new Date().getFullYear();
-      const rs = (
-        await db.execute({
-          sql: "SELECT COUNT(*) FILTER (WHERE report_type = 'standup')::int AS standups, COUNT(*) FILTER (WHERE report_type = 'retro')::int AS retros FROM v2_op_reports WHERE user_id = ? AND week_number >= ? AND year = ? AND status = 'submitted'",
-          args: [user.id, wk - 4, yr],
-        })
-      ).rows[0] || { standups: 0, retros: 0 };
-
-      users.push({
+      return {
         id: user.id,
         name: user.name || user.id,
         tasks: ts,
@@ -78,8 +118,8 @@ export async function GET(req) {
         carryoverRate:
           ts.total > 0 ? Math.round((ts.carried_over / ts.total) * 100) : 0,
         complianceScore: rs.standups + rs.retros,
-      });
-    }
+      };
+    });
     return NextResponse.json({ success: true, users });
   } catch (error) {
     return NextResponse.json(

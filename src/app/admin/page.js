@@ -32,9 +32,9 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -304,19 +304,17 @@ export default function AdminDashboard() {
   };
 
   const fetchDashboardData = useCallback(async () => {
-    try {
-      const [stateRes, opRes, blockerRes, kpiRes] = await Promise.all([
-        fetch("/api/superadmin/full-state"),
-        fetch("/api/op-reports"),
-        fetch("/api/blockers?status=active"),
-        fetch("/api/dashboard?summary=true"),
-      ]);
+    // Aggregate endpoints rendered by this dashboard. Kept in a single place so
+    // the cache-first paint below can reuse them to fetch from the network.
+    const urls = [
+      "/api/superadmin/full-state",
+      "/api/op-reports",
+      "/api/blockers?status=active",
+      "/api/dashboard?summary=true",
+    ];
 
-      const stateData = await stateRes.json();
-      const opData = await opRes.json();
-      const blockerData = await blockerRes.json();
-      const kpiData = await kpiRes.json();
-
+    // Pure apply: computes every widget state from the four payloads.
+    const apply = (stateData, opData, blockerData, kpiData) => {
       if (stateData.success) {
         setStats(stateData.stats || {});
         setActivity(stateData.activity || []);
@@ -398,6 +396,22 @@ export default function AdminDashboard() {
       if (kpiData.success) {
         setKpiSummary(kpiData.programs || []);
       }
+    };
+
+    try {
+      // Cache-first paint: if a fresh (≤30s) snapshot of all four endpoints is
+      // available (e.g. returning to /admin), render it immediately instead of
+      // showing skeletons, then let the network refresh below converge.
+      const cached = urls.map((u) => cacheGet(u));
+      if (cached.every((c) => c !== null)) {
+        apply(cached[0], cached[1], cached[2], cached[3]);
+        setLoading(false);
+      }
+
+      const responses = await Promise.all(urls.map((u) => fetch(u)));
+      const jsons = await Promise.all(responses.map((r) => r.json()));
+      urls.forEach((u, i) => cacheSet(u, jsons[i]));
+      apply(jsons[0], jsons[1], jsons[2], jsons[3]);
     } catch (err) {
       console.error("Dashboard sync failure:", err);
     } finally {
@@ -409,33 +423,42 @@ export default function AdminDashboard() {
   const fetchWidgetData = useCallback(async () => {
     setDashboardLoading(true);
     try {
-      try {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        const userId = user.cid || user.id;
-        const isSA = user.role === "super_admin";
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const userId = user.cid || user.id;
+      const isSA = user.role === "super_admin";
 
-        const [taskRes, blockerRes] = await Promise.all([
-          isSA
-            ? fetch("/api/tasks?brief=true")
-            : fetch(`/api/tasks?user_id=${userId}&brief=true`),
-          isSA
-            ? fetch("/api/blockers?status=active")
-            : fetch(`/api/blockers?user_id=${userId}&status=active`),
-        ]);
-        const taskData = await taskRes.json();
-        const blockerData = await blockerRes.json();
-        if (taskData.success) setTasks(taskData.tasks || []);
-        if (blockerData.success) setActiveBlockers(blockerData.blockers || []);
+      const urls = [
+        isSA
+          ? "/api/tasks?brief=true"
+          : `/api/tasks?user_id=${userId}&brief=true`,
+        isSA
+          ? "/api/blockers?status=active"
+          : `/api/blockers?user_id=${userId}&status=active`,
+      ];
+      // Fetch assigned tasks if user has a user ID
+      if (userId) urls.push(`/api/tasks?assigned_to=${userId}&brief=true`);
 
-        // Fetch assigned tasks if user has a user ID
-        if (userId) {
-          const assignRes = await fetch(
-            `/api/tasks?assigned_to=${userId}&brief=true`,
-          );
-          const assignData = await assignRes.json();
-          if (assignData.success) setAssignments(assignData.tasks || []);
-        }
-      } catch (_) {}
+      const apply = (taskData, blockerData, assignData) => {
+        if (taskData && taskData.success) setTasks(taskData.tasks || []);
+        if (blockerData && blockerData.success)
+          setActiveBlockers(blockerData.blockers || []);
+        if (assignData && assignData.success)
+          setAssignments(assignData.tasks || []);
+      };
+
+      // Cache-first paint (same 30s SWR window as fetchDashboardData): render
+      // the widgets instantly from a fresh snapshot when returning to /admin,
+      // then the network refresh below converges to current values.
+      const cached = urls.map((u) => cacheGet(u));
+      if (cached.every((c) => c !== null)) {
+        apply(cached[0], cached[1], cached[2]);
+        setDashboardLoading(false);
+      }
+
+      const responses = await Promise.all(urls.map((u) => fetch(u)));
+      const jsons = await Promise.all(responses.map((r) => r.json()));
+      urls.forEach((u, i) => cacheSet(u, jsons[i]));
+      apply(jsons[0], jsons[1], jsons[2]);
     } catch (e) {
       console.error("Widget data fetch error:", e);
     } finally {
@@ -551,24 +574,51 @@ export default function AdminDashboard() {
   }, [fetchWidgetData]);
 
   useEffect(() => {
+    let active = true;
+    let started = false;
+    const startData = () => {
+      if (!started) {
+        started = true;
+        fetchDashboardData();
+      }
+    };
+
     async function checkAuth() {
+      // Fast path: on client-side navigation the section layout has already
+      // authenticated an admin session (localStorage/cache). Start loading the
+      // dashboard data immediately instead of waiting for a duplicate
+      // /api/auth/session round-trip; the revalidation below still redirects if
+      // the session is no longer valid.
+      try {
+        const saved = localStorage.getItem("user");
+        if (saved && JSON.parse(saved).role === "super_admin") startData();
+      } catch (_) {}
+
       try {
         const res = await fetch("/api/auth/session");
         const data = await res.json();
-        if (!data.authenticated || data.user.role !== "super_admin") {
+        if (!active) return;
+        if (
+          !data.authenticated ||
+          !data.user ||
+          data.user.role !== "super_admin"
+        ) {
           router.replace("/login");
           return;
         }
-        fetchDashboardData();
+        startData();
       } catch {
-        router.replace("/login");
+        if (active) router.replace("/login");
       }
     }
     checkAuth();
+    return () => {
+      active = false;
+    };
   }, [router, fetchDashboardData]);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-10 pb-20 text-left">
         {/* ──────── GLOBAL HEADER ──────── */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -1879,7 +1929,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

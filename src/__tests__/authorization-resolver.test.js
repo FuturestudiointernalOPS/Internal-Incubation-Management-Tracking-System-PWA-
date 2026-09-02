@@ -33,6 +33,7 @@ jest.mock("@/lib/auth", () => {
         "assign_responsibilities",
         "promote_super_admin",
         "remove_super_admin",
+        "configure_eligibility",
       ],
     },
     engineering: {
@@ -40,6 +41,7 @@ jest.mock("@/lib/auth", () => {
     },
     finance: { capabilities: ["view", "create", "edit", "delete", "export"] },
     settings: { capabilities: ["view", "edit"] },
+    org_membership: { capabilities: ["view", "manage"] },
     facilitator: {
       capabilities: [
         "participants.view",
@@ -63,6 +65,7 @@ jest.mock("@/lib/auth", () => {
     PERMISSION_MODULES,
     ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
     getSession: jest.fn(async () => null),
+    ensurePermissionsSchema: jest.fn(async () => {}),
   };
 });
 
@@ -285,12 +288,13 @@ describe("reports module (Phase 3)", () => {
     expect(MODULE_TO_FEATURE.reports).toBe("reporting");
   });
 
-  test("reporting eligibility defaults include admin and developer (submit routes)", () => {
+  test("reporting eligibility defaults cover the submit routes (admin removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     const reporting = FEATURE_ELIGIBILITY_DEFAULTS.reporting;
     expect(reporting).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "admin", "developer"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(reporting).not.toContain("admin");
   });
 
   test("developer with reports.create is allowed on the submit routes", () => {
@@ -324,19 +328,13 @@ describe("contacts module (Phase 4)", () => {
     expect(MODULE_TO_FEATURE.contacts).toBe("crm");
   });
 
-  test("crm eligibility defaults include participant and founder (self-scoped reads)", () => {
+  test("crm eligibility defaults are internal identities only (participant/founder removed by policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
-      expect.arrayContaining([
-        "super_admin",
-        "staff",
-        "program_manager",
-        "teacher",
-        "developer",
-        "participant",
-        "founder",
-      ]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
   });
 
   test("eligible staff with contacts.view is allowed; edit requires higher capability", () => {
@@ -379,11 +377,12 @@ describe("internal_comms module (Phase 5)", () => {
     expect(MODULE_TO_FEATURE.internal_comms).toBe("internal_comms");
   });
 
-  test("internal_comms eligibility defaults include admin (announcements allowlist)", () => {
+  test("internal_comms eligibility defaults no longer include admin (policy #3)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "admin"]),
+      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
     );
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
   });
 
   test("staff with create_announcements can post; teacher without it cannot", () => {
@@ -669,6 +668,100 @@ describe("investor module (Phase 11)", () => {
   });
 });
 
+// ─── messaging module (MVP: internal-only policy) ───────────────────────────
+
+describe("messaging module (MVP internal-only)", () => {
+  test("messaging eligibility defaults are internal staff only", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.messaging).toEqual([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "developer",
+    ]);
+  });
+
+  test("participant/teacher are denied messaging even with profile caps (not eligible)", () => {
+    const participant = staffCtx({
+      role: "participant",
+      isSuperAdmin: false,
+      eligibility: { messaging: false },
+      effective: { messaging: { view: 1, send: 2 } }, // profile caps but ineligible
+    });
+    const teacher = staffCtx({
+      role: "teacher",
+      isSuperAdmin: false,
+      eligibility: { messaging: false },
+      effective: { messaging: { view: 1, send: 2 } },
+    });
+    expect(authorize(participant, "messaging", "view")).toBe(false);
+    expect(authorize(teacher, "messaging", "send")).toBe(false);
+  });
+
+  test("internal staff with messaging caps are allowed", () => {
+    const staff = staffCtx({
+      eligibility: { messaging: true },
+      effective: { messaging: { view: 1, send: 2 } },
+    });
+    expect(authorize(staff, "messaging", "view")).toBe(true);
+    expect(authorize(staff, "messaging", "send")).toBe(true);
+  });
+});
+
+// ─── buildPermissionExplanation (explainability) ────────────────────────────
+
+describe("buildPermissionExplanation (who has access + why)", () => {
+  test("non-SA: eligibility verdict with identity sources + capability inputs", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const ctx = {
+      isSuperAdmin: false,
+      eligibilityRows: [
+        {
+          feature_key: "finance",
+          identity_type: "role",
+          identity_value: "staff",
+          eligible: 1,
+        },
+      ],
+      baseCaps: { finance: { view: 1 } },
+      groupCaps: { finance: { view: 3 } },
+      grants: { finance: { export: 3 } },
+    };
+    const ex = buildPermissionExplanation(ctx);
+    expect(ex.eligibility.finance).toEqual({
+      eligible: true,
+      sources: [{ identity_type: "role", identity_value: "staff", eligible: 1 }],
+    });
+    expect(ex.eligibility.crm.eligible).toBe(false); // no rows → not eligible
+    expect(ex.sources.profile.finance.view).toBe(1);
+    expect(ex.sources.groups.finance.view).toBe(3);
+    expect(ex.sources.grants.finance.export).toBe(3);
+  });
+
+  test("SA: eligible everywhere by super_admin bypass", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    const ex = buildPermissionExplanation({
+      isSuperAdmin: true,
+      baseCaps: {},
+      groupCaps: {},
+      grants: {},
+    });
+    expect(ex.eligibility.finance).toEqual({
+      eligible: true,
+      source: "super_admin bypass",
+    });
+    expect(ex.eligibility.crm).toEqual({
+      eligible: true,
+      source: "super_admin bypass",
+    });
+  });
+
+  test("null context → null", () => {
+    const { buildPermissionExplanation } = require("@/lib/authorization");
+    expect(buildPermissionExplanation(null)).toBeNull();
+  });
+});
+
 // ─── requireAuthorization route helper ──────────────────────────────────────
 
 describe("requireAuthorization", () => {
@@ -714,5 +807,339 @@ describe("lms module", () => {
   test("missing capability → denied (fail closed)", () => {
     const ctx = staffCtx({ eligibility: {}, effective: {} });
     expect(authorize(ctx, "lms", "enroll")).toBe(false);
+  });
+});
+
+// ─── Final eligibility policy (#3) — admin / participant / founder values ───
+// Product Owner-approved final eligibility values:
+//   - admin           → NOT eligible for internal_comms or reporting
+//   - participant     → NOT eligible for crm
+//   - founder         → NOT eligible for crm
+// Verified against the production database by the read-only dry-run
+// (scripts/dryrun-eligibility-policy.mjs): zero decision changes for every
+// existing user (no admin-role users exist; participants/founders hold no
+// contacts capabilities). These tests lock in the resolver behavior that the
+// backfill (ensureFinalPolicyBackfill) and the updated seeds enforce.
+
+describe("final eligibility policy (#3)", () => {
+  test("admin is NOT eligible for internal_comms or reporting", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.reporting).not.toContain("admin");
+  });
+
+  test("participant and founder are NOT crm-eligible", () => {
+    const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
+  });
+
+  test("admin with announcement caps is DENIED post-policy", () => {
+    const admin = staffCtx({
+      role: "admin",
+      isSuperAdmin: false,
+      eligibility: { internal_comms: false, reporting: false },
+      effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
+    });
+    expect(authorize(admin, "internal_comms", "create_announcements")).toBe(false);
+    expect(authorize(admin, "internal_comms", "moderate")).toBe(false);
+    expect(authorize(admin, "internal_comms", "view")).toBe(false);
+  });
+
+  test("admin with reports caps is DENIED post-policy (submit + export routes)", () => {
+    const admin = staffCtx({
+      role: "admin",
+      isSuperAdmin: false,
+      eligibility: { internal_comms: false, reporting: false },
+      effective: { reports: { view: 1, create: 2, export: 3 } },
+    });
+    expect(authorize(admin, "reports", "create")).toBe(false);
+    expect(authorize(admin, "reports", "export")).toBe(false);
+  });
+
+  test("participant with a contacts grant is DENIED post-policy (eligibility boundary)", () => {
+    const participant = staffCtx({
+      role: "participant",
+      isSuperAdmin: false,
+      eligibility: { crm: false },
+      effective: { contacts: { view: 5 } },
+      grants: { contacts: { view: 5 } },
+    });
+    expect(authorize(participant, "contacts", "view")).toBe(false);
+  });
+
+  test("super_admin is unaffected by the policy (bypass preserved)", () => {
+    expect(authorize(saCtx(), "internal_comms", "create_announcements")).toBe(true);
+    expect(authorize(saCtx(), "reports", "export")).toBe(true);
+    expect(authorize(saCtx(), "contacts", "view")).toBe(true);
+  });
+
+  test("ensureFinalPolicyBackfill deletes ONLY the four role rows (group rows sacred)", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { ensureFinalPolicyBackfill } = require("@/lib/authorization/backfill");
+    dbMock.execute.mockClear();
+    await ensureFinalPolicyBackfill();
+    const deletes = dbMock.execute.mock.calls
+      .map((c) => (typeof c[0] === "string" ? c[0] : c[0]?.sql))
+      .filter((sql) => sql && sql.includes("DELETE FROM feature_eligibility"));
+    expect(deletes.length).toBeGreaterThan(0);
+    const allSql = deletes.join("\n");
+    for (const sql of deletes) {
+      expect(sql).toMatch(/identity_type\s*=\s*'role'/);
+    }
+    expect(allSql).toMatch(/feature_key\s*=\s*'internal_comms'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'reporting'/);
+    expect(allSql).toMatch(/feature_key\s*=\s*'crm'/);
+    expect(allSql).toMatch(/identity_value\s*=\s*'admin'/);
+    expect(allSql).toMatch(/identity_value\s*IN\s*\(\s*'participant',\s*'founder'\s*\)/);
+  });
+});
+
+// ─── Phase A — Permissions control center ───────────────────────────────────
+// Dedicated configure_eligibility authority, one-time policy migrations, and
+// eligibility change validation (the UI writes the same rows the resolver
+// reads — the API only validates/normalizes them).
+
+describe("permissions.configure_eligibility (Phase A)", () => {
+  test("is part of the permissions module capability set", () => {
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    expect(PERMISSION_MODULES.permissions.capabilities).toContain(
+      "configure_eligibility",
+    );
+  });
+
+  test("SA may configure eligibility (bypass)", () => {
+    expect(authorize(saCtx(), "permissions", "configure_eligibility")).toBe(
+      true,
+    );
+  });
+
+  test("holder of the capability may configure; others are denied", () => {
+    const admin = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { view_matrix: 1, configure_eligibility: 1 } },
+    });
+    const viewer = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { view_matrix: 1 } }, // no configure cap
+    });
+    expect(authorize(admin, "permissions", "configure_eligibility")).toBe(
+      true,
+    );
+    expect(authorize(viewer, "permissions", "configure_eligibility")).toBe(
+      false,
+    );
+  });
+
+  test("configure_eligibility is separate from assign_capabilities", () => {
+    const ctx = staffCtx({
+      role: "staff",
+      eligibility: { user_management: true },
+      effective: { permissions: { assign_capabilities: 2 } }, // different power
+    });
+    expect(authorize(ctx, "permissions", "configure_eligibility")).toBe(
+      false,
+    );
+    expect(authorize(ctx, "permissions", "assign_capabilities")).toBe(true);
+  });
+});
+
+describe("runAuthzMigration (one-time policy migrations)", () => {
+  test("runs once per database, then never again", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { runAuthzMigration } = require("@/lib/authorization");
+    let markerPresent = false;
+    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+      const s = typeof sql === "string" ? sql : sql || "";
+      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+        return { rows: markerPresent ? [{ name: "test-mig" }] : [] };
+      }
+      if (s.includes("INSERT INTO authz_migrations")) {
+        markerPresent = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const fn1 = jest.fn(async () => {});
+    const first = await runAuthzMigration("test-mig", fn1);
+    expect(first.applied).toBe(true);
+    expect(fn1).toHaveBeenCalledTimes(1);
+
+    const fn2 = jest.fn(async () => {});
+    const second = await runAuthzMigration("test-mig", fn2);
+    expect(second.applied).toBe(false);
+    expect(fn2).not.toHaveBeenCalled();
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+
+  test("does not record the migration when the work throws (retries next boot)", async () => {
+    const dbMock = require("@/lib/db").default;
+    const { runAuthzMigration } = require("@/lib/authorization");
+    let markerPresent = false;
+    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+      const s = typeof sql === "string" ? sql : sql || "";
+      if (s.includes("authz_migrations") && s.includes("SELECT")) {
+        return { rows: markerPresent ? [{ name: "boom-mig" }] : [] };
+      }
+      if (s.includes("INSERT INTO authz_migrations")) {
+        markerPresent = true;
+        return { rows: [] };
+      }
+      return { rows: [] };
+    });
+
+    const failing = jest.fn(async () => {
+      throw new Error("boom");
+    });
+    await expect(runAuthzMigration("boom-mig", failing)).rejects.toThrow(
+      "boom",
+    );
+    expect(markerPresent).toBe(false);
+
+    dbMock.execute.mockImplementation(async () => ({ rows: [] }));
+  });
+});
+
+describe("validateEligibilityChanges (eligibility API)", () => {
+  test("normalizes a valid batch (1, 0 and null → delete)", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const r = validateEligibilityChanges([
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+    ]);
+    expect(r.valid).toBe(true);
+    expect(r.errors).toEqual([]);
+    expect(r.normalized).toEqual([
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
+      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+    ]);
+  });
+
+  test("rejects unknown features, identity types, empty values and bad eligible values", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    const r = validateEligibilityChanges([
+      { feature_key: "not_a_feature", identity_type: "role", identity_value: "staff", eligible: 1 },
+      { feature_key: "finance", identity_type: "planet", identity_value: "staff", eligible: 1 },
+      { feature_key: "finance", identity_type: "role", identity_value: "  ", eligible: 1 },
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 7 },
+      { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: "yes" },
+    ]);
+    expect(r.valid).toBe(false);
+    expect(r.errors.length).toBe(5);
+    expect(r.normalized).toEqual([]);
+  });
+
+  test("rejects an empty batch", () => {
+    const { validateEligibilityChanges } = require("@/lib/authorization");
+    expect(validateEligibilityChanges([]).valid).toBe(false);
+    expect(validateEligibilityChanges(null).valid).toBe(false);
+    expect(validateEligibilityChanges(undefined).valid).toBe(false);
+  });
+
+  test("feature catalog covers every module-mapped and seeded feature", () => {
+    const { FEATURE_KEYS } = require("@/lib/authorization");
+    expect(FEATURE_KEYS).toEqual(
+      expect.arrayContaining([
+        "crm",
+        "finance",
+        "program_management",
+        "reporting",
+        "messaging",
+        "internal_comms",
+        "user_management",
+        "system_settings",
+      ]),
+    );
+  });
+
+  test("capabilities within eligibility are valid (Phase 2)", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { programs: { view: 1 }, contacts: { view: 1 } },
+      { program_management: true, crm: true },
+    );
+    expect(r.valid).toBe(true);
+    expect(r.violations).toEqual([]);
+  });
+
+  test("ineligible feature capabilities are rejected (template boundary)", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { programs: { view: 1 }, finance: { view: 1 } },
+      { program_management: true, finance: false },
+    );
+    expect(r.valid).toBe(false);
+    expect(r.violations).toEqual([
+      { module: "finance", capability: "view", feature: "finance" },
+    ]);
+  });
+
+  test("unset eligibility (missing = fail closed) rejects template caps", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { finance: { view: 1 } },
+      { program_management: true }, // finance row missing entirely
+    );
+    expect(r.valid).toBe(false);
+    expect(r.violations[0]).toEqual({
+      module: "finance",
+      capability: "view",
+      feature: "finance",
+    });
+  });
+
+  test("infra modules without a feature mapping are not eligibility-bound", () => {
+    const { validateCapabilitiesWithinEligibility } = require("@/lib/authorization");
+    const r = validateCapabilitiesWithinEligibility(
+      { org_membership: { manage: 2 } },
+      {},
+    );
+    expect(r.valid).toBe(true);
+  });
+
+  test("capability catalog exposes labels and risk for every module", () => {
+    const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    for (const [mod, def] of Object.entries(PERMISSION_MODULES)) {
+      expect(CAPABILITY_CATALOG[mod]).toBeDefined();
+      for (const cap of def.capabilities) {
+        expect(CAPABILITY_CATALOG[mod].capabilities[cap]).toBeDefined();
+      }
+    }
+  });
+});
+
+describe("org_membership capability (Phase 1 — protected groups)", () => {
+  test("is part of the module set; SA bypasses", () => {
+    const { PERMISSION_MODULES } = require("@/lib/auth");
+    expect(PERMISSION_MODULES.org_membership.capabilities).toEqual([
+      "view",
+      "manage",
+    ]);
+    expect(authorize(saCtx(), "org_membership", "manage")).toBe(true);
+    expect(authorize(saCtx(), "org_membership", "view")).toBe(true);
+  });
+
+  test("holders may manage membership; assign_capabilities does NOT imply it", () => {
+    const manager = staffCtx({
+      role: "staff",
+      eligibility: {},
+      effective: { org_membership: { view: 1, manage: 2 } },
+    });
+    const capAssigner = staffCtx({
+      role: "staff",
+      eligibility: {},
+      effective: { permissions: { assign_capabilities: 2 } }, // different power
+    });
+    expect(authorize(manager, "org_membership", "manage")).toBe(true);
+    expect(authorize(manager, "org_membership", "view")).toBe(true);
+    expect(authorize(capAssigner, "org_membership", "manage")).toBe(false);
+    expect(authorize(capAssigner, "org_membership", "view")).toBe(false);
   });
 });

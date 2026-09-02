@@ -6,8 +6,8 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
   ExternalLink, Clock, Eye, Filter, FileText, Video, Link as LinkIcon, TrendingUp, Target,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const TYPE_ICONS = {
   article: FileText, video: Video, pdf: FileText, template: FileText,
@@ -45,21 +45,17 @@ export default function VentureKnowledgePage() {
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, rRes, cRes, bRes, recRes, lpRes, pathsRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/knowledge`),
-        fetch(`/api/ventures/${id}/knowledge?type=categories`),
-        fetch(`/api/ventures/${id}/knowledge?type=bookmarks`),
-        fetch(`/api/ventures/${id}/knowledge?type=recommended`),
-        fetch(`/api/ventures/${id}/knowledge?type=learning_progress`),
-        fetch(`/api/ventures/${id}/knowledge?type=learning_paths`),
-      ]);
-      const v = await vRes.json(); const r = await rRes.json(); const c = await cRes.json();
-      const b = await bRes.json(); const rec = await recRes.json();
-      const lp = await lpRes.json(); const paths = await pathsRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/knowledge`,
+      `/api/ventures/${id}/knowledge?type=categories`,
+      `/api/ventures/${id}/knowledge?type=bookmarks`,
+      `/api/ventures/${id}/knowledge?type=recommended`,
+      `/api/ventures/${id}/knowledge?type=learning_progress`,
+      `/api/ventures/${id}/knowledge?type=learning_paths`,
+    ];
+    const apply = (v, r, c, b, rec, lp, paths) => {
       if (v.success) setVenture(v.venture);
       if (r.success) setResources(r.resources || []);
       if (c.success) setCategories(c.categories || []);
@@ -67,6 +63,31 @@ export default function VentureKnowledgePage() {
       if (rec.success) setRecommended(rec.resources || []);
       if (lp.success) setLearningProgress(lp);
       if (paths.success) setLearningPaths(paths.paths || []);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(...cached);
+          setLoading(false);
+        }
+      }
+      const [vRes, rRes, cRes, bRes, recRes, lpRes, pathsRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const r = await rRes.json(); const c = await cRes.json();
+      const b = await bRes.json(); const rec = await recRes.json();
+      const lp = await lpRes.json(); const paths = await pathsRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (r.success) cacheSet(urls[1], r);
+      if (c.success) cacheSet(urls[2], c);
+      if (b.success) cacheSet(urls[3], b);
+      if (rec.success) cacheSet(urls[4], rec);
+      if (lp.success) cacheSet(urls[5], lp);
+      if (paths.success) cacheSet(urls[6], paths);
+      apply(v, r, c, b, rec, lp, paths);
     } catch {} finally { setLoading(false); }
   };
 
@@ -82,7 +103,7 @@ export default function VentureKnowledgePage() {
       body: JSON.stringify({ action: "bookmark", resource_id: resourceId }),
     });
     const d = await res.json();
-    if (d.success) { notify(d.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); fetchAll(); }
+    if (d.success) { notify(d.bookmarked ? t("vadmin.knowledge.bookmarked") : t("vadmin.knowledge.removed")); fetchAll(true); }
   };
 
   const handleComplete = async (resourceId) => {
@@ -91,7 +112,7 @@ export default function VentureKnowledgePage() {
       body: JSON.stringify({ action: "complete", resource_id: resourceId }),
     });
     notify(t("vadmin.knowledge.markedComplete"));
-    fetchAll();
+    fetchAll(true);
   };
 
   const loadResource = async (resourceId) => {
@@ -109,7 +130,7 @@ export default function VentureKnowledgePage() {
         body: JSON.stringify({ action: "create", ...crForm, category_id: crForm.category_id ? parseInt(crForm.category_id) : null, tags: crForm.tags ? crForm.tags.split(",").map((t) => t.trim()) : [] }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); fetchAll(); }
+      if (d.success) { notify(t("vadmin.knowledge.resourceCreated")); setShowCreateModal(false); setCrForm({ title: "", description: "", resource_type: "article", category_id: "", url: "", tags: "" }); fetchAll(true); }
       else notify(t((d.error || t("vadmin.knowledge.failed")) || "") || (d.error || t("vadmin.knowledge.failed")), "error");
     } catch { notify(t("vadmin.knowledge.networkError"), "error"); }
     setSaving(false);
@@ -124,7 +145,7 @@ export default function VentureKnowledgePage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const displayResources = activeView === "bookmarks" ? bookmarks : activeView === "recommended" ? recommended : activeView === "progress" ? [] : resources;
@@ -136,7 +157,7 @@ export default function VentureKnowledgePage() {
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (<div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
           {toast.type === "error" ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}{toast.msg}
@@ -426,6 +447,6 @@ export default function VentureKnowledgePage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

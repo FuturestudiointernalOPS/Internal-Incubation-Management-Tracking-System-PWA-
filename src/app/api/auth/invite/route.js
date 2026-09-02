@@ -1,6 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
+import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail, recordEmailSent } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -32,6 +34,14 @@ export async function POST(req) {
 
     if (!email) {
       return NextResponse.json({ success: false, error: "Email is required" }, { status: 400 });
+    }
+
+    // Protected group boundary: inviting someone INTO FUTURE STUDIO is an
+    // organizational-membership action — staff/PM invite powers must not
+    // grant it (only org_membership.manage).
+    if (group_id && normalizeGroupName(group_id) === INTERNAL_GROUP) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
     }
 
     const cleanEmail = normalizeEmail(email);
@@ -94,25 +104,29 @@ export async function POST(req) {
 
     const accountActivated = !!(existingContact.rows[0] && String(existingContact.rows[0].password || "").trim());
 
+    // Group names are normalized to UPPERCASE at write time so case
+    // variants can never be re-created.
+    const normGroup = group_id ? String(group_id).trim().toUpperCase() : null;
+
     if (existingContact.rows.length > 0) {
       contactCid = existingContact.rows[0].cid;
       // Never blank an existing name when the inviter did not provide one.
       if ((name || "").trim()) {
         await db.execute({
           sql: "UPDATE contacts SET name = ?, group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [name.trim(), group_id || null, contactCid],
+          args: [name.trim(), normGroup, contactCid],
         });
       } else if (group_id) {
         await db.execute({
           sql: "UPDATE contacts SET group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [group_id, contactCid],
+          args: [normGroup, contactCid],
         });
       }
     } else {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)",
-        args: [contactCid, displayName, cleanEmail, role || "participant", group_id || null],
+        args: [contactCid, displayName, cleanEmail, role || "participant", normGroup],
       });
     }
 

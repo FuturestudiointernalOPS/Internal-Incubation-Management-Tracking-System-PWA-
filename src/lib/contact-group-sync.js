@@ -35,7 +35,7 @@ async function fillGroupAndProgram(contactCid, groupName, programId) {
       sql: `UPDATE contacts SET group_name = ?
             WHERE cid = ?
               AND (group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned')`,
-      args: [groupName, contactCid],
+      args: [String(groupName || "").trim().toUpperCase(), contactCid],
     });
   }
 
@@ -135,7 +135,7 @@ export async function reconcileProgramGroups() {
             SET
               group_name = CASE
                 WHEN c.group_name IS NULL OR TRIM(c.group_name) = '' OR LOWER(c.group_name) = 'unassigned'
-                  THEN u.group_name
+                  THEN UPPER(TRIM(u.group_name))
                 ELSE c.group_name
               END
             FROM unambiguous u

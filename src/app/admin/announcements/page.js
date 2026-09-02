@@ -19,7 +19,7 @@ import {
   Folder,
   Briefcase,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const TARGET_TYPES = [
   { value: "all", label: "announcements.targetAll", icon: Globe },
@@ -45,14 +45,28 @@ export default function AnnouncementsPage() {
   const [targetId, setTargetId] = useState("");
   const [isPinned, setIsPinned] = useState(false);
 
-  const fetchAnnouncements = useCallback(async () => {
-    try {
-      const res = await fetch(
-        `/api/announcements${showArchived ? "?all=true" : ""}`,
-      );
-      const data = await res.json();
+  const fetchAnnouncements = useCallback(async (bypassCache = false) => {
+    const url = `/api/announcements${showArchived ? "?all=true" : ""}`;
+    const apply = (data) => {
       if (data.success) {
         setAnnouncements(data.announcements || []);
+      }
+    };
+    try {
+      // Cache-first paint on reads; mutations pass bypassCache=true so the
+      // list always reflects the just-saved server state.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {
     } finally {
@@ -113,7 +127,7 @@ export default function AnnouncementsPage() {
         setTargetId("");
         setIsPinned(false);
         setShowForm(false);
-        fetchAnnouncements();
+        fetchAnnouncements(true);
       } else {
         setError(t((data.error || "Failed to create announcement.") || "") || (data.error || "Failed to create announcement."));
       }
@@ -132,7 +146,7 @@ export default function AnnouncementsPage() {
         body: JSON.stringify({ id: ann.id, is_pinned: !ann.is_pinned }),
       });
       const data = await res.json();
-      if (data.success) fetchAnnouncements();
+      if (data.success) fetchAnnouncements(true);
     } catch (_) {}
   };
 
@@ -142,7 +156,7 @@ export default function AnnouncementsPage() {
         method: "DELETE",
       });
       const data = await res.json();
-      if (data.success) fetchAnnouncements();
+      if (data.success) fetchAnnouncements(true);
     } catch (_) {}
   };
 
@@ -153,7 +167,7 @@ export default function AnnouncementsPage() {
     user?.role === "staff";
 
   return (
-    <DashboardLayout role={user?.role || "super_admin"}>
+    <>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -409,6 +423,6 @@ export default function AnnouncementsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/role-defaults
@@ -37,6 +37,24 @@ export async function PUT(req) {
       );
     }
 
+    // Phase 2: eligibility is the boundary — a default template must never
+    // grant capabilities whose feature the role is not eligible for.
+    const { valid, violations } = await assertTemplateCapsEligible({
+      role: role_name,
+      groups: [],
+      profileId: profile_id,
+    });
+    if (!valid) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "errors.ineligibleTemplateCaps",
+          violations,
+        },
+        { status: 400 },
+      );
+    }
+
     await db.execute({
       sql: `INSERT INTO role_access_profile_defaults (role_name, access_profile_id)
             VALUES (?, ?)
@@ -52,6 +70,7 @@ export async function PUT(req) {
       action: "role_default_changed",
       details: `Set default access profile for role "${role_name}" to "${profile.rows[0].name}"`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,

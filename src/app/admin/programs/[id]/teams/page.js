@@ -19,7 +19,7 @@ import {
   Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function TeamManagementPage({ params }) {
   const unwrappedParams = use(params);
@@ -66,21 +66,13 @@ export default function TeamManagementPage({ params }) {
     } catch (_) {}
   }, [programId]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [teamsRes, participantsRes, staffRes] = await Promise.all([
-        fetch(`/api/teams?program_id=${programId}`),
-        fetch(`/api/participants?program_id=${programId}`),
-        fetch("/api/contacts/full-state"),
-      ]);
-
-      const [teamsData, participantsData, staffData] = await Promise.all([
-        teamsRes.json().catch(() => ({ success: false })),
-        participantsRes.json().catch(() => ({ success: false })),
-        staffRes.json().catch(() => ({ success: false })),
-      ]);
-
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const urls = [
+      `/api/teams?program_id=${programId}`,
+      `/api/participants?program_id=${programId}`,
+      "/api/contacts/full-state",
+    ];
+    const apply = (teamsData, participantsData, staffData) => {
       if (teamsData.success) {
         setTeams(Array.isArray(teamsData.teams) ? teamsData.teams : []);
       }
@@ -105,8 +97,39 @@ export default function TeamManagementPage({ params }) {
         );
         setStaff(staffList);
       }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the lists always
+      // reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [teamsRes, participantsRes, staffRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+      ]);
+
+      const [teamsData, participantsData, staffData] = await Promise.all([
+        teamsRes.json().catch(() => ({ success: false })),
+        participantsRes.json().catch(() => ({ success: false })),
+        staffRes.json().catch(() => ({ success: false })),
+      ]);
+
+      if (teamsData.success) cacheSet(urls[0], teamsData);
+      if (participantsData.success) cacheSet(urls[1], participantsData);
+      if (staffData.success) cacheSet(urls[2], staffData);
+      apply(teamsData, participantsData, staffData);
     } catch (e) {
-      console.error("Failed to fetch team data:", e);
+      if (!painted) console.error("Failed to fetch team data:", e);
     } finally {
       setLoading(false);
     }
@@ -200,7 +223,7 @@ export default function TeamManagementPage({ params }) {
             : t("admin.teams.createSuccess"),
         );
         closeModal();
-        fetchData();
+        fetchData(true);
       } else {
         setFormError(t((data.error || t("adminMisc.programTeams.operationFailed")) || "") || (data.error || t("adminMisc.programTeams.operationFailed")));
       }
@@ -224,7 +247,7 @@ export default function TeamManagementPage({ params }) {
       if (data.success) {
         notify("success", t("admin.teams.deleteSuccess"));
         setDeleteTarget(null);
-        fetchData();
+        fetchData(true);
       }
     } catch (e) {
       notify("error", t("adminMisc.programTeams.deleteFailed"));
@@ -253,7 +276,7 @@ export default function TeamManagementPage({ params }) {
             ? t("adminMisc.programTeams.ventureReadyUnmarked")
             : t("adminMisc.programTeams.markedVentureReady"),
         );
-        fetchData();
+        fetchData(true);
       }
     } catch (_) {
       notify("error", t("adminMisc.programTeams.updateFailed"));
@@ -305,18 +328,18 @@ export default function TeamManagementPage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin" activeTab="v2">
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ---- Main render ----
 
   return (
-    <DashboardLayout role="super_admin" activeTab="v2">
+    <>
       <div className="max-w-6xl mx-auto space-y-8 pb-20">
         {/* HEADER */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -690,6 +713,6 @@ export default function TeamManagementPage({ params }) {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

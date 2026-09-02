@@ -33,7 +33,7 @@ import {
   Ban,
   Send,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -110,38 +110,74 @@ export default function VentureDashboardPage() {
     fetchDashboard();
   }, [refreshKey]);
 
-  const fetchVenture = async () => {
-    try {
-      const res = await fetch(`/api/ventures/${id}`);
-      const data = await res.json();
+  const fetchVenture = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}`;
+    const apply = (data) => {
       if (data.success) setVenture(data.venture);
-    } catch {}
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the venture
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
+    } catch (e) {
+      if (!painted) setError("Failed to load venture data");
+    }
   };
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}/dashboard`;
+    const apply = (data) => {
+      if (!data.success) {
+        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
+        return;
+      }
+      setDashboard(data.dashboard);
+      // Set individual widget states based on which data loaded
+      const states = {};
+      for (const [key, val] of Object.entries(data.dashboard)) {
+        states[key] = {
+          loading: false,
+          error: val === null ? "Failed to load" : null,
+          empty: val === null ? false : isWidgetEmpty(key, val),
+          data: val,
+        };
+      }
+      setWidgetStates(states);
+    };
+    let painted = false;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/ventures/${id}/dashboard`);
-      const data = await res.json();
-      if (data.success) {
-        setDashboard(data.dashboard);
-        // Set individual widget states based on which data loaded
-        const states = {};
-        for (const [key, val] of Object.entries(data.dashboard)) {
-          states[key] = {
-            loading: false,
-            error: val === null ? "Failed to load" : null,
-            empty: val === null ? false : isWidgetEmpty(key, val),
-            data: val,
-          };
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the widgets
+      // always reflect the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
         }
-        setWidgetStates(states);
-      } else {
-        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
       }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError("Failed to load dashboard data");
+      if (!painted) setError("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
@@ -182,7 +218,7 @@ export default function VentureDashboardPage() {
   // ── Loading state (skeleton) ──
   if (loading && !dashboard) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="max-w-6xl mx-auto space-y-8 pb-20">
           <div className="animate-pulse">
             <div className="h-8 w-64 rounded bg-slate-700/50 mb-2" />
@@ -192,14 +228,14 @@ export default function VentureDashboardPage() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ── Error state (full page) ──
   if (error && !dashboard) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Dashboard Error</h2>
@@ -208,7 +244,7 @@ export default function VentureDashboardPage() {
             <RefreshCw className="w-4 h-4" /> Retry
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -216,7 +252,7 @@ export default function VentureDashboardPage() {
   const v = venture || {};
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-6xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -611,6 +647,6 @@ export default function VentureDashboardPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

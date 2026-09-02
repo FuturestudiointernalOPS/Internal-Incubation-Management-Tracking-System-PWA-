@@ -1,6 +1,5 @@
 'use client';
 import React, { useState } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Settings, Globe, Database, Shield, Save, Loader2, CheckCircle } from 'lucide-react';
 import { useI18n } from "@/lib/i18n";
 
@@ -19,7 +18,7 @@ export default function SystemConfigPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="settings">
+    <>
       <div className="space-y-8 min-h-[60vh]">
         <header className="flex flex-col lg:flex-row justify-between items-start gap-6">
           <div>
@@ -89,6 +88,6 @@ export default function SystemConfigPage() {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

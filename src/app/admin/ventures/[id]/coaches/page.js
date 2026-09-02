@@ -6,8 +6,8 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Plus, Trash2, User, Mail, Phone,
   Globe, Linkedin, BookOpen, Clock, Star, Calendar,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function VentureCoachesPage() {
   const { id } = useParams();
@@ -36,19 +36,46 @@ export default function VentureCoachesPage() {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, aRes, cRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/coaches`),
-        fetch(`/api/ventures/${id}/coaches?type=coach`),
-      ]);
-      const v = await vRes.json(); const a = await aRes.json(); const c = await cRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/coaches`,
+      `/api/ventures/${id}/coaches?type=coach`,
+    ];
+    const apply = (v, a, c) => {
       if (v.success) setVenture(v.venture);
       if (a.success) setAssignments(a.coaches || []);
       if (c.success) setCoaches(c.coaches || []);
-    } catch {} finally { setLoading(false); }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the
+      // coach lists always reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [vRes, aRes, cRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+      ]);
+      const v = await vRes.json(); const a = await aRes.json(); const c = await cRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (a.success) cacheSet(urls[1], a);
+      if (c.success) cacheSet(urls[2], c);
+      apply(v, a, c);
+    } catch (e) {
+      if (!painted) console.error("Failed to load coaches data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Re-fetch assignments using the assignments endpoint from lib
@@ -95,23 +122,23 @@ export default function VentureCoachesPage() {
         body: JSON.stringify(cForm),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(); }
+      if (d.success) { notify(t("vadmin.coaches.coachCreated")); setShowCreateModal(false); setCForm({ full_name: "", email: "", coach_type: "coach", phone: "", organization: "", biography: "" }); fetchAll(true); }
       else notify(t((d.error || t("vadmin.coaches.failed")) || "") || (d.error || t("vadmin.coaches.failed")), "error");
     } catch { notify(t("vadmin.coaches.networkError"), "error"); }
     setSaving(false);
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const coachesList = assignments.filter((a) => a.coach_type === "coach");
   const advisorsList = assignments.filter((a) => a.coach_type === "advisor");
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type==="error"?"bg-rose-600 text-white":"bg-emerald-600 text-white"}`}>
@@ -315,6 +342,6 @@ export default function VentureCoachesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

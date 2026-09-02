@@ -1,7 +1,14 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
+import {
+  ensureSubmissionCreatedAtIndex,
+  ensureSubmissionDeliverableIndex,
+  ensureSubmissionParticipantProgramIndex,
+  ensureSubmissionProgramIdIndex,
+  getProgramsByAssignedPm,
+  getSubmissionsByProgramIds,
+} from "@/models/programWorkspace";
 
 export const dynamic = "force-dynamic";
 
@@ -9,10 +16,10 @@ export const GET = createHandler(
   { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
     // Ensure indexes for performance
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_program_id ON v2_submissions(program_id)"); } catch (_) {}
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_created ON v2_submissions(created_at DESC)"); } catch (_) {}
+    try { await ensureSubmissionProgramIdIndex(); } catch (_) {}
+    try { await ensureSubmissionParticipantProgramIndex(); } catch (_) {}
+    try { await ensureSubmissionDeliverableIndex(); } catch (_) {}
+    try { await ensureSubmissionCreatedAtIndex(); } catch (_) {}
     const { searchParams } = new URL(req.url);
     const assignedPmId = searchParams.get("assigned_pm_id");
 
@@ -37,10 +44,7 @@ export const GET = createHandler(
       );
     }
 
-    const progRes = await db.execute({
-      sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
-      args: [assignedPmId],
-    });
+    const progRes = await getProgramsByAssignedPm(assignedPmId);
     const programs = progRes.rows || [];
     const programIds = programs.map((p) => String(p.id));
 
@@ -48,19 +52,7 @@ export const GET = createHandler(
       return NextResponse.json({ success: true, submissions: [], programs });
     }
 
-    const placeholders = programIds.map(() => "?").join(",");
-    const subRes = await db.execute({
-      sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
-                   c.name as participant_name, c.group_name as participant_group,
-                   prog.grading_mode
-            FROM v2_submissions s
-            LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
-            LEFT JOIN contacts c ON s.participant_id::text = c.cid
-            LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
-            WHERE s.program_id::text IN (${placeholders})
-            ORDER BY s.created_at DESC`,
-      args: programIds,
-    });
+    const subRes = await getSubmissionsByProgramIds(programIds);
 
     const progMap = {};
     for (const p of programs) progMap[p.id] = p.name;

@@ -20,8 +20,8 @@ import {
   BookOpen,
   CalendarDays,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * TEACHER REVIEWS — ENHANCED SUBMISSION EVALUATION HUB (TRACK 3)
@@ -370,16 +370,32 @@ export default function SubmissionsHub() {
     } catch (_) {}
   }, []);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (bypassCache = false) => {
     setLoading(true);
+    let painted = false;
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const res = await fetch(
-        `/api/teacher/full-state?cid=${user.cid || user.id}`,
-      );
+      const url = `/api/teacher/full-state?cid=${user.cid || user.id}`;
+      const apply = (data) => {
+        if (data.success) {
+          setSubmissions(data.submissions || []);
+          painted = true;
+        }
+      };
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setSubmissions(data.submissions || []);
+        cacheSet(url, data);
+        apply(data);
         // Build program map for grading modes
         const progMap = {};
         for (const sub of data.submissions || []) {
@@ -396,7 +412,7 @@ export default function SubmissionsHub() {
         setPrograms(progMap);
       }
     } catch (e) {
-      console.error(e);
+      if (!painted) console.error(e);
     } finally {
       setLoading(false);
     }
@@ -427,7 +443,7 @@ export default function SubmissionsHub() {
   });
 
   return (
-    <DashboardLayout role={layoutRole}>
+    <>
       <div className="space-y-10 text-left animate-in">
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-secondary)] pb-10">
           <div className="space-y-3">
@@ -654,6 +670,6 @@ export default function SubmissionsHub() {
           t={t}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }

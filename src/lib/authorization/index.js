@@ -13,10 +13,12 @@ export {
   can,
   getAuthorizationContext,
   invalidateAuthorizationContext,
+  invalidateAllAuthorizationContexts,
   requireAuthorization,
   resolveAuthorizationContext,
   mergeEffectiveCapabilities,
   effectivePermissionsFromContext,
+  buildPermissionExplanation,
   rowsToCaps,
   rowsToRestrictions,
 } from "./resolver";
@@ -28,3 +30,21 @@ export {
   MODULE_TO_FEATURE,
   FEATURE_ELIGIBILITY_DEFAULTS,
 } from "./eligibility";
+
+export { runAuthzMigration } from "./migrations";
+
+export {
+  requireScopedAccess,
+  resolveContextAssignment,
+  CONTEXT_RESOURCES,
+} from "./context";
+
+export {
+  FEATURE_KEYS,
+  IDENTITY_TYPES,
+  ROLE_CATALOG,
+  ELIGIBILITY_IDENTITIES,
+  validateEligibilityChanges,
+  validateCapabilitiesWithinEligibility,
+  assertTemplateCapsEligible,
+} from "./eligibility-admin";

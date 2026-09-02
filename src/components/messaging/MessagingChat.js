@@ -18,10 +18,8 @@ import {
   Check,
   CheckCheck,
   Building2,
-  Trash2,
   Paperclip,
   ExternalLink,
-  AlertTriangle,
   Loader2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -267,8 +265,6 @@ export default function MessagingChat({ role = "super_admin" }) {
   const [replyUploading, setReplyUploading] = useState(false);
   const [sending, setSending] = useState(false);
   const [search, setSearch] = useState("");
-  const [deletingMessageId, setDeletingMessageId] = useState(null);
-  const [confirmTarget, setConfirmTarget] = useState(null); // { id, message, onConfirm } or null
 
   // Compose modal state
   const [showCompose, setShowCompose] = useState(false);
@@ -403,21 +399,18 @@ export default function MessagingChat({ role = "super_admin" }) {
   }, [uid]);
 
   // ── Fetch all contacts ──
-  // Participants/founders use a scoped endpoint so they only see the people
-  // they are actually allowed to message (PMs, facilitators, peers).
+  // Messaging is internal-only: internal staff use the CRM list as the
+  // recipient directory (they hold contacts.view). The participant/founder
+  // scoped endpoint was removed with the external messaging MVP decision.
   const fetchAllContacts = useCallback(async () => {
     try {
-      const url =
-        role === "participant" || role === "founder"
-          ? "/api/messaging/contacts"
-          : "/api/contacts";
-      const res = await fetch(url);
+      const res = await fetch("/api/contacts");
       const data = await res.json();
       if (data.success) setAllContacts(data.contacts || []);
     } catch (e) {
       console.error(e);
     }
-  }, [role]);
+  }, []);
 
   // ── Fetch families (contact groups) ──
   const fetchFamilies = useCallback(async () => {
@@ -779,31 +772,6 @@ export default function MessagingChat({ role = "super_admin" }) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleReply();
-    }
-  };
-
-  // ── Handle deleting a message (sender only, enforced server-side too) ──
-  const handleDeleteMessage = (messageId) => {
-    setConfirmTarget({
-      id: messageId,
-      message: t("messaging.deleteConfirm"),
-      onConfirm: () => performDeleteMessage(messageId),
-    });
-  };
-
-  const performDeleteMessage = async (messageId) => {
-    setDeletingMessageId(messageId);
-    try {
-      const res = await fetch(`/api/internal-comms?id=${messageId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        await fetchMessages();
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setDeletingMessageId(null);
     }
   };
 
@@ -1185,7 +1153,6 @@ export default function MessagingChat({ role = "super_admin" }) {
                     const isSent = msg.sender_id === uid;
                     const isLast = idx === activeMessages.length - 1;
                     const showRead = isSent && isLast && msg.is_read === 1;
-                    const isDeleting = deletingMessageId === msg.id;
                     return (
                       <div
                         key={msg.id}
@@ -1194,20 +1161,6 @@ export default function MessagingChat({ role = "super_admin" }) {
                           isSent ? "justify-end" : "justify-start",
                         )}
                       >
-                        {isSent && (
-                          <button
-                            onClick={() => handleDeleteMessage(msg.id)}
-                            disabled={isDeleting}
-                            title={t("messaging.deleteMessage")}
-                            className="shrink-0 opacity-0 group-hover:opacity-100 disabled:opacity-30 text-[var(--text-secondary)] hover:text-red-500 transition-all"
-                          >
-                            {isDeleting ? (
-                              <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                            ) : (
-                              <Trash2 className="w-3 h-3" />
-                            )}
-                          </button>
-                        )}
                         <div
                           className={cn(
                             "max-w-[75%] lg:max-w-[60%] px-3.5 py-2.5 rounded-2xl",
@@ -1650,24 +1603,7 @@ export default function MessagingChat({ role = "super_admin" }) {
         </div>
       )}
 
-      {/* Confirm Dialog */}
-      {confirmTarget && (
-        <div className="fixed inset-0 z-[500] bg-black/40 flex items-center justify-center p-6" onClick={() => setConfirmTarget(null)}>
-          <div className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-400 shrink-0" />
-              <div>
-                <h3 className="text-sm font-black uppercase tracking-tight">{t("messaging.confirmAction")}</h3>
-                <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">{confirmTarget.message}</p>
-              </div>
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">{t("common.cancel")}</button>
-              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">{t("common.confirm")}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Confirm Dialog removed — messages are never deleted (retention rule) */}
       <GlobalToast />
     </div>
   );

@@ -5,7 +5,7 @@ import {
   PERMISSION_MODULES,
   logPermissionAudit,
 } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, invalidateAllAuthorizationContexts } from "@/lib/authorization";
 
 /**
  * GET /api/access-profiles
@@ -148,6 +148,8 @@ export async function POST(req) {
       action: "profile_created",
       details: `Created access profile: ${name}`,
     });
+    // A new profile only matters once assigned/defaulted — safe to clear.
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,
@@ -213,6 +215,26 @@ export async function PUT(req) {
       });
     }
     if (is_active !== undefined) {
+      // Phase 7 governance: a profile that is a role default must never be
+      // disabled through the API — that would silently drop the role's
+      // default access (resolver falls back to legacy role_capabilities).
+      // Change the role default first.
+      if (!is_active) {
+        const refs = await db.execute({
+          sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
+          args: [id],
+        });
+        if (refs.rows.length > 0) {
+          const roles = refs.rows.map((r) => r.role_name).join(", ");
+          return NextResponse.json(
+            {
+              success: false,
+              error: `Cannot disable: profile is the default for role(s): ${roles}. Change the role default first.`,
+            },
+            { status: 400 },
+          );
+        }
+      }
       await db.execute({
         sql: "UPDATE access_profiles SET is_active = ?, updated_at = NOW() WHERE id = ?",
         args: [is_active ? 1 : 0, id],
@@ -245,10 +267,11 @@ export async function PUT(req) {
       actorCid: session?.cid,
       actorName: session?.name,
       targetCid: "system",
-      targetName: existing.rows[0].name,
+      targetName: profileName,
       action: "profile_updated",
-      details: `Updated access profile: ${existing.rows[0].name}`,
+      details: `Updated access profile: ${profileName}`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,
@@ -326,6 +349,7 @@ export async function DELETE(req) {
       action: "profile_deleted",
       details: `Deleted access profile with ${userRefs.rows[0]?.cnt || 0} users still assigned`,
     });
+    invalidateAllAuthorizationContexts();
 
     return NextResponse.json({
       success: true,

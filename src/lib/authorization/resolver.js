@@ -26,21 +26,26 @@ import {
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
+import { runAuthzMigration } from "./migrations";
+import { getEffectiveGroupsForUser } from "./membership";
 
-const AUTHZ_CONTEXT_TTL_MS = 10000; // short-TTL context cache (mirrors _sessionCache pattern)
+const AUTHZ_CONTEXT_TTL_MS = 60000; // 60s context cache (egress-neutral; invalidated immediately on permission writes)
 const _authzContextCache = new Map();
 
 let eligibilitySeeded = false;
 let eligibilitySeedPromise = null;
 
-/** Seed the eligibility table once per process (idempotent, egress-safe). */
+/** Seed the eligibility table ONCE per database (bootstrap), then stop. */
 function ensureEligibilitySeeded() {
   if (!eligibilitySeeded) {
     if (!eligibilitySeedPromise) {
       eligibilitySeedPromise = (async () => {
         await ensureEligibilitySchema();
-        const r = await seedDefaultEligibility();
-        if (r.success) eligibilitySeeded = true;
+        await runAuthzMigration(
+          "eligibility-bootstrap-seed",
+          seedDefaultEligibility,
+        );
+        eligibilitySeeded = true;
       })().finally(() => {
         eligibilitySeedPromise = null;
       });
@@ -122,30 +127,31 @@ function buildSuperAdminMatrix() {
 export async function resolveAuthorizationContext({ cid, role, group_name }) {
   if (!cid) throw new Error("resolveAuthorizationContext: cid is required");
   await initDb();
-  await ensureEligibilitySeeded();
-  await ensureCapabilityBackfills();
+  // Boot-time self-healing (once per process; idempotent). Run in parallel so
+  // a cold instance does not pay ~15 sequential round-trips before the first
+  // authorization decision (serverless timeout risk on slow databases).
+  await Promise.all([ensureEligibilitySeeded(), ensureCapabilityBackfills()]);
 
   // Grants + restrictions are needed for every user (SA edge case included).
-  const grantRows = (
-    await db.execute({
+  const [grantRows, restrictRows] = await Promise.all([
+    db.execute({
       sql: `SELECT module, capability, access_level FROM user_capabilities
             WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
       args: [cid],
-    })
-  ).rows;
-  const restrictRows = (
-    await db.execute({
+    }),
+    db.execute({
       sql: `SELECT module, capability FROM user_capability_restrictions
             WHERE user_cid = ? AND (expires_at IS NULL OR expires_at > NOW())`,
       args: [cid],
-    })
-  ).rows;
-  const grants = rowsToCaps(grantRows);
-  const restrictions = rowsToRestrictions(restrictRows);
+    }),
+  ]);
+  const grants = rowsToCaps(grantRows.rows);
+  const restrictions = rowsToRestrictions(restrictRows.rows);
 
   // Super Admin: allowed unless explicitly restricted (V2 L1370-1385).
   // Eligibility is bypassed entirely — SA is eligible for every feature.
   if (role === "super_admin") {
+    const saMatrix = buildSuperAdminMatrix();
     return {
       cid,
       role,
@@ -153,117 +159,92 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
       groups: [],
       profile: null,
       eligibility: null,
-      effective: mergeEffectiveCapabilities(
-        buildSuperAdminMatrix(),
-        {},
-        grants,
-        restrictions,
-      ),
+      eligibilityRows: [],
+      baseCaps: saMatrix,
+      groupCaps: {},
+      effective: mergeEffectiveCapabilities(saMatrix, {}, grants, restrictions),
       grants,
       restrictions,
     };
   }
 
-  // 1. Contact row: explicit profile override + group_name fallback.
-  const contact =
-    (
-      await db.execute({
-        sql: "SELECT access_profile_id, group_name FROM contacts WHERE cid = ?",
-        args: [cid],
-      })
-    ).rows[0] || {};
+  // 1. Contact row (profile override + group_name fallback) + groups —
+  //    independent reads, run in parallel.
+  const [contactRes, groupList] = await Promise.all([
+    db.execute({
+      sql: "SELECT access_profile_id, group_name FROM contacts WHERE cid = ?",
+      args: [cid],
+    }),
+    getEffectiveGroupsForUser(cid),
+  ]);
+  const contact = contactRes.rows[0] || {};
+  let groups = groupList;
+  if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
 
   // 2. Profile resolution (V2 order: user override → role default → legacy).
+  //    Both lookups run in parallel; precedence is applied to the results.
   let profileId = null;
   let profileName = null;
   let profileSource = "legacy";
-  if (contact.access_profile_id) {
-    const p = (
-      await db.execute({
-        sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-        args: [contact.access_profile_id],
-      })
-    ).rows[0];
-    if (p) {
-      profileId = p.id;
-      profileName = p.name;
-      profileSource = "user";
-    }
-  }
-  if (!profileId && role) {
-    const p = (
-      await db.execute({
-        sql: `SELECT ap.id, ap.name
-              FROM role_access_profile_defaults rpd
-              JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-              WHERE rpd.role_name = ? AND ap.is_active = 1`,
-        args: [role],
-      })
-    ).rows[0];
-    if (p) {
-      profileId = p.id;
-      profileName = p.name;
-      profileSource = "role";
-    }
+  const [overrideRes, roleDefaultRes] = await Promise.all([
+    contact.access_profile_id
+      ? db.execute({
+          sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
+          args: [contact.access_profile_id],
+        })
+      : Promise.resolve({ rows: [] }),
+    role
+      ? db.execute({
+          sql: `SELECT ap.id, ap.name
+                FROM role_access_profile_defaults rpd
+                JOIN access_profiles ap ON ap.id = rpd.access_profile_id
+                WHERE rpd.role_name = ? AND ap.is_active = 1`,
+          args: [role],
+        })
+      : Promise.resolve({ rows: [] }),
+  ]);
+  if (overrideRes.rows[0]) {
+    profileId = overrideRes.rows[0].id;
+    profileName = overrideRes.rows[0].name;
+    profileSource = "user";
+  } else if (roleDefaultRes.rows[0]) {
+    profileId = roleDefaultRes.rows[0].id;
+    profileName = roleDefaultRes.rows[0].name;
+    profileSource = "role";
   }
 
-  // 3. Base capabilities: profile caps, or role_capabilities fallback for
-  //    profile-less users (V2 legacy fallback — preserved for zero-loser).
-  let baseCaps;
-  if (profileId) {
-    const rows = (
-      await db.execute({
-        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?",
-        args: [profileId],
-      })
-    ).rows;
-    baseCaps = rowsToCaps(rows);
-  } else {
-    const rows = (
-      await db.execute({
-        sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-        args: [role],
-      })
-    ).rows;
-    baseCaps = rowsToCaps(rows);
-  }
-
-  // 4. Groups (V2 order: user_groups → contacts.group_name fallback).
-  let groups = (
-    await db.execute({
-      sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
-      args: [cid],
-    })
-  ).rows.map((r) => r.group_name);
-  if (groups.length === 0 && contact.group_name) groups = [contact.group_name];
-
-  // 5. Group capabilities (all modules in one query).
-  let groupCaps = {};
-  if (groups.length > 0) {
-    const ph = groups.map(() => "?").join(",");
-    const rows = (
-      await db.execute({
-        sql: `SELECT module, capability, access_level FROM group_capabilities
-              WHERE group_name IN (${ph})`,
-        args: groups,
-      })
-    ).rows;
-    groupCaps = rowsToCaps(rows);
-  }
-
-  // 6. Eligibility — ONE query for every identity the user has.
-  const eligRows = (
-    await db.execute({
+  // 3+5+6. Base capabilities (profile caps, or role_capabilities fallback for
+  //    profile-less users — V2 legacy fallback, preserved for zero-loser),
+  //    group capabilities and eligibility rows are independent reads — run in
+  //    parallel instead of three sequential rounds.
+  const capsSql = profileId
+    ? "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ?"
+    : "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?";
+  const groupPh = groups.map(() => "?").join(",");
+  const eligPh = groups.length ? groups.map(() => "?").join(",") : "NULL";
+  const [capsRes, groupCapsRes, eligRes] = await Promise.all([
+    db.execute({ sql: capsSql, args: profileId ? [profileId] : [role] }),
+    groups.length > 0
+      ? db.execute({
+          sql: `SELECT module, capability, access_level FROM group_capabilities
+                WHERE group_name IN (${groupPh})`,
+          args: groups,
+        })
+      : Promise.resolve({ rows: [] }),
+    db.execute({
       sql: `SELECT feature_key, identity_type, identity_value, eligible
             FROM feature_eligibility
             WHERE (identity_type = 'role' AND identity_value = ?)
-               OR (identity_type = 'group' AND identity_value IN (${groups.length ? groups.map(() => "?").join(",") : "NULL"}))`,
+               OR (identity_type = 'group' AND identity_value IN (${eligPh}))`,
       args: [role, ...groups],
-    })
-  ).rows;
+    }),
+  ]);
+  const baseCaps = rowsToCaps(capsRes.rows);
+  const groupCaps = rowsToCaps(groupCapsRes.rows);
+
   const eligibility = {};
-  for (const featureKey of Object.keys(MODULE_TO_FEATURE)) {
-    eligibility[featureKey] = evaluateEligibility(eligRows, featureKey);
+  for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+    eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);
   }
 
   // 7. Effective capabilities (V2 merge semantics).
@@ -276,6 +257,9 @@ export async function resolveAuthorizationContext({ cid, role, group_name }) {
     groups,
     profile: { profileId, profileName, profileSource },
     eligibility,
+    eligibilityRows: eligRes.rows,
+    baseCaps,
+    groupCaps,
     effective,
     grants,
     restrictions,
@@ -305,6 +289,15 @@ export function invalidateAuthorizationContext(cid) {
   }
 }
 
+/**
+ * Drop ALL cached contexts (call after eligibility configuration writes — a
+ * role/group change can affect any user). The cache is small and short-TTL
+ * (10s), so a full clear is egress-safe.
+ */
+export function invalidateAllAuthorizationContexts() {
+  _authzContextCache.clear();
+}
+
 // ─── Authorization decision ─────────────────────────────────────────────────
 
 /**
@@ -332,6 +325,58 @@ export function authorize(ctx, module, capability, minLevel = 1) {
 /** Effective permission matrix ({module:{capability:level}}) for UI display. */
 export function effectivePermissionsFromContext(ctx) {
   return ctx?.effective || {};
+}
+
+/**
+ * Pure "who has access and why" explanation for a resolved context.
+ * Returns per-feature eligibility (with the identity rows that produced it)
+ * and the raw capability inputs per module (profile/role base, group caps,
+ * individual grants) alongside the merged effective matrix.
+ */
+export function buildPermissionExplanation(ctx) {
+  if (!ctx) return null;
+
+  if (ctx.isSuperAdmin) {
+    const eligibility = {};
+    for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+      eligibility[featureKey] = {
+        eligible: true,
+        source: "super_admin bypass",
+      };
+    }
+    return {
+      eligibility,
+      sources: {
+        profile: ctx.baseCaps || {},
+        groups: ctx.groupCaps || {},
+        grants: ctx.grants || {},
+      },
+    };
+  }
+
+  const eligibility = {};
+  for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
+    const rows = (ctx.eligibilityRows || []).filter(
+      (r) => r.feature_key === featureKey,
+    );
+    eligibility[featureKey] = {
+      eligible: evaluateEligibility(rows, featureKey),
+      sources: rows.map((r) => ({
+        identity_type: r.identity_type,
+        identity_value: r.identity_value,
+        eligible: Number(r.eligible),
+      })),
+    };
+  }
+
+  return {
+    eligibility,
+    sources: {
+      profile: ctx.baseCaps || {},
+      groups: ctx.groupCaps || {},
+      grants: ctx.grants || {},
+    },
+  };
 }
 
 /**

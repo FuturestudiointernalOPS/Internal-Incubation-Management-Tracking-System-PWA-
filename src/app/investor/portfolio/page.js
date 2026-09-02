@@ -6,12 +6,12 @@ import {
   ArrowLeft, BarChart3, MessageSquare, Plus, Send, FileText,
   Activity, MapPin, Video, X, Edit3, Trash2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function PortfolioPage() {
   const goBack = useSafeBack("/investor");
@@ -52,48 +52,109 @@ export default function PortfolioPage() {
     }
   }, [selected]);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const dash = await fetch("/api/investor/dashboard");
+      const dashUrl = "/api/investor/dashboard";
+      const decUrl = "/api/investor/decisions";
+      const apply = (dashData, decData) => {
+        if (dashData.success) setPipeline(dashData.pipeline?.filter(p => p.stage === "invested") || []);
+        if (decData.success) { setDecisions(decData.decisions || []); setStats(decData.stats || {}); }
+      };
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots while the lists refresh in the background.
+      if (!bypassCache) {
+        const dashCached = cacheGet(dashUrl);
+        const decCached = cacheGet(decUrl);
+        if (dashCached !== null && dashCached.success && decCached !== null && decCached.success) {
+          apply(dashCached, decCached);
+          setLoading(false);
+        }
+      }
+      const dash = await fetch(dashUrl);
       const dashData = await dash.json();
-      if (dashData.success) setPipeline(dashData.pipeline?.filter(p => p.stage === "invested") || []);
-      const dec = await fetch("/api/investor/decisions");
+      if (dashData.success) cacheSet(dashUrl, dashData);
+      const dec = await fetch(decUrl);
       const decData = await dec.json();
-      if (decData.success) { setDecisions(decData.decisions || []); setStats(decData.stats || {}); }
+      if (decData.success) cacheSet(decUrl, decData);
+      apply(dashData, decData);
     } catch (_) {}
     setLoading(false);
   };
 
-  const fetchMeetings = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/meetings?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchMeetings = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/meetings?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setMeetings(data.meetings || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchNotes = async (pipelineId) => {
-    try {
-      const res = await fetch(`/api/investor/diligence?pipeline_id=${pipelineId}`);
-      const data = await res.json();
+  const fetchNotes = async (pipelineId, bypassCache = false) => {
+    const url = `/api/investor/diligence?pipeline_id=${pipelineId}`;
+    const apply = (data) => {
       if (data.success) setNotes(data.notes || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchUpdates = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/updates?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchUpdates = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/updates?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setUpdates(data.updates || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
-  const fetchKpis = async (ventureId) => {
-    try {
-      const res = await fetch(`/api/investor/venture-kpis?venture_id=${ventureId}`);
-      const data = await res.json();
+  const fetchKpis = async (ventureId, bypassCache = false) => {
+    const url = `/api/investor/venture-kpis?venture_id=${ventureId}`;
+    const apply = (data) => {
       if (data.success) setKpis(data.kpis || []);
+    };
+    try {
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
@@ -106,7 +167,7 @@ export default function PortfolioPage() {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: selected.id, action: "add_note", content: newNote, note_type: "private" }),
       });
-      if (res.ok) { setNewNote(""); fetchNotes(selected.id); }
+      if (res.ok) { setNewNote(""); fetchNotes(selected.id, true); }
     } catch (_) {}
   };
 
@@ -122,7 +183,7 @@ export default function PortfolioPage() {
         setToast({ type: "success", message: t("investorMisc.portfolio.meetingScheduled") });
         setShowMeetingForm(false);
         setMeetingForm({ title: "", description: "", start_time: "", end_time: "", location: "video" });
-        fetchMeetings(selected.venture_id);
+        fetchMeetings(selected.venture_id, true);
       }
     } catch (_) {}
     setSaving(false);
@@ -140,14 +201,14 @@ export default function PortfolioPage() {
         setToast({ type: "success", message: t("investorMisc.portfolio.updatePublished") });
         setShowUpdateForm(false);
         setUpdateForm({ title: "", content: "", update_type: "general" });
-        fetchUpdates(selected.venture_id);
+        fetchUpdates(selected.venture_id, true);
       }
     } catch (_) {}
     setSaving(false);
   };
 
   if (loading) {
-    return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
 
   const STAGE_COLORS = { interested:"bg-slate-500/10 text-slate-400",watching:"bg-blue-500/10 text-blue-400",meeting_requested:"bg-amber-500/10 text-amber-400",due_diligence:"bg-purple-500/10 text-purple-400",negotiation:"bg-orange-500/10 text-orange-400",invested:"bg-emerald-500/10 text-emerald-400",declined:"bg-rose-500/10 text-rose-400"};
@@ -157,7 +218,7 @@ export default function PortfolioPage() {
     const dec = getDecision(selected.venture_id);
     const upcomingMeetings = meetings.filter(m => new Date(m.start_time) > new Date());
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
           <GlobalToast toast={toast} onClose={() => setToast(null)} />
           <button onClick={() => setSelected(null)} className="text-xs font-bold text-[var(--brand-orange)] hover:underline uppercase flex items-center gap-1"><ArrowLeft className="w-3 h-3" /> {t("investorMisc.portfolio.backToPortfolio")}</button>
@@ -228,13 +289,13 @@ export default function PortfolioPage() {
           {/* Meeting Modal */}
           {showMeetingForm&&(<div className="fixed inset-0 z-50 flex items-center justify-center p-4"><div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={()=>setShowMeetingForm(false)}/><div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto"><div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]"><h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("investorMisc.portfolio.scheduleMeeting")}</h3><button onClick={()=>setShowMeetingForm(false)} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button></div><div className="p-6 space-y-4"><input value={meetingForm.title} onChange={e=>setMeetingForm({...meetingForm,title:e.target.value})} placeholder={t("investorMisc.portfolio.meetingTitlePlaceholder")} className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none"/><textarea value={meetingForm.description} onChange={e=>setMeetingForm({...meetingForm,description:e.target.value})} rows={2} placeholder={t("investorMisc.portfolio.descriptionPlaceholder")} className="w-full px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/><div className="grid grid-cols-2 gap-3"><div><label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.portfolio.start")}</label><input type="datetime-local" value={meetingForm.start_time} onChange={e=>setMeetingForm({...meetingForm,start_time:e.target.value})} className="w-full mt-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"/></div><div><label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.portfolio.end")}</label><input type="datetime-local" value={meetingForm.end_time} onChange={e=>setMeetingForm({...meetingForm,end_time:e.target.value})} className="w-full mt-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"/></div></div><div><label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.portfolio.location")}</label><select value={meetingForm.location} onChange={e=>setMeetingForm({...meetingForm,location:e.target.value})} className="w-full mt-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg text-xs font-bold outline-none"><option value="video">{t("investorMisc.portfolio.videoCall")}</option><option value="in_person">{t("investorMisc.portfolio.inPerson")}</option><option value="phone">{t("investorMisc.portfolio.phoneCall")}</option></select></div></div><div className="flex justify-end gap-3 px-6 pb-5"><AppButton variant="secondary" size="sm" onClick={()=>setShowMeetingForm(false)}>{t("investorMisc.portfolio.cancel")}</AppButton><AppButton variant="primary" size="sm" icon={Calendar} onClick={scheduleMeeting} disabled={saving}>{saving?t("investorMisc.portfolio.scheduling"):t("investorMisc.portfolio.schedule")}</AppButton></div></div></div>)}
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // Main list
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={goBack} className="p-2 hover:text-[var(--brand-orange)]"><ArrowLeft className="w-5 h-5"/></button>
@@ -245,6 +306,6 @@ export default function PortfolioPage() {
         </div>
         {pipeline.length===0?<div className="text-center py-20"><Target className="w-16 h-16 text-[var(--text-tertiary)] mx-auto mb-4"/><h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">{t("investorMisc.portfolio.emptyTitle")}</h2><p className="text-sm text-[var(--text-secondary)] max-w-md mx-auto">{t("investorMisc.portfolio.emptyDesc")}</p></div>:<div className="space-y-3">{pipeline.map(p=>{const dec=getDecision(p.venture_id);return(<AppCard key={p.id} padding="md" hover onClick={()=>setSelected(p)}><div className="flex items-center justify-between cursor-pointer"><div className="flex items-center gap-4"><div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center"><Building2 className="w-5 h-5 text-emerald-400"/></div><div><p className="text-sm font-bold text-[var(--text-primary)]">{p.venture_name||t("investorMisc.portfolio.venture")}</p><p className="text-[10px] text-[var(--text-secondary)]">{t("investorMisc.portfolio.invested")} · {new Date(p.stage_changed_at).toLocaleDateString()} · {dec?.investment_amount?`$${Number(dec.investment_amount).toLocaleString()}`:""}</p></div></div><div className="flex items-center gap-2 text-[10px]"><span className="text-emerald-400 font-bold">{t("investorMisc.portfolio.active")}</span><ArrowLeft className="w-3 h-3 rotate-180 text-[var(--text-tertiary)]"/></div></div></AppCard>)})}</div>}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

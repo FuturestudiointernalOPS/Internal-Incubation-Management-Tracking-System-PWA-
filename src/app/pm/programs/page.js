@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import {
   Rocket,
@@ -21,6 +20,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // Visual + label config per program status (mirrors the admin program status chips).
 const PROGRAM_STATUS_STYLE = {
@@ -53,7 +53,7 @@ export default function PMProgramsRegistry() {
     fetchMyTasks();
   }, [activeTab]);
 
-  const fetchMyPrograms = async () => {
+  const fetchMyPrograms = async (bypassCache = false) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const identifier = user.cid || user.id;
@@ -69,10 +69,23 @@ export default function PMProgramsRegistry() {
         endpoint += "&status=active&show_archived=false";
       }
 
+      const apply = (data) => {
+        if (data.success) setPrograms(data.programs || []);
+      };
+      // Cache-first paint: switching tabs / returning to the page renders
+      // instantly from fresh snapshots; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(endpoint);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
       const res = await fetch(endpoint);
       const data = await res.json();
       if (data.success) {
-        setPrograms(data.programs || []);
+        cacheSet(endpoint, data);
+        apply(data);
       }
     } catch (err) {
       console.error(err);
@@ -81,17 +94,27 @@ export default function PMProgramsRegistry() {
     }
   };
 
-  const fetchMyTasks = async () => {
+  const fetchMyTasks = async (bypassCache = false) => {
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const identifier = user.cid || user.id;
+      const url = `/api/tasks?assigned_to=${encodeURIComponent(identifier)}&limit=10&brief=true`;
+      const apply = (data) => {
+        if (data.success) setTasks(data.tasks || []);
+      };
       setTasksLoading(true);
-      const res = await fetch(
-        `/api/tasks?assigned_to=${encodeURIComponent(identifier)}&limit=10&brief=true`,
-      );
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setTasksLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setTasks(data.tasks || []);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (err) {
       console.error(err);
@@ -108,7 +131,7 @@ export default function PMProgramsRegistry() {
   );
 
   return (
-    <DashboardLayout role="program_manager" activeTab="programs">
+    <>
       <div className="space-y-12 pb-20">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div>
@@ -359,7 +382,7 @@ export default function PMProgramsRegistry() {
                                   }),
                                 });
                                 if ((await res.json()).success) {
-                                  fetchMyPrograms();
+                                  fetchMyPrograms(true);
                                   window.dispatchEvent(
                                     new CustomEvent("impactos:notify", {
                                       detail: {
@@ -393,6 +416,6 @@ export default function PMProgramsRegistry() {
           }))}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -17,7 +16,7 @@ import {
   Edit3,
   Trash2,
 } from "lucide-react";
-import { IMPACT_CACHE } from "@/utils/impactCache";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
@@ -47,34 +46,56 @@ export default function FormsPage() {
   const [showNewGroupInput, setShowNewGroupInput] = useState(false);
 
   useEffect(() => {
-    // Instant-Load from cache
-    const cachedForms = IMPACT_CACHE.get("forms");
-    if (cachedForms) {
-      setForms(cachedForms);
-      setLoading(false);
-    }
     fetchForms();
     fetchFamilies();
   }, []);
 
-  const fetchFamilies = async () => {
-    try {
-      const res = await fetch("/api/families");
-      const data = await res.json();
+  const fetchFamilies = async (bypassCache = false) => {
+    const url = "/api/families";
+    const apply = (data) => {
       if (data.success) setFamilies(data.families || []);
+    };
+    try {
+      // Cache-first paint: the group dropdown renders instantly from a fresh
+      // snapshot; creating a new family passes bypassCache=true so the new
+      // group shows up right away.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error(e);
     }
   };
 
-  const fetchForms = async () => {
+  const fetchForms = async (bypassCache = false) => {
+    const url = "/api/forms";
+    const apply = (data) => {
+      if (data.success) setForms(data.forms || []);
+    };
+    setLoading(true);
     try {
-      if (!IMPACT_CACHE.get("forms")) setLoading(true);
-      const res = await fetch("/api/forms");
+      // Cache-first paint: returning to the page renders instantly from a fresh
+      // snapshot; form mutations pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setForms(data.forms || []);
-        IMPACT_CACHE.set("forms", data.forms);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (err) {
       console.error(err);
@@ -130,7 +151,7 @@ export default function FormsPage() {
           body: JSON.stringify({ name: newGroupName }),
         });
         finalGroupName = newGroupName;
-        fetchFamilies();
+        fetchFamilies(true);
       }
 
       const res = await fetch("/api/forms", {
@@ -152,7 +173,7 @@ export default function FormsPage() {
         setSelectedGroupName("");
         setNewGroupName("");
         setShowNewGroupInput(false);
-        fetchForms();
+        fetchForms(true);
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.forms.saved") },
@@ -181,7 +202,7 @@ export default function FormsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchForms();
+        fetchForms(true);
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: { type: "success", message: t("crm.forms.archived") },
@@ -253,7 +274,7 @@ export default function FormsPage() {
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 min-h-[60vh]">
         {/* Back navigation */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -739,6 +760,6 @@ export default function FormsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

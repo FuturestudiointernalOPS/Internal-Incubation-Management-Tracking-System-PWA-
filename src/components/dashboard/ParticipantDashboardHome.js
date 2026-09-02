@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import CalendarPanel from "@/components/ui/CalendarPanel";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Progress Ring ─────────────────────────────────────────────────
 function ProgressRing({
@@ -219,13 +220,25 @@ export default function ParticipantDashboardHome() {
   const { t, lang } = useI18n();
 
   const fetchDashboard = useCallback(async () => {
+    const url = "/api/participant/home";
+    const apply = (result) => {
+      if (result.success) setData(result);
+    };
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch("/api/participant/home");
+      // Cache-first paint: returning to the dashboard renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      const cached = cacheGet(url);
+      if (cached !== null && cached.success) {
+        apply(cached);
+        setLoading(false);
+      }
+      const res = await fetch(url);
       const result = await res.json();
       if (result.success) {
-        setData(result);
+        cacheSet(url, result);
+        apply(result);
       } else {
         setError(t((result.error || t("participantMisc.dashboardHome.failedToLoad")) || "") || (result.error || t("participantMisc.dashboardHome.failedToLoad")));
       }

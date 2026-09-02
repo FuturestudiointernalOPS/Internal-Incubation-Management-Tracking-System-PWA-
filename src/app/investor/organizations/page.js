@@ -5,12 +5,12 @@ import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
   Save, UserPlus, Crown, Shield, Mail, X,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function InvestorOrganizationsPage() {
   const goBack = useSafeBack("/investor");
@@ -31,24 +31,57 @@ export default function InvestorOrganizationsPage() {
 
   useEffect(() => { fetchOrgs(); }, []);
 
-  const fetchOrgs = async () => {
+  const fetchOrgs = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/organizations");
+      const url = "/api/investor/organizations";
+      const apply = (data) => {
+        if (data.success) setOrgs(data.organizations || []);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setOrgs(data.organizations || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   };
 
-  const fetchOrgDetail = async (orgId) => {
+  const fetchOrgDetail = async (orgId, bypassCache = false) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/investor/organizations?id=${orgId}`);
+      const url = `/api/investor/organizations?id=${orgId}`;
+      const apply = (data) => {
+        if (data.success) {
+          setSelectedOrg(data.organization);
+          setOrgMembers(data.members || []);
+        }
+      };
+      // Cache-first paint: reopening a previously viewed organization renders
+      // instantly from a fresh snapshot of its detail.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setDetailLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setSelectedOrg(data.organization);
-        setOrgMembers(data.members || []);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setDetailLoading(false);
@@ -71,7 +104,7 @@ export default function InvestorOrganizationsPage() {
         setToast({ type: "success", message: t("investorMisc.organizations.created") });
         setShowCreate(false);
         setNewOrg({ name: "", description: "", website: "" });
-        fetchOrgs();
+        fetchOrgs(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -80,7 +113,7 @@ export default function InvestorOrganizationsPage() {
   };
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -254,6 +287,6 @@ export default function InvestorOrganizationsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

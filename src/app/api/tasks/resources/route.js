@@ -1,7 +1,13 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getTaskAccessById,
+  createResource,
+  getResourceById,
+  getTaskAccessForDelete,
+  deleteResource,
+} from "@/models/taskResources";
 
 export const POST = createHandler(async (req) => {
   const session = await getSession();
@@ -22,10 +28,7 @@ export const POST = createHandler(async (req) => {
     );
   }
 
-  const taskRes = await db.execute({
-    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-    args: [parseInt(task_id)],
-  });
+  const taskRes = await getTaskAccessById(task_id);
   const t = taskRes.rows[0];
   if (!t) {
     return NextResponse.json(
@@ -52,19 +55,15 @@ export const POST = createHandler(async (req) => {
     );
   }
 
-  const result = await db.execute({
-    sql: `INSERT INTO task_resources (task_id, name, url, type, file_name, file_size, uploaded_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [
-      parseInt(task_id),
-      name || null,
-      url,
-      type || "url",
-      file_name || null,
-      file_size || null,
-      session?.cid || null,
-    ],
-  });
+  const result = await createResource(
+    task_id,
+    name,
+    url,
+    type,
+    file_name,
+    file_size,
+    session?.cid,
+  );
 
   return NextResponse.json({
     success: true,
@@ -91,10 +90,7 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const resourceRes = await db.execute({
-    sql: "SELECT task_id FROM task_resources WHERE id = ?",
-    args: [parseInt(id)],
-  });
+  const resourceRes = await getResourceById(id);
   const resource = resourceRes.rows[0];
   if (!resource) {
     return NextResponse.json(
@@ -103,10 +99,7 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const taskRes = await db.execute({
-    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-    args: [parseInt(resource.task_id)],
-  });
+  const taskRes = await getTaskAccessForDelete(resource.task_id);
   const t = taskRes.rows[0];
   if (!t) {
     return NextResponse.json(
@@ -133,10 +126,7 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  await db.execute({
-    sql: `DELETE FROM task_resources WHERE id = ?`,
-    args: [parseInt(id)],
-  });
+  await deleteResource(id);
 
   return NextResponse.json({
     success: true,

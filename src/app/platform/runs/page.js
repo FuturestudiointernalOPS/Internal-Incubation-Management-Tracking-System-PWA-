@@ -9,6 +9,7 @@ import {
   StopCircle, Archive, RefreshCw, ChevronDown, ChevronUp, ChevronRight, Info, Sparkles, Mail, Key, LogIn, Download,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * PLATFORM FORM RUNS — Launch, assign, collect, review
@@ -398,58 +399,132 @@ export default function FormRunsPage() {
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  const fetchRuns = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      params.set("page", String(page));
-      params.set("per_page", String(perPage));
-      const res = await fetch(`/api/platform/form-runs?${params}`);
-      const data = await res.json().catch(() => ({}));
+  const fetchRuns = useCallback(async (bypassCache = false) => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    params.set("page", String(page));
+    params.set("per_page", String(perPage));
+    const url = `/api/platform/form-runs?${params}`;
+    const apply = (data) => {
       if (data.success) {
         setRuns(data.runs || []);
         setTotalRuns(data.total || 0);
+      }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: revisiting the same page/filter renders instantly
+      // from a fresh snapshot; mutations pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json().catch(() => ({}));
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       } else {
         console.error("[runs] list error:", data.error || res.status);
         notify(t("platformMisc.runs.loadError", { error: data.error || res.status }));
       }
     } catch (e) {
-      console.error("[runs] list fetch failed:", e);
-      notify(t("platformMisc.runs.loadError", { error: e.message || "network" }));
+      if (!painted) {
+        console.error("[runs] list fetch failed:", e);
+        notify(t("platformMisc.runs.loadError", { error: e.message || "network" }));
+      }
     }
     setLoading(false);
   }, [statusFilter, page, perPage]);
 
-  const fetchForms = useCallback(async () => {
-    try {
-      const res = await fetch("/api/platform/forms?status=published");
-      const data = await res.json();
+  const fetchForms = useCallback(async (bypassCache = false) => {
+    const url = "/api/platform/forms?status=published";
+    const apply = (data) => {
       if (data.success) setForms(data.forms || []);
+    };
+    try {
+      // Cache-first paint: the form dropdown renders instantly from a fresh
+      // snapshot; the network refresh keeps it current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
-  const fetchContacts = useCallback(async () => {
-    try {
-      const res = await fetch("/api/platform/form-runs?contacts=true");
-      const data = await res.json();
+  const fetchContacts = useCallback(async (bypassCache = false) => {
+    const url = "/api/platform/form-runs?contacts=true";
+    const apply = (data) => {
       if (data.success) setContacts(data.contacts || []);
+    };
+    try {
+      // Cache-first paint: contact options render instantly from a fresh
+      // snapshot; the network refresh keeps them current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
-  const fetchGroups = useCallback(async () => {
-    try {
-      const res = await fetch("/api/groups");
-      const data = await res.json();
+  const fetchGroups = useCallback(async (bypassCache = false) => {
+    const url = "/api/groups";
+    const apply = (data) => {
       if (data.success) setGroups(data.groups || []);
+    };
+    try {
+      // Cache-first paint: the group dropdown renders instantly from a fresh
+      // snapshot; group creation passes bypassCache=true so it reflects the
+      // newly created group immediately.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
-  const fetchPrograms = useCallback(async () => {
-    try {
-      const res = await fetch("/api/pm/programs");
-      const data = await res.json();
+  const fetchPrograms = useCallback(async (bypassCache = false) => {
+    const url = "/api/pm/programs";
+    const apply = (data) => {
       if (data.success) setPrograms(data.programs || []);
+    };
+    try {
+      // Cache-first paint: the program dropdown renders instantly from a fresh
+      // snapshot; the network refresh keeps it current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
@@ -468,7 +543,7 @@ export default function FormRunsPage() {
         notify(t("platformMisc.runs.groupCreated"));
         setShowInlineGroup(false);
         setInlineGroupName("");
-        await fetchGroups();
+        await fetchGroups(true);
         if (onDone) onDone(data.group);
       } else {
         notify(t((data.error || t("platformMisc.runs.failedToCreateGroup")) || "") || (data.error || t("platformMisc.runs.failedToCreateGroup")));
@@ -480,11 +555,24 @@ export default function FormRunsPage() {
     }
   };
 
-  const fetchDashboardStats = useCallback(async () => {
-    try {
-      const res = await fetch("/api/platform/form-runs?dashboard=true");
-      const data = await res.json();
+  const fetchDashboardStats = useCallback(async (bypassCache = false) => {
+    const url = "/api/platform/form-runs?dashboard=true";
+    const apply = (data) => {
       if (data.success) setDashboardStats(data.stats);
+    };
+    try {
+      // Cache-first paint: dashboard cards render instantly from a fresh
+      // snapshot; the network refresh keeps them current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
@@ -569,7 +657,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.formRunCreated"));
         setShowCreate(false);
-        fetchRuns();
+        fetchRuns(true);
         openRun(data.run);
       }
     } catch (_) {}
@@ -586,7 +674,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runLaunched"));
-        fetchRuns();
+        fetchRuns(true);
         setSelectedRun(data.run);
       }
     } catch (_) {}
@@ -603,7 +691,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: newStatus }));
         setSelectedRun(data.run);
-        fetchRuns();
+        fetchRuns(true);
       }
     } catch (_) {}
   };
@@ -616,7 +704,7 @@ export default function FormRunsPage() {
       if (data.success) {
         notify(t("platformMisc.runs.runDeleted"));
         setSelectedRun(null);
-        fetchRuns();
+        fetchRuns(true);
       }
     } catch (_) {}
   };
@@ -632,7 +720,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "archived" }));
-        fetchRuns();
+        fetchRuns(true);
       }
     } catch (_) {}
   };
@@ -648,7 +736,7 @@ export default function FormRunsPage() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.runs.runStatusChanged", { status: "draft" }));
-        fetchRuns();
+        fetchRuns(true);
       }
     } catch (_) {}
   };

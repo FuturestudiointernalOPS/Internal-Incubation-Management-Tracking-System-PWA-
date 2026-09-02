@@ -6,8 +6,8 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
   Video, MapPin, BookOpen, MessageCircle, Target, Trash2, Edit3,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const SESSION_TYPE_CFG = {
   coaching: { label: "vadmin.sessions.coaching", color: "bg-blue-500/10 text-blue-400" },
@@ -55,18 +55,31 @@ export default function VentureSessionsPage() {
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 4000); };
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, sRes, cRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/sessions`),
-        fetch(`/api/ventures/${id}/coaches`),
-      ]);
-      const v = await vRes.json(); const s = await sRes.json(); const c = await cRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/sessions`, `/api/ventures/${id}/coaches`];
+    const apply = (v, s, c) => {
       if (v.success) setVenture(v.venture);
       if (s.success) setSessions(s.sessions || []);
       if (c.success) setCoaches(c.coaches || []);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+        }
+      }
+      const [vRes, sRes, cRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const s = await sRes.json(); const c = await cRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (s.success) cacheSet(urls[1], s);
+      if (c.success) cacheSet(urls[2], c);
+      apply(v, s, c);
     } catch {} finally { setLoading(false); }
   };
 
@@ -90,7 +103,7 @@ export default function VentureSessionsPage() {
         body: JSON.stringify({ action: "create_session", ...sForm, coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" }); fetchAll(); }
+      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" }); fetchAll(true); }
       else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
@@ -100,7 +113,7 @@ export default function VentureSessionsPage() {
     await fetch(`/api/ventures/${id}/sessions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "cancel_session", session_id: sessionId }) });
     notify(t("vadmin.sessions.sessionCancelled"));
     setShowDetail(false);
-    fetchAll();
+    fetchAll(true);
   };
 
   const addNote = async () => {
@@ -118,14 +131,14 @@ export default function VentureSessionsPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const upcoming = sessions.filter((s) => ["scheduled", "confirmed"].includes(s.status));
   const past = sessions.filter((s) => ["completed", "cancelled", "no_show", "rescheduled"].includes(s.status));
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type==="error"?"bg-rose-600 text-white":"bg-emerald-600 text-white"}`}>
@@ -331,6 +344,6 @@ export default function VentureSessionsPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

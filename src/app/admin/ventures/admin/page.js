@@ -6,7 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Save, Settings, ToggleLeft, Shield,
   Activity, Server, Search,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function VentureAdminPage() {
   const router = useRouter();
@@ -24,22 +24,42 @@ export default function VentureAdminPage() {
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const fetchAll = async () => {
+  const fetchAll = async (bypassCache = false) => {
     setLoading(true);
-    const [sRes, fRes, rRes, sysRes, lRes] = await Promise.all([
-      fetch("/api/admin/ventures?type=settings"),
-      fetch("/api/admin/ventures?type=features"),
-      fetch("/api/admin/ventures?type=roles"),
-      fetch("/api/admin/ventures?type=system"),
-      fetch("/api/admin/ventures?type=logs"),
-    ]);
-    const s = await sRes.json(); const f = await fRes.json(); const r = await rRes.json();
-    const sys = await sysRes.json(); const l = await lRes.json();
-    if (s.success) setSettings(s.settings);
-    if (f.success) setFeatures(f.features || []);
-    if (r.success) setRoles(r.roles || []);
-    if (sys.success) setSystemInfo(sys);
-    if (l.success) setLogs(l.logs || []);
+    const urls = [
+      "/api/admin/ventures?type=settings",
+      "/api/admin/ventures?type=features",
+      "/api/admin/ventures?type=roles",
+      "/api/admin/ventures?type=system",
+      "/api/admin/ventures?type=logs",
+    ];
+    const apply = (s, f, r, sys, l) => {
+      if (s.success) setSettings(s.settings);
+      if (f.success) setFeatures(f.features || []);
+      if (r.success) setRoles(r.roles || []);
+      if (sys.success) setSystemInfo(sys);
+      if (l.success) setLogs(l.logs || []);
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly only when
+      // every endpoint has a fresh snapshot.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(...cached);
+          setLoading(false);
+        }
+      }
+      const [sRes, fRes, rRes, sysRes, lRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const s = await sRes.json(); const f = await fRes.json(); const r = await rRes.json();
+      const sys = await sysRes.json(); const l = await lRes.json();
+      if (s.success) cacheSet(urls[0], s);
+      if (f.success) cacheSet(urls[1], f);
+      if (r.success) cacheSet(urls[2], r);
+      if (sys.success) cacheSet(urls[3], sys);
+      if (l.success) cacheSet(urls[4], l);
+      apply(s, f, r, sys, l);
+    } catch (_) {}
     setLoading(false);
   };
 
@@ -94,13 +114,13 @@ export default function VentureAdminPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const categoryLabels = { general: "General", branding: "Branding", organization: "Organization", localization: "Localization", storage: "Storage", authentication: "Authentication" };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
@@ -252,6 +272,6 @@ export default function VentureAdminPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

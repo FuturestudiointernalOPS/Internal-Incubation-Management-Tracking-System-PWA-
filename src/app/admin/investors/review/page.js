@@ -8,9 +8,9 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function InvestorReviewPage() {
   const goBack = useSafeBack("/admin/investors");
@@ -23,12 +23,29 @@ export default function InvestorReviewPage() {
 
   useEffect(() => { fetchInvestors(); }, []);
 
-  const fetchInvestors = async () => {
+  const fetchInvestors = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/approval?status=pending_review");
+      const url = "/api/investor/approval?status=pending_review";
+      const apply = (data) => {
+        if (data.success) setInvestors(data.investors || []);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setInvestors(data.investors || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   };
@@ -56,18 +73,18 @@ export default function InvestorReviewPage() {
         detail: { type: "success", message: action === "recommend" ? t("investorAdmin.review.recommendedForApproval") : t("investorAdmin.review.rejected") }
       }));
       setSelected(null);
-      fetchInvestors();
+      fetchInvestors(true);
     } catch (_) {}
     setSaving(false);
   };
 
   if (loading) {
-    return <DashboardLayout role="super_admin"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></>;
   }
 
   if (selected) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
           <button onClick={() => setSelected(null)} className="text-xs font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"><ArrowLeft className="w-3 h-3"/>{t("investorAdmin.review.backToList")}</button>
 
@@ -121,12 +138,12 @@ export default function InvestorReviewPage() {
             </AppButton>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={goBack} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
@@ -162,6 +179,6 @@ export default function InvestorReviewPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

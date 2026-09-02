@@ -10,6 +10,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { formatLocaleDate } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -61,34 +62,86 @@ export default function ReviewPage() {
 
   const notify = (msg) => { setNotif(msg); setTimeout(() => setNotif(null), 3000); };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (bypassCache = false) => {
     setLoading(true);
-    try {
-      const res = await fetch(`/api/platform/form-runs?submission_id=${submissionId}`);
-      if (!res.ok) throw new Error(t("platformMisc.runReview.loadFailed"));
-      const data = await res.json();
-      if (!data.success) throw new Error(t(data.error || "") || data.error);
+    const mainUrl = `/api/platform/form-runs?submission_id=${submissionId}`;
+    const timelineUrl = `/api/platform/form-runs?timeline=${submissionId}`;
+    const evalUrl = `/api/platform/ai/evaluate-submission?submission_id=${submissionId}`;
+    const applyMain = (data) => {
       setSubmission(data.submission);
       setRun(data.run);
-
-      const formRes = await fetch(`/api/platform/forms?id=${data.run.form_id}`);
-      const formData = await formRes.json();
+    };
+    const applyForm = (formData) => {
       if (formData.success) {
         setSections(formData.sections || []);
         setFields(formData.fields || []);
         const settings = formData.form?.settings || {};
         if (settings.workflow) setWorkflow({ ...DEFAULT_WORKFLOW, ...settings.workflow });
       }
-
-      const tlRes = await fetch(`/api/platform/form-runs?timeline=${submissionId}`);
-      const tlData = await tlRes.json();
+    };
+    const applyTimeline = (tlData) => {
       if (tlData.success) setTimeline(tlData.timeline || []);
-
-      const evalRes = await fetch(`/api/platform/ai/evaluate-submission?submission_id=${submissionId}`);
-      const evalData = await evalRes.json();
+    };
+    const applyEval = (evalData) => {
       if (evalData.success && evalData.evaluation) {
         setEvaluation(evalData.evaluation);
         setEvalHistory(evalData.history || [evalData.evaluation]);
+      }
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: revisiting the same submission renders instantly
+      // from fresh snapshots when every GET in the chain is cached; review
+      // mutations pass bypassCache=true so the page reflects the last action.
+      if (!bypassCache) {
+        const cachedMain = cacheGet(mainUrl);
+        const cachedForm =
+          cachedMain !== null && cachedMain.success
+            ? cacheGet(`/api/platform/forms?id=${cachedMain.run?.form_id}`)
+            : null;
+        const cachedTimeline = cacheGet(timelineUrl);
+        const cachedEval = cacheGet(evalUrl);
+        if (
+          cachedMain !== null && cachedMain.success &&
+          cachedForm !== null && cachedForm.success &&
+          cachedTimeline !== null && cachedTimeline.success &&
+          cachedEval !== null && cachedEval.success && cachedEval.evaluation
+        ) {
+          applyMain(cachedMain);
+          applyForm(cachedForm);
+          applyTimeline(cachedTimeline);
+          applyEval(cachedEval);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(mainUrl);
+      if (!res.ok) throw new Error(t("platformMisc.runReview.loadFailed"));
+      const data = await res.json();
+      if (!data.success) throw new Error(t(data.error || "") || data.error);
+      cacheSet(mainUrl, data);
+      applyMain(data);
+
+      const formUrl = `/api/platform/forms?id=${data.run.form_id}`;
+      const formRes = await fetch(formUrl);
+      const formData = await formRes.json();
+      if (formData.success) {
+        cacheSet(formUrl, formData);
+        applyForm(formData);
+      }
+
+      const tlRes = await fetch(timelineUrl);
+      const tlData = await tlRes.json();
+      if (tlData.success) {
+        cacheSet(timelineUrl, tlData);
+        applyTimeline(tlData);
+      }
+
+      const evalRes = await fetch(evalUrl);
+      const evalData = await evalRes.json();
+      if (evalData.success && evalData.evaluation) {
+        cacheSet(evalUrl, evalData);
+        applyEval(evalData);
       } else {
         // No evaluation yet — auto-trigger AI evaluation if form is configured for it
         try {
@@ -104,7 +157,7 @@ export default function ReviewPage() {
           }
         } catch (_) {}
       }
-    } catch (e) { setError(t(e.message || "") || e.message); }
+    } catch (e) { if (!painted) setError(t(e.message || "") || e.message); }
     setLoading(false);
   }, [submissionId]);
 
@@ -151,7 +204,7 @@ export default function ReviewPage() {
     try {
       const res = await fetch("/api/platform/ai/evaluate-submission", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ submission_id: parseInt(submissionId) }) });
       const data = await res.json();
-      if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); load(); }
+      if (data.success) { notify(t("platformMisc.runReview.aiEvalComplete")); load(true); }
       else notify(t((data.error || t("platformMisc.runReview.evalFailed")) || "") || (data.error || t("platformMisc.runReview.evalFailed")));
     } catch (_) { notify(t("platformMisc.runReview.aiEvalFailed")); }
     setSaving(false);
@@ -175,7 +228,7 @@ export default function ReviewPage() {
         }),
       });
       const data = await res.json();
-      if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); load(); }
+      if (data.success) { notify(t("platformMisc.runReview.reviewSubmitted")); load(true); }
       else notify(t((data.error || t("platformMisc.runReview.failed")) || "") || (data.error || t("platformMisc.runReview.failed")));
     } catch (_) { notify(t("platformMisc.runReview.failed")); }
     setSaving(false);

@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge, UserCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
@@ -119,38 +119,54 @@ export default function VentureDetail() {
   // Load venture
   useEffect(() => {
     if (!params.id) return;
-    (async () => {
-      try {
-        const res = await fetch(`/api/ventures/${params.id}`);
-        const d = await res.json();
-        if (d.success) {
-          setVenture(d.venture);
-          const v = d.venture;
-          setForm({
-            name: v.name || "",
-            description: v.description || "",
-            mission: v.mission || "",
-            vision: v.vision || "",
-            industry: v.industry || "",
-            sector: v.sector || "",
-            business_stage: v.business_stage || "idea",
-            website: v.website || "",
-            twitter: v.social_media?.twitter || "",
-            linkedin: v.social_media?.linkedin || "",
-            instagram: v.social_media?.instagram || "",
-            status: v.status || "active",
-            visibility: v.visibility || "private",
-            language: v.language || "en",
-            brandColor: v.branding?.color || "#f60",
-          });
-        }
-      } catch (e) {
-        console.error("Failed to load venture", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchVenture();
   }, [params.id]);
+
+  async function fetchVenture(bypassCache = false) {
+    const url = `/api/ventures/${params.id}`;
+    const apply = (d) => {
+      if (!d.success) return;
+      setVenture(d.venture);
+      const v = d.venture;
+      setForm({
+        name: v.name || "",
+        description: v.description || "",
+        mission: v.mission || "",
+        vision: v.vision || "",
+        industry: v.industry || "",
+        sector: v.sector || "",
+        business_stage: v.business_stage || "idea",
+        website: v.website || "",
+        twitter: v.social_media?.twitter || "",
+        linkedin: v.social_media?.linkedin || "",
+        instagram: v.social_media?.instagram || "",
+        status: v.status || "active",
+        visibility: v.visibility || "private",
+        language: v.language || "en",
+        brandColor: v.branding?.color || "#f60",
+      });
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the venture
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const d = await res.json();
+      if (d.success) cacheSet(url, d);
+      apply(d);
+    } catch (e) {
+      console.error("Failed to load venture", e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   // Load members, dashboard, history for their tabs
   useEffect(() => {
@@ -179,117 +195,202 @@ export default function VentureDetail() {
     if (activeTab === "investment") fetchInvestmentReadiness();
   }, [activeTab, venture, params.id]);
 
-  async function loadMembers() {
+  async function loadMembers(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/members`;
+    const apply = (d) => { if (d.success) setMembers(d.members); };
     try {
-      const res = await fetch(`/api/ventures/${params.id}/members`);
-      const d = await res.json();
-      if (d.success) setMembers(d.members);
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch (e) { console.error(e); }
   }
 
-  async function loadDashboard() {
+  async function loadDashboard(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/dashboard`;
+    const apply = (d) => { if (d.success) setDashboardData(d.dashboard); };
     try {
-      const res = await fetch(`/api/ventures/${params.id}/dashboard`);
-      const d = await res.json();
-      if (d.success) setDashboardData(d.dashboard);
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch (e) { console.error(e); }
   }
 
-  async function loadHistory() {
+  async function loadHistory(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/history`;
+    const apply = (d) => { if (d.success) setHistoryData(d); };
     try {
-      const res = await fetch(`/api/ventures/${params.id}/history`);
-      const d = await res.json();
-      if (d.success) setHistoryData(d);
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const res = await fetch(url); const d = await res.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch (e) { console.error(e); }
   }
 
-  async function fetchBm() {
-    try { const r = await fetch(`/api/ventures/${params.id}/business-model`); const d = await r.json(); if (d.success) setBmData(d.business_model); } catch(e){}
+  async function fetchBm(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/business-model`;
+    const apply = (d) => { if (d.success) setBmData(d.business_model); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchInterviews() {
-    try { const r = await fetch(`/api/ventures/${params.id}/interviews`); const d = await r.json(); if (d.success) setInterviews(d.interviews); } catch(e){}
+  async function fetchInterviews(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/interviews`;
+    const apply = (d) => { if (d.success) setInterviews(d.interviews); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchValidations() {
-    try { const r = await fetch(`/api/ventures/${params.id}/validations`); const d = await r.json(); if (d.success) setValidations(d.validations); } catch(e){}
+  async function fetchValidations(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/validations`;
+    const apply = (d) => { if (d.success) setValidations(d.validations); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchPmf() {
-    try { const r = await fetch(`/api/ventures/${params.id}/pmf`); const d = await r.json(); if (d.success) setAssessments(d.assessments); } catch(e){}
+  async function fetchPmf(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/pmf`;
+    const apply = (d) => { if (d.success) setAssessments(d.assessments); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchMilestones() {
-    try { const r = await fetch(`/api/ventures/${params.id}/milestones`); const d = await r.json(); if (d.success) setMilestones(d.milestones); } catch(e){}
+  async function fetchMilestones(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/milestones`;
+    const apply = (d) => { if (d.success) setMilestones(d.milestones); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchActionPlans() {
-    try { const r = await fetch(`/api/ventures/${params.id}/action-plans`); const d = await r.json(); if (d.success) setActionPlans(d.action_plans); } catch(e){}
+  async function fetchActionPlans(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/action-plans`;
+    const apply = (d) => { if (d.success) setActionPlans(d.action_plans); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchTasks() {
-    try { const r = await fetch(`/api/ventures/${params.id}/tasks`); const d = await r.json(); if (d.success) setTasks(d.tasks || []); } catch(e){}
+  async function fetchTasks(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/tasks`;
+    const apply = (d) => { if (d.success) setTasks(d.tasks || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchStandups() {
-    try { const r = await fetch(`/api/ventures/${params.id}/standups`); const d = await r.json(); if (d.success) { setStandups(d.standups || []); setCurrentWeekStandup(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } } catch(e){}
+  async function fetchStandups(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/standups`;
+    const apply = (d) => { if (d.success) { setStandups(d.standups || []); setCurrentWeekStandup(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchRetros() {
-    try { const r = await fetch(`/api/ventures/${params.id}/retros`); const d = await r.json(); if (d.success) { setRetros(d.retros || []); setCurrentWeekRetro(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } } catch(e){}
+  async function fetchRetros(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/retros`;
+    const apply = (d) => { if (d.success) { setRetros(d.retros || []); setCurrentWeekRetro(d.current_week_submitted !== false); setCurrentWeekNum(d.current_week); setCurrentWeekYear(d.current_year); } };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchBlockers() {
-    try { const r = await fetch(`/api/ventures/${params.id}/blockers`); const d = await r.json(); if (d.success) setBlockers(d.blockers || []); } catch(e){}
+  async function fetchBlockers(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/blockers`;
+    const apply = (d) => { if (d.success) setBlockers(d.blockers || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchCalendar() {
-    try { const r = await fetch(`/api/ventures/${params.id}/calendar`); const d = await r.json(); if (d.success) setCalendarEvents(d.events || []); } catch(e){}
+  async function fetchCalendar(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/calendar`;
+    const apply = (d) => { if (d.success) setCalendarEvents(d.events || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
   async function handleTaskStatusChange(taskId, newStatus) {
     try {
       const r = await fetch(`/api/ventures/${params.id}/tasks?id=${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
       const d = await r.json();
-      if (d.success) { fetchTasks(); fetchProgress(); }
+      if (d.success) { fetchTasks(true); fetchProgress(true); }
     } catch(e) {}
   }
-  async function fetchProgress() {
-    try { const r = await fetch(`/api/ventures/${params.id}/progress`); const d = await r.json(); if (d.success) setProgressData(d.progress); } catch(e){}
+  async function fetchProgress(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/progress`;
+    const apply = (d) => { if (d.success) setProgressData(d.progress); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchDocuments(search, cat) {
+  async function fetchDocuments(search, cat, bypassCache = false) {
     try { const p = new URLSearchParams(); if (search||documentSearch) p.set('search', search||documentSearch); if (cat||documentCategory) p.set('category', cat||documentCategory);
-    const r = await fetch(`/api/ventures/${params.id}/documents?${p.toString()}`); const d = await r.json(); if (d.success) setDocuments(d.documents || []); } catch(e){}
+    const url = `/api/ventures/${params.id}/documents?${p.toString()}`; const apply = (d) => { if (d.success) setDocuments(d.documents || []); };
+    if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+    const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d); } catch(e){}
   }
-  async function fetchAdvisors() {
-    try { const r = await fetch(`/api/ventures/${params.id}/advisors`); const d = await r.json(); if (d.success) setAdvisors(d.advisors || []); } catch(e){}
+  async function fetchAdvisors(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/advisors`;
+    const apply = (d) => { if (d.success) setAdvisors(d.advisors || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchCoaching() {
-    try { const r = await fetch(`/api/ventures/${params.id}/coaching`); const d = await r.json(); if (d.success) setCoachingSessions(d.sessions || d.coaching_sessions || []); } catch(e){}
+  async function fetchCoaching(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/coaching`;
+    const apply = (d) => { if (d.success) setCoachingSessions(d.sessions || d.coaching_sessions || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchKpis() {
-    try { const r = await fetch(`/api/ventures/${params.id}/kpis`); const d = await r.json(); if (d.success) setKpis(d.kpis || []); } catch(e){}
+  async function fetchKpis(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/kpis`;
+    const apply = (d) => { if (d.success) setKpis(d.kpis || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchKpiDefinitions() {
-    try { const r = await fetch(`/api/venture-kpi-definitions`); const d = await r.json(); if (d.success) setKpiDefinitions(d.kpi_definitions || []); } catch(e){}
+  async function fetchKpiDefinitions(bypassCache = false) {
+    const url = `/api/venture-kpi-definitions`;
+    const apply = (d) => { if (d.success) setKpiDefinitions(d.kpi_definitions || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
-    fetchBlockers();
+    fetchBlockers(true);
   }
   async function handleMakePrimaryAdvisor(advisorId) {
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, is_primary: true }) });
-    fetchAdvisors();
+    fetchAdvisors(true);
   }
   async function handleRemoveAdvisor(advisorId) {
     if (!confirm(t('venture.confirmRemove')||'Remove this advisor?')) return;
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
-    fetchAdvisors();
+    fetchAdvisors(true);
   }
   async function handleDocumentTransition(docId, approval_status) {
     await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "transition", document_id: docId, approval_status }) });
-    await fetchDocuments();
+    await fetchDocuments(null, null, true);
   }
   async function handleDocumentUpdate(docId, file_url) {
     await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: docId, updates: { file_url } }) });
-    fetchDocuments();
+    fetchDocuments(null, null, true);
   }
   async function handleDocumentDelete(docId) {
     await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "delete", document_id: docId }) });
-    fetchDocuments();
+    fetchDocuments(null, null, true);
   }
   async function handleVersionRestore(file_url) {
     await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: versionsDoc.id, updates: { file_url } }) });
-    setShowVersions(false); fetchDocuments();
+    setShowVersions(false); fetchDocuments(null, null, true);
   }
   async function handleReview(docId) {
     const r = await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`);
@@ -298,7 +399,7 @@ export default function VentureDetail() {
   }
   async function handleSubmitReview(docId, decision) {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ comment: reviewComment, decision }) });
-    setShowReview(false); setReviews([]); fetchDocuments();
+    setShowReview(false); setReviews([]); fetchDocuments(null, null, true);
   }
   async function handlePermissions(docId) {
     try {
@@ -321,22 +422,37 @@ export default function VentureDetail() {
     await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
     handlePermissions(docId);
   }
-  async function fetchJourney() {
-    try { const r = await fetch(`/api/ventures/${params.id}/journey`); const d = await r.json(); if (d.success) setJourneyStages(d.stages || []); } catch(e){}
+  async function fetchJourney(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/journey`;
+    const apply = (d) => { if (d.success) setJourneyStages(d.stages || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchPlaybook() {
-    try { const r = await fetch(`/api/ventures/${params.id}/playbook`); const d = await r.json(); if (d.success) setPlaybookEntries(d.playbook || []); } catch(e){}
+  async function fetchPlaybook(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/playbook`;
+    const apply = (d) => { if (d.success) setPlaybookEntries(d.playbook || []); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
-  async function fetchInvestmentReadiness() {
-    try { const r = await fetch(`/api/ventures/${params.id}/investment-readiness`); const d = await r.json(); if (d.success) setInvestmentReadiness(d.investment_readiness); } catch(e){}
+  async function fetchInvestmentReadiness(bypassCache = false) {
+    const url = `/api/ventures/${params.id}/investment-readiness`;
+    const apply = (d) => { if (d.success) setInvestmentReadiness(d.investment_readiness); };
+    try {
+      if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
+      const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
+    } catch(e){}
   }
   async function handleCompleteStage(stageId) {
     await fetch(`/api/ventures/${params.id}/journey`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ stage_id: stageId, action: 'complete' }) });
-    fetchJourney();
+    fetchJourney(true);
   }
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
-    fetchKpis();
+    fetchKpis(true);
   }
 
   async function handleSave(e) {
@@ -377,7 +493,7 @@ export default function VentureDetail() {
       });
       const d = await res.json();
       if (!d.success) notifyMsg(t(d.error || "") || d.error);
-      else loadMembers();
+      else loadMembers(true);
     } catch (e) { notifyMsg(t(e.message || "") || e.message); }
   }
 
@@ -393,7 +509,7 @@ export default function VentureDetail() {
         setShowAddMember(false);
         setSearchQuery("");
         setSearchResults([]);
-        await loadMembers();
+        await loadMembers(true);
       } else {
         notifyMsg(t((d.error || t("venture.addError")) || "") || (d.error || t("venture.addError")));
       }
@@ -410,7 +526,7 @@ export default function VentureDetail() {
       const d = await res.json();
       if (d.success) {
         setRemoveConfirm(null);
-        await loadMembers();
+        await loadMembers(true);
       } else {
         notifyMsg(t((d.error || t("venture.removeError")) || "") || (d.error || t("venture.removeError")));
       }
@@ -421,7 +537,12 @@ export default function VentureDetail() {
     if (!q || q.length < 2) { setSearchResults([]); return; }
     setSearching(true);
     try {
-      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
+      // Scoped to the venture's program: external users may only search
+      // within their own program context (MVP boundary), never the general
+      // Future Studio CRM directory.
+      const programId = venture?.program_id;
+      if (!programId) { setSearchResults([]); return; }
+      const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}&program_id=${encodeURIComponent(programId)}`);
       const d = await res.json();
       if (d.success) {
         const existingIds = new Set(members.map(m => m.contact_id));
@@ -440,19 +561,19 @@ export default function VentureDetail() {
   const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };
 
   if (loading) return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="flex justify-center py-20"><Loader2 className="animate-spin" style={{ color: "var(--text-secondary)" }} size={32} /></div>
-    </DashboardLayout>
+    </>
   );
 
   if (!venture) return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 text-center" style={{ color: "var(--text-secondary)" }}>{t("venture.loadError")}</div>
-    </DashboardLayout>
+    </>
   );
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 max-w-4xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
         {/* Back */}
         <button onClick={() => router.push("/participant/ventures")} className="flex items-center gap-2 transition-colors" style={{ color: "var(--text-secondary)" }}>
@@ -920,7 +1041,7 @@ export default function VentureDetail() {
         {/* Business Model Tab */}
         {activeTab === "businessModel" && (
           <div className="space-y-4">
-            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); notifyMsg('Saved'); fetchBm(); }} className="space-y-4">
+            <form onSubmit={async (e) => { e.preventDefault(); await fetch(`/api/ventures/${params.id}/business-model`, {method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(bmData||{})}); notifyMsg('Saved'); fetchBm(true); }} className="space-y-4">
               <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {['keyPartners','keyActivities','keyResources','valuePropositions','customerRelationships','channels','customerSegments','costStructure','revenueStreams'].map(f => (
@@ -1025,10 +1146,10 @@ export default function VentureDetail() {
                   </div>
                   {m.target_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>🎯 {new Date(m.target_date).toLocaleDateString()}</p>}
                   <div className="flex items-center gap-2 mt-2">
-                    <input type="range" min="0" max="100" value={m.progress||0} onChange={async e=>{const v=parseInt(e.target.value);await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({progress:v})});fetchMilestones();}} className="flex-1" style={{accentColor:'var(--brand-orange)'}} />
+                    <input type="range" min="0" max="100" value={m.progress||0} onChange={async e=>{const v=parseInt(e.target.value);await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({progress:v})});fetchMilestones(true);}} className="flex-1" style={{accentColor:'var(--brand-orange)'}} />
                     <span className="text-xs font-bold" style={{color:'var(--brand-orange)',minWidth:'2.5rem',textAlign:'right'}}>{m.progress||0}%</span>
                   </div>
-                  {m.status!=='completed'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'completed',progress:100})});fetchMilestones();}} className="mt-2 text-xs px-2 py-1 rounded" style={{border:'1px solid rgb(255 255 255 / 0.15)',color:'var(--text-secondary)'}}>✓ Mark Completed</button>)}
+                  {m.status!=='completed'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/milestones?id=${m.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'completed',progress:100})});fetchMilestones(true);}} className="mt-2 text-xs px-2 py-1 rounded" style={{border:'1px solid rgb(255 255 255 / 0.15)',color:'var(--text-secondary)'}}>✓ Mark Completed</button>)}
                   {plans.length>0&&<div className="mt-2 space-y-1"><p className="text-xs font-medium" style={{color:'var(--text-secondary)'}}>{t('venture.actionPlans')}:</p>{plans.map(p=>(
                     <div key={p.id} className="text-xs flex items-center gap-2" style={{color:'var(--text-secondary)'}}><span>• {p.title}</span><span className={`px-1.5 py-0.5 rounded ${p.priority==='high'?'bg-red-500/20 text-red-400':p.priority==='medium'?'bg-amber-500/20 text-amber-400':'bg-blue-500/20 text-blue-400'}`}>{t(`venture.${p.priority}`)}</span></div>
                   ))}</div>}
@@ -1103,7 +1224,7 @@ export default function VentureDetail() {
                     <p className="text-sm font-medium text-amber-400">{t('venture.missingStandup')||'Weekly Standup Not Submitted'}</p>
                     <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.standupReminderDesc')||'Submit your standup for this week (Monday: Weekly Focus, Planned Activities, Expected Deliverables).'}</p>
                   </div>
-                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026,top_priorities:'',expected_deliverables:'',weekly_priorities:''})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchStandups();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026,top_priorities:'',expected_deliverables:'',weekly_priorities:''})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchStandups(true);}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
                 </div>
               </div>
             )}
@@ -1139,7 +1260,7 @@ export default function VentureDetail() {
                     <p className="text-sm font-medium text-amber-400">{t('venture.missingRetro')||'Weekly Retro Not Submitted'}</p>
                     <p className="text-xs mt-0.5" style={{color:'var(--text-secondary)'}}>{t('venture.retroReminderDesc')||'Submit your retro for this week (Friday: Progress Summary, Completed Activities, Current Challenges, Support Required, Next Week Focus).'}</p>
                   </div>
-                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchRetros();}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
+                  <button onClick={async()=>{await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:currentWeekNum||1,year:currentWeekYear||2026})}).then(r=>{if(r.status===409)notifyMsg('Already exists');});fetchRetros(true);}} className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.submitNow')||'Submit Now'}</button>
                 </div>
               </div>
             )}
@@ -1348,9 +1469,9 @@ export default function VentureDetail() {
                   {s.recommendations&&<p className="text-sm mt-1" style={{color:'var(--brand-orange)'}}>💡 {s.recommendations}</p>}
                   {s.follow_up_date&&<p className="text-xs mt-1" style={{color:'var(--text-secondary)'}}>📅 Follow-up: {new Date(s.follow_up_date).toLocaleDateString()}</p>}
                   <div className="flex gap-2 mt-2">
-                    {s.status!=='approved'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700">{t('venture.approve')}</button>)}
-                    {s.status!=='revision_requested'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'revision_requested'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.requestRevision')}</button>)}
-                    {s.status!=='pending_review'&&!s.status&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'pending_review'})});fetchCoaching();}} className="text-xs px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700">{t('venture.pendingReview')}</button>)}
+                    {s.status!=='approved'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved'})});fetchCoaching(true);}} className="text-xs px-2 py-1 rounded-lg bg-green-600 text-white hover:bg-green-700">{t('venture.approve')}</button>)}
+                    {s.status!=='revision_requested'&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'revision_requested'})});fetchCoaching(true);}} className="text-xs px-2 py-1 rounded-lg bg-amber-600 text-white hover:bg-amber-700">{t('venture.requestRevision')}</button>)}
+                    {s.status!=='pending_review'&&!s.status&&(<button onClick={async()=>{await fetch(`/api/ventures/${params.id}/coaching?id=${s.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'pending_review'})});fetchCoaching(true);}} className="text-xs px-2 py-1 rounded-lg bg-blue-600 text-white hover:bg-blue-700">{t('venture.pendingReview')}</button>)}
                   </div>
                 </div>
               ))
@@ -1448,7 +1569,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddInterview(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addInterview')}</h2><button onClick={()=>setShowAddInterview(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/interviews`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...interviewForm,created_by:user.cid})});setShowAddInterview(false);setInterviewForm({});fetchInterviews();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/interviews`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...interviewForm,created_by:user.cid})});setShowAddInterview(false);setInterviewForm({});fetchInterviews(true);}} className="space-y-3">
                 <input placeholder={t('venture.interviewee')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interviewee_name||''} onChange={e=>setInterviewForm({...interviewForm,interviewee_name:e.target.value})} />
                 <input placeholder={t('venture.segment')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.customer_segment||''} onChange={e=>setInterviewForm({...interviewForm,customer_segment:e.target.value})} />
                 <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={interviewForm.interview_date||''} onChange={e=>setInterviewForm({...interviewForm,interview_date:e.target.value})} />
@@ -1465,7 +1586,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddValidation(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addEntry')}</h2><button onClick={()=>setShowAddValidation(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/validations`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({validation_type:validationForm.type,notes:validationForm.notes,status:validationForm.status})});setShowAddValidation(false);setValidationForm({type:'problem'});fetchValidations();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/validations`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({validation_type:validationForm.type,notes:validationForm.notes,status:validationForm.status})});setShowAddValidation(false);setValidationForm({type:'problem'});fetchValidations(true);}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={validationForm.type} onChange={e=>setValidationForm({...validationForm,type:e.target.value})}>
                   {['problem','solution','product'].map(vt=><option key={vt} value={vt}>{t(`venture.${vt}`)}</option>)}
                 </select>
@@ -1484,7 +1605,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddPmf(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAssessment')}</h2><button onClick={()=>setShowAddPmf(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/pmf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pmfForm)});setShowAddPmf(false);setPmfForm({});fetchPmf();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/pmf`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(pmfForm)});setShowAddPmf(false);setPmfForm({});fetchPmf(true);}} className="space-y-3">
                 <textarea placeholder={t('venture.feedback')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.customer_feedback||''} onChange={e=>setPmfForm({...pmfForm,customer_feedback:e.target.value})} />
                 <textarea placeholder={t('venture.improvements')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={pmfForm.improvements||''} onChange={e=>setPmfForm({...pmfForm,improvements:e.target.value})} />
                 <div><label className="block text-sm mb-1">{t('venture.progress')}: {pmfForm.pmf_progress||0}%</label><input type="range" min="0" max="100" className="w-full" value={pmfForm.pmf_progress||0} onChange={e=>setPmfForm({...pmfForm,pmf_progress:parseInt(e.target.value)})} /></div>
@@ -1499,7 +1620,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddMilestone(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addMilestone')}</h2><button onClick={()=>setShowAddMilestone(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/milestones`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(milestoneForm)});setShowAddMilestone(false);setMilestoneForm({});fetchMilestones();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/milestones`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(milestoneForm)});setShowAddMilestone(false);setMilestoneForm({});fetchMilestones(true);}} className="space-y-3">
                 <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={milestoneForm.title||''} onChange={e=>setMilestoneForm({...milestoneForm,title:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={milestoneForm.description||''} onChange={e=>setMilestoneForm({...milestoneForm,description:e.target.value})} />
                 <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={milestoneForm.target_date||''} onChange={e=>setMilestoneForm({...milestoneForm,target_date:e.target.value})} />
@@ -1514,7 +1635,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAction(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAction')}</h2><button onClick={()=>setShowAddAction(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/action-plans`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(actionForm)});setShowAddAction(false);setActionForm({});fetchActionPlans();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/action-plans`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(actionForm)});setShowAddAction(false);setActionForm({});fetchActionPlans(true);}} className="space-y-3">
                 <input placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.title||''} onChange={e=>setActionForm({...actionForm,title:e.target.value})} required />
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={actionForm.priority||'medium'} onChange={e=>setActionForm({...actionForm,priority:e.target.value})}>
                   {['low','medium','high'].map(p=><option key={p} value={p}>{t(`venture.${p}`)}</option>)}
@@ -1535,7 +1656,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddTask(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addTask')}</h2><button onClick={()=>setShowAddTask(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(taskForm)});setShowAddTask(false);setTaskForm({});fetchTasks();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/tasks`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(taskForm)});setShowAddTask(false);setTaskForm({});fetchTasks(true);}} className="space-y-3">
                 <input placeholder={t('venture.namePlaceholder')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.title||''} onChange={e=>setTaskForm({...taskForm,title:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={taskForm.description||''} onChange={e=>setTaskForm({...taskForm,description:e.target.value})} />
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={taskForm.priority||'medium'} onChange={e=>setTaskForm({...taskForm,priority:e.target.value})}>
@@ -1558,7 +1679,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddStandup(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addStandup')}</h2><button onClick={()=>setShowAddStandup(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/standups`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,top_priorities:standupForm.top_priorities,expected_deliverables:standupForm.expected_deliverables,weekly_priorities:standupForm.weekly_priorities})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddStandup(false);setStandupForm({});fetchStandups(true);}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.topPriorities')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.top_priorities||''} onChange={e=>setStandupForm({...standupForm,top_priorities:e.target.value})} />
                 <textarea placeholder={t('venture.expectedDeliverables')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={standupForm.expected_deliverables||''} onChange={e=>setStandupForm({...standupForm,expected_deliverables:e.target.value})} />
@@ -1573,7 +1694,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddRetro(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addRetro')}</h2><button onClick={()=>setShowAddRetro(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros();}} className="space-y-3">
+              {(()=>{const now=new Date();const startOfYear=new Date(now.getFullYear(),0,1);const week=Math.ceil((((now-startOfYear)/86400000)+startOfYear.getDay()+1)/7);return(<form onSubmit={async e=>{e.preventDefault();const y=now.getFullYear();const res=await fetch(`/api/ventures/${params.id}/retros`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({week_number:week,year:y,completed_tasks:retroForm.completed_tasks,outstanding_tasks:retroForm.outstanding_tasks,carry_forward_notes:retroForm.carry_forward_notes})});const d=await res.json();if(!d.success){notifyMsg(t(d.error || "") || d.error);if(d.error?.includes('already exists'))return;}setShowAddRetro(false);setRetroForm({});fetchRetros(true);}} className="space-y-3">
                 <div className="text-sm text-center py-1 rounded-lg" style={{color:'var(--text-secondary)',backgroundColor:'rgb(255 255 255 / 0.05)'}}>Week {week}, {now.getFullYear()}</div>
                 <textarea placeholder={t('venture.completedTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.completed_tasks||''} onChange={e=>setRetroForm({...retroForm,completed_tasks:e.target.value})} />
                 <textarea placeholder={t('venture.outstandingTasks')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={retroForm.outstanding_tasks||''} onChange={e=>setRetroForm({...retroForm,outstanding_tasks:e.target.value})} />
@@ -1588,7 +1709,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddBlocker(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addBlocker')}</h2><button onClick={()=>setShowAddBlocker(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/blockers`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(blockerForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddBlocker(false);setBlockerForm({});fetchBlockers(true);}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={blockerForm.venture_retro_id||''} onChange={e=>setBlockerForm({...blockerForm,venture_retro_id:e.target.value})} required>
                   <option value="">{t('venture.selectRetro')}</option>
                   {retros.map(r=><option key={r.id} value={r.id}>{t('venture.week')} {r.week_number}/{r.year}</option>)}
@@ -1611,7 +1732,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddDocument(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.upload')}</h2><button onClick={()=>setShowAddDocument(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const r=await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload',title:documentForm.name,file_name:documentForm.name+'.pdf',file_url:documentForm.file_url,category:documentForm.category})});const d=await r.json();if(!d.success)notifyMsg(t((d.error||'Upload failed') || "") || (d.error||'Upload failed'));setShowAddDocument(false);setDocumentForm({});fetchDocuments();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const r=await fetch(`/api/ventures/${params.id}/documents`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload',title:documentForm.name,file_name:documentForm.name+'.pdf',file_url:documentForm.file_url,category:documentForm.category})});const d=await r.json();if(!d.success)notifyMsg(t((d.error||'Upload failed') || "") || (d.error||'Upload failed'));setShowAddDocument(false);setDocumentForm({});fetchDocuments(null, null, true);}} className="space-y-3">
                 <input placeholder="Document name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.name||''} onChange={e=>setDocumentForm({...documentForm,name:e.target.value})} required />
                 <input placeholder="https://... (file URL)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.file_url||''} onChange={e=>setDocumentForm({...documentForm,file_url:e.target.value})} required />
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={documentForm.category||'general'} onChange={e=>setDocumentForm({...documentForm,category:e.target.value})}>
@@ -1628,7 +1749,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddAdvisor(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addAdvisor')}</h2><button onClick={()=>setShowAddAdvisor(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/advisors`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(advisorForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddAdvisor(false);setAdvisorForm({});fetchAdvisors(true);}} className="space-y-3">
                 <input placeholder="Advisor contact ID (cid)" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={advisorForm.advisor_contact_id||''} onChange={e=>setAdvisorForm({...advisorForm,advisor_contact_id:e.target.value})} required />
                 <button type="submit" className="w-full py-2 rounded-lg text-white" style={{backgroundColor:'var(--brand-orange)'}}>{t('venture.save')}</button>
               </form>
@@ -1641,7 +1762,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddCoaching(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.addSession')}</h2><button onClick={()=>setShowAddCoaching(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/coaching`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(coachingForm)});setShowAddCoaching(false);setCoachingForm({});fetchCoaching();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();await fetch(`/api/ventures/${params.id}/coaching`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(coachingForm)});setShowAddCoaching(false);setCoachingForm({});fetchCoaching(true);}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.advisor_contact_id||''} onChange={e=>setCoachingForm({...coachingForm,advisor_contact_id:e.target.value})}>
                   <option value="">{t('venture.advisors')}</option>
                   {advisors.map(a=><option key={a.id} value={a.advisor_contact_id}>{a.advisor_name||a.advisor_contact_id}</option>)}
@@ -1734,7 +1855,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpiDefinition(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{editingKpiDef?t('venture.edit'):t('venture.create')} KPI</h2><button onClick={()=>{setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const method=editingKpiDef?'PATCH':'POST';const url=editingKpiDef?'/api/venture-kpi-definitions':'/api/venture-kpi-definitions';const body=editingKpiDef?{...kpiDefForm,id:editingKpiDef.id}:kpiDefForm;await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});fetchKpiDefinitions();fetchKpis();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const method=editingKpiDef?'PATCH':'POST';const url=editingKpiDef?'/api/venture-kpi-definitions':'/api/venture-kpi-definitions';const body=editingKpiDef?{...kpiDefForm,id:editingKpiDef.id}:kpiDefForm;await fetch(url,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowAddKpiDefinition(false);setEditingKpiDef(null);setKpiDefForm({});fetchKpiDefinitions(true);fetchKpis(true);}} className="space-y-3">
                 <input placeholder="KPI Name" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.name||''} onChange={e=>setKpiDefForm({...kpiDefForm,name:e.target.value})} required />
                 <textarea placeholder={t('venture.description')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} value={kpiDefForm.description||''} onChange={e=>setKpiDefForm({...kpiDefForm,description:e.target.value})} />
                 <input placeholder={t('venture.unit')} className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiDefForm.unit||''} onChange={e=>setKpiDefForm({...kpiDefForm,unit:e.target.value})} />
@@ -1754,7 +1875,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.edit')} Session</h2><button onClick={()=>{setShowEditCoaching(false);setEditingCoaching(null);}} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const body={...coachingForm,session_date:coachingForm.session_date||editingCoaching.session_date,start_time:coachingForm.start_time||editingCoaching.start_time,location:coachingForm.location||editingCoaching.location,meeting_link:coachingForm.meeting_link||editingCoaching.meeting_link,notes:coachingForm.notes||editingCoaching.notes,observations:coachingForm.observations||editingCoaching.observations,recommendations:coachingForm.recommendations||editingCoaching.recommendations,follow_up_date:coachingForm.follow_up_date||editingCoaching.follow_up_date};await fetch(`/api/ventures/${params.id}/coaching?id=${editingCoaching.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowEditCoaching(false);setEditingCoaching(null);setCoachingForm({});fetchCoaching();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const body={...coachingForm,session_date:coachingForm.session_date||editingCoaching.session_date,start_time:coachingForm.start_time||editingCoaching.start_time,location:coachingForm.location||editingCoaching.location,meeting_link:coachingForm.meeting_link||editingCoaching.meeting_link,notes:coachingForm.notes||editingCoaching.notes,observations:coachingForm.observations||editingCoaching.observations,recommendations:coachingForm.recommendations||editingCoaching.recommendations,follow_up_date:coachingForm.follow_up_date||editingCoaching.follow_up_date};await fetch(`/api/ventures/${params.id}/coaching?id=${editingCoaching.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});setShowEditCoaching(false);setEditingCoaching(null);setCoachingForm({});fetchCoaching(true);}} className="space-y-3">
                 <input type="date" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.session_date||editingCoaching.session_date||''} onChange={e=>setCoachingForm({...coachingForm,session_date:e.target.value})} />
                 <input type="time" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.start_time||editingCoaching.start_time||''} onChange={e=>setCoachingForm({...coachingForm,start_time:e.target.value})} />
                 <input type="text" placeholder="Location" className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={coachingForm.location||editingCoaching.location||''} onChange={e=>setCoachingForm({...coachingForm,location:e.target.value})} />
@@ -1773,7 +1894,7 @@ export default function VentureDetail() {
           <div className="fixed inset-0 z-50 flex items-center justify-center" style={{backgroundColor:'rgb(0 0 0 / 0.6)'}} onClick={()=>setShowAddKpi(false)}>
             <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{backgroundColor:'#0f172a',borderColor:'rgb(255 255 255 / 0.1)',color:'var(--text-primary)'}} onClick={e=>e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4"><h2 className="text-lg font-bold">{t('venture.assignKpi')}</h2><button onClick={()=>setShowAddKpi(false)} style={{color:'var(--text-secondary)'}}><X size={20}/></button></div>
-              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddKpi(false);setKpiForm({});fetchKpis();}} className="space-y-3">
+              <form onSubmit={async e=>{e.preventDefault();const res=await fetch(`/api/ventures/${params.id}/kpis`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(kpiForm)});const d=await res.json();if(!d.success)notifyMsg(t(d.error || "") || d.error);setShowAddKpi(false);setKpiForm({});fetchKpis(true);}} className="space-y-3">
                 <select className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} value={kpiForm.kpi_definition_id||''} onChange={e=>setKpiForm({...kpiForm,kpi_definition_id:e.target.value})} required>
                   <option value="">{t('venture.kpis')}</option>
                   {kpiDefinitions.map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
@@ -1836,6 +1957,6 @@ export default function VentureDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

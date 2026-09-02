@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { Plus, Briefcase, Loader2, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter } from "next/navigation";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function ParticipantVentures() {
   const [user, setUser] = useState({});
@@ -28,19 +28,35 @@ export default function ParticipantVentures() {
 
   useEffect(() => {
     if (!user.cid) return;
-    async function loadVentures() {
-      try {
-        const res = await fetch(`/api/ventures?contact_id=${user.cid}`);
-        const data = await res.json();
-        if (data.success) setVentures(data.ventures);
-      } catch (e) {
-        console.error("Failed to load ventures", e);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadVentures();
   }, [user]);
+
+  async function loadVentures(bypassCache = false) {
+    const url = `/api/ventures?contact_id=${user.cid}`;
+    const apply = (data) => {
+      if (data.success) setVentures(data.ventures);
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; creating a venture passes bypassCache=true so the
+      // list always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
+    } catch (e) {
+      console.error("Failed to load ventures", e);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -62,9 +78,7 @@ export default function ParticipantVentures() {
       if (data.success) {
         setShowModal(false);
         setForm({ name: "", description: "", industry: "", business_stage: "idea" });
-        const reload = await fetch(`/api/ventures?contact_id=${user.cid}`);
-        const reloadData = await reload.json();
-        if (reloadData.success) setVentures(reloadData.ventures);
+        await loadVentures(true);
       } else {
         window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t((data.error || t("venture.createError")) || "") || (data.error || t("venture.createError")), duration: 4000 } }));
       }
@@ -79,7 +93,7 @@ export default function ParticipantVentures() {
   const stageOptions = ["idea", "validation", "mvp", "growth", "scale"];
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -251,6 +265,6 @@ export default function ParticipantVentures() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

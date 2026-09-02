@@ -81,7 +81,7 @@ export async function GET(req) {
         args: [groupName],
       }),
       db.execute({
-        sql: "SELECT t.* FROM v2_teams t JOIN contacts c ON c.cid = t.handler_id WHERE c.group_name = ? LIMIT 1",
+        sql: "SELECT t.* FROM v2_teams t JOIN contacts c ON c.cid = t.handler_id WHERE UPPER(TRIM(c.group_name)) = UPPER(TRIM(?)) LIMIT 1",
         args: [groupName],
       }),
       db.execute({

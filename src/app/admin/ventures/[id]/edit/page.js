@@ -11,9 +11,9 @@ import {
   CheckCircle2,
   Save,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const INDUSTRIES = [
   "Fintech",
@@ -54,12 +54,10 @@ export default function EditVenturePage({ params }) {
     if (id) fetchVenture();
   }, [id]);
 
-  const fetchVenture = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/ventures/${id}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+  const fetchVenture = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}`;
+    const apply = (data) => {
+      if (!data.success) {
         setError(t((data.error || t("vadmin.edit.ventureNotFoundError")) || "") || (data.error || t("vadmin.edit.ventureNotFoundError")));
         return;
       }
@@ -72,8 +70,26 @@ export default function EditVenturePage({ params }) {
         website: data.venture.website || "",
         logo_url: data.venture.logo_url || "",
       });
+    };
+    setLoading(true);
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot while the network revalidates in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t("vadmin.edit.loadFailed"));
+      if (!painted) setError(t("vadmin.edit.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -117,17 +133,17 @@ export default function EditVenturePage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error && !form) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.edit.ventureNotFound")}</h2>
@@ -136,12 +152,12 @@ export default function EditVenturePage({ params }) {
             {t("vadmin.edit.backToVentures")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -301,6 +317,6 @@ export default function EditVenturePage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

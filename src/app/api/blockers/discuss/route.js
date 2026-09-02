@@ -1,6 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  createBlockerDiscussion,
+  getBlockerDiscussions,
+  getBlockerForDiscussion,
+  notifyBlockerCreatorOfDiscussion,
+  notifySuperAdminOfDiscussion,
+} from "@/models/blockers";
 
 /**
  * BLOCKER DISCUSSIONS API (Ticket 1.9)
@@ -29,13 +36,7 @@ export async function GET(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `SELECT id, sender_id, body, target_type, target_id, created_at
-            FROM v2_messages
-            WHERE target_type = 'blocker' AND target_id = ?
-            ORDER BY created_at ASC`,
-      args: [blocker_id],
-    });
+    const result = await getBlockerDiscussions(blocker_id);
 
     return NextResponse.json({ success: true, messages: result.rows });
   } catch (error) {
@@ -63,10 +64,7 @@ export async function POST(req) {
     }
 
     // Verify the blocker exists
-    const blockerCheck = await db.execute({
-      sql: "SELECT id, user_id, title, task_id FROM blockers WHERE id = ?",
-      args: [parseInt(blocker_id)],
-    });
+    const blockerCheck = await getBlockerForDiscussion(blocker_id);
     if (blockerCheck.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Blocker not found" },
@@ -75,25 +73,19 @@ export async function POST(req) {
     }
     const blocker = blockerCheck.rows[0];
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_messages (sender_id, body, target_type, target_id)
-            VALUES (?, ?, 'blocker', ?)
-            RETURNING id, created_at`,
-      args: [sender_id, msgBody.trim(), blocker_id],
+    const result = await createBlockerDiscussion({
+      blocker_id,
+      sender_id,
+      body: msgBody,
     });
 
     // Notify the blocker creator (unless they're the one commenting)
     if (blocker.user_id && blocker.user_id !== sender_id) {
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read)
-                VALUES (?, ?, ?, ?, 0)`,
-          args: [
-            blocker.user_id,
-            "New Discussion on Blocker",
-            `${sender_name || "Someone"} commented on your blocker: "${blocker.title}"`,
-            "blocker_discussion",
-          ],
+        await notifyBlockerCreatorOfDiscussion({
+          user_id: blocker.user_id,
+          sender_name,
+          blocker_title: blocker.title,
         });
       } catch (_) {}
     }
@@ -101,15 +93,9 @@ export async function POST(req) {
     // Also notify super admin if they're not the sender
     if (sender_id !== "sa") {
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read)
-                VALUES (?, ?, ?, ?, 0)`,
-          args: [
-            "sa",
-            "New Discussion on Blocker",
-            `${sender_name || "Someone"} commented on blocker: "${blocker.title}"`,
-            "blocker_discussion",
-          ],
+        await notifySuperAdminOfDiscussion({
+          sender_name,
+          blocker_title: blocker.title,
         });
       } catch (_) {}
     }

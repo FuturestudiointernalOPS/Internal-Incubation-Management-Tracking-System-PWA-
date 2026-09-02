@@ -2,7 +2,6 @@
 // Updated Role Override per user request
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Plus,
   Users,
@@ -32,6 +31,7 @@ import { useSafeBack } from "@/lib/useSafeBack";
 import { INTERNAL_OPS_ROLES } from "@/lib/platform/roles";
 import { motion, AnimatePresence } from "framer-motion";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_FILTER_LABELS = {
   All: "crm.contacts.filterAll",
@@ -141,19 +141,10 @@ function ContactsPageContent() {
     setSelectedTeamTab("All Teams");
   }, [selectedGroup]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const statusParam = statusFilter === "Archived" ? "?status=archived" : "";
-      const [contRes, progRes] = await Promise.all([
-        fetch(`/api/contacts/full-state${statusParam}`),
-        fetch("/api/pm/programs"),
-      ]);
-      const [contData, progData] = await Promise.all([
-        contRes.json(),
-        progRes.json(),
-      ]);
-
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const statusParam = statusFilter === "Archived" ? "?status=archived" : "";
+    const urls = [`/api/contacts/full-state${statusParam}`, "/api/pm/programs"];
+    const apply = (contData, progData) => {
       if (contData.success) {
         const rows = (contData.contacts || []).map((c) => ({
           ...c,
@@ -166,6 +157,31 @@ function ContactsPageContent() {
         setTeams(contData.teams || []);
       }
       if (progData.success) setPrograms(progData.programs || []);
+    };
+
+    setLoading(true);
+    try {
+      // Cache-first paint: switching filters / returning to the registry
+      // renders instantly from fresh snapshots; mutation flows pass
+      // bypassCache=true so the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (e) {
       console.error("Registry Sync Failure:", e);
     } finally {
@@ -190,7 +206,7 @@ function ContactsPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error(e);
     }
@@ -208,7 +224,7 @@ function ContactsPageContent() {
       const data = await res.json();
       if (data.success) {
         setNotification({ type: "success", text: t("crm.contacts.activationSent") || "Activation email sent" });
-        fetchData();
+        fetchData(true);
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send email" });
       }
@@ -234,7 +250,7 @@ function ContactsPageContent() {
       const data = await res.json();
       if (data.success) {
         setNotification({ type: "success", text: t("crm.contacts.invitationSent") || "Invitation sent" });
-        fetchData();
+        fetchData(true);
       } else {
         setNotification({ type: "error", text: data.error || "Failed to send invitation" });
       }
@@ -262,7 +278,7 @@ function ContactsPageContent() {
       if (data.success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowManualModal(false);
-        fetchData();
+        fetchData(true);
       }
     } finally {
       setIsProcessing(false);
@@ -288,7 +304,7 @@ function ContactsPageContent() {
       if ((await res.json()).success) {
         setNotification({ type: "success", message: t("crm.contacts.saved") });
         setShowGroupModal(null);
-        fetchData();
+        fetchData(true);
       }
     } finally {
       setIsProcessing(false);
@@ -315,7 +331,7 @@ function ContactsPageContent() {
         setNotification({ type: "success", message: t("crm.contacts.inviteSent") });
         setShowInviteModal(null);
         setInviteForm({ name: "", email: "", phone: "", role: "participant" });
-        fetchData();
+        fetchData(true);
       } else {
         setNotification({ type: "error", message: data.error || t("crm.contacts.inviteFailed") });
       }
@@ -349,7 +365,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.archivedToast", { name: c.name }) },
           }),
         );
-        fetchData();
+        fetchData(true);
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -390,7 +406,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.restoredToast", { name: c.name }) },
           }),
         );
-        fetchData();
+        fetchData(true);
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -433,7 +449,7 @@ function ContactsPageContent() {
             detail: { type: "success", message: t("crm.contacts.permanentlyDeletedToast", { name: c.name }) },
           }),
         );
-        fetchData();
+        fetchData(true);
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -540,7 +556,7 @@ function ContactsPageContent() {
         body: JSON.stringify({ cid: c.cid, group_name: entityName }),
       });
       setNotification({ type: "success", message: t("crm.contacts.done") });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error("Pivot Error:", e);
     } finally {
@@ -550,7 +566,7 @@ function ContactsPageContent() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="communication" fullWidth>
+    <>
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -1448,7 +1464,7 @@ function ContactsPageContent() {
                       });
                       setShowBulkProgramModal(false);
                       setBulkSelected([]);
-                      fetchData();
+                      fetchData(true);
                     }
                   } catch (e) {
                     setNotification({
@@ -1492,7 +1508,7 @@ function ContactsPageContent() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import { Calendar, Clock, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -28,18 +28,42 @@ export default function FacilitatorDashboard() {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const loadDashboard = async (bypassCache = false) => {
+    const urls = ["/api/calendar", "/api/pm/programs?my_facilitator=1"];
+    const apply = (cal, prog) => {
+      const raw = cal.success ? cal.events || [] : [];
+      setAllEvents(raw);
+      if (prog.success) setPrograms(prog.programs || []);
+    };
+    let painted = false;
+    if (!bypassCache) setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots while the network refreshes in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [calRes, progRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const cal = await calRes.json();
+      const prog = await progRes.json();
+      if (cal.success) cacheSet(urls[0], cal);
+      if (prog.success) cacheSet(urls[1], prog);
+      apply(cal, prog);
+    } catch (e) {
+      if (!painted) console.error("Failed to load facilitator dashboard:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([
-      fetch("/api/calendar").then((r) => r.json()),
-      fetch("/api/pm/programs?my_facilitator=1").then((r) => r.json()),
-    ])
-      .then(([cal, prog]) => {
-        const raw = cal.success ? cal.events || [] : [];
-        setAllEvents(raw);
-        if (prog.success) setPrograms(prog.programs || []);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Upcoming list = future events; the calendar panel shows the full month.
@@ -54,7 +78,7 @@ export default function FacilitatorDashboard() {
   const hasNoRole = programs.length === 0;
 
   return (
-    <DashboardLayout role="facilitator" activeTab="dashboard">
+    <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
           <h1 className="text-2xl font-black uppercase tracking-tight">
@@ -155,6 +179,6 @@ export default function FacilitatorDashboard() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { Award, Loader2 } from "lucide-react";
 
 /**
@@ -15,20 +15,42 @@ export default function ParticipantCertificatesPage() {
   const [certificates, setCertificates] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const loadCertificates = async (bypassCache = false) => {
+    const url = "/api/participant/certificates";
+    const apply = (data) => {
+      setCertificates(data?.success ? data.certificates || [] : []);
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data?.success) cacheSet(url, data);
+      apply(data);
+    } catch (_) {
+      setCertificates([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const u = JSON.parse(localStorage.getItem("user") || "{}");
     setUser(u);
-    fetch("/api/participant/certificates")
-      .then((r) => r.json())
-      .then((d) => setCertificates(d.success ? d.certificates || [] : []))
-      .catch(() => setCertificates([]))
-      .finally(() => setLoading(false));
+    loadCertificates();
   }, []);
 
   const fmt = (d) => (d ? new Date(d).toLocaleDateString() : "");
 
   return (
-    <DashboardLayout role={user?.role || "participant"} activeTab="certificates">
+    <>
       <div className="p-6 max-w-3xl mx-auto">
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
           {t("navigation.certificates")}
@@ -68,6 +90,6 @@ export default function ParticipantCertificatesPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Activity,
   Briefcase,
@@ -16,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function SuperAdminProgressHub() {
   const [programs, setPrograms] = useState([]);
@@ -23,6 +23,35 @@ export default function SuperAdminProgressHub() {
   const [search, setSearch] = useState("");
   const router = useRouter();
   const { t } = useI18n();
+
+  const fetchPrograms = async (bypassCache = false) => {
+    const url = "/api/pm/programs";
+    const apply = (data) => {
+      if (data.success) setPrograms(data.programs || []);
+    };
+    setIsLoaded(false);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setIsLoaded(true);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsLoaded(true);
+    }
+  };
 
   useEffect(() => {
     async function checkAuth() {
@@ -35,16 +64,7 @@ export default function SuperAdminProgressHub() {
         }
 
         // Fetch ALL programs for Super Admin
-        fetch("/api/pm/programs")
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.success) setPrograms(data.programs || []);
-            setIsLoaded(true);
-          })
-          .catch((e) => {
-            console.error(e);
-            setIsLoaded(true);
-          });
+        fetchPrograms();
       } catch (err) {
         console.error(err);
         router.push("/login");
@@ -58,7 +78,7 @@ export default function SuperAdminProgressHub() {
   );
 
   return (
-    <DashboardLayout role="super_admin" activeTab="Progress Hub">
+    <>
       <div className="space-y-12 pb-20">
         {/* HEADER */}
         <header className="flex flex-col md:flex-row justify-between items-end gap-8">
@@ -182,6 +202,6 @@ export default function SuperAdminProgressHub() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

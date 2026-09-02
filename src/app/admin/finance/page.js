@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BarChart3 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import DataSourceSelector from "@/components/finance/DataSourceSelector";
 import SummaryCard from "@/components/finance/SummaryCard";
 import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
 import MonthlyTrendChart from "@/components/finance/MonthlyTrendChart";
 import LastSyncedDisplay from "@/components/finance/LastSyncedDisplay";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -74,17 +74,37 @@ export default function FinanceDashboard() {
 
   // ── Fetch dashboard data when selectedId changes ────────────────────────
 
-  const fetchDashboard = useCallback(async (dataSourceId) => {
+  const fetchDashboard = useCallback(async (dataSourceId, bypassCache = false) => {
     if (!dataSourceId) return;
 
+    const urls = [
+      `/api/finance/summary?dataSourceId=${dataSourceId}`,
+      `/api/finance/monthly?dataSourceId=${dataSourceId}`,
+    ];
+    const apply = (sumJson, monJson) => {
+      if (sumJson?.success) setSummary(sumJson);
+      if (monJson?.success) setMonthlyData(monJson);
+    };
+    let painted = false;
     setLoading(true);
     setFetchError(null);
     setAuthError(false);
 
     try {
+      // Cache-first paint: revisits / switching back to a previously loaded
+      // data source render instantly from fresh snapshots; the sync flow
+      // passes bypassCache=true so the cards reflect the just-synced state.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+          painted = true;
+        }
+      }
       const [sumRes, monRes] = await Promise.all([
-        fetch(`/api/finance/summary?dataSourceId=${dataSourceId}`),
-        fetch(`/api/finance/monthly?dataSourceId=${dataSourceId}`),
+        fetch(urls[0]),
+        fetch(urls[1]),
       ]);
 
       if (sumRes.status === 401 || monRes.status === 401) {
@@ -93,17 +113,18 @@ export default function FinanceDashboard() {
       }
 
       if (!sumRes.ok || !monRes.ok) {
-        setFetchError(t("finance.error.serverError"));
+        if (!painted) setFetchError(t("finance.error.serverError"));
         return;
       }
 
       const sumJson = await sumRes.json();
       const monJson = await monRes.json();
 
-      if (sumJson.success) setSummary(sumJson);
-      if (monJson.success) setMonthlyData(monJson);
+      if (sumJson.success) cacheSet(urls[0], sumJson);
+      if (monJson.success) cacheSet(urls[1], monJson);
+      apply(sumJson, monJson);
     } catch {
-      setFetchError(t("finance.error.networkError"));
+      if (!painted) setFetchError(t("finance.error.networkError"));
     } finally {
       setLoading(false);
     }
@@ -148,7 +169,7 @@ export default function FinanceDashboard() {
 
       if (res.ok) {
         // Re-fetch dashboard data after successful sync
-        await fetchDashboard(selectedId);
+        await fetchDashboard(selectedId, true);
       } else {
         setSyncError(t("finance.dashboard.syncError"));
       }
@@ -182,7 +203,7 @@ export default function FinanceDashboard() {
   // Auth error — show message instead of dashboard
   if (authError) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
           <p
             className="text-sm font-bold"
@@ -191,12 +212,12 @@ export default function FinanceDashboard() {
             {t("finance.error.notAuth")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-6 pb-20">
         {/* ═══ Header ═══ */}
         <header
@@ -423,6 +444,6 @@ export default function FinanceDashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

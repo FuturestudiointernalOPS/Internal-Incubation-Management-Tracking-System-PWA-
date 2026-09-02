@@ -1,4 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
+import {
+  getKnowledgeBankAttachmentsByNoteIds,
+  getParticipantKnowledgeBankItems,
+  getParticipantProgramDetailAttendance,
+  getParticipantProgramDetailById,
+  getParticipantProgramDetailDeliverables,
+  getParticipantProgramDetailKpis,
+  getParticipantProgramDetailPmName,
+  getParticipantProgramDetailSessions,
+  getParticipantProgramDetailStaff,
+  getParticipantProgramDetailSubmissions,
+  getParticipantProgramEnrollmentByCid,
+  getParticipantProgramFollowups,
+  getProgramDetailAttendanceCount,
+} from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { isParticipantInProgram } from "@/lib/participant-membership";
@@ -24,10 +39,7 @@ export async function GET(req, { params }) {
     const { id: programId } = await params;
 
     // Verify the participant is actually assigned to this program.
-    const contactRes = await db.execute({
-      sql: "SELECT program_id, group_name FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const contactRes = await getParticipantProgramEnrollmentByCid(cid);
     const contact = contactRes.rows[0];
 
     const isAssigned = await isParticipantInProgram({
@@ -44,10 +56,7 @@ export async function GET(req, { params }) {
       );
     }
 
-    const progRes = await db.execute({
-      sql: "SELECT * FROM v2_programs WHERE id::text = ?",
-      args: [programId],
-    });
+    const progRes = await getParticipantProgramDetailById(programId);
     if (progRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Program not found" },
@@ -58,38 +67,14 @@ export async function GET(req, { params }) {
 
     const [sesRes, delRes, subRes, attRes, kpiRes, staffRes, folRes, knowRes] =
       await Promise.all([
-        db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
-          args: [programId],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
-          args: [programId],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? ORDER BY created_at DESC",
-          args: [cid, programId],
-        }),
-        db.execute({
-          sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id::text = ? ORDER BY a.created_at ASC",
-          args: [cid, programId],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
-          args: [programId],
-        }),
-        db.execute({
-          sql: "SELECT ps.*, c.name AS staff_name, c.role AS staff_role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id = c.cid WHERE ps.program_id = ?",
-          args: [programId],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_followups WHERE program_id = ? ORDER BY created_at DESC LIMIT 10",
-          args: [programId],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_knowledge_bank WHERE is_archived = 0 ORDER BY created_at DESC",
-          args: [],
-        }),
+        getParticipantProgramDetailSessions(programId),
+        getParticipantProgramDetailDeliverables(programId),
+        getParticipantProgramDetailSubmissions(cid, programId),
+        getParticipantProgramDetailAttendance(cid, programId),
+        getParticipantProgramDetailKpis(programId),
+        getParticipantProgramDetailStaff(programId),
+        getParticipantProgramFollowups(programId),
+        getParticipantKnowledgeBankItems(),
       ]);
 
     const sessions = sesRes.rows || [];
@@ -109,13 +94,9 @@ export async function GET(req, { params }) {
     let attachmentsByNote = {};
     if (knowledgeItems.length > 0) {
       try {
-        const attachRes = await db.execute({
-          sql:
-            "SELECT * FROM v2_knowledge_attachments WHERE note_id IN (" +
-            knowledgeItems.map(() => "?").join(",") +
-            ") ORDER BY created_at DESC",
-          args: knowledgeItems.map((k) => k.id),
-        });
+        const attachRes = await getKnowledgeBankAttachmentsByNoteIds(
+          knowledgeItems.map((k) => k.id),
+        );
         for (const a of attachRes.rows || []) {
           if (!attachmentsByNote[a.note_id]) attachmentsByNote[a.note_id] = [];
           attachmentsByNote[a.note_id].push({ name: a.name, url: a.url });
@@ -125,10 +106,7 @@ export async function GET(req, { params }) {
 
     let pmName = null;
     if (program.assigned_pm_id) {
-      const pmRes = await db.execute({
-        sql: "SELECT name FROM contacts WHERE cid = ?",
-        args: [program.assigned_pm_id],
-      });
+      const pmRes = await getParticipantProgramDetailPmName(program.assigned_pm_id);
       if (pmRes.rows.length > 0) pmName = pmRes.rows[0].name;
     }
 
@@ -344,10 +322,7 @@ export async function GET(req, { params }) {
     // Total sessions this participant was expected to attend = sessions that are unlocked
     const totalSessions = unlockedSessions.length || 1;
     // A program "tracks" attendance only when attendance records actually exist.
-    const attMetaRes = await db.execute({
-      sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
-      args: [programId],
-    });
+    const attMetaRes = await getProgramDetailAttendanceCount(programId);
     const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
     const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
 

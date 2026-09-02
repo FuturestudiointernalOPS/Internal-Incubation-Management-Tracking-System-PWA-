@@ -27,10 +27,10 @@ import {
   Zap,
   Plus,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── CONSTANTS ─────────────────────────────────────────────────────────────
 
@@ -228,30 +228,38 @@ export default function UnifiedDashboard({ role: propRole }) {
 
   // ── Auth check ──
   useEffect(() => {
+    let active = true;
     async function checkAuth() {
+      // Fast path: on client-side navigation the section layout has already
+      // resolved a user (dashboardSession/localStorage). Paint immediately and
+      // let the server session check below upgrade/redirect if needed.
+      let local = null;
+      try {
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        if (stored.cid || stored.id) {
+          local = stored;
+          setUser(stored);
+        }
+      } catch (_) {}
+
       try {
         const res = await fetch("/api/auth/session");
         const session = await res.json();
-        if (session.authenticated) {
+        if (!active) return;
+        if (session.authenticated && session.user) {
           setUser(session.user);
           return;
         }
       } catch (_) {
-        // Session API unavailable — fallback below
+        // Session API unavailable — rely on the local fallback below
       }
 
-      // Fallback to localStorage
-      try {
-        const stored = JSON.parse(localStorage.getItem("user") || "{}");
-        if (stored.cid || stored.id) {
-          setUser(stored);
-          return;
-        }
-      } catch (_) { }
-
-      router.replace("/login");
+      if (active && !local) router.replace("/login");
     }
     checkAuth();
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   // Fetch the user's program-scoped facilitator assignments (role-agnostic),
@@ -259,10 +267,19 @@ export default function UnifiedDashboard({ role: propRole }) {
   useEffect(() => {
     if (!user?.cid) return;
     let active = true;
-    fetch("/api/pm/programs?my_facilitator=1")
+    const url = "/api/pm/programs?my_facilitator=1";
+    const apply = (d) => {
+      if (active && d.success) setFacilitatorPrograms(d.programs || []);
+    };
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) apply(cached);
+    fetch(url)
       .then((r) => r.json())
       .then((d) => {
-        if (active && d.success) setFacilitatorPrograms(d.programs || []);
+        if (d.success) {
+          cacheSet(url, d);
+          apply(d);
+        }
       })
       .catch(() => {});
     return () => {
@@ -309,17 +326,33 @@ export default function UnifiedDashboard({ role: propRole }) {
   }, [effectiveRole, data]);
 
   // ── Fetch data ──
-  const fetchDashboardData = useCallback(async () => {
+  const fetchDashboardData = useCallback(async (bypassCache = false) => {
     if (!user?.cid && !user?.id) return;
+    const userId = user.cid || user.id;
+    const role = effectiveRole;
+    const url = `/api/dashboard?user_id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&year=${calYear}&month=${calMonth + 1}`;
+
+    const apply = (result) => {
+      if (result.success) setData(result);
+    };
+
     setFetching(true);
     try {
-      const userId = user.cid || user.id;
-      const role = effectiveRole;
-      const res = await fetch(
-        `/api/dashboard?user_id=${encodeURIComponent(userId)}&role=${encodeURIComponent(role)}&year=${calYear}&month=${calMonth + 1}`,
-      );
+      // Cache-first paint: returning to the dashboard (or re-visiting a
+      // calendar month) renders instantly from a fresh snapshot; the network
+      // refresh below converges. Mutation flows can pass bypassCache=true.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setFetching(false);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const result = await res.json();
-      if (result.success) setData(result);
+      if (result.success) cacheSet(url, result);
+      apply(result);
     } catch (e) {
       console.error("Dashboard fetch error:", e);
       setError("Failed to load dashboard data");
@@ -386,7 +419,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           action,
         }),
       });
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -407,7 +440,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           resolved_by: user.cid || user.id,
         }),
       });
-      fetchDashboardData();
+      fetchDashboardData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -424,7 +457,7 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Loading state ──
   if (loading) {
     return (
-      <DashboardLayout role={effectiveRole}>
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div
             className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin"
@@ -434,13 +467,13 @@ export default function UnifiedDashboard({ role: propRole }) {
             }}
           />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout role={effectiveRole}>
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="card text-center space-y-3 p-8">
             <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
@@ -453,7 +486,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             </button>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -468,7 +501,7 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <DashboardLayout role={effectiveRole}>
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* ═══════ HEADER ═══════ */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-[var(--border-primary)] pb-6">
@@ -1667,7 +1700,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           onClose={() => setSelectedTask(null)}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

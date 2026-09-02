@@ -1,7 +1,14 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireProjectAccess } from "@/lib/auth";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getProjectDiscussionMessages,
+  createProjectDiscussionMessage,
+  getProjectMemberCids,
+  getProjectOwnerAndName,
+  createProjectDiscussionNotification,
+  findContactsByNames,
+} from "@/models/projectCollaboration";
 
 /**
  * PROJECT DISCUSSIONS API (Ticket 4.3)
@@ -30,14 +37,7 @@ export const GET = createHandler(async (req) => {
   const authError = await requireProjectAccess(project_id);
   if (authError) return authError;
 
-  const result = await db.execute({
-    sql: `SELECT v2_messages.id, v2_messages.sender_id, contacts.name AS sender_name, v2_messages.body, v2_messages.created_at
-          FROM v2_messages
-          LEFT JOIN contacts ON v2_messages.sender_id = contacts.cid
-          WHERE v2_messages.project_id = ? AND v2_messages.is_deleted = 0
-          ORDER BY v2_messages.created_at ASC`,
-    args: [project_id],
-  });
+  const result = await getProjectDiscussionMessages(project_id);
 
   return NextResponse.json({ success: true, messages: result.rows });
 });
@@ -57,37 +57,32 @@ export const POST = createHandler(async (req) => {
   const authError = await requireProjectAccess(project_id);
   if (authError) return authError;
 
-  const result = await db.execute({
-    sql: `INSERT INTO v2_messages (sender_id, subject, body, project_id, target_type)
-          VALUES (?, ?, ?, ?, 'project')
-          RETURNING id, created_at`,
-    args: [sender_id, "Project Discussion", messageBody.trim(), project_id],
-  });
+  const result = await createProjectDiscussionMessage(
+    sender_id,
+    "Project Discussion",
+    messageBody,
+    project_id,
+  );
 
   const row = result.rows[0] || {};
 
   // Notify all project members (except sender)
   try {
-    const membersRes = await db.execute({
-      sql: "SELECT user_cid FROM project_members WHERE project_id::text = ?",
-      args: [project_id],
-    });
+    const membersRes = await getProjectMemberCids(project_id);
 
     // Also get project owner
-    const projectRes = await db.execute({
-      sql: "SELECT owner_id, name FROM v2_projects WHERE id::text = ?",
-      args: [project_id],
-    });
+    const projectRes = await getProjectOwnerAndName(project_id);
 
     const projectName = projectRes.rows[0]?.name || "a project";
     const notified = new Set();
 
     const insertNotif = async (recipientId, title, message, type) => {
-      await db.execute({
-        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-              VALUES (?, ?, ?, ?, 0, NOW())`,
-        args: [recipientId, title, message, type],
-      });
+      await createProjectDiscussionNotification(
+        recipientId,
+        title,
+        message,
+        type,
+      );
     };
 
     // Notify project owner
@@ -125,13 +120,7 @@ export const POST = createHandler(async (req) => {
 
     if (mentionedNames.size > 0) {
       const namesArray = [...mentionedNames];
-      const placeholders = namesArray.map(() => "?").join(",");
-      const mentionRes = await db.execute({
-        sql: `SELECT cid, name FROM contacts
-              WHERE LOWER(TRIM(name)) IN (${placeholders})
-              AND deleted = 0`,
-        args: namesArray,
-      });
+      const mentionRes = await findContactsByNames(namesArray);
 
       for (const mentioned of mentionRes.rows) {
         if (notified.has(mentioned.cid)) continue;

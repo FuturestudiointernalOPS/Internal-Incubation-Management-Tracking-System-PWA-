@@ -53,6 +53,8 @@
     "typeDiscussion": "Partagez une mise à jour ou une question...",
     "postDiscussion": "Publier",
     "loadingDiscussions": "Chargement des discussions...",
-    "noDiscussions": "Aucune discussion pour l'instant. Lancez la conversation."
+    "noDiscussions": "Aucune discussion pour le moment. Lancez la conversation.",
+    "accessDeniedTitle": "403 — Accès refusé",
+    "accessDeniedSubtitle": "La messagerie est réservée au personnel interne de Future Studio."
   }
 }

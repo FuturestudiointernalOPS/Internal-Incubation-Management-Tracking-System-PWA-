@@ -16,6 +16,12 @@ const _sessionCache = new Map();
 const _failureCache = new Map(); // Cache DB failures to avoid cascading timeouts
 const FAILURE_CACHE_TTL = 5000; // If DB fails, don't retry for 5s (avoids 30s lockouts on transient errors)
 
+// Hard cap on the in-memory session cache so a warm serverless instance that
+// rotates many tokens cannot grow the Map unboundedly. Simple LRU: when full,
+// evict the oldest entry. Purely a memory bound — never changes which sessions
+// are valid, only how many are kept warm between requests.
+const SESSION_CACHE_MAX = 5000;
+
 /**
  * Creates a new session for a user.
  * Stores session in database and returns the token and maxAge.
@@ -174,6 +180,11 @@ export async function getSession() {
       session: result_session,
       expires: Date.now() + SESSION_CACHE_TTL,
     });
+    // Bounded session cache: evict the oldest entry when over the cap.
+    if (_sessionCache.size > SESSION_CACHE_MAX) {
+      const oldestKey = _sessionCache.keys().next().value;
+      if (oldestKey !== undefined) _sessionCache.delete(oldestKey);
+    }
 
     return result_session;
   } catch (error) {
@@ -230,6 +241,9 @@ export async function destroySession() {
         sql: "DELETE FROM user_sessions WHERE token_hash = ? OR token = ?",
         args: [tokenHash, token],
       });
+      // Immediately evict the cached session so a just-logged-out token cannot
+      // be re-validated from the in-memory cache for the remaining TTL.
+      _sessionCache.delete(token);
     }
 
     cookieStore.delete(SESSION_COOKIE_NAME);
@@ -396,6 +410,7 @@ export const PERMISSION_MODULES = {
       "assign_responsibilities",
       "promote_super_admin",
       "remove_super_admin",
+      "configure_eligibility",
     ],
   },
   engineering: {
@@ -412,6 +427,10 @@ export const PERMISSION_MODULES = {
     capabilities: ["view", "create", "edit", "delete", "export"],
   },
   settings: { name: "System Settings", capabilities: ["view", "edit"] },
+  org_membership: {
+    name: "Organizational Membership",
+    capabilities: ["view", "manage"],
+  },
   knowledge: {
     name: "Knowledge Base",
     capabilities: ["view", "create", "edit", "delete"],
@@ -1156,179 +1175,9 @@ export async function getAccessProfileCapabilities(profileId) {
   }
 }
 
-/**
- * Gets effective capabilities for a user using the Access Profile resolution chain.
- * Falls back to legacy role_capabilities if no profile is configured.
- * Returns a Map { capability -> access_level } for a specific module.
- */
-export async function getUserEffectiveCapabilitiesV2(
-  userCid,
-  userRole,
-  module,
-) {
-  try {
-    await initDb();
-    const profile = await getUserEffectiveProfile(userCid, userRole);
 
-    let profileCaps = {};
-    if (profile.profileId) {
-      // Get capabilities from profile for this module
-      const rows = await db.execute({
-        sql: "SELECT capability, access_level FROM access_profile_capabilities WHERE profile_id = ? AND module = ?",
-        args: [profile.profileId, module],
-      });
-      for (const row of rows.rows) {
-        profileCaps[row.capability] = row.access_level;
-      }
-    } else {
-      // Legacy fallback: use role_capabilities
-      const rows = await db.execute({
-        sql: "SELECT capability, access_level FROM role_capabilities WHERE role = ? AND module = ?",
-        args: [userRole, module],
-      });
-      for (const row of rows.rows) {
-        profileCaps[row.capability] = row.access_level;
-      }
-    }
 
-    // Get group capabilities
-    const groups = await getUserGroups(userCid);
-    const groupCaps = {};
-    if (groups.length > 0) {
-      const ph = groups.map(() => "?").join(",");
-      const groupRows = (
-        await db.execute({
-          sql: `SELECT capability, access_level FROM group_capabilities WHERE group_name IN (${ph}) AND module = ?`,
-          args: [...groups, module],
-        })
-      ).rows;
-      for (const row of groupRows) {
-        groupCaps[row.capability] = row.access_level;
-      }
-    }
 
-    // Get individual grants
-    const grants = (
-      await db.execute({
-        sql: "SELECT capability, access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid, module],
-      })
-    ).rows;
-
-    // Get individual restrictions
-    const restricts = new Set(
-      (
-        await db.execute({
-          sql: "SELECT capability FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND (expires_at IS NULL OR expires_at > NOW())",
-          args: [userCid, module],
-        })
-      ).rows.map((r) => r.capability),
-    );
-
-    // Merge: Profile ∩ Groups ∩ Grants ∖ Restrictions
-    const merged = new Map();
-    const add = (cap, lvl) => {
-      const e = merged.get(cap) || 0;
-      if (lvl > e) merged.set(cap, lvl);
-    };
-    for (const [cap, lvl] of Object.entries(profileCaps)) add(cap, lvl);
-    for (const [cap, lvl] of Object.entries(groupCaps)) add(cap, lvl);
-    for (const row of grants) add(row.capability, row.access_level);
-    for (const c of restricts) merged.delete(c);
-
-    return merged;
-  } catch (e) {
-    console.error("getUserEffectiveCapabilitiesV2 error:", e.message);
-    return new Map();
-  }
-}
-
-/**
- * Gets the full permission matrix using V2 (Access Profile) resolution.
- */
-export async function getUserFullPermissionMatrixV2(userCid, userRole) {
-  const result = {};
-  for (const mod of Object.keys(PERMISSION_MODULES)) {
-    const caps = await getUserEffectiveCapabilitiesV2(userCid, userRole, mod);
-    result[mod] = {};
-    for (const [capability, level] of caps) result[mod][capability] = level;
-  }
-  return result;
-}
-
-/**
- * Checks capability using V2 resolution chain.
- * Super Admin bypass still works via restrictions check.
- */
-export async function hasCapabilityV2(
-  userCid,
-  userRole,
-  module,
-  capability,
-  minLevel = 1,
-) {
-  try {
-    await initDb();
-    if (userRole === "super_admin") {
-      // Check if explicitly restricted
-      const r = await db.execute({
-        sql: "SELECT 1 FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-        args: [userCid, module, capability],
-      });
-      if (r.rows.length === 0) {
-        // Check if explicitly granted (even super_admin can have limited grants)
-        const g = await db.execute({
-          sql: "SELECT access_level FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND (expires_at IS NULL OR expires_at > NOW())",
-          args: [userCid, module, capability],
-        });
-        if (g.rows.length > 0)
-          return parseInt(g.rows[0].access_level) >= minLevel;
-        return true; // Super Admin default: yes
-      }
-      return false;
-    }
-    const caps = await getUserEffectiveCapabilitiesV2(
-      userCid,
-      userRole,
-      module,
-    );
-    return (caps.get(capability) || 0) >= minLevel;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Require capability using V2 (Access Profile) resolution.
- */
-export async function requireCapabilityV2(module, capability, minLevel = 1) {
-  try {
-    const session = await getSession();
-    if (!session)
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
-    const has = await hasCapabilityV2(
-      session.cid,
-      session.role,
-      module,
-      capability,
-      minLevel,
-    );
-    if (!has)
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
-    return null;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "errors.authzSystemFailure" },
-      { status: 500 },
-    );
-  }
-}
 
 /**
  * Seed default access profiles and their capabilities.

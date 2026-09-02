@@ -7,14 +7,13 @@
  *     ELIGIBLE ≠ GRANTED
  *
  * - Stored in the `feature_eligibility` table (self-healing, idempotent).
- * - Seeds reproduce TODAY'S route allowlists (verified in the authorization
- *   inventory) — NOT featureAccess.js, which is known to drift from routes.
+ * - The seed (FEATURE_ELIGIBILITY_DEFAULTS) runs ONCE per database as the
+ *   "eligibility-bootstrap-seed" migration (see migrations.js) — it fills
+ *   rows that have never been configured, then the Permissions UI owns the
+ *   configuration. Nothing at boot ever overwrites an administrator's edit.
  * - Missing rows = NOT eligible (fail closed).
  * - An explicit `eligible = 0` row wins over any `eligible = 1` row.
  * - Super Admin bypasses eligibility entirely (preserved V2 behavior).
- *
- * Phase 0: no feature route enforces this yet. The resolver makes it
- * available so feature-by-feature migration can safely happen later.
  */
 
 import db from "@/lib/db";
@@ -53,11 +52,9 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "program_manager",
     "teacher",
     "developer",
-    "participant",
-    "founder",
   ],
   finance: ["super_admin", "staff"],
-  program_management: ["super_admin", "staff", "program_manager", "teacher"],
+  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
   project_ownership: [
     "super_admin",
     "staff",
@@ -71,25 +68,16 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "staff",
     "program_manager",
     "teacher",
-    "admin",
     "developer",
   ],
   knowledge_base: ["super_admin", "staff"],
   intelligence: ["super_admin", "developer"],
   engineering: ["super_admin", "developer"],
-  user_management: ["super_admin"],
-  system_settings: ["super_admin"],
-  messaging: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-    "participant",
-    "founder",
-  ],
+  user_management: ["super_admin", "staff"],
+  system_settings: ["super_admin", "staff"],
+  messaging: ["super_admin", "staff", "program_manager", "developer"],
   tasks: ["super_admin", "staff", "program_manager", "team"],
-  ventures: ["super_admin", "staff", "program_manager"],
+  ventures: ["super_admin", "staff", "program_manager", "investor"],
   investor: ["super_admin", "staff", "investor"],
   internal_comms: [
     "super_admin",
@@ -98,7 +86,6 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
     "teacher",
     "developer",
     "participant",
-    "admin",
   ],
 };
 

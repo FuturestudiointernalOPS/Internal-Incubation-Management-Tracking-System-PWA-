@@ -25,8 +25,8 @@ import {
   ChevronRight,
   MessageCircle,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const VERIFICATION_STEPS = [
   { key: "business_registration", label: "vadmin.verification.stepBusinessRegistration", icon: Building2 },
@@ -80,21 +80,37 @@ export default function VentureVerificationPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, verRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/verification`),
-      ]);
-      const vData = await vRes.json();
-      const verData = await verRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/verification`];
+    const apply = (vData, verData) => {
       if (!vData.success) throw new Error(t((vData.error || t("vadmin.verification.loadVentureFailed")) || "") || (vData.error || t("vadmin.verification.loadVentureFailed")));
       if (!verData.success) throw new Error(t((verData.error || t("vadmin.verification.loadVerificationFailed")) || "") || (verData.error || t("vadmin.verification.loadVerificationFailed")));
       setVenture(vData.venture);
       setData(verData);
+    };
+    let painted = false;
+    setLoading(true);
+    setError(null);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [vRes, verRes] = await Promise.all([fetch(urls[0]), fetch(urls[1])]);
+      const vData = await vRes.json();
+      const verData = await verRes.json();
+      if (vData.success) cacheSet(urls[0], vData);
+      if (verData.success) cacheSet(urls[1], verData);
+      apply(vData, verData);
     } catch (e) {
-      setError(t(e.message || "") || e.message);
+      if (!painted) setError(t(e.message || "") || e.message);
     } finally {
       setLoading(false);
     }
@@ -147,7 +163,7 @@ export default function VentureVerificationPage() {
       });
 
       notify(t("vadmin.verification.documentUploaded"));
-      fetchData();
+      fetchData(true);
     } catch {
       notify(t("vadmin.verification.uploadFailed"), "error");
     } finally {
@@ -161,7 +177,7 @@ export default function VentureVerificationPage() {
       body: JSON.stringify({ action: "delete_document", document_id: docId }),
     });
     notify(t("vadmin.verification.documentRemoved"));
-    fetchData();
+    fetchData(true);
   };
 
   const handleSubmit = async () => {
@@ -171,7 +187,7 @@ export default function VentureVerificationPage() {
         body: JSON.stringify({ action: "submit" }),
       });
       const result = await res.json();
-      if (result.success) { notify(t("vadmin.verification.submittedForReview")); fetchData(); }
+      if (result.success) { notify(t("vadmin.verification.submittedForReview")); fetchData(true); }
       else { notify(t((result.error || t("vadmin.verification.submissionFailed")) || "") || (result.error || t("vadmin.verification.submissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
   };
@@ -183,7 +199,7 @@ export default function VentureVerificationPage() {
         body: JSON.stringify({ action: "resubmit" }),
       });
       const result = await res.json();
-      if (result.success) { notify(t("vadmin.verification.resubmitted")); fetchData(); }
+      if (result.success) { notify(t("vadmin.verification.resubmitted")); fetchData(true); }
       else { notify(t((result.error || t("vadmin.verification.resubmissionFailed")) || "") || (result.error || t("vadmin.verification.resubmissionFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
   };
@@ -200,7 +216,7 @@ export default function VentureVerificationPage() {
         notify(`Verification ${reviewDecision}`);
         setShowReviewModal(false);
         setReviewNotes("");
-        fetchData();
+        fetchData(true);
       } else { notify(t((result.error || t("vadmin.verification.reviewFailed")) || "") || (result.error || t("vadmin.verification.reviewFailed")), "error"); }
     } catch { notify(t("vadmin.verification.networkError"), "error"); }
     setReviewing(false);
@@ -216,26 +232,26 @@ export default function VentureVerificationPage() {
     setComment("");
     setSendingComment(false);
     notify(t("vadmin.verification.commentAdded"));
-    fetchData();
+    fetchData(true);
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
       </div>
-    </DashboardLayout>
+    </>
   );
 
   if (error || !venture) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="text-center py-20">
         <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.verification.error")}</h2>
         <p className="text-slate-500 mb-6">{error || t("vadmin.verification.ventureNotFound")}</p>
         <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">{t("vadmin.verification.backToVentures")}</button>
       </div>
-    </DashboardLayout>
+    </>
   );
 
   const verification = data?.verification;
@@ -248,7 +264,7 @@ export default function VentureVerificationPage() {
   const getItemForCategory = (cat) => items.find((i) => i.category === cat);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${
@@ -488,6 +504,6 @@ export default function VentureVerificationPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

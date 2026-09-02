@@ -6,8 +6,8 @@ import {
   Loader2, CheckCircle2, AlertCircle, Bell, Mail, Settings, Archive, Trash2,
   X, Send, Filter, RefreshCw,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const TYPE_COLORS = {
   system: "text-slate-400 bg-slate-500/10",
@@ -36,16 +36,38 @@ export default function NotificationsPage() {
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const fetchAll = async () => {
+  const fetchAll = async (bypassCache = false) => {
     setLoading(true);
+    const urls = [
+      `/api/notifications/venture`,
+      `/api/notifications/venture?type=preferences`,
+    ];
+    const apply = (n, p) => {
+      if (n?.success) { setNotifications(n.notifications || []); setUnreadCount(n.unread_count || 0); }
+      if (p?.success) setPreferences(p.preferences);
+    };
     try {
-      const [nRes, pRes] = await Promise.all([
-        fetch(`/api/notifications/venture`),
-        fetch(`/api/notifications/venture?type=preferences`),
-      ]);
-      const n = await nRes.json(); const p = await pRes.json();
-      if (n.success) { setNotifications(n.notifications || []); setUnreadCount(n.unread_count || 0); }
-      if (p.success) setPreferences(p.preferences);
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so content always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch {} finally { setLoading(false); }
   };
 
@@ -90,7 +112,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ action: "send_test" }),
     });
     notify(t("adminMisc.notifications.testNotificationSent"));
-    fetchAll();
+    fetchAll(true);
   };
 
   const togglePref = async (type, channel) => {
@@ -107,11 +129,11 @@ export default function NotificationsPage() {
   const filtered = filterType ? notifications.filter((n) => n.type === filterType) : notifications;
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
@@ -232,6 +254,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

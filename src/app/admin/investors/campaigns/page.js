@@ -6,10 +6,10 @@ import {
   Calendar, Eye, Play, Pause, XCircle, CheckCircle2, BarChart3,
   Users, TrendingUp, Edit3
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_COLORS = {
   draft: "bg-slate-500/10 text-slate-400",
@@ -49,17 +49,35 @@ export default function AdminCampaignsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const [cRes, vRes] = await Promise.all([
-        fetch("/api/investor/campaigns"),
-        fetch("/api/investor/ventures?limit=100"),
-      ]);
-      const cData = await cRes.json();
-      const vData = await vRes.json();
-      if (cData.success) setCampaigns(cData.campaigns || []);
-      if (vData.success) setVentures(vData.ventures || []);
+      const urls = ["/api/investor/campaigns", "/api/investor/ventures?limit=100"];
+      const apply = (cData, vData) => {
+        if (cData.success) setCampaigns(cData.campaigns || []);
+        if (vData.success) setVentures(vData.ventures || []);
+      };
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the lists always
+      // reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (_) {}
     setLoading(false);
   };
@@ -80,7 +98,7 @@ export default function AdminCampaignsPage() {
         setToast({ type: "success", message: t("investorAdmin.campaigns.campaignCreated") });
         setShowCreate(false);
         setForm({ venture_id: "", name: "", target_raise: "", min_investment: "", max_investment: "", currency: "USD", visibility: "public", opening_date: "", closing_date: "" });
-        fetchData();
+        fetchData(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -99,7 +117,7 @@ export default function AdminCampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.campaigns.campaignStatusToast", { status: newStatus }) });
-        fetchData();
+        fetchData(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -123,7 +141,7 @@ export default function AdminCampaignsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.campaigns.amountUpdated") });
-        fetchData();
+        fetchData(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -143,7 +161,7 @@ export default function AdminCampaignsPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Toast */}
         {toast && (
@@ -339,6 +357,6 @@ export default function AdminCampaignsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

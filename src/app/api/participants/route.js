@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { getAuthorizationContext, authorize } from "@/lib/authorization";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -122,10 +123,16 @@ export async function GET(req) {
 
     const session = await getSession();
 
-    // Server-side enforcement: non-management roles (facilitator, staff, …)
-    // must be assigned to the program and hold participants.view at level >= 1.
+    // Server-side enforcement (Phase 3): management roles AND holders of
+    // programs.view (default template or individual grant) may list
+    // participants. Everyone else — facilitators, unassigned staff, … — must
+    // be assigned to the program and hold participants.view at level >= 1.
     // Assignment seam: delegates to the proven facilitator resolution chain.
-    if (session && !hasProgramManagementAccess(session.role)) {
+    const ctx = session ? await getAuthorizationContext(session) : null;
+    const canViewParticipants =
+      hasProgramManagementAccess(session?.role) ||
+      (!!ctx && authorize(ctx, "programs", "view"));
+    if (session && !canViewParticipants) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,
@@ -165,7 +172,7 @@ export async function GET(req) {
 
     // Facilitator team scope: only participants assigned to the facilitator's
     // v2_teams (where handler_id = facilitator cid).
-    if (session && !hasProgramManagementAccess(session.role)) {
+    if (session && !canViewParticipants) {
       const scope = await getFacilitatorTeamScope(program_id, session.cid);
       if (scope.scope !== "all") {
         if (scope.teamIds.length === 0) {

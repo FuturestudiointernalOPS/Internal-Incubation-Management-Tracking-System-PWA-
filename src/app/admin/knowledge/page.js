@@ -7,10 +7,10 @@ import {
   Archive, RotateCcw, Search, Paperclip, ChevronRight, 
   ExternalLink, Shield, Download, FileCheck, Files, CheckCircle2, AlertCircle
 } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * IMPACTOS KNOWLEDGE BANK — OPERATIONAL INTELLIGENCE
@@ -40,13 +40,30 @@ export default function KnowledgeBank() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const fetchNotes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/knowledge');
-      const data = await res.json();
+  const fetchNotes = useCallback(async (bypassCache = false) => {
+    const url = '/api/knowledge';
+    const apply = (data) => {
       if (data.success) {
         setAllNotes(data.conceptNotes || []);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to the page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the library
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Sync Error:", e);
@@ -112,7 +129,7 @@ export default function KnowledgeBank() {
       const data = await res.json();
       if (data.success) {
         notify('success', t("adminMisc.knowledge.deployedSuccessfully"));
-        fetchNotes();
+        fetchNotes(true);
         setShowUploadModal(false);
         setNewNote({ title: '', description: '', stagedFiles: [] });
       } else {
@@ -158,7 +175,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', t("adminMisc.knowledge.updatedSuccessfully"));
         setEditingNote(null);
-        fetchNotes();
+        fetchNotes(true);
       }
     } catch (e) {
       notify('error', t("adminMisc.knowledge.updateFailed"));
@@ -177,7 +194,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', currentArchiveState ? t("adminMisc.knowledge.restoredFromArchive") : t("adminMisc.knowledge.movedToArchive"));
         if (viewingNote?.id === id) setViewingNote(null);
-        fetchNotes();
+        fetchNotes(true);
       }
     } catch (e) {
       notify('error', t("adminMisc.knowledge.syncFailure"));
@@ -194,7 +211,7 @@ export default function KnowledgeBank() {
       if (res.ok) {
         notify('success', t("adminMisc.knowledge.decommissioned"));
         if (viewingNote?.id === id) setViewingNote(null);
-        fetchNotes();
+        fetchNotes(true);
       }
     } catch (e) {
       notify('error', t("adminMisc.knowledge.deletionFailed"));
@@ -208,7 +225,7 @@ export default function KnowledgeBank() {
   });
 
   return (
-    <DashboardLayout role="super_admin" activeTab="knowledge">
+    <>
       
       {/* GLOBAL NOTIFICATION TOAST */}
       {notification && (
@@ -435,6 +452,6 @@ export default function KnowledgeBank() {
       )}
 
 
-    </DashboardLayout>
+    </>
   );
 }

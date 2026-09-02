@@ -16,8 +16,11 @@ import {
   getAuthorizationContext,
   effectivePermissionsFromContext,
   invalidateAuthorizationContext,
+  buildPermissionExplanation,
   requireAuthorization,
+  MODULE_TO_FEATURE,
 } from "@/lib/authorization";
+import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 
 /**
  * GET /api/engineering/permissions
@@ -161,6 +164,7 @@ export async function GET(req) {
         success: true,
         modules: PERMISSION_MODULES,
         accessLevels: ACCESS_LEVELS,
+        catalog: CAPABILITY_CATALOG,
         roleDefaults: roleCaps.rows,
         groupDefaults: groupCaps.rows,
         accessProfiles,
@@ -191,6 +195,9 @@ export async function GET(req) {
         group_name: user.group_name,
       });
       const matrix = effectivePermissionsFromContext(authzCtx);
+      // "Who has access and why": per-feature eligibility (with the identity
+      // rows that produced it) + the raw capability inputs per module.
+      const explanation = buildPermissionExplanation(authzCtx);
 
       // Get individual grants
       const grants = await safeQuery(
@@ -237,6 +244,8 @@ export async function GET(req) {
         groups,
         effectiveProfile,
         effectivePermissions: matrix,
+        explanation,
+        moduleToFeature: MODULE_TO_FEATURE,
         individualGrants: grants.rows,
         individualRestrictions: restrictions.rows,
       });
@@ -307,10 +316,11 @@ export async function PUT(req) {
 
     // Get target user info
     const targetRes = await db.execute({
-      sql: "SELECT name FROM contacts WHERE cid = ?",
+      sql: "SELECT name, role FROM contacts WHERE cid = ?",
       args: [user_cid],
     });
     const targetName = targetRes.rows[0]?.name || "Unknown";
+    const targetRole = targetRes.rows[0]?.role || null;
 
     // Handle promote/remove super admin specially
     if (action === "promote_super_admin") {
@@ -358,6 +368,32 @@ export async function PUT(req) {
         { success: false, error: "module and capability are required" },
         { status: 400 },
       );
+    }
+
+    // ── Hard eligibility boundary on capability ASSIGNMENT ──
+    // A grant must respect the target's feature eligibility. Attempting to
+    // assign a capability to a user who is not eligible for the feature
+    // (e.g. Finance to a Mentor) is REJECTED here — the backend is the
+    // boundary, not the frontend dropdown. (Super Admin targets are always
+    // eligible by bypass.)
+    const featureKey = MODULE_TO_FEATURE[module];
+    if (action === "grant" && featureKey) {
+      const targetAuthz = await getAuthorizationContext({
+        cid: user_cid,
+        role: targetRole,
+      });
+      const targetEligible =
+        targetAuthz?.isSuperAdmin ||
+        targetAuthz?.eligibility?.[featureKey] === true;
+      if (!targetEligible) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Target user is not eligible for this feature (${featureKey}). Assignment rejected.`,
+          },
+          { status: 403 },
+        );
+      }
     }
 
     switch (action) {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AssignmentsView from "@/components/dashboard/AssignmentsView";
 
 /**
@@ -19,10 +18,10 @@ export default function ParticipantAssignmentsPage() {
   }, []);
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6">
         <AssignmentsView />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -25,8 +25,8 @@ import {
   Rocket,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import TaskManager from "@/components/tasks/TaskManager";
 
 /**
@@ -148,7 +148,7 @@ export default function ProjectDetail() {
           user_name: project.owner_name || "Project Owner",
         }),
       });
-      fetchProject();
+      fetchProject(true);
     } catch (e) {
       console.error(e);
     }
@@ -156,21 +156,40 @@ export default function ProjectDetail() {
 
   const projectId = params?.id;
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/projects/${projectId}`);
-      const data = await res.json();
+    const url = `/api/admin/projects/${projectId}`;
+    const apply = (data) => {
       if (data.success) {
         setProject(data.project);
       } else {
         setError(t((data.error || t("adminMisc.projectDetail.loadProjectFailed")) || "") || (data.error || t("adminMisc.projectDetail.loadProjectFailed")));
       }
+    };
+    let painted = false;
+    setLoading(true);
+    setError(null);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the project always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t("adminMisc.projectDetail.loadProjectNetworkError"));
-      console.error(e);
+      if (!painted) {
+        setError(t("adminMisc.projectDetail.loadProjectNetworkError"));
+        console.error(e);
+      }
     } finally {
       setLoading(false);
     }
@@ -192,15 +211,32 @@ export default function ProjectDetail() {
     }
   }, []);
 
-  const fetchApprovals = useCallback(async () => {
+  const fetchApprovals = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/admin/projects/${projectId}/approvals`;
+    const apply = (data) => {
+      if (data.success) setApprovalRequests(data.requests || []);
+    };
+    let painted = false;
     setApprovalsLoading(true);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/approvals`);
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; approval actions pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setApprovalsLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setApprovalRequests(data.requests || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      console.error("Failed to fetch approvals:", e);
+      if (!painted) console.error("Failed to fetch approvals:", e);
     } finally {
       setApprovalsLoading(false);
     }
@@ -220,27 +256,44 @@ export default function ProjectDetail() {
         }),
       });
       const data = await res.json();
-      if (data.success) fetchApprovals();
+      if (data.success) fetchApprovals(true);
     } catch (e) {
       console.error("Approval action error:", e);
     }
   };
 
-  const fetchUpdates = useCallback(async () => {
+  const fetchUpdates = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/admin/projects/${projectId}/updates`;
+    const apply = (data) => {
+      if (data.success) setUpdates(data.updates || []);
+    };
+    let painted = false;
     setUpdatesLoading(true);
     try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setUpdatesLoading(false);
+          painted = true;
+        }
+      }
       // Auto-generate report if none exists for current week
       try {
         await fetch(`/api/admin/projects/${projectId}/reports/generate`, {
           method: "POST",
         });
       } catch (_) {}
-      const res = await fetch(`/api/admin/projects/${projectId}/updates`);
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setUpdates(data.updates || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      console.error("Failed to fetch updates:", e);
+      if (!painted) console.error("Failed to fetch updates:", e);
     } finally {
       setUpdatesLoading(false);
     }
@@ -262,13 +315,28 @@ export default function ProjectDetail() {
     fetchUpdates();
   }, [fetchUpdates]);
 
-  const fetchDiscussions = useCallback(async () => {
+  const fetchDiscussions = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/projects/discuss?project_id=${projectId}`;
+    const apply = (data) => {
+      if (data.success) setDiscussions(data.messages || []);
+    };
     setDiscussionsLoading(true);
     try {
-      const res = await fetch(`/api/projects/discuss?project_id=${projectId}`);
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; posting a message passes bypassCache=true so the thread always
+      // reflects the last post.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setDiscussionsLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setDiscussions(data.messages || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (_) {}
     setDiscussionsLoading(false);
   }, [projectId]);
@@ -294,7 +362,7 @@ export default function ProjectDetail() {
       const data = await res.json();
       if (data.success) {
         setNewDiscussion("");
-        fetchDiscussions();
+        fetchDiscussions(true);
       }
     } catch (_) {}
     setPostingDiscussion(false);
@@ -315,7 +383,7 @@ export default function ProjectDetail() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchUpdates();
+        fetchUpdates(true);
         setUpdateForm({
           accomplishments: "",
           current_focus: "",
@@ -352,7 +420,7 @@ export default function ProjectDetail() {
   // Loading state
   if (loading) {
     return (
-      <DashboardLayout role={userRole || "super_admin"}>
+      <>
         <div className="space-y-8 pb-20 text-left">
           {/* Skeleton header */}
           <div className="animate-pulse space-y-4">
@@ -368,14 +436,14 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // Error state
   if (error || !project) {
     return (
-      <DashboardLayout role={userRole || "super_admin"}>
+      <>
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
@@ -388,7 +456,7 @@ export default function ProjectDetail() {
             <ArrowLeft className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.backToProjects")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -420,7 +488,7 @@ export default function ProjectDetail() {
   };
 
   return (
-    <DashboardLayout role={userRole || "super_admin"}>
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* ─── TOAST NOTIFICATIONS ─── */}
 
@@ -983,7 +1051,7 @@ export default function ProjectDetail() {
                               `/api/projects/members?project_id=${project.id}&user_cid=${member.member_id}`,
                               { method: "DELETE" },
                             );
-                            fetchProject();
+                            fetchProject(true);
                           } catch (e) {
                             console.error(e);
                           }
@@ -1040,7 +1108,7 @@ export default function ProjectDetail() {
                             }),
                           });
                           sel.value = "";
-                          fetchProject();
+                          fetchProject(true);
                         } catch (e) {
                           console.error(e);
                         }
@@ -1075,7 +1143,7 @@ export default function ProjectDetail() {
                       );
                       const data = await res.json();
                       if (data.success) {
-                        fetchUpdates();
+                        fetchUpdates(true);
                         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.projectDetail.reportGenerated", { week: data.week }) } }));
                       } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.projectDetail.generateFailed")) || "") || (data.error || t("adminMisc.projectDetail.generateFailed")) } }));
                     } catch (_) {}
@@ -1636,6 +1704,6 @@ export default function ProjectDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

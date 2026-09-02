@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -20,6 +19,7 @@ import {
   Loader2,
   Clock,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const SEVERITY_COLORS = {
   info: "text-blue-400 bg-blue-500/10",
@@ -59,7 +59,7 @@ export default function AuditLogsPage() {
   });
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchLogs = useCallback(async () => {
+  const fetchLogs = useCallback(async (bypassCache = false) => {
     setLoading(true);
     setError(null);
     try {
@@ -69,19 +69,42 @@ export default function AuditLogsPage() {
       params.set("limit", filters.limit);
       params.set("offset", filters.offset);
 
+      const logsUrl = `/api/audit-logs?${params}`;
+      const statsUrl = "/api/audit-logs?type=stats&hours=24";
+      let painted = false;
+      const apply = (logsData, statsData) => {
+        if (logsData.success) {
+          setLogs(logsData.logs || []);
+          painted = true;
+        }
+        if (statsData.success) setStats(statsData);
+      };
+
+      // Cache-first paint: returning to a page/filter combo renders instantly
+      // when both snapshots are fresh.
+      if (!bypassCache) {
+        const cachedLogs = cacheGet(logsUrl);
+        const cachedStats = cacheGet(statsUrl);
+        if (cachedLogs !== null && cachedLogs.success && cachedStats !== null && cachedStats.success) {
+          apply(cachedLogs, cachedStats);
+          setLoading(false);
+        }
+      }
+
       const [logsRes, statsRes] = await Promise.all([
-        fetch(`/api/audit-logs?${params}`),
-        fetch("/api/audit-logs?type=stats&hours=24"),
+        fetch(logsUrl),
+        fetch(statsUrl),
       ]);
 
       const logsData = await logsRes.json();
       const statsData = await statsRes.json();
 
-      if (logsData.success) setLogs(logsData.logs || []);
-      else setError(t(logsData.error || "") || logsData.error);
-      if (statsData.success) setStats(statsData);
+      if (logsData.success) cacheSet(logsUrl, logsData);
+      if (statsData.success) cacheSet(statsUrl, statsData);
+      apply(logsData, statsData);
+      if (!logsData.success) setError(t(logsData.error || "") || logsData.error);
     } catch (err) {
-      setError(t(err.message || "") || err.message);
+      if (!painted) setError(t(err.message || "") || err.message);
     } finally {
       setLoading(false);
     }
@@ -110,7 +133,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="min-h-screen bg-[#020617] text-white p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -354,6 +377,6 @@ export default function AuditLogsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Clock, ExternalLink, RefreshCw, Video, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function ParticipantFollowupsPage() {
   const [user, setUser] = useState({});
@@ -16,14 +16,26 @@ export default function ParticipantFollowupsPage() {
     setUser(stored);
   }, []);
 
-  const fetchFollowups = useCallback(async () => {
+  const fetchFollowups = useCallback(async (bypassCache = false) => {
+    const url = "/api/participant/followups";
+    const apply = (data) => {
+      if (data.success) setFollowups(data.followups || []);
+    };
     setLoading(true);
     try {
-      const res = await fetch("/api/participant/followups");
-      const data = await res.json();
-      if (data.success) {
-        setFollowups(data.followups || []);
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot while data refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
       }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
       console.error("Failed to load follow-ups", e);
     } finally {
@@ -42,7 +54,7 @@ export default function ParticipantFollowupsPage() {
   };
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -126,6 +138,6 @@ export default function ParticipantFollowupsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

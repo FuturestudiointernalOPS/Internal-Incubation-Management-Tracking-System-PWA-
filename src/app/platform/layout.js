@@ -18,9 +18,12 @@ import {
   Blocks,
   Activity,
   Upload,
+  ArrowLeft,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { getActiveModules } from "@/lib/platform/registry";
+import { useSafeBack } from "@/lib/useSafeBack";
+import { roleHomeHref } from "@/lib/platform/roles";
 
 /**
  * PLATFORM LAYOUT
@@ -82,6 +85,10 @@ export default function PlatformLayout({ children }) {
 
   const navModules = useMemo(() => getActiveModules(user.role), [user.role]);
   const isActive = (href) => pathname === href;
+
+  // Leave the platform workspace back to wherever the user came from (e.g. the
+  // CRM section that links to the Forms tool), falling back to their role home.
+  const goBack = useSafeBack(roleHomeHref(user.role) || "/workspaces");
 
   const handleLogout = async () => {
     try {
@@ -210,16 +217,16 @@ export default function PlatformLayout({ children }) {
       <div className="flex-1 flex flex-col min-h-screen min-w-0">
         {/* Top bar */}
         <header className="sticky top-0 z-[100] bg-secondary border-b border-[var(--border-primary)] px-4 lg:px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3 relative z-20">
-            <Link
-              href="/admin/crm"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)] transition-colors relative z-10 cursor-pointer"
-            >
-              ← {t("crm.backToCrm")}
-            </Link>
-          </div>
-
           <div className="flex items-center gap-3">
+            <button
+              onClick={goBack}
+              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+              title={t("common.back")}
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>{t("common.back")}</span>
+            </button>
+            <span className="h-4 w-px bg-[var(--border-primary)] opacity-60" />
             <button
               onClick={() => switchLang(lang === "en" ? "fr" : "en")}
               className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"

@@ -20,8 +20,8 @@ import {
   RefreshCw,
   Archive,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function PendingUsersPage() {
   const router = useRouter();
@@ -35,11 +35,9 @@ export default function PendingUsersPage() {
   const [actionMsg, setActionMsg] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const fetchPendingUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/admin/pending-users");
-      const data = await res.json();
+  const fetchPendingUsers = useCallback(async (bypassCache = false) => {
+    const url = "/api/admin/pending-users";
+    const apply = (data) => {
       if (data.success) {
         setPendingUsers(data.pendingUsers);
         setGrouped(data.grouped);
@@ -50,6 +48,25 @@ export default function PendingUsersPage() {
           expanded[g] = true;
         });
         setExpandedGroups(expanded);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; approve/archive/reject flows pass bypassCache=true so
+      // the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (err) {
       console.error("Failed to fetch pending users:", err);
@@ -85,7 +102,7 @@ export default function PendingUsersPage() {
               : t("adminMisc.pendingUsers.emailQueued"),
           }),
         });
-        fetchPendingUsers();
+        fetchPendingUsers(true);
       } else {
         setActionMsg({
           type: "error",
@@ -117,7 +134,7 @@ export default function PendingUsersPage() {
           type: "success",
           text: t("adminMisc.pendingUsers.archivedToast", { name: userName }),
         });
-        fetchPendingUsers();
+        fetchPendingUsers(true);
       } else {
         setActionMsg({
           type: "error",
@@ -180,7 +197,7 @@ export default function PendingUsersPage() {
           type: "info",
           text: t("adminMisc.pendingUsers.rejectedToast", { name: userName }),
         });
-        fetchPendingUsers();
+        fetchPendingUsers(true);
       } else {
         setActionMsg({
           type: "error",
@@ -218,7 +235,7 @@ export default function PendingUsersPage() {
   const displayGrouped = searchQuery ? filteredGrouped : grouped;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -528,6 +545,6 @@ export default function PendingUsersPage() {
             </div>
           ))}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

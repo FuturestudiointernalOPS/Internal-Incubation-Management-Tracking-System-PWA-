@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { roleHomeHref } from "@/lib/platform/roles";
+import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
 
 export const dynamic = "force-dynamic";
 
@@ -169,19 +170,37 @@ export async function GET(req) {
       });
     } catch (_) {}
 
-    // 3. Organizational memberships (user_groups).
+    // 3. Organizational memberships — ACTIVE memberships only (Phase 1:
+    //    expired/ended memberships move to contexts.org_history; the person,
+    //    account and history stay, only active authorization stops).
     try {
-      const ugRes = await db.execute({
-        sql: "SELECT group_name, role_in_group FROM user_groups WHERE user_cid = ? ORDER BY group_name",
-        args: [session.cid],
-      });
-      contexts.org_memberships = ugRes.rows.map((g) => {
+      const activeGroups = await getEffectiveGroupsForUser(session.cid);
+      let orgRows = [];
+      if (activeGroups.length > 0) {
+        const ph = activeGroups.map(() => "?").join(",");
+        const ugRes = await db.execute({
+          sql: `SELECT group_name, role_in_group FROM user_groups
+                WHERE user_cid = ? AND group_name IN (${ph})
+                ORDER BY group_name`,
+          args: [session.cid, ...activeGroups],
+        });
+        orgRows = ugRes.rows;
+      }
+      contexts.org_memberships = orgRows.map((g) => {
         const isIntern = /intern/i.test(String(g.group_name || ""));
         return {
           ...g,
           href: isIntern ? "/developer" : roleHomeHref(session.role) || "/workspaces",
         };
       });
+      const pastRes = await db.execute({
+        sql: `SELECT group_name, status, started_at, expires_at
+              FROM group_memberships
+              WHERE user_cid = ? AND status != 'active'
+              ORDER BY started_at DESC`,
+        args: [session.cid],
+      });
+      contexts.org_history = pastRes.rows;
     } catch (_) {}
 
     // 4. Responsibilities.

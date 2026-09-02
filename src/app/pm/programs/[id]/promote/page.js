@@ -14,9 +14,9 @@ import {
   Target,
   Shield,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -63,21 +63,38 @@ export default function PromoteToVenture() {
   }, []);
 
   useEffect(() => {
-    const fetchProgram = async () => {
-      try {
-        const res = await fetch(`/api/pm/full-state?id=${id}&t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
+    const fetchProgram = async (bypassCache = false) => {
+      const url = `/api/pm/full-state?id=${id}`;
+      const apply = (data) => {
         if (data.success && data.program) {
           setProgram(data.program);
           // Pre-fill company name from program name
           setCompanyName(data.program.name || "");
-        } else {
+        }
+      };
+      let painted = false;
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success && data.program) {
+          cacheSet(url, data);
+          apply(data);
+        } else if (!painted) {
           notify(t("pmMisc.promote.failedToLoadProgram"), "error");
         }
       } catch (e) {
-        notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
+        if (!painted)
+          notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
       } finally {
         setLoading(false);
       }
@@ -156,14 +173,14 @@ export default function PromoteToVenture() {
 
   if (loading) {
     return (
-      <DashboardLayout role={user.role || "program_manager"}>
+      <>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
             {t("common.loading")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -171,7 +188,7 @@ export default function PromoteToVenture() {
     user.role === "super_admin" || user.role === "program_manager";
 
   return (
-    <DashboardLayout role={user.role || "program_manager"}>
+    <>
       <div className="space-y-8 animate-in">
         {/* Toast */}
         {toast && (
@@ -613,6 +630,6 @@ export default function PromoteToVenture() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,8 +1,22 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth, isSupervisorOf } from "@/lib/auth";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import {
+  createBlocker,
+  deleteBlocker,
+  getAllBlockers,
+  getBlockerById,
+  getBlockersForUser,
+  getOtherActiveBlockersForTask,
+  getTaskForBlockerCheck,
+  markTaskBlocked,
+  notifySuperAdminsOfBlocker,
+  resolveBlocker,
+  revertTaskFromBlocked,
+  updateBlockerFields,
+} from "@/models/blockers";
 
 /**
  * BLOCKERS API
@@ -56,60 +70,18 @@ export async function GET(req) {
       // Scope to blockers where the task belongs to, assigned to, or supervised
       // by the user; when acting as a supervisor, scope to the supervisee's tasks.
       const scopeCid = isSupervisor ? String(user_id) : String(session.cid);
-      let sql = `SELECT b.* FROM blockers b
-        JOIN tasks t ON b.task_id = t.id
-        WHERE (t.user_id = ? OR t.assigned_to = ? OR t.supervisor_id = ?)`;
-      const args = [scopeCid, scopeCid, scopeCid];
-
-      if (id) {
-        sql += " AND b.id = ?";
-        args.push(parseInt(id));
-      }
-      if (task_id) {
-        sql += " AND b.task_id = ?";
-        args.push(parseInt(task_id));
-      }
-      if (user_id && !isSupervisor) {
-        sql += " AND b.user_id = ?";
-        args.push(user_id);
-      }
-      if (status) {
-        sql += " AND b.status = ?";
-        args.push(status);
-      }
-      sql += " ORDER BY b.created_at DESC";
-
-      const result = await db.execute({ sql, args });
+      const result = await getBlockersForUser(scopeCid, {
+        id,
+        task_id,
+        user_id,
+        status,
+        isSupervisor,
+      });
       return NextResponse.json({ success: true, blockers: result.rows });
     }
 
     // SA: unrestricted access with optional filters
-    let sql = "SELECT * FROM blockers WHERE 1=1";
-    const args = [];
-
-    if (id) {
-      sql += " AND id = ?";
-      args.push(parseInt(id));
-    }
-
-    if (task_id) {
-      sql += " AND task_id = ?";
-      args.push(parseInt(task_id));
-    }
-
-    if (user_id) {
-      sql += " AND user_id = ?";
-      args.push(user_id);
-    }
-
-    if (status) {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await getAllBlockers({ id, task_id, user_id, status });
     return NextResponse.json({ success: true, blockers: result.rows });
   } catch (error) {
     console.error("GET blockers error:", error);
@@ -148,10 +120,7 @@ export async function POST(req) {
     }
 
     // Verify the task exists and is not closed
-    const taskCheck = await db.execute({
-      sql: "SELECT id, status, user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
+    const taskCheck = await getTaskForBlockerCheck(task_id);
 
     if (taskCheck.rows.length === 0) {
       return NextResponse.json(
@@ -190,27 +159,19 @@ export async function POST(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO blockers
-        (task_id, user_id, user_name, title, description, severity, reference_url, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        parseInt(task_id),
-        user_id,
-        user_name || "",
-        title,
-        description || null,
-        severity || "medium",
-        reference_url || null,
-        notes || null,
-      ],
+    const result = await createBlocker({
+      task_id,
+      user_id,
+      user_name,
+      title,
+      description,
+      severity,
+      reference_url,
+      notes,
     });
 
     // Auto-mark the task as blocked
-    await db.execute({
-      sql: "UPDATE tasks SET status = 'blocked', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'blocked'",
-      args: [parseInt(task_id)],
-    });
+    await markTaskBlocked(task_id);
 
     const blockerId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
 
@@ -230,14 +191,12 @@ export async function POST(req) {
       const taskTitle =
         (await getTaskTitleById(parseInt(task_id))) || `#${task_id}`;
       const now = new Date().toISOString().split("T")[0];
-      await db.execute({
-        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-        args: [
-          "sa",
-          "New Blocker Created",
-          `${user_name || user_id} added blocker "${title}" on task "${taskTitle}" (${now})`,
-          "blocker",
-        ],
+      await notifySuperAdminsOfBlocker({
+        user_name,
+        user_id,
+        title,
+        task_title: taskTitle,
+        now,
       });
     } catch (_) {
       // Notifications are non-blocking
@@ -281,10 +240,7 @@ export async function PUT(req) {
     }
 
     // Fetch the blocker to check ownership
-    const blockerCheck = await db.execute({
-      sql: "SELECT * FROM blockers WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const blockerCheck = await getBlockerById(id);
 
     if (blockerCheck.rows.length === 0) {
       return NextResponse.json(
@@ -307,23 +263,17 @@ export async function PUT(req) {
         );
       }
 
-      await db.execute({
-        sql: "UPDATE blockers SET status = 'resolved', resolved_at = CURRENT_TIMESTAMP, resolved_by = ? WHERE id = ?",
-        args: [session.cid, parseInt(id)],
-      });
+      await resolveBlocker({ id, resolvedBy: session.cid });
 
       // Check if the task has any other active blockers
-      const activeBlockers = await db.execute({
-        sql: "SELECT id FROM blockers WHERE task_id = ? AND status = 'active' AND id != ?",
-        args: [blocker.task_id, parseInt(id)],
-      });
+      const activeBlockers = await getOtherActiveBlockersForTask(
+        blocker.task_id,
+        id,
+      );
 
       if (activeBlockers.rows.length === 0) {
         // No more active blockers, revert task to carried_over or in_progress
-        await db.execute({
-          sql: "UPDATE tasks SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'blocked'",
-          args: [blocker.task_id],
-        });
+        await revertTaskFromBlocked(blocker.task_id);
       }
 
       // Audit log: Blocker Resolved
@@ -351,29 +301,7 @@ export async function PUT(req) {
       );
     }
 
-    const updateFields = [];
-    const updateArgs = [];
-
-    if (title !== undefined) {
-      updateFields.push("title = ?");
-      updateArgs.push(title);
-    }
-    if (description !== undefined) {
-      updateFields.push("description = ?");
-      updateArgs.push(description);
-    }
-    if (severity !== undefined) {
-      updateFields.push("severity = ?");
-      updateArgs.push(severity);
-    }
-
-    if (updateFields.length > 0) {
-      updateArgs.push(parseInt(id));
-      await db.execute({
-        sql: `UPDATE blockers SET ${updateFields.join(", ")} WHERE id = ?`,
-        args: updateArgs,
-      });
-    }
+    await updateBlockerFields(id, { title, description, severity });
 
     return NextResponse.json({
       success: true,
@@ -412,10 +340,7 @@ export async function DELETE(req) {
     }
 
     // Fetch blocker to check ownership
-    const blockerCheck = await db.execute({
-      sql: "SELECT * FROM blockers WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const blockerCheck = await getBlockerById(id);
 
     if (blockerCheck.rows.length > 0) {
       const blocker = blockerCheck.rows[0];
@@ -431,10 +356,7 @@ export async function DELETE(req) {
         );
       }
 
-      await db.execute({
-        sql: "DELETE FROM blockers WHERE id = ?",
-        args: [parseInt(id)],
-      });
+      await deleteBlocker(id);
     }
 
     return NextResponse.json({

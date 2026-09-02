@@ -14,8 +14,8 @@ import {
   ExternalLink,
   Link2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -42,13 +42,28 @@ export default function VenturesPage() {
     fetchVentures();
   }, []);
 
-  const fetchVentures = async () => {
+  const fetchVentures = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ventures");
+      const url = "/api/ventures";
+      const apply = (data) => {
+        if (data.success) setVentures(data.ventures || []);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setVentures(data.ventures || []);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch ventures:", e);
@@ -83,7 +98,7 @@ export default function VenturesPage() {
           },
         })
       );
-      if (d.success) fetchVentures();
+      if (d.success) fetchVentures(true);
     } catch (e) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
@@ -94,7 +109,7 @@ export default function VenturesPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -281,6 +296,6 @@ export default function VenturesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

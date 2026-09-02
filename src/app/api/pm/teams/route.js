@@ -1,8 +1,26 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createTeam,
+  deleteTeam,
+  getNewTeamContactMembers,
+  getNewTeamParticipantMembers,
+  getTeamById,
+  getTeamContactMembers,
+  getTeamParticipantMembers,
+  getTeams,
+  linkContactsToNewTeam,
+  linkContactsToTeam,
+  linkParticipantsToNewTeam,
+  linkParticipantsToTeam,
+  removeContactFromTeam,
+  removeParticipantFromTeam,
+  setTeamVentureReady,
+  updateTeamHandler,
+} from "@/models/teams";
 
 export async function GET(req) {
   try {
@@ -17,15 +35,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
 
-    let sql = "SELECT * FROM v2_teams";
-    let args = [];
-
-    if (programId) {
-      sql += " WHERE program_id = ?";
-      args.push(programId);
-    }
-
-    const result = await db.execute({ sql, args });
+    const result = await getTeams(programId);
     return NextResponse.json({ success: true, teams: result.rows });
   } catch (error) {
     return NextResponse.json(
@@ -70,19 +80,16 @@ export async function POST(req) {
     const teamId = crypto.randomUUID(); // Use built-in crypto for UUID
 
     // 1. Create Team Record (name = sub-team, group_name = parent group, approved by default)
-    const result = await db.execute({
-      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username, group_name, leader_id, is_venture_ready) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, true) RETURNING *",
-      args: [
-        teamId,
-        program_id,
-        name,
-        handler_id || null,
-        handler_name || null,
-        generatedPassword,
-        generatedUsername,
-        group_name || null,
-        leader_id || null,
-      ],
+    const result = await createTeam({
+      id: teamId,
+      program_id,
+      name,
+      handler_id,
+      handler_name,
+      password: generatedPassword,
+      team_username: generatedUsername,
+      group_name,
+      leader_id,
     });
 
     const team = result.rows[0];
@@ -98,40 +105,24 @@ export async function POST(req) {
 
         // Update UUID-based participants (v2_participants table)
         if (uuidIds.length > 0) {
-          const placeholders = uuidIds.map(() => "?").join(",");
-          await db.execute({
-            sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
-            args: [team.id, ...uuidIds],
-          });
+          await linkParticipantsToNewTeam(team.id, uuidIds);
         }
 
         // Update contact-based participants (contacts table)
         if (contactIds.length > 0) {
-          const placeholders = contactIds.map(() => "?").join(",");
-          await db.execute({
-            sql: `UPDATE contacts SET v2_team_id = ? WHERE cid IN (${placeholders})`,
-            args: [team.id, ...contactIds],
-          });
+          await linkContactsToNewTeam(team.id, contactIds);
         }
 
         // 3. Send Emails
         const allMembers = [];
 
         if (uuidIds.length > 0) {
-          const placeholders = uuidIds.map(() => "?").join(",");
-          const res = await db.execute({
-            sql: `SELECT email, name FROM v2_participants WHERE id IN (${placeholders})`,
-            args: [...uuidIds],
-          });
+          const res = await getNewTeamParticipantMembers(uuidIds);
           allMembers.push(...res.rows);
         }
 
         if (contactIds.length > 0) {
-          const placeholders = contactIds.map(() => "?").join(",");
-          const res = await db.execute({
-            sql: `SELECT email, name FROM contacts WHERE cid IN (${placeholders})`,
-            args: [...contactIds],
-          });
+          const res = await getNewTeamContactMembers(contactIds);
           allMembers.push(...res.rows);
         }
 
@@ -188,10 +179,7 @@ export async function PATCH(req) {
 
     // Support update_handler action (reassign the team's facilitator/oversight)
     if (action === "update_handler" && team_id) {
-      await db.execute({
-        sql: "UPDATE v2_teams SET handler_id = ?, handler_name = ? WHERE id = ?",
-        args: [handler_id || null, handler_name || null, team_id],
-      });
+      await updateTeamHandler(team_id, handler_id, handler_name);
       return NextResponse.json({ success: true });
     }
 
@@ -199,25 +187,16 @@ export async function PATCH(req) {
     if (action === "remove_member" && team_id && member_id) {
       const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (UUID_RE.test(String(member_id))) {
-        await db.execute({
-          sql: "UPDATE v2_participants SET v2_team_id = NULL WHERE id = ? AND v2_team_id = ?",
-          args: [String(member_id), team_id],
-        });
+        await removeParticipantFromTeam(member_id, team_id);
       } else {
-        await db.execute({
-          sql: "UPDATE contacts SET v2_team_id = NULL WHERE cid = ? AND v2_team_id = ?",
-          args: [String(member_id), team_id],
-        });
+        await removeContactFromTeam(member_id, team_id);
       }
       return NextResponse.json({ success: true });
     }
 
     // Support set_venture_ready action (used by venture approval workflow)
     if (action === "set_venture_ready" && team_id) {
-      await db.execute({
-        sql: "UPDATE v2_teams SET is_venture_ready = ? WHERE id::text = ?",
-        args: [is_venture_ready ? 1 : 0, team_id],
-      });
+      await setTeamVentureReady(team_id, is_venture_ready);
       return NextResponse.json({ success: true });
     }
 
@@ -229,10 +208,7 @@ export async function PATCH(req) {
     }
 
     // Fetch team details for email notification
-    const teamRes = await db.execute({
-      sql: "SELECT * FROM v2_teams WHERE id = ?",
-      args: [team_id],
-    });
+    const teamRes = await getTeamById(team_id);
     const team = teamRes.rows[0];
     if (!team)
       return NextResponse.json(
@@ -246,35 +222,21 @@ export async function PATCH(req) {
     const contactIds = member_ids.filter((id) => id && !UUID_RE.test(id.toString()));
 
     if (uuidIds.length > 0) {
-      const placeholders = uuidIds.map(() => "?").join(",");
-      await db.execute({
-        sql: `UPDATE v2_participants SET v2_team_id = ? WHERE id IN (${placeholders})`,
-        args: [team.id, ...uuidIds],
-      });
+      await linkParticipantsToTeam(team.id, uuidIds);
     }
 
     if (contactIds.length > 0) {
-      const placeholders = contactIds.map(() => "?").join(",");
-      await db.execute({
-        sql: `UPDATE contacts SET v2_team_id = ? WHERE cid IN (${placeholders})`,
-        args: [team.id, ...contactIds],
-      });
+      await linkContactsToTeam(team.id, contactIds);
     }
 
     // Send Emails (Copied Logic from POST)
     const allMembers = [];
     if (uuidIds.length > 0) {
-      const res = await db.execute({
-        sql: `SELECT email, name FROM v2_participants WHERE id IN (${uuidIds.map(() => "?").join(",")})`,
-        args: [...uuidIds],
-      });
+      const res = await getTeamParticipantMembers(uuidIds);
       allMembers.push(...res.rows);
     }
     if (contactIds.length > 0) {
-      const res = await db.execute({
-        sql: `SELECT email, name FROM contacts WHERE cid IN (${contactIds.map(() => "?").join(",")})`,
-        args: [...contactIds],
-      });
+      const res = await getTeamContactMembers(contactIds);
       allMembers.push(...res.rows);
     }
 
@@ -318,10 +280,7 @@ export async function DELETE(req) {
     const capError = await requireAuthorization("programs", "edit");
     if (capError) return capError;
     const { id } = await req.json();
-    await db.execute({
-      sql: "DELETE FROM v2_teams WHERE id = ?",
-      args: [id],
-    });
+    await deleteTeam(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ success: false }, { status: 500 });

@@ -5,11 +5,11 @@ import {
   Clock, TrendingUp, DollarSign, Target, XCircle, Download,
   FileText, Loader2, Building2, ArrowLeft, CheckCircle2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const DECISION_COLORS = {
   invest: "bg-emerald-500/10 text-emerald-400",
@@ -40,15 +40,31 @@ export default function InvestmentHistoryPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/decisions");
+      const url = "/api/investor/decisions";
+      const apply = (data) => {
+        if (data.success) {
+          setDecisions(data.decisions || []);
+          setHistory(data.history || []);
+          setStats(data.stats || {});
+        }
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot while the report refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setDecisions(data.decisions || []);
-        setHistory(data.history || []);
-        setStats(data.stats || {});
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setLoading(false);
@@ -84,11 +100,11 @@ export default function InvestmentHistoryPage() {
   };
 
   if (loading) {
-    return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -192,6 +208,6 @@ export default function InvestmentHistoryPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

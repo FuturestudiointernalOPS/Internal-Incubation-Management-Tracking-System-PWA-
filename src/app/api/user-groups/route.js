@@ -2,6 +2,12 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  isGroupProtected,
+  normalizeGroupName,
+  getMembership,
+  applyMembershipAction,
+} from "@/lib/authorization/membership";
 
 /**
  * GET /api/user-groups?user_cid=X
@@ -84,12 +90,44 @@ export async function POST(req) {
       );
     }
 
+    // Protected groups (FUTURE STUDIO) require the dedicated organizational
+    // membership authority — assign_capabilities alone must never grant the
+    // ability to manage the internal organization.
+    if (await isGroupProtected(group_name)) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
+    }
+
+    const normalized = normalizeGroupName(group_name);
     await db.execute({
       sql: `INSERT INTO user_groups (user_cid, group_name, assigned_by)
             VALUES (?, ?, 'admin')
             ON CONFLICT (user_cid, group_name) DO NOTHING`,
-      args: [user_cid, group_name.toUpperCase()],
+      args: [user_cid, normalized],
     });
+    // Keep the membership layer in sync so the new edge is effective
+    // immediately (active, no expiry) and has history.
+    const existing = await getMembership(user_cid, normalized);
+    if (!existing) {
+      const { row, event } = applyMembershipAction(
+        { user_cid, group_name: normalized, started_at: null, expires_at: null, status: null },
+        "joined",
+        { actor: "admin" },
+      );
+      const session = await getSession();
+      await db.execute({
+        sql: `INSERT INTO group_memberships
+                (user_cid, group_name, started_at, expires_at, status, created_by)
+              VALUES (?, ?, ?, ?, ?, ?)`,
+        args: [user_cid, normalized, row.started_at, row.expires_at, row.status, session?.cid || "admin"],
+      });
+      await db.execute({
+        sql: `INSERT INTO group_membership_events
+                (user_cid, group_name, action, actor_cid, note)
+              VALUES (?, ?, ?, ?, ?)`,
+        args: [user_cid, normalized, event.action, event.actor_cid, "legacy group API"],
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -126,10 +164,36 @@ export async function DELETE(req) {
       );
     }
 
+    // Protected groups (FUTURE STUDIO) require the dedicated organizational
+    // membership authority — same rule as POST.
+    if (await isGroupProtected(group_name)) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
+    }
+
+    const normalized = normalizeGroupName(group_name);
     await db.execute({
       sql: "DELETE FROM user_groups WHERE user_cid = ? AND group_name = ?",
-      args: [user_cid, group_name.toUpperCase()],
+      args: [user_cid, normalized],
     });
+    // End (never delete) the membership record — the person, account, CRM
+    // record and history stay; only active authorization stops.
+    const existing = await getMembership(user_cid, normalized);
+    if (existing) {
+      const session = await getSession();
+      await db.execute({
+        sql: `UPDATE group_memberships
+              SET status = 'ended', updated_by = ?, updated_at = NOW()
+              WHERE user_cid = ? AND group_name = ?`,
+        args: [session?.cid || "admin", user_cid, normalized],
+      });
+      await db.execute({
+        sql: `INSERT INTO group_membership_events
+                (user_cid, group_name, action, actor_cid, note)
+              VALUES (?, ?, 'ended', ?, 'legacy group API')`,
+        args: [user_cid, normalized, session?.cid || "admin"],
+      });
+    }
 
     return NextResponse.json({
       success: true,

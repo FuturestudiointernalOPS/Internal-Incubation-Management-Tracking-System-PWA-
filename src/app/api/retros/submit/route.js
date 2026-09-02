@@ -1,9 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuthorization } from "@/lib/authorization";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
+import {
+  findRetroReportId,
+  updateRetroReport,
+  createRetroReport,
+  reconcileTaskStatus,
+} from "@/models/retros";
 
 /**
  * POST /api/retros/submit
@@ -72,17 +78,13 @@ export async function POST(req) {
     }
 
     // Upsert retro report
-    let existingSql =
-      "SELECT id FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'retro'";
-    const existingArgs = [user_id, week_number, year];
-    if (context_id) {
-      existingSql += " AND context_id = ?";
-      existingArgs.push(context_id);
-    } else {
-      existingSql += " AND context_type = ?";
-      existingArgs.push(context_type || "staff");
-    }
-    const existing = await db.execute({ sql: existingSql, args: existingArgs });
+    const existing = await findRetroReportId(
+      user_id,
+      week_number,
+      year,
+      context_id,
+      context_type,
+    );
 
     let reportId;
     const reportData = {
@@ -101,64 +103,22 @@ export async function POST(req) {
 
     if (existing.rows.length > 0) {
       reportId = existing.rows[0].id;
-      await db.execute({
-        sql: `UPDATE v2_op_reports SET
-          completed_work = ?, unfinished_tasks = ?, challenges = ?, wins = ?,
-          carryover_items = ?, week_status = ?, retro_notes = ?,
-          had_blockers = ?, blocker_type = ?, blocker_desc = ?, major_achievement = ?,
-          context_type = ?, context_id = ?,
-          status = 'submitted', updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?`,
-        args: [
-          reportData.completed_work,
-          reportData.unfinished_tasks,
-          reportData.challenges,
-          reportData.wins,
-          reportData.carryover_items,
-          reportData.week_status,
-          reportData.retro_notes,
-          reportData.had_blockers,
-          reportData.blocker_type,
-          reportData.blocker_desc,
-          reportData.major_achievement,
-          context_type || "staff",
-          context_id || null,
-          reportId,
-        ],
+      await updateRetroReport({
+        reportData,
+        context_type,
+        context_id,
+        reportId,
       });
     } else {
-      const result = await db.execute({
-        sql: `INSERT INTO v2_op_reports
-          (user_id, user_name, user_role, report_type, week_number, year, status,
-           completed_work, unfinished_tasks, challenges, wins,
-           carryover_items, week_status, retro_notes,
-           had_blockers, blocker_type, blocker_desc, major_achievement,
-           context_type, context_id)
-          VALUES (?, ?, ?, 'retro', ?, ?, 'submitted',
-           ?, ?, ?, ?,
-           ?, ?, ?,
-           ?, ?, ?, ?,
-           ?, ?) RETURNING id`,
-        args: [
-          user_id,
-          user_name || "",
-          user_role || "staff",
-          week_number,
-          year,
-          reportData.completed_work,
-          reportData.unfinished_tasks,
-          reportData.challenges,
-          reportData.wins,
-          reportData.carryover_items,
-          reportData.week_status,
-          reportData.retro_notes,
-          reportData.had_blockers,
-          reportData.blocker_type,
-          reportData.blocker_desc,
-          reportData.major_achievement,
-          context_type || "staff",
-          context_id || null,
-        ],
+      const result = await createRetroReport({
+        reportData,
+        user_id,
+        user_name,
+        user_role,
+        week_number,
+        year,
+        context_type,
+        context_id,
       });
       reportId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
     }
@@ -173,17 +133,7 @@ export async function POST(req) {
           continue;
 
         try {
-          const updateFields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"];
-          const updateArgs = [status, parseInt(task_id)];
-
-          if (status === "completed") {
-            updateFields.push("completed_at = CURRENT_TIMESTAMP");
-          }
-
-          await db.execute({
-            sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
-            args: updateArgs,
-          });
+          await reconcileTaskStatus(status, task_id);
 
           // Completing a cloned task must also complete its carried-over ancestors
           if (status === "completed") {

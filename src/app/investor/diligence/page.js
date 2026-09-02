@@ -8,12 +8,12 @@ import {
   Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle, Save, Upload,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const REQUEST_CATEGORIES = [
   { id: "corporate", label: "Corporate", color: "bg-blue-500/10 text-blue-400" },
@@ -57,24 +57,47 @@ function DueDiligenceContent() {
     if (pipelineId) fetchData();
   }, [pipelineId]);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/investor/diligence?pipeline_id=${pipelineId}`);
+      const url = `/api/investor/diligence?pipeline_id=${pipelineId}`;
+      const evalUrl = `/api/investor/evaluation?pipeline_id=${pipelineId}`;
+      const apply = (data, evalData) => {
+        if (data?.success) {
+          setWorkspace(data.workspace);
+          setRequests(data.requests || []);
+          setNotes(data.notes || []);
+          setPipeline(data.pipeline);
+        }
+        if (evalData?.success) {
+          setFounders(evalData.founder_evaluations || []);
+          setRisks(evalData.risk_assessments || []);
+        }
+      };
+      // Cache-first paint: returning to this workspace renders instantly when
+      // both snapshots are fresh; mutation flows pass bypassCache=true so the
+      // workspace always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        const cachedEval = cacheGet(evalUrl);
+        if (cached !== null && cached.success && cachedEval !== null && cachedEval.success) {
+          apply(cached, cachedEval);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setWorkspace(data.workspace);
-        setRequests(data.requests || []);
-        setNotes(data.notes || []);
-        setPipeline(data.pipeline);
+        cacheSet(url, data);
+        apply(data, null);
       }
       // Also fetch evaluations
       try {
-        const evalRes = await fetch(`/api/investor/evaluation?pipeline_id=${pipelineId}`);
+        const evalRes = await fetch(evalUrl);
         const evalData = await evalRes.json();
         if (evalData.success) {
-          setFounders(evalData.founder_evaluations || []);
-          setRisks(evalData.risk_assessments || []);
+          cacheSet(evalUrl, evalData);
+          apply(null, evalData);
         }
       } catch (_) {}
     } catch (_) {}
@@ -91,7 +114,7 @@ function DueDiligenceContent() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: "Due Diligence workspace created" });
-        fetchData();
+        fetchData(true);
       }
     } catch (_) {}
   };
@@ -109,7 +132,7 @@ function DueDiligenceContent() {
         setToast({ type: "success", message: "Request submitted" });
         setNewReq({ title: "", description: "", category: "financial", priority: "medium", due_date: "" });
         setShowReqForm(false);
-        fetchData();
+        fetchData(true);
       }
     } catch (_) {}
   };
@@ -121,7 +144,7 @@ function DueDiligenceContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "update_request", request_id: reqId, status }),
       });
-      fetchData();
+      fetchData(true);
     } catch (_) {}
   };
 
@@ -133,7 +156,7 @@ function DueDiligenceContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pipeline_id: pipelineId, action: "add_note", content: newNote, note_type: noteType }),
       });
-      if (res.ok) { setNewNote(""); fetchData(); }
+      if (res.ok) { setNewNote(""); fetchData(true); }
     } catch (_) {}
   };
 
@@ -145,7 +168,7 @@ function DueDiligenceContent() {
         body: JSON.stringify({ pipeline_id: pipelineId, action: "complete" }),
       });
       setToast({ type: "success", message: "Diligence completed" });
-      fetchData();
+      fetchData(true);
     } catch (_) {}
   };
 
@@ -169,7 +192,7 @@ function DueDiligenceContent() {
           setToast({ type: "success", message: `"${file.name}" uploaded` });
           setUploadReqId(null);
           fetchDdDocs(requestId);
-          fetchData();
+          fetchData(true);
         }
       } catch (_) {}
     };
@@ -209,7 +232,7 @@ function DueDiligenceContent() {
         setToast({ type: "success", message: "Follow-up question submitted" });
         setFollowupQuestion("");
         setFollowupReqId(null);
-        fetchData();
+        fetchData(true);
       }
     } catch (_) {}
   };
@@ -224,7 +247,7 @@ function DueDiligenceContent() {
       setToast({ type: "success", message: "Founder evaluation saved" });
       setShowFounderForm(false);
       setFounderForm({ founder_name:"", role:"", experience_score:0, leadership_score:0, domain_expertise_score:0, overall_rating:0, notes:"" });
-      fetchData();
+      fetchData(true);
     } catch (_) {}
   };
 
@@ -238,7 +261,7 @@ function DueDiligenceContent() {
       setToast({ type: "success", message: "Risk assessment saved" });
       setShowRiskForm(false);
       setRiskForm({ risk_category:"market", risk_description:"", severity:"medium", mitigation:"", status:"open" });
-      fetchData();
+      fetchData(true);
     } catch (_) {}
   };
 
@@ -246,11 +269,11 @@ function DueDiligenceContent() {
   const progress = requests.length > 0 ? Math.round((completedReqs / requests.length) * 100) : 0;
 
   if (loading) {
-    return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -613,7 +636,7 @@ function DueDiligenceContent() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

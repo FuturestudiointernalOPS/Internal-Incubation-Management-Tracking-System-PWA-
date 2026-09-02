@@ -1,6 +1,6 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, getSession, isAssignedPmForProgram } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail, sendLoginEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -71,12 +71,24 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureTokenHashColumns();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
     if (authError) return authError;
 
     const session = await getSession();
     const body = await req.json();
     const { program_id, program_name, emails, preview } = body;
+
+    // Staff may only bulk-invite facilitators for programs they are the
+    // assigned PM of (PM is a function layered on Staff).
+    if (session?.role === "staff") {
+      const isPm = await isAssignedPmForProgram(program_id, session.cid);
+      if (!isPm) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
 
     if (!program_id || !Array.isArray(emails) || emails.length === 0) {
       return NextResponse.json(

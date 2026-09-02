@@ -8,8 +8,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function SuperAdminStandardization() {
   const router = useRouter();
@@ -26,11 +26,31 @@ export default function SuperAdminStandardization() {
     fetchTypes();
   }, []);
 
-  const fetchTypes = async () => {
-    const res = await fetch('/api/superadmin/standard-types');
-    const data = await res.json();
-    if (data.success) setTypes(data.types);
-    setIsLoaded(true);
+  const fetchTypes = async (bypassCache = false) => {
+    const url = '/api/superadmin/standard-types';
+    const apply = (data) => {
+      if (data.success) setTypes(data.types);
+      setIsLoaded(true);
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; save/delete flows pass bypassCache=true so the registry always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
+    } catch (e) {
+      if (!painted) console.error(e);
+    }
   };
 
    const handleSaveType = async (payload) => {
@@ -47,7 +67,7 @@ export default function SuperAdminStandardization() {
       if (data.success) {
         setNewType({ category: activeTab, label: '' });
         setEditingItem(null);
-        fetchTypes();
+        fetchTypes(true);
       } else {
         setError(t(data.error || "") || data.error);
       }
@@ -66,7 +86,7 @@ export default function SuperAdminStandardization() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchTypes();
+        fetchTypes(true);
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t(data.error || "") || data.error } }));
       }
@@ -75,10 +95,8 @@ export default function SuperAdminStandardization() {
   };
 
   return (
-    <DashboardLayout 
-      role="super_admin"
-      modals={
-        <AnimatePresence>
+    <>
+      <AnimatePresence>
            {editingItem && (
               <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="ios-card w-full max-w-md !p-10 space-y-8 border-[#FF6600]/20">
@@ -117,8 +135,6 @@ export default function SuperAdminStandardization() {
               </div>
            )}
         </AnimatePresence>
-      }
-    >
       <div className="space-y-12">
         <header className="space-y-8 text-left">
            <div className="flex justify-between items-start">
@@ -249,6 +265,6 @@ export default function SuperAdminStandardization() {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

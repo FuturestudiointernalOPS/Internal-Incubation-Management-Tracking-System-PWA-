@@ -2,13 +2,12 @@
 
 import React from "react";
 import { TrendingUp } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function IntelligencePage() {
   const { t } = useI18n();
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="p-6 flex items-center justify-center min-h-[70vh]">
         <div className="text-center max-w-md">
           <div className="w-16 h-16 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center mx-auto mb-6">
@@ -28,6 +27,6 @@ export default function IntelligencePage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

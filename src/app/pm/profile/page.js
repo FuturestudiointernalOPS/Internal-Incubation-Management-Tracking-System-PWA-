@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import ProfileView from "@/components/dashboard/ProfileView";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 /**
  * PM PROFILE — Unified Profile Page
@@ -20,10 +19,10 @@ export default function PMProfilePage() {
   }, []);
 
   return (
-    <DashboardLayout role={role} activeTab="profile">
+    <>
       <div className="p-6 max-w-5xl mx-auto">
         <ProfileView />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

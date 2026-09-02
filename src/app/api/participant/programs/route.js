@@ -1,4 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
+import {
+  getParticipantAttendanceCount,
+  getParticipantContactProfile,
+  getParticipantProgramAttendance,
+  getParticipantProgramById,
+  getParticipantProgramDeliverables,
+  getParticipantProgramKpis,
+  getParticipantProgramPmName,
+  getParticipantProgramSessions,
+  getParticipantProgramStaff,
+  getParticipantProgramSubmissions,
+} from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
@@ -27,10 +39,7 @@ export async function GET(req) {
       Expires: "0",
     };
 
-    const userRes = await db.execute({
-      sql: "SELECT cid, name, email, program_id, program_name, group_name FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const userRes = await getParticipantContactProfile(cid);
     if (userRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
@@ -47,37 +56,13 @@ export async function GET(req) {
     for (const pid of Array.from(programIds)) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes, staffRes] =
         await Promise.all([
-          db.execute({
-            sql: "SELECT * FROM v2_programs WHERE id::text = ?",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
-            args: [pid],
-          }),
-          db.execute({
-            sql: `SELECT s.* FROM v2_submissions s
-                  WHERE s.participant_id = ? AND s.program_id::text = ?`,
-            args: [cid, pid],
-          }),
-          db.execute({
-            sql: `SELECT a.* FROM v2_attendance a
-                  JOIN v2_sessions s ON a.session_id::text = s.id::text
-                  WHERE a.participant_id = ? AND s.program_id::text = ?`,
-            args: [cid, pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT ps.*, c.name AS staff_name, c.role AS staff_role FROM v2_program_staff ps LEFT JOIN contacts c ON ps.staff_id::text = c.cid WHERE ps.program_id::text = ?",
-            args: [pid],
-          }),
+          getParticipantProgramById(pid),
+          getParticipantProgramSessions(pid),
+          getParticipantProgramDeliverables(pid),
+          getParticipantProgramSubmissions(cid, pid),
+          getParticipantProgramAttendance(cid, pid),
+          getParticipantProgramKpis(pid),
+          getParticipantProgramStaff(pid),
         ]);
 
       const program = progRes.rows[0];
@@ -158,10 +143,7 @@ export async function GET(req) {
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalExpectedDays = unlockedSessions.length || 1;
       // A program "tracks" attendance only when attendance records actually exist.
-      const attMetaRes = await db.execute({
-        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
-        args: [program.id],
-      });
+      const attMetaRes = await getParticipantAttendanceCount(program.id);
       const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalExpectedDays) * 100,
@@ -232,10 +214,7 @@ export async function GET(req) {
       }));
       let pmName = null;
       if (program.assigned_pm_id) {
-        const pmRes = await db.execute({
-          sql: "SELECT name FROM contacts WHERE cid = ?",
-          args: [program.assigned_pm_id],
-        });
+        const pmRes = await getParticipantProgramPmName(program.assigned_pm_id);
         if (pmRes.rows.length > 0) pmName = pmRes.rows[0].name;
       }
 

@@ -1,7 +1,21 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession, requireProjectAccess } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createProject,
+  upsertProjectLeadMember,
+  createProjectAssignmentNotification,
+  getProjectsList,
+  getProjectMembersForProjects,
+  getTaskSummaryByProjectIds,
+  getProjectMetaById,
+  updateProject,
+  deleteProjectLeads,
+  upsertProjectLeadMemberOnUpdate,
+  deleteProjectMembersByProjectId,
+  deleteProjectById,
+} from "@/models/projects";
 
 /**
  * PROJECTS API
@@ -62,44 +76,33 @@ export async function POST(req) {
       assigned_pm_ids: leadsToAssign,
     });
 
-    const result = await db.execute({
-      sql: "INSERT INTO v2_projects (program_id, name, status, start_date, end_date, priority, meta, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-      args: [
-        program_id || null,
-        name,
-        status || "Active",
-        start_date || null,
-        end_date || null,
-        ["critical", "high", "medium", "low"].includes(priority)
-          ? priority
-          : "medium",
-        meta,
-        primaryOwnerId,
-      ],
-    });
+    const result = await createProject(
+      program_id,
+      name,
+      status,
+      start_date,
+      end_date,
+      priority,
+      meta,
+      primaryOwnerId,
+    );
 
     const projectId = result.rows[0]?.id || result.lastInsertRowid;
 
     // If PM leads were assigned, add them as project members with lead role
     for (const leadId of leadsToAssign) {
-      await db.execute({
-        sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-        args: [String(projectId), leadId],
-      });
+      await upsertProjectLeadMember(projectId, leadId);
     }
 
     // Notify assigned PM leads
     for (const leadId of leadsToAssign) {
       try {
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-          args: [
-            leadId,
-            "New Project Assignment",
-            `You have been assigned as lead for project "${name}".`,
-            "project_assignment",
-          ],
-        });
+        await createProjectAssignmentNotification(
+          leadId,
+          "New Project Assignment",
+          `You have been assigned as lead for project "${name}".`,
+          "project_assignment",
+        );
       } catch (notifErr) {
         console.error("Project assignment notification failed:", notifErr.message);
       }
@@ -146,50 +149,17 @@ export async function GET(req) {
       filterCid = filterCid || session.cid;
     }
 
-    let query = `
-      SELECT p.*, pr.name as program_name
-      FROM v2_projects p
-      LEFT JOIN v2_programs pr ON p.program_id::text = pr.id::text
-    `;
-    const conditions = [];
-    const args = [];
-
-    // Filter by program
-    if (program_id) {
-      conditions.push("p.program_id = ?");
-      args.push(program_id);
-    }
-
-    // Filter by user membership (project_members OR owner_id)
-    if (filterCid) {
-      conditions.push(
-        "(EXISTS (SELECT 1 FROM project_members WHERE project_id::text = p.id::text AND user_cid = ?) OR p.owner_id = ?)",
-      );
-      args.push(filterCid, filterCid);
-    }
-
-    // Exclude archived unless explicitly requested
-    if (include_archived !== "true") {
-      conditions.push("p.status != 'Archived'");
-    }
-
-    if (conditions.length > 0) {
-      query += " WHERE " + conditions.join(" AND ");
-    }
-
-    query += " ORDER BY p.created_at DESC";
-
-    const result = await db.execute({ sql: query, args });
+    const result = await getProjectsList(
+      program_id,
+      filterCid,
+      include_archived,
+    );
 
     // Get all members in a single query instead of N+1
     const projectIds = result.rows.map((r) => r.id);
     let allMembers = [];
     if (projectIds.length > 0) {
-      const placeholders = projectIds.map(() => "?").join(",");
-      const memberRes = await db.execute({
-        sql: `SELECT project_id, user_cid, role FROM project_members WHERE project_id::text IN (${placeholders})`,
-        args: projectIds,
-      });
+      const memberRes = await getProjectMembersForProjects(projectIds);
       allMembers = memberRes.rows || [];
     }
 
@@ -201,30 +171,30 @@ export async function GET(req) {
       memberMap[pid].push({ user_cid: m.user_cid, role: m.role });
     }
 
-    // For each project, aggregate task stats
-    const projectsWithStats = await Promise.all(
-      result.rows.map(async (row) => {
-        const meta =
-          (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
-          {};
-        const taskStats = await db.execute({
-          sql: `SELECT
-            COUNT(*) AS total,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-            FROM tasks WHERE project_id::text = ?`,
-          args: [String(row.id)],
-        });
-        return {
-          ...row,
-          meta,
-          members: memberMap[String(row.id)] || [],
-          task_summary: {
-            total: taskStats.rows[0]?.total || 0,
-            completed: taskStats.rows[0]?.completed || 0,
-          },
-        };
-      }),
-    );
+    // Batch per-project task stats into ONE grouped query instead of one
+    // COUNT per project. Produces identical { total, completed } per project.
+    const taskMap = {};
+    if (projectIds.length > 0) {
+      const taskRes = await getTaskSummaryByProjectIds(projectIds);
+      for (const r of taskRes.rows || []) taskMap[r.pid] = r;
+    }
+
+    const projectsWithStats = result.rows.map((row) => {
+      const meta =
+        (typeof row.meta === "string" ? JSON.parse(row.meta) : row.meta) ||
+        {};
+      const pidKey = String(row.id);
+      const ts = taskMap[pidKey] || {};
+      return {
+        ...row,
+        meta,
+        members: memberMap[pidKey] || [],
+        task_summary: {
+          total: ts.total || 0,
+          completed: ts.completed || 0,
+        },
+      };
+    });
 
     return NextResponse.json({ success: true, projects: projectsWithStats });
   } catch (error) {
@@ -312,10 +282,7 @@ export async function PUT(req) {
       assigned_pm_ids !== undefined
     ) {
       // Fetch current meta
-      const current = await db.execute({
-        sql: "SELECT meta FROM v2_projects WHERE id::text = ?",
-        args: [id],
-      });
+      const current = await getProjectMetaById(id);
 
       const rawMeta = current.rows[0]?.meta;
       const currentMeta =
@@ -358,10 +325,7 @@ export async function PUT(req) {
 
     updateArgs.push(id);
 
-    await db.execute({
-      sql: `UPDATE v2_projects SET ${updateFields.join(", ")} WHERE id::text = ?`,
-      args: updateArgs,
-    });
+    await updateProject(updateFields, updateArgs);
 
     // Update project leads in members table if provided
     if (assigned_pm_ids !== undefined || assigned_pm_id !== undefined) {
@@ -372,17 +336,11 @@ export async function PUT(req) {
             ? [assigned_pm_id]
             : [];
       // Remove existing lead(s)
-      await db.execute({
-        sql: "DELETE FROM project_members WHERE project_id::text = ? AND role = 'lead'",
-        args: [String(id)],
-      });
+      await deleteProjectLeads(id);
 
       // Assign new leads if provided
       for (const leadId of leadsToAssign) {
-        await db.execute({
-          sql: "INSERT INTO project_members (project_id, user_cid, role) VALUES (?, ?, 'lead') ON CONFLICT (project_id, user_cid) DO UPDATE SET role = 'lead'",
-          args: [String(id), leadId],
-        });
+        await upsertProjectLeadMemberOnUpdate(id, leadId);
       }
     }
 
@@ -412,16 +370,10 @@ export async function DELETE(req) {
     }
 
     // Remove project members first
-    await db.execute({
-      sql: "DELETE FROM project_members WHERE project_id::text = ?",
-      args: [id],
-    });
+    await deleteProjectMembersByProjectId(id);
 
     // Then delete the project
-    await db.execute({
-      sql: "DELETE FROM v2_projects WHERE id::text = ?",
-      args: [id],
-    });
+    await deleteProjectById(id);
 
     return NextResponse.json({ success: true, action: "deleted" });
   } catch (error) {

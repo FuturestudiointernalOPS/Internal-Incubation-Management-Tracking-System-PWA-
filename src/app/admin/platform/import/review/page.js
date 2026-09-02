@@ -12,9 +12,9 @@ import {
   ArrowLeft,
   RefreshCw,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * IMPORT IDENTITY REVIEW
@@ -37,12 +37,27 @@ function ImportReviewContent() {
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const fetchFlags = useCallback(async () => {
+  const fetchFlags = useCallback(async (bypassCache = false) => {
+    const url = `/api/platform/import/review-flags?status=${filter}`;
+    const apply = (data) => {
+      if (data.success) setFlags(data.flags || []);
+    };
     setLoading(true);
     try {
-      const res = await fetch(`/api/platform/import/review-flags?status=${filter}`);
+      // Cache-first paint: switching filters / returning to this page renders
+      // instantly from a fresh snapshot; resolving a flag passes
+      // bypassCache=true so the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setFlags(data.flags || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (_) {}
     setLoading(false);
   }, [filter]);
@@ -60,14 +75,14 @@ function ImportReviewContent() {
       const data = await res.json();
       if (data.success) {
         notify(status === "resolved" ? t("adminMisc.platformImportReview.flagResolved") : t("adminMisc.platformImportReview.flagReopened"));
-        fetchFlags();
+        fetchFlags(true);
       }
     } catch (_) {}
     setResolving(null);
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-5xl mx-auto space-y-6 pb-20">
         {notification && (
           <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase animate-in">
@@ -219,7 +234,7 @@ function ImportReviewContent() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -1,9 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth, getSession } from "@/lib/auth";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
+import {
+  getTaskAccessForReconcile,
+  updateTaskReconciledStatus,
+} from "@/models/taskLifecycle";
 
 /**
  * POST /api/tasks/reconcile
@@ -74,10 +78,7 @@ export async function POST(req) {
 
       // Non-staff-side users may only reconcile their own tasks
       if (!staffSide.includes(session.role)) {
-        const taskRes = await db.execute({
-          sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-          args: [parseInt(id)],
-        });
+        const taskRes = await getTaskAccessForReconcile(id);
         const t = taskRes.rows[0];
         if (
           !t ||
@@ -98,17 +99,7 @@ export async function POST(req) {
         const taskTitle = (await getTaskTitleById(id)) || `Task #${id}`;
 
         // Update via the existing PUT logic by calling through DB directly
-        const updateFields = ["status = ?", "updated_at = CURRENT_TIMESTAMP"];
-        const updateArgs = [status, parseInt(id)];
-
-        if (status === "completed") {
-          updateFields.push("completed_at = CURRENT_TIMESTAMP");
-        }
-
-        await db.execute({
-          sql: `UPDATE tasks SET ${updateFields.join(", ")} WHERE id = ?`,
-          args: updateArgs,
-        });
+        await updateTaskReconciledStatus(status, id);
 
         // Completing a cloned task must also complete its carried-over ancestors
         if (status === "completed") {

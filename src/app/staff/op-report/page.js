@@ -26,11 +26,11 @@ import {
   CornerDownRight,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { formatLocaleDate } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * STAFF OPERATIONAL REPORT PAGE
@@ -366,21 +366,32 @@ function StaffOpReport() {
 
   const fetchSummaryData = useCallback(async () => {
     if (!user?.cid) return;
+    const urls = [
+      `/api/tasks?user_id=${user.cid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`,
+      `/api/blockers?user_id=${user.cid}`,
+      `/api/projects/assignments?user_cid=${user.cid}`,
+    ];
+    const apply = (tData, bData, pData) => {
+      if (tData?.success) setSummaryTasks(tData.tasks || []);
+      if (bData?.success) setSummaryBlockers(bData.blockers || []);
+      if (pData?.success) setSummaryProjects(pData.projects || []);
+    };
     setSummaryLoading(true);
     try {
-      const [tRes, bRes, pRes] = await Promise.all([
-        fetch(
-          `/api/tasks?user_id=${user.cid}&week=${weekInfo.week}&year=${weekInfo.year}&sort=oldest`,
-        ),
-        fetch(`/api/blockers?user_id=${user.cid}`),
-        fetch(`/api/projects/assignments?user_cid=${user.cid}`),
-      ]);
-      const tData = await tRes.json();
-      const bData = await bRes.json();
-      const pData = await pRes.json();
-      if (tData.success) setSummaryTasks(tData.tasks || []);
-      if (bData.success) setSummaryBlockers(bData.blockers || []);
-      if (pData.success) setSummaryProjects(pData.projects || []);
+      // Cache-first paint: switching back to the summary tab renders from a
+      // fresh snapshot, then the network refresh below converges.
+      const cached = urls.map((u) => cacheGet(u));
+      if (cached.every((c) => c !== null)) {
+        apply(cached[0], cached[1], cached[2]);
+        setSummaryLoading(false);
+      }
+      const responses = await Promise.all(
+        urls.map((u) => fetch(u).then((r) => r.json())),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2]);
     } catch (e) {
       console.error("Summary fetch error:", e);
     } finally {
@@ -399,96 +410,109 @@ function StaffOpReport() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchReport = useCallback(async () => {
+  const fetchReport = useCallback(async (bypassCache = false) => {
     if (!user) return;
+    const url = `/api/op-reports?user_id=${user.cid || user.id}&type=${reportType}&week=${weekInfo.week}&year=${weekInfo.year}`;
+
+    const applyReport = (data) => {
+      if (!data.success) return;
+      const report = data.reports[0] || null;
+      setExistingReport(report);
+      if (report) {
+        // Parse JSON arrays safely
+        try {
+          report.top_priorities =
+            typeof report.top_priorities === "string"
+              ? JSON.parse(report.top_priorities)
+              : report.top_priorities || [];
+        } catch {
+          report.top_priorities = [];
+        }
+        try {
+          report.expected_deliverables =
+            typeof report.expected_deliverables === "string"
+              ? JSON.parse(report.expected_deliverables)
+              : report.expected_deliverables || [];
+        } catch {
+          report.expected_deliverables = [];
+        }
+
+        setForm({
+          top_priorities: report.top_priorities || [],
+          expected_deliverables: report.expected_deliverables || [],
+          projects_tasks: report.projects_tasks || "",
+          has_dependencies:
+            report.has_dependencies != null
+              ? Boolean(report.has_dependencies)
+              : null,
+          dependency_note: report.dependency_note || "",
+          has_blockers:
+            report.has_blockers != null ? Boolean(report.has_blockers) : null,
+          blocker_description: report.blocker_description || "",
+          needs_support:
+            report.needs_support != null
+              ? Boolean(report.needs_support)
+              : null,
+          support_note: report.support_note || "",
+          additional_notes: report.additional_notes || "",
+          completed_work: report.completed_work || "",
+          unfinished_tasks: report.unfinished_tasks || "",
+          challenges: report.challenges || "",
+          wins: (() => {
+            try {
+              const p = JSON.parse(report.wins);
+              return Array.isArray(p) ? p : [];
+            } catch {
+              return [];
+            }
+          })(),
+          carryover_items: (() => {
+            try {
+              const p = JSON.parse(report.carryover_items);
+              return Array.isArray(p) ? p : report.carryover_items || "";
+            } catch {
+              return report.carryover_items || "";
+            }
+          })(),
+          retro_notes: report.retro_notes || "",
+        });
+      } else {
+        setForm({
+          top_priorities: [],
+          expected_deliverables: [],
+          projects_tasks: "",
+          has_dependencies: null,
+          dependency_note: "",
+          has_blockers: null,
+          blocker_description: "",
+          needs_support: null,
+          support_note: "",
+          additional_notes: "",
+          completed_work: "",
+          unfinished_tasks: "",
+          challenges: "",
+          wins: [],
+          carryover_items: [],
+          retro_notes: "",
+        });
+      }
+    };
+
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/op-reports?user_id=${user.cid || user.id}&type=${reportType}&week=${weekInfo.week}&year=${weekInfo.year}`,
-      );
-      const data = await res.json();
-      if (data.success) {
-        const report = data.reports[0] || null;
-        setExistingReport(report);
-        if (report) {
-          // Parse JSON arrays safely
-          try {
-            report.top_priorities =
-              typeof report.top_priorities === "string"
-                ? JSON.parse(report.top_priorities)
-                : report.top_priorities || [];
-          } catch {
-            report.top_priorities = [];
-          }
-          try {
-            report.expected_deliverables =
-              typeof report.expected_deliverables === "string"
-                ? JSON.parse(report.expected_deliverables)
-                : report.expected_deliverables || [];
-          } catch {
-            report.expected_deliverables = [];
-          }
-
-          setForm({
-            top_priorities: report.top_priorities || [],
-            expected_deliverables: report.expected_deliverables || [],
-            projects_tasks: report.projects_tasks || "",
-            has_dependencies:
-              report.has_dependencies != null
-                ? Boolean(report.has_dependencies)
-                : null,
-            dependency_note: report.dependency_note || "",
-            has_blockers:
-              report.has_blockers != null ? Boolean(report.has_blockers) : null,
-            blocker_description: report.blocker_description || "",
-            needs_support:
-              report.needs_support != null
-                ? Boolean(report.needs_support)
-                : null,
-            support_note: report.support_note || "",
-            additional_notes: report.additional_notes || "",
-            completed_work: report.completed_work || "",
-            unfinished_tasks: report.unfinished_tasks || "",
-            challenges: report.challenges || "",
-            wins: (() => {
-              try {
-                const p = JSON.parse(report.wins);
-                return Array.isArray(p) ? p : [];
-              } catch {
-                return [];
-              }
-            })(),
-            carryover_items: (() => {
-              try {
-                const p = JSON.parse(report.carryover_items);
-                return Array.isArray(p) ? p : report.carryover_items || "";
-              } catch {
-                return report.carryover_items || "";
-              }
-            })(),
-            retro_notes: report.retro_notes || "",
-          });
-        } else {
-          setForm({
-            top_priorities: [],
-            expected_deliverables: [],
-            projects_tasks: "",
-            has_dependencies: null,
-            dependency_note: "",
-            has_blockers: null,
-            blocker_description: "",
-            needs_support: null,
-            support_note: "",
-            additional_notes: "",
-            completed_work: "",
-            unfinished_tasks: "",
-            challenges: "",
-            wins: [],
-            carryover_items: [],
-            retro_notes: "",
-          });
+      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
+      // form is always refreshed from the just-saved server state.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          applyReport(cached);
+          setLoading(false);
         }
       }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      applyReport(data);
     } catch (e) {
       console.error(e);
     } finally {
@@ -496,46 +520,50 @@ function StaffOpReport() {
     }
   }, [user, reportType, weekInfo]);
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = useCallback(async (bypassCache = false) => {
     if (!user) return;
-    try {
-      const res = await fetch(`/api/op-reports?user_id=${user.cid || user.id}`);
-      const data = await res.json();
+    const url = `/api/op-reports?user_id=${user.cid || user.id}`;
+    const apply = (data) => {
       if (data.success) setHistory(data.reports || []);
+    };
+    if (!bypassCache) {
+      const cached = cacheGet(url);
+      if (cached !== null && cached.success) apply(cached);
+    }
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {}
   }, [user]);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (bypassCache = false) => {
     if (!user) return;
-    setLoadingTasks(true);
-    try {
-      const userId = user.cid || user.id;
-      const statuses = [
-        "pending",
-        "in_progress",
-        "blocked",
-        "carried_over",
-        "completed",
-      ];
-      // Fetch tasks created BY the user
-      const ownResults = await Promise.all(
-        statuses.map((s) =>
-          fetch(`/api/tasks?user_id=${userId}&status=${s}`).then((r) =>
-            r.json(),
-          ),
-        ),
-      );
-      // Fetch tasks assigned TO the user
-      const assignedRes = await fetch(
-        `/api/tasks?assigned_to=${userId}`,
-      );
-      const assignedData = await assignedRes.json();
+    const userId = user.cid || user.id;
+    const statuses = [
+      "pending",
+      "in_progress",
+      "blocked",
+      "carried_over",
+      "completed",
+    ];
+    // Own tasks (per status) first, then tasks assigned TO the user.
+    const urls = [
+      ...statuses.map((s) => `/api/tasks?user_id=${userId}&status=${s}`),
+      `/api/tasks?assigned_to=${userId}`,
+    ];
 
+    const apply = (results) => {
+      const ownResults = results.slice(0, statuses.length);
+      const assignedData = results[statuses.length];
       const ownTasks = ownResults.flatMap((data) => {
         if (!data || typeof data !== "object") return [];
         return Array.isArray(data) ? data : data.tasks || [];
       });
-      const assignedTasks = assignedData.success
+      const assignedTasks = assignedData?.success
         ? assignedData.tasks || []
         : [];
 
@@ -548,6 +576,26 @@ function StaffOpReport() {
       setTasks(Array.from(taskMap.values()));
       // Ticket 1.6: notify dashboard calendar of changes
       if (typeof window !== "undefined") window.__refreshDashboard?.();
+    };
+
+    setLoadingTasks(true);
+    try {
+      // Cache-first paint on reads; mutation flows pass bypassCache=true so the
+      // list always reflects the just-changed server state.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached);
+          setLoadingTasks(false);
+        }
+      }
+      const results = await Promise.all(
+        urls.map((u) => fetch(u).then((r) => r.json())),
+      );
+      urls.forEach((u, i) => {
+        if (results[i]?.success) cacheSet(u, results[i]);
+      });
+      apply(results);
     } catch (e) {
       console.error("Failed to fetch tasks:", e);
     } finally {
@@ -558,26 +606,34 @@ function StaffOpReport() {
   // Fetch grouped projects for dropdown (owned, collab, all_active)
   const fetchAssignedProjects = useCallback(async () => {
     if (!user?.cid && !user?.id) return;
+    const userId = user.cid || user.id;
+    const url = `/api/projects/assignments?user_cid=${userId}`;
+    const apply = (data) => {
+      if (!data.success) return;
+      const owned = data.owned || [];
+      const collab = data.collab || [];
+      const allActive = data.all_active || [];
+      setOwnedProjects(owned);
+      setCollabProjects(collab);
+
+      // Combine all as flat list (deduped) for backward compat
+      const allProjects = [...owned, ...collab, ...allActive];
+      const seen = new Set();
+      const deduped = allProjects.filter((p) => {
+        if (seen.has(String(p.id))) return false;
+        seen.add(String(p.id));
+        return true;
+      });
+      setAssignedProjects(deduped);
+    };
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) apply(cached);
     try {
-      const userId = user.cid || user.id;
-      const res = await fetch(`/api/projects/assignments?user_cid=${userId}`);
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        const owned = data.owned || [];
-        const collab = data.collab || [];
-        const allActive = data.all_active || [];
-        setOwnedProjects(owned);
-        setCollabProjects(collab);
-
-        // Combine all as flat list (deduped) for backward compat
-        const allProjects = [...owned, ...collab, ...allActive];
-        const seen = new Set();
-        const deduped = allProjects.filter((p) => {
-          if (seen.has(String(p.id))) return false;
-          seen.add(String(p.id));
-          return true;
-        });
-        setAssignedProjects(deduped);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch assigned projects:", e);
@@ -586,25 +642,33 @@ function StaffOpReport() {
 
   // Fetch Future Studio staff for collaborator selection
   const fetchAllStaff = useCallback(async () => {
+    const url = "/api/contacts";
+    const apply = (data) => {
+      if (!data.success) return;
+      // Only active staff from FUTURE STUDIO group
+      const staff = (data.contacts || [])
+        .filter(
+          (c) =>
+            c.status === "active" &&
+            c.role !== "super_admin" &&
+            c.group_name?.toUpperCase() === "FUTURE STUDIO",
+        )
+        .map((c) => ({
+          id: c.cid || c.id,
+          name: c.name,
+          email: c.email,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setAllStaff(staff);
+    };
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) apply(cached);
     try {
-      const res = await fetch("/api/contacts");
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        // Only active staff from FUTURE STUDIO group
-        const staff = (data.contacts || [])
-          .filter(
-            (c) =>
-              c.status === "active" &&
-              c.role !== "super_admin" &&
-              c.group_name?.toUpperCase() === "FUTURE STUDIO",
-          )
-          .map((c) => ({
-            id: c.cid || c.id,
-            name: c.name,
-            email: c.email,
-          }))
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setAllStaff(staff);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch staff:", e);
@@ -839,9 +903,9 @@ function StaffOpReport() {
         clearDraft();
         setTaskRows([]);
         setShowTaskForm(false);
-        fetchReport();
-        fetchHistory();
-        fetchTasks();
+        fetchReport(true);
+        fetchHistory(true);
+        fetchTasks(true);
       } else {
         notify(t((data.error || t("reports.failedToSave")) || "") || (data.error || t("reports.failedToSave")), "error");
       }
@@ -1009,7 +1073,7 @@ function StaffOpReport() {
           show_dropdown: false,
         });
         notify(t("staff.opReport.tasksCreated", { count: 1 }));
-        fetchTasks();
+        fetchTasks(true);
       } else {
         notify(
           t((data.error || "Failed to create task") || "") ||
@@ -1149,10 +1213,7 @@ function StaffOpReport() {
   };
 
   return (
-    <DashboardLayout
-      role={user?.role || "staff"}
-      isParticipant={user?.role === "participant"}
-    >
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* Toast */}
         {toast && (
@@ -4023,7 +4084,7 @@ function StaffOpReport() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

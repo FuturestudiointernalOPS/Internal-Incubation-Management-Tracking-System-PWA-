@@ -1,6 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, isSupervisorOf } from "@/lib/auth";
+import {
+  getRetroReportByWeek,
+  getRetroActiveTasks,
+  getBlockersByTaskIds,
+} from "@/models/retros";
 
 /**
  * GET /api/retros/current?user_id=X&week=12&year=2026&context_type=staff&context_id=X
@@ -54,33 +59,23 @@ export async function GET(req) {
 
     let report = null;
     if (w && y) {
-      let sql = "SELECT * FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = 'retro'";
-      const args = [user_id, w, y];
-      if (context_id) {
-        sql += " AND context_id = ?";
-        args.push(context_id);
-      } else {
-        sql += " AND context_type = ?";
-        args.push(context_type);
-      }
-      sql += " LIMIT 1";
-      const reportRes = await db.execute({ sql, args });
+      const reportRes = await getRetroReportByWeek(
+        user_id,
+        w,
+        y,
+        context_id,
+        context_type,
+      );
       if (reportRes.rows.length > 0) report = reportRes.rows[0];
     }
 
-    const taskRes = await db.execute({
-      sql: "SELECT * FROM tasks WHERE (user_id = ? OR assigned_to = ?) AND status IN ('pending', 'in_progress', 'blocked', 'carried_over') ORDER BY created_at DESC",
-      args: [user_id, user_id],
-    });
+    const taskRes = await getRetroActiveTasks(user_id);
 
     // Batch fetch blockers (2 queries instead of N+1)
     const taskIds = taskRes.rows.map((t) => t.id);
     let blockersByTask = {};
     if (taskIds.length > 0) {
-      const blockerRes = await db.execute({
-        sql: `SELECT id, title, status, severity, task_id FROM blockers WHERE task_id IN (${taskIds.map(() => "?").join(",")}) ORDER BY created_at DESC`,
-        args: taskIds,
-      });
+      const blockerRes = await getBlockersByTaskIds(taskIds);
       for (const b of blockerRes.rows || []) {
         if (!blockersByTask[b.task_id]) blockersByTask[b.task_id] = [];
         blockersByTask[b.task_id].push({ id: b.id, title: b.title, status: b.status, severity: b.severity });

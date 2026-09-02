@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, CheckCircle, AlertCircle, Users, ArrowRight } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,35 +34,53 @@ export default function RegisterParticipantPage() {
     }
   }, [groupId]);
 
-  const fetchGroup = async () => {
-    try {
-      const res = await fetch(`/api/public/group-info?id=${groupId}`);
-      const data = await res.json();
-      if (data.group) {
-        setGroup(data.group);
-        setError('');
-        // Vérifier la fenêtre d'inscription
-        if (data.group.registration_window) {
-          const parts = data.group.registration_window.split('|');
-          if (parts.length === 2) {
-            const start = new Date(parts[0]);
-            const end = new Date(parts[1]);
-            end.setHours(23, 59, 59, 999);
-            const now = new Date();
-            if (now < start) {
-              setError(t('rootMisc.registerParticipant.registrationOpens', { date: parts[0] }));
-              setGroup(null);
-            } else if (now > end) {
-              setError(t('rootMisc.registerParticipant.registrationClosed'));
-              setGroup(null);
-            }
+  const fetchGroup = async (bypassCache = false) => {
+    const url = `/api/public/group-info?id=${groupId}`;
+    // This endpoint signals success by the presence of `group` (no `success` flag).
+    const apply = (data) => {
+      if (!data || !data.group) return;
+      setGroup(data.group);
+      setError('');
+      // Vérifier la fenêtre d'inscription
+      if (data.group.registration_window) {
+        const parts = data.group.registration_window.split('|');
+        if (parts.length === 2) {
+          const start = new Date(parts[0]);
+          const end = new Date(parts[1]);
+          end.setHours(23, 59, 59, 999);
+          const now = new Date();
+          if (now < start) {
+            setError(t('rootMisc.registerParticipant.registrationOpens', { date: parts[0] }));
+            setGroup(null);
+          } else if (now > end) {
+            setError(t('rootMisc.registerParticipant.registrationClosed'));
+            setGroup(null);
           }
         }
-      } else {
-        setError(t('rootMisc.registerParticipant.groupNotFound'));
       }
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: revisiting the same group link paints instantly from a
+      // fresh snapshot while the network refresh below re-checks the window.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.group) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.group) {
+        setError(t('rootMisc.registerParticipant.groupNotFound'));
+        return;
+      }
+      cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t('rootMisc.registerParticipant.loadFailed'));
+      if (!painted) setError(t('rootMisc.registerParticipant.loadFailed'));
     } finally {
       setLoading(false);
     }

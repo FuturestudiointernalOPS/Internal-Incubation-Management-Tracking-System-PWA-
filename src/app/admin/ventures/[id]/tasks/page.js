@@ -7,7 +7,7 @@ import {
   Calendar, Clock, User, Paperclip, MessageCircle, Flag, ChevronDown, ChevronRight,
   List, Columns, LayoutGrid, Circle, Square,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
 
@@ -58,21 +58,40 @@ export default function VentureTasksPage() {
     setToast({ msg, type }); setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, tRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/tasks`),
-      ]);
-      const vData = await vRes.json();
-      const tData = await tRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/tasks`];
+    const apply = (vData, tData) => {
       if (vData.success) setVenture(vData.venture);
       if (tData.success) {
         setTasks(tData.tasks || []);
         setByStatus(tData.by_status || {});
       }
-    } catch {} finally { setLoading(false); }
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the board
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [vRes, tRes] = await Promise.all([fetch(urls[0]), fetch(urls[1])]);
+      const vData = await vRes.json();
+      const tData = await tRes.json();
+      if (vData.success) cacheSet(urls[0], vData);
+      if (tData.success) cacheSet(urls[1], tData);
+      apply(vData, tData);
+    } catch (e) {
+      if (!painted) console.error("Failed to fetch tasks data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const openTask = async (task) => {
@@ -91,7 +110,7 @@ export default function VentureTasksPage() {
       await fetch(`/api/ventures/${id}/tasks?id=${taskId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: newStatus }),
       });
-      fetchData();
+      fetchData(true);
     } catch {}
   };
 
@@ -131,7 +150,7 @@ export default function VentureTasksPage() {
       setShowTaskModal(false);
       setEditTask(null);
       setTForm({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
-      fetchData();
+      fetchData(true);
     } catch { notify("Error saving task", "error"); }
     setSaving(false);
   };
@@ -163,16 +182,16 @@ export default function VentureTasksPage() {
   const displayByStatus = search ? filteredByStatus : byStatus;
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === "done").length;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-[60] px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
@@ -480,6 +499,6 @@ export default function VentureTasksPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

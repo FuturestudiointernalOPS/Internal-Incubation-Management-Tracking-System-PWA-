@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import {
   ChevronLeft,
   Users,
@@ -11,10 +11,14 @@ import {
   Loader2,
   LayoutDashboard,
   BookOpen,
+  ExternalLink,
+  MessageSquareText,
+  RotateCcw,
+  XCircle,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -63,34 +67,25 @@ export default function FacilitatorProgram({ params }) {
     return Math.min(Math.max(Math.floor(diffDays / 7) + 1, 1), max);
   };
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const progRes = await fetch(`/api/pm/full-state?id=${id}&t=${Date.now()}`);
-      const progData = await progRes.json();
+  const load = async (bypassCache = false) => {
+    const urls = [
+      `/api/pm/full-state?id=${id}`,
+      `/api/participants?program_id=${id}`,
+      `/api/submissions?program_id=${id}`,
+      `/api/facilitator-reviews?program_id=${id}`,
+      `/api/attendance?program_id=${id}&date=${attendanceDate}`,
+    ];
+    const apply = (progData, parData, subData, revData, attData) => {
       if (progData.success) {
         setProgram(progData.program);
         setSessions(progData.sessions || []);
         setReviewWeek(computeProgramWeek(progData.program));
       }
-
-      const parRes = await fetch(`/api/participants?program_id=${id}`);
-      const parData = await parRes.json();
       if (parData.success) setParticipants(parData.participants || []);
-
-      const subRes = await fetch(
-        `/api/submissions?program_id=${id}`,
-      );
-      const subData = await subRes.json();
       if (subData.success) setSubmissions(subData.submissions || []);
-
-      const revRes = await fetch(`/api/facilitator-reviews?program_id=${id}`);
-      const revData = await revRes.json();
       if (revData.success) setMyReviews(revData.reviews || []);
 
       // Load saved attendance so selections persist across refreshes.
-      const attRes = await fetch(`/api/attendance?program_id=${id}&date=${attendanceDate}`);
-      const attData = await attRes.json();
       if (attData.success) {
         const map = {};
         (attData.attendance || []).forEach((a) => {
@@ -98,8 +93,39 @@ export default function FacilitatorProgram({ params }) {
         });
         setAttendance(map);
       }
+    };
+    let painted = false;
+    // Post-mutation reloads pass bypassCache=true — they never flash the
+    // full-page spinner and always fetch fresh data.
+    if (!bypassCache) setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the lists
+      // always reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [progRes, parRes, subRes, revRes, attRes] = await Promise.all(
+        urls.map((u) => fetch(u)),
+      );
+      const progData = await progRes.json();
+      const parData = await parRes.json();
+      const subData = await subRes.json();
+      const revData = await revRes.json();
+      const attData = await attRes.json();
+      if (progData.success) cacheSet(urls[0], progData);
+      if (parData.success) cacheSet(urls[1], parData);
+      if (subData.success) cacheSet(urls[2], subData);
+      if (revData.success) cacheSet(urls[3], revData);
+      if (attData.success) cacheSet(urls[4], attData);
+      apply(progData, parData, subData, revData, attData);
     } catch (e) {
-      console.error(e);
+      if (!painted) console.error(e);
     } finally {
       setLoading(false);
     }
@@ -159,7 +185,7 @@ export default function FacilitatorProgram({ params }) {
           focus_next_week: "",
           additional_notes: "",
         });
-        load();
+        load(true);
       } else {
         notify("error", data.error || t("pmMisc.facilitators.weeklyReview.submitError"));
       }
@@ -241,7 +267,7 @@ export default function FacilitatorProgram({ params }) {
       const data = await res.json();
       if (data.success) {
         notify("success", "Submission updated");
-        load();
+        load(true);
       } else {
         notify("error", data.error || "Failed to update submission");
       }
@@ -268,7 +294,7 @@ export default function FacilitatorProgram({ params }) {
   ];
 
   return (
-    <DashboardLayout role="facilitator" activeTab="dashboard">
+    <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
           <a
@@ -496,7 +522,7 @@ export default function FacilitatorProgram({ params }) {
               </p>
             )}
             {submissions.map((s) => (
-              <SubmissionRow key={s.id} sub={s} onReview={reviewSubmission} />
+              <SubmissionRow key={s.id} sub={s} onReview={reviewSubmission} t={t} />
             ))}
           </div>
         )}
@@ -693,7 +719,7 @@ export default function FacilitatorProgram({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 
@@ -751,9 +777,25 @@ function ReviewSummaryRow({ label, value, note }) {
   );
 }
 
-function SubmissionRow({ sub, onReview }) {
+const MAX_FEEDBACK_HEIGHT = 240; // px — beyond this the box scrolls internally
+
+function SubmissionRow({ sub, onReview, t }) {
   const [feedback, setFeedback] = useState(sub.feedback || "");
   const [expanded, setExpanded] = useState(false);
+  const textareaRef = useRef(null);
+
+  // Auto-grow the textarea with its content so long suggestions stay readable
+  // instead of being trapped behind a fixed 2-row box.
+  useEffect(() => {
+    if (!expanded) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const overflows = el.scrollHeight > MAX_FEEDBACK_HEIGHT;
+    el.style.height = `${overflows ? MAX_FEEDBACK_HEIGHT : el.scrollHeight}px`;
+    el.style.overflowY = overflows ? "auto" : "hidden";
+  }, [expanded, feedback]);
+
   return (
     <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2">
       <button
@@ -783,42 +825,72 @@ function SubmissionRow({ sub, onReview }) {
         </span>
       </button>
       {expanded && (
-        <div className="space-y-2 pt-2">
-          {sub.file_url && (
-            <a
-              href={sub.file_url}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[9px] font-black uppercase text-blue-400 hover:underline"
-            >
-              View submission ↗
-            </a>
-          )}
-          <textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            rows={2}
-            placeholder="Feedback…"
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] resize-none"
-          />
-          <div className="flex gap-2">
+        <div className="space-y-2.5 pt-2">
+          {/* Feedback composer */}
+          <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <label
+                htmlFor={`submission-feedback-${sub.id}`}
+                className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
+              >
+                <MessageSquareText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
+                {t("pmMisc.submissions.feedbackLabel")}
+              </label>
+              {sub.file_url && (
+                <a
+                  href={sub.file_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-[8px] font-black text-blue-400 hover:underline shrink-0"
+                >
+                  <ExternalLink className="w-2.5 h-2.5" />
+                  {t("pmMisc.submissions.viewSubmissionFile")}
+                </a>
+              )}
+            </div>
+            <textarea
+              id={`submission-feedback-${sub.id}`}
+              ref={textareaRef}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              rows={3}
+              placeholder={t("pmMisc.submissions.feedbackPlaceholder")}
+              className="w-full resize-none overflow-hidden bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[11px] font-medium leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:font-normal outline-none focus:border-[var(--brand-orange)] transition-colors"
+            />
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                {t("pmMisc.submissions.feedbackHint")}
+              </p>
+              {feedback.length > 0 && (
+                <span className="text-[8px] font-black tabular-nums text-[var(--text-tertiary)] shrink-0">
+                  {t("pmMisc.submissions.charCount", { count: feedback.length })}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Decision actions */}
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onReview(sub.id, "approved", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
             >
-              Approve
+              <CheckCircle2 className="w-3 h-3" />
+              {t("pmMisc.submissions.approve")}
             </button>
             <button
               onClick={() => onReview(sub.id, "revision_requested", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
             >
-              Request revision
+              <RotateCcw className="w-3 h-3" />
+              {t("pmMisc.submissions.requestRevision")}
             </button>
             <button
               onClick={() => onReview(sub.id, "rejected", feedback)}
-              className="text-[8px] font-black uppercase px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25"
+              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors"
             >
-              Reject
+              <XCircle className="w-3 h-3" />
+              {t("pmMisc.submissions.reject")}
             </button>
           </div>
         </div>

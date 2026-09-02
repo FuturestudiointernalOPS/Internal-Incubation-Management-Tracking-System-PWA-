@@ -17,8 +17,8 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * SUPER ADMIN BLOCKERS DASHBOARD
@@ -77,7 +77,12 @@ export default function AdminBlockers() {
   const [viewingBlocker, setViewingBlocker] = useState(null);
   const { t } = useI18n();
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const apply = (blockerData, taskData) => {
+      if (blockerData.success) setBlockers(blockerData.blockers || []);
+      if (taskData.success) setTasks(taskData.tasks || []);
+    };
+
     setLoading(true);
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -85,21 +90,31 @@ export default function AdminBlockers() {
       const isSA = user.role === "super_admin";
 
       // Phase 6: Non-SA users see only their own blockers/tasks
-      const blockerUrl = isSA
-        ? "/api/blockers"
-        : `/api/blockers?user_id=${userId}`;
-      const taskUrl = isSA
-        ? "/api/tasks"
-        : `/api/tasks?user_id=${userId}`;
+      const urls = [
+        isSA ? "/api/blockers" : `/api/blockers?user_id=${userId}`,
+        isSA ? "/api/tasks" : `/api/tasks?user_id=${userId}`,
+      ];
 
-      const [blockerRes, taskRes] = await Promise.all([
-        fetch(blockerUrl),
-        fetch(taskUrl),
-      ]);
-      const blockerData = await blockerRes.json();
-      const taskData = await taskRes.json();
-      if (blockerData.success) setBlockers(blockerData.blockers || []);
-      if (taskData.success) setTasks(taskData.tasks || []);
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots while the network refresh below converges in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -169,7 +184,7 @@ export default function AdminBlockers() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* HEADER */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -626,6 +641,6 @@ export default function AdminBlockers() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

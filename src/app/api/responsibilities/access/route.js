@@ -1,8 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
+import {
+  getResponsibilityAccess,
+  setResponsibilityAllowedRoles,
+} from "@/models/responsibilities";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +42,7 @@ export async function PUT(req) {
     await initDb();
 
     // Load the responsibility so we can validate + audit.
-    const existing = await db.execute({
-      sql: "SELECT id, name, key, allowed_roles FROM responsibilities WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getResponsibilityAccess(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Responsibility not found" },
@@ -66,10 +67,7 @@ export async function PUT(req) {
       nextValue = JSON.stringify(cleaned);
     }
 
-    await db.execute({
-      sql: "UPDATE responsibilities SET allowed_roles = ?, updated_at = NOW() WHERE id = ?",
-      args: [nextValue, id],
-    });
+    await setResponsibilityAllowedRoles(id, nextValue);
 
     await logPermissionAudit({
       actorCid: session.cid,

@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * PLATFORM COLLECTIONS
@@ -68,28 +69,43 @@ export default function CollectionsPage() {
 
   const [notification, setNotification] = useState(null);
 
-  const fetchCollections = useCallback(async () => {
+  const fetchCollections = useCallback(async (bypassCache = false) => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    if (search) params.set("search", search);
+    const url = `/api/platform/collections?${params}`;
+    const apply = (data) => {
+      setCollections(data.collections || []);
+      const t = data.tree || [];
+      setTree(t);
+      // Auto-expand all tree nodes
+      const collectIds = (nodes) => {
+        const ids = [];
+        for (const n of nodes) {
+          ids.push(n.id);
+          if (n.children?.length) ids.push(...collectIds(n.children));
+        }
+        return ids;
+      };
+      setExpandedIds(new Set(collectIds(t)));
+    };
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      if (search) params.set("search", search);
-      const res = await fetch(`/api/platform/collections?${params}`);
+      // Cache-first paint: the collection grid renders instantly from a fresh
+      // snapshot; create/edit/archive mutations pass bypassCache=true so the
+      // list always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setCollections(data.collections || []);
-        const t = data.tree || [];
-        setTree(t);
-        // Auto-expand all tree nodes
-        const collectIds = (nodes) => {
-          const ids = [];
-          for (const n of nodes) {
-            ids.push(n.id);
-            if (n.children?.length) ids.push(...collectIds(n.children));
-          }
-          return ids;
-        };
-        setExpandedIds(new Set(collectIds(t)));
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setLoading(false);
@@ -132,7 +148,7 @@ export default function CollectionsPage() {
         setShowCreate(false);
         setEditing(null);
         setForm({ name: "", description: "", parent_id: "", visibility: "internal", tags: "", category: "", color: "#FF6600", status: "active" });
-        fetchCollections();
+        fetchCollections(true);
       } else {
         notify(t((data.error || t("platformMisc.collections.failed")) || "") || (data.error || t("platformMisc.collections.failed")));
       }
@@ -167,7 +183,7 @@ export default function CollectionsPage() {
         });
       }
       notify(action === "archive" ? t("platformMisc.collections.archivedNotify") : t("platformMisc.collections.restoredNotify"));
-      fetchCollections();
+      fetchCollections(true);
     } catch (_) {}
     setArchiveConfirm(null);
   };

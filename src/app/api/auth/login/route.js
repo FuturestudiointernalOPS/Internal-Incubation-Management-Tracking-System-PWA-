@@ -1,6 +1,8 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import { resolveEffectiveRole } from "@/lib/platform/roles";
+import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
@@ -146,44 +148,20 @@ export async function POST(req) {
     const userCid = user.cid || user.id; // Fallback for legacy
 
     // --- STRATEGIC ROLE RESOLUTION (SINGLE-ADMIN HIERARCHY) ---
-    let finalRole = "participant";
-
-    if (isTeamLogin) {
-      finalRole = "team";
-    } else if (isFamilyLogin) {
-      finalRole = "participant"; // Family entity acts like a participant but with group data
-    } else if (user.role === "super_admin" || user.id === "sa") {
-      finalRole = "super_admin";
-    } else if (user.role === "developer") {
-      finalRole = "developer";
-    } else if (user.role === "investor") {
-      finalRole = "investor";
-    } else if (user.role === "founder") {
-      finalRole = "founder";
-    } else if (
-      user.role === "staff" ||
-      user.role === "project_manager" ||
-      user.role === "admin" ||
-      user.group_name?.toUpperCase() === "FUTURE STUDIO"
-    ) {
-      // Internal Future Studio staff keep their identity — being assigned as
-      // a program assistant / team handler must NOT turn them into a teacher.
-      finalRole = "staff"; // internal Future Studio team
-    } else if (user.role === "facilitator") {
-      finalRole = "facilitator"; // program-scoped external facilitator
-    } else if (user.role === "teacher") {
-      finalRole = "teacher";
-    } else if (user.role === "member") {
-      // Neutral "member" = a valid person with no global role yet.
-      finalRole = "member";
-    } else if (user.role === "participant") {
-      finalRole = "participant";
-    } else if (
-      user.role === "project_manager" ||
-      user.group_name?.toUpperCase() === "FUTURE STUDIO"
-    ) {
-      finalRole = "staff"; // internal Future Studio team
-    }
+    // Canonical rule (src/lib/platform/roles.js, resolveEffectiveRole):
+    //   privileged identities win; staff-family roles normalize to staff;
+    //   an ACTIVE FUTURE STUDIO membership = internal staff membership;
+    //   everything else keeps its role (participant default).
+    // The membership layer decides which groups are currently effective —
+    // expired/ended FUTURE STUDIO memberships no longer produce staff.
+    const activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
+    let finalRole = resolveEffectiveRole({
+      role: user.role,
+      groups: activeGroups,
+      isTeam: isTeamLogin,
+      isFamily: isFamilyLogin,
+      legacySa: user.id === "sa",
+    });
 
     // Load user language preference from contact record (not families/teams)
     if (!isTeamLogin && !isFamilyLogin && user.language) {

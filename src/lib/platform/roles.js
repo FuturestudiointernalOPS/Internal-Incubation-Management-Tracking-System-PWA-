@@ -40,6 +40,77 @@ export function resolveDefaultRole(explicitRole) {
 }
 
 /**
+ * The internal membership group: belonging to it means the person is a member
+ * of Future Studio's internal team and is resolved as staff at login.
+ */
+export const INTERNAL_GROUP = "FUTURE STUDIO";
+
+/**
+ * CANONICAL LOGIN IDENTITY RESOLUTION
+ *
+ * Policy: an ACTIVE FUTURE STUDIO membership = internal staff membership.
+ *
+ * Precedence (high → low):
+ *   1. Team / Family entity logins keep their entity identity.
+ *   2. Privileged identities ALWAYS win and are never overridden by group
+ *      membership — this is what protects Super Admin from demotion/lockout.
+ *   3. Staff-family roles (staff / project_manager / admin) normalize to staff.
+ *   4. An ACTIVE FUTURE STUDIO membership ⇒ staff  (the rule). Expired or
+ *      ended memberships must NOT produce staff — the caller passes the
+ *      EFFECTIVE (active, unexpired) group list from the membership layer.
+ *   5. All other identities (participant, member, facilitator, teacher, ...)
+ *      keep their role; unknown/empty roles default to participant.
+ *
+ * Known conflicts (deliberate, per policy):
+ *   - A participant with an active FUTURE STUDIO membership is resolved as
+ *     staff at login (their participant identity is overridden; enrollments
+ *     stay visible via the Workspaces hub).
+ *   - A facilitator/teacher with an active FUTURE STUDIO membership is
+ *     resolved as staff. If an external facilitator must keep their
+ *     facilitator identity even inside the group, move facilitator/teacher
+ *     before the group rule.
+ *   - The rule applies at login (session snapshot). Membership changes
+ *     mid-session take effect on the next login.
+ */
+export function resolveEffectiveRole({
+  role,
+  groups = [],
+  group_name,
+  isTeam = false,
+  isFamily = false,
+  legacySa = false,
+} = {}) {
+  const r = String(role || "").trim().toLowerCase();
+
+  if (isTeam) return "team";
+  if (isFamily) return "participant"; // family entity acts as participant
+
+  if (r === "super_admin" || legacySa) return "super_admin";
+  if (r === "developer") return "developer";
+  if (r === "investor") return "investor";
+  if (r === "founder") return "founder";
+
+  // Staff-family identities normalize to staff. Program Manager is a function
+  // layered on Staff (not a separate global identity) — a PM contact must
+  // resolve to staff at login, never fall through to participant.
+  if (r === "staff" || r === "program_manager" || r === "project_manager" || r === "admin") return "staff";
+
+  // THE RULE — active FUTURE STUDIO membership = internal staff membership.
+  // `group_name` is accepted as a compatibility fallback for callers that
+  // only have the raw contact column (it must then be a CURRENT group value).
+  const memberGroups = Array.isArray(groups) ? groups : [];
+  if (group_name) memberGroups.push(group_name);
+  const isInternal = memberGroups.some(
+    (g) => String(g || "").trim().toUpperCase() === INTERNAL_GROUP,
+  );
+  if (isInternal) return "staff";
+
+  // Explicit identities are preserved outside the group.
+  if (["participant", "member", "facilitator", "teacher"].includes(r)) return r;
+  return DEFAULT_ROLE; // unknown / no role → participant (legacy default)
+}
+
+/**
  * Where each global role lands after login. Single source of truth shared by
  * the login redirect and the workspaces hub so the hub's "My Dashboard"
  * button can never drift from the real login routing.

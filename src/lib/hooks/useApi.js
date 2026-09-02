@@ -26,6 +26,62 @@ import { useState, useEffect, useCallback, useRef } from "react";
  *     deps: [filterStatus],
  *   });
  */
+
+// In-memory GET cache (30s TTL) with stale-while-revalidate: returning to a
+// page renders instantly from cache while data refreshes in the background.
+// `refresh()` always bypasses the cache to fetch fresh data.
+const CACHE_TTL = 30_000;
+const responseCache = new Map();
+
+// cacheGet/cacheSet are exported so callers that fetch outside useApi (e.g. the
+// dashboard shell badge fetchers) can reuse the same in-memory GET cache.
+export function cacheGet(url) {
+  const entry = responseCache.get(url);
+  if (!entry) return null;
+  if (Date.now() - entry.ts > CACHE_TTL) {
+    responseCache.delete(url);
+    return null;
+  }
+  return entry.data;
+}
+
+export function cacheSet(url, data) {
+  responseCache.set(url, { data, ts: Date.now() });
+}
+
+// ─── Shared SWR helpers (reused by DashboardLayout + page loaders) ───
+
+/**
+ * Background GET + cache write. Resolves with the parsed body when the
+ * response is a `success` payload (the app-wide API convention); otherwise it
+ * resolves silently and leaves the cache untouched.
+ */
+export function revalidateJson(url, apply) {
+  return fetch(url)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data && data.success) {
+        cacheSet(url, data);
+        if (typeof apply === "function") apply(data);
+      }
+    })
+    .catch(() => {});
+}
+
+/**
+ * Cache-first GET (stale-while-revalidate). When a fresh (≤30s) payload
+ * exists it is applied synchronously and the network revalidation runs in the
+ * background, so shells and pages paint instantly on return visits.
+ */
+export function fetchSwrJson(url, apply) {
+  const hit = cacheGet(url);
+  if (hit !== null && hit.success) {
+    if (typeof apply === "function") apply(hit);
+    return revalidateJson(url, apply);
+  }
+  return revalidateJson(url, apply);
+}
+
 export function useApi(url, options = {}) {
   const {
     immediate = true,
@@ -43,7 +99,7 @@ export function useApi(url, options = {}) {
   const fetchIdRef = useRef(0);
   const activeRef = useRef(true);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     if (!url) {
       setLoading(false);
       setData(defaultValue);
@@ -51,8 +107,16 @@ export function useApi(url, options = {}) {
     }
 
     const fetchId = ++fetchIdRef.current;
-    setLoading(true);
     setError(null);
+
+    // Stale-while-revalidate: show cached data instantly, refresh in background.
+    const cached = bypassCache ? null : cacheGet(url);
+    if (cached !== null) {
+      setData(transform ? transform(cached) : cached);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
 
     try {
       const res = await fetch(url);
@@ -60,6 +124,8 @@ export function useApi(url, options = {}) {
 
       // Discard stale responses
       if (fetchId !== fetchIdRef.current || !activeRef.current) return;
+
+      cacheSet(url, json);
 
       const result = transform ? transform(json) : json;
       setData(result);
@@ -95,7 +161,7 @@ export function useApi(url, options = {}) {
     };
   }, []);
 
-  return { data, loading, error, refresh: fetchData, setData };
+  return { data, loading, error, refresh: () => fetchData(true), setData };
 }
 
 /**
@@ -116,22 +182,33 @@ export function useApiMulti(endpoints, options = {}) {
   const [error, setError] = useState(null);
   const fetchIdRef = useRef(0);
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
     if (!endpoints || endpoints.length === 0) {
       setLoading(false);
       return;
     }
 
     const fetchId = ++fetchIdRef.current;
-    setLoading(true);
     setError(null);
+
+    // Render immediately when every endpoint is already cached.
+    const allCached =
+      !bypassCache &&
+      endpoints.every(({ url }) => !url || cacheGet(url) !== null);
+    if (allCached) setLoading(false);
+    else setLoading(true);
 
     try {
       const results = await Promise.all(
         endpoints.map(async ({ key, url, transform }) => {
           if (!url) return { key, value: null };
+          const cached = bypassCache ? null : cacheGet(url);
+          if (cached !== null) {
+            return { key, value: transform ? transform(cached) : cached };
+          }
           const res = await fetch(url);
           const json = await res.json();
+          cacheSet(url, json);
           const value = transform ? transform(json) : json;
           return { key, value };
         }),
@@ -160,5 +237,5 @@ export function useApiMulti(endpoints, options = {}) {
     fetchAll();
   }, [fetchAll, immediate, ...deps]);
 
-  return { data, loading, error, refresh: fetchAll, setData };
+  return { data, loading, error, refresh: () => fetchAll(true), setData };
 }

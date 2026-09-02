@@ -1,7 +1,7 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
+import { getOwnSchedule, getSuperAdminSchedule } from "@/models/programWorkspace";
 
 export const GET = createHandler(
   { roles: ["staff", "super_admin", "program_manager", "teacher"] },
@@ -13,16 +13,7 @@ export const GET = createHandler(
       if (session?.role === "super_admin") {
         // Full calendar — Super Admin only. Derived from the session role,
         // never from a client-supplied is_super_admin query param (Phase 3C-9).
-        sessions = await db.execute({
-          sql: `
-             SELECT s.*, p.name as program_name
-             FROM v2_sessions s
-             JOIN v2_programs p ON s.program_id = p.id
-             WHERE s.scheduled_date IS NOT NULL AND p.is_archived = 0
-             ORDER BY s.scheduled_date ASC
-          `,
-          args: [],
-        });
+        sessions = await getSuperAdminSchedule();
       } else {
         // Non-SA: own schedule only — sessions this person handles, or
         // sessions of programs they manage as the assigned PM. Query params
@@ -36,17 +27,7 @@ export const GET = createHandler(
             { status: 401 },
           );
         }
-        sessions = await db.execute({
-          sql: `
-             SELECT s.*, p.name as program_name
-             FROM v2_sessions s
-             JOIN v2_programs p ON s.program_id = p.id
-             WHERE s.scheduled_date IS NOT NULL AND p.is_archived = 0
-               AND (s.handler_id = ? OR p.assigned_pm_id = ?)
-             ORDER BY s.scheduled_date ASC
-          `,
-          args: [ownCid, ownCid],
-        });
+        sessions = await getOwnSchedule(ownCid);
       }
 
       return NextResponse.json({

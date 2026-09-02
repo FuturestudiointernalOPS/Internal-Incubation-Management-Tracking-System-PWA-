@@ -1,6 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  getProjectInvitationById,
+  cancelProjectInvitation,
+  declineProjectInvitation,
+  addProjectMemberFromInvitation,
+  acceptProjectInvitation,
+  getProjectNameForInvitation,
+  getContactCidByName,
+  createInvitationAcceptedNotification,
+} from "@/models/projectCollaboration";
 
 /**
  * POST /api/projects/invitations/respond
@@ -26,10 +36,7 @@ export async function POST(req) {
     }
 
     // Fetch invitation
-    const invRes = await db.execute({
-      sql: "SELECT * FROM project_invitations WHERE id = ?",
-      args: [parseInt(invitation_id)],
-    });
+    const invRes = await getProjectInvitationById(invitation_id);
     if (invRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Invitation not found" },
@@ -53,10 +60,7 @@ export async function POST(req) {
           { status: 403 },
         );
       }
-      await db.execute({
-        sql: "UPDATE project_invitations SET status = 'declined', responded_at = NOW() WHERE id = ?",
-        args: [parseInt(invitation_id)],
-      });
+      await cancelProjectInvitation(invitation_id);
       return NextResponse.json({ success: true, action: "cancelled" });
     }
 
@@ -70,51 +74,34 @@ export async function POST(req) {
     }
 
     if (action === "decline") {
-      await db.execute({
-        sql: "UPDATE project_invitations SET status = 'declined', responded_at = NOW() WHERE id = ?",
-        args: [parseInt(invitation_id)],
-      });
+      await declineProjectInvitation(invitation_id);
       return NextResponse.json({ success: true, action: "declined" });
     }
 
     if (action === "accept") {
       // Add to project_members
-      await db.execute({
-        sql: `INSERT INTO project_members (project_id, user_cid, role, assigned_at)
-              VALUES (?, ?, ?, NOW())
-              ON CONFLICT (project_id, user_cid)
-              DO UPDATE SET role = ?, assigned_at = NOW()`,
-        args: [inv.project_id, inv.invitee_id, inv.role || "member", inv.role || "member"],
-      });
+      await addProjectMemberFromInvitation(
+        inv.project_id,
+        inv.invitee_id,
+        inv.role,
+      );
 
       // Mark invitation accepted
-      await db.execute({
-        sql: "UPDATE project_invitations SET status = 'accepted', responded_at = NOW() WHERE id = ?",
-        args: [parseInt(invitation_id)],
-      });
+      await acceptProjectInvitation(invitation_id);
 
       // Notify inviter
-      const projRes = await db.execute({
-        sql: "SELECT name FROM v2_projects WHERE id::text = ?",
-        args: [inv.project_id],
-      });
+      const projRes = await getProjectNameForInvitation(inv.project_id);
       const projectName = projRes.rows[0]?.name || "Unknown Project";
 
       // Find inviter's cid to send notification
-      const inviterRes = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE name = ? LIMIT 1",
-        args: [inv.inviter_id],
-      });
+      const inviterRes = await getContactCidByName(inv.inviter_id);
       if (inviterRes.rows.length > 0) {
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read) VALUES (?, ?, ?, ?, 0)",
-          args: [
-            inviterRes.rows[0].cid,
-            "Invitation Accepted",
-            `${session.name || inv.invitee_id} accepted your invitation to "${projectName}"`,
-            "project_invite",
-          ],
-        });
+        await createInvitationAcceptedNotification(
+          inviterRes.rows[0].cid,
+          "Invitation Accepted",
+          `${session.name || inv.invitee_id} accepted your invitation to "${projectName}"`,
+          "project_invite",
+        );
       }
 
       return NextResponse.json({ success: true, action: "accepted" });

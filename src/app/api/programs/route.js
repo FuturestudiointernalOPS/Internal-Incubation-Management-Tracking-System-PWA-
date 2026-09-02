@@ -1,8 +1,20 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { requireAuth, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import {
+  addParticipantProgramMembership,
+  assignFamilyToProgram,
+  createV2Program,
+  ensureSystemFacilitatorsGroup,
+  getAllPrograms,
+  getContactsByFamilyName,
+  getFamilyNameById,
+  getProgramExists,
+  unassignAllFamilies,
+  unassignFamiliesNotInList,
+  updateProgramFields,
+} from "@/models/programs";
 
 export async function POST(req) {
   try {
@@ -34,39 +46,25 @@ export async function POST(req) {
 
     const programId = `P-2026-${uuid4().slice(0, 8).toUpperCase()}`;
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_programs (
-        id, name, description, duration_weeks, duration_days,
-        topics, outcomes, deliverables, resources, assigned_pm_id, feedback_enabled,
-        grading_mode, evaluation_config
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        programId,
-        name,
-        description,
-        duration_weeks || 13,
-        duration_days || 0,
-        JSON.stringify(topics || []),
-        JSON.stringify(outcomes || []),
-        JSON.stringify(deliverables || []),
-        JSON.stringify(resources || []),
-        assigned_pm_id || null,
-        feedback_enabled !== undefined ? (feedback_enabled ? 1 : 0) : 1,
-        grading_mode || 'graded',
-        evaluation_config ? JSON.stringify(evaluation_config) : '{}',
-      ],
+    await createV2Program({
+      programId,
+      name,
+      description,
+      duration_weeks,
+      duration_days,
+      topics,
+      outcomes,
+      deliverables,
+      resources,
+      assigned_pm_id,
+      feedback_enabled,
+      grading_mode,
+      evaluation_config,
     });
 
       // Auto-create the system-defined Facilitators group for this program
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_groups (program_id, name, type, is_system)
-                SELECT ?, 'Facilitators', 'facilitators', 1
-                WHERE NOT EXISTS (
-                  SELECT 1 FROM v2_groups WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'
-                )`,
-          args: [programId, programId],
-        });
+        await ensureSystemFacilitatorsGroup(programId);
       } catch (_) {}
     return NextResponse.json({
       success: true,
@@ -91,9 +89,7 @@ export async function GET() {
       "teacher",
     ]);
     if (authError) return authError;
-    const { rows } = await db.execute(
-      "SELECT * FROM v2_programs ORDER BY created_at DESC",
-    );
+    const { rows } = await getAllPrograms();
 
     // Parse JSON columns
     const programs = rows.map((r) => ({
@@ -129,10 +125,7 @@ export async function PUT(req) {
     }
 
     // Verify the program exists before updating or assigning
-    const progExists = await db.execute({
-      sql: "SELECT id FROM v2_programs WHERE id = ?",
-      args: [data.id],
-    });
+    const progExists = await getProgramExists(data.id);
     if (progExists.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: `Program "${data.id}" not found.` },
@@ -189,10 +182,7 @@ export async function PUT(req) {
     // Add ID for the WHERE clause
     args.push(data.id);
 
-    await db.execute({
-      sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(", ")} WHERE id = ?`,
-      args: args,
-    });
+    await updateProgramFields(fieldsToUpdate, args);
 
     // ─── PERSIST GROUP-TO-PROGRAM LINKAGE ───
     // assigned_segments is an array of family/group IDs to link to this program.
@@ -202,39 +192,23 @@ export async function PUT(req) {
 
       // 1. Un-assign families no longer in the list
       if (data.assigned_segments.length > 0) {
-        const placeholders = data.assigned_segments.map(() => "?").join(",");
-        await db.execute({
-          sql: `UPDATE families SET program_id = NULL WHERE program_id = ? AND id NOT IN (${placeholders})`,
-          args: [programId, ...data.assigned_segments],
-        });
+        await unassignFamiliesNotInList(programId, data.assigned_segments);
       } else {
-        await db.execute({
-          sql: `UPDATE families SET program_id = NULL WHERE program_id = ?`,
-          args: [programId],
-        });
+        await unassignAllFamilies(programId);
       }
 
       // 2. Assign selected families
       for (const familyId of data.assigned_segments) {
-        await db.execute({
-          sql: `UPDATE families SET program_id = ? WHERE id = ?`,
-          args: [programId, familyId],
-        });
+        await assignFamilyToProgram(programId, familyId);
 
         // 3. Update contacts in this family
-        const familyRes = await db.execute({
-          sql: `SELECT name FROM families WHERE id = ?`,
-          args: [familyId],
-        });
+        const familyRes = await getFamilyNameById(familyId);
         const familyName = familyRes.rows[0]?.name;
         if (familyName) {
           // Phase 1: participant_programs is the authoritative membership.
           // Legacy contacts.program_id/program_name and v2_participants writes
           // have been removed.
-          const contactsRes = await db.execute({
-            sql: `SELECT cid, email FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))`,
-            args: [familyName],
-          });
+          const contactsRes = await getContactsByFamilyName(familyName);
           for (const contact of contactsRes.rows) {
             if (!contact.cid) continue;
             // Same-program conflict guard (Phase 2A).
@@ -245,12 +219,7 @@ export async function PUT(req) {
             );
             if (conflictError) continue;
             try {
-              await db.execute({
-                sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
-                      VALUES (?, ?, 'active', NOW())
-                      ON CONFLICT (participant_id, program_id) DO NOTHING`,
-                args: [contact.cid, programId],
-              });
+              await addParticipantProgramMembership(contact.cid, programId);
             } catch (_) {
               // participant_programs table may not exist
             }

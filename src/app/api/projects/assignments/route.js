@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getOwnedProjectsByUser,
+  getCollaboratingProjectsByUser,
+  getAllActiveProjects,
+} from "@/models/projectCollaboration";
 
 /**
  * PROJECT ASSIGNMENTS API
@@ -50,12 +54,7 @@ export const GET = createHandler(async (req) => {
   // Owned: projects where user is the owner
   let owned = [];
   try {
-    const result = await db.execute({
-      sql: `SELECT id, name, status FROM v2_projects
-            WHERE owner_id = ? AND status != 'Archived'
-            ORDER BY name ASC`,
-      args: [userCid],
-    });
+    const result = await getOwnedProjectsByUser(userCid);
     owned = result.rows;
   } catch (e) {
     owned = [];
@@ -64,14 +63,7 @@ export const GET = createHandler(async (req) => {
   // Collaborating: projects where user is in project_members
   let collab = [];
   try {
-    const result = await db.execute({
-      sql: `SELECT p.id, p.name, p.status, pm.role as member_role
-            FROM project_members pm
-            INNER JOIN v2_projects p ON pm.project_id::text = p.id::text
-            WHERE pm.user_cid = ? AND p.status != 'Archived'
-            ORDER BY p.name ASC`,
-      args: [userCid],
-    });
+    const result = await getCollaboratingProjectsByUser(userCid);
     collab = result.rows;
   } catch (e) {
     collab = [];
@@ -81,12 +73,7 @@ export const GET = createHandler(async (req) => {
   let all_active = [];
   if (staffSide.includes(session.role)) {
     try {
-      const result = await db.execute({
-        sql: `SELECT id, name, status FROM v2_projects
-              WHERE status != 'Archived' AND status != 'Completed'
-              ORDER BY name ASC`,
-        args: [],
-      });
+      const result = await getAllActiveProjects();
       all_active = result.rows;
     } catch (e) {
       all_active = [];

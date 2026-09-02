@@ -1,9 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Trash2, Undo2, AlertTriangle, Loader2, RefreshCw, UserX, UserCheck, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function RecycleBinPage() {
   const { t } = useI18n();
@@ -13,12 +13,29 @@ export default function RecycleBinPage() {
   const [msg, setMsg] = useState(null);
   const [search, setSearch] = useState('');
 
-  const fetchArchived = async () => {
+  const fetchArchived = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/contacts?archived=1');
+      const url = '/api/contacts?archived=1';
+      const apply = (data) => {
+        setContacts(data.contacts || []);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      setContacts(data.contacts || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -39,7 +56,7 @@ export default function RecycleBinPage() {
       const data = await res.json();
       if (data.success) {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.restoredToast', { name }) });
-        fetchArchived();
+        fetchArchived(true);
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.restoreFailed')) || "") || (data.error || t('adminMisc.recycleBin.restoreFailed')) });
       }
@@ -57,7 +74,7 @@ export default function RecycleBinPage() {
       const data = await res.json();
       if (data.success) {
         setMsg({ type: 'success', text: t('adminMisc.recycleBin.permanentlyDeletedToast', { name }) });
-        fetchArchived();
+        fetchArchived(true);
       } else {
         setMsg({ type: 'error', text: t((data.error || t('adminMisc.recycleBin.deleteFailed')) || "") || (data.error || t('adminMisc.recycleBin.deleteFailed')) });
       }
@@ -73,7 +90,7 @@ export default function RecycleBinPage() {
   );
 
   return (
-    <DashboardLayout role="super_admin" activeTab="recycle-bin">
+    <>
       <div className="space-y-8">
         <header className="flex items-center justify-between">
           <div>
@@ -129,6 +146,6 @@ export default function RecycleBinPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

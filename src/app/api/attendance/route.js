@@ -16,11 +16,13 @@ export async function POST(req) {
     ]);
     if (authError) return authError;
 
-    // Ensure table and columns exist (idempotent)
+    // Ensure table and columns exist (idempotent). The production table uses
+    // an INTEGER SERIAL primary key (see scripts/migrations/migrate_attendance.mjs).
+    // The INSERT below omits id so the database auto-generates it.
     try {
       await db.execute({
         sql: `CREATE TABLE IF NOT EXISTS v2_attendance (
-          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          id SERIAL PRIMARY KEY,
           session_id TEXT NOT NULL,
           participant_id TEXT NOT NULL,
           status TEXT NOT NULL DEFAULT 'neutral',
@@ -137,7 +139,7 @@ export async function POST(req) {
       });
       if (r.status) {
         await db.execute({
-          sql: "INSERT INTO v2_attendance (id, session_id, program_id, participant_id, status, date) VALUES (gen_random_uuid(), ?, ?, ?, ?, ?)",
+          sql: "INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date) VALUES (?, ?, ?, ?, ?)",
           args: [r.session_id, r.program_id || null, r.participant_id, r.status, recordDate],
         });
         upserted++;

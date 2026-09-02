@@ -112,6 +112,8 @@ export async function GET(req) {
                 fileUrl: sub.file_url,
                 score: sub.score,
                 submittedAt: sub.created_at,
+                feedback: sub.feedback || null,
+                rejectionReason: sub.rejection_reason || null,
               }
             : null,
         });

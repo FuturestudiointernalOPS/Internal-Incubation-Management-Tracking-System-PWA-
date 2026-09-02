@@ -1,7 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession, requireCapabilityV2 } from "@/lib/auth";
+import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { v4 as uuidv4 } from "uuid";
+import {
+  createFacilitatorsGroupForNewProgram,
+  createProgramFromTemplate,
+  getProgramSourceById,
+  getProgramTemplateById,
+  listProgramTemplates,
+  saveProgramAsTemplate,
+} from "@/models/programs";
 
 /**
  * GET  /api/pm/programs/templates — List all templates
@@ -15,10 +24,7 @@ export async function GET(req) {
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
 
-    const result = await db.execute({
-      sql: "SELECT id, name, description, program_type, duration_weeks, created_at FROM v2_programs WHERE is_template = 1 ORDER BY name ASC",
-      args: [],
-    });
+    const result = await listProgramTemplates();
 
     return NextResponse.json({ success: true, templates: result.rows });
   } catch (error) {
@@ -34,12 +40,10 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth(["staff", "super_admin"]);
     if (authError) return authError;
-    // Phase 3C-6: capability gate (compatibility bypass for legacy staff).
-    const gateSession = await getSession();
-    if (gateSession && !["staff"].includes(gateSession.role)) {
-      const capError = await requireCapabilityV2("programs", "create");
-      if (capError) return capError;
-    }
+    // Phase 2 (legacy cleanup): no staff compatibility bypass — templates
+    // require the programs.create capability through the resolver.
+    const capError = await requireAuthorization("programs", "create");
+    if (capError) return capError;
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
@@ -53,10 +57,7 @@ export async function POST(req) {
         );
       }
 
-      const src = await db.execute({
-        sql: "SELECT * FROM v2_programs WHERE id = ?",
-        args: [program_id],
-      });
+      const src = await getProgramSourceById(program_id);
       if (src.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Program not found" },
@@ -66,28 +67,7 @@ export async function POST(req) {
       const p = src.rows[0];
 
       const templateId = uuidv4();
-      await db.execute({
-        sql: `INSERT INTO v2_programs
-          (id, name, description, concept_note, vision, objectives, program_type, visibility,
-           language, duration_weeks, grading_mode,
-           feedback_enabled, materials, is_template, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'template')`,
-        args: [
-          templateId,
-          template_name,
-          p.description,
-          p.concept_note,
-          p.vision,
-          p.objectives,
-          p.program_type || "incubation",
-          p.visibility || "private",
-          p.language || "en",
-          p.duration_weeks || 4,
-          p.grading_mode || "graded",
-          p.feedback_enabled != null ? p.feedback_enabled : 1,
-          p.materials,
-        ],
-      });
+      await saveProgramAsTemplate(templateId, template_name, p);
 
       return NextResponse.json({ success: true, template_id: templateId });
     }
@@ -102,10 +82,7 @@ export async function POST(req) {
         );
       }
 
-      const tmpl = await db.execute({
-        sql: "SELECT * FROM v2_programs WHERE id = ? AND is_template = 1",
-        args: [template_id],
-      });
+      const tmpl = await getProgramTemplateById(template_id);
       if (tmpl.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Template not found" },
@@ -127,43 +104,18 @@ export async function POST(req) {
       }
 
       const newId = uuidv4();
-      await db.execute({
-        sql: `INSERT INTO v2_programs
-          (id, name, description, concept_note, vision, objectives, program_type, visibility,
-           language, duration_weeks, grading_mode,
-           feedback_enabled, materials, start_date, end_date, assigned_pm_id, status, template_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Planned', ?)`,
-        args: [
-          newId,
-          name,
-          t.description,
-          t.concept_note,
-          t.vision,
-          t.objectives,
-          t.program_type || "incubation",
-          t.visibility || "private",
-          t.language || "en",
-          t.duration_weeks || 4,
-          t.grading_mode || "graded",
-          t.feedback_enabled != null ? t.feedback_enabled : 1,
-          t.materials,
-          start_date || null,
-          end_date || null,
-          assigned_pm_id || null,
-          t.id,
-        ],
-      });
+      await createProgramFromTemplate(
+        newId,
+        name,
+        start_date,
+        end_date,
+        assigned_pm_id,
+        t,
+      );
 
       // Auto-create the system-defined Facilitators group for this program
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_groups (program_id, name, type, is_system)
-                SELECT ?, 'Facilitators', 'facilitators', 1
-                WHERE NOT EXISTS (
-                  SELECT 1 FROM v2_groups WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'
-                )`,
-          args: [newId, newId],
-        });
+        await createFacilitatorsGroupForNewProgram(newId);
       } catch (_) {}
 
       return NextResponse.json({ success: true, id: newId });

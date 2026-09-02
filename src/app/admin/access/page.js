@@ -18,8 +18,8 @@ import {
   Briefcase,
   UserCheck,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { isResponsibilityBlockedForRole } from "@/lib/featureAccess";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const ACCESS_LEVEL_KEYS = {
   0: "adminMisc.access.accessLevelNone",
@@ -77,11 +77,9 @@ export default function UserAccessSummary() {
     } catch (_) {}
   };
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/contacts");
-      const data = await res.json();
+  const fetchUsers = async (bypassCache = false) => {
+    const url = "/api/contacts";
+    const apply = (data) => {
       if (data.success) {
         const sorted = (data.contacts || []).sort((a, b) => {
           if (a.status === "active" && b.status !== "active") return -1;
@@ -90,6 +88,25 @@ export default function UserAccessSummary() {
         });
         setAllUsers(sorted);
         setSearchResults(sorted);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {} finally {
       setLoading(false);
@@ -254,7 +271,7 @@ export default function UserAccessSummary() {
 
   // ─── RENDER ───
   return (
-    <DashboardLayout role="super_admin" activeTab="access">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -801,6 +818,6 @@ export default function UserAccessSummary() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

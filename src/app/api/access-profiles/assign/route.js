@@ -1,7 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, assertTemplateCapsEligible, invalidateAuthorizationContext } from "@/lib/authorization";
 
 /**
  * PUT /api/access-profiles/assign
@@ -52,6 +52,31 @@ export async function PUT(req) {
         );
       }
 
+      // Phase 2: eligibility is the boundary — a template assigned to a
+      // person must never grant capabilities the person's identity is not
+      // eligible for.
+      const groups = (
+        await db.execute({
+          sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
+          args: [user_cid],
+        })
+      ).rows.map((r) => r.group_name);
+      const { valid, violations } = await assertTemplateCapsEligible({
+        role: user.rows[0].role,
+        groups,
+        profileId: profile_id,
+      });
+      if (!valid) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "errors.ineligibleTemplateCaps",
+            violations,
+          },
+          { status: 400 },
+        );
+      }
+
       await db.execute({
         sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
         args: [profile_id, user_cid],
@@ -65,6 +90,7 @@ export async function PUT(req) {
         action: "profile_assigned",
         details: `Assigned access profile: ${profile.rows[0].name}`,
       });
+      invalidateAuthorizationContext(user_cid);
 
       return NextResponse.json({
         success: true,
@@ -95,6 +121,7 @@ export async function PUT(req) {
       action: "profile_removed",
       details: `Removed profile override, reverting to ${roleDefault.rows[0]?.name || "legacy"} default`,
     });
+    invalidateAuthorizationContext(user_cid);
 
     return NextResponse.json({
       success: true,

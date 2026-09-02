@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 
@@ -15,12 +14,12 @@ export default function StaffTasksPage() {
   }, []);
 
   return (
-    <DashboardLayout role="staff">
+    <>
       <StandupRetroView
         user={user}
         context={{ context_type: "staff", context_id: null }}
         contextLabel={t("staffMisc.standupRetro.contextLabel")}
       />
-    </DashboardLayout>
+    </>
   );
 }

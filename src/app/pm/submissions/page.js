@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Search,
   FileText,
@@ -18,7 +19,6 @@ import {
   MapPin,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 function StatusBadge({ status }) {
@@ -85,18 +85,32 @@ export default function PMSubmissions() {
     }
   }, [scheduleModal]);
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (bypassCache = false) => {
     if (!user?.cid && !user?.id) return;
-    setLoading(true);
-    try {
-      const pmId = user.cid || user.id;
-      const res = await fetch(
-        `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`,
-      );
-      const data = await res.json();
+    const pmId = user.cid || user.id;
+    const url = `/api/pm/submissions?assigned_pm_id=${encodeURIComponent(pmId)}`;
+    const apply = (data) => {
       if (data.success) {
         setSubmissions(data.submissions || []);
         setPrograms(data.programs || []);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint on reads; review flows pass bypassCache=true so the
+      // list always reflects the just-reviewed server state.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch submissions", e);
@@ -112,20 +126,30 @@ export default function PMSubmissions() {
   const handleReview = async (submissionId, newStatus) => {
     setActionLoading(true);
     try {
-      await fetch("/api/submissions", {
+      const trimmedFeedback = feedback.trim() || null;
+      const res = await fetch("/api/submissions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: submissionId,
           status: newStatus,
-          feedback: feedback.trim() || null,
+          review_action: newStatus === "reviewed" ? null : newStatus,
+          feedback: trimmedFeedback,
+          rejection_reason:
+            newStatus === "rejected" ? trimmedFeedback : null,
         }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok && !data.success) {
+        alert(data.error || t("pmMisc.submissions.reviewFailed"));
+        return;
+      }
       setReviewModal(null);
       setFeedback("");
-      fetchSubmissions();
+      fetchSubmissions(true);
     } catch (e) {
       console.error("Review failed", e);
+      alert(t("pmMisc.submissions.reviewFailed"));
     }
     setActionLoading(false);
   };
@@ -147,7 +171,7 @@ export default function PMSubmissions() {
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
 
   return (
-    <DashboardLayout role="program_manager" activeTab="submissions">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -593,6 +617,6 @@ export default function PMSubmissions() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

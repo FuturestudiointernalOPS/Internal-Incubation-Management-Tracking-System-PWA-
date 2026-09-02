@@ -20,8 +20,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import TaskManager from "@/components/tasks/TaskManager";
 
 const STATUS_COLORS = {
@@ -92,29 +92,66 @@ export default function StaffProjectDetail() {
 
   const projectId = params?.id;
 
-  const fetchProject = useCallback(async () => {
+  const fetchProject = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/admin/projects/${projectId}`;
+    const apply = (data) => {
+      if (data.success) {
+        setProject(data.project);
+      } else {
+        setError(t((data.error || t("staffMisc.projectDetail.loadFailed")) || "") || (data.error || t("staffMisc.projectDetail.loadFailed")));
+      }
+    };
+    let painted = false;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}`);
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the project always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setProject(data.project);
-      else setError(t((data.error || t("staffMisc.projectDetail.loadFailed")) || "") || (data.error || t("staffMisc.projectDetail.loadFailed")));
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t("staffMisc.projectDetail.loadNetworkError"));
+      if (!painted) {
+        setError(t("staffMisc.projectDetail.loadNetworkError"));
+      }
     } finally {
       setLoading(false);
     }
   }, [projectId]);
 
-  const fetchUpdates = useCallback(async () => {
+  const fetchUpdates = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/admin/projects/${projectId}/updates`;
+    const apply = (data) => {
+      if (data.success) setUpdates(data.updates || []);
+    };
     setUpdatesLoading(true);
     try {
-      const res = await fetch(`/api/admin/projects/${projectId}/updates`);
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setUpdatesLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setUpdates(data.updates || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (_) {}
     setUpdatesLoading(false);
   }, [projectId]);
@@ -126,13 +163,28 @@ export default function StaffProjectDetail() {
     fetchUpdates();
   }, [fetchUpdates]);
 
-  const fetchDiscussions = useCallback(async () => {
+  const fetchDiscussions = useCallback(async (bypassCache = false) => {
     if (!projectId) return;
+    const url = `/api/projects/discuss?project_id=${projectId}`;
+    const apply = (data) => {
+      if (data.success) setDiscussions(data.messages || []);
+    };
     setDiscussionsLoading(true);
     try {
-      const res = await fetch(`/api/projects/discuss?project_id=${projectId}`);
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; posting a message passes bypassCache=true so the thread always
+      // reflects the last post.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setDiscussionsLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setDiscussions(data.messages || []);
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (_) {}
     setDiscussionsLoading(false);
   }, [projectId]);
@@ -158,7 +210,7 @@ export default function StaffProjectDetail() {
       const data = await res.json();
       if (data.success) {
         setNewDiscussion("");
-        fetchDiscussions();
+        fetchDiscussions(true);
       }
     } catch (_) {}
     setPostingDiscussion(false);
@@ -179,7 +231,7 @@ export default function StaffProjectDetail() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchUpdates();
+        fetchUpdates(true);
         setUpdateForm({
           accomplishments: "",
           current_focus: "",
@@ -195,16 +247,16 @@ export default function StaffProjectDetail() {
 
   if (loading)
     return (
-      <DashboardLayout role="staff">
+      <>
         <div className="flex items-center justify-center py-32">
           <RefreshCw className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
 
   if (error || !project)
     return (
-      <DashboardLayout role="staff">
+      <>
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
@@ -218,7 +270,7 @@ export default function StaffProjectDetail() {
             {t("staffMisc.projectDetail.backToProjects")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
 
   const tasks = project.tasks || [];
@@ -235,7 +287,7 @@ export default function StaffProjectDetail() {
       : blockers.filter((b) => b.status === blockerFilter);
 
   return (
-    <DashboardLayout role="staff">
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* Header */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -900,6 +952,6 @@ export default function StaffProjectDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

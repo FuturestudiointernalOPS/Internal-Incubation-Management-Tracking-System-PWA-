@@ -8,8 +8,8 @@ import {
   Users
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
+import { cacheGet, cacheSet } from '@/lib/hooks/useApi';
 import { useSafeBack } from "@/lib/useSafeBack";
 
 export default function GroupWorkspaceV2({ params }) {
@@ -26,15 +26,30 @@ export default function GroupWorkspaceV2({ params }) {
     fetchGroup();
   }, [groupId]);
 
-  const fetchGroup = async () => {
-    try {
-      const res = await fetch(`/api/v2/groups?program_id=${programId}`);
-      const data = await res.json();
+  const fetchGroup = async (bypassCache = false) => {
+    const url = `/api/v2/groups?program_id=${programId}`;
+    const apply = (data) => {
       const match = data.groups.find(g => String(g.id) === String(groupId));
       setGroup(match);
       setIsLoaded(true);
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this group workspace renders instantly
+      // from a fresh snapshot of the program's groups.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      console.error(e);
+      if (!painted) console.error(e);
     }
   };
 
@@ -69,7 +84,7 @@ export default function GroupWorkspaceV2({ params }) {
   if (!isLoaded || !group) return null;
 
   return (
-    <DashboardLayout role="super_admin" activeTab="v2">
+    <>
       <div className="max-w-5xl mx-auto space-y-12">
         <header className="flex items-center justify-between">
            <button 
@@ -197,6 +212,6 @@ export default function GroupWorkspaceV2({ params }) {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

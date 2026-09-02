@@ -6,7 +6,7 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Download, TrendingUp, Target,
   DollarSign, FileText, BarChart3, Eye, Download as DownloadIcon, Users,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const KPI_LABELS = {
   readiness_score: "Investment Readiness", total_matches: "Investor Matches", avg_match_score: "Avg Match Score",
@@ -33,16 +33,28 @@ export default function VentureAnalyticsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, aRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/analytics`),
-      ]);
-      const v = await vRes.json(); const a = await aRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/analytics`];
+    const apply = (v, a) => {
       if (v.success) setVenture(v.venture);
       if (a.success) setAnalytics(a);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots while the network revalidates in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const [vRes, aRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const a = await aRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (a.success) cacheSet(urls[1], a);
+      apply(v, a);
     } catch {} finally { setLoading(false); }
   };
 
@@ -69,7 +81,7 @@ export default function VentureAnalyticsPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const a = analytics || {};
@@ -78,7 +90,7 @@ export default function VentureAnalyticsPage() {
   const priorityKPIs = ["readiness_score", "total_matches", "active_opportunities", "pipeline_value", "win_rate", "investor_engagement_score"];
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -219,6 +231,6 @@ export default function VentureAnalyticsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

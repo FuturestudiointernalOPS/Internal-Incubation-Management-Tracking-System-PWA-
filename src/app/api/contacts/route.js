@@ -2,8 +2,9 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { requireAuth, requireCapabilityV2, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import { requireAuth, getSession, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 export const dynamic = "force-dynamic";
@@ -44,17 +45,27 @@ export async function POST(req) {
   try {
     await initDb();
     // Auth is optional — public forms create contacts without login.
-    // If authenticated, check capability.
-    try {
-      const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
-      if (!authError) {
-        const capError = await requireCapabilityV2("contacts", "create");
-        if (capError) return capError;
-      }
-    } catch (_) {}
+    // If authenticated, the resolver enforces the capability (eligibility
+    // boundary included); unauthenticated submissions keep working.
+    const session = await getSession();
+    if (session) {
+      const capError = await requireAuthorization("contacts", "create");
+      if (capError) return capError;
+    }
 
     const body = await req.json();
     const contacts = Array.isArray(body) ? body : [body];
+
+    // Protected group boundary: creating a FUTURE STUDIO contact creates an
+    // internal member (auto-role staff). Only org_membership.manage holders
+    // may do that — generic contacts.create must never grant it.
+    const wantsInternal = contacts.some(
+      (c) => normalizeGroupName(c?.group_name) === INTERNAL_GROUP,
+    );
+    if (wantsInternal) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
+    }
 
     console.log("--- CONTACT REGISTRATION START ---", {
       count: contacts.length,
@@ -248,7 +259,7 @@ export async function POST(req) {
               await db.execute({
                 sql: `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence)
                       VALUES (?, ?, 'same_phone', 0.85)
-                      ON CONFLICT (contact_cid_a, contact_cid_b) DO NOTHING`,
+                      ON CONFLICT ((LEAST(contact_cid_a, contact_cid_b)), (GREATEST(contact_cid_a, contact_cid_b))) DO NOTHING`,
                 args: [vc.cid, existing.rows[0].cid],
               });
             }
@@ -282,6 +293,13 @@ export async function PUT(req) {
       );
     }
 
+    // Protected group boundary: moving a contact into FUTURE STUDIO via a
+    // generic contact edit is an organizational-membership action.
+    if (normalizeGroupName(data?.group_name) === INTERNAL_GROUP) {
+      const protectError = await requireAuthorization("org_membership", "manage");
+      if (protectError) return protectError;
+    }
+
     const fieldsToUpdate = [];
     const args = [];
 
@@ -312,6 +330,11 @@ export async function PUT(req) {
         if (col === "email") {
           fieldsToUpdate.push(`${col} = ?`);
           args.push(val.toLowerCase());
+        } else if (col === "group_name") {
+          // Normalize group names to UPPERCASE at write time (matches the
+          // membership layer) so case variants can never be re-created.
+          fieldsToUpdate.push("group_name = ?");
+          args.push(String(val || "").trim().toUpperCase());
         } else if (col === "archived_at" || col === "archived_by") {
           // Allow NULL for restore, or timestamp/text for archive
           fieldsToUpdate.push(`${col} = ?`);
@@ -338,7 +361,18 @@ export async function PUT(req) {
     });
 
     // Sync participant_programs if program_ids array is provided
-    if (Array.isArray(data.program_ids)) {
+    const NON_PARTICIPANT_ROLES = ["facilitator", "teacher", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
+    const isRolePromotion = data.role && NON_PARTICIPANT_ROLES.includes(data.role);
+
+    if (isRolePromotion) {
+      // Role is being changed to a non-participant role.
+      // Automatically remove from participant_programs — they are no longer a participant.
+      // Skip the conflict guard entirely since we're intentionally changing their role.
+      await db.execute({
+        sql: "DELETE FROM participant_programs WHERE participant_id = ?",
+        args: [data.cid],
+      });
+    } else if (Array.isArray(data.program_ids)) {
       // Verify all programs exist before assigning
       for (const pid of data.program_ids) {
         const check = await db.execute({

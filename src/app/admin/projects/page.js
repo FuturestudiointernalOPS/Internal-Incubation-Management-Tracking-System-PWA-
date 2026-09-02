@@ -20,9 +20,9 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD
@@ -107,27 +107,45 @@ export default function AdminProjects() {
     if (toast) setTimeout(() => setToast(null), 3000);
   }, [toast]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const archivedParam =
-        filterStatus === "Archived" ? "?include_archived=true" : "";
-      const projRes = await fetch(`/api/admin/projects${archivedParam}`);
-      const projData = await projRes.json();
-      if (projData.success) {
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const archivedParam =
+      filterStatus === "Archived" ? "?include_archived=true" : "";
+    const urls = [
+      `/api/admin/projects${archivedParam}`,
+      "/api/admin/analytics",
+    ];
+    const apply = (projData, analyticsData) => {
+      if (projData?.success) {
         setProjects(projData.projects || []);
         setTotals(projData.totals || {});
       }
       // Analytics endpoint is optional - silently handle if not available
-      try {
-        const analyticsRes = await fetch("/api/admin/analytics");
-        if (analyticsRes.ok) {
-          const analyticsData = await analyticsRes.json();
-          if (analyticsData.success) setAnalytics(analyticsData.analytics);
+      if (analyticsData?.success) setAnalytics(analyticsData.analytics);
+    };
+
+    setLoading(true);
+    try {
+      // Cache-first paint: switching filters / returning to the page renders
+      // instantly from fresh snapshots; mutation flows pass bypassCache=true
+      // so the list always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
         }
-      } catch (e) {
-        /* analytics unavailable */
       }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -198,7 +216,7 @@ export default function AdminProjects() {
           assigned_pm_ids: editProject.leads,
         }),
       });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -214,7 +232,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: "Archived" }),
       });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -230,7 +248,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: "Active" }),
       });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -246,7 +264,7 @@ export default function AdminProjects() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: project.id, status: newStatus }),
       });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       console.error(e);
     } finally {
@@ -301,7 +319,7 @@ export default function AdminProjects() {
         });
         setConceptNoteFile(null);
         setSelectedMembers([]);
-        fetchData();
+        fetchData(true);
         setToast({
           type: "success",
           msg: t("adminMisc.projectsList.projectCreatedToast", {
@@ -364,7 +382,7 @@ export default function AdminProjects() {
   }, [projects, search, filterStatus]);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* HEADER */}
         {/* Toast notification */}
@@ -1535,6 +1553,6 @@ export default function AdminProjects() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

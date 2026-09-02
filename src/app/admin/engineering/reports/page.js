@@ -17,7 +17,7 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const PERIODS = [
   { value: "week", label: "This Week" },
@@ -31,12 +31,29 @@ export default function EngineeringReports() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchReports = useCallback(async () => {
+  const fetchReports = useCallback(async (bypassCache = false) => {
+    const url = `/api/engineering/reports?period=${period}`;
+    const apply = (json) => {
+      if (json.success) setData(json);
+    };
     setLoading(true);
     try {
-      const res = await fetch(`/api/engineering/reports?period=${period}`);
+      // Cache-first paint: each period caches under its own URL, so switching
+      // periods / returning renders instantly from fresh snapshots; the refresh
+      // button passes bypassCache=true so the view always reflects the latest.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const json = await res.json();
-      if (json.success) setData(json);
+      if (json.success) {
+        cacheSet(url, json);
+        apply(json);
+      }
     } catch (e) {
       console.error("Failed to fetch reports", e);
     } finally {
@@ -49,7 +66,7 @@ export default function EngineeringReports() {
   }, [fetchReports]);
 
   return (
-    <DashboardLayout role="super_admin" activeTab="engineering">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -316,6 +333,6 @@ export default function EngineeringReports() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

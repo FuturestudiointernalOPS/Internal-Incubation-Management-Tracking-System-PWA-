@@ -21,9 +21,9 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * INTERNAL OPS — HIERARCHICAL KANBAN BOARD
@@ -106,22 +106,42 @@ export default function ProjectKanbanBoard() {
     } catch (e) {}
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/programs",
+      "/api/admin/projects",
+      "/api/tasks?brief=true&limit=500",
+    ];
+    const apply = (progData, projData, taskData) => {
+      if (progData?.success) setPrograms(progData.programs || []);
+      if (projData?.success) setProjects(projData.projects || []);
+      if (taskData?.success) setAllTasks(taskData.tasks || []);
+    };
+
     setLoading(true);
     try {
-      const [progRes, projRes, taskRes] = await Promise.all([
-        fetch("/api/programs"),
-        fetch("/api/admin/projects"),
-        fetch("/api/tasks?brief=true&limit=500"),
-      ]);
-
-      const progData = await progRes.json();
-      const projData = await projRes.json();
-      const taskData = await taskRes.json();
-
-      if (progData.success) setPrograms(progData.programs || []);
-      if (projData.success) setProjects(projData.projects || []);
-      if (taskData.success) setAllTasks(taskData.tasks || []);
+      // Cache-first paint: returning to the board renders instantly from fresh
+      // snapshots while the network refresh below converges in the background;
+      // mutation flows pass bypassCache=true so the board always reflects the
+      // last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2]);
     } catch (e) {
       console.error(e);
     } finally {
@@ -176,7 +196,7 @@ export default function ProjectKanbanBoard() {
       });
     } catch (e) {
       console.error("Move failed:", e);
-      fetchData();
+      fetchData(true);
     }
   };
 
@@ -347,7 +367,7 @@ export default function ProjectKanbanBoard() {
   // ── Loading state ──
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="p-8 space-y-6">
           <div className="h-8 w-48 bg-tertiary rounded animate-pulse" />
           <div className="grid grid-cols-5 gap-4">
@@ -359,13 +379,13 @@ export default function ProjectKanbanBoard() {
             ))}
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ── Render ──
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-6 pb-20">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-6">
@@ -580,6 +600,6 @@ export default function ProjectKanbanBoard() {
           </span>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

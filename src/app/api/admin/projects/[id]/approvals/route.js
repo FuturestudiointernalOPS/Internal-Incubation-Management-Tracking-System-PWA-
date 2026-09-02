@@ -1,7 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { getTaskTitleById } from "@/lib/db/queries/tasks";
+import {
+  getProjectApprovalRequests,
+  getProjectApprovalRequestById,
+  updateProjectApprovalRequestStatus,
+  linkTaskToProject,
+  createApprovalApprovedNotification,
+  createApprovalRejectedNotification,
+} from "@/models/projects";
 
 /**
  * PROJECT APPROVALS API
@@ -29,15 +37,7 @@ export async function GET(req, { params }) {
 
     let result;
     try {
-      result = await db.execute({
-        sql: `SELECT par.*, c.name AS requester_name_lookup, t.title AS task_title
-              FROM project_approval_requests par
-              LEFT JOIN contacts c ON par.requested_by = c.cid OR par.requested_by = c.id
-              LEFT JOIN tasks t ON par.task_id = t.id
-              WHERE par.project_id::text = ?
-              ORDER BY par.created_at DESC`,
-        args: [id],
-      });
+      result = await getProjectApprovalRequests(id);
     } catch (e) {
       console.error("GET project approvals query failed:", e.message);
       return NextResponse.json({ success: true, requests: [] });
@@ -93,10 +93,7 @@ export async function POST(req, { params }) {
     }
 
     // Fetch the request
-    const requestRes = await db.execute({
-      sql: "SELECT * FROM project_approval_requests WHERE id = ?",
-      args: [parseInt(request_id)],
-    });
+    const requestRes = await getProjectApprovalRequestById(request_id);
 
     if (requestRes.rows.length === 0) {
       return NextResponse.json(
@@ -109,17 +106,12 @@ export async function POST(req, { params }) {
 
     // Update the request status
     try {
-      await db.execute({
-        sql: `UPDATE project_approval_requests
-              SET status = ?, reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ?
-              WHERE id = ?`,
-        args: [
-          action,
-          reviewer_id,
-          action === "rejected" ? rejection_reason : null,
-          parseInt(request_id),
-        ],
-      });
+      await updateProjectApprovalRequestStatus(
+        action,
+        reviewer_id,
+        rejection_reason,
+        request_id,
+      );
     } catch (e) {
       console.error("Failed to update project_approval_request:", e.message);
       return NextResponse.json(
@@ -130,26 +122,19 @@ export async function POST(req, { params }) {
 
     if (action === "approved") {
       // Update the task to link it to the project and set active status
-      await db.execute({
-        sql: "UPDATE tasks SET project_id = ?, status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [approvalRequest.project_id, approvalRequest.task_id],
-      });
+      await linkTaskToProject(approvalRequest.project_id, approvalRequest.task_id);
 
       // Notify the requester
       try {
         const taskTitle =
           (await getTaskTitleById(approvalRequest.task_id)) || "Task";
 
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                VALUES (?, ?, ?, ?, 0, NOW())`,
-          args: [
-            approvalRequest.requester_id,
-            "Project Contribution Approved",
-            `Your contribution to link "${taskTitle}" was approved by ${reviewer_name || reviewer_id}.`,
-            "approval",
-          ],
-        });
+        await createApprovalApprovedNotification(
+          approvalRequest.requester_id,
+          "Project Contribution Approved",
+          `Your contribution to link "${taskTitle}" was approved by ${reviewer_name || reviewer_id}.`,
+          "approval",
+        );
       } catch (notifErr) {
         console.error("Approval notification failed:", notifErr.message);
       }
@@ -159,16 +144,12 @@ export async function POST(req, { params }) {
         const taskTitle =
           (await getTaskTitleById(approvalRequest.task_id)) || "Task";
 
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                VALUES (?, ?, ?, ?, 0, NOW())`,
-          args: [
-            approvalRequest.requester_id,
-            "Project Contribution Declined",
-            `Your request to link "${taskTitle}" was declined. Reason: ${rejection_reason}`,
-            "approval",
-          ],
-        });
+        await createApprovalRejectedNotification(
+          approvalRequest.requester_id,
+          "Project Contribution Declined",
+          `Your request to link "${taskTitle}" was declined. Reason: ${rejection_reason}`,
+          "approval",
+        );
       } catch (notifErr) {
         console.error("Rejection notification failed:", notifErr.message);
       }

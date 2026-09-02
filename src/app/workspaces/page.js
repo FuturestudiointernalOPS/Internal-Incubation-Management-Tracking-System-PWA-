@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
 
 /**
@@ -39,21 +40,41 @@ export default function WorkspacesPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/workspaces")
-      .then(async (r) => {
-        if (r.status === 401) {
-          router.replace("/login");
-          return null;
-        }
-        return r.json();
-      })
-      .then((d) => {
+    const loadWorkspaces = async (bypassCache = false) => {
+      const url = "/api/workspaces";
+      const apply = (d) => {
         if (!d) return;
         if (d.success) setData(d);
         else setError(true);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+      };
+      let painted = false;
+      setLoading(true);
+      try {
+        // Cache-first paint: returning to this page renders instantly from a fresh
+        // snapshot; the network refresh below converges.
+        if (!bypassCache) {
+          const cached = cacheGet(url);
+          if (cached !== null && cached.success) {
+            apply(cached);
+            setLoading(false);
+            painted = true;
+          }
+        }
+        const res = await fetch(url);
+        if (res.status === 401) {
+          router.replace("/login");
+          return;
+        }
+        const d = await res.json();
+        if (d.success) cacheSet(url, d);
+        apply(d);
+      } catch (_) {
+        if (!painted) setError(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadWorkspaces();
   }, [router]);
 
   const handleLogout = async () => {
@@ -81,6 +102,7 @@ export default function WorkspacesPage() {
     (contexts.program_assignments.length > 0 ||
       contexts.program_participations.length > 0 ||
       contexts.org_memberships.length > 0 ||
+      contexts.org_history.length > 0 ||
       contexts.responsibilities.length > 0 ||
       contexts.venture_memberships.length > 0);
 
@@ -195,6 +217,37 @@ export default function WorkspacesPage() {
                         role={roleLabel(r.key)}
                         href={r.href}
                       />
+                    ))}
+                  </Group>
+                )}
+
+                {/* Past / ended organizational memberships — history is preserved */}
+                {contexts.org_history.length > 0 && (
+                  <Group
+                    icon={Building2}
+                    label={t("common.workspaces.groupPast")}
+                  >
+                    {contexts.org_history.map((m, i) => (
+                      <div
+                        key={`past-${m.group_name}-${i}`}
+                        className="flex items-center justify-between gap-4 p-5 rounded-2xl border border-[var(--border-primary)] bg-secondary opacity-60"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
+                            {m.group_name}
+                          </p>
+                          <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
+                            {m.status}
+                            {m.started_at
+                              ? ` · ${new Date(m.started_at).toLocaleDateString()} → ${
+                                  m.expires_at
+                                    ? new Date(m.expires_at).toLocaleDateString()
+                                    : "…"
+                                }`
+                              : ""}
+                          </p>
+                        </div>
+                      </div>
                     ))}
                   </Group>
                 )}

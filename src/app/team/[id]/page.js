@@ -34,7 +34,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppTabs from "@/components/ui/AppTabs";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -44,6 +43,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function TeamDashboardPage({ params }) {
   const unwrappedParams = use(params);
@@ -107,59 +107,39 @@ export default function TeamDashboardPage({ params }) {
     } catch (_) {}
   };
 
-  const fetchTeamData = async () => {
-    setLoading(true);
-    try {
-      // 1. Fetch team data
-      const teamRes = await fetch(
-        `/api/teams?program_id=all&team_id=${teamId}`,
-      );
-      const teamData = await teamRes.json();
-
-      if (teamData.success && teamData.teams) {
+  const fetchTeamData = async (bypassCache = false) => {
+    const url = `/api/teams?program_id=all&team_id=${teamId}`;
+    const apply = (teamData, progData, delData, subData) => {
+      if (teamData?.success && teamData.teams) {
         const found = teamData.teams.find(
           (t) => t.id === teamId || String(t.id) === String(teamId),
         );
         if (found) {
           setTeam(found);
 
-          // 2. Fetch program info
           if (found.program_id) {
-            const progRes = await fetch(`/api/programs?id=${found.program_id}`);
-            const progData = await progRes.json();
-            if (progData.success && progData.programs) {
+            // 2. Program info
+            if (progData?.success && progData.programs) {
               setProgram(progData.programs[0] || null);
             }
 
-            // 3. Fetch deliverables for this program
-            try {
-              const delRes = await fetch(
-                `/api/deliverables?program_id=${found.program_id}`,
-              );
-              const delData = await delRes.json();
-              if (delData.success && delData.deliverables) {
-                setDeliverables(delData.deliverables || []);
-              }
-            } catch (_) {}
+            // 3. Deliverables for this program
+            if (delData?.success && delData.deliverables) {
+              setDeliverables(delData.deliverables || []);
+            }
 
-            // 4. Fetch submissions for this team
-            try {
-              const subRes = await fetch(
-                `/api/submissions?team_id=${teamId}&program_id=${found.program_id}`,
-              );
-              const subData = await subRes.json();
-              if (subData.success && subData.submissions) {
-                const subMap = {};
-                for (const s of subData.submissions) {
-                  const key = s.deliverable_id || s.requirement_id;
-                  if (key) {
-                    if (!subMap[key]) subMap[key] = [];
-                    subMap[key].push(s);
-                  }
+            // 4. Submissions for this team
+            if (subData?.success && subData.submissions) {
+              const subMap = {};
+              for (const s of subData.submissions) {
+                const key = s.deliverable_id || s.requirement_id;
+                if (key) {
+                  if (!subMap[key]) subMap[key] = [];
+                  subMap[key].push(s);
                 }
-                setSubmissions(subMap);
               }
-            } catch (_) {}
+              setSubmissions(subMap);
+            }
 
             // 5. Build deadlines calendar
             try {
@@ -186,20 +166,115 @@ export default function TeamDashboardPage({ params }) {
           }
         }
       }
+    };
+    let painted = false;
+    if (!bypassCache) setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the page always
+      // reflects the last action without flashing the full-page spinner.
+      if (!bypassCache) {
+        const teamCached = cacheGet(url);
+        if (teamCached !== null && teamCached.success && teamCached.teams) {
+          const foundCached = teamCached.teams.find(
+            (t) => t.id === teamId || String(t.id) === String(teamId),
+          );
+          if (foundCached) {
+            if (foundCached.program_id) {
+              const urls = [
+                `/api/programs?id=${foundCached.program_id}`,
+                `/api/deliverables?program_id=${foundCached.program_id}`,
+                `/api/submissions?team_id=${teamId}&program_id=${foundCached.program_id}`,
+              ];
+              const cached = urls.map((u) => cacheGet(u));
+              if (cached.every((c) => c !== null && c.success)) {
+                apply(teamCached, cached[0], cached[1], cached[2]);
+                setLoading(false);
+                painted = true;
+              }
+            } else {
+              apply(teamCached, null, null, null);
+              setLoading(false);
+              painted = true;
+            }
+          }
+        }
+      }
+
+      // 1. Fetch team data
+      const teamRes = await fetch(url);
+      const teamData = await teamRes.json();
+
+      if (teamData.success && teamData.teams) {
+        cacheSet(url, teamData);
+        const found = teamData.teams.find(
+          (t) => t.id === teamId || String(t.id) === String(teamId),
+        );
+        if (found) {
+          let progData = null;
+          let delData = null;
+          let subData = null;
+
+          // 2. Fetch program info
+          if (found.program_id) {
+            const progUrl = `/api/programs?id=${found.program_id}`;
+            try {
+              const progRes = await fetch(progUrl);
+              progData = await progRes.json();
+              if (progData.success) cacheSet(progUrl, progData);
+            } catch (_) {}
+
+            // 3. Fetch deliverables for this program
+            const delUrl = `/api/deliverables?program_id=${found.program_id}`;
+            try {
+              const delRes = await fetch(delUrl);
+              delData = await delRes.json();
+              if (delData.success) cacheSet(delUrl, delData);
+            } catch (_) {}
+
+            // 4. Fetch submissions for this team
+            const subUrl = `/api/submissions?team_id=${teamId}&program_id=${found.program_id}`;
+            try {
+              const subRes = await fetch(subUrl);
+              subData = await subRes.json();
+              if (subData.success) cacheSet(subUrl, subData);
+            } catch (_) {}
+          }
+
+          apply(teamData, progData, delData, subData);
+        }
+      }
     } catch (e) {
-      console.error("Team dashboard fetch error:", e);
+      if (!painted) console.error("Team dashboard fetch error:", e);
     } finally {
       setLoading(false);
     }
   };
 
   // — Fetch team tasks —
-  const fetchTasks = async () => {
+  const fetchTasks = async (bypassCache = false) => {
+    const url = `/api/team-tasks?team_id=${teamId}`;
+    const apply = (data) => {
+      if (data.success) setTasks(data.tasks || []);
+    };
     setTasksLoading(true);
     try {
-      const res = await fetch(`/api/team-tasks?team_id=${teamId}`);
+      // Cache-first paint: revisiting the tab renders instantly from a fresh
+      // snapshot; task mutations pass bypassCache=true so the board always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setTasksLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setTasks(data.tasks || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setTasksLoading(false);
   };
@@ -267,7 +342,7 @@ export default function TeamDashboardPage({ params }) {
         setSelectedDeliverable(null);
         setSubmitFileUrl("");
         setSubmitLink("");
-        fetchTeamData();
+        fetchTeamData(true);
       } else {
         setToast({
           type: "error",
@@ -324,7 +399,7 @@ export default function TeamDashboardPage({ params }) {
         setReviewSubData(null);
         setReviewFeedback("");
         setFollowUpDate("");
-        fetchTeamData();
+        fetchTeamData(true);
       } else {
         setToast({ type: "error", message: t((data.error || t("rootMisc.team.reviewFailed")) || "") || (data.error || t("rootMisc.team.reviewFailed")) });
       }
@@ -354,7 +429,7 @@ export default function TeamDashboardPage({ params }) {
           priority: "medium",
           assigned_to: "",
         });
-        fetchTasks();
+        fetchTasks(true);
       }
     } catch (e) {
       setToast({ type: "error", message: t(e.message || "") || e.message });
@@ -370,7 +445,7 @@ export default function TeamDashboardPage({ params }) {
         body: JSON.stringify({ id: taskId, status }),
       });
       const data = await res.json();
-      if (data.success) fetchTasks();
+      if (data.success) fetchTasks(true);
     } catch (_) {}
   };
 
@@ -384,7 +459,7 @@ export default function TeamDashboardPage({ params }) {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("rootMisc.team.taskDeleted") });
-        fetchTasks();
+        fetchTasks(true);
       }
     } catch (e) {
       setToast({ type: "error", message: t(e.message || "") || e.message });
@@ -475,7 +550,7 @@ export default function TeamDashboardPage({ params }) {
   // — Loading state —
   if (loading) {
     return (
-      <DashboardLayout role="team">
+      <>
         <div className="max-w-6xl mx-auto p-6 flex items-center justify-center min-h-[60vh]">
           <div className="flex items-center gap-3 text-[var(--text-secondary)]">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -484,14 +559,14 @@ export default function TeamDashboardPage({ params }) {
             </span>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // — Not found —
   if (!team) {
     return (
-      <DashboardLayout role="team">
+      <>
         <div className="max-w-6xl mx-auto p-6">
           <div className="text-center py-20">
             <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">
@@ -505,12 +580,12 @@ export default function TeamDashboardPage({ params }) {
             </AppButton>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="team">
+    <>
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -741,7 +816,7 @@ export default function TeamDashboardPage({ params }) {
                                 is_venture_ready: !team.is_venture_ready,
                               }),
                             });
-                            if ((await res.json()).success) fetchTeamData();
+                            if ((await res.json()).success) fetchTeamData(true);
                           } catch (_) {}
                         }}
                       >
@@ -1799,6 +1874,6 @@ export default function TeamDashboardPage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -14,6 +14,8 @@
 
 import db from "@/lib/db";
 import { ensurePermissionsSchema } from "@/lib/auth";
+import { runAuthzMigration } from "./migrations";
+import { ensureMembershipBootstrap } from "./membership";
 
 // Phase 2: Knowledge Base.
 // /api/knowledge (GET/POST/PATCH/DELETE) previously allowed staff + super_admin
@@ -31,16 +33,37 @@ export function ensureCapabilityBackfills() {
   if (!backfillsSeeded) {
     if (!backfillPromise) {
       backfillPromise = (async () => {
-        await ensureKnowledgeBackfill();
-        await ensureReportsBackfill();
-        await ensureCrmBackfill();
-        await ensureAnnouncementsBackfill();
-        await ensureProjectsBackfill();
-        await ensureTasksBackfill();
-        await ensureEngineeringBackfill();
-        await ensureProgramsBackfill();
-        await ensureVenturesBackfill();
-        await ensureInvestorBackfill();
+        // Capability backfills — ONE-TIME per database (runAuthzMigration).
+        // Previously these ran on every process boot with INSERT … ON CONFLICT
+        // DO NOTHING, silently re-adding profile capabilities that an
+        // administrator had removed through the Permissions Control Center.
+        // Recording them as one-time migrations keeps administrator
+        // configuration authoritative after the first boot following this
+        // change (Phase A requirement: no boot-time policy overwrites).
+        //
+        // All migrations are idempotent, write disjoint rows and record only
+        // their own name — running the checks in parallel avoids ~13
+        // sequential round-trips on every cold serverless instance (timeout
+        // risk on slow databases).
+        await Promise.all([
+          runAuthzMigration("cap-backfill-knowledge", ensureKnowledgeBackfill),
+          runAuthzMigration("cap-backfill-reports", ensureReportsBackfill),
+          runAuthzMigration("cap-backfill-announcements", ensureAnnouncementsBackfill),
+          runAuthzMigration("cap-backfill-projects", ensureProjectsBackfill),
+          runAuthzMigration("cap-backfill-tasks", ensureTasksBackfill),
+          runAuthzMigration("cap-backfill-engineering", ensureEngineeringBackfill),
+          runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
+          runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
+          runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          // One-time policy migrations — run once per database, then the
+          // Permissions UI owns eligibility configuration (see migrations.js).
+          runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill),
+          runAuthzMigration("eligibility-policy-3", ensureFinalPolicyBackfill),
+          // Phase 1: organizational membership bootstrap — existing group edges
+          // become active, no-expiry memberships (zero behavior change at
+          // cutover; see membership.js).
+          runAuthzMigration("membership-bootstrap-v1", ensureMembershipBootstrap),
+        ]);
         backfillsSeeded = true;
       })().finally(() => {
         backfillPromise = null;
@@ -102,12 +125,10 @@ async function ensureKnowledgeBackfill() {
 //     view/create/export)
 //   - admin inherits export via the shared Staff Default profile — safe,
 //     because admin is already allowed on run-export today
-// Eligibility rows for admin + developer are added the same way (they are
-// needed by the submit routes but were missing from the Phase 0 seed).
-
-const REPORTS_ELIGIBILITY_EXTRA = {
-  reporting: ["admin", "developer"],
-};
+// NOTE (policy #3): the previous `reporting += admin` eligibility extra was
+// removed — admin is no longer reporting-eligible, and the one-time
+// eligibility-policy-3 migration deletes any leftover row. developer stays
+// covered by the post-policy defaults (no extra needed).
 
 const REPORTS_CAP_BACKFILL = {
   profiles: {
@@ -125,21 +146,7 @@ const REPORTS_CAP_BACKFILL = {
 async function ensureReportsBackfill() {
   await ensurePermissionsSchema();
 
-  // 1. Eligibility rows for roles the Phase 0 seed did not include.
-  for (const [featureKey, roles] of Object.entries(REPORTS_ELIGIBILITY_EXTRA)) {
-    for (const role of roles) {
-      await db.execute({
-        sql: `INSERT INTO feature_eligibility
-                (feature_key, identity_type, identity_value, eligible)
-              VALUES (?, 'role', ?, 1)
-              ON CONFLICT (feature_key, identity_type, identity_value)
-              DO NOTHING`,
-        args: [featureKey, role],
-      });
-    }
-  }
-
-  // 2. Access profile capabilities (the base for profile-bearing users).
+  // 1. Access profile capabilities (the base for profile-bearing users).
   for (const [profileName, rows] of Object.entries(REPORTS_CAP_BACKFILL.profiles)) {
     const profile =
       (
@@ -172,37 +179,13 @@ async function ensureReportsBackfill() {
   }
 }
 
-// ─── Phase 4: CRM / Contacts ────────────────────────────────────────────────
-// The contacts routes already admit participant + founder on several reads
-// (self-scoped: participants/founders can only see their own contact and
-// timeline). To reproduce that population through eligibility, participant
-// and founder are added as ELIGIBLE for the crm feature. This grants nothing
-// by itself (eligible ≠ granted — they hold no contacts capabilities); it
-// only keeps the route population identical after the role gate is replaced.
-// No capability backfill is needed for Phase 4: staff/program_manager/teacher
-// already carry contacts.view via their default profiles, and participant/
-// founder view is deliberately NOT backfilled (their self-scoped reads stay
-// role-gated on the deferred routes).
-
-const CRM_ELIGIBILITY_EXTRA = {
-  crm: ["participant", "founder"],
-};
-
-async function ensureCrmBackfill() {
-  await ensurePermissionsSchema();
-  for (const [featureKey, roles] of Object.entries(CRM_ELIGIBILITY_EXTRA)) {
-    for (const role of roles) {
-      await db.execute({
-        sql: `INSERT INTO feature_eligibility
-                (feature_key, identity_type, identity_value, eligible)
-              VALUES (?, 'role', ?, 1)
-              ON CONFLICT (feature_key, identity_type, identity_value)
-              DO NOTHING`,
-        args: [featureKey, role],
-      });
-    }
-  }
-}
+// ─── Phase 4: CRM / Contacts (eligibility superseded by policy #3) ──────────
+// The contacts routes once admitted participant + founder on self-scoped
+// reads; Phase 4 reproduced that population with crm eligibility rows. Policy
+// #3 removes participant/founder from crm eligibility (self-service reads
+// stay role-gated, zero decision impact — verified by the read-only dry-run).
+// The previous ensureCrmBackfill() INSERT is therefore REMOVED: running it at
+// boot would silently re-add rows the eligibility-policy-3 migration deletes.
 
 // ─── Phase 5: Announcements (Internal Comms) ────────────────────────────────
 // Migrated routes:
@@ -212,9 +195,11 @@ async function ensureCrmBackfill() {
 //
 // Route allowlist (verified): super_admin, program_manager, admin, staff.
 // Backfills reproduce that population:
-//   - internal_comms eligibility += admin
 //   - create_announcements + moderate for staff / program_manager / admin
 //     (Staff Default + Program Manager profiles and role_capabilities)
+// NOTE (policy #3): the previous `internal_comms += admin` eligibility extra
+// was removed — admin is no longer internal_comms-eligible, and the one-time
+// eligibility-policy-3 migration deletes any leftover row.
 //
 // Deliberately NOT migrated in this phase:
 //   - messaging/contacts GET — participant/founder-only self-scoped route,
@@ -226,7 +211,6 @@ async function ensureCrmBackfill() {
 //     PO decisions on capability semantics first.
 
 const ANNOUNCEMENTS_BACKFILL = {
-  eligibility: { internal_comms: ["admin"] },
   profiles: {
     "Staff Default": [
       ["internal_comms", "create_announcements", 2],
@@ -255,19 +239,6 @@ const ANNOUNCEMENTS_BACKFILL = {
 
 async function ensureAnnouncementsBackfill() {
   await ensurePermissionsSchema();
-
-  for (const [featureKey, roles] of Object.entries(ANNOUNCEMENTS_BACKFILL.eligibility)) {
-    for (const role of roles) {
-      await db.execute({
-        sql: `INSERT INTO feature_eligibility
-                (feature_key, identity_type, identity_value, eligible)
-              VALUES (?, 'role', ?, 1)
-              ON CONFLICT (feature_key, identity_type, identity_value)
-              DO NOTHING`,
-        args: [featureKey, role],
-      });
-    }
-  }
 
   for (const [profileName, rows] of Object.entries(ANNOUNCEMENTS_BACKFILL.profiles)) {
     const profile =
@@ -796,4 +767,88 @@ async function ensureInvestorBackfill() {
       });
     }
   }
+}
+
+// ─── Messaging: FINAL MVP POLICY (internal-only) ────────────────────────────
+// Decision: Messaging is a Future Studio internal-operations feature.
+// Only the internal staff roles keep it: super_admin, staff, program_manager,
+// developer. Teacher (external "Active Teammate"), participant, founder and
+// member are REMOVED from messaging eligibility.
+//
+// This is a configuration change (DELETE of eligibility rows) — messaging
+// conversation DATA is untouched. Enforcement is server-side:
+//   - /api/internal-comms now gates through requireAuthorization("messaging")
+//   - the DELETE /api/internal-comms handler is removed (messages are never
+//     deleted; retention rule)
+//   - the participant/founder /api/messaging/contacts route is removed
+//   - navigation entries removed for external roles
+//   - direct URL access is blocked by server-side layout guards on the
+//     messages pages
+
+const MESSAGING_INTERNAL_ROLES = [
+  "super_admin",
+  "staff",
+  "program_manager",
+  "developer",
+];
+
+const MESSAGING_REMOVED_ROLES = ["teacher", "participant", "founder", "member"];
+
+async function ensureMessagingPolicyBackfill() {
+  await ensurePermissionsSchema();
+
+  // 1. Remove external roles from messaging eligibility (existing DBs seeded
+  //    before this policy had them eligible).
+  for (const role of MESSAGING_REMOVED_ROLES) {
+    await db.execute({
+      sql: `DELETE FROM feature_eligibility
+            WHERE feature_key = 'messaging' AND identity_type = 'role' AND identity_value = ?`,
+      args: [role],
+    });
+  }
+
+  // 2. Ensure the internal roles are present (idempotent; fresh DBs get the
+  //    updated seed, existing DBs already have these rows).
+  for (const role of MESSAGING_INTERNAL_ROLES) {
+    await db.execute({
+      sql: `INSERT INTO feature_eligibility
+              (feature_key, identity_type, identity_value, eligible)
+            VALUES ('messaging', 'role', ?, 1)
+            ON CONFLICT (feature_key, identity_type, identity_value)
+            DO NOTHING`,
+      args: [role],
+    });
+  }
+}
+
+// ─── Final eligibility policy (#3) ──────────────────────────────────────────
+// Product Owner-approved final eligibility values:
+//   - `admin` is NOT eligible for internal_comms (announcements) or reporting
+//     (op-reports / standups / retros / run-export / pm-export). The previous
+//     seed included admin; existing DBs must have those rows removed.
+//   - `participant` / `founder` are NOT eligible for crm. Removal is
+//     zero-impact: they hold no contacts capabilities — self-service reads are
+//     role-gated, not eligibility-gated (verified by the read-only dry-run,
+//     scripts/dryrun-eligibility-policy.mjs: zero decision changes for every
+//     user in the production database).
+//
+// DELETES ROLE ROWS ONLY — group eligibility rows are sacred and untouched.
+// Runs ONCE per database via runAuthzMigration("eligibility-policy-3"): fresh
+// DBs seed the updated FEATURE_ELIGIBILITY_DEFAULTS and have nothing to
+// delete; existing DBs converge on the first boot after deploy. After that,
+// the Permissions UI owns eligibility — this never runs again, so an
+// administrator's configuration is never overwritten.
+
+export async function ensureFinalPolicyBackfill() {
+  await ensurePermissionsSchema();
+  await db.execute({
+    sql: `DELETE FROM feature_eligibility
+          WHERE identity_type = 'role'
+            AND (
+              (feature_key = 'internal_comms' AND identity_value = 'admin')
+              OR (feature_key = 'reporting' AND identity_value = 'admin')
+              OR (feature_key = 'crm' AND identity_value IN ('participant', 'founder'))
+            )`,
+    args: [],
+  });
 }

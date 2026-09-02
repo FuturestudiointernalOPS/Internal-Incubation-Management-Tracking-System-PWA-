@@ -1,6 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireProjectAccess } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  getAdminProjectDetails,
+  getTaskStatsForProject,
+  getTasksForProject,
+  getResourcesByTaskIds,
+  getBlockersByTaskIds,
+  getSubtasksByParentTaskIds,
+  getProjectBlockers,
+  getProjectMembersUnion,
+  getProjectTimeline,
+  countDatedTasksForProject,
+} from "@/models/projects";
 
 /**
  * GET /api/admin/projects/[id]
@@ -22,14 +34,7 @@ export async function GET(req, { params }) {
     // 1. Project details with owner and program name
     // NOTE: v2_projects.program_id is INTEGER, v2_programs.id is UUID
     // Cast both to text for compatibility
-    const projectRes = await db.execute({
-      sql: `SELECT p.*, pr.name AS program_name, c.name AS owner_name
-            FROM v2_projects p
-            LEFT JOIN v2_programs pr ON p.program_id::text = pr.id::text
-            LEFT JOIN contacts c ON (p.owner_id IS NOT NULL AND (p.owner_id = c.cid OR p.owner_id = c.id))
-            WHERE p.id::text = ?`,
-      args: [id],
-    });
+    const projectRes = await getAdminProjectDetails(id);
 
     if (projectRes.rows.length === 0) {
       return NextResponse.json(
@@ -41,37 +46,17 @@ export async function GET(req, { params }) {
     const project = projectRes.rows[0];
 
     // 2. Task stats
-    const taskStats = await db.execute({
-      sql: `SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
-        SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) AS in_progress,
-        SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
-        SUM(CASE WHEN status = 'carried_over' THEN 1 ELSE 0 END) AS carried_over,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending
-        FROM tasks WHERE project_id::text = ?`,
-      args: [id],
-    });
+    const taskStats = await getTaskStatsForProject(id);
 
     // 3. All tasks for this project with assignee info
-    const tasksRes = await db.execute({
-      sql: `SELECT t.*, c.name AS assignee_name
-            FROM tasks t
-            LEFT JOIN contacts c ON (t.assigned_to IS NOT NULL AND (t.assigned_to = c.cid OR t.assigned_to = c.id))
-            WHERE t.project_id::text = ?
-            ORDER BY t.created_at DESC`,
-      args: [id],
-    });
+    const tasksRes = await getTasksForProject(id);
 
     // Resources/attachments — single batched query for all tasks (Ticket 1.8)
     let resourcesByTask = {};
     const allTaskIds = (tasksRes.rows || []).map((t) => t.id);
     if (allTaskIds.length > 0) {
       try {
-        const resourceRes = await db.execute({
-          sql: `SELECT id, name, url, task_id, type, file_name, file_size, uploaded_by FROM task_resources WHERE task_id IN (${allTaskIds.map(() => "?").join(",")}) ORDER BY created_at ASC`,
-          args: allTaskIds,
-        });
+        const resourceRes = await getResourcesByTaskIds(allTaskIds);
         for (const r of resourceRes.rows || []) {
           if (!resourcesByTask[r.task_id]) resourcesByTask[r.task_id] = [];
           resourcesByTask[r.task_id].push({
@@ -89,71 +74,53 @@ export async function GET(req, { params }) {
       }
     }
 
-    // Attach blockers and subtasks to each task
-    const tasksWithBlockers = await Promise.all(
-      (tasksRes.rows || []).map(async (task) => {
-        const [blockerRes, subtaskRes] = await Promise.all([
-          db.execute({
-            sql: "SELECT id, title, status, severity, description, reference_url, notes, created_at, resolved_at FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-            args: [task.id],
-          }),
-          db.execute({
-            sql: "SELECT id, title, status FROM tasks WHERE parent_task_id = ? ORDER BY created_at ASC",
-            args: [task.id],
-          }),
-        ]);
-        return {
-          ...task,
-          blockers: blockerRes.rows || [],
-          subtasks: subtaskRes.rows || [],
-          resources: resourcesByTask[task.id] || [],
-        };
-      }),
-    );
+    // Attach blockers and subtasks to each task — batched into two IN queries
+    // instead of 2 DB round-trips PER task. Produces identical per-task
+    // `blockers` (ordered created_at DESC) and `subtasks` (created_at ASC)
+    // arrays, preserving the original nested shape.
+    let blockersByTask = {};
+    let subtasksByTask = {};
+    if (allTaskIds.length > 0) {
+      const [blockerRes, subtaskRes] = await Promise.all([
+        getBlockersByTaskIds(allTaskIds),
+        getSubtasksByParentTaskIds(allTaskIds),
+      ]);
+      for (const r of blockerRes.rows || []) {
+        const id = String(r.task_id);
+        if (!blockersByTask[id]) blockersByTask[id] = [];
+        const { task_id, ...rest } = r;
+        blockersByTask[id].push(rest);
+      }
+      for (const r of subtaskRes.rows || []) {
+        const id = String(r.task_id);
+        if (!subtasksByTask[id]) subtasksByTask[id] = [];
+        const { task_id, ...rest } = r;
+        subtasksByTask[id].push(rest);
+      }
+    }
+
+    const tasksWithBlockers = (tasksRes.rows || []).map((task) => {
+      return {
+        ...task,
+        blockers: blockersByTask[String(task.id)] || [],
+        subtasks: subtasksByTask[String(task.id)] || [],
+        resources: resourcesByTask[task.id] || [],
+      };
+    });
 
     // 4. All blockers for this project
-    const blockersRes = await db.execute({
-      sql: `SELECT b.*, t.title AS task_title, c.name AS user_name
-            FROM blockers b
-            JOIN tasks t ON b.task_id = t.id
-            LEFT JOIN contacts c ON (b.user_id IS NOT NULL AND (b.user_id = c.cid OR b.user_id = c.id))
-            WHERE t.project_id::text = ?
-            ORDER BY b.created_at DESC`,
-      args: [id],
-    });
+    const blockersRes = await getProjectBlockers(id);
 
     // 5. Team members — union of project_members, v2_project_staff, and task assignees
-    const membersRes = await db.execute({
-      sql: `SELECT DISTINCT member_id, c.name, c.role, c.email, member_role FROM (
-        SELECT user_cid AS member_id, role AS member_role FROM project_members WHERE project_id::text = ?
-        UNION
-        SELECT staff_cid AS member_id, role AS member_role FROM v2_project_staff WHERE project_id::text = ?
-        UNION
-        SELECT assigned_to AS member_id, 'member' AS member_role FROM tasks WHERE project_id::text = ? AND assigned_to IS NOT NULL
-      ) combined
-      LEFT JOIN contacts c ON (combined.member_id IS NOT NULL AND (combined.member_id = c.cid OR combined.member_id = c.id))`,
-      args: [id, id, id],
-    });
+    const membersRes = await getProjectMembersUnion(id);
 
     // 6. Activity timeline
-    const timelineRes = await db.execute({
-      sql: `SELECT tal.*, t.title AS task_title, c.name AS actor_name
-            FROM task_assignment_log tal
-            LEFT JOIN tasks t ON tal.task_id = t.id
-            LEFT JOIN contacts c ON (tal.actor_id IS NOT NULL AND (tal.actor_id = c.cid OR tal.actor_id = c.id))
-            WHERE tal.project_id::text = ?
-            ORDER BY tal.created_at DESC
-            LIMIT 50`,
-      args: [id],
-    });
+    const timelineRes = await getProjectTimeline(id);
 
     // 7. Count dated tasks for timeline health
     let datedCount = 0;
     try {
-      const datedTasks = await db.execute({
-        sql: "SELECT COUNT(*) AS count FROM tasks WHERE project_id::text = ? AND start_date IS NOT NULL AND end_date IS NOT NULL",
-        args: [id],
-      });
+      const datedTasks = await countDatedTasksForProject(id);
       datedCount = datedTasks.rows[0]?.count || 0;
     } catch (_) {
       datedCount = 0;

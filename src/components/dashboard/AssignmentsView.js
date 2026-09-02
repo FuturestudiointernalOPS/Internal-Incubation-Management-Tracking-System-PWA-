@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   FileText,
   CheckCircle2,
@@ -25,11 +26,13 @@ function StatusBadge({ status }) {
     approved: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
     rejected: "bg-rose-500/10 text-rose-400 border-rose-500/20",
+    revision_requested: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   };
   const statusLabels = {
     approved: t("participantMisc.assignments.statusApproved"),
     pending: t("participantMisc.assignments.statusAwaitingReview"),
     rejected: t("participantMisc.assignments.statusRejected"),
+    revision_requested: t("participantMisc.assignments.statusRevisionRequested"),
     draft: t("participantMisc.assignments.statusDraft"),
   };
   const c =
@@ -58,16 +61,12 @@ export default function AssignmentsView() {
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
-  const fetchAssignments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const url =
-        filterProgram !== "all"
-          ? `/api/participant/assignments?program_id=${filterProgram}`
-          : "/api/participant/assignments";
-      const res = await fetch(url);
-      const data = await res.json();
+  const fetchAssignments = useCallback(async (bypassCache = false) => {
+    const url =
+      filterProgram !== "all"
+        ? `/api/participant/assignments?program_id=${filterProgram}`
+        : "/api/participant/assignments";
+    const apply = (data) => {
       if (data.success) {
         setAssignments(data.assignments || []);
         // Extract unique programs
@@ -81,8 +80,27 @@ export default function AssignmentsView() {
       } else {
         setError(t((data.error || "Failed to load") || "") || (data.error || "Failed to load"));
       }
+    };
+    let painted = false;
+    try {
+      setLoading(true);
+      setError(null);
+      // Cache-first paint on reads (incl. program filter switches); the
+      // submit flow passes bypassCache=true so it always reloads fresh.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError("Network error");
+      if (!painted) setError("Network error");
     } finally {
       setLoading(false);
     }
@@ -148,7 +166,7 @@ export default function AssignmentsView() {
         setSubmitUrl("");
         setSubmitFile(null);
         setFeedback(null);
-        fetchAssignments();
+        fetchAssignments(true);
       } else {
         setFeedback({
           type: "error",
@@ -173,6 +191,8 @@ export default function AssignmentsView() {
       return a.submission && a.submission.status === "pending";
     if (filterStatus === "approved") return a.submission?.status === "approved";
     if (filterStatus === "rejected") return a.submission?.status === "rejected";
+    if (filterStatus === "revision_requested")
+      return a.submission?.status === "revision_requested";
     return true;
   });
 
@@ -254,6 +274,7 @@ export default function AssignmentsView() {
           <option value="submitted">{t("participantMisc.assignments.filterSubmitted")}</option>
           <option value="approved">{t("participantMisc.assignments.filterApproved")}</option>
           <option value="rejected">{t("participantMisc.assignments.filterRejected")}</option>
+          <option value="revision_requested">{t("participantMisc.assignments.filterRevision")}</option>
         </select>
       </div>
 
@@ -329,6 +350,18 @@ export default function AssignmentsView() {
                       {a.description}
                     </p>
                   )}
+                  {(a.submission?.status === "revision_requested" ||
+                    a.submission?.status === "rejected") &&
+                    (a.submission.feedback || a.submission.rejectionReason) && (
+                      <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                        <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">
+                          {t("participantMisc.assignments.feedbackLabel")}
+                        </p>
+                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                          {a.submission.rejectionReason || a.submission.feedback}
+                        </p>
+                      </div>
+                    )}
                   {a.resourceUrl && isSafeUrl(a.resourceUrl) && (
                     <a
                       href={a.resourceUrl}
@@ -351,7 +384,9 @@ export default function AssignmentsView() {
                       <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
                     </a>
                   )}
-                  {(!a.submission || a.submission?.status === "rejected") && (
+                  {(!a.submission ||
+                    a.submission?.status === "rejected" ||
+                    a.submission?.status === "revision_requested") && (
                     <button
                       onClick={() => {
                         setShowSubmitModal(a);
@@ -361,9 +396,11 @@ export default function AssignmentsView() {
                       }}
                       className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
                     >
-                      {a.submission?.status === "rejected"
-                        ? t("participantMisc.assignments.redo")
-                        : t("participantMisc.assignments.submit")}
+                      {a.submission?.status === "revision_requested"
+                        ? t("participantMisc.assignments.resubmit")
+                        : a.submission?.status === "rejected"
+                          ? t("participantMisc.assignments.redo")
+                          : t("participantMisc.assignments.submit")}
                     </button>
                   )}
                 </div>

@@ -11,6 +11,7 @@ import {
   Type, Upload, BarChart3, PlusCircle, MinusCircle, RotateCcw, AlertTriangle, Sparkles, CheckCircle2, Play, FolderKanban, GitBranch, Send, Key, LogIn, XCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -152,23 +153,53 @@ export default function PlatformForms() {
 
   const notify = (msg) => { setNotification(msg); setTimeout(() => setNotification(null), 3000); };
 
-  const fetchForms = useCallback(async () => {
+  const fetchForms = useCallback(async (bypassCache = false) => {
+    const params = new URLSearchParams();
+    if (statusFilter !== "all") params.set("status", statusFilter);
+    const url = `/api/platform/forms?${params}`;
+    const apply = (data) => {
+      if (data.success) setForms(data.forms || []);
+    };
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") params.set("status", statusFilter);
-      const res = await fetch(`/api/platform/forms?${params}`);
+      // Cache-first paint: the form grid renders instantly from a fresh snapshot;
+      // form mutations pass bypassCache=true so the list always reflects the
+      // last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setForms(data.forms || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   }, [statusFilter]);
 
-  const fetchCollections = useCallback(async () => {
-    try {
-      const res = await fetch("/api/platform/collections");
-      const data = await res.json();
+  const fetchCollections = useCallback(async (bypassCache = false) => {
+    const url = "/api/platform/collections";
+    const apply = (data) => {
       if (data.success) setCollections(data.collections || []);
+    };
+    try {
+      // Cache-first paint: the collection dropdown renders instantly from a
+      // fresh snapshot and refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   }, []);
 
@@ -245,7 +276,7 @@ export default function PlatformForms() {
         notify(t("platformMisc.forms.notifyFormCreated"));
         setShowCreate(false);
         setCreateForm({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
-        fetchForms();
+        fetchForms(true);
         // Start with a default section for new forms
         const defaultSecId = genTempId();
         setEditingForm(data.form);
@@ -283,7 +314,7 @@ export default function PlatformForms() {
       if (data.success) {
         notify(t("platformMisc.forms.notifyPublishedVersion", { version: data.version }));
         setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
-        fetchForms();
+        fetchForms(true);
       }
     } catch (_) {}
     if (!skipSave) setSaving(false);
@@ -507,7 +538,7 @@ export default function PlatformForms() {
           });
         }
         notify(t("platformMisc.forms.notifyFormDuplicated"));
-        fetchForms();
+        fetchForms(true);
       }
     } catch (_) {}
   };
@@ -533,7 +564,7 @@ export default function PlatformForms() {
       const data = await res.json();
       if (data.success) {
         notify(t("platformMisc.forms.notifyFormDeleted"));
-        fetchForms();
+        fetchForms(true);
       }
     } catch (_) {}
   };
@@ -552,7 +583,7 @@ export default function PlatformForms() {
         });
       }
       notify(action === "archive" ? t("platformMisc.forms.notifyFormArchived") : t("platformMisc.forms.notifyFormRestored"));
-      fetchForms();
+      fetchForms(true);
     } catch (_) {}
     setArchiveConfirm(null);
   };
@@ -874,7 +905,7 @@ export default function PlatformForms() {
                             setShowCreate(false);
                             setCreateMode("manual");
                             setAiGenText("");
-                            fetchForms();
+                            fetchForms(true);
                             if (data.form) {
                               // Brief delay so the notification is visible before builder opens
                               setTimeout(() => openBuilder(data.form), 400);

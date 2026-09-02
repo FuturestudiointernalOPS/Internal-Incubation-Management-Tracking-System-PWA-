@@ -40,11 +40,11 @@ import {
   Check,
   UserMinus,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
 import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -1175,14 +1175,32 @@ function ProgramWorkspace() {
     }
   };
 
-  const loadReviews = async () => {
+  const loadReviews = async (bypassCache = false) => {
+    const url = `/api/facilitator-reviews?program_id=${encodeURIComponent(id)}`;
+    const apply = (data) => {
+      if (data?.success) setFacilitatorReviews(data.reviews || []);
+    };
     setReviewsLoading(true);
     try {
-      const res = await fetch(`/api/facilitator-reviews?program_id=${encodeURIComponent(id)}`);
+      // Cache-first paint: returning to the tab renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last decision.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setReviewsLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setFacilitatorReviews(data.reviews || []);
-    } catch (_) {}
-    setReviewsLoading(false);
+      if (data?.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (_) {} finally {
+      setReviewsLoading(false);
+    }
   };
 
   const reviewRatingLabel = (v) =>
@@ -1208,7 +1226,7 @@ function ProgramWorkspace() {
       const data = await res.json();
       if (data.success) {
         notify(t("pmMisc.workspace.reviewDecided") || "Review updated");
-        loadReviews();
+        loadReviews(true);
       } else {
         notify(data.error || "Failed to update review", "error");
       }
@@ -1338,19 +1356,10 @@ function ProgramWorkspace() {
   }, []);
 
   const fetchProgramData = useCallback(
-    async (silent = false) => {
-      if (!silent) setLoading(true);
-      try {
-        const timestamp = new Date().getTime();
-        const res = await fetch(
-          `/api/pm/full-state?id=${id}&metrics=true&t=${timestamp}`,
-          {
-            cache: "no-store",
-            headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
-          },
-        ).then((res) => res.json());
-
-        if (res.success) {
+    async (bypassCache = false) => {
+      const url = `/api/pm/full-state?id=${id}&metrics=true`;
+      const apply = (res) => {
+        if (res?.success) {
           setProgram(res.program);
           setSessions(res.sessions || []);
           setTeams(res.teams || []);
@@ -1365,8 +1374,30 @@ function ProgramWorkspace() {
           setReports(res.reports || []);
           setFamilies(res.families || []);
         }
+      };
+      let painted = false;
+      // Post-mutation reloads pass bypassCache=true — they never flash the
+      // full-page spinner and always fetch fresh data.
+      if (!bypassCache) setLoading(true);
+      try {
+        // Cache-first paint: returning to this page renders instantly from a
+        // fresh snapshot; mutation flows pass bypassCache=true so the lists
+        // always reflect the last action.
+        if (!bypassCache) {
+          const cached = cacheGet(url);
+          if (cached !== null && cached.success) {
+            apply(cached);
+            setLoading(false);
+            painted = true;
+          }
+        }
+        const res = await fetch(url).then((res) => res.json());
+        if (res?.success) {
+          cacheSet(url, res);
+          apply(res);
+        }
       } catch (error) {
-        console.error("Operational Fetch Failure:", error);
+        if (!painted) console.error("Operational Fetch Failure:", error);
       } finally {
         setLoading(false);
       }
@@ -1380,14 +1411,14 @@ function ProgramWorkspace() {
 
   if (loading) {
     return (
-      <DashboardLayout role={user.role || "program_manager"}>
+      <>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
             {t("common.loading")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -1450,7 +1481,7 @@ function ProgramWorkspace() {
   // curriculum content moved inline below
 
   return (
-    <DashboardLayout role={user.role || "program_manager"}>
+    <>
       <div className="space-y-8 animate-in">
         {/* HEADER SECTION */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -4932,7 +4963,7 @@ function ProgramWorkspace() {
             onClick={() => setShowRequirementModal(false)}
           >
             <div
-              className="card w-full max-w-sm space-y-6"
+              className="card w-full max-w-sm space-y-6 max-h-[85vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex justify-between items-center">
@@ -6841,7 +6872,7 @@ function ProgramWorkspace() {
         </div>
       )}
         </div>
-    </DashboardLayout>
+    </>
   );
 }
 

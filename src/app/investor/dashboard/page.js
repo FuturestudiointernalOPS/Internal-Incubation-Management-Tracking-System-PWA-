@@ -10,11 +10,11 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const PIPELINE_STAGES = [
   "interested", "watching", "meeting_requested",
@@ -87,19 +87,36 @@ export default function InvestorDashboard() {
 
   useEffect(() => { fetchDashboard(); }, []);
 
-  const fetchDashboard = async () => {
+  const fetchDashboard = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/dashboard");
+      const url = "/api/investor/dashboard";
+      const apply = (data) => {
+        if (data.success) {
+          setProfile(data.profile);
+          setPipeline(data.pipeline || []);
+          setWatchlist(data.watchlist || []);
+          setRecommendations(data.recommendations || []);
+          setCampaigns(data.campaigns || []);
+          setRelationships(data.relationships || []);
+          setStats(data.stats || {});
+        }
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the dashboard always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setProfile(data.profile);
-        setPipeline(data.pipeline || []);
-        setWatchlist(data.watchlist || []);
-        setRecommendations(data.recommendations || []);
-        setCampaigns(data.campaigns || []);
-        setRelationships(data.relationships || []);
-        setStats(data.stats || {});
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setLoading(false);
@@ -116,7 +133,7 @@ export default function InvestorDashboard() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: `${t("venture")} ${t(STAGE_LABELS[stage] || "")}` });
-        fetchDashboard();
+        fetchDashboard(true);
       }
     } catch (_) {} finally {
       setProcessingId(null);
@@ -134,7 +151,7 @@ export default function InvestorDashboard() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: data.action === "added" ? "Added to watchlist" : "Removed from watchlist" });
-        fetchDashboard();
+        fetchDashboard(true);
       }
     } catch (_) {} finally {
       setProcessingId(null);
@@ -167,17 +184,35 @@ export default function InvestorDashboard() {
   };
 
   // Open venture detail
-  const openVentureDetail = async (venture) => {
+  const openVentureDetail = async (venture, bypassCache = false) => {
     setDetailVenture(venture);
-    try {
-      const res = await fetch(`/api/investor/pipeline?venture_id=${venture.id}`);
-      const data = await res.json();
+    const url = `/api/investor/pipeline?venture_id=${venture.id}`;
+    let painted = false;
+    const apply = (data) => {
       if (data.success && data.pipeline?.length > 0) {
         setDetailPipeline(data.pipeline[0]);
       } else {
         setDetailPipeline(null);
       }
-    } catch (_) { setDetailPipeline(null); }
+      painted = true;
+    };
+    try {
+      // Cache-first paint: reopening a previously viewed venture renders
+      // instantly from a fresh snapshot of its pipeline status.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (_) {
+      // Only fall back to the empty state when nothing was painted.
+      if (!painted) setDetailPipeline(null);
+    }
   };
 
   // Toggle comparison
@@ -191,17 +226,17 @@ export default function InvestorDashboard() {
 
   if (loading) {
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (!profile || profile.approval_status !== "approved") {
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="max-w-2xl mx-auto py-20 text-center space-y-6">
           <Building2 className="w-16 h-16 text-[var(--text-tertiary)] mx-auto" />
           <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase">
@@ -218,7 +253,7 @@ export default function InvestorDashboard() {
             </AppButton>
           )}
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -232,7 +267,7 @@ export default function InvestorDashboard() {
   );
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -911,6 +946,6 @@ export default function InvestorDashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

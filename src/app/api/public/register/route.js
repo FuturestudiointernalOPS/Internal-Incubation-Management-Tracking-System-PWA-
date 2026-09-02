@@ -54,7 +54,7 @@ export async function POST(req) {
       // Update existing contact
       await db.execute({
         sql: "UPDATE contacts SET password = ?, name = ?, status = 'pending', group_name = ? WHERE email = ?",
-        args: [hashedPassword, name, group.name, normalizedEmail],
+        args: [hashedPassword, name, String(group?.name || "").trim().toUpperCase(), normalizedEmail],
       });
     } else {
       // Create new contact

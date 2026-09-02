@@ -19,11 +19,10 @@ import {
   Search,
   RefreshCw,
   Calendar,
-  Shield,
   BarChart3,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
 const SEV_KEYS = {
@@ -42,13 +41,30 @@ export default function EngineeringOperations() {
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/engineering/dashboard");
-      const json = await res.json();
+  const fetchDashboard = useCallback(async (bypassCache = false) => {
+    const url = "/api/engineering/dashboard";
+    const apply = (json) => {
       if (json.success) {
         setData(json);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; the refresh button passes bypassCache=true so the view always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.success) {
+        cacheSet(url, json);
+        apply(json);
       }
     } catch (e) {
       console.error("Failed to fetch engineering dashboard", e);
@@ -127,7 +143,7 @@ export default function EngineeringOperations() {
     : [];
 
   return (
-    <DashboardLayout role="super_admin" activeTab="engineering">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -260,22 +276,6 @@ export default function EngineeringOperations() {
                   </p>
                   <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.reportsSubtitle")}
-                  </p>
-                </div>
-              </button>
-              <button
-                onClick={() => router.push("/admin/engineering/permissions")}
-                className="ios-card !p-6 flex items-center gap-4 hover:border-purple-500/30 transition-all text-left"
-              >
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 bg-purple-500/10">
-                  <Shield className="w-6 h-6 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
-                    {t("engineering.overview.permissions")}
-                  </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
-                    {t("engineering.overview.permissionsSubtitle")}
                   </p>
                 </div>
               </button>
@@ -437,6 +437,6 @@ export default function EngineeringOperations() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

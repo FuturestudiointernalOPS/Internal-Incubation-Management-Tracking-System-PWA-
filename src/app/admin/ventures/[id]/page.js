@@ -38,7 +38,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STAGE_CONFIG = {
   idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -125,19 +125,36 @@ export default function VentureDetailPage({ params }) {
     if (id) fetchVenture();
   }, [id]);
 
-  const fetchVenture = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/ventures/${id}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+  const fetchVenture = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}`;
+    const apply = (data) => {
+      if (!data.success) {
         setError(t((data.error || "Venture not found") || "") || (data.error || "Venture not found"));
         return;
       }
       setVenture(data.venture);
+    };
+    let painted = false;
+    setLoading(true);
+    setError(null);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the venture
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError("Failed to load venture data");
+      if (!painted) setError("Failed to load venture data");
     } finally {
       setLoading(false);
     }
@@ -149,17 +166,17 @@ export default function VentureDetailPage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error || !venture) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
@@ -173,7 +190,7 @@ export default function VentureDetailPage({ params }) {
             Back to Ventures
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -199,7 +216,7 @@ export default function VentureDetailPage({ params }) {
   ];
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Back button */}
         <button
@@ -1029,6 +1046,6 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

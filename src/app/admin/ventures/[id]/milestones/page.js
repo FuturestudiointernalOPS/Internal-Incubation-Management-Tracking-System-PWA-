@@ -7,8 +7,8 @@ import {
   Flag, Calendar, Clock, User, Paperclip, Send, ChevronDown, ChevronRight, FileText,
   BookOpen, BarChart3, Layers,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_CFG = {
   not_started: { label: "Not Started", color: "text-slate-400 bg-slate-500/10" },
@@ -58,17 +58,30 @@ export default function VentureMilestonesPage() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const [vRes, mRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/milestones`),
-      ]);
-      const vData = await vRes.json();
-      const mData = await mRes.json();
+  const fetchData = async (bypassCache = false) => {
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/milestones`];
+    const apply = (vData, mData) => {
       if (vData.success) setVenture(vData.venture);
       if (mData.success) setMilestones(mData.milestones || []);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the data
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const [vRes, mRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const vData = await vRes.json();
+      const mData = await mRes.json();
+      if (vData.success) cacheSet(urls[0], vData);
+      if (mData.success) cacheSet(urls[1], mData);
+      apply(vData, mData);
     } catch {} finally { setLoading(false); }
   };
 
@@ -94,7 +107,7 @@ export default function VentureMilestonesPage() {
         body: JSON.stringify(mForm),
       });
       const data = await res.json();
-      if (data.success) { notify(t("vadmin.milestones.milestoneCreated")); setShowMilestoneModal(false); setMForm({ title: "", description: "", priority: "medium", due_date: "" }); fetchData(); }
+      if (data.success) { notify(t("vadmin.milestones.milestoneCreated")); setShowMilestoneModal(false); setMForm({ title: "", description: "", priority: "medium", due_date: "" }); fetchData(true); }
       else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
@@ -106,7 +119,7 @@ export default function VentureMilestonesPage() {
         method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }),
       });
       const data = await res.json();
-      if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(); }
+      if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(true); }
       else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
   };
@@ -155,15 +168,15 @@ export default function VentureMilestonesPage() {
       setSelectedDeliverable(null);
       setReviewForm({ decision: "approved", comments: "" });
       if (selectedMilestone) loadDeliverables(selectedMilestone);
-      fetchData();
+      fetchData(true);
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
     setSaving(false);
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const completedCount = milestones.filter((m) => m.status === "completed").length;
@@ -171,7 +184,7 @@ export default function VentureMilestonesPage() {
   const completedDeliverables = Object.values(deliverables).flat().filter((d) => d.status === "approved" || d.status === "completed").length;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
@@ -452,6 +465,6 @@ export default function VentureMilestonesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

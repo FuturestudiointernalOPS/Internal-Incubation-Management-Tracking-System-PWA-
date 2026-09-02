@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { Building2, Shield, Loader2, Users, Target, MessageSquare, X, UserPlus } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STAGE_COLORS={invested:"bg-emerald-500/10 text-emerald-400",due_diligence:"bg-purple-500/10 text-purple-400",negotiation:"bg-orange-500/10 text-orange-400",meeting_requested:"bg-amber-500/10 text-amber-400"};
 const REQ_CAT_COLORS={general:"bg-slate-500/10 text-slate-400",financial:"bg-emerald-500/10 text-emerald-400",legal:"bg-purple-500/10 text-purple-400",product:"bg-blue-500/10 text-blue-400",team:"bg-amber-500/10 text-amber-400",market:"bg-rose-500/10 text-rose-400"};
@@ -17,11 +17,28 @@ export default function AdminInvestorOverview() {
   const [loading,setLoading]=useState(true);
   const [detail,setDetail]=useState(null);
 
-  useEffect(()=>{fetch("/api/investor/admin-overview").then(r=>r.json()).then(d=>{if(d.success)setData(d);setLoading(false)});},[]);
+  useEffect(()=>{fetchOverview();},[]);
 
-  if(loading)return<DashboardLayout role="super_admin"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></DashboardLayout>;
+  const fetchOverview=async(bypassCache=false)=>{
+    setLoading(true);
+    try{
+      const url="/api/investor/admin-overview";
+      const apply=(d)=>{if(d.success)setData(d);};
+      // Cache-first paint: returning to this page renders instantly from a fresh snapshot.
+      if(!bypassCache){
+        const cached=cacheGet(url);
+        if(cached!==null&&cached.success){apply(cached);setLoading(false);}
+      }
+      const res=await fetch(url);
+      const d=await res.json();
+      if(d.success){cacheSet(url,d);apply(d);}
+    }catch(_){}
+    setLoading(false);
+  };
 
-  return(<DashboardLayout role="super_admin"><div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
+  if(loading)return<><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></>;
+
+  return(<><div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
     <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorAdmin.overview.investorActivity")}</h1>
 
     {/* Stats */}
@@ -97,5 +114,5 @@ export default function AdminInvestorOverview() {
         </div>
       </div>
     )}
-  </div></DashboardLayout>);
+  </div></>);
 }

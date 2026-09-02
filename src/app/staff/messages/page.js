@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import MessagingChat from "@/components/messaging/MessagingChat";
 
 export default function StaffMessages() {
@@ -13,8 +12,8 @@ export default function StaffMessages() {
   }, []);
 
   return (
-    <DashboardLayout role={user?.role || "staff"}>
+    <>
       <MessagingChat role="staff" />
-    </DashboardLayout>
+    </>
   );
 }
