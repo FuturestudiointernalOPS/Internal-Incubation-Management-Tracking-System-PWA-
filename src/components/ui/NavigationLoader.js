@@ -6,30 +6,39 @@ import { usePathname, useSearchParams } from "next/navigation";
 /**
  * GLOBAL NAVIGATION LOADER
  *
- * Shows a slim progress bar at the top of the screen whenever the user
- * clicks an internal link and the route is loading. It disappears once the
- * navigation completes (pathname/search change) or after a safety timeout,
- * so the bar never stays stuck.
+ * Shows a slim progress bar at the top of the screen whenever an internal link
+ * click starts a route load that is slow. The bar only appears after a short
+ * grace period (~250ms) so fast client-side navigations never flash it, and it
+ * disappears once the navigation completes (pathname/search change) or after a
+ * safety timeout, so it never stays stuck.
  */
 export default function NavigationLoader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [progress, setProgress] = useState(0);
   const [visible, setVisible] = useState(false);
+  // Grace period before the bar shows: quick navigations never display it.
+  const pendingRef = useRef(null);
   const safetyRef = useRef(null);
   const animRef = useRef(null);
 
+  const cancelPending = () => {
+    if (pendingRef.current) clearTimeout(pendingRef.current);
+    pendingRef.current = null;
+  };
+
   const finish = () => {
-    setProgress(100);
+    cancelPending();
     if (safetyRef.current) clearTimeout(safetyRef.current);
     if (animRef.current) clearInterval(animRef.current);
+    setProgress(100);
     safetyRef.current = setTimeout(() => {
       setVisible(false);
       setProgress(0);
     }, 250);
   };
 
-  const start = () => {
+  const show = () => {
     setVisible(true);
     setProgress(15);
     if (safetyRef.current) clearTimeout(safetyRef.current);
@@ -39,6 +48,13 @@ export default function NavigationLoader() {
     }, 180);
     // Safety: never leave the bar stuck if the route never changes
     safetyRef.current = setTimeout(finish, 6000);
+  };
+
+  const start = () => {
+    cancelPending();
+    // Only start the animation if the route is still loading after the grace
+    // period — otherwise fast navigations flash a meaningless progress bar.
+    pendingRef.current = setTimeout(show, 250);
   };
 
   // Detect internal link clicks → start loading
@@ -82,6 +98,7 @@ export default function NavigationLoader() {
     document.addEventListener("click", onClick);
     return () => {
       document.removeEventListener("click", onClick);
+      cancelPending();
       if (safetyRef.current) clearTimeout(safetyRef.current);
       if (animRef.current) clearInterval(animRef.current);
     };
