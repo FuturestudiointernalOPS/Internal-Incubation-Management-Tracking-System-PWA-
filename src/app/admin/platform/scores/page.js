@@ -18,6 +18,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STATUS_CONFIG = {
   submitted: { label: "adminMisc.platformScores.statusSubmitted", color: "text-amber-500", bg: "bg-amber-500/10" },
@@ -64,11 +65,24 @@ export default function ScoresPage() {
     fetchForms();
   }, []);
 
-  const fetchForms = async () => {
-    try {
-      const res = await fetch("/api/platform/forms?status=all");
-      const d = await res.json();
+  const fetchForms = async (bypassCache = false) => {
+    const url = "/api/platform/forms?status=all";
+    const apply = (d) => {
       if (d.success) setForms(d.forms || []);
+    };
+    try {
+      // Cache-first paint: the form dropdown renders instantly from a fresh
+      // snapshot; the network refresh keeps it current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const d = await res.json();
+      if (d.success) {
+        cacheSet(url, d);
+        apply(d);
+      }
     } catch (_) {}
   };
 
@@ -80,7 +94,7 @@ export default function ScoresPage() {
     } catch (_) {}
   };
 
-  const fetchScores = useCallback(async () => {
+  const fetchScores = useCallback(async (bypassCache = false) => {
     if (!selectedRunId) {
       setError(t("adminMisc.platformScores.errorSelectRun"));
       return;
@@ -88,25 +102,40 @@ export default function ScoresPage() {
     setLoading(true);
     setError("");
     setData(null);
-    try {
-      const params = new URLSearchParams({
-        run_id: selectedRunId,
-        form_id: selectedFormId,
-        sort,
-      });
 
-      const res = await fetch(
-        `/api/platform/ai/evaluation-scores?${params.toString()}`
-      );
+    const params = new URLSearchParams({
+      run_id: selectedRunId,
+      form_id: selectedFormId,
+      sort,
+    });
+    const url = `/api/platform/ai/evaluation-scores?${params.toString()}`;
+    const apply = (d) => {
+      setData(d);
+      setSelected({});
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: re-fetching the same run/form renders instantly
+      // from a fresh snapshot; decision mutations pass bypassCache=true so
+      // the table always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const d = await res.json();
       if (d.success) {
-        setData(d);
-        setSelected({});
+        cacheSet(url, d);
+        apply(d);
       } else {
         setError(t((d.error || t("adminMisc.platformScores.fetchFailed")) || "") || (d.error || t("adminMisc.platformScores.fetchFailed")));
       }
     } catch (err) {
-      setError(t("adminMisc.platformScores.networkError"));
+      if (!painted) setError(t("adminMisc.platformScores.networkError"));
     } finally {
       setLoading(false);
     }
@@ -242,7 +271,7 @@ export default function ScoresPage() {
       const d = await res.json();
       if (d.success) {
         notify(decision === "approved" ? t("adminMisc.platformScores.approvedToast") : t("adminMisc.platformScores.rejectedToast"));
-        fetchScores();
+        fetchScores(true);
       } else {
         notify(t((d.error || t("adminMisc.platformScores.decisionFailed")) || "") || (d.error || t("adminMisc.platformScores.decisionFailed")));
       }
@@ -286,7 +315,7 @@ export default function ScoresPage() {
           ? t("adminMisc.platformScores.bulkRejectedOne", { count: done })
           : t("adminMisc.platformScores.bulkRejectedMany", { count: done })
     );
-    fetchScores();
+    fetchScores(true);
   };
 
   return (
