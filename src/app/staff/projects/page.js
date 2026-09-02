@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * MY PROJECTS
@@ -59,14 +60,25 @@ export default function MyProjects() {
     init();
   }, []);
 
-  const fetchProjects = async (cid) => {
+  const fetchProjects = async (cid, bypassCache = false) => {
     try {
-      const res = await fetch(
-        `/api/projects?user_cid=${encodeURIComponent(cid)}`,
-      );
+      const url = `/api/projects?user_cid=${encodeURIComponent(cid)}`;
+      const apply = (data) => {
+        if (data.success) setProjects(data.projects || []);
+      };
+      // Cache-first paint on reads; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setProjects(data.projects || []);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (err) {
       console.error("Failed to fetch projects", err);
@@ -75,13 +87,25 @@ export default function MyProjects() {
     }
   };
 
-  const fetchInvitations = async (cid) => {
+  const fetchInvitations = async (cid, bypassCache = false) => {
     try {
-      const res = await fetch(
-        `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`,
-      );
+      const url = `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`;
+      const apply = (data) => {
+        if (data.success) setInvitations(data.invitations || []);
+      };
+      // Cache-first paint on reads; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setInvitations(data.invitations || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error("Failed to fetch invitations", e);
     }
