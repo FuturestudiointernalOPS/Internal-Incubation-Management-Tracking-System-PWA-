@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import {
   Activity,
   HeartPulse,
@@ -107,22 +108,19 @@ export default function SystemMonitoringPage() {
     { id: "reports", label: "adminMisc.system.tabs.reports", icon: FileText },
   ];
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      const [statusRes, healthRes, alertsRes, apiRes, storageRes, dbRes, jobsRes, jobStatsRes, reportsRes] = await Promise.all([
-        fetch("/api/system/status"),
-        fetch("/api/system/health?type=latest"),
-        fetch("/api/system/jobs?type=stats"),
-        fetch("/api/system/metrics?type=recent"),
-        fetch("/api/system/storage"),
-        fetch("/api/system/database"),
-        fetch("/api/system/jobs?limit=20"),
-        fetch("/api/system/jobs?type=stats"),
-        fetch("/api/system/reports?limit=10"),
-      ]);
-      const [statusData, healthData, alertStatsData, apiData, storageData, dbData, jobsData, jobStatsData, reportsData] =
-        await Promise.all([statusRes.json(), healthRes.json(), alertsRes.json(), apiRes.json(), storageRes.json(), dbRes.json(), jobsRes.json(), jobStatsRes.json(), reportsRes.json()]);
+  const fetchAll = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/system/status",
+      "/api/system/health?type=latest",
+      "/api/system/jobs?type=stats",
+      "/api/system/metrics?type=recent",
+      "/api/system/storage",
+      "/api/system/database",
+      "/api/system/jobs?limit=20",
+      "/api/system/jobs?type=stats",
+      "/api/system/reports?limit=10",
+    ];
+    const apply = (statusData, healthData, alertStatsData, apiData, storageData, dbData, jobsData, jobStatsData, reportsData) => {
       if (statusData.success) setStatus(statusData);
       if (healthData.success) setHealth(healthData.results || healthData.checks || []);
       if (apiData.success) setApiMonitor(apiData);
@@ -132,8 +130,31 @@ export default function SystemMonitoringPage() {
       if (jobStatsData.success) setJobStats(jobStatsData);
       if (reportsData.success) setReports(reportsData.reports || []);
       setAlerts(alertStatsData);
-    } catch (err) { setError(t(err.message || "") || err.message); }
-    finally { setLoading(false); }
+    };
+    let painted = false;
+    setLoading(true);
+    setError(null);
+    try {
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; the refresh button / bypassCache=true always fetches fresh.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3], cached[4], cached[5], cached[6], cached[7], cached[8]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const responses = await Promise.all(urls.map((u) => fetch(u).then((r) => r.json())));
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2], responses[3], responses[4], responses[5], responses[6], responses[7], responses[8]);
+    } catch (err) {
+      if (!painted) setError(t(err.message || "") || err.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
