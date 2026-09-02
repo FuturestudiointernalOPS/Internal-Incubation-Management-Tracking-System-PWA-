@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, Building2 } from "lucide-react";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useSafeBack } from "@/lib/useSafeBack";
 import MembershipSection from "@/components/membership/MembershipSection";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const MODULE_COLORS = {
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
@@ -89,28 +90,54 @@ export default function CrmDetailPage({ params }) {
   const [inviting, setInviting] = useState(false);
   const [inviteMessage, setInviteMessage] = useState(null);
 
-  useEffect(() => {
-    if (!cid) return;
-    async function load() {
-      setLoading(true);
-      try {
-        const [contactRes, timelineRes, rolesRes, programsRes] = await Promise.all([
-          fetch("/api/contacts?cid=" + cid).then(r => r.json()),
-          fetch(`/api/contacts/${cid}/timeline?limit=200${moduleFilter ? "&module=" + moduleFilter : ""}`).then(r => r.json()),
-          fetch(`/api/contacts/${cid}/roles`).then(r => r.json()),
-          fetch(`/api/contacts/${cid}/programs`).then(r => r.json()),
-        ]);
-        if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
-        if (timelineRes.success) setEvents(timelineRes.events || []);
-        if (rolesRes.success) setRoles(rolesRes.roles || []);
-        if (programsRes.success) setPrograms(programsRes.history || []);
-      } catch (e) {
-        console.error(e);
+  const load = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/contacts?cid=" + cid,
+      `/api/contacts/${cid}/timeline?limit=200${moduleFilter ? "&module=" + moduleFilter : ""}`,
+      `/api/contacts/${cid}/roles`,
+      `/api/contacts/${cid}/programs`,
+    ];
+    const apply = (contactRes, timelineRes, rolesRes, programsRes) => {
+      if (contactRes.contacts?.length > 0) setContact(contactRes.contacts[0]);
+      if (timelineRes.success) setEvents(timelineRes.events || []);
+      if (rolesRes.success) setRoles(rolesRes.roles || []);
+      if (programsRes.success) setPrograms(programsRes.history || []);
+    };
+    let painted = false;
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; module-filter variants cache independently per URL.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setLoading(false);
+          painted = true;
+        }
       }
+      const [contactRes, timelineRes, rolesRes, programsRes] = await Promise.all([
+        fetch(urls[0]).then((r) => r.json()),
+        fetch(urls[1]).then((r) => r.json()),
+        fetch(urls[2]).then((r) => r.json()),
+        fetch(urls[3]).then((r) => r.json()),
+      ]);
+      if (contactRes.success) cacheSet(urls[0], contactRes);
+      if (timelineRes.success) cacheSet(urls[1], timelineRes);
+      if (rolesRes.success) cacheSet(urls[2], rolesRes);
+      if (programsRes.success) cacheSet(urls[3], programsRes);
+      apply(contactRes, timelineRes, rolesRes, programsRes);
+    } catch (e) {
+      if (!painted) console.error(e);
+    } finally {
       setLoading(false);
     }
-    load();
   }, [cid, moduleFilter]);
+
+  useEffect(() => {
+    if (!cid) return;
+    load();
+  }, [load, cid]);
 
   const currentRoles = roles.filter(r => r.is_current);
   const pastRoles = roles.filter(r => !r.is_current);
