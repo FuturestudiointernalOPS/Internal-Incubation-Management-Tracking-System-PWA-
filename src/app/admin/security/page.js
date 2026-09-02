@@ -23,6 +23,7 @@ import {
   Ban,
   Activity,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const SEVERITY_COLORS = {
   info: "text-blue-400 bg-blue-500/10",
@@ -62,37 +63,70 @@ export default function SecurityPage() {
   // Confirm dialog
   const [confirmAction, setConfirmAction] = useState(null);
 
-  const fetchSummary = useCallback(async () => {
-    try {
-      const [sessionsRes, eventsRes, loginRes, auditRes] = await Promise.all([
-        fetch("/api/security/sessions?limit=10"),
-        fetch("/api/security/events?type=stats&hours=24"),
-        fetch("/api/security/login-history?type=stats&hours=24"),
-        fetch("/api/audit-logs?type=stats&hours=24"),
-      ]);
-
-      const sessionsData = await sessionsRes.json();
-      const eventsData = await eventsRes.json();
-      const loginData = await loginRes.json();
-      const auditData = await auditRes.json();
-
+  const fetchSummary = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/security/sessions?limit=10",
+      "/api/security/events?type=stats&hours=24",
+      "/api/security/login-history?type=stats&hours=24",
+      "/api/audit-logs?type=stats&hours=24",
+    ];
+    const apply = (sessionsData, eventsData, loginData, auditData) => {
       setSummary({
         active_sessions: sessionsData.sessions?.length || 0,
         ...eventsData,
         ...loginData,
         audit_total: auditData.total || auditData.audit_logs_24h || 0,
       });
+    };
+
+    try {
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots while the network refresh below converges in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      if (responses.every((r) => r?.success)) {
+        urls.forEach((u, i) => cacheSet(u, responses[i]));
+        apply(responses[0], responses[1], responses[2], responses[3]);
+      }
     } catch (err) {
       console.error("Summary error:", err);
     }
   }, []);
 
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (bypassCache = false) => {
+    const url = "/api/security/sessions?limit=50";
+    const apply = (data) => {
+      if (data.success) setSessions(data.sessions || []);
+    };
     setSessionsLoading(true);
     try {
-      const res = await fetch("/api/security/sessions?limit=50");
+      // Cache-first paint: returning to the page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setSessionsLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setSessions(data.sessions || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (err) {
       console.error("Sessions error:", err);
     } finally {
@@ -100,12 +134,29 @@ export default function SecurityPage() {
     }
   }, []);
 
-  const fetchEvents = useCallback(async () => {
+  const fetchEvents = useCallback(async (bypassCache = false) => {
+    const url = "/api/security/events?limit=50";
+    const apply = (data) => {
+      if (data.success) setEvents(data.events || []);
+    };
     setEventsLoading(true);
     try {
-      const res = await fetch("/api/security/events?limit=50");
+      // Cache-first paint: returning to the page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setEventsLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setEvents(data.events || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (err) {
       console.error("Events error:", err);
     } finally {
@@ -113,12 +164,29 @@ export default function SecurityPage() {
     }
   }, []);
 
-  const fetchLoginHistory = useCallback(async () => {
+  const fetchLoginHistory = useCallback(async (bypassCache = false) => {
+    const url = "/api/security/login-history?limit=50";
+    const apply = (data) => {
+      if (data.success) setLoginHistory(data.history || []);
+    };
     setLoginLoading(true);
     try {
-      const res = await fetch("/api/security/login-history?limit=50");
+      // Cache-first paint: returning to the page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoginLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setLoginHistory(data.history || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (err) {
       console.error("Login history error:", err);
     } finally {
@@ -159,7 +227,7 @@ export default function SecurityPage() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchEvents();
+        fetchEvents(true);
         setConfirmAction(null);
       }
     } catch (err) {
