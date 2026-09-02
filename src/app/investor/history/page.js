@@ -9,6 +9,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const DECISION_COLORS = {
   invest: "bg-emerald-500/10 text-emerald-400",
@@ -39,15 +40,31 @@ export default function InvestmentHistoryPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/decisions");
+      const url = "/api/investor/decisions";
+      const apply = (data) => {
+        if (data.success) {
+          setDecisions(data.decisions || []);
+          setHistory(data.history || []);
+          setStats(data.stats || {});
+        }
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot while the report refreshes in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setDecisions(data.decisions || []);
-        setHistory(data.history || []);
-        setStats(data.stats || {});
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (_) {}
     setLoading(false);
