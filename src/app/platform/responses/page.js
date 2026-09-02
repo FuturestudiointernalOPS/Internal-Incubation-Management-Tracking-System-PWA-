@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -27,63 +28,96 @@ function ResponsesContent() {
   const [visibleFieldIds, setVisibleFieldIds] = useState([]); // user-selected columns
   const [showColumnPicker, setShowColumnPicker] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (bypassCache = false) => {
     setLoading(true);
-    try {
-      const [runsRes, formsRes] = await Promise.all([
-        fetch("/api/platform/form-runs"),
-        fetch("/api/platform/forms"),
-      ]);
-      const [runsData, formsData] = await Promise.all([runsRes.json(), formsRes.json()]);
+    const baseUrls = ["/api/platform/form-runs", "/api/platform/forms"];
+    const detailUrl = (runId) => `/api/platform/form-runs?id=${runId}`;
+    const activeRuns = (runsData) =>
+      (runsData.runs || []).filter((r) => !["draft", "cancelled"].includes(r.status));
+    // Per-run detail URL(s) backing the table for the current mode. In run
+    // mode only the requested run is expanded; otherwise every active run.
+    const detailUrlsFor = (runsData) =>
+      runParam ? [detailUrl(runParam)] : activeRuns(runsData).map((r) => detailUrl(r.id));
+
+    // GET + write the fresh payload to the shared cache on success.
+    const fetchJson = async (url) => {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data && data.success) cacheSet(url, data);
+      return data;
+    };
+
+    // State updates for one (runs, forms, run-details) snapshot — logic unchanged.
+    const apply = (runsData, formsData, detailMap) => {
       setRuns(runsData.runs || []);
       setForms(formsData.forms || []);
-
       const all = [];
       if (runParam) {
         // Run-specific mode: only this run's submissions, no other runs.
-        try {
-          const subRes = await fetch(`/api/platform/form-runs?id=${runParam}`);
-          const subData = await subRes.json();
-          if (subData.success && subData.run) {
-            const run = subData.run;
-            setSelectedFormId(String(run.form_id));
-            if (Array.isArray(subData.submissions)) {
-              for (const s of subData.submissions) {
-                const subScores = s.data?._scores;
-                all.push({
-                  ...s,
-                  run_name: run.name,
-                  run_id: run.id,
-                  form_id: run.form_id,
-                  overall: subScores?.overall,
-                  ranking: subScores?.ranking,
-                });
-              }
+        const subData = detailMap[detailUrl(runParam)];
+        if (subData && subData.success && subData.run) {
+          const run = subData.run;
+          setSelectedFormId(String(run.form_id));
+          if (Array.isArray(subData.submissions)) {
+            for (const s of subData.submissions) {
+              const subScores = s.data?._scores;
+              all.push({
+                ...s,
+                run_name: run.name,
+                run_id: run.id,
+                form_id: run.form_id,
+                overall: subScores?.overall,
+                ranking: subScores?.ranking,
+              });
             }
           }
-        } catch (_) {}
+        }
       } else {
-        for (const run of (runsData.runs || []).filter(r => !["draft", "cancelled"].includes(r.status))) {
-          try {
-            const subRes = await fetch(`/api/platform/form-runs?id=${run.id}`);
-            const subData = await subRes.json();
-            if (subData.success && subData.submissions) {
-              for (const s of subData.submissions) {
-                const subScores = s.data?._scores;
-                all.push({
-                  ...s,
-                  run_name: run.name,
-                  run_id: run.id,
-                  form_id: run.form_id,
-                  overall: subScores?.overall,
-                  ranking: subScores?.ranking,
-                });
-              }
+        for (const run of activeRuns(runsData)) {
+          const subData = detailMap[detailUrl(run.id)];
+          if (subData && subData.success && subData.submissions) {
+            for (const s of subData.submissions) {
+              const subScores = s.data?._scores;
+              all.push({
+                ...s,
+                run_name: run.name,
+                run_id: run.id,
+                form_id: run.form_id,
+                overall: subScores?.overall,
+                ranking: subScores?.ranking,
+              });
             }
-          } catch (_) {}
+          }
         }
       }
       setAllSubs(all);
+    };
+
+    try {
+      // Cache-first paint: when every URL this mode needs is a fresh snapshot
+      // (base lists + every run detail), render instantly and let the network
+      // refresh run in the background.
+      if (!bypassCache) {
+        const baseCached = baseUrls.map((u) => cacheGet(u));
+        if (baseCached.every((c) => c !== null && c.success)) {
+          const urls = detailUrlsFor(baseCached[0]);
+          const detailCached = urls.map((u) => cacheGet(u));
+          if (detailCached.every((c) => c !== null && c.success)) {
+            const detailMap = {};
+            urls.forEach((u, i) => { detailMap[u] = detailCached[i]; });
+            apply(baseCached[0], baseCached[1], detailMap);
+            setLoading(false);
+          }
+        }
+      }
+      const [runsRes, formsRes] = await Promise.all([fetchJson(baseUrls[0]), fetchJson(baseUrls[1])]);
+      const detailMap = {};
+      for (const url of detailUrlsFor(runsRes)) {
+        try {
+          detailMap[url] = await fetchJson(url);
+        } catch (_) {}
+      }
+      apply(runsRes, formsRes, detailMap);
     } catch (_) {}
     setLoading(false);
   }, [runParam]);
