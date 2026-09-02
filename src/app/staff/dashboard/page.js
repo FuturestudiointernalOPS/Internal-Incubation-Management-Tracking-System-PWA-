@@ -18,6 +18,7 @@ import {
 import { motion } from "framer-motion";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function StaffDashboard() {
   const { t } = useI18n();
@@ -46,35 +47,48 @@ export default function StaffDashboard() {
   }, []);
 
   const fetchData = async (uid) => {
-    try {
-      const assignRes = await fetch(`/api/program-staff?staff_id=${uid}`);
-      const assignData = await assignRes.json();
-      if (assignData.success) setAssignments(assignData.assignments);
+    const urls = [
+      `/api/program-staff?staff_id=${uid}`,
+      uid ? `/api/tasks?user_id=${uid}&status=pending&limit=5` : null,
+      `/api/participant/submissions`,
+    ];
 
-      // Fetch upcoming tasks for this staff member
-      if (uid) {
-        setTasksLoading(true);
-        const taskRes = await fetch(
-          `/api/tasks?user_id=${uid}&status=pending&limit=5`,
-        );
-        const taskData = await taskRes.json();
-        if (taskData.success) setUpcomingTasks(taskData.tasks || []);
-        setTasksLoading(false);
-      }
-
-      // Fetch submissions for assigned programs
-      const subRes = await fetch(`/api/participant/submissions`);
-      const subData = await subRes.json();
-      if (subData.success) {
+    const apply = (assignData, taskData, subData) => {
+      if (assignData?.success) setAssignments(assignData.assignments);
+      if (taskData?.success) setUpcomingTasks(taskData.tasks || []);
+      if (subData?.success)
         setPendingSubmissions(
-          subData.submissions.filter((s) => s.status === "pending"),
+          (subData.submissions || []).filter((s) => s.status === "pending"),
         );
-      }
+    };
 
+    try {
+      // Cache-first paint: returning to the dashboard renders every section
+      // instantly from a fresh (≤30s) snapshot, then the network refresh below
+      // converges to current values.
+      const cached = urls.map((u) => (u ? cacheGet(u) : null));
+      const cachedReady = cached.every((c) => c !== null);
+      if (cachedReady) {
+        apply(cached[0], cached[1], cached[2]);
+        setIsLoaded(true);
+      }
+      if (uid && !cachedReady) setTasksLoading(true);
+
+      const responses = await Promise.all(
+        urls.map((u) =>
+          u ? fetch(u).then((r) => r.json()) : Promise.resolve(null),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (u && responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2]);
       setIsLoaded(true);
     } catch (e) {
       console.error(e);
       setIsLoaded(true);
+    } finally {
+      setTasksLoading(false);
     }
   };
 

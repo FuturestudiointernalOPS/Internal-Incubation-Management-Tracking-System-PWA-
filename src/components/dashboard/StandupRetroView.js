@@ -6,6 +6,7 @@ import {
   CheckCircle2, Clock, AlertTriangle, User, Paperclip,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function getCurrentWeek() {
   const now = new Date();
@@ -242,23 +243,40 @@ export default function StandupRetroView({ user, context, contextLabel }) {
 
   const ctx = context || { context_type: "staff", context_id: null };
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     if (!user?.cid) { setLoading(false); return; }
+    const params = new URLSearchParams({ user_id: user.cid, week: week.week, year: week.year, context_type: ctx.context_type });
+    if (ctx.context_id) params.set("context_id", ctx.context_id);
+    const url = `/api/standups/current?${params}`;
+
+    const apply = (data) => {
+      if (!data.success) return;
+      setReport(data.report);
+      setTasks(data.tasks || []);
+      if (data.report?.report_type === "standup") {
+        try { const p = JSON.parse(data.report.top_priorities || "[]"); setStandupForm({ priorities: Array.isArray(p) ? p.join("\n") : (data.report.top_priorities || ""), deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); } catch { setStandupForm({ priorities: data.report.top_priorities || "", deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); }
+      }
+      if (data.report?.report_type === "retro") {
+        try { const w = JSON.parse(data.report.wins || "[]"); setRetroForm({ wentWell: Array.isArray(w) ? w.join("\n") : (data.report.wins || ""), wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); } catch { setRetroForm({ wentWell: data.report.wins || "", wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); }
+      }
+    };
+
     setLoading(true);
     try {
-      const params = new URLSearchParams({ user_id: user.cid, week: week.week, year: week.year, context_type: ctx.context_type });
-      if (ctx.context_id) params.set("context_id", ctx.context_id);
-      const res = await fetch(`/api/standups/current?${params}`);
+      // Cache-first paint on reads (mount/week/tab changes). Mutations pass
+      // bypassCache=true so they always wait for the fresh server state.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setReport(data.report);
-        setTasks(data.tasks || []);
-        if (data.report?.report_type === "standup") {
-          try { const p = JSON.parse(data.report.top_priorities || "[]"); setStandupForm({ priorities: Array.isArray(p) ? p.join("\n") : (data.report.top_priorities || ""), deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); } catch { setStandupForm({ priorities: data.report.top_priorities || "", deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); }
-        }
-        if (data.report?.report_type === "retro") {
-          try { const w = JSON.parse(data.report.wins || "[]"); setRetroForm({ wentWell: Array.isArray(w) ? w.join("\n") : (data.report.wins || ""), wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); } catch { setRetroForm({ wentWell: data.report.wins || "", wentWrong: data.report.challenges || "", improve: data.report.carryover_items || "" }); }
-        }
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) { console.error(e); } finally { setLoading(false); }
   }, [user?.cid, week.week, week.year, ctx.context_type, ctx.context_id]);
@@ -268,9 +286,20 @@ export default function StandupRetroView({ user, context, contextLabel }) {
   /* ─── Fetch staff for assignment ─── */
   useEffect(() => {
     if (!user?.cid) return;
-    fetch("/api/contacts?role=staff")
+    const url = "/api/contacts?role=staff";
+    const apply = (d) => {
+      if (d.success) setAllStaff(d.contacts || []);
+    };
+    const cached = cacheGet(url);
+    if (cached !== null && cached.success) apply(cached);
+    fetch(url)
       .then((r) => r.json())
-      .then((d) => { if (d.success) setAllStaff(d.contacts || []); })
+      .then((d) => {
+        if (d.success) {
+          cacheSet(url, d);
+          apply(d);
+        }
+      })
       .catch(() => {});
   }, [user?.cid]);
 
@@ -289,7 +318,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/blockers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ task_id: taskId, user_id: user.cid, user_name: user.name, title: blockerTitle }) });
       const data = await res.json();
       if (!data.success) setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.blockerFailed")) || "") || (data.error || t("staffMisc.standupRetro.blockerFailed")) });
-      else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); fetchData(); }
+      else { setToast({ type: "success", msg: t("staffMisc.standupRetro.blockerAdded") }); fetchData(true); }
     } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); }
   };
 
@@ -314,7 +343,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     try {
       const res = await fetch("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, title: newTaskTitle.trim(), created_week: week.week, created_year: week.year, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
-      if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(); }
+      if (data.success) { setNewTaskTitle(""); setShowNewTask(false); fetchData(true); }
       else setToast({ type: "error", msg: t((data.error || t("staffMisc.standupRetro.failed")) || "") || (data.error || t("staffMisc.standupRetro.failed")) });
     } catch (e) { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setCreatingTask(false); }
   };
@@ -333,7 +362,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/standups/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, top_priorities: standupForm.priorities, expected_deliverables: standupForm.deliverables, additional_notes: standupForm.notes, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.standupSubmitted") : (t(data.error || "") || data.error) });
-      if (data.success) fetchData();
+      if (data.success) fetchData(true);
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
@@ -343,7 +372,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       const res = await fetch("/api/retros/submit", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ user_id: user.cid, user_name: user.name, user_role: user.role || "staff", week_number: week.week, year: week.year, wins: retroForm.wentWell, challenges: retroForm.wentWrong, unfinished_tasks: retroForm.improve, context_type: ctx.context_type, context_id: ctx.context_id || null }) });
       const data = await res.json();
       setToast({ type: data.success ? "success" : "error", msg: data.success ? t("staffMisc.standupRetro.retroSubmitted") : (t(data.error || "") || data.error) });
-      if (data.success) fetchData();
+      if (data.success) fetchData(true);
     } catch { setToast({ type: "error", msg: t("staffMisc.standupRetro.networkError") }); } finally { setSaving(false); }
   };
 
