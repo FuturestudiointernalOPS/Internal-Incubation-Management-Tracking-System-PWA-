@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Calendar, Clock,
   Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const ROW_COLORS = {
   milestone: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
@@ -34,23 +35,40 @@ export default function VentureTimelinePage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, tRes, pRes, dRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/timeline?view=gantt`),
-        fetch(`/api/ventures/${id}/timeline?view=progress`),
-        fetch(`/api/ventures/${id}/timeline?view=delay`),
-      ]);
-      const v = await vRes.json();
-      const t = await tRes.json();
-      const p = await pRes.json();
-      const d = await dRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/timeline?view=gantt`,
+      `/api/ventures/${id}/timeline?view=progress`,
+      `/api/ventures/${id}/timeline?view=delay`,
+    ];
+    const apply = (v, t, p, d) => {
       if (v.success) setVenture(v.venture);
       if (t.success) setData(t);
       if (p.success) setProgress(p.progress);
       if (d.success) setDelays(d);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots while the network revalidates in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setLoading(false);
+        }
+      }
+      const [vRes, tRes, pRes, dRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json();
+      const t = await tRes.json();
+      const p = await pRes.json();
+      const d = await dRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (t.success) cacheSet(urls[1], t);
+      if (p.success) cacheSet(urls[2], p);
+      if (d.success) cacheSet(urls[3], d);
+      apply(v, t, p, d);
     } catch {} finally { setLoading(false); }
   };
 
