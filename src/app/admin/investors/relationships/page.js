@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const MEETING_TYPES = [
   { value: "introductory", label: "investorAdmin.relationships.meetingIntroductory" },
@@ -77,12 +78,29 @@ export default function AdminRelationshipsPage() {
     }
   };
 
-  const fetchWorkspaces = async () => {
+  const fetchWorkspaces = async (bypassCache = false) => {
+    const url = "/api/investor/relationships";
+    const apply = (data) => {
+      if (data.success) setWorkspaces(data.workspaces || []);
+    };
     setLoading(true);
     try {
-      const res = await fetch("/api/investor/relationships");
+      // Cache-first paint: returning to the page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setWorkspaces(data.workspaces || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
     setLoading(false);
   };
@@ -107,25 +125,47 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: field === "relationship_manager" ? t("investorAdmin.relationships.rmAssigned") : t("investorAdmin.relationships.imAssigned") });
         setAssignField(null);
         setAssignSearch("");
-        selectWorkspace(selected);
+        selectWorkspace(selected, true);
       }
     } catch (_) {}
   };
 
-  const selectWorkspace = async (ws) => {
-    try {
-      const res = await fetch(`/api/investor/relationships?id=${ws.id}`);
-      const data = await res.json();
+  const selectWorkspace = async (ws, bypassCache = false) => {
+    const url = `/api/investor/relationships?id=${ws.id}`;
+    const apply = (data) => {
       if (data.success) {
         if (data.workspace) setSelected(data.workspace);
         else setSelected(ws);
         setMeetings(data.meetings || []);
         setTimeline(data.timeline || []);
       }
+    };
+    try {
+      // Cache-first paint: opening a previously viewed workspace renders
+      // instantly from fresh snapshots; mutation flows pass bypassCache=true
+      // so the detail always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
       if ((data.workspace || ws).pipeline_id) {
-        const ddRes = await fetch(`/api/investor/diligence?pipeline_id=${(data.workspace || ws).pipeline_id}`);
-        const dd = await ddRes.json();
-        if (dd.success) setDdData(dd);
+        const pipelineId = (data.workspace || ws).pipeline_id;
+        const ddUrl = `/api/investor/diligence?pipeline_id=${pipelineId}`;
+        const cachedDd = bypassCache ? null : cacheGet(ddUrl);
+        const dd =
+          cachedDd !== null && cachedDd.success
+            ? cachedDd
+            : await (await fetch(ddUrl)).json();
+        if (dd.success) {
+          if (cachedDd === null || !cachedDd.success) cacheSet(ddUrl, dd);
+          setDdData(dd);
+        }
       }
     } catch (_) {}
   };
@@ -146,7 +186,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.meetingScheduled") });
         setShowCreateMeeting(false);
         setMeetingForm({ meeting_type: "introductory", scheduled_date: "", scheduled_time: "", duration_minutes: 60, location: "", notes: "" });
-        selectWorkspace(selected);
+        selectWorkspace(selected, true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -171,7 +211,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.meetingCompleted") });
         setShowCompleteMeeting(null);
         setCompleteForm({ outcome: "", notes: "", action_items: "" });
-        selectWorkspace(selected);
+        selectWorkspace(selected, true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -188,7 +228,7 @@ export default function AdminRelationshipsPage() {
       const data = await res.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.relationships.workspaceCreated") });
-        fetchWorkspaces();
+        fetchWorkspaces(true);
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -204,7 +244,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "create_workspace" }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); selectWorkspace(selected); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.ddWorkspaceCreated") }); selectWorkspace(selected, true); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -222,7 +262,7 @@ export default function AdminRelationshipsPage() {
         setToast({ type: "success", message: t("investorAdmin.relationships.ddRequestAdded") });
         setShowAddRequest(false);
         setRequestForm({ title: "", category: "financial", priority: "medium", due_date: "", description: "" });
-        selectWorkspace(selected);
+        selectWorkspace(selected, true);
       } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -235,7 +275,7 @@ export default function AdminRelationshipsPage() {
         body: JSON.stringify({ pipeline_id: selected.pipeline_id, action: "update_request", request_id: requestId, status: newStatus }),
       });
       const data = await res.json();
-      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); selectWorkspace(selected); }
+      if (data.success) { setToast({ type: "success", message: t("investorAdmin.relationships.requestStatusToast", { status: newStatus }) }); selectWorkspace(selected, true); }
       else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
     } catch (_) {}
   };
@@ -257,7 +297,7 @@ export default function AdminRelationshipsPage() {
         if (data.success) {
           setToast({ type: "success", message: t("investorAdmin.relationships.fileUploadedToast", { fileName: file.name }) });
           setUploadReqId(null);
-          selectWorkspace(selected);
+          selectWorkspace(selected, true);
           // Fetch docs for this request
           fetchDdDocs(requestId);
         } else { setToast({ type: "error", message: t(data.error || "") || data.error }); }
