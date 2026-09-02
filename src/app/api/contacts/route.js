@@ -259,7 +259,7 @@ export async function POST(req) {
               await db.execute({
                 sql: `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence)
                       VALUES (?, ?, 'same_phone', 0.85)
-                      ON CONFLICT (contact_cid_a, contact_cid_b) DO NOTHING`,
+                      ON CONFLICT ((LEAST(contact_cid_a, contact_cid_b)), (GREATEST(contact_cid_a, contact_cid_b))) DO NOTHING`,
                 args: [vc.cid, existing.rows[0].cid],
               });
             }
