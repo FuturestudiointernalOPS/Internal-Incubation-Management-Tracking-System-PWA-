@@ -7,6 +7,7 @@ import {
   RotateCcw, AlertTriangle, ArrowLeft, Play,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const cn = (...classes) => classes.filter(Boolean).join(" ");
 
@@ -37,18 +38,34 @@ export default function MySubmissionsPage() {
     loadSubmissions();
   }, []);
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (bypassCache = false) => {
     setLoading(true);
+    const url = "/api/platform/form-runs?my_submissions=true";
+    const apply = (data) => {
+      if (data.success) setSubmissions(data.submissions || []);
+    };
+    let painted = false;
     try {
-      const res = await fetch("/api/platform/form-runs?my_submissions=true");
+      // Cache-first paint: revisiting the page renders instantly from a fresh
+      // snapshot; the network refresh keeps the list current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setSubmissions(data.submissions || []);
+        cacheSet(url, data);
+        apply(data);
       } else {
         setError(t((data.error || t("platformMisc.runSubmit.loadFailed")) || "") || (data.error || t("platformMisc.runSubmit.loadFailed")));
       }
     } catch (err) {
-      setError(t(err.message || "") || err.message);
+      if (!painted) setError(t(err.message || "") || err.message);
     }
     setLoading(false);
   };
