@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function JoinGroupPage() {
   const { t } = useI18n();
@@ -22,30 +23,64 @@ export default function JoinGroupPage() {
 
   useEffect(() => {
     if (!id) return;
-    async function load() {
-      try {
-        const res = await fetch(`/api/families?registration_id=${id}`);
-        const data = await res.json();
+    async function load(bypassCache = false) {
+      const groupUrl = `/api/families?registration_id=${id}`;
+      const applyGroup = (data) => {
         if (!data.success || !data.families?.length) {
           setError(t("rootMisc.join.groupNotFound"));
-          setLoading(false);
-          return;
+          return null;
         }
         const g = data.families[0];
         setGroup(g);
+        return g;
+      };
+      const applyForm = (formData) => {
+        if (formData.success && formData.form) {
+          setForm(formData.form);
+          setFields(formData.fields || []);
+        }
+      };
 
-        if (g.form_id) {
-          const formRes = await fetch(`/api/platform/forms?id=${g.form_id}`);
-          const formData = await formRes.json();
-          if (formData.success && formData.form) {
-            setForm(formData.form);
-            setFields(formData.fields || []);
+      let painted = false;
+      try {
+        // Cache-first paint: returning visitors see the group + form instantly
+        // from fresh snapshots while the network refresh below converges.
+        if (!bypassCache) {
+          const cached = cacheGet(groupUrl);
+          if (cached !== null && cached.success && cached.families?.length) {
+            const g = cached.families[0];
+            const formUrl = g.form_id ? `/api/platform/forms?id=${g.form_id}` : null;
+            const formCached = formUrl ? cacheGet(formUrl) : null;
+            const formReady =
+              !formUrl ||
+              (formCached !== null && formCached.success && formCached.form);
+            if (formReady) {
+              if (formCached) applyForm(formCached);
+              applyGroup(cached);
+              painted = true;
+              setLoading(false);
+            }
           }
         }
+
+        const res = await fetch(groupUrl);
+        const data = await res.json();
+        if (data.success) cacheSet(groupUrl, data);
+        const g = applyGroup(data);
+        if (!g) return;
+
+        if (g.form_id) {
+          const formUrl = `/api/platform/forms?id=${g.form_id}`;
+          const formRes = await fetch(formUrl);
+          const formData = await formRes.json();
+          if (formData.success) cacheSet(formUrl, formData);
+          applyForm(formData);
+        }
       } catch (e) {
-        setError(t("rootMisc.join.failedToLoad"));
+        if (!painted) setError(t("rootMisc.join.failedToLoad"));
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [id]);
