@@ -5,6 +5,7 @@ import { Users, Clock, UserPlus, Activity, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
@@ -28,22 +29,41 @@ export default function CrmDashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchData() {
-      try {
-        // Fetch contacts summary
-        const contactsRes = await fetch("/api/contacts?status=active");
-        const contactsData = await contactsRes.json();
-
-        // Fetch pending users
-        const pendingRes = await fetch("/api/contacts?status=pending");
-        const pendingData = await pendingRes.json();
-
+    async function fetchData(bypassCache = false) {
+      const urls = [
+        "/api/contacts?status=active",
+        "/api/contacts?status=pending",
+      ];
+      const apply = (contactsData, pendingData) => {
+        if (!contactsData?.success || !pendingData?.success) return;
         setStats({
           totalContacts: contactsData.contacts?.length || 0,
           pendingApprovals: pendingData.contacts?.length || 0,
         });
-
         setRecentContacts((contactsData.contacts || []).slice(0, 10));
+      };
+      setLoading(true);
+      try {
+        // Cache-first paint: returning to the CRM overview renders instantly
+        // from fresh snapshots of both queries.
+        if (!bypassCache) {
+          const cached = urls.map((u) => cacheGet(u));
+          if (cached.every((c) => c !== null && c.success)) {
+            apply(cached[0], cached[1]);
+            setLoading(false);
+          }
+        }
+        const responses = await Promise.all(
+          urls.map((u) =>
+            fetch(u)
+              .then((r) => r.json())
+              .catch(() => ({ success: false })),
+          ),
+        );
+        urls.forEach((u, i) => {
+          if (responses[i]?.success) cacheSet(u, responses[i]);
+        });
+        apply(responses[0], responses[1]);
       } catch (e) {
         console.error("CRM dashboard fetch error:", e);
       } finally {
