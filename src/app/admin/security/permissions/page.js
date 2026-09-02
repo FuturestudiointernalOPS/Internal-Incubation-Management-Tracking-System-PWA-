@@ -34,6 +34,7 @@ import {
   defaultAllowedRoles,
   ALL_FEATURE_ROLES,
 } from "@/lib/featureAccess";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -133,28 +134,43 @@ export default function PermissionManager() {
     }
   };
 
-  const fetchAllUsers = async () => {
+  const fetchAllUsers = async (bypassCache = false) => {
+    const url = "/api/contacts";
+    const apply = (data) => {
+      if (!data.success) return;
+      // Sort: active first, then by name
+      const sorted = (data.contacts || []).sort((a, b) => {
+        if (a.status === "active" && b.status !== "active") return -1;
+        if (a.status !== "active" && b.status === "active") return 1;
+        return (a.name || "").localeCompare(b.name || "");
+      });
+      setAllUsers(sorted);
+      setSearchResults(sorted);
+      // Deep-link: preselect the user requested via ?cid=
+      if (pendingCid) {
+        const match = sorted.find((u) => String(u.cid) === String(pendingCid));
+        if (match) {
+          selectUser(match);
+          setPendingCid(null);
+        }
+      }
+    };
     setSearching(true);
     try {
-      const res = await fetch("/api/contacts");
+      // Cache-first paint: returning to this tab renders the user list
+      // instantly from a fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setSearching(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        // Sort: active first, then by name
-        const sorted = (data.contacts || []).sort((a, b) => {
-          if (a.status === "active" && b.status !== "active") return -1;
-          if (a.status !== "active" && b.status === "active") return 1;
-          return (a.name || "").localeCompare(b.name || "");
-        });
-        setAllUsers(sorted);
-        setSearchResults(sorted);
-        // Deep-link: preselect the user requested via ?cid=
-        if (pendingCid) {
-          const match = sorted.find((u) => String(u.cid) === String(pendingCid));
-          if (match) {
-            selectUser(match);
-            setPendingCid(null);
-          }
-        }
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch users", e);
@@ -1135,21 +1151,41 @@ function RoleDefaultsView() {
   const [formErr, setFormErr] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const [profilesRes, eligRes] = await Promise.all([
-        fetch("/api/access-profiles"),
-        fetch("/api/engineering/permissions/eligibility"),
-      ]);
-      const profilesData = await profilesRes.json();
-      const eligData = await eligRes.json();
+  const load = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/access-profiles",
+      "/api/engineering/permissions/eligibility",
+    ];
+    const apply = (profilesData, eligData) => {
       if (profilesData.success) {
         setRoleDefaults(profilesData.roleDefaults || {});
         setProfiles(profilesData.profiles || []);
       }
       if (eligData.success) setRoles(eligData.roles || []);
+    };
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this tab renders instantly from fresh
+      // snapshots; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [profilesRes, eligRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+      ]);
+      const profilesData = await profilesRes.json();
+      const eligData = await eligRes.json();
+      if (profilesData.success) cacheSet(urls[0], profilesData);
+      if (eligData.success) cacheSet(urls[1], eligData);
+      apply(profilesData, eligData);
     } catch (e) {
-      console.error("Failed to load role defaults:", e.message);
+      if (!painted) console.error("Failed to load role defaults:", e.message);
     } finally {
       setLoading(false);
     }
@@ -1175,7 +1211,7 @@ function RoleDefaultsView() {
         setFormMsg(t(data.message || "") || data.message);
         setShowForm(false);
         setRoleDefaultData({ role_name: "", profile_id: "" });
-        load();
+        load(true);
       } else {
         setFormErr(t((data.error || t("engineering.permissions.failedToSetDefault")) || "") || (data.error || t("engineering.permissions.failedToSetDefault")));
       }
@@ -1424,11 +1460,12 @@ function AccessProfilesView() {
   const [renameMode, setRenameMode] = useState(false);
   const [renameValue, setRenameValue] = useState("");
 
-  const fetchProfiles = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/access-profiles");
-      const data = await res.json();
+  const fetchProfiles = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/access-profiles",
+      "/api/engineering/permissions/eligibility",
+    ];
+    const apply = (data, eligData) => {
       if (data.success) {
         setProfiles(data.profiles || []);
         setRoleDefaults(data.roleDefaults || {});
@@ -1436,8 +1473,6 @@ function AccessProfilesView() {
       // Full role catalog (ROLE_CATALOG) — not just roles that already have
       // a default — so every role can be configured in the form dropdown.
       // The same payload also feeds the role-based feature filter below.
-      const eligRes = await fetch("/api/engineering/permissions/eligibility");
-      const eligData = await eligRes.json();
       if (eligData.success) {
         setAllRoles(eligData.roles || Object.keys(data.roleDefaults || {}));
         setEligibilityRows(eligData.rows || []);
@@ -1445,6 +1480,26 @@ function AccessProfilesView() {
       } else {
         setAllRoles(Object.keys(data.roleDefaults || {}));
       }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this tab renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(urls[0]);
+      const data = await res.json();
+      if (data.success) cacheSet(urls[0], data);
+      const eligRes = await fetch(urls[1]);
+      const eligData = await eligRes.json();
+      if (eligData.success) cacheSet(urls[1], eligData);
+      apply(data, eligData);
     } catch (e) {
       console.error("Failed to load profiles", e);
     } finally {
@@ -1505,7 +1560,7 @@ function AccessProfilesView() {
         setActionMsg(t("engineering.permissions.profileCreated", { name: newProfile.name }));
         setShowCreateForm(false);
         setNewProfile({ name: "", description: "" });
-        fetchProfiles();
+        fetchProfiles(true);
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToCreate")) || "") || (data.error || t("engineering.permissions.failedToCreate")));
       }
@@ -1546,7 +1601,7 @@ function AccessProfilesView() {
       const createData = await createRes.json();
       if (createData.success) {
         setActionMsg(t("engineering.permissions.profileDuplicated", { name: `${profile.name} (copy)` }));
-        fetchProfiles();
+        fetchProfiles(true);
       } else {
         setActionError(t((createData.error || t("engineering.permissions.failedToDuplicate")) || "") || (createData.error || t("engineering.permissions.failedToDuplicate")));
       }
@@ -1572,7 +1627,7 @@ function AccessProfilesView() {
             ? t("engineering.permissions.profileDisabled")
             : t("engineering.permissions.profileEnabled"),
         );
-        fetchProfiles();
+        fetchProfiles(true);
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToToggle")) || "") || (data.error || t("engineering.permissions.failedToToggle")));
       }
@@ -1676,7 +1731,7 @@ function AccessProfilesView() {
         setSelectedProfile({ ...selectedProfile, name: renameValue.trim() });
         setRenameMode(false);
         setActionMsg(t("engineering.permissions.profileRenamed"));
-        fetchProfiles();
+        fetchProfiles(true);
       } else {
         setActionError(t((data.error || t("engineering.permissions.failedToUpdate")) || "") || (data.error || t("engineering.permissions.failedToUpdate")));
       }
@@ -2246,16 +2301,28 @@ function ResponsibilitiesView() {
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (bypassCache = false) => {
+    const url = "/api/contacts";
+    const apply = (data) => {
+      if (!data.success) return;
+      const sorted = (data.contacts || []).sort((a, b) =>
+        (a.name || "").localeCompare(b.name || ""),
+      );
+      setAllUsers(sorted);
+      setSearchResults(sorted);
+    };
     try {
-      const res = await fetch("/api/contacts");
+      // Cache-first paint: returning to this tab renders the user list
+      // instantly from a fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        const sorted = (data.contacts || []).sort((a, b) =>
-          (a.name || "").localeCompare(b.name || ""),
-        );
-        setAllUsers(sorted);
-        setSearchResults(sorted);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch users", e);
@@ -2564,12 +2631,29 @@ function ResponsibilityAccessView() {
   const [saveMsg, setSaveMsg] = useState("");
   const [saveError, setSaveError] = useState("");
 
-  const fetchAll = useCallback(async () => {
+  const fetchAll = useCallback(async (bypassCache = false) => {
+    const url = "/api/responsibilities";
+    const apply = (data) => {
+      if (data.success) setResponsibilities(data.responsibilities || []);
+    };
     setLoading(true);
     try {
-      const res = await fetch("/api/responsibilities");
+      // Cache-first paint: returning to this tab renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setResponsibilities(data.responsibilities || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error("Failed to fetch responsibilities", e);
     } finally {
@@ -2608,11 +2692,11 @@ function ResponsibilityAccessView() {
         setTimeout(() => setSaveMsg(""), 2500);
       } else {
         setSaveError(t((data.error || t("engineering.permissions.accessSaveFailed")) || "") || (data.error || t("engineering.permissions.accessSaveFailed")));
-        fetchAll();
+        fetchAll(true);
       }
     } catch (e) {
       setSaveError(t("engineering.permissions.networkError"));
-      fetchAll();
+      fetchAll(true);
     } finally {
       setSavingId(null);
     }
@@ -2774,19 +2858,36 @@ function EligibilityView() {
   const [err, setErr] = useState("");
   const [viewMode, setViewMode] = useState("identity"); // identity | matrix
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (bypassCache = false) => {
+    const url = "/api/engineering/permissions/eligibility";
+    const apply = (d) => {
+      if (!d.success) return;
+      setData(d);
+      setErr("");
+    };
+    let painted = false;
     setLoading(true);
     try {
-      const res = await fetch("/api/engineering/permissions/eligibility");
+      // Cache-first paint: returning to this tab renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
       const d = await res.json();
       if (d.success) {
-        setData(d);
-        setErr("");
-      } else {
+        cacheSet(url, d);
+        apply(d);
+      } else if (!painted) {
         setErr(t(d.error || "errors.somethingWrong"));
       }
     } catch {
-      setErr(t("engineering.permissions.networkError"));
+      if (!painted) setErr(t("engineering.permissions.networkError"));
     } finally {
       setLoading(false);
     }
@@ -3315,26 +3416,40 @@ function AuditView() {
 
   useEffect(() => {
     let cancelled = false;
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    for (const [k, v] of Object.entries(applied)) {
+      if (v) params.set(k, v);
+    }
+    const url = `/api/engineering/permissions/audit?${params.toString()}`;
+    const apply = (data) => {
+      setEntries(data.entries || []);
+      setTotal(data.total || 0);
+    };
     (async () => {
       setLoading(true);
       setError("");
+      let painted = false;
+      // Cache-first paint: returning to this page / paging back renders
+      // instantly from fresh snapshots keyed by page + applied filters.
+      const cached = cacheGet(url);
+      if (cached !== null && cached.success) {
+        apply(cached);
+        setLoading(false);
+        painted = true;
+      }
       try {
-        const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-        for (const [k, v] of Object.entries(applied)) {
-          if (v) params.set(k, v);
-        }
-        const res = await fetch(`/api/engineering/permissions/audit?${params.toString()}`);
+        const res = await fetch(url);
         const data = await res.json();
         if (!cancelled) {
           if (data.success) {
-            setEntries(data.entries || []);
-            setTotal(data.total || 0);
-          } else {
+            cacheSet(url, data);
+            apply(data);
+          } else if (!painted) {
             setError(data.error || "—");
           }
         }
       } catch {
-        if (!cancelled) setError("—");
+        if (!cancelled && !painted) setError("—");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -3580,23 +3695,42 @@ function GovernanceView() {
 
   useEffect(() => {
     let cancelled = false;
+    const urls = [
+      "/api/org-membership",
+      "/api/engineering/permissions/audit?pageSize=10",
+      "/api/access-profiles",
+    ];
+    const apply = (memData, audData, profData) => {
+      if (cancelled) return;
+      if (memData.success) {
+        setMemberships(memData.memberships || []);
+        setProtectedMap(memData.protected || {});
+      }
+      if (audData.success) setRecent(audData.entries || []);
+      if (profData.success) setRoleDefaults(profData.roleDefaults || {});
+    };
     (async () => {
       try {
+        // Cache-first paint: returning to this tab renders instantly from
+        // fresh snapshots; the network refresh below converges.
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2]);
+          setLoading(false);
+        }
         const [memRes, audRes, profRes] = await Promise.all([
-          fetch("/api/org-membership"),
-          fetch("/api/engineering/permissions/audit?pageSize=10"),
-          fetch("/api/access-profiles"),
+          fetch(urls[0]),
+          fetch(urls[1]),
+          fetch(urls[2]),
         ]);
         const memData = await memRes.json();
         const audData = await audRes.json();
         const profData = await profRes.json();
         if (!cancelled) {
-          if (memData.success) {
-            setMemberships(memData.memberships || []);
-            setProtectedMap(memData.protected || {});
-          }
-          if (audData.success) setRecent(audData.entries || []);
-          if (profData.success) setRoleDefaults(profData.roleDefaults || {});
+          if (memData.success) cacheSet(urls[0], memData);
+          if (audData.success) cacheSet(urls[1], audData);
+          if (profData.success) cacheSet(urls[2], profData);
+          apply(memData, audData, profData);
         }
       } catch {
         /* informational view — degrade gracefully */
