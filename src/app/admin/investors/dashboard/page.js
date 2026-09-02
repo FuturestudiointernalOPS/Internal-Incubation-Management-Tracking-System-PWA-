@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, Users, Building2, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STAGE_COLORS = { interested: "bg-slate-500/10 text-slate-400", watching: "bg-blue-500/10 text-blue-400", meeting_requested: "bg-amber-500/10 text-amber-400", due_diligence: "bg-purple-500/10 text-purple-400", negotiation: "bg-orange-500/10 text-orange-400", invested: "bg-emerald-500/10 text-emerald-400", declined: "bg-rose-500/10 text-rose-400" };
 
@@ -13,7 +14,33 @@ export default function ExecutiveDashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetch("/api/investor/executive-dashboard").then(r => r.json()).then(d => { if (d.success) setData(d); setLoading(false); }); }, []);
+  useEffect(() => { fetchDashboard(); }, []);
+
+  const fetchDashboard = async (bypassCache = false) => {
+    setLoading(true);
+    try {
+      const url = "/api/investor/executive-dashboard";
+      const apply = (data) => {
+        if (data.success) setData(data);
+      };
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
+    } catch (_) {}
+    setLoading(false);
+  };
 
   if (loading) return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
 
