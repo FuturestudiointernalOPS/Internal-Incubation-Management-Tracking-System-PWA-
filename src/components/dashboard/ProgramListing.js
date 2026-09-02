@@ -21,6 +21,7 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -264,16 +265,34 @@ export default function ProgramListing() {
   const router = useRouter();
 
   const fetchPrograms = useCallback(async () => {
+    const url = "/api/participant/programs";
+    const apply = (data) => {
+      setPrograms(data.programs || []);
+      setContact(data.contact);
+    };
     try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch("/api/participant/programs");
+      // Cache-first paint: returning to the dashboard shows the program list
+      // instantly from a fresh snapshot; the network refresh below converges.
+      const cached = cacheGet(url);
+      if (cached !== null && cached.success) {
+        apply(cached);
+        setLoading(false);
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setPrograms(data.programs || []);
-        setContact(data.contact);
+        cacheSet(url, data);
+        apply(data);
       } else {
-        setError(t((data.error || t("participantMisc.programListing.failedToLoadPrograms")) || "") || (data.error || t("participantMisc.programListing.failedToLoadPrograms")));
+        setError(
+          t(
+            (data.error ||
+              t("participantMisc.programListing.failedToLoadPrograms")) ||
+              "",
+          ) ||
+            (data.error ||
+              t("participantMisc.programListing.failedToLoadPrograms")),
+        );
       }
     } catch (e) {
       setError(t("participantMisc.programListing.networkError"));

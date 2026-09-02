@@ -16,6 +16,7 @@ import { useI18n } from "@/lib/i18n";
 import ProgramListing from "@/components/dashboard/ProgramListing";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 import Link from "next/link";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * PARTICIPANT DASHBOARD (ENHANCED)
@@ -40,15 +41,26 @@ export default function ParticipantDashboard() {
   // Fetch data from the home API
   useEffect(() => {
     async function fetchData() {
+      const url = "/api/participant/home";
+      const apply = (data) => {
+        setCalendarEvents(data.calendarEvents || []);
+        setActionCenter(data.actionCenter || null);
+        setAnnouncements(data.announcements || []);
+        setPrimaryProgram(data.primaryProgram || null);
+      };
       try {
-        setLoading(true);
-        const res = await fetch("/api/participant/home");
+        // Cache-first paint: returning to the dashboard renders instantly from
+        // a fresh snapshot; the network refresh below converges.
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+        const res = await fetch(url);
         const data = await res.json();
         if (data.success) {
-          setCalendarEvents(data.calendarEvents || []);
-          setActionCenter(data.actionCenter || null);
-          setAnnouncements(data.announcements || []);
-          setPrimaryProgram(data.primaryProgram || null);
+          cacheSet(url, data);
+          apply(data);
         }
       } catch (e) {
         console.error("Failed to load dashboard data", e);
