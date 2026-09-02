@@ -27,6 +27,7 @@ import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { uploadFile } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const FACILITATOR_CAPS = [
   { key: "participants.view", label: "View participants" },
@@ -394,25 +395,14 @@ export default function ProgramManagement() {
 
   const router = useRouter();
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [progRes, managerRes, segmentRes, kbRes] = await Promise.all([
-        fetch(
-          `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${activeTab === "all" ? "all" : activeTab}`,
-        ),
-        fetch("/api/contacts/full-state"),
-        fetch("/api/families"),
-        fetch("/api/knowledge"),
-      ]);
-
-      const [progData, managerData, segmentData, kbData] = await Promise.all([
-        progRes.json().catch(() => ({ success: false })),
-        managerRes.json().catch(() => ({ success: false })),
-        segmentRes.json().catch(() => ({ success: false })),
-        kbRes.json().catch(() => ({ success: false })),
-      ]);
-
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const urls = [
+      `/api/pm/programs?show_archived=${activeTab === "archived"}&status=${activeTab === "all" ? "all" : activeTab}`,
+      "/api/contacts/full-state",
+      "/api/families",
+      "/api/knowledge",
+    ];
+    const apply = (progData, managerData, segmentData, kbData) => {
       if (progData?.success)
         setPrograms(Array.isArray(progData.programs) ? progData.programs : []);
       if (managerData?.success) {
@@ -434,6 +424,30 @@ export default function ProgramManagement() {
           kbData.conceptNotes || kbData.knowledgeItems || kbData.notes || [];
         setKnowledgeItems(Array.isArray(items) ? items : []);
       }
+    };
+
+    setLoading(true);
+    try {
+      // Cache-first paint: switching tabs / returning to the page renders
+      // instantly from fresh snapshots; mutation flows pass bypassCache=true.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1], responses[2], responses[3]);
     } catch (e) {
       console.error("Sync Failure:", e);
     } finally {
@@ -473,7 +487,7 @@ export default function ProgramManagement() {
       if (json.success) {
         setEditingProgram(null);
         setIsCreatingGroup(false);
-        fetchData();
+        fetchData(true);
         // Fire success notification
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
@@ -516,7 +530,7 @@ export default function ProgramManagement() {
           is_archived: isArchiving ? 1 : 0,
         }),
       });
-      if ((await res.json()).success) fetchData();
+      if ((await res.json()).success) fetchData(true);
     } catch (e) {
       console.error("Archive Failure:", e);
     }
@@ -575,7 +589,7 @@ export default function ProgramManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if ((await res.json()).success) fetchData();
+      if ((await res.json()).success) fetchData(true);
     } catch (e) {
       console.error("Delete Failure:", e);
     }
