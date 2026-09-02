@@ -1,6 +1,6 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ (SQL extraction) delivered.
+> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ + Wave 2 ✅ (SQL extraction) delivered.
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -58,8 +58,15 @@ src/
 │   ├── blockers.js              ✅ blockers + discussions
 │   ├── standups.js              ✅ standups current/submit
 │   ├── retros.js                ✅ retros current/submit
-│   ├── projects.js              ← Wave 2
-│   ├── programs.js              ← Wave 2
+│   ├── projects.js              ✅ projects core + admin (wave 2)
+│   ├── projectCollaboration.js  ✅ members/assignments/discuss/invites (wave 2)
+│   ├── programs.js              ✅ programs + pm/programs (wave 2)
+│   ├── programMembership.js     ✅ program-staff + enrollments (wave 2)
+│   ├── programWorkspace.js      ✅ full-state/schedule/submissions/export (wave 2)
+│   ├── curriculum.js            ✅ pm curriculum (wave 2)
+│   ├── teams.js                 ✅ pm teams (wave 2)
+│   ├── responsibilities.js      ✅ responsibilities (wave 2)
+│   ├── users.js                 ← Wave 3
 │   ├── users.js                 ← contacts / sessions / people
 │   ├── ventures/                ← split out of lib/ventures.js (5.6k LOC)
 │   │   ├── index.js             ← facade re-exporting lib/ventures.js during migration
@@ -165,14 +172,29 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
   dashboard 2/2, reports 5/5, full suite 16 pass / 3 fail — the 3 remaining
   failures are the pre-existing `ventures/*` suites (Wave 4 scope).
 
-### Wave 2 — Projects & Programs domain
-- [ ] `src/models/projects.js` (queries from `api/projects`, `api/dashboard`
-      already done, project members, teams, responsibilities).
-- [ ] `src/models/programs.js` (from `api/pm/programs` 711, `api/programs`,
-      program-staff, program-types, curriculum, full-state 575).
-- [ ] Thin `src/app/pm/programs/[id]/page.js` (6,842 LOC): every data block →
-      model + API route; page keeps only view composition (this is the largest
-      single file in the repo — split into `components/pm/program/` views).
+### Wave 2 — Projects & Programs domain ✅ (SQL extraction done 2026-09-02)
+- [x] `src/models/projects.js` (41 fns: api/projects + admin/projects core)
+      and `src/models/projectCollaboration.js` (24 fns: members, assignments,
+      discuss, invitations) — 11 route files, 65 queries.
+- [x] `src/models/programs.js` (54 fns: api/programs, api/pm/programs*,
+      program-types), `src/models/programMembership.js` (53 fns: program-staff,
+      v2/program-staff, participant programs, contacts/[cid]/programs),
+      `src/models/programWorkspace.js` (13 fns: full-state, schedule,
+      submissions, export), `src/models/curriculum.js` (35 fns),
+      `src/models/teams.js` (16), `src/models/responsibilities.js` (14) —
+      20 route files, 185 queries. Total wave-2: **31 routes / 250 queries** →
+      all controllers now have **0** `db.execute` (grep-audited).
+- [x] Verified **no view file imports `@/lib/db`** — pages are already
+      API-driven, so the View layer is layering-compliant.
+- [ ] Thin `src/app/pm/programs/[id]/page.js` (6,842 LOC): it is a client view
+      that fetches 36 endpoints — architectural layering is already correct;
+      decomposition into `components/pm/program/` views is pure file-size debt
+      and is deferred to the view-splitting wave (tracked with Wave 6 long-tail).
+      Same for `admin/programs/page.js` (2,059), `admin/projects/[id]/page.js`
+      (1,709), `admin/projects/page.js` (1,558).
+- **Gate ✅:** new `projects-api.test.js` **10/10** (written first — pins POST/
+  GET/PUT/DELETE behavior incl. executed SQL fragments), full suite 17 pass /
+  3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
 ### Wave 3 — People & Auth model
 - [ ] `src/models/users.js`: sessions/contacts queries duplicated across
