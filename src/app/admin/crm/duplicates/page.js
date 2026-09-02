@@ -5,6 +5,7 @@ import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw, ArrowLeft } from 
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const MERGE_FIELD_LABELS = {
   program_enrollments: "crm.duplicates.fieldProgramEnrollments",
@@ -23,17 +24,40 @@ export default function DuplicatesPage() {
 
   useEffect(() => { fetchFlags(); }, []);
 
-  async function fetchFlags() {
+  async function fetchFlags(bypassCache = false) {
+    const url = "/api/contacts/duplicates";
+    let painted = false;
+    const apply = (data) => {
+      if (data.success) {
+        setFlags(data.flags || []);
+        painted = true;
+      }
+    };
     setLoading(true);
     try {
-      const res = await fetch("/api/contacts/duplicates");
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (res.ok && data.success) setFlags(data.flags || []);
-      else notify(t(data?.error || "") || t("crm.duplicates.failedToLoad"), "error");
+      if (res.ok && data.success) {
+        cacheSet(url, data);
+        apply(data);
+      } else {
+        notify(t(data?.error || "") || t("crm.duplicates.failedToLoad"), "error");
+      }
     } catch (_) {
-      notify(t("crm.duplicates.failedToLoad"), "error");
+      if (!painted) notify(t("crm.duplicates.failedToLoad"), "error");
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   async function handleDismiss(flagId) {
@@ -73,7 +97,7 @@ export default function DuplicatesPage() {
         setFlags(f => f.filter(x => x.contact_cid_a !== survivor && x.contact_cid_b !== duplicate));
         setMerging(null);
         setPreview(null);
-        fetchFlags();
+        fetchFlags(true);
       } else {
         notify(t((data.error || t("crm.duplicates.mergeFailed")) || "") || (data.error || t("crm.duplicates.mergeFailed")), "error");
       }
