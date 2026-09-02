@@ -3,6 +3,7 @@
 import { BookOpen, Film, HelpCircle, X, CheckCircle2 } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
+import CourseThumb from "./CourseThumb";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -23,6 +24,13 @@ export default function CoursePreviewModal({ isOpen, onClose, course }) {
       <div className="space-y-6 max-h-[60vh] sm:max-h-[65vh] overflow-y-auto pr-1">
         {/* Course summary */}
         <div className="rounded-xl border p-4" style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}>
+          {course.thumbnail_url && (
+            <CourseThumb
+              src={course.thumbnail_url}
+              alt={course.title || ""}
+              className="w-full h-36 sm:h-44 rounded-lg mb-4"
+            />
+          )}
           <p className="text-sm font-black" style={{ color: "var(--text-primary)" }}>
             {course.title || "—"}
           </p>

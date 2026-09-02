@@ -6,6 +6,7 @@ import { BookOpen, PlayCircle, CheckCircle2, AlertCircle, Award } from "lucide-r
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import LearnerProgressBar from "./LearnerProgressBar";
+import CourseThumb from "./CourseThumb";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -90,21 +91,12 @@ export default function LearnerLearning() {
               style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
             >
               <div className="flex items-center gap-4 p-5">
-                {course.thumbnail_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={course.thumbnail_url}
-                    alt=""
-                    className="w-16 h-16 rounded-xl object-cover shrink-0"
-                  />
-                ) : (
-                  <div
-                    className="w-16 h-16 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: "var(--surface-3)" }}
-                  >
-                    <BookOpen className="w-7 h-7" style={{ color: "var(--text-tertiary)" }} />
-                  </div>
-                )}
+                <CourseThumb
+                  src={course.thumbnail_url}
+                  alt={course.title}
+                  className="w-16 h-16 rounded-xl"
+                  iconClassName="w-7 h-7"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-black tracking-tight truncate" style={{ color: "var(--text-primary)" }}>
                     {course.title}

@@ -9,6 +9,7 @@ import AppSelect from "@/components/ui/AppSelect";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import CourseStatusBadge from "./CourseStatusBadge";
+import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
@@ -172,6 +173,12 @@ export default function CourseList() {
                 borderColor: "var(--border-primary)",
               }}
             >
+              <CourseThumb
+                src={course.thumbnail_url}
+                alt={course.title}
+                className="w-14 h-14 rounded-xl"
+                iconClassName="w-6 h-6"
+              />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p

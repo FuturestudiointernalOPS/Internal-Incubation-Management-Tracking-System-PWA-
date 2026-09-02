@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, GraduationCap, Trash2, CheckCircle2, Circle } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
+import CourseThumb from "./CourseThumb";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 
@@ -171,9 +172,18 @@ export default function ProgramLearningSection({
               style={{ borderColor: "var(--border-primary)" }}
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
-                  <GraduationCap className="w-4 h-4 text-[var(--brand-orange)]" />
-                </div>
+                {req.course?.thumbnail_url ? (
+                  <CourseThumb
+                    src={req.course.thumbnail_url}
+                    alt={req.course.title || req.title || ""}
+                    className="w-8 h-8 rounded-lg"
+                    iconClassName="w-4 h-4"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
+                    <GraduationCap className="w-4 h-4 text-[var(--brand-orange)]" />
+                  </div>
+                )}
                 <div className="min-w-0">
                   <p className="text-[11px] font-black uppercase tracking-tight truncate" style={{ color: "var(--text-primary)" }}>
                     {req.title || req.course?.title || req.course_id}
@@ -254,15 +264,25 @@ export default function ProgramLearningSection({
                 className="flex items-center justify-between gap-3 p-3 rounded-xl border"
                 style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
               >
-                <div className="min-w-0">
-                  <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
-                    {course.title}
-                  </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                    {course.is_free
-                      ? t("lms.programLearning.free")
-                      : `${t("lms.programLearning.paid")} · ${Number(course.price || 0).toLocaleString()}`}
-                  </p>
+                <div className="flex items-center gap-3 min-w-0">
+                  {course.thumbnail_url && (
+                    <CourseThumb
+                      src={course.thumbnail_url}
+                      alt={course.title}
+                      className="w-10 h-10 rounded-lg"
+                      iconClassName="w-5 h-5"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
+                      {course.title}
+                    </p>
+                    <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
+                      {course.is_free
+                        ? t("lms.programLearning.free")
+                        : `${t("lms.programLearning.paid")} · ${Number(course.price || 0).toLocaleString()}`}
+                    </p>
+                  </div>
                 </div>
                 <AppButton variant="primary" size="sm" loading={saving} onClick={() => attach(course)}>
                   {t("lms.programLearning.attach")}

@@ -37,6 +37,7 @@ import NextLink from "next/link";
 import { useI18n } from "@/lib/i18n";
 import { getServerErrorKey } from "@/lib/constants";
 import SubmissionVersionHistory from "./SubmissionVersionHistory";
+import CourseThumb from "@/components/lms/CourseThumb";
 
 // ─── Status Badge ──────────────────────────────────────────────────
 function translateStatus(raw, t) {
@@ -318,8 +319,17 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                     key={item.id}
                     className="flex items-center justify-between gap-3 py-2 px-3 rounded-lg bg-[var(--surface-2)]"
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      {item.course?.thumbnail_url && (
+                        <CourseThumb
+                          src={item.course.thumbnail_url}
+                          alt={item.course.title || ""}
+                          className="w-9 h-9 rounded-lg"
+                          iconClassName="w-4 h-4"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
                         <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                           {item.title}
                         </p>
@@ -356,6 +366,7 @@ function WeekCard({ week, isExpanded, onToggle, programId, onSubmit, t }) {
                           </span>
                         </div>
                       )}
+                      </div>
                     </div>
                     {href && (
                       <NextLink

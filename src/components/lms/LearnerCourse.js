@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
 import CertificateCard from "./CertificateCard";
+import CourseThumb from "./CourseThumb";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -81,6 +82,14 @@ export default function LearnerCourse({ courseId }) {
         >
           ← {t("lms.learning.title")}
         </button>
+        {course.thumbnail_url && (
+          <CourseThumb
+            src={course.thumbnail_url}
+            alt={course.title}
+            className="w-full h-36 sm:h-44 rounded-xl"
+            iconClassName="w-10 h-10"
+          />
+        )}
         <div>
           <h1 className="text-xl font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
             {course.title}
