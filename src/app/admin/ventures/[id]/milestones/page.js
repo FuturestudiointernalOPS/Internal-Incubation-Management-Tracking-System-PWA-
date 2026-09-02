@@ -7,7 +7,6 @@ import {
   Flag, Calendar, Clock, User, Paperclip, Send, ChevronDown, ChevronRight, FileText,
   BookOpen, BarChart3, Layers,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const STATUS_CFG = {
@@ -161,9 +160,9 @@ export default function VentureMilestonesPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const completedCount = milestones.filter((m) => m.status === "completed").length;
@@ -171,7 +170,7 @@ export default function VentureMilestonesPage() {
   const completedDeliverables = Object.values(deliverables).flat().filter((d) => d.status === "approved" || d.status === "completed").length;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
@@ -452,6 +451,6 @@ export default function VentureMilestonesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

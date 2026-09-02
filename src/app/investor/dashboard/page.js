@@ -10,7 +10,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -191,17 +190,17 @@ export default function InvestorDashboard() {
 
   if (loading) {
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (!profile || profile.approval_status !== "approved") {
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="max-w-2xl mx-auto py-20 text-center space-y-6">
           <Building2 className="w-16 h-16 text-[var(--text-tertiary)] mx-auto" />
           <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase">
@@ -218,7 +217,7 @@ export default function InvestorDashboard() {
             </AppButton>
           )}
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -232,7 +231,7 @@ export default function InvestorDashboard() {
   );
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -911,6 +910,6 @@ export default function InvestorDashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

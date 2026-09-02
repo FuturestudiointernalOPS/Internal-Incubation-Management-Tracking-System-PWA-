@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -253,7 +252,7 @@ export default function FormsPage() {
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 min-h-[60vh]">
         {/* Back navigation */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -739,6 +738,6 @@ export default function FormsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

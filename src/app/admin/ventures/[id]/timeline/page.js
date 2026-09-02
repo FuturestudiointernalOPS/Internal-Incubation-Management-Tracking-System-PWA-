@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Calendar, Clock,
   Flag, BarChart3, Layers, ChevronRight, RefreshCw, Target,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const ROW_COLORS = {
   milestone: { bg: "bg-indigo-500/10", text: "text-indigo-400", border: "border-indigo-500/20" },
@@ -56,9 +55,9 @@ export default function VentureTimelinePage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const rows = data?.rows || [];
@@ -103,7 +102,7 @@ export default function VentureTimelinePage() {
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -347,6 +346,6 @@ export default function VentureTimelinePage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Activity,
   Briefcase,
@@ -58,7 +57,7 @@ export default function SuperAdminProgressHub() {
   );
 
   return (
-    <DashboardLayout role="super_admin" activeTab="Progress Hub">
+    <>
       <div className="space-y-12 pb-20">
         {/* HEADER */}
         <header className="flex flex-col md:flex-row justify-between items-end gap-8">
@@ -182,6 +181,6 @@ export default function SuperAdminProgressHub() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

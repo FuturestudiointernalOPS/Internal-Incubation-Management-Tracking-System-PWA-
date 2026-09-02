@@ -32,7 +32,6 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
@@ -568,7 +567,7 @@ export default function AdminDashboard() {
   }, [router, fetchDashboardData]);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-10 pb-20 text-left">
         {/* ──────── GLOBAL HEADER ──────── */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -1879,7 +1878,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

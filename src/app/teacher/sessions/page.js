@@ -14,7 +14,6 @@ import {
   Zap,
   Shield,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -91,7 +90,7 @@ export default function TeacherCalendar() {
   };
 
   return (
-    <DashboardLayout role={layoutRole}>
+    <>
       <div className="space-y-8 animate-in text-left">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-secondary)] pb-8">
           <div className="space-y-2">
@@ -236,6 +235,6 @@ export default function TeacherCalendar() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

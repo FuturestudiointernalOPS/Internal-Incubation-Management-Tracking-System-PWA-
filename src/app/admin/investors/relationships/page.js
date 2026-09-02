@@ -7,7 +7,6 @@ import {
   Clock, ArrowRight, History, MessageSquare, UserPlus, X, Edit3,
   FileText, Target, ChevronLeft, Video, MapPin, Phone, Shield, AlertCircle, Upload,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
@@ -301,7 +300,7 @@ export default function AdminRelationshipsPage() {
   }, [workspaces]);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {toast && (
           <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl text-xs font-bold shadow-lg ${
@@ -919,6 +918,6 @@ export default function AdminRelationshipsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -7,7 +7,6 @@ import {
   Archive, RotateCcw, Search, Paperclip, ChevronRight, 
   ExternalLink, Shield, Download, FileCheck, Files, CheckCircle2, AlertCircle
 } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { CardSkeleton, TableSkeleton } from '@/components/ui/Skeleton';
 import { uploadFile } from '@/lib/storage';
 import { useI18n } from "@/lib/i18n";
@@ -208,7 +207,7 @@ export default function KnowledgeBank() {
   });
 
   return (
-    <DashboardLayout role="super_admin" activeTab="knowledge">
+    <>
       
       {/* GLOBAL NOTIFICATION TOAST */}
       {notification && (
@@ -435,6 +434,6 @@ export default function KnowledgeBank() {
       )}
 
 
-    </DashboardLayout>
+    </>
   );
 }

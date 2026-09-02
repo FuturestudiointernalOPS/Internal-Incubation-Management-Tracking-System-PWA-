@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, use } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { 
   Activity, Briefcase, ChevronRight, BookOpen, 
   Target, Users, Layers, MessageSquare, Clock, CheckCircle2, AlertCircle, Send,
@@ -211,7 +210,7 @@ export default function SuperAdminExecutiveView({ params }) {
   const elapsedWeeksShown = Math.min(totalWeeks, Math.max(0, Math.ceil(elapsedWeeks)));
 
   return (
-    <DashboardLayout role="super_admin" activeTab="Progress Hub">
+    <>
       <div className="space-y-12 pb-20">
         
         {/* EXECUTIVE HEADER */}
@@ -851,6 +850,6 @@ export default function SuperAdminExecutiveView({ params }) {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

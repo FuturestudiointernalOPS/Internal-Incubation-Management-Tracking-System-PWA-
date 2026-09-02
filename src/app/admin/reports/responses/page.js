@@ -19,7 +19,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 
@@ -110,7 +109,7 @@ export default function ReportResponses() {
   });
 
   return (
-    <DashboardLayout role="super_admin" activeTab="reports">
+    <>
       <div className="space-y-10 pb-20 animate-in text-left">
         {/* HEADER */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
@@ -618,7 +617,7 @@ export default function ReportResponses() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

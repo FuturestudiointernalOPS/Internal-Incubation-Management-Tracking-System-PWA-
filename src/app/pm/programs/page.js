@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { motion } from "framer-motion";
 import {
   Rocket,
@@ -108,7 +107,7 @@ export default function PMProgramsRegistry() {
   );
 
   return (
-    <DashboardLayout role="program_manager" activeTab="programs">
+    <>
       <div className="space-y-12 pb-20">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div>
@@ -393,6 +392,6 @@ export default function PMProgramsRegistry() {
           }))}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

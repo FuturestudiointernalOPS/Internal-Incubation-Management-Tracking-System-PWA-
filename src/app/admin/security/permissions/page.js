@@ -24,7 +24,6 @@ import {
   SwitchCamera,
   Pencil,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppPagination from "@/components/ui/AppPagination";
 import { useI18n } from "@/lib/i18n";
 import { capabilityLabel, CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
@@ -385,7 +384,7 @@ export default function PermissionManager() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="engineering">
+    <>
       <div className="space-y-8 pb-20">
         {/* Sticky page head — title + tabs stay visible while scrolling */}
         <div className="sticky top-0 z-30 bg-primary border-b border-[var(--border-primary)] -mx-6 lg:-mx-10 px-6 lg:px-10 pt-6 pb-5">
@@ -1117,7 +1116,7 @@ export default function PermissionManager() {
           />
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

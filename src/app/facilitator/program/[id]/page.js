@@ -16,7 +16,6 @@ import {
   RotateCcw,
   XCircle,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 
@@ -272,7 +271,7 @@ export default function FacilitatorProgram({ params }) {
   ];
 
   return (
-    <DashboardLayout role="facilitator" activeTab="dashboard">
+    <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
           <a
@@ -697,7 +696,7 @@ export default function FacilitatorProgram({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

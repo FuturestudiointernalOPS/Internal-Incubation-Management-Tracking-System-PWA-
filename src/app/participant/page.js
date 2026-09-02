@@ -1,6 +1,5 @@
 "use client";
 
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboardHome";
 
 /**
@@ -15,10 +14,10 @@ import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboar
 export default function ParticipantDashboardPage() {
 
   return (
-    <DashboardLayout role="participant">
+    <>
       <div className="p-6">
         <ParticipantDashboardHome />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

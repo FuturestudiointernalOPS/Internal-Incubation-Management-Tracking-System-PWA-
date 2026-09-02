@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Plus, Trash2, User, Mail, Phone,
   Globe, Linkedin, BookOpen, Clock, Star, Calendar,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function VentureCoachesPage() {
@@ -102,16 +101,16 @@ export default function VentureCoachesPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const coachesList = assignments.filter((a) => a.coach_type === "coach");
   const advisorsList = assignments.filter((a) => a.coach_type === "advisor");
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type==="error"?"bg-rose-600 text-white":"bg-emerald-600 text-white"}`}>
@@ -315,6 +314,6 @@ export default function VentureCoachesPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

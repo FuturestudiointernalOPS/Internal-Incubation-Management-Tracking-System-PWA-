@@ -16,7 +16,6 @@ import {
   FileText,
   ChevronRight,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 
@@ -119,7 +118,7 @@ export default function RegisterVenturePage() {
   // Success state
   if (success) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="max-w-2xl mx-auto py-20 text-center">
           <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
@@ -156,12 +155,12 @@ export default function RegisterVenturePage() {
             {t("vadmin.register.redirecting")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -424,6 +423,6 @@ export default function RegisterVenturePage() {
           </div>
         </form>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

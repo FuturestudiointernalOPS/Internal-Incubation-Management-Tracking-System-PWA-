@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Briefcase, Loader2, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter } from "next/navigation";
 
 export default function ParticipantVentures() {
@@ -79,7 +78,7 @@ export default function ParticipantVentures() {
   const stageOptions = ["idea", "validation", "mvp", "growth", "scale"];
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div>
@@ -251,6 +250,6 @@ export default function ParticipantVentures() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

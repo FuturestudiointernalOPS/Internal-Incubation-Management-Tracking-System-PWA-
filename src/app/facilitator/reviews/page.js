@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { ClipboardList, Loader2, ChevronRight } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 
@@ -48,7 +47,7 @@ export default function FacilitatorReviews() {
   }, []);
 
   return (
-    <DashboardLayout role="facilitator" activeTab="reviews">
+    <>
       <div className="max-w-4xl mx-auto space-y-8 p-6">
         <header>
           <h1 className="text-2xl font-black uppercase tracking-tight">
@@ -182,6 +181,6 @@ export default function FacilitatorReviews() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import {
   Search,
@@ -110,7 +109,7 @@ export default function AuditLogsPage() {
   };
 
   return (
-    <DashboardLayout>
+    <>
       <div className="min-h-screen bg-[#020617] text-white p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -354,6 +353,6 @@ export default function AuditLogsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

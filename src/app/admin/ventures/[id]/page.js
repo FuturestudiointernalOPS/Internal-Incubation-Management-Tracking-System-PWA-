@@ -38,7 +38,6 @@ import {
   Star,
   X,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const STAGE_CONFIG = {
   idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -149,17 +148,17 @@ export default function VentureDetailPage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error || !venture) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
@@ -173,7 +172,7 @@ export default function VentureDetailPage({ params }) {
             Back to Ventures
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -199,7 +198,7 @@ export default function VentureDetailPage({ params }) {
   ];
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Back button */}
         <button
@@ -1029,6 +1028,6 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

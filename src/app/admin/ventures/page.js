@@ -14,7 +14,6 @@ import {
   ExternalLink,
   Link2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const VENTURE_STAGES = {
@@ -94,7 +93,7 @@ export default function VenturesPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -281,6 +280,6 @@ export default function VenturesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

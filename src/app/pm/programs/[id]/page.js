@@ -40,7 +40,6 @@ import {
   Check,
   UserMinus,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { getWeekNumber, getLocalToday, FACILITATOR_REVIEW_OPTIONS } from "@/lib/constants";
 import { FacilitatorsPanel } from "@/components/pm/FacilitatorsPanel";
@@ -1379,14 +1378,14 @@ function ProgramWorkspace() {
 
   if (loading) {
     return (
-      <DashboardLayout role={user.role || "program_manager"}>
+      <>
         <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
           <div className="w-12 h-12 border-4 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
           <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">
             {t("common.loading")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -1449,7 +1448,7 @@ function ProgramWorkspace() {
   // curriculum content moved inline below
 
   return (
-    <DashboardLayout role={user.role || "program_manager"}>
+    <>
       <div className="space-y-8 animate-in">
         {/* HEADER SECTION */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
@@ -6829,7 +6828,7 @@ function ProgramWorkspace() {
         </div>
       )}
         </div>
-    </DashboardLayout>
+    </>
   );
 }
 

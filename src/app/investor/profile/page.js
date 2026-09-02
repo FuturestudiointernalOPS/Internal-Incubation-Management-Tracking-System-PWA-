@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -114,16 +113,16 @@ export default function InvestorProfilePage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="investor">
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -301,6 +300,6 @@ export default function InvestorProfilePage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

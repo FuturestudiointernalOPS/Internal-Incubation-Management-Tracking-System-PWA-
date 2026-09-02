@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, TrendingUp, Target, RefreshCw,
   BookOpen, Briefcase, Shield, DollarSign, Rocket, Users, BarChart3, Lightbulb,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const CATEGORY_ICONS = {
   startup_profile: Briefcase, legal: Shield, financial: DollarSign, product: Rocket,
@@ -60,7 +59,7 @@ export default function VentureInvestmentPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const level = data?.level || {};
@@ -70,7 +69,7 @@ export default function VentureInvestmentPage() {
   const overallScore = data?.assessment?.overall_score ?? data?.overall_score ?? 0;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -221,6 +220,6 @@ export default function VentureInvestmentPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

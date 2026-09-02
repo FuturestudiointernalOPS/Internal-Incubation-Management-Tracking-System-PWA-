@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Bell, RefreshCw, CheckCircle2 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperNotifications() {
@@ -46,7 +45,7 @@ export default function DeveloperNotifications() {
   }, []);
 
   return (
-    <DashboardLayout role={userRole} activeTab="notifications">
+    <>
       <div className="space-y-8 pb-20">
         <header className="border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
@@ -97,6 +96,6 @@ export default function DeveloperNotifications() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

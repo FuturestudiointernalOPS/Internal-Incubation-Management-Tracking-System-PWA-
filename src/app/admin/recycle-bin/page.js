@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Trash2, Undo2, AlertTriangle, Loader2, RefreshCw, UserX, UserCheck, Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useI18n } from "@/lib/i18n";
@@ -73,7 +72,7 @@ export default function RecycleBinPage() {
   );
 
   return (
-    <DashboardLayout role="super_admin" activeTab="recycle-bin">
+    <>
       <div className="space-y-8">
         <header className="flex items-center justify-between">
           <div>
@@ -129,6 +128,6 @@ export default function RecycleBinPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

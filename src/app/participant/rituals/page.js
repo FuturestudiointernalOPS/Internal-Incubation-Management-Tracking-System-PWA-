@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import RitualsView from "@/components/dashboard/RitualsView";
 
 /**
@@ -18,10 +17,10 @@ export default function ParticipantRitualsPage() {
   }, []);
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6">
         <RitualsView />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
   ExternalLink, Clock, Eye, Filter, FileText, Video, Link as LinkIcon, TrendingUp, Target,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const TYPE_ICONS = {
@@ -124,7 +123,7 @@ export default function VentureKnowledgePage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const displayResources = activeView === "bookmarks" ? bookmarks : activeView === "recommended" ? recommended : activeView === "progress" ? [] : resources;
@@ -136,7 +135,7 @@ export default function VentureKnowledgePage() {
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (<div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
           {toast.type === "error" ? <AlertCircle className="w-4 h-4" /> : <CheckCircle2 className="w-4 h-4" />}{toast.msg}
@@ -426,6 +425,6 @@ export default function VentureKnowledgePage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

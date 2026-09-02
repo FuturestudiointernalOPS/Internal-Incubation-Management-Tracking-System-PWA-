@@ -26,7 +26,6 @@ import {
   CornerDownRight,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
@@ -1149,10 +1148,7 @@ function StaffOpReport() {
   };
 
   return (
-    <DashboardLayout
-      role={user?.role || "staff"}
-      isParticipant={user?.role === "participant"}
-    >
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* Toast */}
         {toast && (
@@ -4023,7 +4019,7 @@ function StaffOpReport() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

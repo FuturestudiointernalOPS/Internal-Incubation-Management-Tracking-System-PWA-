@@ -15,7 +15,6 @@ import {
   AlertTriangle,
   Link2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -177,7 +176,7 @@ export default function MembershipPage() {
   const isProtected = (name) => !!protectedMap[name];
 
   return (
-    <DashboardLayout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -519,7 +518,7 @@ export default function MembershipPage() {
       {historyMember && (
         <HistoryModal member={historyMember} t={t} lang={lang} fmtDate={fmtDate} onClose={() => setHistoryMember(null)} />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

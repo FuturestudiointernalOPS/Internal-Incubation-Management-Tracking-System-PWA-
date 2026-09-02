@@ -19,7 +19,6 @@ import {
   Folder,
   Briefcase,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const TARGET_TYPES = [
   { value: "all", label: "announcements.targetAll", icon: Globe },
@@ -153,7 +152,7 @@ export default function AnnouncementsPage() {
     user?.role === "staff";
 
   return (
-    <DashboardLayout role={user?.role || "super_admin"}>
+    <>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -409,6 +408,6 @@ export default function AnnouncementsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

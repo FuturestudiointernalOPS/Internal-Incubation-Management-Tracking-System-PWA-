@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   ArrowRight,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperRetro() {
@@ -120,7 +119,7 @@ export default function DeveloperRetro() {
     "text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5";
 
   return (
-    <DashboardLayout role={userRole} activeTab="retro">
+    <>
       <div className="space-y-8 pb-20">
         <header className="border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
@@ -468,7 +467,7 @@ export default function DeveloperRetro() {
           </button>
         </form>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

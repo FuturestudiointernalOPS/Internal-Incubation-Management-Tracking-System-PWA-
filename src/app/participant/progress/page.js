@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProgressView from "@/components/dashboard/ProgressView";
 
 /**
@@ -19,10 +18,10 @@ export default function ParticipantProgressPage() {
   }, []);
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6">
         <ProgressView />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

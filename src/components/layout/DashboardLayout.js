@@ -1522,6 +1522,13 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     hasCommunicationActivity,
   };
 
+  // The CRM contacts grid renders edge-to-edge; preserve that behavior now
+  // that the shell lives in the layout instead of the page.
+  const isFullWidth =
+    fullWidth ||
+    (typeof pathname === "string" &&
+      pathname.startsWith("/admin/communications/contacts"));
+
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;
   }
@@ -2109,7 +2116,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                 </div>
               </div>
             )}
-            <div className={fullWidth ? "w-full animate-in" : "max-w-[1400px] mx-auto animate-in"}>{children}</div>
+            <div className={isFullWidth ? "w-full animate-in" : "max-w-[1400px] mx-auto animate-in"}>{children}</div>
           </main>
           {modals}
           <GlobalToast />

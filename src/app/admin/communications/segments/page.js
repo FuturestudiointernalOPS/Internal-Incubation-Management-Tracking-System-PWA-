@@ -1,6 +1,5 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Filter, Users, Rocket, Save, X, Search, Loader2, Plus, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -174,7 +173,7 @@ export default function SegmentsPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 min-h-[60vh]">
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
@@ -339,6 +338,6 @@ export default function SegmentsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

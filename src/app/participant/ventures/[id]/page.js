@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, History, Briefcase, Target, Lightbulb, TrendingUp, CheckSquare, ListChecks, ChevronDown, ChevronUp, ListTodo, MessageCircle, RotateCcw, AlertTriangle, CalendarDays, Activity, FileText, GraduationCap, Award, Gauge, UserCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
 
 const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
@@ -445,19 +444,19 @@ export default function VentureDetail() {
   const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };
 
   if (loading) return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="flex justify-center py-20"><Loader2 className="animate-spin" style={{ color: "var(--text-secondary)" }} size={32} /></div>
-    </DashboardLayout>
+    </>
   );
 
   if (!venture) return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 text-center" style={{ color: "var(--text-secondary)" }}>{t("venture.loadError")}</div>
-    </DashboardLayout>
+    </>
   );
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 max-w-4xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
         {/* Back */}
         <button onClick={() => router.push("/participant/ventures")} className="flex items-center gap-2 transition-colors" style={{ color: "var(--text-secondary)" }}>
@@ -1841,6 +1840,6 @@ export default function VentureDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

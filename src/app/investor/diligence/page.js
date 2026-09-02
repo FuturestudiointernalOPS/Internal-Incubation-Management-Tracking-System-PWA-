@@ -8,7 +8,6 @@ import {
   Target, Shield, TrendingUp, BarChart3, X, Users, AlertTriangle, Save, Upload,
 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -246,11 +245,11 @@ function DueDiligenceContent() {
   const progress = requests.length > 0 ? Math.round((completedReqs / requests.length) * 100) : 0;
 
   if (loading) {
-    return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -613,7 +612,7 @@ function DueDiligenceContent() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

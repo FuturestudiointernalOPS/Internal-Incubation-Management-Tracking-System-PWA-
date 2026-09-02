@@ -13,7 +13,6 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProgramListing from "@/components/dashboard/ProgramListing";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 import Link from "next/link";
@@ -61,7 +60,7 @@ export default function ParticipantDashboard() {
   }, [user]);
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-2">
@@ -284,6 +283,6 @@ export default function ParticipantDashboard() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

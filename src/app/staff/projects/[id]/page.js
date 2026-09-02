@@ -20,7 +20,6 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 
@@ -195,16 +194,16 @@ export default function StaffProjectDetail() {
 
   if (loading)
     return (
-      <DashboardLayout role="staff">
+      <>
         <div className="flex items-center justify-center py-32">
           <RefreshCw className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
 
   if (error || !project)
     return (
-      <DashboardLayout role="staff">
+      <>
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
@@ -218,7 +217,7 @@ export default function StaffProjectDetail() {
             {t("staffMisc.projectDetail.backToProjects")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
 
   const tasks = project.tasks || [];
@@ -235,7 +234,7 @@ export default function StaffProjectDetail() {
       : blockers.filter((b) => b.status === blockerFilter);
 
   return (
-    <DashboardLayout role="staff">
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* Header */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -900,6 +899,6 @@ export default function StaffProjectDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

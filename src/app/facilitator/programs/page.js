@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Briefcase, ChevronRight, Users, Loader2 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +26,7 @@ export default function FacilitatorPrograms() {
   }, []);
 
   return (
-    <DashboardLayout role="facilitator" activeTab="programs">
+    <>
       <div className="max-w-4xl mx-auto space-y-8 p-6">
         <header>
           <h1 className="text-2xl font-black uppercase tracking-tight">
@@ -84,6 +83,6 @@ export default function FacilitatorPrograms() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

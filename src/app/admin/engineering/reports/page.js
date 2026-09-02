@@ -17,7 +17,6 @@ import {
   ArrowUp,
   ArrowDown,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const PERIODS = [
   { value: "week", label: "This Week" },
@@ -49,7 +48,7 @@ export default function EngineeringReports() {
   }, [fetchReports]);
 
   return (
-    <DashboardLayout role="super_admin" activeTab="engineering">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -316,6 +315,6 @@ export default function EngineeringReports() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -16,7 +16,6 @@ import {
   Download,
 } from "lucide-react";
 import Link from "next/link";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import * as XLSX from "xlsx";
 import { parseCSVRows } from "@/lib/csv";
@@ -316,7 +315,7 @@ export default function ImportPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-4xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div>
@@ -840,6 +839,6 @@ export default function ImportPage() {
           </motion.div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

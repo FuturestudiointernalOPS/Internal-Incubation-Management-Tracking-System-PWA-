@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
   Video, MapPin, BookOpen, MessageCircle, Target, Trash2, Edit3,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const SESSION_TYPE_CFG = {
@@ -118,14 +117,14 @@ export default function VentureSessionsPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const upcoming = sessions.filter((s) => ["scheduled", "confirmed"].includes(s.status));
   const past = sessions.filter((s) => ["completed", "cancelled", "no_show", "rescheduled"].includes(s.status));
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type==="error"?"bg-rose-600 text-white":"bg-emerald-600 text-white"}`}>
@@ -331,6 +330,6 @@ export default function VentureSessionsPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

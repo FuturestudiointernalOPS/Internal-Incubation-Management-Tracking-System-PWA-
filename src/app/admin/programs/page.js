@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Plus,
   Search,
@@ -682,7 +681,7 @@ export default function ProgramManagement() {
   );
 
   return (
-    <DashboardLayout role="super_admin" activeTab="programs">
+    <>
       <div className="space-y-10 pb-20 animate-in text-left">
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div className="space-y-4">
@@ -2041,6 +2040,6 @@ export default function ProgramManagement() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

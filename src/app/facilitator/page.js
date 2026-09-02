@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Calendar, Clock, CheckCircle2, Loader2, AlertTriangle } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import CalendarPanel from "@/components/ui/CalendarPanel";
 import { useI18n } from "@/lib/i18n";
 
@@ -54,7 +53,7 @@ export default function FacilitatorDashboard() {
   const hasNoRole = programs.length === 0;
 
   return (
-    <DashboardLayout role="facilitator" activeTab="dashboard">
+    <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
           <h1 className="text-2xl font-black uppercase tracking-tight">
@@ -155,6 +154,6 @@ export default function FacilitatorDashboard() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

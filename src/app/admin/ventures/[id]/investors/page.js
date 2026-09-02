@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, RefreshCw,
   Building2, Globe, Linkedin, DollarSign, Target, TrendingUp, Users, Star,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
@@ -81,7 +80,7 @@ export default function VentureInvestorsPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const filteredMatches = matches.filter((m) => {
@@ -91,7 +90,7 @@ export default function VentureInvestorsPage() {
   });
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -270,6 +269,6 @@ export default function VentureInvestorsPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

@@ -16,7 +16,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // ─── Constants ───
 const SEV = {
@@ -239,7 +238,7 @@ export default function ErrorLogsView({
   };
 
   return (
-    <DashboardLayout role={dashboardRole} activeTab={activeTab}>
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -647,6 +646,6 @@ export default function ErrorLogsView({
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

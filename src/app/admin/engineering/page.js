@@ -21,7 +21,6 @@ import {
   Calendar,
   BarChart3,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 // Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
@@ -126,7 +125,7 @@ export default function EngineeringOperations() {
     : [];
 
   return (
-    <DashboardLayout role="super_admin" activeTab="engineering">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -420,6 +419,6 @@ export default function EngineeringOperations() {
           </>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

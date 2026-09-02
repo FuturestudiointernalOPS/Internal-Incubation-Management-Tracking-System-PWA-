@@ -16,7 +16,6 @@ import {
   Target,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import StandupRetroView from "@/components/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 
@@ -80,7 +79,7 @@ export default function StaffDashboard() {
   };
 
   return (
-    <DashboardLayout role="staff">
+    <>
       <div className="space-y-12">
         {/* STAFF WELCOME */}
         <header className="space-y-4">
@@ -242,6 +241,6 @@ export default function StaffDashboard() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

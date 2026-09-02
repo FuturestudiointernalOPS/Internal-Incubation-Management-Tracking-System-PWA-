@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from "@/lib/i18n";
 
 export default function SuperAdminStandardization() {
@@ -75,10 +74,8 @@ export default function SuperAdminStandardization() {
   };
 
   return (
-    <DashboardLayout 
-      role="super_admin"
-      modals={
-        <AnimatePresence>
+    <>
+      <AnimatePresence>
            {editingItem && (
               <div className="fixed inset-0 z-[500] flex items-center justify-center p-6 bg-black/90 backdrop-blur-md">
                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="ios-card w-full max-w-md !p-10 space-y-8 border-[#FF6600]/20">
@@ -117,8 +114,6 @@ export default function SuperAdminStandardization() {
               </div>
            )}
         </AnimatePresence>
-      }
-    >
       <div className="space-y-12">
         <header className="space-y-8 text-left">
            <div className="flex justify-between items-start">
@@ -249,6 +244,6 @@ export default function SuperAdminStandardization() {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

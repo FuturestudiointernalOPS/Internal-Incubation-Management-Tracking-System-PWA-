@@ -7,7 +7,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
@@ -92,7 +91,7 @@ export default function AdminInvestorsPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -267,6 +266,6 @@ export default function AdminInvestorsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

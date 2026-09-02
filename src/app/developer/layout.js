@@ -2,21 +2,44 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 /**
- * DEVELOPER LAYOUT — Role + Group Guard
+ * DEVELOPER LAYOUT — Role + Group Guard and persistent dashboard shell
  *
  * Allows access to:
  *   - Users with role: developer, super_admin
  *   - Users who belong to the "FUTURE STUDIO INTERNS" group (even if role is staff)
  *
- * Redirects everyone else to their appropriate dashboard.
+ * Redirects everyone else to their appropriate dashboard. Renders the shared
+ * DashboardLayout shell here so it mounts once and survives client-side
+ * navigation between developer pages.
  */
 export default function DeveloperLayout({ children }) {
   const router = useRouter();
-  const [authorized, setAuthorized] = useState(false);
+  // "developer" | "super_admin" — the role authorized to view this section.
+  const [sessionRole, setSessionRole] = useState(null);
+
+  const toShellRole = (role) =>
+    role === "super_admin" ? "super_admin" : "developer";
+
+  // Optimistic fast-path: restore a cached session before first paint so
+  // entering /developer never flashes a blank screen. checkAccess() below
+  // still re-validates against the server and redirects if invalid.
+  useLayoutEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem("user");
+      if (saved) {
+        const u = JSON.parse(saved);
+        if (u.role === "developer" || u.role === "super_admin") {
+          setSessionRole(toShellRole(u.role));
+        }
+      }
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     async function checkAccess() {
@@ -44,7 +67,7 @@ export default function DeveloperLayout({ children }) {
           );
 
           if (role === "developer" || role === "super_admin" || isIntern) {
-            setAuthorized(true);
+            setSessionRole(toShellRole(role));
             return;
           }
 
@@ -74,7 +97,7 @@ export default function DeveloperLayout({ children }) {
           );
 
           if (u.role === "developer" || u.role === "super_admin" || isIntern) {
-            setAuthorized(true);
+            setSessionRole(toShellRole(u.role));
             return;
           }
           const redirectMap = {
@@ -94,7 +117,8 @@ export default function DeveloperLayout({ children }) {
     checkAccess();
   }, [router]);
 
-  if (!authorized) {
+  // Show nothing while checking
+  if (!sessionRole) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
@@ -102,5 +126,7 @@ export default function DeveloperLayout({ children }) {
     );
   }
 
-  return children;
+  return (
+    <DashboardLayout role={sessionRole}>{children}</DashboardLayout>
+  );
 }

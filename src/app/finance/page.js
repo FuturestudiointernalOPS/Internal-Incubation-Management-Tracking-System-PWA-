@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from "react";
 import { Send, DollarSign, Calendar, Building2, FileText, CheckCircle } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function FinanceEntryPage() {
@@ -69,7 +68,7 @@ export default function FinanceEntryPage() {
   };
 
   return (
-    <DashboardLayout role="finance">
+    <>
       <div className="max-w-2xl mx-auto space-y-8 pb-20">
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <DollarSign className="w-6 h-6 text-emerald-500" />
@@ -208,6 +207,6 @@ export default function FinanceEntryPage() {
           </button>
         </form>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

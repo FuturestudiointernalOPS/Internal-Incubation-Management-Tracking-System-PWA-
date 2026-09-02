@@ -8,7 +8,6 @@ import {
   Users
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import DashboardLayout from '@/components/layout/DashboardLayout';
 import { useI18n } from '@/lib/i18n';
 import { useSafeBack } from "@/lib/useSafeBack";
 
@@ -69,7 +68,7 @@ export default function GroupWorkspaceV2({ params }) {
   if (!isLoaded || !group) return null;
 
   return (
-    <DashboardLayout role="super_admin" activeTab="v2">
+    <>
       <div className="max-w-5xl mx-auto space-y-12">
         <header className="flex items-center justify-between">
            <button 
@@ -197,6 +196,6 @@ export default function GroupWorkspaceV2({ params }) {
            </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

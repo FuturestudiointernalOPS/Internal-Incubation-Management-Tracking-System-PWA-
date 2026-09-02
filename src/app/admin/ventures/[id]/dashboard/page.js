@@ -33,7 +33,6 @@ import {
   Ban,
   Send,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -182,7 +181,7 @@ export default function VentureDashboardPage() {
   // ── Loading state (skeleton) ──
   if (loading && !dashboard) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="max-w-6xl mx-auto space-y-8 pb-20">
           <div className="animate-pulse">
             <div className="h-8 w-64 rounded bg-slate-700/50 mb-2" />
@@ -192,14 +191,14 @@ export default function VentureDashboardPage() {
             {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ── Error state (full page) ──
   if (error && !dashboard) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Dashboard Error</h2>
@@ -208,7 +207,7 @@ export default function VentureDashboardPage() {
             <RefreshCw className="w-4 h-4" /> Retry
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -216,7 +215,7 @@ export default function VentureDashboardPage() {
   const v = venture || {};
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-6xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -611,6 +610,6 @@ export default function VentureDashboardPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

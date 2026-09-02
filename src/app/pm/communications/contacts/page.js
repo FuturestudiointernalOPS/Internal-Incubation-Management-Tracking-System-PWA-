@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Users,
   Search,
@@ -133,7 +132,7 @@ export default function PMGroups() {
     Object.values(staff).reduce((a, b) => a + b.length, 0);
 
   return (
-    <DashboardLayout role="program_manager" activeTab="communication">
+    <>
       <div className="h-[calc(100vh-80px)] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 lg:px-6 py-3 border-b border-[var(--border-primary)] flex-shrink-0">
@@ -410,6 +409,6 @@ export default function PMGroups() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

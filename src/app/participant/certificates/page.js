@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { Award, Loader2 } from "lucide-react";
 
@@ -28,7 +27,7 @@ export default function ParticipantCertificatesPage() {
   const fmt = (d) => (d ? new Date(d).toLocaleDateString() : "");
 
   return (
-    <DashboardLayout role={user?.role || "participant"} activeTab="certificates">
+    <>
       <div className="p-6 max-w-3xl mx-auto">
         <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
           {t("navigation.certificates")}
@@ -68,6 +67,6 @@ export default function ParticipantCertificatesPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

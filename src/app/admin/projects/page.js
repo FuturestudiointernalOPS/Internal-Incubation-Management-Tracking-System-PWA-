@@ -20,7 +20,6 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 
@@ -364,7 +363,7 @@ export default function AdminProjects() {
   }, [projects, search, filterStatus]);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* HEADER */}
         {/* Toast notification */}
@@ -1535,6 +1534,6 @@ export default function AdminProjects() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

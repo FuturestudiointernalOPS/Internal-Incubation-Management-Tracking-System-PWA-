@@ -34,7 +34,6 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppTabs from "@/components/ui/AppTabs";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -475,7 +474,7 @@ export default function TeamDashboardPage({ params }) {
   // — Loading state —
   if (loading) {
     return (
-      <DashboardLayout role="team">
+      <>
         <div className="max-w-6xl mx-auto p-6 flex items-center justify-center min-h-[60vh]">
           <div className="flex items-center gap-3 text-[var(--text-secondary)]">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -484,14 +483,14 @@ export default function TeamDashboardPage({ params }) {
             </span>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // — Not found —
   if (!team) {
     return (
-      <DashboardLayout role="team">
+      <>
         <div className="max-w-6xl mx-auto p-6">
           <div className="text-center py-20">
             <h2 className="text-lg font-black text-[var(--text-primary)] uppercase mb-2">
@@ -505,12 +504,12 @@ export default function TeamDashboardPage({ params }) {
             </AppButton>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="team">
+    <>
       <div className="max-w-6xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -1799,6 +1798,6 @@ export default function TeamDashboardPage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

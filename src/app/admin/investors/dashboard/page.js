@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import { TrendingUp, DollarSign, Users, Building2, Target, BarChart3, Megaphone, Activity, Briefcase, Loader2 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
 
@@ -16,7 +15,7 @@ export default function ExecutiveDashboardPage() {
 
   useEffect(() => { fetch("/api/investor/executive-dashboard").then(r => r.json()).then(d => { if (d.success) setData(d); setLoading(false); }); }, []);
 
-  if (loading) return <DashboardLayout role="super_admin"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+  if (loading) return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
 
   const d = data || {};
   const inv = d.investors || {};
@@ -25,7 +24,7 @@ export default function ExecutiveDashboardPage() {
   const rel = d.relationships || {};
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <div>
           <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("investorAdmin.dashboard.title")}</h1>
@@ -168,6 +167,6 @@ export default function ExecutiveDashboardPage() {
           )}
         </AppCard>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

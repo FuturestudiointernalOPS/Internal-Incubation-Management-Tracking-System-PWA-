@@ -5,7 +5,6 @@ import {
   Building2, Users, Plus, Loader2, ArrowLeft, Globe,
   Save, UserPlus, Crown, Shield, Mail, X,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
@@ -80,7 +79,7 @@ export default function InvestorOrganizationsPage() {
   };
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
@@ -254,6 +253,6 @@ export default function InvestorOrganizationsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

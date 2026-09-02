@@ -13,7 +13,6 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -131,7 +130,7 @@ export default function MyProjects() {
   };
 
   return (
-    <DashboardLayout role={user?.role || "staff"} activeTab="my_projects">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -360,6 +359,6 @@ export default function MyProjects() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

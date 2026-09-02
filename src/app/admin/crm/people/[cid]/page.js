@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { User, Clock, FileText, Briefcase, Rocket, MessageSquare, Upload, Plus, ArrowLeft, Check, X, Send, Mail, Building2 } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -233,17 +232,17 @@ export default function CrmDetailPage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin" activeTab="crm">
+      <>
         <div className="p-8 text-center text-sm text-[var(--text-secondary)]">{t("crm.people.loading")}</div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (!contact) {
     return (
-      <DashboardLayout role="super_admin" activeTab="crm">
+      <>
         <div className="p-8 text-center text-sm text-[var(--text-secondary)]">{t("crm.people.contactNotFound")}</div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -252,7 +251,7 @@ export default function CrmDetailPage({ params }) {
     (contact.status === "active" ? "activated" : "not_invited");
 
   return (
-    <DashboardLayout role="super_admin" activeTab="crm">
+    <>
       <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto space-y-6">
         {/* Back links */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -641,6 +640,6 @@ export default function CrmDetailPage({ params }) {
         )}
 
       </div>
-    </DashboardLayout>
+    </>
   );
 }

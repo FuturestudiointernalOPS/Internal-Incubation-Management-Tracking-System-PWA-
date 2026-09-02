@@ -1,6 +1,5 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Filter,
   Rocket,
@@ -180,7 +179,7 @@ export default function ResponsesPage() {
   const filteredList = getFilteredContacts();
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 min-h-[60vh]">
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
@@ -525,6 +524,6 @@ export default function ResponsesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

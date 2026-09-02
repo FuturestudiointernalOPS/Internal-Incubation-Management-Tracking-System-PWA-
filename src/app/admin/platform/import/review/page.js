@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   RefreshCw,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 
@@ -67,7 +66,7 @@ function ImportReviewContent() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-5xl mx-auto space-y-6 pb-20">
         {notification && (
           <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase animate-in">
@@ -219,7 +218,7 @@ function ImportReviewContent() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSession, hasAnyFacilitatorAssignment } from "@/lib/auth";
 import { roleHomeHref } from "@/lib/platform/roles";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export const dynamic = "force-dynamic";
 
@@ -32,5 +33,7 @@ export default async function FacilitatorLayout({ children }) {
     }
   }
 
-  return <>{children}</>;
+  return (
+    <DashboardLayout role="facilitator">{children}</DashboardLayout>
+  );
 }

@@ -25,7 +25,6 @@ import {
   MoreVertical,
   Edit3,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const VENTURE_ROLES = [
@@ -280,17 +279,17 @@ export default function VentureFoundersPage() {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="flex items-center justify-center h-[60vh]">
           <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error || !venture) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.founders.errorTitle")}</h2>
@@ -299,14 +298,14 @@ export default function VentureFoundersPage() {
             {t("vadmin.founders.backToVentures")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   const owner = founders.find((f) => f.is_owner);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Toast */}
         {toast && (
@@ -808,6 +807,6 @@ export default function VentureFoundersPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

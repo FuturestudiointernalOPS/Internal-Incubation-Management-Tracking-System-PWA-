@@ -8,7 +8,6 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 
@@ -62,12 +61,12 @@ export default function InvestorReviewPage() {
   };
 
   if (loading) {
-    return <DashboardLayout role="super_admin"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]"/></div></>;
   }
 
   if (selected) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-6">
           <button onClick={() => setSelected(null)} className="text-xs font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"><ArrowLeft className="w-3 h-3"/>{t("investorAdmin.review.backToList")}</button>
 
@@ -121,12 +120,12 @@ export default function InvestorReviewPage() {
             </AppButton>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center gap-4">
           <button onClick={goBack} className="p-2"><ArrowLeft className="w-5 h-5"/></button>
@@ -162,6 +161,6 @@ export default function InvestorReviewPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

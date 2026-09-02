@@ -7,7 +7,6 @@ import {
   Calendar, Clock, User, Paperclip, MessageCircle, Flag, ChevronDown, ChevronRight,
   List, Columns, LayoutGrid, Circle, Square,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
 
@@ -163,16 +162,16 @@ export default function VentureTasksPage() {
   const displayByStatus = search ? filteredByStatus : byStatus;
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const totalTasks = tasks.length;
   const doneTasks = tasks.filter((t) => t.status === "done").length;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-[60] px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${toast.type === "error" ? "bg-rose-600 text-white" : "bg-emerald-600 text-white"}`}>
@@ -480,6 +479,6 @@ export default function VentureTasksPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, FileText, Upload,
   Share2, Clock, Eye, Download, History, Trash2, Copy, Link as LinkIcon,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const CATEGORIES = [
   { value: "pitch_deck", label: "Pitch Deck", icon: FileText },
@@ -125,11 +124,11 @@ export default function VentureDataRoomPage() {
   });
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -352,6 +351,6 @@ export default function VentureDataRoomPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

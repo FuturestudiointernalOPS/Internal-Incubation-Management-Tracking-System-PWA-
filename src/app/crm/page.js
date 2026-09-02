@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { Users, FileText, MessageSquare, ShieldAlert } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +36,7 @@ export default function CrmWorkspace() {
   }, []);
 
   return (
-    <DashboardLayout role="crm">
+    <>
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <Users className="w-6 h-6 text-[var(--brand-orange)]" />
@@ -86,6 +85,6 @@ export default function CrmWorkspace() {
           </p>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

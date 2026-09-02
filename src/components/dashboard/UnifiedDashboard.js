@@ -27,7 +27,6 @@ import {
   Zap,
   Plus,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
@@ -424,7 +423,7 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ── Loading state ──
   if (loading) {
     return (
-      <DashboardLayout role={effectiveRole}>
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div
             className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin"
@@ -434,13 +433,13 @@ export default function UnifiedDashboard({ role: propRole }) {
             }}
           />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error) {
     return (
-      <DashboardLayout role={effectiveRole}>
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <div className="card text-center space-y-3 p-8">
             <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto" />
@@ -453,7 +452,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             </button>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -468,7 +467,7 @@ export default function UnifiedDashboard({ role: propRole }) {
   // ─── RENDER ──────────────────────────────────────────────────────────────
 
   return (
-    <DashboardLayout role={effectiveRole}>
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* ═══════ HEADER ═══════ */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4 border-b border-[var(--border-primary)] pb-6">
@@ -1667,7 +1666,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           onClose={() => setSelectedTask(null)}
         />
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { Briefcase, Search, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppBadge from "@/components/ui/AppBadge";
 import AppEmptyState from "@/components/ui/AppEmptyState";
@@ -109,10 +108,7 @@ export default function ProjectsListView({ role: propRole }) {
       : "Projects you are working on";
 
   return (
-    <DashboardLayout
-      role={role}
-      activeTab={role === "staff" ? "my_projects" : "projects"}
-    >
+    <>
       <div className="space-y-8 pb-20">
         {/* ── Header ── */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -206,6 +202,6 @@ export default function ProjectsListView({ role: propRole }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

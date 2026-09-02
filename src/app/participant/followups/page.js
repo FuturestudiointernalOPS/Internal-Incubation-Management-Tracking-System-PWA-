@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { Calendar, Clock, ExternalLink, RefreshCw, Video, MessageSquare, CheckCircle2, XCircle } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function ParticipantFollowupsPage() {
@@ -42,7 +41,7 @@ export default function ParticipantFollowupsPage() {
   };
 
   return (
-    <DashboardLayout role={user.role || "participant"}>
+    <>
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-2">
           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
@@ -126,6 +125,6 @@ export default function ParticipantFollowupsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

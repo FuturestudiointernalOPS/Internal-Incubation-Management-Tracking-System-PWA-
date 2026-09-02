@@ -19,7 +19,6 @@ import {
   Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function TeamManagementPage({ params }) {
   const unwrappedParams = use(params);
@@ -305,18 +304,18 @@ export default function TeamManagementPage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin" activeTab="v2">
+      <>
         <div className="min-h-[60vh] flex items-center justify-center">
           <Loader2 className="w-8 h-8 text-[var(--brand-orange)] animate-spin" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ---- Main render ----
 
   return (
-    <DashboardLayout role="super_admin" activeTab="v2">
+    <>
       <div className="max-w-6xl mx-auto space-y-8 pb-20">
         {/* HEADER */}
         <header className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
@@ -690,6 +689,6 @@ export default function TeamManagementPage({ params }) {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

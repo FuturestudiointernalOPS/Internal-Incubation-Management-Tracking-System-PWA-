@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, DollarSign, Target, Calendar,
   TrendingUp, MessageCircle, Phone, Mail, Users,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const STAGES = [
   { key: "prospect", label: "Prospect", color: "bg-slate-500/10 text-slate-400" },
@@ -108,7 +107,7 @@ export default function VentureFundraisingPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const byStage = {};
@@ -117,7 +116,7 @@ export default function VentureFundraisingPage() {
   const totalValue = opportunities.reduce((s, o) => s + (parseFloat(o.expected_amount) || 0), 0);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -386,6 +385,6 @@ export default function VentureFundraisingPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

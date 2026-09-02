@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { User, AlertTriangle, Check, X, ArrowRight, RefreshCw, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -87,7 +86,7 @@ export default function DuplicatesPage() {
   }
 
   return (
-    <DashboardLayout role="super_admin" activeTab="crm">
+    <>
       <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto space-y-6">
         {/* Back nav */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
@@ -211,6 +210,6 @@ export default function DuplicatesPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

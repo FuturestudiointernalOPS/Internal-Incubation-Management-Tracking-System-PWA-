@@ -5,7 +5,6 @@ import {
   Clock, TrendingUp, DollarSign, Target, XCircle, Download,
   FileText, Loader2, Building2, ArrowLeft, CheckCircle2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
@@ -84,11 +83,11 @@ export default function InvestmentHistoryPage() {
   };
 
   if (loading) {
-    return <DashboardLayout role="investor"><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>;
+    return <><div className="min-h-[60vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>;
   }
 
   return (
-    <DashboardLayout role="investor">
+    <>
       <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -192,6 +191,6 @@ export default function InvestmentHistoryPage() {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

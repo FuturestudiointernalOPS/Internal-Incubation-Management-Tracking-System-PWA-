@@ -25,7 +25,6 @@ import {
   ChevronRight,
   MessageCircle,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const VERIFICATION_STEPS = [
@@ -220,22 +219,22 @@ export default function VentureVerificationPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]">
         <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
       </div>
-    </DashboardLayout>
+    </>
   );
 
   if (error || !venture) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="text-center py-20">
         <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
         <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.verification.error")}</h2>
         <p className="text-slate-500 mb-6">{error || t("vadmin.verification.ventureNotFound")}</p>
         <button onClick={() => router.push("/admin/ventures")} className="btn btn-primary">{t("vadmin.verification.backToVentures")}</button>
       </div>
-    </DashboardLayout>
+    </>
   );
 
   const verification = data?.verification;
@@ -248,7 +247,7 @@ export default function VentureVerificationPage() {
   const getItemForCategory = (cat) => items.find((i) => i.category === cat);
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-2xl text-[10px] font-black uppercase tracking-widest flex items-center gap-3 ${
@@ -488,6 +487,6 @@ export default function VentureVerificationPage() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

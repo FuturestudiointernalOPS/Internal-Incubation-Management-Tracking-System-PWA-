@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, use } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import ProgramDetail from "@/components/dashboard/ProgramDetail";
 
 /**
@@ -21,10 +20,10 @@ export default function ParticipantProgramDetailPage({ params }) {
   }, []);
 
   return (
-    <DashboardLayout role={user?.role || "participant"}>
+    <>
       <div className="p-6">
         <ProgramDetail programId={programId} />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

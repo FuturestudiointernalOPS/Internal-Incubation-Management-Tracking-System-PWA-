@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Save, Settings, ToggleLeft, Shield,
   Activity, Server, Search,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function VentureAdminPage() {
   const router = useRouter();
@@ -94,13 +93,13 @@ export default function VentureAdminPage() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const categoryLabels = { general: "General", branding: "Branding", organization: "Organization", localization: "Localization", storage: "Storage", authentication: "Authentication" };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
@@ -252,6 +251,6 @@ export default function VentureAdminPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

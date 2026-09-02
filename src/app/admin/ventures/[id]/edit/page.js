@@ -11,7 +11,6 @@ import {
   CheckCircle2,
   Save,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 
@@ -117,17 +116,17 @@ export default function EditVenturePage({ params }) {
 
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="flex items-center justify-center py-20">
           <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   if (error && !form) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">{t("vadmin.edit.ventureNotFound")}</h2>
@@ -136,12 +135,12 @@ export default function EditVenturePage({ params }) {
             {t("vadmin.edit.backToVentures")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
@@ -301,6 +300,6 @@ export default function EditVenturePage({ params }) {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

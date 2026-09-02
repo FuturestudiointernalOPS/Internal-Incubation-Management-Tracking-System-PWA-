@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Download, TrendingUp, Target,
   DollarSign, FileText, BarChart3, Eye, Download as DownloadIcon, Users,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 const KPI_LABELS = {
   readiness_score: "Investment Readiness", total_matches: "Investor Matches", avg_match_score: "Avg Match Score",
@@ -69,7 +68,7 @@ export default function VentureAnalyticsPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   const a = analytics || {};
@@ -78,7 +77,7 @@ export default function VentureAnalyticsPage() {
   const priorityKPIs = ["readiness_score", "total_matches", "active_opportunities", "pipeline_value", "win_rate", "investor_engagement_score"];
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -219,6 +218,6 @@ export default function VentureAnalyticsPage() {
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

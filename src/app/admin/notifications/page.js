@@ -6,7 +6,6 @@ import {
   Loader2, CheckCircle2, AlertCircle, Bell, Mail, Settings, Archive, Trash2,
   X, Send, Filter, RefreshCw,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 const TYPE_COLORS = {
@@ -107,11 +106,11 @@ export default function NotificationsPage() {
   const filtered = filterType ? notifications.filter((n) => n.type === filterType) : notifications;
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {toast && (
           <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
@@ -232,6 +231,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

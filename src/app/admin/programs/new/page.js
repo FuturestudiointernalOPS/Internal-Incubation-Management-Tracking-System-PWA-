@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Zap,
   ArrowLeft,
@@ -381,7 +380,7 @@ export default function NewProgram() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="programs">
+    <>
       {/* NOTIFICATION TOAST */}
       {notification && (
         <div className="fixed top-10 right-10 z-[1000] animate-in slide-in-from-right-10">
@@ -1317,6 +1316,6 @@ export default function NewProgram() {
           </button>
         </form>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

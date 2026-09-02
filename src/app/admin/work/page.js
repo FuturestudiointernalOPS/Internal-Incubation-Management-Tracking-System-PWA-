@@ -21,7 +21,6 @@ import {
   FolderOpen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 
@@ -347,7 +346,7 @@ export default function ProjectKanbanBoard() {
   // ── Loading state ──
   if (loading) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="p-8 space-y-6">
           <div className="h-8 w-48 bg-tertiary rounded animate-pulse" />
           <div className="grid grid-cols-5 gap-4">
@@ -359,13 +358,13 @@ export default function ProjectKanbanBoard() {
             ))}
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // ── Render ──
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-6 pb-20">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-6">
@@ -580,6 +579,6 @@ export default function ProjectKanbanBoard() {
           </span>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

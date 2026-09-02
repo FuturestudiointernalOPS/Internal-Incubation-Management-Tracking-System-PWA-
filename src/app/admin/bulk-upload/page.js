@@ -13,7 +13,6 @@ import {
   Users,
   X,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function BulkUploadPage() {
@@ -79,7 +78,7 @@ export default function BulkUploadPage() {
   };
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="max-w-3xl mx-auto space-y-8">
         {/* Header */}
         <div>
@@ -329,6 +328,6 @@ export default function BulkUploadPage() {
           </ul>
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import MessagingChat from "@/components/messaging/MessagingChat";
 
 export default function PmMessages() {
@@ -13,8 +12,8 @@ export default function PmMessages() {
   }, []);
 
   return (
-    <DashboardLayout role={user?.role || "program_manager"}>
+    <>
       <MessagingChat role="program_manager" />
-    </DashboardLayout>
+    </>
   );
 }

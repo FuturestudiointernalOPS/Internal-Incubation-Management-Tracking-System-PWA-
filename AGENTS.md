@@ -184,6 +184,31 @@ src/
 └── locales/              ← Translation files (en + fr)
 ```
 
+### DashboardLayout — rendered by section layouts, NOT by pages
+
+`src/components/layout/DashboardLayout.js` (sidebar + header shell) is rendered **once**
+by each top-level section layout so it survives client-side navigation (no remount,
+no re-fetch of the auth/badge chain on every link click):
+
+| Section | Layout | Shell role |
+|---|---|---|
+| `/admin/*` | `src/app/admin/layout.js` | `super_admin` \| `developer` (from session) |
+| `/staff/*` | `src/app/staff/layout.js` | `staff` |
+| `/pm/*` | `src/app/pm/layout.js` | `program_manager` |
+| `/teacher/*` | `src/app/teacher/layout.js` | `teacher` |
+| `/participant/*` | `src/app/participant/layout.js` | `participant` |
+| `/developer/*` | `src/app/developer/layout.js` | `developer` \| `super_admin` |
+| `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |
+| `/investor/*` | `src/app/investor/layout.js` | `investor` |
+| `/finance/*` | `src/app/finance/layout.js` | `finance` |
+| `/crm/*` | `src/app/crm/layout.js` | `crm` |
+| `/team/*` | `src/app/team/layout.js` | `team` |
+
+**Do NOT wrap a page in `<DashboardLayout>` anymore.** Pages simply return their own
+content; the section layout provides the shell. The `role` prop is only a fallback —
+the effective role is derived from the session user + pathname. If a page needs
+edge-to-edge content, that behavior is pathname-based inside DashboardLayout.
+
 ---
 
 ## 6. Before Making Changes — Checklist
@@ -194,4 +219,5 @@ src/
 - [ ] If creating a new page inside `/admin/*`: no action needed (layout already has force-dynamic)
 - [ ] If creating a new page outside `/admin/*`: add `export const dynamic = "force-dynamic"` if using client hooks
 - [ ] If adding a new component: put it in `src/components/ui/` and update `DESIGN_SYSTEM.md`
+- [ ] When adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
 - [ ] Run `npm run build` to verify zero errors

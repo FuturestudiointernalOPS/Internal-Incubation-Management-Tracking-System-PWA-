@@ -13,7 +13,6 @@ import {
   Clock,
   Send,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function AssignedTasks() {
@@ -141,7 +140,7 @@ export default function AssignedTasks() {
   );
 
   return (
-    <DashboardLayout role={userRole} activeTab="assigned_tasks">
+    <>
       <div className="space-y-8 pb-20">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
@@ -294,6 +293,6 @@ export default function AssignedTasks() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

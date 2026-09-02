@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BarChart3 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import DataSourceSelector from "@/components/finance/DataSourceSelector";
 import SummaryCard from "@/components/finance/SummaryCard";
 import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
@@ -182,7 +181,7 @@ export default function FinanceDashboard() {
   // Auth error — show message instead of dashboard
   if (authError) {
     return (
-      <DashboardLayout role="super_admin">
+      <>
         <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4">
           <p
             className="text-sm font-bold"
@@ -191,12 +190,12 @@ export default function FinanceDashboard() {
             {t("finance.error.notAuth")}
           </p>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-6 pb-20">
         {/* ═══ Header ═══ */}
         <header
@@ -423,6 +422,6 @@ export default function FinanceDashboard() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

@@ -18,7 +18,6 @@ import {
   MapPin,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 function StatusBadge({ status }) {
@@ -157,7 +156,7 @@ export default function PMSubmissions() {
   const pendingCount = submissions.filter((s) => s.status === "pending").length;
 
   return (
-    <DashboardLayout role="program_manager" activeTab="submissions">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
@@ -603,6 +602,6 @@ export default function PMSubmissions() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }

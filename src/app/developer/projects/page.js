@@ -9,7 +9,6 @@ import {
   Users,
   CheckCircle2,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function DeveloperProjects() {
@@ -92,7 +91,7 @@ export default function DeveloperProjects() {
   }, []);
 
   return (
-    <DashboardLayout role={userRole} activeTab="projects">
+    <>
       <div className="space-y-8 pb-20">
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-8">
           <div className="space-y-2">
@@ -204,6 +203,6 @@ export default function DeveloperProjects() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

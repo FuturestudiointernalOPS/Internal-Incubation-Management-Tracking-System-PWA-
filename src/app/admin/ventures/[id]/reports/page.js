@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Download,
   BarChart3, RefreshCw, TrendingUp, Clock, Users, Target,Activity,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function VentureReportsPage() {
   const { id } = useParams();
@@ -75,9 +74,9 @@ export default function VentureReportsPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div>
-    </DashboardLayout>
+    </>
   );
 
   const kpis = data?.kpis || {};
@@ -85,7 +84,7 @@ export default function VentureReportsPage() {
   const summary = data?.summary || {};
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -323,6 +322,6 @@ export default function VentureReportsPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

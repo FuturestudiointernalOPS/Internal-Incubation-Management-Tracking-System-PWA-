@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Clock, Filter, User, Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
@@ -99,7 +98,7 @@ function TimelinePageContent() {
 
   if (!cid) {
     return (
-      <DashboardLayout role="super_admin" activeTab="crm">
+      <>
         <div className="p-8 max-w-4xl mx-auto">
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-10 text-center">
             <Clock className="w-12 h-12 mx-auto mb-4 text-[var(--text-secondary)]" />
@@ -145,12 +144,12 @@ function TimelinePageContent() {
             </Link>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   return (
-    <DashboardLayout role="super_admin" activeTab="crm">
+    <>
       <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
@@ -247,7 +246,7 @@ function TimelinePageContent() {
           {t("crm.timeline.phaseNote")}
         </p>
       </div>
-    </DashboardLayout>
+    </>
   );
 }
 

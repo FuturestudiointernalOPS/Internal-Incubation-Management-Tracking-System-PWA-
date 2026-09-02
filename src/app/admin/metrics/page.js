@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import { BarChart3, TrendingUp, Users, Target, Activity, CheckCircle2 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function AdminMetricsDashboard() {
   const { t } = useI18n();
@@ -41,15 +40,15 @@ export default function AdminMetricsDashboard() {
   };
 
   if (loading) return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="min-h-[60vh] flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-t-[var(--brand-orange)] rounded-full animate-spin" />
       </div>
-    </DashboardLayout>
+    </>
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" />
@@ -133,6 +132,6 @@ export default function AdminMetricsDashboard() {
           })}
         </div>
       </div>
-    </DashboardLayout>
+    </>
   );
 }

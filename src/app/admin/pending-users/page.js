@@ -20,7 +20,6 @@ import {
   RefreshCw,
   Archive,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 
 export default function PendingUsersPage() {
@@ -218,7 +217,7 @@ export default function PendingUsersPage() {
   const displayGrouped = searchQuery ? filteredGrouped : grouped;
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -528,6 +527,6 @@ export default function PendingUsersPage() {
             </div>
           ))}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

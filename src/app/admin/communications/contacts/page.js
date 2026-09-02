@@ -2,7 +2,6 @@
 // Updated Role Override per user request
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import {
   Plus,
   Users,
@@ -550,7 +549,7 @@ function ContactsPageContent() {
   };
 
   return (
-    <DashboardLayout role="super_admin" activeTab="communication" fullWidth>
+    <>
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -1492,7 +1491,7 @@ function ContactsPageContent() {
           </div>
         </div>
       )}
-    </DashboardLayout>
+    </>
   );
 }
 

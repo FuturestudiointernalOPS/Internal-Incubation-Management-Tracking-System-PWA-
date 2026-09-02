@@ -25,7 +25,6 @@ import {
   Rocket,
 } from "lucide-react";
 import { useRouter, useParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useI18n } from "@/lib/i18n";
 import TaskManager from "@/components/tasks/TaskManager";
 
@@ -352,7 +351,7 @@ export default function ProjectDetail() {
   // Loading state
   if (loading) {
     return (
-      <DashboardLayout role={userRole || "super_admin"}>
+      <>
         <div className="space-y-8 pb-20 text-left">
           {/* Skeleton header */}
           <div className="animate-pulse space-y-4">
@@ -368,14 +367,14 @@ export default function ProjectDetail() {
             </div>
           </div>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
   // Error state
   if (error || !project) {
     return (
-      <DashboardLayout role={userRole || "super_admin"}>
+      <>
         <div className="flex flex-col items-center justify-center py-32">
           <AlertTriangle className="w-16 h-16 text-rose-500 mb-4" />
           <p className="text-base font-black text-rose-500">
@@ -388,7 +387,7 @@ export default function ProjectDetail() {
             <ArrowLeft className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.backToProjects")}
           </button>
         </div>
-      </DashboardLayout>
+      </>
     );
   }
 
@@ -420,7 +419,7 @@ export default function ProjectDetail() {
   };
 
   return (
-    <DashboardLayout role={userRole || "super_admin"}>
+    <>
       <div className="space-y-8 pb-20 text-left">
         {/* ─── TOAST NOTIFICATIONS ─── */}
 
@@ -1636,6 +1635,6 @@ export default function ProjectDetail() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }

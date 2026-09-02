@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Star, MessageCircle, TrendingUp, Users, Calendar,
 } from "lucide-react";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export default function VentureFeedbackPage() {
   const { id } = useParams();
@@ -66,11 +65,11 @@ export default function VentureFeedbackPage() {
   );
 
   if (loading) return (
-    <DashboardLayout role="super_admin"><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></DashboardLayout>
+    <><div className="flex items-center justify-center h-[60vh]"><Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" /></div></>
   );
 
   return (
-    <DashboardLayout role="super_admin">
+    <>
       <div className="space-y-8 pb-20">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -253,6 +252,6 @@ export default function VentureFeedbackPage() {
           </div>
         )}
       </div>
-    </DashboardLayout>
+    </>
   );
 }
