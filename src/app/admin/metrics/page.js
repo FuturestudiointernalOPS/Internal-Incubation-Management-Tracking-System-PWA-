@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { BarChart3, TrendingUp, Users, Target, Activity, CheckCircle2 } from "lucide-react";
 
 export default function AdminMetricsDashboard() {
@@ -13,11 +14,27 @@ export default function AdminMetricsDashboard() {
     fetchPrograms();
   }, []);
 
-  const fetchPrograms = async () => {
-    try {
-      const res = await fetch("/api/pm/programs?show_archived=all");
-      const data = await res.json();
+  const fetchPrograms = async (bypassCache = false) => {
+    const url = "/api/pm/programs?show_archived=all";
+    const apply = (data) => {
       if (data.success) setPrograms(data.programs || []);
+    };
+    try {
+      // Cache-first paint: returning to the page renders instantly from a
+      // fresh snapshot; the network refresh below converges in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error("Metrics fetch error:", e);
     } finally {
