@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export const dynamic = "force-dynamic";
 
@@ -62,21 +63,38 @@ export default function PromoteToVenture() {
   }, []);
 
   useEffect(() => {
-    const fetchProgram = async () => {
-      try {
-        const res = await fetch(`/api/pm/full-state?id=${id}&t=${Date.now()}`, {
-          cache: "no-store",
-        });
-        const data = await res.json();
+    const fetchProgram = async (bypassCache = false) => {
+      const url = `/api/pm/full-state?id=${id}`;
+      const apply = (data) => {
         if (data.success && data.program) {
           setProgram(data.program);
           // Pre-fill company name from program name
           setCompanyName(data.program.name || "");
-        } else {
+        }
+      };
+      let painted = false;
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.success && data.program) {
+          cacheSet(url, data);
+          apply(data);
+        } else if (!painted) {
           notify(t("pmMisc.promote.failedToLoadProgram"), "error");
         }
       } catch (e) {
-        notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
+        if (!painted)
+          notify(t("pmMisc.promote.networkErrorLoadingProgram"), "error");
       } finally {
         setLoading(false);
       }
