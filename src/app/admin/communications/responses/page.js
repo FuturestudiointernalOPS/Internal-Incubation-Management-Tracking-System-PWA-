@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { IMPACT_CACHE } from "@/utils/impactCache";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 
@@ -47,31 +47,39 @@ export default function ResponsesPage() {
   const [newCampaignName, setNewCampaignName] = useState("");
 
   useEffect(() => {
-    // Instant-Load from cache
-    const cachedData = IMPACT_CACHE.get("responses");
-    if (cachedData) {
-      setData(cachedData);
-      setLoading(false);
-    }
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    try {
-      if (!IMPACT_CACHE.get("responses")) setLoading(true);
-      const [res, contactsRes] = await Promise.all([
-        fetch("/api/responses"),
-        fetch("/api/contacts"),
-      ]);
-      const json = await res.json();
-      const contactsJson = await contactsRes.json();
-      if (json.success) {
-        setData(json);
-        IMPACT_CACHE.set("responses", json);
-      }
-      if (contactsJson.success) setGlobalContacts(contactsJson.contacts);
-      if (json.campaignStats?.length > 0)
+  const fetchData = async (bypassCache = false) => {
+    const urls = ["/api/responses", "/api/contacts"];
+    const apply = (json, contactsJson) => {
+      if (json?.success) setData(json);
+      if (contactsJson?.success) setGlobalContacts(contactsJson.contacts || []);
+      if (json?.campaignStats?.length > 0)
         setActiveCampaign(json.campaignStats[0].id);
+    };
+    try {
+      // Cache-first paint: returning to this page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so the list always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch (err) {
       console.error(err);
     } finally {
@@ -94,7 +102,7 @@ export default function ResponsesPage() {
             detail: { type: "success", message: t("crm.responses.matched") },
           }),
         );
-        fetchData();
+        fetchData(true);
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
