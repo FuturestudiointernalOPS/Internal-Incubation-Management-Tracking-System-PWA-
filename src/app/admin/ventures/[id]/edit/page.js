@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const INDUSTRIES = [
   "Fintech",
@@ -53,12 +54,10 @@ export default function EditVenturePage({ params }) {
     if (id) fetchVenture();
   }, [id]);
 
-  const fetchVenture = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/ventures/${id}`);
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+  const fetchVenture = async (bypassCache = false) => {
+    const url = `/api/ventures/${id}`;
+    const apply = (data) => {
+      if (!data.success) {
         setError(t((data.error || t("vadmin.edit.ventureNotFoundError")) || "") || (data.error || t("vadmin.edit.ventureNotFoundError")));
         return;
       }
@@ -71,8 +70,26 @@ export default function EditVenturePage({ params }) {
         website: data.venture.website || "",
         logo_url: data.venture.logo_url || "",
       });
+    };
+    setLoading(true);
+    let painted = false;
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot while the network revalidates in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch (e) {
-      setError(t("vadmin.edit.loadFailed"));
+      if (!painted) setError(t("vadmin.edit.loadFailed"));
     } finally {
       setLoading(false);
     }
