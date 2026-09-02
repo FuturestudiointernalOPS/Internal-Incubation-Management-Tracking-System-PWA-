@@ -15,6 +15,7 @@ import {
   Shield,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * TEACHER SESSION CALENDAR — TACTICAL TIMELINE
@@ -37,19 +38,35 @@ export default function TeacherCalendar() {
     } catch (_) {}
   }, []);
 
-  const fetchSchedule = useCallback(async () => {
+  const fetchSchedule = useCallback(async (bypassCache = false) => {
     setLoading(true);
+    let painted = false;
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const res = await fetch(
-        `/api/pm/schedule?teacher_id=${user.cid || user.id}`,
-      );
+      const url = `/api/pm/schedule?teacher_id=${user.cid || user.id}`;
+      const apply = (data) => {
+        if (data.success) {
+          setSessions(data.schedule || []);
+          painted = true;
+        }
+      };
+      // Cache-first paint: returning to the calendar renders instantly from a
+      // fresh snapshot; the network refresh below converges.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
       const data = await res.json();
       if (data.success) {
-        setSessions(data.schedule || []);
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (error) {
-      console.error("Calendar Fetch Failure:", error);
+      if (!painted) console.error("Calendar Fetch Failure:", error);
     } finally {
       setLoading(false);
     }
