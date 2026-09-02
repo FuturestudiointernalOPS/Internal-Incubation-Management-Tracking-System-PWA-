@@ -19,6 +19,7 @@ import Link from "next/link";
 import { useI18n } from "@/lib/i18n";
 import * as XLSX from "xlsx";
 import { parseCSVRows } from "@/lib/csv";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const STEPS = [
   { key: "upload", label: "adminMisc.platformImport.stepUpload" },
@@ -116,11 +117,24 @@ export default function ImportPage() {
     fetchForms();
   }, []);
 
-  const fetchForms = async () => {
-    try {
-      const res = await fetch("/api/platform/forms?status=all");
-      const data = await res.json();
+  const fetchForms = async (bypassCache = false) => {
+    const url = "/api/platform/forms?status=all";
+    const apply = (data) => {
       if (data.success) setForms(data.forms || []);
+    };
+    try {
+      // Cache-first paint: the form dropdown renders instantly from a fresh
+      // snapshot; the network refresh keeps it current in the background.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) apply(cached);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (_) {}
   };
 
