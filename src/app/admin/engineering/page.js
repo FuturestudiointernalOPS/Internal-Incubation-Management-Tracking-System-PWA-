@@ -22,6 +22,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 // Lookup map: raw severity/priority value → i18n key (keep raw value as fallback)
 const SEV_KEYS = {
@@ -40,13 +41,30 @@ export default function EngineeringOperations() {
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const fetchDashboard = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/engineering/dashboard");
-      const json = await res.json();
+  const fetchDashboard = useCallback(async (bypassCache = false) => {
+    const url = "/api/engineering/dashboard";
+    const apply = (json) => {
       if (json.success) {
         setData(json);
+      }
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from a fresh
+      // snapshot; the refresh button passes bypassCache=true so the view always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+        }
+      }
+      const res = await fetch(url);
+      const json = await res.json();
+      if (json.success) {
+        cacheSet(url, json);
+        apply(json);
       }
     } catch (e) {
       console.error("Failed to fetch engineering dashboard", e);
