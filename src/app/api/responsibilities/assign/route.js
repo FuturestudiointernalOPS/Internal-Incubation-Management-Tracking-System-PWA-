@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   getSession,
@@ -10,6 +10,12 @@ import {
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
+import {
+  getAssignedResponsibilitiesForUser,
+  getContactByCid,
+  getContactName,
+  getResponsibilityName,
+} from "@/models/responsibilities";
 
 /**
  * PUT /api/responsibilities/assign
@@ -36,17 +42,11 @@ export async function PUT(req) {
     await initDb();
 
     // Get responsibility name for audit
-    const resp = await db.execute({
-      sql: "SELECT name FROM responsibilities WHERE id = ?",
-      args: [responsibility_id],
-    });
+    const resp = await getResponsibilityName(responsibility_id);
     const respName = resp.rows[0]?.name || "Unknown";
 
     // Get target user name
-    const target = await db.execute({
-      sql: "SELECT name FROM contacts WHERE cid = ?",
-      args: [user_cid],
-    });
+    const target = await getContactName(user_cid);
     const targetName = target.rows[0]?.name || "Unknown";
 
     if (action === "assign") {
@@ -140,14 +140,7 @@ export async function GET(req) {
     const all = await getAllResponsibilities();
 
     // Get user's assigned responsibilities
-    const assigned = await db.execute({
-      sql: `SELECT r.id, r.name, r.key
-            FROM responsibilities r
-            JOIN user_responsibilities ur ON ur.responsibility_id = r.id
-            WHERE ur.user_cid = ? AND r.is_active = 1
-            ORDER BY r.name`,
-      args: [userCid],
-    });
+    const assigned = await getAssignedResponsibilitiesForUser(userCid);
 
     const assignedIds = new Set(assigned.rows.map((r) => r.id));
 
@@ -158,10 +151,7 @@ export async function GET(req) {
       allowed_roles: normalizeAllowedRoles(r.allowed_roles),
     }));
 
-    const user = await db.execute({
-      sql: "SELECT cid, name, role FROM contacts WHERE cid = ?",
-      args: [userCid],
-    });
+    const user = await getContactByCid(userCid);
 
     return NextResponse.json({
       success: true,

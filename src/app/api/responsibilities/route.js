@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   requireAuth,
@@ -10,6 +10,16 @@ import {
 } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeAllowedRoles } from "@/lib/featureAccess";
+import {
+  countResponsibilityAssignments,
+  createResponsibility,
+  deleteResponsibility,
+  updateResponsibilityActive,
+  updateResponsibilityDescription,
+  updateResponsibilityIcon,
+  updateResponsibilityKey,
+  updateResponsibilityName,
+} from "@/models/responsibilities";
 
 /**
  * GET /api/responsibilities
@@ -82,11 +92,7 @@ export async function POST(req) {
 
     await initDb();
 
-    await db.execute({
-      sql: `INSERT INTO responsibilities (name, key, description, icon, is_active)
-            VALUES (?, ?, ?, ?, 1)`,
-      args: [name.trim(), key.trim().toLowerCase(), description || "", icon || ""],
-    });
+    await createResponsibility(name, key, description, icon);
 
     return NextResponse.json({
       success: true,
@@ -125,34 +131,19 @@ export async function PUT(req) {
     await initDb();
 
     if (name !== undefined) {
-      await db.execute({
-        sql: "UPDATE responsibilities SET name = ?, updated_at = NOW() WHERE id = ?",
-        args: [name.trim(), id],
-      });
+      await updateResponsibilityName(id, name);
     }
     if (key !== undefined) {
-      await db.execute({
-        sql: "UPDATE responsibilities SET key = ?, updated_at = NOW() WHERE id = ?",
-        args: [key.trim().toLowerCase(), id],
-      });
+      await updateResponsibilityKey(id, key);
     }
     if (description !== undefined) {
-      await db.execute({
-        sql: "UPDATE responsibilities SET description = ?, updated_at = NOW() WHERE id = ?",
-        args: [description, id],
-      });
+      await updateResponsibilityDescription(id, description);
     }
     if (icon !== undefined) {
-      await db.execute({
-        sql: "UPDATE responsibilities SET icon = ?, updated_at = NOW() WHERE id = ?",
-        args: [icon, id],
-      });
+      await updateResponsibilityIcon(id, icon);
     }
     if (is_active !== undefined) {
-      await db.execute({
-        sql: "UPDATE responsibilities SET is_active = ?, updated_at = NOW() WHERE id = ?",
-        args: [is_active ? 1 : 0, id],
-      });
+      await updateResponsibilityActive(id, is_active);
     }
 
     return NextResponse.json({
@@ -191,15 +182,9 @@ export async function DELETE(req) {
     await initDb();
 
     // Check if any users have this responsibility assigned
-    const assigned = await db.execute({
-      sql: "SELECT COUNT(*) as cnt FROM user_responsibilities WHERE responsibility_id = ?",
-      args: [id],
-    });
+    const assigned = await countResponsibilityAssignments(id);
 
-    await db.execute({
-      sql: "DELETE FROM responsibilities WHERE id = ?",
-      args: [id],
-    });
+    await deleteResponsibility(id);
 
     return NextResponse.json({
       success: true,

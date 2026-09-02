@@ -1,31 +1,59 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import {
+  addSessionVersionColumn,
+  addSessionTimezoneColumn,
+  createSessionVersionsTable,
+  addRequirementResourceUrlColumn,
+  addRequirementResourceLabelColumn,
+  addRequirementAssigneeTypeColumn,
+  addRequirementAssigneeIdColumn,
+  addWeeklyReportAttachmentTypeColumn,
+  addWeeklyReportAttachmentUrlColumn,
+  getSessionRowById,
+  insertSessionVersion,
+  setSessionVersion,
+  findSessionScheduleConflict,
+  createSession,
+  createAttendanceRequirement,
+  addSessionRequirement,
+  createRequirement,
+  countActiveParticipantsForProgram,
+  updateSessionStatus,
+  setDeliverableCompletion,
+  setSessionTeam,
+  getSessionExtraMaterials,
+  updateSessionExtraMaterials,
+  upsertWeeklyReport,
+  getSessionSchedule,
+  findSessionScheduleConflictExcludingId,
+  buildSessionFieldUpdate,
+  runSessionFieldUpdate,
+  updateSession,
+  updateRequirement,
+  getSessionProgramId,
+  deleteSession,
+  deleteAttendanceForSession,
+  deleteRequirementsForSession,
+  getRequirementProgramId,
+  deleteRequirement,
+} from "@/models/curriculum";
 
 /**
  * Ensure session versioning schema exists.
  */
 async function ensureVersioningSchema() {
   try {
-    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS version INTEGER DEFAULT 1", args: [] });
+    await addSessionVersionColumn();
   } catch (_) {}
   try {
-    await db.execute({ sql: "ALTER TABLE v2_sessions ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'UTC'", args: [] });
+    await addSessionTimezoneColumn();
   } catch (_) {}
   try {
-    await db.execute({
-      sql: `CREATE TABLE IF NOT EXISTS v2_session_versions (
-        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-        session_id UUID NOT NULL,
-        version INTEGER NOT NULL,
-        snapshot JSONB NOT NULL,
-        changed_by TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )`,
-      args: [],
-    });
+    await createSessionVersionsTable();
   } catch (_) {}
 }
 
@@ -36,10 +64,10 @@ async function ensureVersioningSchema() {
  */
 async function ensureDeliverableResourceSchema() {
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_url TEXT", args: [] });
+    await addRequirementResourceUrlColumn();
   } catch (_) {}
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_label TEXT", args: [] });
+    await addRequirementResourceLabelColumn();
   } catch (_) {}
 }
 
@@ -52,10 +80,10 @@ async function ensureDeliverableResourceSchema() {
  */
 async function ensureRequirementAssigneeSchema() {
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_type TEXT", args: [] });
+    await addRequirementAssigneeTypeColumn();
   } catch (_) {}
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS assignee_id TEXT", args: [] });
+    await addRequirementAssigneeIdColumn();
   } catch (_) {}
 }
 
@@ -65,10 +93,10 @@ async function ensureRequirementAssigneeSchema() {
  */
 async function ensureWeeklyReportAttachmentSchema() {
   try {
-    await db.execute({ sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_type TEXT", args: [] });
+    await addWeeklyReportAttachmentTypeColumn();
   } catch (_) {}
   try {
-    await db.execute({ sql: "ALTER TABLE v2_weekly_reports ADD COLUMN IF NOT EXISTS attachment_url TEXT", args: [] });
+    await addWeeklyReportAttachmentUrlColumn();
   } catch (_) {}
 }
 
@@ -77,21 +105,17 @@ async function ensureWeeklyReportAttachmentSchema() {
  */
 async function saveSessionVersion(sessionId, userId) {
   try {
-    const current = await db.execute({
-      sql: "SELECT * FROM v2_sessions WHERE id = ?",
-      args: [sessionId],
-    });
+    const current = await getSessionRowById(sessionId);
     if (current.rows.length === 0) return;
     const row = current.rows[0];
     const currentVersion = row.version || 1;
-    await db.execute({
-      sql: "INSERT INTO v2_session_versions (session_id, version, snapshot, changed_by) VALUES (?, ?, ?::jsonb, ?)",
-      args: [sessionId, currentVersion, JSON.stringify(row), userId || null],
-    });
-    await db.execute({
-      sql: "UPDATE v2_sessions SET version = ? WHERE id = ?",
-      args: [currentVersion + 1, sessionId],
-    });
+    await insertSessionVersion(
+      sessionId,
+      currentVersion,
+      JSON.stringify(row),
+      userId || null,
+    );
+    await setSessionVersion(currentVersion + 1, sessionId);
   } catch (e) {
     console.warn("Versioning save failed (non-critical):", e.message);
   }
@@ -149,16 +173,12 @@ export async function POST(req) {
 
       // Conflict detection: check for overlapping sessions
       if (scheduled_date && start_time && end_time) {
-        const conflictCheck = await db.execute({
-          sql: `SELECT id, title FROM v2_sessions
-                WHERE program_id = ?
-                  AND type = 'session'
-                  AND scheduled_date = ?
-                  AND start_time < ?
-                  AND end_time > ?
-                LIMIT 1`,
-          args: [program_id, scheduled_date, end_time, start_time],
-        });
+        const conflictCheck = await findSessionScheduleConflict(
+          program_id,
+          scheduled_date,
+          end_time,
+          start_time,
+        );
         if (conflictCheck.rows.length > 0) {
           return NextResponse.json({
             success: false,
@@ -167,68 +187,59 @@ export async function POST(req) {
         }
       }
 
-      const result = await db.execute({
-        sql: "INSERT INTO v2_sessions (program_id, title, description, week_number, type, status, weight, scheduled_date, end_date, start_time, end_time, assignment_type, task_type, handler_id, handler_name, kpi_ids, notes, extra_materials, timezone) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-        args: [
-          program_id,
-          title,
-          description,
-          week_number || 1,
-          "session",
-          "not started",
-          1,
-          scheduled_date || null,
-          end_date || null,
-          start_time || null,
-          end_time || null,
-          assignment_type || null,
-          task_type || null,
-          handler_id || null,
-          handler_name || null,
-          JSON.stringify(kpi_ids || []),
-          notes || null,
-          extra_materials ? JSON.stringify(extra_materials) : null,
-          timezone || 'UTC',
-        ],
-      });
+      const result = await createSession(
+        program_id,
+        title,
+        description,
+        week_number || 1,
+        "session",
+        "not started",
+        1,
+        scheduled_date || null,
+        end_date || null,
+        start_time || null,
+        end_time || null,
+        assignment_type || null,
+        task_type || null,
+        handler_id || null,
+        handler_name || null,
+        JSON.stringify(kpi_ids || []),
+        notes || null,
+        extra_materials ? JSON.stringify(extra_materials) : null,
+        timezone || 'UTC',
+      );
       const newSessionId = result.rows[0].id;
 
       // Automatically add an Attendance requirement for the new session
-      await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        args: [
-          program_id,
-          "Attendance",
-          "System-generated attendance tracking",
-          newSessionId,
-          "system",
-          1,
-          JSON.stringify([]),
-          end_date || null,
-          "all"
-        ]
-      });
+      await createAttendanceRequirement(
+        program_id,
+        "Attendance",
+        "System-generated attendance tracking",
+        newSessionId,
+        "system",
+        1,
+        JSON.stringify([]),
+        end_date || null,
+        "all",
+      );
 
       // Insert any deliverables defined during creation
       if (requirements && Array.isArray(requirements)) {
         for (const req of requirements) {
-          await db.execute({
-            sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            args: [
-              program_id,
-              req.title,
-              req.description || null,
-              newSessionId,
-              req.allowed_format || "pdf",
-              req.weight || 1,
-              JSON.stringify(req.kpi_ids || []),
-              req.due_date || null,
-              req.assignee_type || "all",
-              req.assignee_id || null,
-              req.resource_url || null,
-              req.resource_label || null,
-            ],
-          });
+          await addSessionRequirement(
+            program_id,
+            req.title,
+            req.description || null,
+            newSessionId,
+            req.allowed_format || "pdf",
+            req.weight || 1,
+            JSON.stringify(req.kpi_ids || []),
+            req.due_date || null,
+            req.assignee_type || "all",
+            req.assignee_id || null,
+            req.resource_url || null,
+            req.resource_label || null,
+          );
         }
       }
 
@@ -241,23 +252,20 @@ export async function POST(req) {
     if (action === "add_requirement") {
       const { title, description, session_id, allowed_format, kpi_ids, due_date, assignee_type, assignee_id, weight, resource_url, resource_label } =
         payload;
-      const result = await db.execute({
-        sql: "INSERT INTO v2_document_requirements (program_id, title, description, session_id, allowed_format, weight, kpi_ids, due_date, assignee_type, assignee_id, resource_url, resource_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-        args: [
-          program_id,
-          title,
-          description || null,
-          session_id || null,
-          allowed_format || "pdf",
-          weight || 1,
-          JSON.stringify(kpi_ids || []),
-          due_date || null,
-          assignee_type || "all",
-          assignee_id || null,
-          resource_url || null,
-          resource_label || null,
-        ],
-      });
+      const result = await createRequirement(
+        program_id,
+        title,
+        description || null,
+        session_id || null,
+        allowed_format || "pdf",
+        weight || 1,
+        JSON.stringify(kpi_ids || []),
+        due_date || null,
+        assignee_type || "all",
+        assignee_id || null,
+        resource_url || null,
+        resource_label || null,
+      );
       // Recalculate KPI progress after adding a requirement
       try { await recalculateKpiProgress(program_id); } catch (_) {}
       return NextResponse.json({ success: true, id: result.rows[0].id });
@@ -266,23 +274,7 @@ export async function POST(req) {
     if (action === "send_reminder") {
       let sent = 0;
       try {
-        const cnt = await db.execute({
-          sql: `SELECT COUNT(*) as cnt
-                FROM participant_programs pp
-                JOIN contacts c ON pp.participant_id = c.cid
-                WHERE CAST(pp.program_id AS TEXT) = ?
-                  AND c.deleted = 0
-                  AND c.deleted_at IS NULL
-                  AND c.archived_at IS NULL
-                  AND LOWER(COALESCE(c.status, '')) = 'active'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM v2_program_staff ps
-                    WHERE CAST(ps.program_id AS TEXT) = CAST(pp.program_id AS TEXT)
-                      AND ps.role = 'facilitator'
-                      AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
-                  )`,
-          args: [program_id]
-        });
+        const cnt = await countActiveParticipantsForProgram(program_id);
         sent = cnt.rows[0]?.cnt || 0;
       } catch (e) {
         sent = 112;
@@ -292,10 +284,7 @@ export async function POST(req) {
 
     if (action === "toggle_status") {
       const { id, status } = payload;
-      await db.execute({
-        sql: "UPDATE v2_sessions SET status = ? WHERE id = ?",
-        args: [status, id],
-      });
+      await updateSessionStatus(status, id);
       // Fire-and-forget: keep KPI progress in sync
       recalculateKpiForProgram(program_id);
       return NextResponse.json({ success: true });
@@ -303,10 +292,7 @@ export async function POST(req) {
 
     if (action === "toggle_deliverable") {
       const { id, is_completed } = payload;
-      await db.execute({
-        sql: "UPDATE v2_document_requirements SET is_completed = ? WHERE id = ?",
-        args: [is_completed ? 1 : 0, id],
-      });
+      await setDeliverableCompletion(is_completed ? 1 : 0, id);
       // Fire-and-forget: keep KPI progress in sync
       recalculateKpiForProgram(program_id);
       return NextResponse.json({ success: true });
@@ -314,20 +300,14 @@ export async function POST(req) {
 
     if (action === "assign_team") {
       const { id, team_id } = payload;
-      await db.execute({
-        sql: "UPDATE v2_sessions SET team_id = ? WHERE id = ?",
-        args: [team_id || null, id],
-      });
+      await setSessionTeam(team_id || null, id);
       return NextResponse.json({ success: true });
     }
 
     if (action === "anchor_material") {
       const { session_id, file_name } = payload;
       // Fetch existing extra_materials
-      const currentRes = await db.execute({
-        sql: "SELECT extra_materials FROM v2_sessions WHERE id = ?",
-        args: [session_id],
-      });
+      const currentRes = await getSessionExtraMaterials(session_id);
       let materials = [];
       try {
         const raw = currentRes.rows[0]?.extra_materials;
@@ -344,10 +324,7 @@ export async function POST(req) {
       };
       const updated = JSON.stringify([...materials, newMaterial]);
 
-      await db.execute({
-        sql: "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?",
-        args: [updated, session_id],
-      });
+      await updateSessionExtraMaterials(updated, session_id);
       return NextResponse.json({ success: true });
     }
 
@@ -387,117 +364,61 @@ export async function POST(req) {
         attachment_url,
       } = payload;
 
-      await db.execute({
-        sql: `INSERT INTO v2_weekly_reports
-                  (program_id, week_number, teacher_id, teacher_name, progress_notes, reception_score,
-                   week_status, week_rating, main_topic,
-                   assignment_given, assignment_kpi_ids, assignment_objective, assignment_outcome,
-                   attendance_level, participation_level,
-                   participants_need_attention, participants_attention_notes,
-                   standout_participants, standout_notes,
-                   delivery_quality, participant_understanding,
-                   delivery_challenges, delivery_challenge_note,
-                   had_issues, issue_types, requires_admin_attention, additional_issue_note,
-                   program_on_track, planned_adjustments,
-                   attachment_type, attachment_url)
-                  VALUES (?, ?, ?, ?, ?, ?,
-                   ?, ?, ?,
-                   ?, ?, ?, ?,
-                   ?, ?,
-                   ?, ?,
-                   ?, ?,
-                   ?, ?,
-                   ?, ?,
-                   ?, ?,
-                   ?, ?, ?, ?,
-                   ?, ?,
-                   ?, ?)
-                  ON CONFLICT (program_id, week_number, teacher_id)
-                  DO UPDATE SET
-                    teacher_name = EXCLUDED.teacher_name,
-                    progress_notes = EXCLUDED.progress_notes,
-                    reception_score = EXCLUDED.reception_score,
-                    week_status = EXCLUDED.week_status,
-                    week_rating = EXCLUDED.week_rating,
-                    main_topic = EXCLUDED.main_topic,
-                    assignment_given = EXCLUDED.assignment_given,
-                    assignment_kpi_ids = EXCLUDED.assignment_kpi_ids,
-                    assignment_objective = EXCLUDED.assignment_objective,
-                    assignment_outcome = EXCLUDED.assignment_outcome,
-                    attendance_level = EXCLUDED.attendance_level,
-                    participation_level = EXCLUDED.participation_level,
-                    participants_need_attention = EXCLUDED.participants_need_attention,
-                    participants_attention_notes = EXCLUDED.participants_attention_notes,
-                    standout_participants = EXCLUDED.standout_participants,
-                    standout_notes = EXCLUDED.standout_notes,
-                    delivery_quality = EXCLUDED.delivery_quality,
-                    participant_understanding = EXCLUDED.participant_understanding,
-                    delivery_challenges = EXCLUDED.delivery_challenges,
-                    delivery_challenge_note = EXCLUDED.delivery_challenge_note,
-                    had_issues = EXCLUDED.had_issues,
-                    issue_types = EXCLUDED.issue_types,
-                    requires_admin_attention = EXCLUDED.requires_admin_attention,
-                    additional_issue_note = EXCLUDED.additional_issue_note,
-                    program_on_track = EXCLUDED.program_on_track,
-                    planned_adjustments = EXCLUDED.planned_adjustments,
-                    attachment_type = EXCLUDED.attachment_type,
-                    attachment_url = EXCLUDED.attachment_url`,
-        args: [
-          program_id,
-          week_number,
-          pm_id,
-          "Program Manager",
-          summary,
-          status === "critical"
+      await upsertWeeklyReport(
+        program_id,
+        week_number,
+        pm_id,
+        "Program Manager",
+        summary,
+        status === "critical"
+          ? 1
+          : status === "at_risk"
+            ? 3
+            : status === "stable"
+              ? 7
+              : 10,
+        // New structured fields
+        week_status || null,
+        week_rating || null,
+        main_topic || null,
+        // KPI-linked assignment tracking
+        assignment_given != null ? (assignment_given ? 1 : 0) : null,
+        Array.isArray(assignment_kpi_ids)
+          ? JSON.stringify(assignment_kpi_ids)
+          : null,
+        assignment_objective || null,
+        assignment_outcome || null,
+        attendance_level || null,
+        participation_level || null,
+        participants_need_attention != null
+          ? participants_need_attention
             ? 1
-            : status === "at_risk"
-              ? 3
-              : status === "stable"
-                ? 7
-                : 10,
-          // New structured fields
-          week_status || null,
-          week_rating || null,
-          main_topic || null,
-          // KPI-linked assignment tracking
-          assignment_given != null ? (assignment_given ? 1 : 0) : null,
-          Array.isArray(assignment_kpi_ids)
-            ? JSON.stringify(assignment_kpi_ids)
-            : null,
-          assignment_objective || null,
-          assignment_outcome || null,
-          attendance_level || null,
-          participation_level || null,
-          participants_need_attention != null
-            ? participants_need_attention
-              ? 1
-              : 0
-            : null,
-          participants_attention_notes || null,
-          standout_participants != null
-            ? standout_participants
-              ? 1
-              : 0
-            : null,
-          standout_notes || null,
-          delivery_quality || null,
-          participant_understanding || null,
-          delivery_challenges != null ? (delivery_challenges ? 1 : 0) : null,
-          delivery_challenge_note || null,
-          had_issues != null ? (had_issues ? 1 : 0) : null,
-          Array.isArray(issue_types) ? issue_types : null,
-          requires_admin_attention != null
-            ? requires_admin_attention
-              ? 1
-              : 0
-            : null,
-          additional_issue_note || null,
-          program_on_track != null ? (program_on_track ? 1 : 0) : null,
-          planned_adjustments || null,
-          attachment_type || null,
-          attachment_url || null,
-        ],
-      });
+            : 0
+          : null,
+        participants_attention_notes || null,
+        standout_participants != null
+          ? standout_participants
+            ? 1
+            : 0
+          : null,
+        standout_notes || null,
+        delivery_quality || null,
+        participant_understanding || null,
+        delivery_challenges != null ? (delivery_challenges ? 1 : 0) : null,
+        delivery_challenge_note || null,
+        had_issues != null ? (had_issues ? 1 : 0) : null,
+        Array.isArray(issue_types) ? issue_types : null,
+        requires_admin_attention != null
+          ? requires_admin_attention
+            ? 1
+            : 0
+          : null,
+        additional_issue_note || null,
+        program_on_track != null ? (program_on_track ? 1 : 0) : null,
+        planned_adjustments || null,
+        attachment_type || null,
+        attachment_url || null,
+      );
       return NextResponse.json({ success: true });
     }
 
@@ -531,83 +452,30 @@ export async function PUT(req) {
     const targetId = id || sessionId;
 
     if (field && targetId) {
-      let sql = "";
-      let args = [];
-      if (field === "scheduled_date") {
-        sql = "UPDATE v2_sessions SET scheduled_date = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "end_date") {
-        sql = "UPDATE v2_sessions SET end_date = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "handler_id") {
-        sql =
-          "UPDATE v2_sessions SET handler_id = ?, handler_name = ? WHERE id = ?";
-        args = [value || null, handlerName || null, targetId];
-      } else if (field === "due_date") {
-        sql = "UPDATE v2_document_requirements SET due_date = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "kpi_ids") {
-        sql = "UPDATE v2_sessions SET kpi_ids = ? WHERE id = ?";
-        args = [JSON.stringify(value || []), targetId];
-      } else if (field === "kpi_ids_doc") {
-        sql = "UPDATE v2_document_requirements SET kpi_ids = ? WHERE id = ?";
-        args = [JSON.stringify(value || []), targetId];
-      } else if (field === "notes") {
-        sql = "UPDATE v2_sessions SET notes = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "extra_materials") {
-        sql = "UPDATE v2_sessions SET extra_materials = ? WHERE id = ?";
-        args = [JSON.stringify(value || []), targetId];
-      } else if (field === "title") {
-        sql = "UPDATE v2_sessions SET title = ? WHERE id = ?";
-        args = [value, targetId];
-      } else if (field === "description") {
-        sql = "UPDATE v2_sessions SET description = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "week_number") {
-        sql = "UPDATE v2_sessions SET week_number = ? WHERE id = ?";
-        args = [parseInt(value) || 1, targetId];
-      } else if (field === "start_time") {
-        sql = "UPDATE v2_sessions SET start_time = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "end_time") {
-        sql = "UPDATE v2_sessions SET end_time = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "assignment_type") {
-        sql = "UPDATE v2_sessions SET assignment_type = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "task_type") {
-        sql = "UPDATE v2_sessions SET task_type = ? WHERE id = ?";
-        args = [value || null, targetId];
-      } else if (field === "timezone") {
-        sql = "UPDATE v2_sessions SET timezone = ? WHERE id = ?";
-        args = [value || 'UTC', targetId];
-      }
+      const { sql, args } = buildSessionFieldUpdate(
+        field,
+        value,
+        handlerName,
+        targetId,
+      );
 
       // Conflict detection for schedule changes
       if (sql && ["scheduled_date", "start_time", "end_time"].includes(field)) {
         // Fetch current session data for conflict check
-        const current = await db.execute({
-          sql: "SELECT scheduled_date, start_time, end_time FROM v2_sessions WHERE id = ?",
-          args: [targetId],
-        });
+        const current = await getSessionSchedule(targetId);
         if (current.rows.length > 0) {
           const cur = current.rows[0];
           const checkDate = field === "scheduled_date" ? value : cur.scheduled_date;
           const checkStart = field === "start_time" ? value : cur.start_time;
           const checkEnd = field === "end_time" ? value : cur.end_time;
           if (checkDate && checkStart && checkEnd) {
-            const conflictCheck = await db.execute({
-              sql: `SELECT id, title FROM v2_sessions
-                    WHERE program_id = ?
-                      AND type = 'session'
-                      AND id != ?
-                      AND scheduled_date = ?
-                      AND start_time < ?
-                      AND end_time > ?
-                    LIMIT 1`,
-              args: [program_id, targetId, checkDate, checkEnd, checkStart],
-            });
+            const conflictCheck = await findSessionScheduleConflictExcludingId(
+              program_id,
+              targetId,
+              checkDate,
+              checkEnd,
+              checkStart,
+            );
             if (conflictCheck.rows.length > 0) {
               return NextResponse.json({
                 success: false,
@@ -620,7 +488,7 @@ export async function PUT(req) {
 
       if (sql) {
         await saveSessionVersion(targetId, userId);
-        await db.execute({ sql, args });
+        await runSessionFieldUpdate(sql, args);
         // Recalculate KPI progress if KPI linkages changed
         if (field === "kpi_ids" || field === "kpi_ids_doc") {
           recalculateKpiForProgram(program_id);
@@ -647,41 +515,35 @@ export async function PUT(req) {
         kpi_ids,
       } = payload;
       await saveSessionVersion(targetId, userId);
-      await db.execute({
-        sql: "UPDATE v2_sessions SET title = ?, description = ?, status = ?, week_number = ?, weight = 1, scheduled_date = ?, end_date = ?, start_time = ?, end_time = ?, assignment_type = ?, task_type = ?, handler_id = ?, handler_name = ?, kpi_ids = ? WHERE id = ?",
-        args: [
-          title,
-          description,
-          status,
-          week_number,
-          scheduled_date || null,
-          end_date || null,
-          start_time || null,
-          end_time || null,
-          assignment_type || null,
-          task_type || null,
-          handler_id || null,
-          handler_name || null,
-          JSON.stringify(kpi_ids || []),
-          targetId,
-        ],
-      });
+      await updateSession(
+        title,
+        description,
+        status,
+        week_number,
+        scheduled_date || null,
+        end_date || null,
+        start_time || null,
+        end_time || null,
+        assignment_type || null,
+        task_type || null,
+        handler_id || null,
+        handler_name || null,
+        JSON.stringify(kpi_ids || []),
+        targetId,
+      );
       recalculateKpiForProgram(program_id);
     } else {
       const { title, description, allowed_format, kpi_ids, due_date, resource_url, resource_label } = payload;
-      await db.execute({
-        sql: "UPDATE v2_document_requirements SET title = ?, description = ?, allowed_format = ?, weight = 1, kpi_ids = ?, due_date = ?, resource_url = ?, resource_label = ? WHERE id = ?",
-        args: [
-          title,
-          description,
-          allowed_format,
-          JSON.stringify(kpi_ids || []),
-          due_date || null,
-          resource_url || null,
-          resource_label || null,
-          targetId,
-        ],
-      });
+      await updateRequirement(
+        title,
+        description,
+        allowed_format,
+        JSON.stringify(kpi_ids || []),
+        due_date || null,
+        resource_url || null,
+        resource_label || null,
+        targetId,
+      );
       recalculateKpiForProgram(program_id);
     }
 
@@ -706,37 +568,19 @@ export async function DELETE(req) {
     if (type === "session") {
       // If no program_id provided, fetch it from the session before deleting
       if (!targetProgramId) {
-        const sesRes = await db.execute({
-          sql: "SELECT program_id FROM v2_sessions WHERE id = ?",
-          args: [id],
-        });
+        const sesRes = await getSessionProgramId(id);
         targetProgramId = sesRes.rows[0]?.program_id;
       }
-      await db.execute({
-        sql: "DELETE FROM v2_sessions WHERE id = ?",
-        args: [id],
-      });
-      await db.execute({
-        sql: "DELETE FROM v2_attendance WHERE session_id = ?",
-        args: [id],
-      });
-      await db.execute({
-        sql: "DELETE FROM v2_document_requirements WHERE session_id = ?",
-        args: [id],
-      });
+      await deleteSession(id);
+      await deleteAttendanceForSession(id);
+      await deleteRequirementsForSession(id);
     } else {
       // If no program_id provided, fetch it from the doc req before deleting
       if (!targetProgramId) {
-        const docRes = await db.execute({
-          sql: "SELECT program_id FROM v2_document_requirements WHERE id = ?",
-          args: [id],
-        });
+        const docRes = await getRequirementProgramId(id);
         targetProgramId = docRes.rows[0]?.program_id;
       }
-      await db.execute({
-        sql: "DELETE FROM v2_document_requirements WHERE id = ?",
-        args: [id],
-      });
+      await deleteRequirement(id);
     }
 
     if (targetProgramId) {
