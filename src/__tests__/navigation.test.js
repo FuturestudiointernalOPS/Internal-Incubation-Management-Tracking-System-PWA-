@@ -103,6 +103,13 @@ const FIXTURE = {
       ],
     },
     {
+      id: "lms",
+      href: null,
+      subItems: [
+        { id: "lms_courses", href: "/admin/lms/courses", subItems: null },
+      ],
+    },
+    {
       id: "security",
       href: null,
       subItems: [
@@ -200,6 +207,7 @@ const FIXTURE = {
 
   participant: [
     { id: "dashboard", href: "/participant", subItems: null },
+    { id: "learning", href: "/participant/learning", subItems: null },
     { id: "programs", href: "/participant/dashboard", subItems: null },
     { id: "certificates", href: "/participant/certificates", subItems: null },
   ],

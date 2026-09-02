@@ -692,6 +692,7 @@ const NAV_ICONS = {
   user: User,
   trendingUp: TrendingUp,
   clock: Clock,
+  graduationCap: GraduationCap,
 };
 
 function attachIcons(items) {

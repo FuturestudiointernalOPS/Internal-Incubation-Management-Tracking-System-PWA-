@@ -138,6 +138,16 @@ export const MASTER_NAVIGATION = [
     ],
   },
 
+  // LMS — course authoring & learning library (admin)
+  {
+    id: "lms",
+    name: "LMS",
+    icon: "graduationCap",
+    children: [
+      { id: "lms_courses", name: "COURSES", href: "/admin/lms/courses" },
+    ],
+  },
+
   // Security & compliance
   {
     id: "security",
@@ -180,6 +190,7 @@ export const MASTER_NAVIGATION = [
     children: [standupNode, retroNode],
   },
   { id: "notifications", name: "NOTIFICATIONS", icon: "bell", href: "/developer/notifications" },
+  { id: "learning", name: "MY LEARNING", icon: "graduationCap", href: "/participant/learning" },
   { id: "certificates", name: "MY CERTIFICATES", icon: "fileText", href: "/participant/certificates" },
   { id: "timeline", name: "MY TIMELINE", icon: "clock", href: "/participant/profile#timeline" },
   { id: "pipeline", name: "PIPELINE", icon: "barChart3", href: "/investor/pipeline" },
@@ -203,7 +214,7 @@ export const ROLE_ACCESS = {
   super_admin: {
     top: [
       "dashboard", "crm", "communication", "programs", "ventures", "investors",
-      "finance", "operations", "reports", "knowledge", "security", "settings",
+      "finance", "operations", "reports", "knowledge", "lms", "security", "settings",
     ],
     children: {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
@@ -214,6 +225,7 @@ export const ROLE_ACCESS = {
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base", "intelligence"],
+      lms: ["lms_courses"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
       settings: ["integrations", "engineering_dashboard", "system"],
     },
@@ -290,7 +302,7 @@ export const ROLE_ACCESS = {
   },
 
   participant: {
-    top: ["dashboard", "programs", "certificates"],
+    top: ["dashboard", "learning", "programs", "certificates"],
     children: {},
     hrefs: {
       dashboard: "/participant",
