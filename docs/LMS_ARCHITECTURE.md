@@ -229,6 +229,37 @@ Indexes: `(user_cid)`, `(course_id)`, `(status)`.
   (`src/__tests__/lms-foundation.test.js`) guards against drift.
 - **Ordering**: `position INTEGER NOT NULL DEFAULT 0` with `UNIQUE (parent_id, position)`.
 
+### 3.1 Code layout — Model / Controller / View (MVC)
+
+The LMS module follows the app-wide MVC layering described in `docs/ARCHITECTURE.md`
+(route handlers = backend controllers, pages/components = frontend views, data +
+domain logic = `src/lib/` modules):
+
+```
+src/lib/lms/*.js                 → MODEL   — tables 2.1–2.10, domain rules, SQL
+src/app/api/lms/**/route.js      → CONTROLLER — thin HTTP glue
+src/components/lms/*.js          → VIEW    — client components (fetch controllers)
+src/app/{admin/lms,participant/learning,courses,verify}/** → VIEW pages
+```
+
+Rules (enforced by convention + the route/service test suites):
+
+- **Controllers never contain SQL or domain rules.** They parse the HTTP request,
+  run the guard (`requireAuth` / `requireAuthorization("lms", …)`), delegate to one
+  or more service functions, and shape the response. Validation of request *shape*
+  may live here; domain validation lives in the model.
+- **Model modules own all `db.execute` calls and never parse HTTP requests or run
+  auth guards.** They accept primitives (`courseId`, `userCid`, …), throw `LmsError`
+  (i18n key + status, `src/lib/lms/errors.js`) and return plain data. The only HTTP
+  coupling in that file is `lmsErrorResponse()`, a controller-side mapper (mirroring
+  how `lib/auth.js` / `lib/authorization` return `NextResponse` guards) — it is never
+  imported by other model modules.
+- **Views never touch `src/lib/db` or the model services.** Components and pages
+  call `/api/lms/*` controllers only; server-side guards remain the security
+  boundary (see §4). Score/status/progress decisions are always recomputed
+  server-side (`src/lib/lms/scoring.js`, `learning.js`) — the client only renders
+  what the controller returns.
+
 ## 4. Authorization
 
 - New module `lms` in `PERMISSION_MODULES` (`src/lib/auth.js`) with capabilities
@@ -283,7 +314,6 @@ Follow existing ImpactOS conventions (see `docs/API.md`, `docs/MODULES.md`):
 | `/api/contacts/[cid]/learning` | ✅ Phase 7 | CRM learning-journey trace (`contacts.view`) |
 
 Phase 6/7 implementation details, deviations and the final report: `docs/PHASE6_7_REPORT.md`.
-| `/api/lms/program-requirements` | later | Program → Course links |
 
 ## 7. Migration & verification
 
