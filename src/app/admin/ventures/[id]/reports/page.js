@@ -6,6 +6,7 @@ import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Download,
   BarChart3, RefreshCw, TrendingUp, Clock, Users, Target,Activity,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function VentureReportsPage() {
   const { id } = useParams();
@@ -17,27 +18,58 @@ export default function VentureReportsPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  const fetchData = async () => {
+  const fetchData = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/reports?type=analytics`,
+      `/api/ventures/${id}/reports?type=milestones`,
+      `/api/ventures/${id}/reports?type=tasks&limit=50`,
+      `/api/ventures/${id}/reports?type=productivity`,
+    ];
+    const apply = (v, r, m, t, p) => {
+      if (v.success) setVenture(v.venture);
+      if (r.success) setData(r);
+      if (m.success) setMilestones(m.milestones || []);
+      if (t.success) setTasks(t.tasks || []);
+      if (p.success) setTeam(p.team || []);
+    };
+    let painted = false;
     setLoading(true);
     try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; the refresh button passes the click event, so
+      // fetchData bypasses the cache and always reloads latest data.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3], cached[4]);
+          setLoading(false);
+          painted = true;
+        }
+      }
       const [vRes, rRes, mRes, tRes, pRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/reports?type=analytics`),
-        fetch(`/api/ventures/${id}/reports?type=milestones`),
-        fetch(`/api/ventures/${id}/reports?type=tasks&limit=50`),
-        fetch(`/api/ventures/${id}/reports?type=productivity`),
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+        fetch(urls[3]),
+        fetch(urls[4]),
       ]);
       const v = await vRes.json();
       const r = await rRes.json();
       const m = await mRes.json();
       const t = await tRes.json();
       const p = await pRes.json();
-      if (v.success) setVenture(v.venture);
-      if (r.success) setData(r);
-      if (m.success) setMilestones(m.milestones || []);
-      if (t.success) setTasks(t.tasks || []);
-      if (p.success) setTeam(p.team || []);
-    } catch {} finally { setLoading(false); }
+      if (v.success) cacheSet(urls[0], v);
+      if (r.success) cacheSet(urls[1], r);
+      if (m.success) cacheSet(urls[2], m);
+      if (t.success) cacheSet(urls[3], t);
+      if (p.success) cacheSet(urls[4], p);
+      apply(v, r, m, t, p);
+    } catch (e) {
+      if (!painted) console.error("Failed to load reports data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const [milestones, setMilestones] = useState([]);
