@@ -69,6 +69,19 @@ export const GET = createHandler(
  * Create a new venture.
  */
 export const POST = createHandler(async (req) => {
+  // RETIRED (Phase 1): Venture creation only flows through the Forms/Runs
+  // intake pipeline (Form → Run → Submission → Review → Approval → Venture).
+  // Even Super Admin cannot create Ventures directly anymore.
+  return NextResponse.json(
+    {
+      success: false,
+      code: "LEGACY_FLOW_RETIRED",
+      error:
+        "Direct Venture creation is retired. Ventures are created only through the Venture Application form approval pipeline.",
+    },
+    { status: 410 },
+  );
+  // Dead code below kept only to preserve route structure.
   const capError = await requireAuthorization("ventures", "create");
   if (capError) return capError;
   // Phase 2 pipeline rule: Ventures are created via the Venture Application

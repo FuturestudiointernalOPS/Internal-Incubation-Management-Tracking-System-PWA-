@@ -46,6 +46,16 @@ export async function POST(req, { params }) {
 
     // ── Authorization: privileged roles OR the current lead founder ──
     const privileged = ["super_admin", "staff", "program_manager", "developer"];
+
+    // Archived Ventures are immutable historical records (Phase 3).
+    try {
+      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+      const gate = await requireOperationalVentureAccess({ ventureId, db, session, mutate: true });
+      if (!gate.ok && gate.code === "archived") {
+        return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
+      }
+    } catch (_) {}
+
     if (!privileged.includes(session.role)) {
       const leadCheck = await db.execute({
         sql: "SELECT id FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND lead_founder = TRUE AND removed_at IS NULL",

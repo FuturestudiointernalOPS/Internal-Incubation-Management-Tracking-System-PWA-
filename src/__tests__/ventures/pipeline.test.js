@@ -57,6 +57,9 @@ const FIELD_ROWS = [
 
 beforeEach(() => {
   jest.clearAllMocks();
+  // Default fallback: any db.execute call without a queued response returns
+  // an empty result so extra schema/guard queries never crash the pipeline.
+  db.execute.mockImplementation(async () => ({ rows: [] }));
 });
 
 describe("createVentureFromSubmission", () => {

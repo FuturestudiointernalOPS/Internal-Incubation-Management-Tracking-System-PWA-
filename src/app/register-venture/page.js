@@ -27,8 +27,10 @@ function RegisterVentureContent() {
 
   useEffect(() => {
     if (!token) {
-      // Public page: the form is visible without a token; submission validates it.
+      // The legacy public Venture registration flow is retired (Phase 1).
+      // The official Venture intake form is reached through its run URL.
       setValidating(false);
+      setError(t("rootMisc.registerVenture.retiredMessage"));
       return;
     }
     fetch(`/api/venture-invites/${token}`)
@@ -104,7 +106,7 @@ function RegisterVentureContent() {
 
         {validating ? (
           <p className="text-center text-sm py-8" style={{ color: "var(--text-secondary)" }}>{t("rootMisc.registerVenture.validating")}</p>
-        ) : error && !tokenValid && token ? (
+        ) : error && !tokenValid ? (
           <div className="text-center py-8">
             <p className="text-sm mb-4" style={{ color: "#ef4444" }}>{error}</p>
             <a href="/login" className="text-sm underline" style={{ color: "var(--brand-orange)" }}>{t("rootMisc.registerVenture.goToLogin")}</a>

@@ -1296,18 +1296,38 @@ export default function PlatformForms() {
                 <p className="text-[9px] text-[var(--text-secondary)] mb-3">{t("platformMisc.forms.workflowAutomationHint")}</p>
 
                 {/* Venture Application flag — approval of this form's submissions creates a Venture */}
-                <label className="flex items-start gap-3 p-3 rounded-xl bg-tertiary border border-[var(--brand-orange)]/30 mb-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={isVentureForm}
-                    onChange={(e) => setIsVentureForm(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-[var(--brand-orange)]"
-                  />
-                  <span>
-                    <span className="block text-[10px] font-black uppercase tracking-wider text-[var(--brand-orange)]">{t("platformMisc.forms.ventureFormLabel")}</span>
-                    <span className="block text-[9px] text-[var(--text-secondary)]">{t("platformMisc.forms.ventureFormDesc")}</span>
-                  </span>
-                </label>
+                {(() => {
+                  const ventureOwner = forms.find(
+                    (f) =>
+                      f.id !== editingForm?.id &&
+                      (f.settings?.venture_application === true || f.settings?.venture_application === "true")
+                  );
+                  const locked = !!ventureOwner && !isVentureForm;
+                  return (
+                    <div className="mb-3">
+                      <label className={`flex items-start gap-3 p-3 rounded-xl bg-tertiary border border-[var(--brand-orange)]/30 ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+                        <input
+                          type="checkbox"
+                          checked={isVentureForm}
+                          disabled={locked}
+                          onChange={(e) => setIsVentureForm(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 accent-[var(--brand-orange)]"
+                        />
+                        <span>
+                          <span className="block text-[10px] font-black uppercase tracking-wider text-[var(--brand-orange)]">{t("platformMisc.forms.ventureFormLabel")}</span>
+                          <span className="block text-[9px] text-[var(--text-secondary)]">{t("platformMisc.forms.ventureFormDesc")}</span>
+                        </span>
+                      </label>
+                      {locked && (
+                        <p className="text-[9px] text-[var(--text-secondary)] px-1 -mt-1">
+                          {t("platformMisc.forms.ventureFormLockedPrefix")}{" "}
+                          <b className="text-[var(--brand-orange)]">{ventureOwner.name}</b>.{" "}
+                          {t("platformMisc.forms.ventureFormLockedSuffix")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {(() => {
                   const autoCfg = automationConfig || DEFAULT_AUTOMATION;

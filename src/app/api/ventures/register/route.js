@@ -20,6 +20,20 @@ import {
 export const POST = createHandler(
   { roles: ["super_admin"] },
   async (req) => {
+    // RETIRED (Phase 1): Venture creation only flows through the Forms/Runs
+    // intake pipeline (Form → Run → Submission → Review → Approval → Venture).
+    // This legacy "Workflow B direct registration" path is closed — even for
+    // Super Admin.
+    return NextResponse.json(
+      {
+        success: false,
+        code: "LEGACY_FLOW_RETIRED",
+        error:
+          "Direct Venture registration is retired. Ventures are created only through the Venture Application form approval pipeline.",
+      },
+      { status: 410 },
+    );
+    // Dead code below kept only to preserve route structure.
     // Ensure venture schema is up to date (safe migration)
     await ensureVentureSchema();
 

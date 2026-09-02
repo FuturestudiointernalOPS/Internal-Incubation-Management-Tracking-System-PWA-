@@ -543,7 +543,7 @@
       "promoteConfirm": "Promote \"{teamName}\" to Venture OS?",
       "teamApproved": "Team approved for Venture OS!",
       "approvalFailed": "Approval failed.",
-      "venturePromoted": "Venture promoted!",
+      "venturePromoted": "Promotion submitted for Venture review",
       "promotionFailed": "Promotion failed.",
       "confirmAction": "Confirm Action",
       "confirm": "Confirm",

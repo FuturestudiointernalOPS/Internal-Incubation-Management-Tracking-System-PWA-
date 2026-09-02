@@ -19,12 +19,14 @@ const { changeVentureLead } = require("@/lib/ventures");
 
 beforeEach(() => {
   jest.clearAllMocks();
+  db.execute.mockImplementation(async () => ({ rows: [] }));
 });
 
 describe("changeVentureLead", () => {
   it("promotes the new member and clears the previous lead", async () => {
     db.execute
       .mockResolvedValueOnce({ rows: [{ id: 5, contact_id: "USR_NEW", name: "Mary" }] }) // member lookup
+      .mockResolvedValueOnce({ rows: [] }) // previous lead lookup
       .mockResolvedValueOnce({ rows: [] }) // clear current lead
       .mockResolvedValueOnce({ rows: [] }) // promote new lead
       .mockResolvedValueOnce({ rows: [] }); // ownership history
@@ -38,15 +40,15 @@ describe("changeVentureLead", () => {
 
     expect(result).toEqual({ success: true });
 
-    const clearCall = db.execute.mock.calls[1][0];
+    const clearCall = db.execute.mock.calls[2][0];
     expect(clearCall.sql).toContain("lead_founder = FALSE, is_owner = FALSE");
     expect(clearCall.args[0]).toBe("VNT-ABC");
 
-    const promoteCall = db.execute.mock.calls[2][0];
+    const promoteCall = db.execute.mock.calls[3][0];
     expect(promoteCall.sql).toContain("lead_founder = TRUE, is_owner = TRUE, member_type = 'founder', role = 'founder'");
     expect(promoteCall.args[0]).toBe(5);
 
-    const historyCall = db.execute.mock.calls[3][0];
+    const historyCall = db.execute.mock.calls[4][0];
     expect(historyCall.sql).toContain("INSERT INTO ownership_history");
     expect(historyCall.args[0]).toBe("VNT-ABC");
     expect(historyCall.args[1]).toBe("USR_NEW"); // new_owner_id

@@ -38,6 +38,42 @@ export async function POST() {
     });
     let form = formRes.rows[0];
 
+    // ── 1b. Single-active Venture intake guard ──
+    // The seed may only act as the intake when no OTHER form holds the
+    // Venture flag. If this form exists but lost its flag (and no other form
+    // owns it), re-flag it idempotently.
+    const { assertSingleVentureForm, ensureSingleVentureFormIndex } = await import("@/lib/ventureIntake");
+    if (form) {
+      const selfFlagged =
+        form.settings?.venture_application === true ||
+        form.settings?.venture_application === "true";
+      const guard = selfFlagged ? { ok: true } : await assertSingleVentureForm(form.id);
+      if (!guard.ok) {
+        return NextResponse.json(
+          { success: false, code: "SINGLE_VENTURE_FORM", error: `Venture registration is already assigned to form "${guard.owner.name}". Deactivate it before seeding a replacement.` },
+          { status: 409 },
+        );
+      }
+      if (!selfFlagged) {
+        await db.execute({
+          sql: `UPDATE platform_forms
+                SET settings = settings || '{"venture_application": true}'::jsonb,
+                    updated_at = NOW()
+                WHERE id = ?`,
+          args: [form.id],
+        });
+      }
+    } else {
+      const guard = await assertSingleVentureForm(null);
+      if (!guard.ok) {
+        return NextResponse.json(
+          { success: false, code: "SINGLE_VENTURE_FORM", error: `Venture registration is already assigned to form "${guard.owner.name}". Deactivate it before seeding a replacement.` },
+          { status: 409 },
+        );
+      }
+    }
+    await ensureSingleVentureFormIndex();
+
     if (!form) {
       const created = await db.execute({
         sql: `INSERT INTO platform_forms (name, description, status, visibility, version, settings, created_by, owner_id, owner_name, created_at, updated_at)

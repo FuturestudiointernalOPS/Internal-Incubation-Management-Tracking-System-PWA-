@@ -395,6 +395,8 @@
       "workflowAutomationHint": "Ce qui se passe automatiquement après les événements du formulaire. Par défaut, workflow complet de candidature de programme.",
       "ventureFormLabel": "Ceci est le formulaire de candidature Venture",
       "ventureFormDesc": "L'approbation d'une soumission de ce formulaire crée une Venture (Formulaire → Run → Soumission → Revue → Approbation → Venture).",
+      "ventureFormLockedPrefix": "L'enregistrement Venture est déjà attribué au formulaire",
+      "ventureFormLockedSuffix": "Désactivez-le d'abord avant d'attribuer ce formulaire.",
       "workflowConfigTitle": "Configuration du workflow",
       "workflowDecisionButtons": "Boutons de décision",
       "workflowHint": "Personnalisez les libellés de décision et les noms de statut pour le workflow de révision de ce formulaire. Laissez vide pour utiliser les valeurs par défaut (Approuver / Rejeter / Demander une révision).",

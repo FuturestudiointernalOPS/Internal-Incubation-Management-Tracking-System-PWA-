@@ -99,6 +99,7 @@
       "createTitle": "🚀 Create Your Venture",
       "invitedDescription": "You've been invited to register a new venture in Venture OS.",
       "validating": "Validating invitation...",
+      "retiredMessage": "Venture registration has moved. Please use the official Venture application link you received by email, or contact Future Studio.",
       "goToLogin": "Go to login",
       "publicFormNoteStart": "This form is public — an invitation link is required to actually create the venture. If you have one, append",
       "publicFormNoteEnd": "to this page's URL.",

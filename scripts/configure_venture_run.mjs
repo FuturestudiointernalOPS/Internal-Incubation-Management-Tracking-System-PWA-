@@ -44,6 +44,28 @@ if (!form) {
 }
 console.log(`✓ Found form #${form.id} "${form.name}" (status: ${form.status})`);
 
+// ── 1b. Single-active Venture intake guard ──
+// This script may not flag a second form while another form already holds
+// the Venture flag (no cleanup is performed here).
+const alreadyFlagged =
+  form.settings?.venture_application === true ||
+  form.settings?.venture_application === "true";
+if (!alreadyFlagged) {
+  const ownerRes = await db.execute({
+    sql: `SELECT id, name FROM platform_forms
+          WHERE settings->>'venture_application' = 'true' AND id != ?
+          ORDER BY id ASC`,
+    args: [form.id],
+  });
+  const owner = ownerRes.rows[0];
+  if (owner) {
+    console.error(`✗ Venture registration is already assigned to form #${owner.id} "${owner.name}".`);
+    console.error("  → Deactivate it first (untick the Venture Application toggle in the builder),");
+    console.error("    or run this script against that form's exact name.");
+    process.exit(1);
+  }
+}
+
 // ── 2. Flag it as the Venture Application (merge settings, keep yours) ──
 await db.execute({
   sql: `UPDATE platform_forms
@@ -53,6 +75,20 @@ await db.execute({
   args: [form.id],
 });
 console.log("✓ Flagged as Venture Application (settings.venture_application = true)");
+
+// DB-level backstop: only one flagged form may ever exist.
+try {
+  await db.execute({
+    sql: `CREATE UNIQUE INDEX IF NOT EXISTS idx_platform_forms_single_venture_flag
+          ON platform_forms ((settings->>'venture_application'))
+          WHERE settings->>'venture_application' = 'true'`,
+    args: [],
+  });
+  console.log("✓ Single-active Venture form index ensured");
+} catch (e) {
+  console.warn(`⚠ Single-flag unique index NOT created (multiple flagged forms may exist): ${e.message}`);
+  console.warn("  Clear the extra Venture flags in the builder, then re-run this script.");
+}
 
 // ── 3. Ensure an active run with a public slug ──
 let runRes = await db.execute({

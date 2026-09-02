@@ -13,29 +13,60 @@ import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
 
+/**
+ * Read a system setting tolerating both column conventions found in the
+ * codebase (canonical: setting_key/setting_value — migrations + writers;
+ * legacy: key/value). Returns null when neither exists.
+ */
+async function readSystemSetting(key) {
+  try {
+    const r = await db.execute({
+      sql: "SELECT setting_value FROM system_settings WHERE setting_key = ?",
+      args: [key],
+    });
+    if (r.rows[0]?.setting_value) return r.rows[0].setting_value;
+  } catch (_) {}
+  try {
+    const r = await db.execute({
+      sql: "SELECT value FROM system_settings WHERE key = ?",
+      args: [key],
+    });
+    if (r.rows[0]?.value) return r.rows[0].value;
+  } catch (_) {}
+  return null;
+}
+
 export async function resolveVentureRun() {
   await initDb();
-  const cfg = await db.execute({
-    sql: "SELECT value FROM system_settings WHERE key = 'venture_run_id'",
-    args: [],
-  });
-  const runId = cfg.rows[0]?.value;
+
+  // 1. Configured run (system_settings.venture_run_id) — canonical source.
+  const runId = await readSystemSetting("venture_run_id");
   if (runId) {
-    const r = await db.execute({
-      sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-      args: [runId],
-    });
-    if (r.rows.length > 0 && r.rows[0].public_slug) return r.rows[0];
+    try {
+      const r = await db.execute({
+        sql: "SELECT * FROM platform_form_runs WHERE id = ?",
+        args: [runId],
+      });
+      if (r.rows.length > 0 && r.rows[0].public_slug) return r.rows[0];
+    } catch (_) {}
   }
-  const fb = await db.execute({
-    sql: `SELECT r.* FROM platform_form_runs r
-          JOIN platform_forms f ON f.id = r.form_id
-          WHERE r.status = 'active' AND r.public_slug IS NOT NULL
-            AND f.settings->>'venture_application' = 'true'
-          ORDER BY r.created_at DESC LIMIT 1`,
-    args: [],
-  });
-  return fb.rows[0] || null;
+
+  // 2. Fallback: active public run of the flagged Venture Application form.
+  //    Single-active enforcement (src/lib/ventureIntake.js) guarantees at
+  //    most one flagged form, so this fallback is deterministic.
+  try {
+    const fb = await db.execute({
+      sql: `SELECT r.* FROM platform_form_runs r
+            JOIN platform_forms f ON f.id = r.form_id
+            WHERE r.status = 'active' AND r.public_slug IS NOT NULL
+              AND f.settings->>'venture_application' = 'true'
+            ORDER BY r.created_at DESC LIMIT 1`,
+      args: [],
+    });
+    return fb.rows[0] || null;
+  } catch (_) {
+    return null;
+  }
 }
 
 export function ventureRunUrl(run) {

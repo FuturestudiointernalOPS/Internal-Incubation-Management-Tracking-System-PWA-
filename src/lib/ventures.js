@@ -723,6 +723,17 @@ export async function changeVentureLead({ ventureId, memberId, actorCid, actorNa
   const member = memberRes.rows[0];
   if (!member) return { error: "Venture member not found." };
 
+  // Capture the current lead/owner (if any) before clearing — used for the
+  // append-only contact_roles history mirror.
+  let previousLeadCid = null;
+  try {
+    const prev = await db.execute({
+      sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND (lead_founder = TRUE OR is_owner = TRUE) AND removed_at IS NULL ORDER BY id DESC LIMIT 1",
+      args: [ventureId],
+    });
+    previousLeadCid = prev.rows?.[0]?.contact_id || null;
+  } catch (_) {}
+
   // Clear the current lead/owner (if any)
   await db.execute({
     sql: "UPDATE venture_members SET lead_founder = FALSE, is_owner = FALSE WHERE venture_id = ? AND (lead_founder = TRUE OR is_owner = TRUE)",
@@ -742,6 +753,30 @@ export async function changeVentureLead({ ventureId, memberId, actorCid, actorNa
             new_owner_id, new_owner_email, new_owner_name, transferred_by_id, transferred_by_email)
             VALUES (?, NULL, NULL, NULL, ?, ?, ?, ?, ?)`,
       args: [ventureId, member.contact_id || member.user_cid || memberId, "", member.name || "", actorCid || "system", ""],
+    });
+  } catch (_) {}
+
+  // Append-only contact_roles mirror (context_type='venture')
+  try {
+    const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+    const newLeadCid = member.contact_id || member.user_cid || memberId;
+    if (previousLeadCid && previousLeadCid !== newLeadCid) {
+      await syncVentureRoleHistory({
+        contactCid: previousLeadCid,
+        ventureId,
+        role: "founder",
+        active: false,
+        actorCid: actorCid || null,
+        notes: "founder replaced",
+      });
+    }
+    await syncVentureRoleHistory({
+      contactCid: newLeadCid,
+      ventureId,
+      role: "founder",
+      active: true,
+      actorCid: actorCid || null,
+      notes: "lead founder changed",
     });
   } catch (_) {}
 

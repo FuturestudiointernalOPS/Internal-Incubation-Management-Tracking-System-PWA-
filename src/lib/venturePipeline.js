@@ -30,6 +30,20 @@ function pickValues(submissionData, keyMap) {
   return out;
 }
 
+async function mirrorRoleHistory(ventureId, contactCid, role, active = true) {
+  try {
+    const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+    await syncVentureRoleHistory({
+      contactCid,
+      ventureId,
+      role,
+      active,
+      actorCid: null,
+      notes: active ? "venture pipeline membership" : "venture membership ended",
+    });
+  } catch (_) {}
+}
+
 function parseEmailList(value) {
   if (!value) return [];
   return String(value)
@@ -85,6 +99,23 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   }
   const data = pickValues(submission.data || {}, keyMap);
 
+  // Fallback: staff-prefilled submissions (e.g. program/team promotion) may
+  // carry literal keys when the intake form has no settings.key mapping —
+  // accept them so a manually-built form still produces the right Venture.
+  if (submission.data && typeof submission.data === "object") {
+    for (const literalKey of [
+      "company_name", "industry", "business_stage", "description", "website",
+      "country", "registration_status", "mission", "vision", "problem",
+      "solution", "target_market", "business_model", "value_proposition",
+      "founder_name", "founder_email", "founder_phone",
+      "co_founder_emails", "team_member_emails",
+    ]) {
+      if (data[literalKey] === undefined && submission.data[literalKey] !== undefined) {
+        data[literalKey] = submission.data[literalKey];
+      }
+    }
+  }
+
   const companyName = String(data.company_name || run.name || "New Venture").trim();
 
   // ── 3. Duplicate company name ──
@@ -99,7 +130,26 @@ export async function createVentureFromSubmission({ submission, run, form, revie
   // ── 4. Submitter = primary founder ──
   let submitterCid = String(submission.submitter_id || "");
   if (submitterCid.includes("@")) {
-    submitterCid = (await resolveOrCreateContact(submitterCid, data.founder_name, "founder")) || "";
+    // Identity reconciliation (Phase 2): primary email → alternative email →
+    // phone → matched / conflict / new. Conflicts never auto-create — they go
+    // to the CRM manual-reconciliation mechanism.
+    const { resolvePersonIdentity } = await import("@/lib/contactIdentity");
+    const identity = await resolvePersonIdentity({
+      email: submitterCid,
+      phone: data.founder_phone || null,
+    });
+    if (identity.status === "matched") {
+      submitterCid = identity.contact_cid;
+    } else if (identity.status === "conflict") {
+      return {
+        skipped: true,
+        reason: "identity_conflict_manual_review",
+        message: "The submission identity is ambiguous (email/phone matched multiple contacts). Resolve the duplicate in CRM before approving.",
+        matches: identity.matches,
+      };
+    } else {
+      submitterCid = (await resolveOrCreateContact(submitterCid, data.founder_name, "founder")) || "";
+    }
   }
   if (!submitterCid) return { skipped: true, reason: "no submitter identity" };
 
@@ -183,6 +233,7 @@ export async function createVentureFromSubmission({ submission, run, form, revie
       args: [submitterCid],
     });
   } catch (_) {}
+  await mirrorRoleHistory(ventureId, submitterCid, "founder", true);
 
   // ── 9. Co-founders / team members named in the form ──
   const coFounderEmails = parseEmailList(data.co_founder_emails);
@@ -199,6 +250,7 @@ export async function createVentureFromSubmission({ submission, run, form, revie
             ON CONFLICT DO NOTHING`,
       args: [ventureId, cid, cid, isCoFounder ? "founder" : "team_member", isCoFounder ? "co-founder" : "member", now],
     });
+    await mirrorRoleHistory(ventureId, cid, isCoFounder ? "co-founder" : "member", true);
   }
 
   // ── 9b. Team carry-over: promoted Program Teams keep their members ──
@@ -214,7 +266,27 @@ export async function createVentureFromSubmission({ submission, run, form, revie
                 ON CONFLICT DO NOTHING`,
           args: [ventureId, String(m.contact_id), String(m.contact_id), now],
         });
+        await mirrorRoleHistory(ventureId, String(m.contact_id), "member", true);
       }
+    } catch (_) {}
+  }
+
+  // ── 9c. Mark the source team/program as promoted (parity with the old
+  //        promote flow, now performed at approval — idempotent) ──
+  if (sourceType === "team" && originTeam) {
+    try {
+      await db.execute({
+        sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id::text = ?",
+        args: [ventureId, now, originTeam],
+      });
+    } catch (_) {}
+  }
+  if (originProgram) {
+    try {
+      await db.execute({
+        sql: "UPDATE v2_programs SET venture_id = ? WHERE id::text = ?",
+        args: [ventureId, originProgram],
+      });
     } catch (_) {}
   }
 

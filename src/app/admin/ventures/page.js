@@ -114,11 +114,28 @@ export default function VenturesPage() {
             <button
               onClick={async () => {
                 try {
-                  const res = await fetch("/api/venture-invites", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ max_uses: 1, expires_in_days: 7 }) });
+                  const email = window.prompt(t("vadmin.list.inviteEmailPrompt"));
+                  if (!email) return;
+                  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "error",
+                          message: t("vadmin.list.inviteEmailInvalid"),
+                          duration: 4000,
+                        },
+                      })
+                    );
+                    return;
+                  }
+                  const res = await fetch("/api/platform/venture-invitations", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ email: email.trim(), source_type: "external" }),
+                  });
                   const d = await res.json();
-                  if (d.success) {
-                    const link = `${window.location.origin}/register-venture?token=${d.token}`;
-                    await navigator.clipboard.writeText(link);
+                  if (d.success && d.run?.url) {
+                    await navigator.clipboard.writeText(d.run.url);
                     window.dispatchEvent(
                       new CustomEvent("impactos:notify", {
                         detail: {
@@ -133,7 +150,7 @@ export default function VenturesPage() {
                       new CustomEvent("impactos:notify", {
                         detail: {
                           type: "error",
-                          message: t((d.error || t("vadmin.list.inviteFailed")) || "") || (d.error || t("vadmin.list.inviteFailed")),
+                          message: d.error || t("vadmin.list.inviteFailed"),
                           duration: 5000,
                         },
                       })
@@ -156,10 +173,38 @@ export default function VenturesPage() {
               <Link2 className="w-4 h-4" /> {t("vadmin.list.copyInviteLink")}
             </button>
             <button
-              onClick={() => router.push("/admin/ventures/register")}
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/platform/venture-run");
+                  const d = await res.json();
+                  if (d.success && d.url) {
+                    window.open(d.url, "_blank", "noopener,noreferrer");
+                  } else {
+                    window.dispatchEvent(
+                      new CustomEvent("impactos:notify", {
+                        detail: {
+                          type: "error",
+                          message: d.error || t("vadmin.list.noActiveVentureForm"),
+                          duration: 5000,
+                        },
+                      })
+                    );
+                  }
+                } catch (e) {
+                  window.dispatchEvent(
+                    new CustomEvent("impactos:notify", {
+                      detail: {
+                        type: "error",
+                        message: t("vadmin.list.noActiveVentureForm"),
+                        duration: 5000,
+                      },
+                    })
+                  );
+                }
+              }}
               className="btn btn-primary gap-2"
             >
-              <Plus className="w-4 h-4" /> {t("vadmin.list.registerStartup")}
+              <Plus className="w-4 h-4" /> {t("vadmin.list.openVentureForm")}
             </button>
           </div>
         </div>

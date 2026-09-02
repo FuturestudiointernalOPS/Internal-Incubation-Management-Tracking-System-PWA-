@@ -1,17 +1,32 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { ensureVentureSchema, resolveTeamMembersForPromotion, generateVentureId } from "@/lib/ventures";
+import { ensureVentureSchema, resolveTeamMembersForPromotion } from "@/lib/ventures";
+import {
+  resolveVentureRun,
+  ventureRunUrl,
+  createVentureInvitation,
+} from "@/lib/ventureInvitations";
 
 /**
  * POST /api/ventures/promote
  *
- * Promotes an approved program team into Venture OS.
- * Business Rules:
- * 1. Only Program Managers or Super Admins can promote
- * 2. Team must have is_venture_ready = true
- * 3. Team must not already have a venture_id
- * 4. Creates venture, copies founders and members, logs activity
+ * Promotes an approved program team TOWARD Venture registration — through
+ * the same Forms/Runs intake pipeline. It does NOT create a Venture.
+ *
+ * Flow (Phase 1 convergence):
+ *   1. Only Program Managers (assigned to the program) or Super Admins.
+ *   2. Team must be is_venture_ready = true and not already promoted.
+ *   3. Resolve the ACTIVE Venture intake (configured run / flagged form).
+ *   4. Build a pre-filled submission on the intake run (company info mapped
+ *      to the form's fields by settings.key; team + program kept as the
+ *      provenance context via a tracked invitation row).
+ *   5. Staff/PM review the submission like any other intake submission.
+ *   6. Approval creates the Venture through createVentureFromSubmission
+ *      (single pipeline — no direct insert here).
+ *
+ * Provenance is preserved: invitation row carries program_id + team_id, and
+ * the approval pipeline derives venture_origins from it.
  */
 export async function POST(req) {
   try {
@@ -31,7 +46,7 @@ export async function POST(req) {
     const body = await req.json();
 
     // Support both team_id (from PM workspace) and program_id (from dedicated promote page)
-    const { team_id, program_id, company_name, registration_number, industry, business_stage, description, website, logo_url } = body;
+    const { team_id, program_id, company_name, registration_number, industry, business_stage, description, website } = body;
 
     if (!team_id && !program_id) {
       return NextResponse.json(
@@ -51,8 +66,6 @@ export async function POST(req) {
     }
 
     // ─── 2. Fetch the team ───
-    // Support both team_id (from PM workspace button) and program_id (from dedicated promote page)
-    // When program_id is given without team_id, find the first venture-ready team
     let team;
     if (team_id) {
       const teamRes = await db.execute({
@@ -130,16 +143,52 @@ export async function POST(req) {
       );
     }
 
-    // ─── 6. Generate Venture ID (VNT business key is the single identifier) ───
-    const ventureId = generateVentureId();
-    const now = new Date().toISOString();
+    // ─── 6. Resolve the ACTIVE Venture intake (Forms/Runs) ───
+    const run = await resolveVentureRun();
+    if (!run || !run.public_slug) {
+      return NextResponse.json(
+        { success: false, error: "No active Venture intake configured. Configure the Venture Application form/run first (builder toggle or seed), then retry." },
+        { status: 400 },
+      );
+    }
 
-    // Use provided company info or derive from team/program names
+    // ─── 7. Determine the team lead (prospective founder) ───
+    const teamMembers = await resolveTeamMembersForPromotion(team.id);
+    let leadCid = team.leader_id || team.handler_id;
+    if (!leadCid && teamMembers.length > 0) {
+      leadCid = teamMembers[0].contact_id;
+    }
+    if (!leadCid) {
+      return NextResponse.json(
+        { success: false, error: "This team has no lead contact. Select a team lead first." },
+        { status: 400 },
+      );
+    }
+    const leadRes = await db.execute({
+      sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
+      args: [String(leadCid)],
+    });
+    const lead = leadRes.rows[0];
+    if (!lead) {
+      return NextResponse.json(
+        { success: false, error: "Team lead contact not found." },
+        { status: 404 },
+      );
+    }
+    if (!lead.email) {
+      return NextResponse.json(
+        { success: false, error: "The team lead has no email address." },
+        { status: 400 },
+      );
+    }
+
+    // ─── 8. Venture identity for the submission ───
     const finalCompanyName = (company_name || team.name || program.name || "").trim();
     const finalIndustry = industry || "other";
-    const finalStage = business_stage || "early_traction";
+    const finalStage = business_stage || "idea";
+    const finalDescription = description?.trim() || `Promoted from program: ${program.name}`;
+    const finalWebsite = website?.trim() || null;
 
-    // Check for duplicate company name
     const dupCheck = await db.execute({
       sql: "SELECT venture_id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
       args: [finalCompanyName],
@@ -151,248 +200,92 @@ export async function POST(req) {
       );
     }
 
-    // ─── 7. Create the Venture ───
+    // ─── 9. Prefill the intake submission ───
+    // Map values onto the intake form's fields via settings.key when the
+    // fields define keys; also keep literal keys (the pipeline falls back to
+    // them when a form has no key-mapped fields).
+    const literalData = {
+      company_name: finalCompanyName,
+      industry: finalIndustry,
+      business_stage: finalStage,
+      description: finalDescription,
+      website: finalWebsite,
+      registration_number: registration_number?.trim() || null,
+      founder_name: lead.name || team.name,
+      founder_email: lead.email,
+    };
+    const payload = { ...literalData };
     try {
-      // Try with both name and company_name
-      await db.execute({
-        sql: `INSERT INTO ventures (venture_id, name, company_name, registration_number, industry, business_stage, description, website, logo_url, status, program_id, origin_team_id, created_by, created_at, updated_at)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)`,
-        args: [
-          ventureId, finalCompanyName, finalCompanyName,
-          registration_number?.trim() || null,
-          finalIndustry, finalStage,
-          description?.trim() || `Promoted from program: ${program.name}`,
-          website?.trim() || null, logo_url?.trim() || null,
-          team.program_id || null, team.id || null,
-          session.cid || "system", now, now,
-        ],
+      const fieldRes = await db.execute({
+        sql: "SELECT id, settings FROM platform_form_fields WHERE form_id = ?",
+        args: [run.form_id],
       });
-    } catch (err) {
-      // company_name column may not exist — fall back to just "name"
-      if (err.message?.includes("company_name")) {
-        await db.execute({
-          sql: `INSERT INTO ventures (venture_id, name, registration_number, industry, business_stage, description, website, logo_url, status, created_by, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?)`,
-          args: [
-            ventureId, finalCompanyName,
-            registration_number?.trim() || null,
-            finalIndustry, finalStage,
-            description?.trim() || `Promoted from program: ${program.name}`,
-            website?.trim() || null, logo_url?.trim() || null,
-            session.cid || "system", now, now,
-          ],
-        });
-      } else {
-        throw err;
+      const fieldByKey = {};
+      for (const f of fieldRes.rows || []) {
+        if (f.settings?.key) fieldByKey[f.settings.key] = String(f.id);
       }
-    }
-
-    // ─── 8. Update team with venture_id ───
-    await db.execute({
-      sql: "UPDATE v2_teams SET venture_id = ?, promoted_at = ? WHERE id = ?",
-      args: [ventureId, now, team.id],
-    });
-
-    // ─── 9. Update program with venture_id (non-blocking) ───
-    try {
-      await db.execute({
-      sql: "UPDATE v2_programs SET venture_id = ? WHERE id = ?",
-      args: [ventureId, program.id],
-    });
+      for (const [key, value] of Object.entries(literalData)) {
+        if (value === null || value === undefined || value === "") continue;
+        const fieldId = fieldByKey[key];
+        if (fieldId) payload[fieldId] = String(value);
+      }
     } catch (_) {}
 
-    // ─── 10. Copy founders & members ───
-    // Resolve the real team membership (contacts.v2_team_id / v2_participants.v2_team_id).
-    const teamMembers = await resolveTeamMembersForPromotion(team.id);
+    // ─── 10. Tracked invitation = provenance context (no email sent; this is an internal promotion record) ───
+    const invitation = await createVentureInvitation({
+      runId: run.id,
+      contactCid: lead.cid,
+      email: lead.email,
+      sourceType: "team",
+      programId: String(program.id),
+      cohortId: null,
+      teamId: String(team.id),
+      invitedByCid: session.cid,
+      expiresInHours: 24 * 366,
+    });
 
-    // Founders: team leader + handler. If neither exists, fall back to the
-    // first team member so the venture never has zero founders.
-    let founderIds = [team.leader_id, team.handler_id].filter(Boolean);
-    if (founderIds.length === 0 && teamMembers.length > 0) {
-      founderIds = [teamMembers[0].contact_id];
-    }
-    const uniqueFounders = new Set();
-
-    // Add leader and handler as founders
-    for (const fId of founderIds) {
-      if (uniqueFounders.has(fId)) continue;
-      uniqueFounders.add(fId);
-      try {
-        const contactRes = await db.execute({
-          sql: "SELECT name, email FROM contacts WHERE cid = ?",
-          args: [fId],
-        });
-        const contact = contactRes.rows[0] || {};
-        await db.execute({
-          sql: `INSERT INTO venture_founders (venture_id, email, name, title, status, created_at, updated_at)
-                VALUES (?, ?, ?, 'founder', 'active', ?, ?)
-                ON CONFLICT (venture_id, email) DO NOTHING`,
-          args: [ventureId, contact.email || `${fId}@impactos.local`, contact.name || fId, now, now],
-        });
-        // Update user contact role to founder
-        await db.execute({
-          sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
-          args: [fId],
-        });
-      } catch (_) {}
-    }
-
-    // Add all team members as venture members (founders AND team members —
-    // workspace access runs off venture_members, so founders must be rows here too)
-    for (const member of teamMembers) {
-      try {
-        const isFounder = uniqueFounders.has(member.contact_id);
-        await db.execute({
-          sql: `INSERT INTO venture_members (venture_id, contact_id, user_cid, member_type, role, permissions, joined_at, lead_founder, is_owner)
-                VALUES (?, ?, ?, ?, ?, 'edit', ?, ?, ?)
-                ON CONFLICT DO NOTHING`,
-          args: [
-            ventureId,
-            String(member.contact_id),
-            String(member.contact_id),
-            isFounder ? "founder" : "team_member",
-            isFounder ? "founder" : "member",
-            now,
-            isFounder,
-            isFounder,
-          ],
-        });
-        if (isFounder) {
-          // Update user contact role to founder
-          await db.execute({
-            sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
-            args: [String(member.contact_id)],
-          });
-        } else {
-          // Update user contact role to member
-          await db.execute({
-            sql: "UPDATE contacts SET role = 'member' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager', 'founder')",
-            args: [String(member.contact_id)],
-          });
-        }
-      } catch (_) {}
-    }
-
-    // ─── 11. Create activity logs (non-blocking) ───
-    try {
-      await db.execute({
-      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
-            VALUES (?, 'PROGRAM_PROMOTED', ?, ?, ?::jsonb, ?)`,
+    // ─── 11. Create the intake submission (submitted — awaiting review) ───
+    const subRes = await db.execute({
+      sql: `INSERT INTO platform_form_submissions
+              (run_id, submitter_id, submitter_name, status, data, invitation_id, submitted_at, updated_at)
+            VALUES (?, ?, ?, 'submitted', ?::jsonb, ?, NOW(), NOW())
+            RETURNING id`,
       args: [
-        ventureId,
-        session.cid || "system",
-        session.name || "",
-        JSON.stringify({
-          program_id: program.id,
-          program_name: program.name,
-          team_id: team.id,
-          team_name: team.name,
-        }),
-        now,
+        run.id,
+        lead.cid,
+        lead.name || team.name,
+        JSON.stringify(payload),
+        invitation.id,
       ],
     });
-    } catch (_) {}
-
-    try {
-      await db.execute({
-      sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
-            VALUES (?, 'VENTURE_CREATED', ?, ?, ?::jsonb, ?)`,
-      args: [
-        ventureId,
-        session.cid || "system",
-        session.name || "",
-        JSON.stringify({
-          venture_id: ventureId,
-          venture_name: finalCompanyName,
-          registration_method: "program_promotion",
-        }),
-        now,
-      ],
-    });
-    } catch (_) {}
-
-    // ─── 12. Create venture history record (non-blocking) ───
-    try {
-      await db.execute({
-      sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata, created_at)
-            VALUES (?, 'PROMOTED', ?, ?::jsonb, ?)`,
-      args: [
-        ventureId,
-        `Program-to-Venture promotion from "${program.name}"`,
-        JSON.stringify({
-          program_id: program.id,
-          program_name: program.name,
-          team_id: team.id,
-          team_name: team.name,
-          team_leader: team.leader_id || team.handler_id,
-        }),
-        now,
-      ],
-    });
-    } catch (_) {}
-
-    // ─── 12b. Record venture origin (CRM provenance) ───
-    try {
-      await db.execute({
-        sql: `INSERT INTO venture_origins (venture_id, source_type, program_id, team_id, approved_by_cid, approved_at, created_at)
-              VALUES (?, 'team', ?, ?, ?, ?, ?)`,
-        args: [
-          ventureId,
-          team.program_id ? String(team.program_id) : null,
-          team.id || null,
-          session.cid || "system",
-          now, now,
-        ],
-      });
-    } catch (_) {}
-
-    // ─── 13. Send notifications ───
-    const notifyRecipients = [team.leader_id, team.handler_id, ...founderIds].filter(Boolean);
-    for (const recipientId of new Set(notifyRecipients)) {
-      try {
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-          args: [
-            recipientId,
-            "Promotion Successful",
-            `Your team "${team.name}" has been promoted from "${program.name}" to Venture OS. Access your venture dashboard to continue.`,
-            "venture_promotion",
-            now,
-          ],
-        });
-      } catch (_) {}
+    const submissionId = subRes.rows[0]?.id;
+    if (!submissionId) {
+      return NextResponse.json(
+        { success: false, error: "Failed to create the promotion submission." },
+        { status: 500 },
+      );
     }
 
-    // Also notify the program manager
-    if (program.assigned_pm_id && program.assigned_pm_id !== session.cid) {
-      try {
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at) VALUES (?, ?, ?, ?, 0, ?)",
-          args: [
-            program.assigned_pm_id,
-            "Promotion Successful",
-            `Team "${team.name}" has been promoted from "${program.name}" to Venture OS (${ventureId}).`,
-            "venture_promotion",
-            now,
-          ],
-        });
-      } catch (_) {}
-    }
+    // ─── 12. Audit note ───
+    // The audit trail for this action IS the submission row + invitation row
+    // created above (venture_activity_log requires a venture_id, which does
+    // not exist until approval — the pipeline writes venture history then).
 
     return NextResponse.json({
       success: true,
-      venture: {
-        venture_id: ventureId,
-        company_name: finalCompanyName,
-        status: "active",
+      submission_id: submissionId,
+      message: "Team promotion submitted through the Venture intake. Review the submission to approve it — the Venture is created only after approval.",
+      run: {
+        run_id: run.id,
+        name: run.name,
+        slug: run.public_slug,
+        url: ventureRunUrl(run),
       },
-      redirect: `/admin/ventures/${ventureId}`,
-      message: `Team "${team.name}" successfully promoted to Venture OS.`,
     });
   } catch (error) {
-    console.error("Venture promote error:", error);
+    console.error("[Promote] Venture promotion error:", error);
     return NextResponse.json(
-      { success: false, error: error.message || "An unexpected error occurred during promotion." },
+      { success: false, error: error.message || "Failed to submit the promotion." },
       { status: 500 },
     );
   }
