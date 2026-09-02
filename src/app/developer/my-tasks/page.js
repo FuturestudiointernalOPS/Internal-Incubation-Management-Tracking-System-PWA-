@@ -15,6 +15,7 @@ import {
   Filter,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function MyTasks() {
   const router = useRouter();
@@ -33,18 +34,40 @@ export default function MyTasks() {
     } catch (_) {}
   }, []);
 
-  const fetchTasks = useCallback(async () => {
+  const fetchTasks = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
-      const sessionRes = await fetch("/api/auth/session");
-      const sessionData = await sessionRes.json();
-      if (sessionData.authenticated && sessionData.user) {
-        const userId = sessionData.user.cid;
-        const res = await fetch(`/api/tasks?user_id=${userId}&sort=priority`);
-        const data = await res.json();
-        if (data.success) {
-          setTasks(data.tasks || []);
-        }
+      // The /developer layout guard has already authenticated the session, so
+      // cid is available locally and the page no longer waits on a duplicate
+      // /api/auth/session round-trip before showing tasks.
+      let cid = null;
+      try {
+        const saved = localStorage.getItem("user");
+        if (saved) cid = JSON.parse(saved).cid;
+      } catch (_) {}
+      if (!cid) {
+        const sessionRes = await fetch("/api/auth/session");
+        const sessionData = await sessionRes.json();
+        if (sessionData.authenticated && sessionData.user)
+          cid = sessionData.user.cid;
+      }
+      if (!cid) return;
+
+      const url = `/api/tasks?user_id=${cid}&sort=priority`;
+      const apply = (data) => {
+        if (data.success) setTasks(data.tasks || []);
+      };
+      // Cache-first paint on reads; the network refresh below converges.
+      const cached = cacheGet(url);
+      if (!bypassCache && cached !== null && cached.success) {
+        apply(cached);
+        setLoading(false);
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
       }
     } catch (e) {
       console.error("Failed to fetch tasks", e);
