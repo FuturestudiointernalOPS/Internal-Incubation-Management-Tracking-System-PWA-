@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 function cn(...classes) {
   return classes.filter(Boolean).join(" ");
@@ -43,60 +44,97 @@ export default function PMGroups() {
     const uid = user.cid || user.id;
     if (!uid) return;
 
-    const fetchData = async () => {
+    const fetchData = async (bypassCache = false) => {
+      setLoading(true);
+      let painted = false;
       try {
-        setLoading(true);
         // 1. Fetch PM's programs
-        const progRes = await fetch(`/api/pm/programs?assigned_pm_id=${uid}`);
+        const progsUrl = `/api/pm/programs?assigned_pm_id=${uid}`;
+
+        // Sync all page state from the program list + per-program full states.
+        const apply = (myProgs, states) => {
+          setPrograms(myProgs);
+          if (myProgs.length === 0) return;
+
+          // Auto-select first program
+          setSelectedProgram(myProgs[0].id);
+
+          // Organize by program
+          const groupsMap = {};
+          const teamsMap = {};
+          const staffMap = {};
+
+          myProgs.forEach((p, i) => {
+            const state = states[i];
+            if (!state?.success) return;
+
+            // Participants
+            const participants = (state.participants || []).filter(
+              (part) => part.name || part.email,
+            );
+            // Deduplicate by email
+            const unique = Array.from(
+              new Map(participants.map((part) => [part.email, part])).values(),
+            );
+            groupsMap[p.id] = unique;
+
+            // Teams
+            teamsMap[p.id] = state.teams || [];
+
+            // Staff (assigned staff for this program)
+            staffMap[p.id] = state.assignedStaff || [];
+          });
+
+          setGroups(groupsMap);
+          setTeams(teamsMap);
+          setStaff(staffMap);
+        };
+
+        // Cache-first paint: returning to this page renders instantly when the
+        // program list and every program's full-state snapshot are all fresh;
+        // the network refresh below converges.
+        if (!bypassCache) {
+          const cachedProgs = cacheGet(progsUrl);
+          if (cachedProgs !== null && cachedProgs.success) {
+            const progList = cachedProgs.programs || [];
+            const cachedStates = progList.map((p) =>
+              cacheGet(`/api/pm/full-state?id=${p.id}`),
+            );
+            if (cachedStates.every((c) => c !== null && c.success)) {
+              apply(progList, cachedStates);
+              painted = true;
+              setLoading(false);
+            }
+          }
+        }
+
+        const progRes = await fetch(progsUrl);
         const progData = await progRes.json();
         const myProgs = progData.programs || [];
-        setPrograms(myProgs);
+        if (progData.success) cacheSet(progsUrl, progData);
 
         if (myProgs.length === 0) {
-          setLoading(false);
+          apply(myProgs, []);
           return;
         }
 
-        // Auto-select first program
-        setSelectedProgram(myProgs[0].id);
-
         // 2. Fetch full state for each program
-        const statePromises = myProgs.map((p) =>
-          fetch(`/api/pm/full-state?id=${p.id}`).then((r) => r.json()),
+        const stateUrls = myProgs.map((p) => `/api/pm/full-state?id=${p.id}`);
+        const statePromises = stateUrls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
         );
         const states = await Promise.all(statePromises);
 
-        // 3. Organize by program
-        const groupsMap = {};
-        const teamsMap = {};
-        const staffMap = {};
-
-        myProgs.forEach((p, i) => {
-          const state = states[i];
-          if (!state?.success) return;
-
-          // Participants
-          const participants = (state.participants || []).filter(
-            (part) => part.name || part.email,
-          );
-          // Deduplicate by email
-          const unique = Array.from(
-            new Map(participants.map((part) => [part.email, part])).values(),
-          );
-          groupsMap[p.id] = unique;
-
-          // Teams
-          teamsMap[p.id] = state.teams || [];
-
-          // Staff (assigned staff for this program)
-          staffMap[p.id] = state.assignedStaff || [];
+        // Distinct per-program URLs cache independently.
+        stateUrls.forEach((u, i) => {
+          if (states[i]?.success) cacheSet(u, states[i]);
         });
 
-        setGroups(groupsMap);
-        setTeams(teamsMap);
-        setStaff(staffMap);
+        apply(myProgs, states);
       } catch (err) {
-        console.error(err);
+        if (!painted) console.error(err);
       } finally {
         setLoading(false);
       }
