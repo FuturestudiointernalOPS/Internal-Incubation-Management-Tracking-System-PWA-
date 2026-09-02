@@ -26,6 +26,7 @@ import {
   X,
   Search,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const PROVIDER_ICONS = {
   google_calendar: "📅",
@@ -126,25 +127,50 @@ export default function IntegrationsPage() {
     { id: "webhooks", label: t("adminMisc.integrations.webhooks"), icon: Webhook },
   ];
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [integRes, providersRes, keysRes, webhooksRes] = await Promise.all([
-        fetch("/api/integrations"),
-        fetch("/api/integrations?type=providers"),
-        fetch("/api/api-keys"),
-        fetch("/api/webhooks"),
-      ]);
-      const [integData, provData, keysData, webData] = await Promise.all([
-        integRes.json(), providersRes.json(), keysRes.json(), webhooksRes.json(),
-      ]);
+  const fetchData = useCallback(async (bypassCache = false) => {
+    const urls = [
+      "/api/integrations",
+      "/api/integrations?type=providers",
+      "/api/api-keys",
+      "/api/webhooks",
+    ];
+    const apply = (integData, provData, keysData, webData) => {
       if (integData.success) setIntegrations(integData.integrations || []);
       if (provData.success) setProviders(provData.providers || []);
       if (keysData.success) setApiKeys(keysData.keys || []);
       if (webData.success) setWebhooks(webData.webhooks || []);
+    };
+    let painted = false;
+    setLoading(true);
+    setError(null);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots; mutation flows pass bypassCache=true so the lists
+      // always reflect the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3]);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const [integRes, providersRes, keysRes, webhooksRes] = await Promise.all([
+        fetch(urls[0]),
+        fetch(urls[1]),
+        fetch(urls[2]),
+        fetch(urls[3]),
+      ]);
+      const [integData, provData, keysData, webData] = await Promise.all([
+        integRes.json(), providersRes.json(), keysRes.json(), webhooksRes.json(),
+      ]);
+      if (integData.success) cacheSet(urls[0], integData);
+      if (provData.success) cacheSet(urls[1], provData);
+      if (keysData.success) cacheSet(urls[2], keysData);
+      if (webData.success) cacheSet(urls[3], webData);
+      apply(integData, provData, keysData, webData);
     } catch (err) {
-      setError(t(err.message || "") || err.message);
+      if (!painted) setError(t(err.message || "") || err.message);
     } finally {
       setLoading(false);
     }
@@ -164,7 +190,7 @@ export default function IntegrationsPage() {
       if (data.success) {
         setShowAddIntegration(false);
         setNewIntegration({ provider: "", label: "" });
-        fetchData();
+        fetchData(true);
       }
     } catch (err) {
       console.error("Add integration error:", err);
@@ -177,7 +203,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData();
+        fetchData(true);
       }
     } catch (err) {
       console.error("Remove integration error:", err);
@@ -197,7 +223,7 @@ export default function IntegrationsPage() {
         setNewKeyResult(data);
         setShowAddKey(false);
         setNewKey({ name: "", description: "", scopes: [], expires_at: "" });
-        fetchData();
+        fetchData(true);
       }
     } catch (err) {
       console.error("Create API key error:", err);
@@ -210,7 +236,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData();
+        fetchData(true);
       }
     } catch (err) {
       console.error("Revoke key error:", err);
@@ -229,7 +255,7 @@ export default function IntegrationsPage() {
       if (data.success) {
         setShowAddWebhook(false);
         setNewWebhook({ name: "", url: "", events: [], secret: "" });
-        fetchData();
+        fetchData(true);
       }
     } catch (err) {
       console.error("Create webhook error:", err);
@@ -242,7 +268,7 @@ export default function IntegrationsPage() {
       const data = await res.json();
       if (data.success) {
         setConfirmAction(null);
-        fetchData();
+        fetchData(true);
         if (selectedWebhook?.id === id) setSelectedWebhook(null);
       }
     } catch (err) {
