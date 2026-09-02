@@ -7,6 +7,7 @@ import {
   X, Send, Filter, RefreshCw,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const TYPE_COLORS = {
   system: "text-slate-400 bg-slate-500/10",
@@ -35,16 +36,38 @@ export default function NotificationsPage() {
 
   const notify = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-  const fetchAll = async () => {
+  const fetchAll = async (bypassCache = false) => {
     setLoading(true);
+    const urls = [
+      `/api/notifications/venture`,
+      `/api/notifications/venture?type=preferences`,
+    ];
+    const apply = (n, p) => {
+      if (n?.success) { setNotifications(n.notifications || []); setUnreadCount(n.unread_count || 0); }
+      if (p?.success) setPreferences(p.preferences);
+    };
     try {
-      const [nRes, pRes] = await Promise.all([
-        fetch(`/api/notifications/venture`),
-        fetch(`/api/notifications/venture?type=preferences`),
-      ]);
-      const n = await nRes.json(); const p = await pRes.json();
-      if (n.success) { setNotifications(n.notifications || []); setUnreadCount(n.unread_count || 0); }
-      if (p.success) setPreferences(p.preferences);
+      // Cache-first paint: returning to the page renders instantly from fresh
+      // snapshots; mutation flows pass bypassCache=true so content always
+      // reflects the last action.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null)) {
+          apply(cached[0], cached[1]);
+          setLoading(false);
+        }
+      }
+      const responses = await Promise.all(
+        urls.map((u) =>
+          fetch(u)
+            .then((r) => r.json())
+            .catch(() => ({ success: false })),
+        ),
+      );
+      urls.forEach((u, i) => {
+        if (responses[i]?.success) cacheSet(u, responses[i]);
+      });
+      apply(responses[0], responses[1]);
     } catch {} finally { setLoading(false); }
   };
 
@@ -89,7 +112,7 @@ export default function NotificationsPage() {
       body: JSON.stringify({ action: "send_test" }),
     });
     notify(t("adminMisc.notifications.testNotificationSent"));
-    fetchAll();
+    fetchAll(true);
   };
 
   const togglePref = async (type, channel) => {
