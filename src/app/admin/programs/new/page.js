@@ -25,6 +25,7 @@ import {
 import { uploadFile } from "@/lib/storage";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 /**
  * IMPACTOS MISSION DEPLOYMENT — STRATEGIC CONFIGURATION
@@ -142,38 +143,59 @@ export default function NewProgram() {
   };
 
   useEffect(() => {
-    async function loadAssets() {
-      setLoadingAssets(true);
-      try {
-        const [knowRes, staffRes, segRes, tmplRes] = await Promise.all([
-          fetch("/api/knowledge"),
-          fetch("/api/contacts"),
-          fetch("/api/families"),
-          fetch("/api/pm/programs/templates"),
-        ]);
-
-        const knowData = await knowRes.json();
-        const staffData = await staffRes.json();
-        const segData = await segRes.json();
-        const tmplData = await tmplRes.json();
-
-        if (knowData.success) setKnowledgeNodes(knowData.conceptNotes || []);
-        if (segData.success) setSegments(segData.families || []);
-        if (tmplData.success) setTemplates(tmplData.templates || []);
+    async function loadAssets(bypassCache = false) {
+      const urls = [
+        "/api/knowledge",
+        "/api/contacts",
+        "/api/families",
+        "/api/pm/programs/templates",
+      ];
+      const apply = (knowData, staffData, segData, tmplData) => {
+        if (knowData?.success) setKnowledgeNodes(knowData.conceptNotes || []);
+        if (segData?.success) setSegments(segData.families || []);
+        if (tmplData?.success) setTemplates(tmplData.templates || []);
         // Filter: Only Future Studio contacts
-        if (staffData.success) {
+        if (staffData?.success) {
           const staffOnly = (staffData.contacts || []).filter(
             (c) =>
               c.group_name?.toUpperCase() === "FUTURE STUDIO",
           );
           setStaffList(staffOnly);
         }
-      } catch (e) {
-        console.error("Asset Load Failure:", e);
-        notify(
-          "error",
-          t("adminMisc.newProgram.syncFailed"),
+      };
+      let painted = false;
+      setLoadingAssets(true);
+      try {
+        // Cache-first paint: returning to this page renders the wizard options
+        // instantly from fresh snapshots; inline-created groups/KB nodes update
+        // local lists directly, so nothing here needs bypassCache.
+        if (!bypassCache) {
+          const cached = urls.map((u) => cacheGet(u));
+          if (cached.every((c) => c !== null && c.success)) {
+            apply(cached[0], cached[1], cached[2], cached[3]);
+            setLoadingAssets(false);
+            painted = true;
+          }
+        }
+        const responses = await Promise.all(
+          urls.map((u) =>
+            fetch(u)
+              .then((r) => r.json())
+              .catch(() => ({ success: false })),
+          ),
         );
+        urls.forEach((u, i) => {
+          if (responses[i]?.success) cacheSet(u, responses[i]);
+        });
+        apply(responses[0], responses[1], responses[2], responses[3]);
+      } catch (e) {
+        if (!painted) {
+          console.error("Asset Load Failure:", e);
+          notify(
+            "error",
+            t("adminMisc.newProgram.syncFailed"),
+          );
+        }
       } finally {
         setLoadingAssets(false);
       }
