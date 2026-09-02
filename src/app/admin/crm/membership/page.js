@@ -16,6 +16,7 @@ import {
   Link2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
@@ -51,20 +52,37 @@ export default function MembershipPage() {
   const [confirmState, setConfirmState] = useState(null); // { member, action }
   const [historyMember, setHistoryMember] = useState(null);
 
-  const fetchMemberships = useCallback(async () => {
-    try {
-      setLoading(true);
-      setLoadError("");
-      const res = await fetch("/api/org-membership");
-      const data = await res.json();
+  const fetchMemberships = useCallback(async (bypassCache = false) => {
+    const url = "/api/org-membership";
+    const apply = (data) => {
       if (!data.success) {
         setLoadError(data.error || t("membership.page.loadError"));
         return;
       }
       setMembers(data.memberships || []);
       setProtectedMap(data.protected || {});
+    };
+    let painted = false;
+    setLoading(true);
+    setLoadError("");
+    try {
+      // Cache-first paint: returning to this page renders instantly from a
+      // fresh snapshot; mutation flows pass bypassCache=true so the list
+      // always reflects the last action.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) {
+          apply(cached);
+          setLoading(false);
+          painted = true;
+        }
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.success) cacheSet(url, data);
+      apply(data);
     } catch {
-      setLoadError(t("membership.page.loadError"));
+      if (!painted) setLoadError(t("membership.page.loadError"));
     } finally {
       setLoading(false);
     }
@@ -147,10 +165,10 @@ export default function MembershipPage() {
     });
   }, [members, selectedGroup, search, statusFilter, accountFilter, roleFilter]);
 
-  const reload = () => {
+  const reload = (bypassCache) => {
     setDetailMember(null);
     setHistoryMember(null);
-    fetchMemberships();
+    fetchMemberships(bypassCache);
   };
 
   const handleAction = async () => {
@@ -158,7 +176,7 @@ export default function MembershipPage() {
     const ok = await runMembershipAction(confirmState.member, confirmState.action, t);
     if (ok) {
       setConfirmState(null);
-      reload();
+      reload(true);
     }
   };
 
@@ -169,7 +187,7 @@ export default function MembershipPage() {
     });
     if (ok) {
       setRenewMember(null);
-      reload();
+      reload(true);
     }
     return ok;
   };
@@ -475,7 +493,7 @@ export default function MembershipPage() {
           onClose={() => setAddOpen(false)}
           onAdded={() => {
             setAddOpen(false);
-            reload();
+            reload(true);
           }}
         />
       )}
