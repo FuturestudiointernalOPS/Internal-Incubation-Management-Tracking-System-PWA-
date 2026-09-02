@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   Briefcase,
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function DeveloperProjects() {
   const router = useRouter();
@@ -21,17 +22,27 @@ export default function DeveloperProjects() {
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState(null);
 
-  const fetchInvitations = async (cid) => {
+  const fetchInvitations = useCallback(async (cid, bypassCache = false) => {
     try {
-      const res = await fetch(
-        `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`,
-      );
+      const url = `/api/projects/invitations?invitee_id=${encodeURIComponent(cid)}&status=pending`;
+      const apply = (data) => {
+        if (data.success) setInvitations(data.invitations || []);
+      };
+      // Cache-first paint on reads; the network refresh below converges.
+      const cached = cacheGet(url);
+      if (!bypassCache && cached !== null && cached.success) {
+        apply(cached);
+      }
+      const res = await fetch(url);
       const data = await res.json();
-      if (data.success) setInvitations(data.invitations || []);
+      if (data.success) {
+        cacheSet(url, data);
+        apply(data);
+      }
     } catch (e) {
       console.error("Failed to fetch invitations", e);
     }
-  };
+  }, []);
 
   const handleInvitationResponse = async (invitationId, action) => {
     setResponding(invitationId);
@@ -55,7 +66,7 @@ export default function DeveloperProjects() {
   };
 
   useEffect(() => {
-    const fetchProjects = async () => {
+    const fetchProjects = async (bypassCache = false) => {
       setLoading(true);
       try {
         const sessionRes = await fetch("/api/auth/session");
@@ -65,20 +76,35 @@ export default function DeveloperProjects() {
           setUser(u);
           const userId = u.cid;
           setUserRole(u.role || "developer");
-          fetchInvitations(userId);
+          fetchInvitations(userId, bypassCache);
 
-          const res = await fetch(`/api/projects?user_cid=${userId}`);
-          const data = await res.json();
-          if (data.success) {
-            setProjects(data.projects || []);
-          } else {
-            const dashRes = await fetch(
-              `/api/dashboard?user_id=${userId}&role=${u.role}`,
-            );
-            const dashData = await dashRes.json();
-            if (dashData.success && dashData.quickAccess?.projects) {
+          const projectsUrl = `/api/projects?user_cid=${userId}`;
+          const dashboardUrl = `/api/dashboard?user_id=${userId}&role=${u.role}`;
+          const apply = (projectsData, dashData) => {
+            if (projectsData?.success) {
+              setProjects(projectsData.projects || []);
+            } else if (dashData?.success && dashData.quickAccess?.projects) {
               setProjects(dashData.quickAccess.projects);
             }
+          };
+
+          // Cache-first paint on reads; the network refresh below converges.
+          const cached = cacheGet(projectsUrl);
+          if (!bypassCache && cached !== null && cached.success) {
+            apply(cached, null);
+            setLoading(false);
+          }
+
+          const res = await fetch(projectsUrl);
+          const data = await res.json();
+          if (data.success) {
+            cacheSet(projectsUrl, data);
+            apply(data);
+          } else {
+            const dashRes = await fetch(dashboardUrl);
+            const dashData = await dashRes.json();
+            if (dashData.success) cacheSet(dashboardUrl, dashData);
+            apply(data, dashData);
           }
         }
       } catch (e) {

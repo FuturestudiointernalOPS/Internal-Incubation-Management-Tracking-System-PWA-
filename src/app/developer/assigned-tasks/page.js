@@ -14,6 +14,7 @@ import {
   Send,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function AssignedTasks() {
   const { t } = useI18n();
@@ -35,7 +36,7 @@ export default function AssignedTasks() {
     } catch (_) {}
   }, []);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (bypassCache = false) => {
     setLoading(true);
     try {
       const sessionRes = await fetch("/api/auth/session");
@@ -45,19 +46,29 @@ export default function AssignedTasks() {
       if (!user) setUser(sessionData.user);
 
       // Fetch accepted/active assigned tasks
-      const tasksRes = await fetch(
-        `/api/tasks?assigned_to=${userId}&sort=priority`,
-      );
-      const tasksData = await tasksRes.json();
-      if (tasksData.success) setTasks(tasksData.tasks || []);
+      const tasksUrl = `/api/tasks?assigned_to=${userId}&sort=priority`;
 
       // Fetch pending assignments (accept/decline workflow)
-      const assignRes = await fetch(
-        `/api/tasks/assignments?assignee_id=${userId}&status=pending`,
-      );
-      const assignData = await assignRes.json();
-      if (assignData.success)
-        setPendingAssignments(assignData.assignments || []);
+      const assignUrl = `/api/tasks/assignments?assignee_id=${userId}&status=pending`;
+
+      const apply = (tasksData, assignData) => {
+        if (tasksData?.success) setTasks(tasksData.tasks || []);
+        if (assignData?.success)
+          setPendingAssignments(assignData.assignments || []);
+      };
+
+      // Cache-first paint on reads; the network refresh below converges.
+      const cached = [cacheGet(tasksUrl), cacheGet(assignUrl)];
+      if (!bypassCache && cached.every((c) => c !== null)) {
+        apply(cached[0], cached[1]);
+        setLoading(false);
+      }
+
+      const responses = await Promise.all([fetch(tasksUrl), fetch(assignUrl)]);
+      const jsons = await Promise.all(responses.map((r) => r.json()));
+      if (jsons[0]?.success) cacheSet(tasksUrl, jsons[0]);
+      if (jsons[1]?.success) cacheSet(assignUrl, jsons[1]);
+      apply(jsons[0], jsons[1]);
     } catch (e) {
       console.error("Failed to fetch data", e);
     } finally {
@@ -79,7 +90,7 @@ export default function AssignedTasks() {
       });
       const data = await res.json();
       if (data.success) {
-        fetchData();
+        fetchData(true);
       } else {
         window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || "Failed to respond") || "") || (data.error || "Failed to respond") } }));
       }
