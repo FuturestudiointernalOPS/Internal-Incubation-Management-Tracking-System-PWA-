@@ -1,7 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getTaskById } from "@/lib/db/queries/tasks";
+import {
+  createTaskCopy,
+  getSubtasksByParentId,
+  createSubtaskCopy,
+} from "@/models/taskLifecycle";
 
 function getWeekNumber(date) {
   const d = new Date(
@@ -78,64 +83,15 @@ export async function POST(req) {
     const created_year = now.getFullYear();
 
     // Insert the duplicated task
-    const result = await db.execute({
-      sql: `INSERT INTO tasks
-        (user_id, user_name, title, description, status, project_id, category,
-         created_week, created_year, parent_task_id, start_date, end_date, assigned_to, priority, link)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         RETURNING id`,
-      args: [
-        task.user_id,
-        task.user_name || "",
-        `${task.title} (Copy)`,
-        task.description || null,
-        "pending",
-        task.project_id || null,
-        task.category || null,
-        created_week,
-        created_year,
-        null, // duplicate is never a subtask of the original parent
-        task.start_date || null,
-        task.end_date || null,
-        task.assigned_to || null,
-        task.priority || "medium",
-        task.link || null,
-      ],
-    });
+    const result = await createTaskCopy(task, created_week, created_year);
 
     const newTaskId = result.rows[0]?.id ?? result.lastInsertRowid;
 
     // Optionally copy subtasks
-    const subtasks = await db.execute({
-      sql: "SELECT * FROM tasks WHERE parent_task_id = ?",
-      args: [parseInt(task_id)],
-    });
+    const subtasks = await getSubtasksByParentId(task_id);
 
     for (const st of subtasks.rows) {
-      await db.execute({
-        sql: `INSERT INTO tasks
-          (user_id, user_name, title, description, status, project_id, category,
-           created_week, created_year, parent_task_id, start_date, end_date, assigned_to, priority, link)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           RETURNING id`,
-        args: [
-          st.user_id,
-          st.user_name || "",
-          `${st.title} (Copy)`,
-          st.description || null,
-          "pending",
-          st.project_id || null,
-          st.category || null,
-          created_week,
-          created_year,
-          newTaskId,
-          st.start_date || null,
-          st.end_date || null,
-          st.assigned_to || null,
-          st.priority || "medium",
-          st.link || null,
-        ],
-      });
+      await createSubtaskCopy(st, created_week, created_year, newTaskId);
     }
 
     // Fetch the newly created task to return

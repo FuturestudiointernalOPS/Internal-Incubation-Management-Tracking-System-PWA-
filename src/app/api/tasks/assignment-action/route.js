@@ -1,10 +1,17 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { logTaskEvent, ACTION_TYPES } from "@/lib/taskAudit";
 import { requireAuth, getSession } from "@/lib/auth";
 import { getTaskById } from "@/lib/db/queries/tasks";
 import { completeCarryoverAncestors } from "@/lib/taskCarryover";
+import {
+  markTaskAccepted,
+  markTaskDeclined,
+  getTaskAssignerFromLog,
+  createDeclineNotification,
+  markTaskCompleted,
+} from "@/models/taskAssignments";
 
 /**
  * ASSIGNMENT ACTION API
@@ -75,10 +82,7 @@ export async function POST(req) {
     }
 
     if (action === "accepted") {
-      await db.execute({
-        sql: "UPDATE tasks SET status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [parseInt(task_id)],
-      });
+      await markTaskAccepted(task_id);
 
       // Audit log
       await logAuditEvent({
@@ -111,10 +115,7 @@ export async function POST(req) {
     }
 
     if (action === "declined") {
-      await db.execute({
-        sql: "UPDATE tasks SET assigned_to = NULL, status = 'pending', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [parseInt(task_id)],
-      });
+      await markTaskDeclined(task_id);
 
       // Audit log
       await logAuditEvent({
@@ -141,24 +142,15 @@ export async function POST(req) {
 
       // Notify the original assigner (if known via audit log)
       try {
-        const assignerLog = await db.execute({
-          sql: `SELECT actor_id FROM task_assignment_log
-                WHERE task_id = ? AND action_type = 'TASK_ASSIGNED'
-                ORDER BY created_at DESC LIMIT 1`,
-          args: [parseInt(task_id)],
-        });
+        const assignerLog = await getTaskAssignerFromLog(task_id);
         if (assignerLog.rows.length > 0) {
           const assignerId = assignerLog.rows[0].actor_id;
-          await db.execute({
-            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                  VALUES (?, ?, ?, ?, 0, NOW())`,
-            args: [
-              assignerId,
-              "Assignment Declined",
-              `${user_name || user_id} declined the task "${task.title}".`,
-              "assignment",
-            ],
-          });
+          await createDeclineNotification(
+            assignerId,
+            "Assignment Declined",
+            `${user_name || user_id} declined the task "${task.title}".`,
+            "assignment",
+          );
         }
       } catch (notifErr) {
         console.error("Decline notification failed:", notifErr.message);
@@ -172,10 +164,7 @@ export async function POST(req) {
     }
 
     if (action === "completed_assignment") {
-      await db.execute({
-        sql: "UPDATE tasks SET status = 'completed', completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        args: [parseInt(task_id)],
-      });
+      await markTaskCompleted(task_id);
 
       // Completing a cloned task must also complete its carried-over ancestors
       await completeCarryoverAncestors(task_id);

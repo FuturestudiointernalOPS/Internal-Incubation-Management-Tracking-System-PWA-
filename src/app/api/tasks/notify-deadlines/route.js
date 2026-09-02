@@ -1,5 +1,9 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import {
+  getTasksEndingWithin24Hours,
+  createDeadlineNotification,
+} from "@/models/taskLifecycle";
 
 /**
  * UPCOMING DEADLINE NOTIFICATIONS (Ticket 1.9)
@@ -23,21 +27,7 @@ export async function POST(req) {
     await initDb();
 
     // Find tasks ending in the next 24 hours that haven't been notified today
-    const tasks = await db.execute({
-      sql: `SELECT t.id, t.title, t.assigned_to, t.user_id, t.user_name, t.end_date
-            FROM tasks t
-            WHERE t.end_date IS NOT NULL
-              AND t.end_date >= NOW()
-              AND t.end_date <= NOW() + INTERVAL '24 hours'
-              AND t.status NOT IN ('completed', 'carried_over', 'archived')
-              AND NOT EXISTS (
-                SELECT 1 FROM v2_notifications n
-                WHERE n.recipient_id = COALESCE(t.assigned_to, t.user_id)
-                  AND n.type = 'deadline'
-                  AND n.created_at > NOW() - INTERVAL '24 hours'
-                  AND n.message LIKE '%' || t.id || '%'
-              )`,
-    });
+    const tasks = await getTasksEndingWithin24Hours();
 
     let notified = 0;
     for (const task of tasks.rows) {
@@ -50,16 +40,12 @@ export async function POST(req) {
       );
       const timeLabel = hoursLeft <= 1 ? "1 hour" : `${hoursLeft} hours`;
 
-      await db.execute({
-        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read)
-              VALUES (?, ?, ?, ?, 0)`,
-        args: [
-          recipientId,
-          "Upcoming Deadline",
-          `Task "${task.title}" (#${task.id}) is due in ${timeLabel}`,
-          "deadline",
-        ],
-      });
+      await createDeadlineNotification(
+        recipientId,
+        "Upcoming Deadline",
+        `Task "${task.title}" (#${task.id}) is due in ${timeLabel}`,
+        "deadline",
+      );
       notified++;
     }
 

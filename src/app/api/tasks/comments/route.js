@@ -1,6 +1,18 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { taskExists } from "@/lib/db/queries/tasks";
+import {
+  getTaskAccessById,
+  getCommentsByTaskId,
+  getTaskAccessForCreate,
+  createComment,
+  getTaskNotifyFieldsById,
+  createNotification,
+  getContactsByNames,
+  getCommentSenderById,
+  deleteComment,
+  getCommentSenderForEdit,
+  updateCommentBody,
+} from "@/models/taskComments";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
 
@@ -36,10 +48,7 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await db.execute({
-    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-    args: [parseInt(task_id)],
-  });
+  const taskRes = await getTaskAccessById(task_id);
   const t = taskRes.rows[0];
   if (!t) {
     return NextResponse.json(
@@ -66,13 +75,7 @@ export const GET = createHandler(async (req) => {
     );
   }
 
-  const result = await db.execute({
-    sql: `SELECT id, task_id, sender_id, sender_name, body, parent_id, is_edited, edited_at, created_at
-          FROM v2_task_comments
-          WHERE task_id = ?
-          ORDER BY created_at ASC`,
-    args: [parseInt(task_id)],
-  });
+  const result = await getCommentsByTaskId(task_id);
 
   return NextResponse.json({ success: true, comments: result.rows });
 });
@@ -108,10 +111,7 @@ export const POST = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await db.execute({
-    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-    args: [parseInt(task_id)],
-  });
+  const taskRes = await getTaskAccessForCreate(task_id);
   const t = taskRes.rows[0];
   if (!t) {
     return NextResponse.json(
@@ -140,36 +140,24 @@ export const POST = createHandler(async (req) => {
   // Sender is always the authenticated session user, not a client-supplied value
   sender_id = session.cid;
 
-  const result = await db.execute({
-    sql: `INSERT INTO v2_task_comments (task_id, sender_id, sender_name, body, parent_id)
-          VALUES (?, ?, ?, ?, ?)
-          RETURNING id, created_at`,
-    args: [
-      parseInt(task_id),
-      sender_id,
-      sender_name || "",
-      commentBody.trim(),
-      parent_id || null,
-    ],
-  });
+  const result = await createComment(
+    task_id,
+    sender_id,
+    sender_name,
+    commentBody,
+    parent_id,
+  );
 
   const row = result.rows[0] || {};
 
   // Notify the task owner / assignee if someone else commented
   try {
-    const taskRes = await db.execute({
-      sql: "SELECT user_id, assigned_to, title FROM tasks WHERE id = ?",
-      args: [parseInt(task_id)],
-    });
+    const taskRes = await getTaskNotifyFieldsById(task_id);
     const task = taskRes.rows[0];
     const alreadyNotified = new Set();
 
     const insertNotif = async (recipientId, title, message, type) => {
-      await db.execute({
-        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-              VALUES (?, ?, ?, ?, 0, NOW())`,
-        args: [recipientId, title, message, type],
-      });
+      await createNotification(recipientId, title, message, type);
     };
 
     if (task) {
@@ -196,13 +184,7 @@ export const POST = createHandler(async (req) => {
 
     if (mentionedNames.size > 0) {
       const namesArray = [...mentionedNames];
-      const placeholders = namesArray.map(() => "?").join(",");
-      const mentionRes = await db.execute({
-        sql: `SELECT cid, name FROM contacts
-              WHERE LOWER(TRIM(name)) IN (${placeholders})
-              AND deleted = 0`,
-        args: namesArray,
-      });
+      const mentionRes = await getContactsByNames(namesArray);
 
       for (const mentioned of mentionRes.rows) {
         if (alreadyNotified.has(mentioned.cid)) continue;
@@ -243,10 +225,7 @@ export const DELETE = createHandler(async (req) => {
     );
   }
 
-  const commentRes = await db.execute({
-    sql: "SELECT sender_id FROM v2_task_comments WHERE id = ?",
-    args: [parseInt(id)],
-  });
+  const commentRes = await getCommentSenderById(id);
 
   if (commentRes.rows.length > 0) {
     const comment = commentRes.rows[0];
@@ -262,10 +241,7 @@ export const DELETE = createHandler(async (req) => {
         { status: 403 },
       );
     }
-    await db.execute({
-      sql: "DELETE FROM v2_task_comments WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    await deleteComment(id);
   }
 
   return NextResponse.json({ success: true });
@@ -289,10 +265,7 @@ export const PUT = createHandler(async (req) => {
     );
   }
 
-  const commentRes = await db.execute({
-    sql: "SELECT sender_id FROM v2_task_comments WHERE id = ?",
-    args: [parseInt(id)],
-  });
+  const commentRes = await getCommentSenderForEdit(id);
 
   if (commentRes.rows.length === 0) {
     return NextResponse.json(
@@ -309,10 +282,7 @@ export const PUT = createHandler(async (req) => {
     );
   }
 
-  await db.execute({
-    sql: "UPDATE v2_task_comments SET body = ?, is_edited = 1, edited_at = NOW() WHERE id = ?",
-    args: [newBody.trim(), parseInt(id)],
-  });
+  await updateCommentBody(id, newBody);
 
   return NextResponse.json({ success: true });
 });

@@ -1,8 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { logAuditEvent } from "@/lib/audit";
 import { requireAuth } from "@/lib/auth";
 import { getTaskById } from "@/lib/db/queries/tasks";
+import {
+  approveTask,
+  markApprovalRequestApproved,
+  rejectTaskAsStandalone,
+  markApprovalRequestRejected,
+} from "@/models/taskLifecycle";
 
 /**
  * TASK APPROVAL API
@@ -60,17 +66,11 @@ export async function POST(req) {
 
     if (action === "approve") {
       // Set task to active/pending under the project
-      await db.execute({
-        sql: "UPDATE tasks SET status = 'pending', approved_by = ?, approved_at = NOW() WHERE id = ?",
-        args: [reviewer_id, parseInt(task_id)],
-      });
+      await approveTask(reviewer_id, task_id);
 
       // Update approval request
       try {
-        await db.execute({
-          sql: "UPDATE project_approval_requests SET status = 'approved', reviewed_by = ?, reviewed_at = NOW() WHERE task_id = ? AND status = 'pending'",
-          args: [reviewer_id, parseInt(task_id)],
-        });
+        await markApprovalRequestApproved(reviewer_id, task_id);
       } catch (e) {
         console.error("Failed to update project_approval_request (approve):", e.message);
         return NextResponse.json(
@@ -80,17 +80,11 @@ export async function POST(req) {
       }
     } else {
       // Reject — remove project_id, set as standalone with 'other' category
-      await db.execute({
-        sql: "UPDATE tasks SET status = 'pending', project_id = NULL, category = ?, approved_by = NULL WHERE id = ?",
-        args: [reason ? "rejected" : "other", parseInt(task_id)],
-      });
+      await rejectTaskAsStandalone(reason ? "rejected" : "other", task_id);
 
       // Update approval request
       try {
-        await db.execute({
-          sql: "UPDATE project_approval_requests SET status = 'rejected', reviewed_by = ?, reviewed_at = NOW(), rejection_reason = ? WHERE task_id = ? AND status = 'pending'",
-          args: [reviewer_id, reason || "No reason provided", parseInt(task_id)],
-        });
+        await markApprovalRequestRejected(reviewer_id, reason || "No reason provided", task_id);
       } catch (e) {
         console.error("Failed to update project_approval_request (reject):", e.message);
         return NextResponse.json(

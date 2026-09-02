@@ -1,6 +1,9 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getTaskAccessById,
+  getTaskAssignmentLogs,
+} from "@/models/taskLifecycle";
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -22,10 +25,7 @@ export const GET = createHandler(async (req) => {
       { status: 401 },
     );
   }
-  const taskRes = await db.execute({
-    sql: "SELECT user_id, assigned_to, supervisor_id FROM tasks WHERE id = ?",
-    args: [parseInt(task_id)],
-  });
+  const taskRes = await getTaskAccessById(task_id);
   const t = taskRes.rows[0];
   if (!t) {
     return NextResponse.json(
@@ -52,14 +52,6 @@ export const GET = createHandler(async (req) => {
     );
   }
 
-  let sql =
-    "SELECT * FROM task_assignment_log WHERE task_id = ? ORDER BY created_at ASC";
-  const args = [parseInt(task_id)];
-  if (limit) {
-    sql += " LIMIT ?";
-    args.push(parseInt(limit));
-  }
-
-  const result = await db.execute({ sql, args });
+  const result = await getTaskAssignmentLogs(task_id, limit);
   return NextResponse.json({ success: true, logs: result.rows });
 });
