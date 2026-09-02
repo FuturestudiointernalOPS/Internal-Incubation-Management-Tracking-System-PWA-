@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Star, MessageCircle, TrendingUp, Users, Calendar,
 } from "lucide-react";
+import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 export default function VentureFeedbackPage() {
   const { id } = useParams();
@@ -20,25 +21,44 @@ export default function VentureFeedbackPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const fetchAll = async () => {
-    setLoading(true);
-    try {
-      const [vRes, fRes, caRes, aaRes, ssRes, ftRes] = await Promise.all([
-        fetch(`/api/ventures/${id}`),
-        fetch(`/api/ventures/${id}/feedback`),
-        fetch(`/api/ventures/${id}/feedback?type=analytics_coaches`),
-        fetch(`/api/ventures/${id}/feedback?type=analytics_advisors`),
-        fetch(`/api/ventures/${id}/feedback?type=analytics_sessions`),
-        fetch(`/api/ventures/${id}/feedback?type=analytics_feedback`),
-      ]);
-      const v = await vRes.json(); const f = await fRes.json(); const ca = await caRes.json();
-      const aa = await aaRes.json(); const ss = await ssRes.json(); const ft = await ftRes.json();
+  const fetchAll = async (bypassCache = false) => {
+    const urls = [
+      `/api/ventures/${id}`,
+      `/api/ventures/${id}/feedback`,
+      `/api/ventures/${id}/feedback?type=analytics_coaches`,
+      `/api/ventures/${id}/feedback?type=analytics_advisors`,
+      `/api/ventures/${id}/feedback?type=analytics_sessions`,
+      `/api/ventures/${id}/feedback?type=analytics_feedback`,
+    ];
+    const apply = (v, f, ca, aa, ss, ft) => {
       if (v.success) setVenture(v.venture);
       if (f.success) setFeedback(f.feedback || []);
       if (ca.success) setCoachAnalytics(ca.analytics || []);
       if (aa.success) setAdvisorAnalytics(aa.analytics || []);
       if (ss.success) setSessionStats(ss);
       if (ft.success) setFeedbackTrend(ft);
+    };
+    setLoading(true);
+    try {
+      // Cache-first paint: returning to this page renders instantly from
+      // fresh snapshots while the network revalidates in the background.
+      if (!bypassCache) {
+        const cached = urls.map((u) => cacheGet(u));
+        if (cached.every((c) => c !== null && c.success)) {
+          apply(cached[0], cached[1], cached[2], cached[3], cached[4], cached[5]);
+          setLoading(false);
+        }
+      }
+      const [vRes, fRes, caRes, aaRes, ssRes, ftRes] = await Promise.all(urls.map((u) => fetch(u)));
+      const v = await vRes.json(); const f = await fRes.json(); const ca = await caRes.json();
+      const aa = await aaRes.json(); const ss = await ssRes.json(); const ft = await ftRes.json();
+      if (v.success) cacheSet(urls[0], v);
+      if (f.success) cacheSet(urls[1], f);
+      if (ca.success) cacheSet(urls[2], ca);
+      if (aa.success) cacheSet(urls[3], aa);
+      if (ss.success) cacheSet(urls[4], ss);
+      if (ft.success) cacheSet(urls[5], ft);
+      apply(v, f, ca, aa, ss, ft);
     } catch {} finally { setLoading(false); }
   };
 
