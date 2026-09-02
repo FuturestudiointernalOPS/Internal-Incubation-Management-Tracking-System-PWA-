@@ -1,7 +1,7 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession, isAssignedPmForProgram } from "@/lib/auth";
+import { updateProgramAssignmentColumn } from "@/models/programs";
 
 export const PATCH = createHandler(
   { roles: ["super_admin", "program_manager", "staff"] },
@@ -26,10 +26,7 @@ export const PATCH = createHandler(
       }
     }
     const column = type === "pm" ? "assigned_pm_id" : "assigned_assistant_id";
-    await db.execute({
-      sql: `UPDATE v2_programs SET ${column} = ? WHERE id = ?`,
-      args: [contact_cid, program_id],
-    });
+    await updateProgramAssignmentColumn(column, contact_cid, program_id);
     return NextResponse.json({ success: true });
   },
 );

@@ -1,7 +1,11 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  ensureProgramFacilitatorsGroup,
+  getFacilitatorsForProgram,
+  getProgramDetailById,
+} from "@/models/programs";
 
 export const GET = createHandler(
   // Outer gate mirrors the program list endpoint's authenticated identities;
@@ -14,15 +18,7 @@ export const GET = createHandler(
     const capError = await requireAuthorization("programs", "view");
     if (capError) return capError;
     const { id } = await params;
-    const result = await db.execute({
-      sql: `SELECT p.*, c1.name as pm_name, c2.name as assistant_name, k.title as note_title
-          FROM v2_programs p
-          LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
-          LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
-          LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT)
-          WHERE p.id = ?`,
-      args: [id],
-    });
+    const result = await getProgramDetailById(id);
     if (result.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Program not found" },
@@ -33,15 +29,7 @@ export const GET = createHandler(
     // Lazy-ensure the program-level Facilitators group exists (system-defined,
     // non-participant representation of the people in v2_program_staff).
     try {
-      await db.execute({
-        sql: `INSERT INTO v2_groups (program_id, name, type, is_system)
-              SELECT ?, 'Facilitators', 'facilitators', 1
-              WHERE NOT EXISTS (
-                SELECT 1 FROM v2_groups
-                WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'
-              )`,
-        args: [String(id), String(id)],
-      });
+      await ensureProgramFacilitatorsGroup(id);
     } catch (_) {}
 
     // Program facilitators (external personnel, role='facilitator') — same
@@ -49,13 +37,7 @@ export const GET = createHandler(
     // can render assigned facilitators and prevent duplicates client-side.
     let facilitators = [];
     try {
-      const facRes = await db.execute({
-        sql: `SELECT ps.id, ps.staff_id, ps.role, ps.permissions, c.name, c.email
-              FROM v2_program_staff ps
-              LEFT JOIN contacts c ON ps.staff_id = c.cid OR LOWER(TRIM(c.email)) = LOWER(TRIM(ps.staff_id))
-              WHERE CAST(ps.program_id AS TEXT) = ? AND ps.role = 'facilitator'`,
-        args: [String(id)],
-      });
+      const facRes = await getFacilitatorsForProgram(id);
       facilitators = facRes.rows.map((r) => {
         let perms = r.permissions || {};
         if (typeof perms === "string") {
