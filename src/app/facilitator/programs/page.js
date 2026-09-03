@@ -87,11 +87,11 @@ export default function FacilitatorPrograms() {
                     {p.name}
                   </p>
                   {p.description && (
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 line-clamp-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1 line-clamp-2">
                       {p.description}
                     </p>
                   )}
-                  <div className="flex items-center gap-3 mt-2 text-[9px] font-bold text-[var(--text-secondary)] uppercase">
+                  <div className="flex items-center gap-3 mt-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <span className="flex items-center gap-1">
                       <Users className="w-3 h-3" />
                       {p.participants_count || 0} participants

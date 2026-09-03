@@ -100,7 +100,7 @@ export default function MyTasks() {
           </div>
           <button
             onClick={fetchTasks}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("developerMisc.myTasks.refresh")}
           </button>
@@ -116,7 +116,7 @@ export default function MyTasks() {
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <CheckSquare className="w-16 h-16 text-slate-500 mb-4" />
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">{t("developerMisc.myTasks.noTasks")}</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-xs font-bold text-[var(--text-secondary)] mt-1">
               {t("developerMisc.myTasks.noTasksHint")}
             </p>
           </div>
@@ -128,20 +128,20 @@ export default function MyTasks() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {task.priority && (
-                        <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                           task.priority === "critical" ? "bg-red-500/10 text-red-400" :
                           task.priority === "high" ? "bg-amber-500/10 text-amber-400" :
                           task.priority === "medium" ? "bg-blue-500/10 text-blue-400" :
                           "bg-slate-500/10 text-slate-400"
                         }`}>{task.priority}</span>
                       )}
-                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400">
                         {task.status?.replace("_", " ") || "pending"}
                       </span>
                     </div>
                     <p className="text-xs font-bold text-[var(--text-primary)] truncate">{task.title}</p>
                     {task.assigned_to && (
-                      <p className="text-[8px] font-bold text-slate-500 mt-0.5">{t("developerMisc.myTasks.assignedTo")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{t("developerMisc.myTasks.assignedTo")}</p>
                     )}
                   </div>
                   <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] shrink-0 ml-2" />

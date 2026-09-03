@@ -113,11 +113,11 @@ export default function TeacherCalendar() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
                 {t("teacherMisc.sessions.tacticalTimeline")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase italic">
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
               {t("teacherMisc.sessions.session")}{" "}
               <span className="text-[var(--text-secondary)] opacity-40">
                 {t("teacherMisc.sessions.calendar")}
@@ -178,7 +178,7 @@ export default function TeacherCalendar() {
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <span
-                            className={`text-xs font-black ${isToday ? "w-6 h-6 rounded-full bg-[var(--brand-orange)] text-black flex items-center justify-center" : "text-slate-500"}`}
+                            className={`text-xs font-black ${isToday ? "w-6 h-6 rounded-full bg-[var(--brand-orange)] text-black flex items-center justify-center" : "text-[var(--text-secondary)]"}`}
                           >
                             {day}
                           </span>
@@ -188,7 +188,7 @@ export default function TeacherCalendar() {
                           {daySessions.map((s) => (
                             <div
                               key={s.id}
-                              className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-black text-indigo-400 uppercase tracking-tighter truncate leading-none"
+                              className="p-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-[10px] font-bold text-indigo-400 uppercase tracking-tight truncate leading-none"
                             >
                               {s.title}
                             </div>
@@ -206,7 +206,7 @@ export default function TeacherCalendar() {
           {/* UPCOMING LIST */}
           <div className="space-y-6">
             <div className="ios-card bg-secondary border-[var(--border-secondary)] !p-8 shadow-sm">
-              <h3 className="text-lg font-black text-[var(--text-primary)] uppercase italic tracking-tighter mb-8 flex items-center gap-3">
+              <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter mb-8 flex items-center gap-3">
                 <Clock className="w-5 h-5 text-[var(--brand-orange)]" />{" "}
                 {t("teacher.upcomingSessions")}
               </h3>
@@ -224,17 +224,17 @@ export default function TeacherCalendar() {
                       <h4 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tighter group-hover:text-[var(--brand-orange)] transition-colors">
                         {s.title}
                       </h4>
-                      <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1 opacity-60">
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1 opacity-60">
                         {s.program_name}
                       </p>
-                      <div className="flex items-center gap-2 mt-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
+                      <div className="flex items-center gap-2 mt-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
                         <Clock className="w-3 h-3" /> {s.start_time || "00:00"}{" "}
                         - {s.end_time || "23:59"}
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase italic opacity-40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-40">
                     {t("common.noResults")}
                   </p>
                 )}

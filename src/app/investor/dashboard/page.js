@@ -296,7 +296,7 @@ export default function InvestorDashboard() {
                 <s.icon className={`w-5 h-5 ${s.color}`} />
                 <div>
                   <p className="text-2xl font-black text-[var(--text-primary)]">{s.value}</p>
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{s.label}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -371,13 +371,13 @@ export default function InvestorDashboard() {
                           <div className="flex items-start justify-between">
                             <div>
                               <h4 className="text-xs font-black text-[var(--text-primary)]">{c.venture_name || c.name}</h4>
-                              <p className="text-[9px] text-[var(--text-secondary)]">{c.name}{c.industry ? ` · ${c.industry}` : ""}</p>
+                              <p className="text-[10px] font-medium text-[var(--text-secondary)]">{c.name}{c.industry ? ` · ${c.industry}` : ""}</p>
                             </div>
-                            <span className="px-2 py-0.5 rounded text-[7px] font-black uppercase bg-emerald-500/10 text-emerald-400">Active</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">Active</span>
                           </div>
                           {c.target_raise > 0 && (
                             <div className="space-y-1">
-                              <div className="flex justify-between text-[8px]">
+                              <div className="flex justify-between text-[10px]">
                                 <span className="font-bold text-[var(--text-secondary)]">${Number(c.current_raised || 0).toLocaleString()}</span>
                                 <span className="font-black text-[var(--text-primary)]">{pct}% of ${Number(c.target_raise).toLocaleString()}</span>
                               </div>
@@ -386,7 +386,7 @@ export default function InvestorDashboard() {
                               </div>
                             </div>
                           )}
-                          <div className="flex items-center gap-3 text-[8px] text-[var(--text-tertiary)]">
+                          <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
                             {c.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5"/>{c.investor_count} interested</span>}
                             {c.opening_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>{new Date(c.opening_date).toLocaleDateString()}</span>}
                           </div>
@@ -437,40 +437,40 @@ export default function InvestorDashboard() {
             {showFilters && (
               <div className="p-4 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl space-y-3">
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("industry")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("industry")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {INDUSTRY_OPTIONS.map(ind => (
                       <button key={ind} onClick={() => { const next = filterIndustry.includes(ind) ? filterIndustry.filter(i => i !== ind) : [...filterIndustry, ind]; setFilterIndustry(next); searchVentures({industry: next}); }}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                           filterIndustry.includes(ind) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{ind}</button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("country")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("country")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {COUNTRY_OPTIONS.map(c => (
                       <button key={c} onClick={() => { const next = filterCountry.includes(c) ? filterCountry.filter(x => x !== c) : [...filterCountry, c]; setFilterCountry(next); searchVentures({country: next}); }}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                           filterCountry.includes(c) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{c}</button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("stage")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("stage")}</label>
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {STAGE_OPTIONS.map(s => (
                       <button key={s} onClick={() => { const next = filterStage.includes(s) ? filterStage.filter(x => x !== s) : [...filterStage, s]; setFilterStage(next); searchVentures({stage: next}); }}
-                        className={`px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase transition-all ${
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                           filterStage.includes(s) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{s}</button>
                     ))}
                   </div>
                 </div>
                 <div>
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("fundingRange")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("fundingRange")}</label>
                   <div className="flex gap-1 mt-1.5">
                     <input value={filterFundingMin} onChange={e => setFilterFundingMin(e.target.value)}
                       type="number" placeholder="Min"
@@ -512,12 +512,12 @@ export default function InvestorDashboard() {
                               <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{v.name}</h4>
                               <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{v.industry || "—"}{v.country ? ` · ${v.country}` : ""}</p>
                               {activeCampaign && (
-                                <span className="inline-block mt-1 mr-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-amber-500/10 text-amber-400">
+                                <span className="inline-block mt-1 mr-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">
                                   Campaign Active
                                 </span>
                               )}
                               {v.match_score > 0 && (
-                                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-black uppercase bg-emerald-500/10 text-emerald-400">
+                                <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
                                   {v.match_score}% match
                                 </span>
                               )}
@@ -568,7 +568,7 @@ export default function InvestorDashboard() {
             <div className="flex gap-2 overflow-x-auto pb-2">
               <button
                 onClick={() => setStageFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors ${
                   stageFilter === "all" ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)]"
                 }`}
               >
@@ -581,7 +581,7 @@ export default function InvestorDashboard() {
                   <button
                     key={stage}
                     onClick={() => setStageFilter(stage)}
-                    className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider whitespace-nowrap transition-colors ${
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors ${
                       stageFilter === stage ? "bg-[var(--brand-orange)] text-white" : STAGE_COLORS[stage]
                     }`}
                   >
@@ -612,12 +612,12 @@ export default function InvestorDashboard() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${STAGE_COLORS[p.stage]}`}>
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[p.stage]}`}>
                           {t(STAGE_LABELS[p.stage] || "") || p.stage}
                         </span>
                         {p.stage === "due_diligence" && (
                           <button onClick={() => router.push(`/investor/diligence?pipeline_id=${p.id}`)}
-                            className="px-3 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[9px] font-black uppercase tracking-wider hover:bg-purple-500/20">
+                            className="px-3 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20">
                             Open Workspace
                           </button>
                         )}
@@ -664,13 +664,13 @@ export default function InvestorDashboard() {
                             <div className="flex items-center gap-2">
                               <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{w.venture_name || w.venture_id}</h4>
                               {w.campaign_status === "active" && (
-                                <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase bg-amber-500/10 text-amber-400">Active</span>
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">Active</span>
                               )}
                             </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               {w.industry && <span className="text-[10px] text-[var(--text-secondary)]">{w.industry}</span>}
                               {w.country && <span className="text-[10px] text-[var(--text-tertiary)]">{w.country}</span>}
-                              {w.business_stage && <span className="px-1.5 py-0.5 rounded text-[8px] font-bold bg-[var(--surface-3)] text-[var(--text-secondary)]">{w.business_stage}</span>}
+                              {w.business_stage && <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--surface-3)] text-[var(--text-secondary)]">{w.business_stage}</span>}
                             </div>
                           </div>
                           <button onClick={() => toggleWatchlist(w.venture_id)} disabled={processingId !== null}
@@ -684,38 +684,38 @@ export default function InvestorDashboard() {
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {/* Readiness */}
                           <div className="p-2 rounded-lg bg-[var(--surface-2)]">
-                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Readiness</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Readiness</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
                                 <div className={`h-full rounded-full transition-all ${readinessPct >= 80 ? "bg-emerald-500" : readinessPct >= 50 ? "bg-amber-500" : "bg-slate-400"}`} style={{ width: `${readinessPct}%` }} />
                               </div>
-                              <span className="text-[9px] font-black text-[var(--text-primary)]">{readinessPct}%</span>
+                              <span className="text-[10px] font-bold text-[var(--text-primary)]">{readinessPct}%</span>
                             </div>
                           </div>
                           {/* Campaign funding */}
                           <div className="p-2 rounded-lg bg-[var(--surface-2)]">
-                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Funding</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Funding</p>
                             {w.campaign_id ? (
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
                                   <div className="h-full bg-[var(--brand-orange)] rounded-full transition-all" style={{ width: `${campaignPct}%` }} />
                                 </div>
-                                <span className="text-[9px] font-black text-[var(--text-primary)]">{campaignPct}%</span>
+                                <span className="text-[10px] font-bold text-[var(--text-primary)]">{campaignPct}%</span>
                               </div>
                             ) : (
-                              <p className="text-[9px] text-[var(--text-tertiary)] mt-0.5">—</p>
+                              <p className="text-[10px] font-medium text-[var(--text-tertiary)] mt-0.5">—</p>
                             )}
                           </div>
                           {/* Investor interest */}
                           <div className="p-2 rounded-lg bg-[var(--surface-2)]">
-                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">Interest</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Interest</p>
                             <p className="text-xs font-bold text-[var(--text-primary)] mt-0.5">{w.investor_count || 0} investors</p>
                           </div>
                         </div>
 
                         {/* Campaign detail if active */}
                         {w.campaign_id && w.target_raise > 0 && (
-                          <div className="flex items-center justify-between text-[9px] px-2 py-1.5 rounded-lg bg-[var(--surface-2)]">
+                          <div className="flex items-center justify-between text-[10px] px-2 py-1.5 rounded-lg bg-[var(--surface-2)]">
                             <span className="text-[var(--text-secondary)]">{w.campaign_name}: <b className="text-[var(--text-primary)]">${Number(w.current_raised || 0).toLocaleString()}</b> / ${Number(w.target_raise).toLocaleString()}</span>
                             {w.closing_date && <span className="text-[var(--text-tertiary)]">Closes {new Date(w.closing_date).toLocaleDateString()}</span>}
                           </div>
@@ -724,11 +724,11 @@ export default function InvestorDashboard() {
                         {/* Actions */}
                         <div className="flex items-center gap-2 pt-1 border-t border-[var(--border-primary)]">
                           <button onClick={() => openVentureDetail({ id: w.venture_id, name: w.venture_name, industry: w.industry, country: w.country, business_stage: w.business_stage, description: w.description, funding_requirement: w.funding_requirement, completion_index: w.completion_index, investor_interest_count: w.investor_count })}
-                            className="flex items-center gap-1 text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline">
+                            className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline">
                             <Eye className="w-3 h-3" /> View
                           </button>
                           <button onClick={() => { setIntroVenture({ id: w.venture_id, name: w.venture_name }); setIntroMessage(""); setShowIntroModal(true); }}
-                            className="flex items-center gap-1 text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wider hover:text-[var(--brand-orange)] transition-colors">
+                            className="flex items-center gap-1 text-[10px] font-bold text-[var(--text-primary)] uppercase tracking-wide hover:text-[var(--brand-orange)] transition-colors">
                             <Send className="w-3 h-3" /> Request Intro
                           </button>
                           <AppButton variant="secondary" size="sm" disabled={processingId !== null}
@@ -760,7 +760,7 @@ export default function InvestorDashboard() {
                   Future Studio will review your request and coordinate the introduction.
                 </p>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Investment Interest Statement</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Investment Interest Statement</label>
                   <textarea value={introMessage} onChange={e => setIntroMessage(e.target.value)}
                     rows={3} placeholder="Briefly describe why you are interested in this opportunity..."
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
@@ -810,7 +810,7 @@ export default function InvestorDashboard() {
                     <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 space-y-3">
                       <div className="flex items-center gap-2">
                         <Megaphone className="w-4 h-4 text-emerald-400" />
-                        <span className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">Active Campaign: {c.name}</span>
+                        <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Active Campaign: {c.name}</span>
                       </div>
                       {c.target_raise > 0 && (
                         <div className="space-y-1">
@@ -830,13 +830,13 @@ export default function InvestorDashboard() {
                           { label: "Active DD", value: c.active_dd_count || 0 },
                         ].map((m, i) => (
                           <div key={i} className="p-2 rounded-lg bg-[var(--surface-2)] text-center">
-                            <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{m.label}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{m.label}</p>
                             <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">{m.value}</p>
                           </div>
                         ))}
                       </div>
                       {c.closing_date && (
-                        <p className="text-[9px] text-[var(--text-tertiary)]">Closing: {new Date(c.closing_date).toLocaleDateString()}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-tertiary)]">Closing: {new Date(c.closing_date).toLocaleDateString()}</p>
                       )}
                     </div>
                   );
@@ -852,16 +852,16 @@ export default function InvestorDashboard() {
                     { label: "Interest", value: `${detailVenture.investor_interest_count || 0} investors` },
                   ].map((m, i) => (
                     <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                      <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{m.label}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{m.label}</p>
                       <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{m.value}</p>
                     </div>
                   ))}
                 </div>
                 {detailPipeline ? (
                   <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)]">
-                    <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-2">Your Pipeline Status</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">Your Pipeline Status</p>
                     <div className="flex items-center gap-3">
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${STAGE_COLORS[detailPipeline.stage]}`}>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[detailPipeline.stage]}`}>
                         {t(STAGE_LABELS[detailPipeline.stage] || "")}
                       </span>
                       <select value={detailPipeline.stage}
@@ -922,8 +922,8 @@ export default function InvestorDashboard() {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead><tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left px-6 py-3 text-[9px] font-black text-[var(--text-secondary)] uppercase w-32">Metric</th>
-                    {compareList.map(v => <th key={v.id} className="text-left px-6 py-3 text-[9px] font-black text-[var(--brand-orange)] uppercase">{v.name}</th>)}
+                    <th className="text-left px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] w-32">Metric</th>
+                    {compareList.map(v => <th key={v.id} className="text-left px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] uppercase">{v.name}</th>)}
                   </tr></thead>
                   <tbody className="divide-y divide-[var(--border-primary)]">
                     {[

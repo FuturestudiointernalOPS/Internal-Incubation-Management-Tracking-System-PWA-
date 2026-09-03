@@ -99,11 +99,11 @@ export default function StaffDashboard() {
         <header className="space-y-4">
           <div className="flex items-center gap-4">
             <Star className="w-5 h-5 text-[#FF6600]" />
-            <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">
+            <span className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">
               {t("staffMisc.dashboard.tacticalFacultyHub")}
             </span>
           </div>
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter uppercase italic leading-none">
+          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-tighter uppercase leading-none">
             {t("staffMisc.dashboard.commandOverview")}
           </h2>
           <p className="text-slate-400 font-bold max-w-xl opacity-70">
@@ -122,19 +122,19 @@ export default function StaffDashboard() {
         <div className="card">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+            <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
               {t("staffMisc.dashboard.nextTasksTitle")}
             </h3>
           </div>
           {tasksLoading ? (
             <div className="flex items-center gap-3 py-4">
               <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.dashboard.loadingTasks")}
               </span>
             </div>
           ) : upcomingTasks.length === 0 ? (
-            <p className="text-[10px] text-slate-600 italic py-4">
+            <p className="text-sm text-[var(--text-secondary)] py-4">
               {t("staffMisc.dashboard.noUpcomingTasks")}
             </p>
           ) : (
@@ -147,17 +147,17 @@ export default function StaffDashboard() {
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                      <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                         {task.title}
                       </p>
                       {task.start_date && (
-                        <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5">
                           {new Date(task.start_date).toLocaleDateString()}
                         </p>
                       )}
                     </div>
                   </div>
-                  <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 uppercase tracking-wider shrink-0 ml-2">
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 shrink-0 ml-2">
                     {task.status}
                   </span>
                 </div>
@@ -170,10 +170,10 @@ export default function StaffDashboard() {
           {/* ASSIGNED PROGRAMS */}
           <div className="xl:col-span-2 space-y-8">
             <div className="flex justify-between items-end">
-              <h3 className="text-xl font-black text-white uppercase italic tracking-widest">
+              <h3 className="text-xl font-black text-white uppercase tracking-widest">
                 {t("staffMisc.dashboard.activeAssignments")}
               </h3>
-              <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
+              <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                 {t("staffMisc.dashboard.programClustersCount", {
                   count: assignments.length,
                 })}
@@ -187,24 +187,24 @@ export default function StaffDashboard() {
                 >
                   <div className="flex justify-between items-start">
                     <div
-                      className={`px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${assign.role === "group_leader" ? "bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20" : "bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20"}`}
+                      className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border ${assign.role === "group_leader" ? "bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20" : "bg-[#FF6600]/10 text-[#FF6600] border-[#FF6600]/20"}`}
                     >
                       {assign.role.replace("_", " ")}
                     </div>
                     <Activity className="w-5 h-5 text-slate-800 group-hover:text-[#FF6600] transition-colors" />
                   </div>
                   <div>
-                    <h4 className="text-3xl font-black text-white uppercase italic tracking-tighter leading-none mb-4">
+                    <h4 className="text-3xl font-black text-white uppercase tracking-tighter leading-none mb-4">
                       {assign.program_name}
                     </h4>
-                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                       {t("staffMisc.dashboard.statusLabel", {
                         status: assign.program_status,
                       })}
                     </p>
                   </div>
                   <div className="pt-6 border-t border-white/5 flex justify-between items-center">
-                    <span className="text-[10px] font-black text-slate-700 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
                       {t("staffMisc.dashboard.viewProgramLogic")}
                     </span>
                     <ArrowRight className="w-4 h-4 text-slate-800" />
@@ -216,7 +216,7 @@ export default function StaffDashboard() {
 
           {/* PENDING INTERCEPTIONS (Submissions) */}
           <div className="space-y-8">
-            <h3 className="text-xl font-black text-white uppercase italic tracking-widest">
+            <h3 className="text-xl font-black text-white uppercase tracking-widest">
               {t("staffMisc.dashboard.pendingSignals")}
             </h3>
             <div className="space-y-4">
@@ -228,26 +228,26 @@ export default function StaffDashboard() {
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-3">
                       <div className="w-2 h-2 rounded-full bg-[#FF6600] shadow-[0_0_10px_rgba(255,102,0,0.5)]" />
-                      <span className="text-[10px] font-black text-white uppercase tracking-widest italic">
+                      <span className="text-[10px] font-bold text-white uppercase tracking-widest">
                         {t("staffMisc.dashboard.newSubmission")}
                       </span>
                     </div>
-                    <span className="text-[9px] font-bold text-slate-700">
+                    <span className="text-[10px] font-medium text-slate-700">
                       {timeAgo(sub.created_at)}
                     </span>
                   </div>
-                  <p className="text-[12px] font-bold text-slate-400 leading-relaxed italic">
+                  <p className="text-[12px] font-bold text-slate-400 leading-relaxed">
                     {t("staffMisc.dashboard.submissionPrompt", {
                       cid: sub.participant_id.slice(0, 8),
                     })}
                   </p>
-                  <button className="w-full py-4 bg-white/5 text-white font-black uppercase text-[9px] tracking-[0.3em] rounded-xl group-hover:bg-[#FF6600] group-hover:text-black transition-all">
+                  <button className="w-full py-4 bg-white/5 text-white font-bold uppercase text-sm tracking-wide rounded-xl group-hover:bg-[#FF6600] group-hover:text-black transition-all">
                     {t("staffMisc.dashboard.interceptEvaluate")}
                   </button>
                 </div>
               ))}
               {pendingSubmissions.length === 0 && (
-                <div className="ios-card border-dashed py-32 text-center italic text-slate-700 text-[11px] uppercase tracking-widest opacity-40">
+                <div className="ios-card border-dashed py-32 text-center text-slate-700 text-[11px] uppercase tracking-widest opacity-40">
                   {t("staffMisc.dashboard.noPendingSignals")}
                 </div>
               )}

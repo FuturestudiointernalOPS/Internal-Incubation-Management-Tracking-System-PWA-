@@ -852,7 +852,7 @@ export default function TeamDashboardPage({ params }) {
                           <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                             {m.name || t("rootMisc.team.unnamed")}
                           </p>
-                          <p className="text-[9px] text-[var(--text-tertiary)] truncate">
+                          <p className="text-[10px] font-medium text-[var(--text-tertiary)] truncate">
                             {m.email || ""}
                           </p>
                         </div>
@@ -880,7 +880,7 @@ export default function TeamDashboardPage({ params }) {
                         <p className="text-xs font-bold text-[var(--text-primary)]">
                           {d.title}
                         </p>
-                        <p className="text-[9px] text-[var(--text-tertiary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                           {t("rootMisc.team.week")} {d.week_number || "?"}
                         </p>
                       </div>
@@ -923,7 +923,7 @@ export default function TeamDashboardPage({ params }) {
                               {d.title}
                             </h4>
                             {isOverdue && (
-                              <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-[9px] font-black text-rose-500 uppercase">
+                              <span className="px-2 py-0.5 rounded-md bg-rose-500/10 text-[10px] font-bold uppercase text-rose-500">
                                 {t("rootMisc.team.overdue")}
                               </span>
                             )}
@@ -962,7 +962,7 @@ export default function TeamDashboardPage({ params }) {
                                 </a>
                               )}
                               {sub.feedback && (
-                                <p className="text-[10px] text-[var(--text-secondary)] mt-2 italic">
+                                <p className="text-[10px] text-[var(--text-secondary)] mt-2">
                                   {t("rootMisc.team.feedback")}: {sub.feedback}
                                 </p>
                               )}
@@ -1139,10 +1139,10 @@ export default function TeamDashboardPage({ params }) {
                         <col.icon
                           className={`w-4 h-4 text-${col.accent}-500`}
                         />
-                        <span className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {col.label}
                         </span>
-                        <span className="text-[9px] font-bold text-[var(--text-tertiary)]">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
                           {colTasks.length}
                         </span>
                       </div>
@@ -1214,12 +1214,12 @@ export default function TeamDashboardPage({ params }) {
                                 )}
                                 <div className="flex items-center gap-2 flex-wrap">
                                   <span
-                                    className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${pc.bg} ${pc.text}`}
+                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${pc.bg} ${pc.text}`}
                                   >
                                     {task.priority}
                                   </span>
                                   {task.assigned_name && (
-                                    <span className="text-[9px] font-medium text-[var(--text-secondary)]">
+                                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                                       {task.assigned_name}
                                     </span>
                                   )}
@@ -1279,7 +1279,7 @@ export default function TeamDashboardPage({ params }) {
                         <p className="text-xs font-bold text-[var(--text-primary)]">
                           {t("rootMisc.team.pitchDeck")}
                         </p>
-                        <p className="text-[9px] text-[var(--text-tertiary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                           {t("rootMisc.team.viewPresentation")}
                         </p>
                       </div>
@@ -1302,7 +1302,7 @@ export default function TeamDashboardPage({ params }) {
                         <p className="text-xs font-bold text-[var(--text-primary)]">
                           {t("rootMisc.team.liveDemo")}
                         </p>
-                        <p className="text-[9px] text-[var(--text-tertiary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                           {t("rootMisc.team.openApplication")}
                         </p>
                       </div>
@@ -1325,7 +1325,7 @@ export default function TeamDashboardPage({ params }) {
                         <p className="text-xs font-bold text-[var(--text-primary)]">
                           {t("rootMisc.team.resources")}
                         </p>
-                        <p className="text-[9px] text-[var(--text-tertiary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                           {t("rootMisc.team.sharedMaterials")}
                         </p>
                       </div>
@@ -1360,7 +1360,7 @@ export default function TeamDashboardPage({ params }) {
                                 {deliverables.find((d) => d.id === delId)
                                   ?.title || t("rootMisc.team.file")}
                               </p>
-                              <p className="text-[9px] text-[var(--text-tertiary)]">
+                              <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                                 {fmtDate(s.created_at)}
                               </p>
                             </div>
@@ -1420,7 +1420,7 @@ export default function TeamDashboardPage({ params }) {
                             <p className="text-xs font-bold text-[var(--text-primary)]">
                               {d.title}
                             </p>
-                            <p className="text-[9px] text-[var(--text-tertiary)]">
+                            <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                               {t("rootMisc.team.week")} {d.week_number || "?"}
                               {d.description ? ` — ${d.description}` : ""}
                             </p>
@@ -1480,7 +1480,7 @@ export default function TeamDashboardPage({ params }) {
                               {deliverables.find((d) => d.id === s._delId)
                                 ?.title || t("rootMisc.team.submission")}
                             </p>
-                            <p className="text-[9px] text-[var(--text-tertiary)]">
+                            <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                               {fmtDate(s.created_at)}
                             </p>
                           </div>
@@ -1535,7 +1535,7 @@ export default function TeamDashboardPage({ params }) {
 
                 {/* File Upload */}
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("rootMisc.team.uploadFile")}
                   </label>
                   <div className="relative">
@@ -1574,7 +1574,7 @@ export default function TeamDashboardPage({ params }) {
 
                 {/* Or Link */}
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("rootMisc.team.orPasteLink")}
                   </label>
                   <input
@@ -1668,7 +1668,7 @@ export default function TeamDashboardPage({ params }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("rootMisc.team.feedback")}
                   </label>
                   <textarea
@@ -1682,7 +1682,7 @@ export default function TeamDashboardPage({ params }) {
 
                 {showFollowUpModal && (
                   <div className="space-y-2 p-3 rounded-xl bg-[var(--surface-3)]">
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("rootMisc.team.scheduleFollowUp")}
                     </label>
                     <input
@@ -1779,7 +1779,7 @@ export default function TeamDashboardPage({ params }) {
               </div>
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("rootMisc.team.title")}
                   </label>
                   <input
@@ -1792,7 +1792,7 @@ export default function TeamDashboardPage({ params }) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("rootMisc.team.description")}
                   </label>
                   <textarea
@@ -1807,7 +1807,7 @@ export default function TeamDashboardPage({ params }) {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("rootMisc.team.priority")}
                     </label>
                     <select
@@ -1824,7 +1824,7 @@ export default function TeamDashboardPage({ params }) {
                     </select>
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("rootMisc.team.assignTo")}
                     </label>
                     <select

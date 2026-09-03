@@ -134,7 +134,7 @@ export default function InvestmentHistoryPage() {
                 <s.icon className={`w-5 h-5 ${s.color}`} />
                 <div>
                   <p className="text-xl font-black text-[var(--text-primary)]">{s.value}</p>
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{s.label}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -157,7 +157,7 @@ export default function InvestmentHistoryPage() {
                   </div>
                   <div className="flex items-center gap-3 text-right">
                     <div>
-                      <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${DECISION_COLORS[d.decision_type] || "bg-slate-500/10 text-slate-400"}`}>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${DECISION_COLORS[d.decision_type] || "bg-slate-500/10 text-slate-400"}`}>
                         {t(DECISION_LABELS[d.decision_type] || d.decision_type)}
                       </span>
                       {d.investment_amount && (
@@ -193,7 +193,7 @@ export default function InvestmentHistoryPage() {
                         </p>
                         {h.notes && <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">{h.notes}</p>}
                         {h.decision_type && (
-                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[8px] font-black uppercase ${DECISION_COLORS[h.decision_type]}`}>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${DECISION_COLORS[h.decision_type]}`}>
                             {t(DECISION_LABELS[h.decision_type])}
                             {h.investment_amount ? ` — $${Number(h.investment_amount).toLocaleString()}` : ""}
                           </span>

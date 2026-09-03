@@ -91,24 +91,24 @@ export default function ParticipantDashboard() {
                   <Target className="w-5 h-5 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("participant.activeSession")}
                   </p>
                   <p className="text-sm font-black text-[var(--text-primary)]">
                     {primaryProgram.name}
                   </p>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-[9px] font-bold text-[var(--brand-orange)]">
+                    <span className="text-[10px] font-bold text-[var(--brand-orange)]">
                       {t("participant.week")} {primaryProgram.currentWeek}
                       {primaryProgram.durationWeeks
                         ? ` / ${primaryProgram.durationWeeks}`
                         : ""}
                     </span>
-                    <span className="text-[9px] font-bold text-[var(--text-tertiary)]">
+                    <span className="text-[10px] font-bold text-[var(--text-tertiary)]">
                       {primaryProgram.cohort}
                     </span>
                     <span
-                      className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${
+                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                         primaryProgram.metrics?.percentComplete >= 80
                           ? "text-emerald-400 bg-emerald-500/10"
                           : "text-amber-400 bg-amber-500/10"
@@ -122,7 +122,7 @@ export default function ParticipantDashboard() {
               </div>
               <Link
                 href={`/participant/${primaryProgram.id}`}
-                className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] hover:gap-2 transition-all"
+                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:gap-2 transition-all"
               >
                 {t("participant.details")} <ChevronRight className="w-3 h-3" />
               </Link>
@@ -140,7 +140,7 @@ export default function ParticipantDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Bell className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                  <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                     {t("participant.announcements")}
                   </span>
                 </div>
@@ -160,12 +160,12 @@ export default function ParticipantDashboard() {
                             {item.title}
                           </p>
                           {item.message && (
-                            <p className="text-[9px] text-[var(--text-secondary)] mt-1 line-clamp-2">
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 line-clamp-2">
                               {item.message}
                             </p>
                           )}
                         </div>
-                        <span className="text-[7px] text-[var(--text-tertiary)] shrink-0 whitespace-nowrap">
+                        <span className="text-[10px] font-medium text-[var(--text-tertiary)] shrink-0 whitespace-nowrap">
                           {item.createdAt
                             ? new Date(item.createdAt).toLocaleDateString()
                             : ""}
@@ -198,7 +198,7 @@ export default function ParticipantDashboard() {
               <div className="space-y-3">
                 {actionCenter.overdue?.length > 0 && (
                   <div className="card border-l-4 border-l-rose-500 !py-3 !px-4">
-                    <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500 mb-2">
                       {t("participant.overdue") || "Overdue"} ({actionCenter.overdue.length})
                     </p>
                     <div className="space-y-1.5">
@@ -209,7 +209,7 @@ export default function ParticipantDashboard() {
                         >
                           <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
                           <span className="truncate">{item.title}</span>
-                          <span className="text-[7px] text-rose-500 shrink-0">
+                          <span className="text-[10px] text-rose-500 shrink-0">
                             {item.daysOverdue}d {t("participant.overdue") || "overdue"}
                           </span>
                         </div>
@@ -220,7 +220,7 @@ export default function ParticipantDashboard() {
 
                 {actionCenter.dueSoon?.length > 0 && (
                   <div className="card border-l-4 border-l-amber-500 !py-3 !px-4">
-                    <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500 mb-2">
                       {t("participant.dueSoon") || "Due This Week"} ({actionCenter.dueSoon.length})
                     </p>
                     <div className="space-y-1.5">
@@ -231,7 +231,7 @@ export default function ParticipantDashboard() {
                         >
                           <Clock className="w-3 h-3 text-amber-500 shrink-0" />
                           <span className="truncate">{item.title}</span>
-                          <span className="text-[7px] text-amber-500 shrink-0">
+                          <span className="text-[10px] text-amber-500 shrink-0">
                             {item.daysLeft}d left
                           </span>
                         </div>
@@ -242,7 +242,7 @@ export default function ParticipantDashboard() {
 
                 {actionCenter.pendingSubmissions?.length > 0 && (
                   <div className="card border-l-4 border-l-blue-500 !py-3 !px-4">
-                    <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500 mb-2">
                       {t("participant.pending") || "Pending Review"} ({actionCenter.pendingSubmissions.length})
                     </p>
                     <div className="space-y-1.5">
@@ -257,7 +257,7 @@ export default function ParticipantDashboard() {
                             <span className="truncate">
                               Deliverable #{item.deliverableId}
                             </span>
-                            <span className="text-[7px] text-blue-500 shrink-0">
+                            <span className="text-[10px] text-blue-500 shrink-0">
                               {item.status}
                             </span>
                           </div>
@@ -269,7 +269,7 @@ export default function ParticipantDashboard() {
                 {/* Upcoming Sessions */}
                 {actionCenter.upcomingSessions?.length > 0 && (
                   <div className="card border-l-4 border-l-emerald-500 !py-3 !px-4">
-                    <p className="text-[8px] font-black text-emerald-500 uppercase tracking-widest mb-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-500 mb-2">
                       {t("participant.upcomingDeadlines") || "Upcoming Sessions"} ({actionCenter.upcomingSessions.length})
                     </p>
                     <div className="space-y-1.5">
@@ -280,7 +280,7 @@ export default function ParticipantDashboard() {
                         >
                           <BookOpen className="w-3 h-3 text-emerald-500 shrink-0" />
                           <span className="truncate">{item.title}</span>
-                          <span className="text-[7px] text-emerald-500 shrink-0">
+                          <span className="text-[10px] text-emerald-500 shrink-0">
                             {item.date
                               ? new Date(item.date).toLocaleDateString()
                               : ""}

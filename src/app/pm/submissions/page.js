@@ -40,7 +40,7 @@ function StatusBadge({ status }) {
     "bg-slate-500/10 text-slate-400 border-slate-500/20";
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
     >
       {status
         ? labels[status.toLowerCase()] || status.replace(/_/g, " ")
@@ -194,7 +194,7 @@ export default function PMSubmissions() {
           </div>
           <button
             onClick={fetchSubmissions}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("pmMisc.submissions.refresh")}
           </button>
@@ -260,7 +260,7 @@ export default function PMSubmissions() {
                 ? t("pmMisc.submissions.noMatches")
                 : t("pmMisc.submissions.noSubmissionsYet")}
             </p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-xs font-bold text-[var(--text-secondary)] mt-1">
               {search || filterStatus !== "all"
                 ? t("pmMisc.submissions.tryDifferentFilters")
                 : t("pmMisc.submissions.submissionsWillAppear")}
@@ -295,7 +295,7 @@ export default function PMSubmissions() {
                               sub.participant_id ||
                               t("pmMisc.submissions.unknown")}
                           </p>
-                          <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {sub.participant_group || sub.participant_id
                               ? t("pmMisc.submissions.groupWithName", {
                                   group: sub.participant_group || "—",
@@ -306,7 +306,7 @@ export default function PMSubmissions() {
                       </div>
                       <StatusBadge status={sub.status} />
                     </div>
-                    <p className="text-[8px] text-slate-500 mt-3">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-3">
                       {t("pmMisc.submissions.submitted")}{" "}
                       {sub.created_at
                         ? new Date(sub.created_at).toLocaleDateString()
@@ -324,7 +324,7 @@ export default function PMSubmissions() {
                           })}
                       </h3>
                       <div className="flex flex-wrap items-center gap-3 mt-2">
-                        <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                           <Briefcase className="w-3 h-3" />{" "}
                           {sub.program_name ||
                             t("pmMisc.submissions.programWithId", {
@@ -332,7 +332,7 @@ export default function PMSubmissions() {
                             })}
                         </span>
                         {sub.deliverable_week && (
-                          <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                             <Calendar className="w-3 h-3" />{" "}
                             {t("pmMisc.submissions.week", {
                               week: sub.deliverable_week,
@@ -347,7 +347,7 @@ export default function PMSubmissions() {
                           href={sub.file_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500/10 text-blue-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-blue-500/20 transition-all"
                         >
                           <ExternalLink className="w-3 h-3" />{" "}
                           {t("pmMisc.submissions.viewFile")}
@@ -357,7 +357,7 @@ export default function PMSubmissions() {
                         <>
                           <button
                             onClick={() => setReviewModal(sub)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                           >
                             <Shield className="w-3 h-3" />{" "}
                             {sub.grading_mode === "graded"
@@ -366,7 +366,7 @@ export default function PMSubmissions() {
                           </button>
                           <button
                             onClick={() => setScheduleModal(sub)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                           >
                             <Calendar className="w-3 h-3" />{" "}
                             {t("pmMisc.submissions.scheduleReview")}
@@ -374,7 +374,7 @@ export default function PMSubmissions() {
                         </>
                       )}
                       {sub.status !== "pending" && (
-                        <span className="text-[8px] text-slate-500 italic ml-auto">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
                           {t("pmMisc.submissions.reviewed")}{" "}
                           {sub.reviewed_at
                             ? new Date(sub.reviewed_at).toLocaleDateString()
@@ -413,7 +413,7 @@ export default function PMSubmissions() {
             </div>
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.participant")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
@@ -421,7 +421,7 @@ export default function PMSubmissions() {
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.deliverable")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
@@ -445,7 +445,7 @@ export default function PMSubmissions() {
                 </a>
               )}
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.feedback")}
                 </label>
                 <textarea
@@ -463,7 +463,7 @@ export default function PMSubmissions() {
                   <button
                     onClick={() => handleReview(reviewModal.id, "approved")}
                     disabled={actionLoading}
-                    className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <CheckCircle2 className="w-4 h-4" />{" "}
                     {t("pmMisc.submissions.approve")}
@@ -473,7 +473,7 @@ export default function PMSubmissions() {
                       handleReview(reviewModal.id, "revision_requested")
                     }
                     disabled={actionLoading}
-                    className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-blue-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <RefreshCw className="w-4 h-4" />{" "}
                     {t("pmMisc.submissions.requestRevision")}
@@ -481,7 +481,7 @@ export default function PMSubmissions() {
                   <button
                     onClick={() => handleReview(reviewModal.id, "rejected")}
                     disabled={actionLoading}
-                    className="flex-1 py-3 bg-rose-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                    className="flex-1 py-3 bg-rose-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <X className="w-4 h-4" /> {t("pmMisc.submissions.reject")}
                   </button>
@@ -490,7 +490,7 @@ export default function PMSubmissions() {
                 <button
                   onClick={() => handleReview(reviewModal.id, "reviewed")}
                   disabled={actionLoading}
-                  className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-emerald-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   <CheckCircle2 className="w-4 h-4" />{" "}
                   {t("pmMisc.submissions.submitFeedback")}
@@ -524,7 +524,7 @@ export default function PMSubmissions() {
             </div>
             <div className="space-y-3">
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.participant")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
@@ -533,7 +533,7 @@ export default function PMSubmissions() {
                 </p>
               </div>
               <div className="p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.deliverable")}
                 </p>
                 <p className="text-sm font-bold mt-0.5">
@@ -544,7 +544,7 @@ export default function PMSubmissions() {
                 </p>
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.eventTitle")}
                 </label>
                 <input
@@ -555,7 +555,7 @@ export default function PMSubmissions() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.submissions.startTime")}
                 </label>
                 <input
@@ -566,7 +566,7 @@ export default function PMSubmissions() {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1.5">
                   <MapPin className="w-3 h-3" /> {t("pmMisc.submissions.location")}
                 </label>
                 <input
@@ -609,7 +609,7 @@ export default function PMSubmissions() {
                     console.error("Failed to schedule review", err);
                   }
                 }}
-                className="flex-1 py-3 bg-purple-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
+                className="flex-1 py-3 bg-purple-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 <Calendar className="w-4 h-4" /> {t("pmMisc.submissions.schedule")}
               </button>

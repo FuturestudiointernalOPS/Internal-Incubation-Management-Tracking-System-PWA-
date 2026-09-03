@@ -111,7 +111,7 @@ export default function FacilitatorReviews() {
                     {t("pmMisc.facilitators.weeklyReview.title")} #{r.id}
                   </p>
                   <span
-                    className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                       r.pm_decision === "changes_requested"
                         ? "bg-rose-500/15 text-rose-400"
                         : r.status === "decided"
@@ -122,7 +122,7 @@ export default function FacilitatorReviews() {
                     {statusLabel(r)}
                   </span>
                 </div>
-                <p className="text-[9px] text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("pmMisc.facilitators.weeklyReview.submittedAt", {
                     date: new Date(r.created_at).toLocaleString(),
                   })}{" "}
@@ -130,7 +130,7 @@ export default function FacilitatorReviews() {
                   {r.week_number || "—"} · Program {r.program_id}
                 </p>
                 {(r.overall_rating || r.participant_progress) && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.overall")}:
                     </strong>{" "}
@@ -138,7 +138,7 @@ export default function FacilitatorReviews() {
                   </p>
                 )}
                 {r.engagement && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.engagement")}:
                     </strong>{" "}
@@ -146,7 +146,7 @@ export default function FacilitatorReviews() {
                   </p>
                 )}
                 {(r.went_well || r.completed_work) && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.wentWell")}:
                     </strong>{" "}
@@ -154,7 +154,7 @@ export default function FacilitatorReviews() {
                   </p>
                 )}
                 {(r.struggles || r.challenges) && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.struggles")}:
                     </strong>{" "}
@@ -162,7 +162,7 @@ export default function FacilitatorReviews() {
                   </p>
                 )}
                 {(r.needs_attention_type || r.needs_attention || r.needs_attention_note) && (
-                  <div className="text-[9px] text-[var(--text-secondary)]">
+                  <div className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <p>
                       <strong className="text-[var(--text-primary)]">
                         {t("pmMisc.facilitators.weeklyReview.needsAttention")}:
@@ -175,7 +175,7 @@ export default function FacilitatorReviews() {
                   </div>
                 )}
                 {(r.focus_next_week || r.recommendations) && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.focusNextWeek")}:
                     </strong>{" "}
@@ -183,7 +183,7 @@ export default function FacilitatorReviews() {
                   </p>
                 )}
                 {r.additional_notes && (
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     <strong className="text-[var(--text-primary)]">
                       {t("pmMisc.facilitators.weeklyReview.additionalNotes")}:
                     </strong>{" "}
@@ -195,11 +195,11 @@ export default function FacilitatorReviews() {
                     <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
                       {t("pmMisc.facilitators.weeklyReview.decision")}
                     </p>
-                    <p className="text-[9px] text-[var(--text-primary)]">
+                    <p className="text-[10px] font-medium text-[var(--text-primary)]">
                       {r.pm_decision}
                     </p>
                     {r.pm_decision_note && (
-                      <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                         {r.pm_decision_note}
                       </p>
                     )}

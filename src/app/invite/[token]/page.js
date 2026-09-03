@@ -77,7 +77,7 @@ export default function InviteAcceptPage({ params }) {
           <CheckCircle className="w-16 h-16 text-emerald-500 mx-auto" />
           <h1 className="text-2xl font-black text-white uppercase tracking-tighter">{t("rootMisc.invite.registrationComplete")}</h1>
           <p className="text-slate-400 text-sm">{t("rootMisc.invite.joinedSuccess")}{" "}<strong className="text-white">{invite?.program_name || t("rootMisc.invite.theProgram")}</strong>.</p>
-          <button onClick={() => router.push('/login')} className="px-8 py-3 bg-[#FF6600] text-black font-black uppercase tracking-widest rounded-xl text-sm hover:bg-white transition-all">
+          <button onClick={() => router.push('/login')} className="px-8 py-3 bg-[#FF6600] text-black font-bold uppercase tracking-wide rounded-xl text-sm hover:bg-white transition-all">
             {t("rootMisc.invite.goToLogin")}
           </button>
         </motion.div>

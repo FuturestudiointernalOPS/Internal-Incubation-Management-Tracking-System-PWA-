@@ -154,7 +154,7 @@ export default function DeveloperProjects() {
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">
                         {inv.project_name || t("developerMisc.projects.defaultProject")}
                       </h3>
-                      <p className="text-[9px] text-slate-500 mt-1">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                         {t("developerMisc.projects.invitedYou")}
                       </p>
                     </div>
@@ -164,7 +164,7 @@ export default function DeveloperProjects() {
                           handleInvitationResponse(inv.id, "decline")
                         }
                         disabled={responding === inv.id}
-                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("developerMisc.projects.decline")}
                       </button>
@@ -173,7 +173,7 @@ export default function DeveloperProjects() {
                           handleInvitationResponse(inv.id, "accept")
                         }
                         disabled={responding === inv.id}
-                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("developerMisc.projects.accept")}
                       </button>
@@ -201,7 +201,7 @@ export default function DeveloperProjects() {
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
               {t("developerMisc.projects.noProjects")}
             </p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-xs font-bold text-[var(--text-secondary)] mt-1">
               {t("developerMisc.projects.noProjectsHint")}
             </p>
           </div>
@@ -221,7 +221,7 @@ export default function DeveloperProjects() {
                 <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight mb-1">
                   {project.name || t("developerMisc.projects.untitledProject")}
                 </h3>
-                <p className="text-[10px] font-bold text-slate-500">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                   {project.status || "active"}
                 </p>
               </div>

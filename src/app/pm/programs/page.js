@@ -136,18 +136,18 @@ export default function PMProgramsRegistry() {
         <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[var(--border-primary)] pb-10">
           <div>
             <div className="flex items-center gap-4 mb-4 text-left">
-              <span className="text-[#FF6600] font-black text-[10px] uppercase tracking-[0.4em]">
+              <span className="text-[#FF6600] font-bold text-[10px] uppercase tracking-widest">
                 {t("pm.dashboard")}
               </span>
               <div className="h-px w-10 bg-[#FF6600]/30" />
-              <span className="badge badge-glow-blue uppercase text-[8px] font-black italic">
+              <span className="badge badge-glow-blue uppercase text-[10px] font-bold">
                 {t("status.active")}
               </span>
             </div>
-            <h2 className="text-3xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-none italic">
+            <h2 className="text-3xl sm:text-5xl font-black text-[var(--text-primary)] tracking-tighter uppercase leading-none">
               {t("pm.programs")}
             </h2>
-            <p className="text-[var(--text-secondary)] font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60 italic">
+            <p className="text-[var(--text-secondary)] font-bold mt-4 uppercase text-[10px] tracking-widest opacity-60">
               {t("pm.programs")}
             </p>
           </div>
@@ -195,10 +195,10 @@ export default function PMProgramsRegistry() {
           <section className="ios-card bg-secondary border-[var(--border-primary)] !p-6 overflow-hidden shadow-2xl relative">
             <div className="flex items-center gap-2 mb-4">
               <ListTodo className="w-4 h-4 text-blue-400" />
-              <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter italic">
+              <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter">
                 {t("dashboard.myTasks", "Mes Tâches")}
               </h3>
-              <span className="text-[10px] font-bold text-slate-500 ml-auto">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
                 {tasks.length} {t("common.total", "au total")}
               </span>
             </div>
@@ -231,7 +231,7 @@ export default function PMProgramsRegistry() {
                       <div className="flex items-center gap-2 mt-0.5">
                         {task.end_date && (
                           <span
-                            className={`text-[7px] font-black ${isOverdue ? "text-rose-500" : "text-slate-500"}`}
+                            className={`text-[10px] font-bold ${isOverdue ? "text-rose-500" : "text-[var(--text-secondary)]"}`}
                           >
                             <Clock className="w-2.5 h-2.5 inline mr-0.5" />
                             {new Date(task.end_date).toLocaleDateString()}
@@ -239,7 +239,7 @@ export default function PMProgramsRegistry() {
                         )}
                         {task.priority && task.priority !== "normal" && (
                           <span
-                            className={`text-[6px] font-black uppercase px-1 py-0.5 rounded ${task.priority === "high" || task.priority === "critical" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
+                            className={`text-[10px] font-bold uppercase px-1 py-0.5 rounded ${task.priority === "high" || task.priority === "critical" ? "bg-rose-500/10 text-rose-500" : "bg-slate-500/10 text-slate-500"}`}
                           >
                             {task.priority}
                           </span>
@@ -251,7 +251,7 @@ export default function PMProgramsRegistry() {
               })}
             </div>
             {tasks.length > 6 && (
-              <p className="text-[7px] text-slate-500 text-center pt-3">
+              <p className="text-[10px] text-[var(--text-secondary)] text-center pt-3">
                 +{tasks.length - 6} {t("dashboard.moreTasks", "tâches supplémentaires")}
               </p>
             )}
@@ -262,7 +262,7 @@ export default function PMProgramsRegistry() {
           {loading ? (
             <div className="p-20 text-center space-y-4">
               <div className="w-12 h-12 border-4 border-[#FF6600]/10 border-t-[#FF6600] rounded-full animate-spin mx-auto" />
-              <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">
+              <p className="text-[var(--text-secondary)] font-bold uppercase text-[10px] tracking-widest">
                 {t("common.loading")}
               </p>
             </div>
@@ -272,7 +272,7 @@ export default function PMProgramsRegistry() {
               <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase mb-2">
                 {t("common.noResults")}
               </h4>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+              <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("common.noResults")}
               </p>
             </div>
@@ -295,11 +295,11 @@ export default function PMProgramsRegistry() {
                         <div className="p-2.5 rounded-xl bg-[#FF6600]/10 text-[#FF6600] border border-[#FF6600]/20">
                           <Briefcase className="w-5 h-5" />
                         </div>
-                        <span className={`text-[10px] font-black uppercase tracking-[0.3em] italic animate-pulse ${statusCfg.text}`}>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${statusCfg.text}`}>
                           {statusLabel}
                         </span>
                       </div>
-                      <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none italic group-hover:text-[#FF6600] transition-colors">
+                      <h3 className="text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none group-hover:text-[#FF6600] transition-colors">
                         {program.name}
                       </h3>
                     </div>
@@ -318,10 +318,10 @@ export default function PMProgramsRegistry() {
 
                     <div className="space-y-3">
                       <div className="flex justify-between items-end">
-                        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest italic">
+                        <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">
                           {t("status.inProgress")}
                         </p>
-                        <p className="text-xs font-black text-[#FF6600] italic leading-none">
+                        <p className="text-xs font-black text-[#FF6600] leading-none">
                           {Number(program.completion_index || 0).toFixed(1)}%
                         </p>
                       </div>
@@ -338,29 +338,29 @@ export default function PMProgramsRegistry() {
 
                     <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-8 border-t border-[var(--border-primary)] pt-8">
                       <div>
-                        <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                           {t("pm.teamOverview")}
                         </p>
-                        <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">
+                        <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2">
                           {program.participants_count || 0}{" "}
                           <Users className="w-3.5 h-3.5 text-slate-500" />
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                           {t("pm.deliverables", "Deliverables")}
                         </p>
-                        <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2 italic">
+                        <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tighter flex items-center gap-2">
                           {program.docs_completed || 0}/
                           {program.docs_total || 0}{" "}
                           <Layers className="w-3.5 h-3.5 text-slate-500" />
                         </p>
                       </div>
                       <div>
-                        <p className="text-[9px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                        <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-1">
                           {statusLabel}
                         </p>
-                        <p className={`text-lg font-black uppercase tracking-tighter flex items-center gap-2 italic ${statusCfg.value}`}>
+                        <p className={`text-lg font-black uppercase tracking-tighter flex items-center gap-2 ${statusCfg.value}`}>
                           {statusLabel}{" "}
                           <Activity className="w-3.5 h-3.5 opacity-40" />
                         </p>

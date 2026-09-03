@@ -202,7 +202,7 @@ export default function MyProjects() {
                       <h3 className="text-sm font-bold text-[var(--text-primary)]">
                         {inv.project_name || t("staffMisc.projects.defaultProject")}
                       </h3>
-                      <p className="text-[9px] text-slate-500 mt-1">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                         {t("staffMisc.projects.invitedYou")}
                       </p>
                     </div>
@@ -212,7 +212,7 @@ export default function MyProjects() {
                           handleInvitationResponse(inv.id, "decline")
                         }
                         disabled={responding === inv.id}
-                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                        className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("staffMisc.projects.decline")}
                       </button>
@@ -221,7 +221,7 @@ export default function MyProjects() {
                           handleInvitationResponse(inv.id, "accept")
                         }
                         disabled={responding === inv.id}
-                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                        className="px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                       >
                         {t("staffMisc.projects.accept")}
                       </button>
@@ -244,7 +244,7 @@ export default function MyProjects() {
             <p className="text-lg font-black text-[var(--text-primary)] uppercase">
               {search ? t("common.noResults") : t("staffMisc.projects.noProjectsAssigned")}
             </p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-xs font-bold text-[var(--text-secondary)] mt-1">
               {search
                 ? t("common.noResults")
                 : t("staffMisc.projects.noProjectsHint")}
@@ -274,14 +274,14 @@ export default function MyProjects() {
                             <Briefcase className="w-5 h-5" />
                           </div>
                           <span
-                            className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${statusBadge(project.status)}`}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${statusBadge(project.status)}`}
                           >
                             {project.status
                               ? t(STATUS_LABELS[project.status] || project.status)
                               : t("staffMisc.projects.statusActive")}
                           </span>
                         </div>
-                        <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-none italic group-hover:text-[var(--brand-orange)] transition-colors">
+                        <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight leading-none group-hover:text-[var(--brand-orange)] transition-colors">
                           {project.name}
                         </h3>
                         {project.meta?.description && (
@@ -295,7 +295,7 @@ export default function MyProjects() {
                     <div className="flex-1 p-6 flex flex-col justify-between">
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mb-4">
                         <div>
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("staffMisc.projects.members")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
@@ -303,7 +303,7 @@ export default function MyProjects() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("staffMisc.projects.tasks")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
@@ -311,7 +311,7 @@ export default function MyProjects() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("staffMisc.projects.timeline")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
@@ -331,7 +331,7 @@ export default function MyProjects() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("staffMisc.projects.program")}
                           </p>
                           <p className="text-sm font-bold text-[var(--text-primary)] mt-1 truncate">
@@ -343,10 +343,10 @@ export default function MyProjects() {
                       {tasksTotal > 0 && (
                         <div className="space-y-1.5">
                           <div className="flex justify-between items-end">
-                            <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("staffMisc.projects.progress")}
                             </span>
-                            <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                            <span className="text-[10px] font-bold text-[var(--brand-orange)]">
                               {progress}%
                             </span>
                           </div>
@@ -360,7 +360,7 @@ export default function MyProjects() {
                       )}
 
                       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[var(--border-primary)]">
-                        <span className="text-[9px] text-slate-500 flex items-center gap-1">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                           <Users className="w-3 h-3" />
                           {project.members?.some(
                             (m) =>
@@ -370,7 +370,7 @@ export default function MyProjects() {
                             ? t("staffMisc.projects.youAreLead")
                             : t("staffMisc.projects.member")}
                         </span>
-                        <span className="text-[9px] text-slate-500 flex items-center gap-1 ml-auto">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1 ml-auto">
                           <ChevronRight className="w-3 h-3" />
                           {t("staffMisc.projects.view")}
                         </span>

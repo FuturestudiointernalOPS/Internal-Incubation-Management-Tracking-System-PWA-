@@ -316,7 +316,7 @@ export default function FacilitatorProgram({ params }) {
             <button
               key={tb.key}
               onClick={() => setTab(tb.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase tracking-wide transition-all ${
                 tab === tb.key
                   ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                   : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
@@ -333,19 +333,19 @@ export default function FacilitatorProgram({ params }) {
           <div className="space-y-4">
             <div className="grid sm:grid-cols-3 gap-3">
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   Participants
                 </p>
                 <p className="text-2xl font-black">{participants.length}</p>
               </div>
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   Sessions
                 </p>
                 <p className="text-2xl font-black">{sessions.length}</p>
               </div>
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4">
-                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   Duration
                 </p>
                 <p className="text-2xl font-black">
@@ -355,14 +355,14 @@ export default function FacilitatorProgram({ params }) {
             </div>
             <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
               <div>
-                <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   Description
                 </p>
                 <p className="text-sm">{program?.description || "\u2014"}</p>
               </div>
               {program?.outcomes && (
                 <div>
-                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                     Outcomes
                   </p>
                   <p className="text-sm">{program.outcomes}</p>
@@ -376,7 +376,7 @@ export default function FacilitatorProgram({ params }) {
         {tab === "curriculum" && (
           <div className="space-y-3">
             {sessions.length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
                 No sessions scheduled yet.
               </p>
             )}
@@ -387,11 +387,11 @@ export default function FacilitatorProgram({ params }) {
               >
                 <div>
                   <p className="text-[11px] font-black uppercase">{s.title}</p>
-                  <p className="text-[9px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     Week {s.week_number} \u00b7 {s.type}
                   </p>
                 </div>
-                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">
+                <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-blue-500/10 text-blue-500">
                   {s.status || "scheduled"}
                 </span>
               </div>
@@ -403,7 +403,7 @@ export default function FacilitatorProgram({ params }) {
         {tab === "participants" && (
           <div className="space-y-3">
             {participants.length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
                 No participants in your assigned scope.
               </p>
             )}
@@ -416,12 +416,12 @@ export default function FacilitatorProgram({ params }) {
                   <p className="text-[11px] font-black uppercase truncate">
                     {p.name}
                   </p>
-                  <p className="text-[9px] text-[var(--text-secondary)] truncate">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                     {p.email}
                   </p>
                 </div>
                 <span
-                  className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+                  className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
                     p.status === "active"
                       ? "bg-emerald-500/15 text-emerald-400"
                       : "bg-amber-500/15 text-amber-400"
@@ -440,7 +440,7 @@ export default function FacilitatorProgram({ params }) {
             <div className="flex items-center gap-3 rounded-xl border border-[var(--border-primary)] bg-primary p-3">
               <CalendarCheck className="w-4 h-4 text-[var(--text-secondary)]" />
               <div className="flex-1">
-                <p className="text-[9px] font-black uppercase tracking-wider text-[var(--text-secondary)] mb-1">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                   Date
                 </p>
                 <input
@@ -454,7 +454,7 @@ export default function FacilitatorProgram({ params }) {
               </div>
             </div>
             {sessions.length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
                 No sessions scheduled yet.
               </p>
             )}
@@ -468,7 +468,7 @@ export default function FacilitatorProgram({ params }) {
                     <p className="text-[11px] font-black uppercase">
                       {s.title}
                     </p>
-                    <p className="text-[9px] text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                       Week {s.week_number} · {s.type}
                     </p>
                   </div>
@@ -481,7 +481,7 @@ export default function FacilitatorProgram({ params }) {
                         key={key}
                         className="flex items-center justify-between gap-2 p-2 rounded-lg border border-[var(--border-primary)] bg-primary"
                       >
-                        <span className="text-[9px] font-bold uppercase truncate">
+                        <span className="text-[10px] font-bold uppercase truncate">
                           {p.name}
                         </span>
                         <select
@@ -491,7 +491,7 @@ export default function FacilitatorProgram({ params }) {
                             setAttendance({ ...attendance, [key]: v });
                             saveAttendanceForParticipant(s.id, p.id || p.user_id, v);
                           }}
-                          className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[8px] font-bold uppercase outline-none cursor-pointer"
+                          className="bg-secondary border border-[var(--border-primary)] rounded px-1.5 py-1 text-[10px] font-bold uppercase outline-none cursor-pointer"
                         >
                           <option value="">{t("pmMisc.workspace.attendanceSelect")}</option>
                           <option value="present">{t("pmMisc.workspace.attendancePresent")}</option>
@@ -504,7 +504,7 @@ export default function FacilitatorProgram({ params }) {
                 <button
                   disabled={savingAtt}
                   onClick={() => saveAttendance(s.id)}
-                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" /> Save attendance
                 </button>
@@ -517,7 +517,7 @@ export default function FacilitatorProgram({ params }) {
         {tab === "assignments" && (
           <div className="space-y-3">
             {submissions.length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-8 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-8 text-center">
                 No submissions in your scope yet.
               </p>
             )}
@@ -532,14 +532,14 @@ export default function FacilitatorProgram({ params }) {
           <div className="space-y-6">
             <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5 space-y-3">
               <div>
-                <h2 className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.facilitators.weeklyReview.title")}
                 </h2>
-                <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                   {t("pmMisc.facilitators.weeklyReview.subtitle")}
                 </p>
                 <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[var(--border-primary)] px-3 py-1.5 bg-primary">
-                  <span className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+                  <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
                     {t("pmMisc.facilitators.weeklyReview.week")}
                   </span>
                   <input
@@ -642,7 +642,7 @@ export default function FacilitatorProgram({ params }) {
                     className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-4 space-y-2"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("pmMisc.facilitators.weeklyReview.submittedAt", {
                           date: new Date(r.created_at).toLocaleDateString(),
                         })}
@@ -651,7 +651,7 @@ export default function FacilitatorProgram({ params }) {
                           : ""}
                       </span>
                       <span
-                        className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                           r.pm_decision === "changes_requested"
                             ? "bg-rose-500/15 text-rose-400"
                             : r.status === "decided"
@@ -699,14 +699,14 @@ export default function FacilitatorProgram({ params }) {
                     />
                     {r.pm_decision && (
                       <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                        <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
+                        <p className="text-[10px] font-bold uppercase text-emerald-400 mb-1">
                           {t("pmMisc.facilitators.weeklyReview.decision")}
                         </p>
-                        <p className="text-[9px] text-[var(--text-primary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-primary)]">
                           {r.pm_decision}
                         </p>
                         {r.pm_decision_note && (
-                          <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                             {r.pm_decision_note}
                           </p>
                         )}
@@ -726,7 +726,7 @@ export default function FacilitatorProgram({ params }) {
 function ReviewField({ label, value, onChange }) {
   return (
     <div className="space-y-1">
-      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
         {label}
       </label>
       <textarea
@@ -743,7 +743,7 @@ function ReviewField({ label, value, onChange }) {
 function ReviewSelect({ label, value, onChange, options, placeholder }) {
   return (
     <div className="space-y-1">
-      <label className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
         {label}
       </label>
       <select
@@ -765,7 +765,7 @@ function ReviewSelect({ label, value, onChange, options, placeholder }) {
 function ReviewSummaryRow({ label, value, note }) {
   if (!value && !note) return null;
   return (
-    <div className="text-[9px]">
+    <div className="text-[10px]">
       <p className="text-[var(--text-secondary)]">
         <strong className="text-[var(--text-primary)]">{label}:</strong>{" "}
         {value || ""}
@@ -806,12 +806,12 @@ function SubmissionRow({ sub, onReview, t }) {
           <p className="text-[11px] font-black uppercase truncate">
             {sub.participant_name || "Participant"}
           </p>
-          <p className="text-[9px] text-[var(--text-secondary)] truncate">
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
             {sub.deliverable_title || "Deliverable"}
           </p>
         </div>
         <span
-          className={`text-[8px] font-black uppercase px-2 py-0.5 rounded shrink-0 ${
+          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded shrink-0 ${
             sub.status === "approved"
               ? "bg-emerald-500/15 text-emerald-400"
               : sub.status === "revision_requested"
@@ -831,7 +831,7 @@ function SubmissionRow({ sub, onReview, t }) {
             <div className="flex items-center justify-between gap-3">
               <label
                 htmlFor={`submission-feedback-${sub.id}`}
-                className="flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
+                className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] cursor-pointer"
               >
                 <MessageSquareText className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
                 {t("pmMisc.submissions.feedbackLabel")}
@@ -841,7 +841,7 @@ function SubmissionRow({ sub, onReview, t }) {
                   href={sub.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[8px] font-black text-blue-400 hover:underline shrink-0"
+                  className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 hover:underline shrink-0"
                 >
                   <ExternalLink className="w-2.5 h-2.5" />
                   {t("pmMisc.submissions.viewSubmissionFile")}
@@ -858,11 +858,11 @@ function SubmissionRow({ sub, onReview, t }) {
               className="w-full resize-none overflow-hidden bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2.5 text-[11px] font-medium leading-relaxed text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] placeholder:font-normal outline-none focus:border-[var(--brand-orange)] transition-colors"
             />
             <div className="flex items-center justify-between gap-3">
-              <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+              <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
                 {t("pmMisc.submissions.feedbackHint")}
               </p>
               {feedback.length > 0 && (
-                <span className="text-[8px] font-black tabular-nums text-[var(--text-tertiary)] shrink-0">
+                <span className="text-[10px] font-bold tabular-nums text-[var(--text-tertiary)] shrink-0">
                   {t("pmMisc.submissions.charCount", { count: feedback.length })}
                 </span>
               )}
@@ -873,21 +873,21 @@ function SubmissionRow({ sub, onReview, t }) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => onReview(sub.id, "approved", feedback)}
-              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
             >
               <CheckCircle2 className="w-3 h-3" />
               {t("pmMisc.submissions.approve")}
             </button>
             <button
               onClick={() => onReview(sub.id, "revision_requested", feedback)}
-              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25 transition-colors"
             >
               <RotateCcw className="w-3 h-3" />
               {t("pmMisc.submissions.requestRevision")}
             </button>
             <button
               onClick={() => onReview(sub.id, "rejected", feedback)}
-              className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-wider px-3 py-2 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors"
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide px-3 py-2 rounded-lg bg-rose-500/15 text-rose-400 hover:bg-rose-500/25 transition-colors"
             >
               <XCircle className="w-3 h-3" />
               {t("pmMisc.submissions.reject")}
