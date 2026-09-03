@@ -241,6 +241,9 @@
       "addQuestion": "Add Question",
       "empty": "No questions yet",
       "emptyHint": "Add a question to this assessment",
+      "saveFirstHint": "Save the assessment first, then add questions",
+      "questionType": "Question type",
+      "typeLockedHint": "The question type cannot be changed after questions are added.",
       "courseLevel": "Course-level"
     },
     "questions": {
@@ -311,6 +314,7 @@
       "sectionNotFound": "Section not found.",
       "lessonNotFound": "Lesson not found.",
       "assessmentNotFound": "Assessment not found.",
+      "assessmentTypeLocked": "The question type cannot be changed after questions are added.",
       "questionNotFound": "Question not found.",
       "programIdRequired": "Program id is required.",
       "courseIdRequired": "Course id is required.",

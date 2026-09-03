@@ -241,6 +241,9 @@
       "addQuestion": "Ajouter une question",
       "empty": "Aucune question pour l'instant",
       "emptyHint": "Ajoutez une question à cette évaluation",
+      "saveFirstHint": "Enregistrez d'abord l'évaluation, puis ajoutez des questions",
+      "questionType": "Type de questions",
+      "typeLockedHint": "Le type de questions ne peut plus être modifié après l'ajout de questions.",
       "courseLevel": "Niveau cours"
     },
     "questions": {
@@ -311,6 +314,7 @@
       "sectionNotFound": "Section introuvable.",
       "lessonNotFound": "Leçon introuvable.",
       "assessmentNotFound": "Évaluation introuvable.",
+      "assessmentTypeLocked": "Le type de questions ne peut plus être modifié après l'ajout de questions.",
       "questionNotFound": "Question introuvable.",
       "programIdRequired": "L'identifiant du programme est requis.",
       "courseIdRequired": "L'identifiant du cours est requis.",

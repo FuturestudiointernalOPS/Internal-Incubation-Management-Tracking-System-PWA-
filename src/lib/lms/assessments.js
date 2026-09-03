@@ -34,6 +34,21 @@ function normalizePassMark(passMark) {
   return Math.round(n);
 }
 
+const QUESTION_TYPES = ["multiple_choice", "true_false"];
+
+/**
+ * Question type is chosen at ASSESSMENT level: every question added to an
+ * assessment shares the assessment's type. Defaults to multiple_choice for
+ * rows created before the column existed.
+ */
+function normalizeQuestionType(value) {
+  const type = value == null || value === "" ? "multiple_choice" : String(value);
+  if (!QUESTION_TYPES.includes(type)) {
+    throw new LmsError("lms.errors.invalidQuestionType", 400);
+  }
+  return type;
+}
+
 export async function createAssessment({
   courseId,
   sectionId,
@@ -41,6 +56,7 @@ export async function createAssessment({
   description,
   passMark,
   isRequired,
+  questionType,
 }) {
   const course = await getCourse(courseId);
   if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
@@ -55,13 +71,14 @@ export async function createAssessment({
   }
   const position = await nextPosition("lms_assessments", "course_id", courseId);
   const res = await db.execute({
-    sql: `INSERT INTO lms_assessments (course_id, section_id, title, description, position, is_required, pass_mark)
-          VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+    sql: `INSERT INTO lms_assessments (course_id, section_id, title, description, question_type, position, is_required, pass_mark)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
       courseId,
       sectionId || null,
       String(title).trim(),
       description || null,
+      normalizeQuestionType(questionType),
       position,
       isRequired !== false,
       normalizePassMark(passMark),
@@ -72,7 +89,7 @@ export async function createAssessment({
 
 export async function updateAssessment(
   assessmentId,
-  { title, description, passMark, isRequired, sectionId } = {},
+  { title, description, passMark, isRequired, sectionId, questionType } = {},
 ) {
   const assessment = await getAssessment(assessmentId);
   if (!assessment) throw new LmsError("lms.errors.assessmentNotFound", 404);
@@ -106,6 +123,21 @@ export async function updateAssessment(
     }
     sets.push("section_id = ?");
     args.push(sectionId || null);
+  }
+  if (questionType !== undefined) {
+    const nextType = normalizeQuestionType(questionType);
+    if (nextType !== (assessment.question_type || "multiple_choice")) {
+      // Changing the type would invalidate already-authored questions.
+      const existing = await db.execute({
+        sql: "SELECT 1 FROM lms_assessment_questions WHERE assessment_id = ? LIMIT 1",
+        args: [assessmentId],
+      });
+      if (existing.rows.length > 0) {
+        throw new LmsError("lms.errors.assessmentTypeLocked", 400);
+      }
+      sets.push("question_type = ?");
+      args.push(nextType);
+    }
   }
 
   if (sets.length === 0) return assessment;
@@ -167,7 +199,6 @@ function validateQuestionData({ question_type, options, correct_answer }) {
 export async function createQuestion({
   assessmentId,
   question,
-  questionType,
   options,
   correctAnswer,
   points,
@@ -177,7 +208,8 @@ export async function createQuestion({
   if (!question || !String(question).trim()) {
     throw new LmsError("lms.errors.questionTextRequired", 400);
   }
-  const type = questionType || "multiple_choice";
+  // New questions always inherit the assessment's chosen type.
+  const type = assessment.question_type || "multiple_choice";
   validateQuestionData({
     question_type: type,
     options,
@@ -207,12 +239,13 @@ export async function createQuestion({
 
 export async function updateQuestion(
   questionId,
-  { question, questionType, options, correctAnswer, points } = {},
+  { question, options, correctAnswer, points } = {},
 ) {
   const existing = await getQuestion(questionId);
   if (!existing) throw new LmsError("lms.errors.questionNotFound", 404);
 
-  const type = questionType || existing.question_type;
+  // Type is immutable per question — it always matches the assessment's type.
+  const type = existing.question_type || "multiple_choice";
   const opts = options !== undefined ? options : existing.options;
   const answer = correctAnswer !== undefined ? correctAnswer : existing.correct_answer;
   validateQuestionData({ question_type: type, options: opts, correct_answer: answer });
@@ -223,10 +256,6 @@ export async function updateQuestion(
     if (!String(question).trim()) throw new LmsError("lms.errors.questionTextRequired", 400);
     sets.push("question = ?");
     args.push(String(question).trim());
-  }
-  if (questionType !== undefined) {
-    sets.push("question_type = ?");
-    args.push(type);
   }
   if (options !== undefined) {
     sets.push("options = ?::jsonb");

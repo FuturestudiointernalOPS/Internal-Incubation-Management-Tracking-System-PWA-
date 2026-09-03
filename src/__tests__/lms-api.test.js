@@ -322,13 +322,14 @@ describe("Assessments & questions", () => {
   test("POST creates a course-level assessment when sectionId is null", async () => {
     mockFake.seed("lms_courses", [{ id: "C-1", title: "A", status: "draft", is_free: true, visibility: "public" }]);
     const res = await assessmentsPOST(
-      jsonReq({ title: "Final", sectionId: null, passMark: 70 }),
+      jsonReq({ title: "Final", sectionId: null, passMark: 70, questionType: "true_false" }),
       { params: { id: "C-1" } },
     );
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.assessment.section_id).toBeNull();
     expect(data.assessment.pass_mark).toBe(70);
+    expect(data.assessment.question_type).toBe("true_false");
   });
 
   test("POST rejects a section that belongs to another course", async () => {
@@ -342,11 +343,10 @@ describe("Assessments & questions", () => {
   });
 
   test("POST creates a valid multiple-choice question", async () => {
-    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", position: 0 }]);
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
     const res = await questionsPOST(
       jsonReq({
         question: "Pick one",
-        questionType: "multiple_choice",
         options: [
           { key: "A", text: "One" },
           { key: "B", text: "Two" },
@@ -362,11 +362,10 @@ describe("Assessments & questions", () => {
   });
 
   test("POST rejects a multiple-choice question with fewer than two options", async () => {
-    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", position: 0 }]);
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
     const res = await questionsPOST(
       jsonReq({
         question: "Pick one",
-        questionType: "multiple_choice",
         options: [{ key: "A", text: "Only" }],
         correctAnswer: ["A"],
       }),
@@ -376,12 +375,24 @@ describe("Assessments & questions", () => {
   });
 
   test("POST rejects a true/false question without a correct answer", async () => {
-    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", position: 0 }]);
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "true_false", position: 0 }]);
     const res = await questionsPOST(
-      jsonReq({ question: "True?", questionType: "true_false", correctAnswer: [] }),
+      jsonReq({ question: "True?", correctAnswer: [] }),
       { params: { id: "A-1" } },
     );
     expect(res.status).toBe(400);
+  });
+
+  test("POST creates a true/false question in a true_false assessment (type inherited from the assessment)", async () => {
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "true_false", position: 0 }]);
+    const res = await questionsPOST(
+      jsonReq({ question: "Sky is blue?", correctAnswer: ["true"] }),
+      { params: { id: "A-1" } },
+    );
+    expect(res.status).toBe(200);
+    const insert = mockFake.executed.find((q) => /insert into lms_assessment_questions/i.test(q.sql));
+    expect(insert).toBeDefined();
+    expect(insert.args).toContain("true_false");
   });
 
   test("PUT updates assessment pass mark", async () => {
@@ -390,6 +401,23 @@ describe("Assessments & questions", () => {
     expect(res.status).toBe(200);
     const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
     expect(assessment.pass_mark).toBe(80);
+  });
+
+  test("PUT allows changing the question type before questions are added", async () => {
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
+    const res = await assessmentPUT(jsonReq({ questionType: "true_false" }), { params: { id: "A-1" } });
+    expect(res.status).toBe(200);
+    const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
+    expect(assessment.question_type).toBe("true_false");
+  });
+
+  test("PUT rejects changing the question type once questions exist", async () => {
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
+    mockFake.seed("lms_assessment_questions", [{ id: "Q-1", assessment_id: "A-1", question: "Q?", question_type: "multiple_choice", position: 0 }]);
+    const res = await assessmentPUT(jsonReq({ questionType: "true_false" }), { params: { id: "A-1" } });
+    expect(res.status).toBe(400);
+    const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
+    expect(assessment.question_type).toBe("multiple_choice");
   });
 });
 

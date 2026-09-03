@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
-import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "./notify";
@@ -12,17 +11,18 @@ import { notify } from "./notify";
 const letter = (i) => String.fromCharCode(65 + i);
 
 /**
- * Question authoring modal — multiple_choice (options + correct answer) and
- * true_false. Options keys are derived from position (A, B, C…).
+ * Question authoring modal. The question type is NOT chosen here — it is set
+ * at the assessment level: new questions inherit the assessment's type, and
+ * editing an existing question keeps its stored type (legacy rows).
  */
-export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessmentId, question }) {
+export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessmentId, assessmentType, question }) {
   const { t } = useI18n();
-  const isMc = (question?.question_type || "multiple_choice") === "multiple_choice";
+  const type = question?.question_type || assessmentType || "multiple_choice";
+  const mcType = type === "multiple_choice";
 
   const [text, setText] = useState(question?.question || "");
-  const [type, setType] = useState(isMc ? "multiple_choice" : "true_false");
   const [options, setOptions] = useState(() => {
-    if (question && isMc) {
+    if (question && mcType) {
       const opts = question.options || [];
       if (opts.length > 0) return opts.map((o) => ({ text: o.text || "" }));
     }
@@ -30,17 +30,13 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
   });
   const [correct, setCorrect] = useState(() => {
     if (question && question.correct_answer && question.correct_answer.length) {
-      const c = String(question.correct_answer[0]);
-      if (question.question_type === "multiple_choice" && isMc) return c;
-      return c;
+      return String(question.correct_answer[0]);
     }
     return "";
   });
   const [points, setPoints] = useState(question?.points || 1);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
-
-  const mcType = type === "multiple_choice";
 
   const addOption = () => setOptions((prev) => [...prev, { text: "" }]);
   const updateOption = (index, value) =>
@@ -66,11 +62,14 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
 
   const save = async () => {
     if (!validate()) return;
+    if (mode !== "edit" && !assessmentId) {
+      notify("error", "lms.errors.assessmentNotFound");
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         question: text,
-        questionType: type,
         options: mcType ? options.map((o, i) => ({ key: letter(i), text: o.text })) : [],
         correctAnswer: correct ? [correct] : [],
         points: points || 1,
@@ -108,19 +107,6 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
           onChange={(e) => setText(e.target.value)}
           placeholder={t("lms.questions.textPlaceholder")}
           error={errors.text ? t(errors.text) : undefined}
-        />
-
-        <AppSelect
-          label={t("lms.questions.type")}
-          value={type}
-          onChange={(e) => {
-            setType(e.target.value);
-            setCorrect("");
-          }}
-          options={[
-            { value: "multiple_choice", label: t("lms.questions.typeMc") },
-            { value: "true_false", label: t("lms.questions.typeTf") },
-          ]}
         />
 
         {mcType ? (

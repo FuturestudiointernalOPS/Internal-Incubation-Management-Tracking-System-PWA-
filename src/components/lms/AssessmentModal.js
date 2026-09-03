@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, HelpCircle } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
+import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
@@ -29,6 +30,9 @@ export default function AssessmentModal({
     assessment?.pass_mark != null ? String(assessment.pass_mark) : "",
   );
   const [isRequired, setIsRequired] = useState(assessment ? !!assessment.is_required : true);
+  // Question type is chosen when the assessment is created and every question
+  // added afterwards inherits it (see QuestionModal).
+  const [typeChoice, setTypeChoice] = useState(assessment?.question_type || "multiple_choice");
   const [questions, setQuestions] = useState(assessment?.questions || []);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
@@ -91,6 +95,7 @@ export default function AssessmentModal({
         description,
         passMark: passMark === "" ? null : passMark,
         isRequired,
+        questionType: typeChoice,
       };
       const url =
         mode === "edit"
@@ -178,7 +183,36 @@ export default function AssessmentModal({
           </label>
         </div>
 
-        {/* Questions */}
+        {/* Question type — chosen at creation; locked once questions exist */}
+        <div className="space-y-2">
+          <label
+            className="text-[10px] font-bold uppercase tracking-wider ml-1"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {t("lms.assessments.questionType")}
+          </label>
+          <AppSelect
+            value={typeChoice}
+            disabled={mode === "edit" && questions.length > 0}
+            onChange={(e) => setTypeChoice(e.target.value)}
+            options={[
+              { value: "multiple_choice", label: t("lms.questions.typeMc") },
+              { value: "true_false", label: t("lms.questions.typeTf") },
+            ]}
+          />
+          {mode === "edit" && questions.length > 0 && (
+            <p
+              className="text-[10px] font-bold uppercase tracking-wider ml-1"
+              style={{ color: "var(--text-tertiary)" }}
+            >
+              {t("lms.assessments.typeLockedHint")}
+            </p>
+          )}
+        </div>
+
+        {/* Questions — only manageable once the assessment exists. In create
+            mode there is no assessment id yet, so the question APIs cannot be
+            called; the button is disabled and the hint explains it. */}
         <div className="border-t pt-4" style={{ borderColor: "var(--border-primary)" }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
@@ -188,6 +222,7 @@ export default function AssessmentModal({
               variant="secondary"
               size="sm"
               icon={Plus}
+              disabled={!assessment?.id}
               onClick={() => setQuestionModal({ mode: "create", question: null })}
             >
               {t("lms.assessments.addQuestion")}
@@ -196,7 +231,7 @@ export default function AssessmentModal({
 
           {questions.length === 0 ? (
             <p className="text-[10px] font-bold uppercase tracking-wider py-6 text-center" style={{ color: "var(--text-tertiary)" }}>
-              {t("lms.assessments.emptyHint")}
+              {assessment?.id ? t("lms.assessments.emptyHint") : t("lms.assessments.saveFirstHint")}
             </p>
           ) : (
             <div className="space-y-2">
@@ -277,6 +312,7 @@ export default function AssessmentModal({
           onSaved={refreshQuestions}
           mode={questionModal.mode}
           assessmentId={assessment?.id}
+          assessmentType={assessment?.question_type}
           question={questionModal.question}
         />
       )}
