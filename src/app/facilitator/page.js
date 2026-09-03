@@ -81,10 +81,10 @@ export default function FacilitatorDashboard() {
     <>
       <div className="max-w-5xl mx-auto space-y-8 p-6">
         <header>
-          <h1 className="text-2xl font-black uppercase tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             Dashboard
           </h1>
-          <p className="text-[11px] text-[var(--text-secondary)] font-bold mt-1">
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
             Your upcoming sessions, deadlines and follow-ups.
           </p>
         </header>
@@ -97,18 +97,18 @@ export default function FacilitatorDashboard() {
           <>
             <div className="grid grid-cols-2 gap-3">
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Assigned programs
                 </p>
-                <p className="text-3xl font-black text-[var(--brand-orange)] mt-2">
+                <p className="text-2xl font-black tracking-tight text-[var(--text-primary)] mt-2">
                   {programs.length}
                 </p>
               </div>
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-5">
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Upcoming activities
                 </p>
-                <p className="text-3xl font-black text-[var(--brand-orange)] mt-2">
+                <p className="text-2xl font-black tracking-tight text-[var(--text-primary)] mt-2">
                   {upcoming.length}
                 </p>
               </div>
@@ -118,7 +118,7 @@ export default function FacilitatorDashboard() {
             {hasNoRole && (
               <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center gap-3">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                <p className="text-sm font-medium text-amber-400">
                   {t("pmMisc.contacts.noProgramsAssigned")}
                 </p>
               </div>
@@ -132,7 +132,7 @@ export default function FacilitatorDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <h2 className="text-sm font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                     Upcoming
                   </h2>
                 </div>
@@ -140,7 +140,7 @@ export default function FacilitatorDashboard() {
                 {upcoming.length === 0 ? (
                   <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-10 text-center">
                     <CheckCircle2 className="w-8 h-8 text-[var(--text-secondary)] mx-auto mb-3" />
-                    <p className="text-[11px] font-black uppercase text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       No upcoming activities
                     </p>
                   </div>
@@ -149,25 +149,25 @@ export default function FacilitatorDashboard() {
                   const meta = EVENT_META[e.source] || {
                     label: e.type || e.source,
                     color: "text-[var(--text-secondary)]",
-                    bg: "bg-slate-500/15",
+                    bg: "bg-tertiary",
                   };
                   return (
                     <div
                       key={e.id}
                       className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--border-primary)] bg-secondary"
                     >
-                      <span className={`px-2 py-1 rounded text-[8px] font-black uppercase shrink-0 ${meta.bg} ${meta.color}`}>
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase shrink-0 ${meta.bg} ${meta.color}`}>
                         {meta.label}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="text-[11px] font-bold truncate">{e.title}</p>
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{e.title}</p>
                         {e.description && (
-                          <p className="text-[9px] text-[var(--text-secondary)] truncate">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                             {e.description}
                           </p>
                         )}
                       </div>
-                      <span className="text-[9px] font-bold text-[var(--text-secondary)] shrink-0">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                         {new Date(e.date).toLocaleDateString()}
                       </span>
                     </div>
