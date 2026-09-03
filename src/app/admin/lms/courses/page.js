@@ -1,6 +1,5 @@
 "use client";
 
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import CourseList from "@/components/lms/CourseList";
 
 /**
@@ -10,10 +9,10 @@ import CourseList from "@/components/lms/CourseList";
  */
 export default function LmsCoursesPage() {
   return (
-    <DashboardLayout role="super_admin" activeTab="lms">
+    <>
       <div className="p-6">
         <CourseList />
       </div>
-    </DashboardLayout>
+    </>
   );
 }

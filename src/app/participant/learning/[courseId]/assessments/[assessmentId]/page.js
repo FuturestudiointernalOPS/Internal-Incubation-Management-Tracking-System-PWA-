@@ -1,7 +1,6 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 import AssessmentTake from "@/components/lms/AssessmentTake";
 
 /**
@@ -12,10 +11,10 @@ import AssessmentTake from "@/components/lms/AssessmentTake";
 export default function ParticipantLearningAssessmentPage() {
   const params = useParams();
   return (
-    <DashboardLayout role="participant" activeTab="learning">
+    <>
       <div className="p-6">
         <AssessmentTake courseId={params.courseId} assessmentId={params.assessmentId} />
       </div>
-    </DashboardLayout>
+    </>
   );
 }
