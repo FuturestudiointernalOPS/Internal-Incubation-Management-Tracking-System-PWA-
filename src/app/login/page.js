@@ -24,13 +24,17 @@ async function getFounderVentureTarget(cid) {
   try {
     const res = await fetch(`/api/ventures?contact_id=${encodeURIComponent(cid)}`);
     const d = await res.json();
-    if (d.success && d.ventures?.length > 0) {
+    // Exactly one active Venture → go straight to its workspace. Zero or
+    // several Ventures → the neutral relationship hub (/workspaces lists all
+    // contexts incl. venture memberships). Never falls back into the
+    // Participant area — Venture membership is not Program participation.
+    if (d.success && d.ventures?.length === 1) {
       return `/participant/ventures/${d.ventures[0].venture_id}`;
     }
   } catch (e) {
     console.error("Failed to resolve founder venture:", e);
   }
-  return "/participant";
+  return "/workspaces";
 }
 
 export default function LoginPage() {
@@ -173,10 +177,12 @@ export default function LoginPage() {
                         : r === "facilitator"
                           ? "/facilitator/profile"
                           : r === "developer"
-                          ? "/developer/profile"
-                          : r === "member"
-                            ? "/workspaces"
-                            : "/participant/profile";
+                            ? "/developer/profile"
+                            : r === "participant"
+                              ? "/participant/profile"
+                              : r === "member" || r === "founder" || r === "applicant"
+                                ? "/workspaces"
+                                : "/participant/profile";
               }
             } catch (_) {}
           }
