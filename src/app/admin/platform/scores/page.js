@@ -333,7 +333,7 @@ export default function ScoresPage() {
             <div className="card w-full max-w-md p-6 space-y-5" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center gap-3">
                 <ShieldAlert className={`w-6 h-6 ${showBulkConfirm.decision === "approved" ? "text-emerald-500" : "text-rose-500"}`} />
-                <h3 className="text-lg font-black uppercase text-[var(--text-primary)]">
+                <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                   {showBulkConfirm.decision === "approved"
                     ? pendingSelectedIds.length === 1
                       ? t("adminMisc.platformScores.bulkApproveTitleOne", { count: pendingSelectedIds.length })
@@ -377,11 +377,11 @@ export default function ScoresPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
               {t("adminMisc.platformScores.eyebrow")}
             </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {t("adminMisc.platformScores.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -393,7 +393,7 @@ export default function ScoresPage() {
         <div className="card p-6 space-y-4">
           {/* Form selector */}
           <div>
-            <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+            <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
               {t("adminMisc.platformScores.selectForm")}
             </label>
             <select
@@ -407,7 +407,7 @@ export default function ScoresPage() {
                 clearFilters();
                 if (e.target.value) fetchRuns(e.target.value);
               }}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.platformScores.chooseForm")}</option>
               {forms.map((f) => (
@@ -421,7 +421,7 @@ export default function ScoresPage() {
           {/* Run selector — evaluations are scoped to THIS run */}
           {selectedFormId && (
             <div>
-              <label className="block text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                 {t("adminMisc.platformScores.selectRun")}
               </label>
               <select
@@ -432,7 +432,7 @@ export default function ScoresPage() {
                   setError("");
                   clearFilters();
                 }}
-                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl p-4 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
               >
                 <option value="">{t("adminMisc.platformScores.chooseRun")}</option>
                 {runs.map((r) => (
@@ -446,7 +446,7 @@ export default function ScoresPage() {
 
           {/* Sort */}
           <div className="flex items-center gap-4">
-            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("adminMisc.platformScores.sort")}
             </label>
             <select
@@ -500,37 +500,37 @@ export default function ScoresPage() {
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="card p-4 text-center border-l-4 border-[var(--brand-orange)]">
                   <Users className="w-4 h-4 text-[var(--brand-orange)] mx-auto mb-1" />
-                  <p className="text-2xl font-black text-[var(--brand-orange)]">
+                  <p className="text-2xl font-black tracking-tight text-[var(--brand-orange)]">
                     {data.total_evaluated}
                   </p>
-                  <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.platformScores.statTotalEvaluated")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-emerald-500">
                   <Target className="w-4 h-4 text-emerald-500 mx-auto mb-1" />
-                  <p className="text-2xl font-black text-emerald-500">
+                  <p className="text-2xl font-black tracking-tight text-emerald-500">
                     {filteredStats.qualifying}
                   </p>
-                  <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.platformScores.statQualifying")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-blue-500">
                   <BarChart3 className="w-4 h-4 text-blue-500 mx-auto mb-1" />
-                  <p className="text-2xl font-black text-blue-500">
+                  <p className="text-2xl font-black tracking-tight text-blue-500">
                     {filteredStats.average}
                   </p>
-                  <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.platformScores.statAvgScore")}
                   </p>
                 </div>
                 <div className="card p-4 text-center border-l-4 border-amber-500">
                   <Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" />
-                  <p className="text-2xl font-black text-amber-500">
+                  <p className="text-2xl font-black tracking-tight text-amber-500">
                     {scoreFilterLabel}
                   </p>
-                  <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.platformScores.statThreshold")}
                   </p>
                 </div>
@@ -545,12 +545,12 @@ export default function ScoresPage() {
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Search respondents (name, email, answers)..."
-                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    className="w-full pl-10 pr-4 py-3 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                   />
                 </div>
 
                 <div className="flex items-center gap-3 flex-wrap">
-                  <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <Filter className="w-3 h-3" /> Filters
                   </span>
 
@@ -648,16 +648,16 @@ export default function ScoresPage() {
                   {hasActiveFilters && (
                     <button
                       onClick={clearFilters}
-                      className="px-2.5 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                      className="px-2.5 py-2 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20"
                     >
                       Clear all
                     </button>
                   )}
                 </div>
 
-                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {data.run?.name ? (
-                    <>{t("adminMisc.platformScores.runLabel")}: <span className="text-[var(--brand-orange)] font-black">{data.run.name}</span> · </>
+                    <>{t("adminMisc.platformScores.runLabel")}: <span className="text-[var(--brand-orange)] font-bold">{data.run.name}</span> · </>
                   ) : null}
                   Showing {filteredRespondents.length} of {data.respondents?.length || 0} respondents
                 </p>
@@ -690,13 +690,13 @@ export default function ScoresPage() {
                       </span>
                       <button
                         onClick={() => setShowBulkConfirm({ decision: "approved", count: pendingSelectedIds.length })}
-                        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110"
+                        className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110"
                       >
                         {t("adminMisc.platformScores.approve")}
                       </button>
                       <button
                         onClick={() => setShowBulkConfirm({ decision: "rejected", count: pendingSelectedIds.length })}
-                        className="px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110"
+                        className="px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110"
                       >
                         {t("adminMisc.platformScores.reject")}
                       </button>
@@ -704,7 +704,7 @@ export default function ScoresPage() {
                   )}
                   <button
                     onClick={exportCSV}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider hover:bg-emerald-500/20 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all"
                   >
                     <Download className="w-3 h-3" />
                     {t("adminMisc.platformScores.exportCsv")}
@@ -716,14 +716,14 @@ export default function ScoresPage() {
               <div className="card divide-y divide-[var(--border-primary)]">
                 {/* Column header strip — S/N is a presentation-level row number */}
                 <div className="flex items-center gap-4 px-4 py-2 bg-[var(--bg-primary)]">
-                  <span className="w-8 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.colSn")}</span>
+                  <span className="w-8 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.platformScores.colSn")}</span>
                   <span className="w-4" />
-                  <span className="flex-1 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.colApplicant")}</span>
-                  <span className="hidden md:block w-56 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvEmail")}</span>
-                  <span className="flex-shrink-0 w-16 sm:w-20 text-center text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                  <span className="flex-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.platformScores.colApplicant")}</span>
+                  <span className="hidden md:block w-56 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvEmail")}</span>
+                  <span className="flex-shrink-0 w-16 sm:w-20 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <span className="hidden sm:inline">{t("adminMisc.platformScores.csvStatus")}</span>
                   </span>
-                  <span className="flex-shrink-0 w-12 sm:w-16 text-right text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvScore")}</span>
+                  <span className="flex-shrink-0 w-12 sm:w-16 text-right text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.platformScores.csvScore")}</span>
                   <span className="w-4" />
                 </div>
                 {filteredRespondents.length === 0 ? (
@@ -732,7 +732,7 @@ export default function ScoresPage() {
                       {t("adminMisc.platformScores.noRespondents")}
                     </p>
                     {hasActiveFilters && (
-                      <button onClick={clearFilters} className="mt-3 text-[10px] font-black uppercase text-[var(--brand-orange)] hover:underline">
+                      <button onClick={clearFilters} className="mt-3 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline">
                         Clear all filters
                       </button>
                     )}
@@ -746,7 +746,7 @@ export default function ScoresPage() {
                       >
                         {/* S/N — continuous row number over the filtered result set */}
                         <div className="w-8 flex-shrink-0 text-center">
-                          <span className="text-[10px] font-black text-[var(--text-secondary)]">{i + 1}</span>
+                          <span className="text-[10px] font-bold text-[var(--text-secondary)]">{i + 1}</span>
                         </div>
                         <div className="w-4 flex-shrink-0 flex items-center justify-center">
                           {r.status === "submitted" && (
@@ -760,17 +760,17 @@ export default function ScoresPage() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                             {r.name}
                           </p>
-                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {r.ranking || "—"}
                           </p>
                         </div>
                         {/* Email column — the address that receives the emails */}
                         <div className="hidden md:block w-56 min-w-0 flex-shrink-0">
                           <p
-                            className="text-[9px] text-[var(--text-secondary)] truncate"
+                            className="text-[10px] font-medium text-[var(--text-secondary)] truncate"
                             title={r.email || "No email"}
                           >
                             {r.email || "—"}
@@ -778,7 +778,7 @@ export default function ScoresPage() {
                         </div>
                         <div className="flex-shrink-0 w-16 sm:w-20 flex items-center justify-center">
                           {(STATUS_CONFIG[r.status] || STATUS_CONFIG.submitted) && (
-                            <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[r.status].bg} ${STATUS_CONFIG[r.status].color}`}>
                               {t(STATUS_CONFIG[r.status].label)}
                             </span>
                           )}
@@ -795,7 +795,7 @@ export default function ScoresPage() {
                           >
                             {r.score}
                           </p>
-                          <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.platformScores.detailScore")}
                           </p>
                         </div>
@@ -816,7 +816,7 @@ export default function ScoresPage() {
                           >
                             <div className="px-4 pb-4 pl-16 space-y-2">
                               <div>
-                                <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("adminMisc.platformScores.detailScore")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
@@ -824,7 +824,7 @@ export default function ScoresPage() {
                                 </p>
                               </div>
                               <div>
-                                <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("adminMisc.platformScores.detailRanking")}
                                 </span>
                                 <p className="text-sm font-bold text-[var(--text-primary)]">
@@ -833,10 +833,10 @@ export default function ScoresPage() {
                               </div>
                               {r.recommendation && (
                                 <div>
-                                  <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                     {t("adminMisc.platformScores.detailRecommendation")}
                                   </span>
-                                  <p className="text-xs text-[var(--text-primary)] mt-1 leading-relaxed">
+                                  <p className="text-sm text-[var(--text-primary)] mt-1 leading-relaxed">
                                     {r.recommendation}
                                   </p>
                                 </div>
@@ -848,7 +848,7 @@ export default function ScoresPage() {
                                   <button
                                     onClick={() => handleDecision(r.submission_id, "approved")}
                                     disabled={deciding?.submission_id === r.submission_id}
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                                   >
                                     <CheckCircle2 className="w-3 h-3" />
                                     {deciding?.submission_id === r.submission_id && deciding?.decision === "approved" ? "..." : t("adminMisc.platformScores.approve")}
@@ -856,7 +856,7 @@ export default function ScoresPage() {
                                   <button
                                     onClick={() => handleDecision(r.submission_id, "rejected")}
                                     disabled={deciding?.submission_id === r.submission_id}
-                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600 text-white text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                                   >
                                     <XCircle className="w-3 h-3" />
                                     {deciding?.submission_id === r.submission_id && deciding?.decision === "rejected" ? "..." : t("adminMisc.platformScores.reject")}
@@ -864,7 +864,7 @@ export default function ScoresPage() {
                                 </div>
                               ) : (
                                 <div className="pt-2">
-                                  <span className={`px-2 py-1 rounded text-[8px] font-black uppercase ${STATUS_CONFIG[r.status]?.bg} ${STATUS_CONFIG[r.status]?.color}`}>
+                                  <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${STATUS_CONFIG[r.status]?.bg} ${STATUS_CONFIG[r.status]?.color}`}>
                                     {t(STATUS_CONFIG[r.status]?.label) || r.status}
                                   </span>
                                 </div>

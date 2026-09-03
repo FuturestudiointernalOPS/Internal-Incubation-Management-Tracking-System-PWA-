@@ -88,7 +88,7 @@ export default function SuperAdminProgressHub() {
                 <Activity className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-4xl font-black text-white uppercase italic tracking-tighter leading-none">
+                <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter leading-none">
                   {t("adminMisc.progress.title")}
                 </h2>
                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mt-2">
@@ -131,7 +131,7 @@ export default function SuperAdminProgressHub() {
                       <Briefcase className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black text-white uppercase italic tracking-tighter leading-none">
+                      <h3 className="text-2xl font-black text-white uppercase tracking-tighter leading-none">
                         {prog.name}
                       </h3>
                       <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-2">
@@ -146,10 +146,10 @@ export default function SuperAdminProgressHub() {
                   {/* PROGRESS BAR */}
                   <div className="space-y-3">
                     <div className="flex justify-between items-end">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest italic">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         {t("adminMisc.progress.globalVelocity")}
                       </p>
-                      <p className="text-sm font-black text-[#FF6600] italic leading-none">
+                      <p className="text-sm font-black text-[#FF6600] leading-none">
                         {progress.toFixed(1)}%
                       </p>
                     </div>
@@ -167,19 +167,19 @@ export default function SuperAdminProgressHub() {
 
                 <div className="flex items-center gap-8 px-12 border-l border-white/5 hidden lg:flex">
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-1">
                       {t("adminMisc.progress.deliverables")}
                     </p>
-                    <p className="text-xl font-black text-white italic">
+                    <p className="text-xl font-black text-white">
                       {prog.docs_completed || 0}/{prog.docs_total || 0}
                     </p>
                   </div>
                   <div className="w-px h-8 bg-white/5" />
                   <div className="text-center">
-                    <p className="text-[8px] font-black text-slate-700 uppercase tracking-widest mb-1 italic">
+                    <p className="text-[10px] font-bold text-slate-700 uppercase tracking-widest mb-1">
                       {t("adminMisc.progress.status")}
                     </p>
-                    <p className="text-xs font-black text-[#FF6600] uppercase tracking-tighter italic">
+                    <p className="text-xs font-black text-[#FF6600] uppercase tracking-tighter">
                       {prog.status || "Active"}
                     </p>
                   </div>
@@ -195,7 +195,7 @@ export default function SuperAdminProgressHub() {
           {isLoaded && filteredPrograms.length === 0 && (
             <div className="ios-card bg-white/[0.01] border-dashed border-white/10 !p-24 flex flex-col items-center justify-center gap-6 opacity-40">
               <Target className="w-16 h-16 text-slate-800" />
-              <p className="text-sm font-black text-slate-800 uppercase tracking-widest italic text-center leading-relaxed">
+              <p className="text-sm font-black text-slate-800 uppercase tracking-widest text-center leading-relaxed">
                 {t("adminMisc.progress.emptyState")}
               </p>
             </div>

@@ -701,7 +701,7 @@ export default function ProgramManagement() {
           <div className="space-y-4">
             <button
               onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("adminMisc.programs.backToDashboard")}
@@ -709,11 +709,11 @@ export default function ProgramManagement() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Signal className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   {t("adminMisc.programs.administration")}
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-[var(--text-primary)]">
+              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
                 {t("admin.programsList")}
               </h1>
             </div>
@@ -749,7 +749,7 @@ export default function ProgramManagement() {
               <button
                 key={tab.key}
                 onClick={() => setTab(tab.key)}
-                className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${
+                className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                   activeTab === tab.key
                     ? "bg-[var(--brand-orange)] text-black"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -766,7 +766,7 @@ export default function ProgramManagement() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("admin.search")}
-              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
           </div>
         </div>
@@ -800,10 +800,10 @@ export default function ProgramManagement() {
                           <Signal className="w-5 h-5" />
                         </div>
                         <div className="flex flex-col">
-                          <span className="text-base font-bold text-[var(--text-primary)] uppercase tracking-tight">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                             {p?.name || t("adminMisc.programs.unnamedMission")}
                           </span>
-                          <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5 line-clamp-1 max-w-xs">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5 line-clamp-1 max-w-xs">
                             {p?.description || t("adminMisc.programs.noDirective")}
                           </span>
                         </div>
@@ -811,7 +811,7 @@ export default function ProgramManagement() {
                     </td>
                     <td>
                       <span
-                        className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest ${
+                        className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
                           p?.status === "active"
                             ? "bg-emerald-500/10 text-emerald-500"
                             : p?.status === "in_progress"
@@ -822,7 +822,7 @@ export default function ProgramManagement() {
                                   ? "bg-purple-500/10 text-purple-500"
                                   : p?.status === "archived"
                                     ? "bg-rose-500/10 text-rose-500"
-                                    : "bg-slate-500/10 text-slate-500"
+                                    : "bg-slate-500/10 text-[var(--text-secondary)]"
                         }`}
                       >
                         {p?.status === "active"
@@ -854,7 +854,7 @@ export default function ProgramManagement() {
                           <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase">
                             {p?.participants_count || 0} {t("adminMisc.programs.members")}
                           </span>
-                          <span className="text-[9px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">
+                          <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase mt-0.5">
                             {Math.round(p?.completion_index || 0) || 0}%
                             {t("adminMisc.programs.progress")}
                           </span>
@@ -957,7 +957,7 @@ export default function ProgramManagement() {
           <div className="card w-full max-w-xl space-y-8 border-[var(--brand-orange)]/30 animate-in text-left my-auto max-h-[85vh] overflow-y-auto custom-scrollbar">
             <div className="flex justify-between items-center sticky top-0 bg-secondary pb-4 z-10 border-b border-[var(--border-primary)]">
               <div>
-                <h3 className="text-xl font-bold text-[var(--text-primary)] uppercase tracking-tight italic">
+                <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                   {t("adminMisc.programs.editProgramRegistry")}
                 </h3>
                 <p className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
@@ -1167,10 +1167,10 @@ export default function ProgramManagement() {
                     return (
                       <div className="space-y-1.5">
                         {formName && (
-                          <p className="text-[9px] font-black uppercase text-[var(--text-primary)] ml-2 truncate">{formName}</p>
+                          <p className="text-[10px] font-bold uppercase text-[var(--text-primary)] ml-2 truncate">{formName}</p>
                         )}
                         <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
-                          <code className="flex-1 text-[9px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>
+                          <code className="flex-1 text-[10px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>>
                             {formUrl}
                           </code>
                           <button
@@ -1198,9 +1198,9 @@ export default function ProgramManagement() {
                   }
                   return (
                     <div className="space-y-2 p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-                      <p className="text-[9px] font-black uppercase text-amber-400">{t("adminMisc.programs.noFormYet")}</p>
-                      <p className="text-[8px] text-[var(--text-secondary)]">{t("adminMisc.programs.noFormYetHint")}</p>
-                      <a href="/platform/forms" className="inline-block text-[8px] font-black uppercase text-blue-400 hover:underline">
+                      <p className="text-[10px] font-bold uppercase text-amber-400">{t("adminMisc.programs.noFormYet")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.programs.noFormYetHint")}</p>
+                      <a href="/platform/forms" className="inline-block text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:underline">
                         {t("adminMisc.programs.goToCrmForms")}
                       </a>
                     </div>
@@ -1238,7 +1238,7 @@ export default function ProgramManagement() {
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                   {t?.("admin.programPersonnel") || "PROGRAM PERSONNEL (STAFF)"}
                 </label>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                   {t("adminMisc.programs.staffAssistHint", {
                     manager: t("admin.selectManager"),
                   })}
@@ -1302,11 +1302,11 @@ export default function ProgramManagement() {
                           }`}
                         >
                           <div
-                            className={`w-6 h-6 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black ${isActive ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : ""}`}
+                            className={`w-6 h-6 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold ${isActive ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : ""}`}
                           >
                             {member.name?.charAt(0) || "?"}
                           </div>
-                          <span className="text-[9px] font-black uppercase truncate italic">
+                          <span className="text-[10px] font-bold uppercase truncate">
                             {member.name || member.email || member.cid || t("adminMisc.programs.unknown")}
                           </span>
                         </button>
@@ -1353,7 +1353,7 @@ export default function ProgramManagement() {
                 </div>
                 {showCreateNote && (
                   <div className="mt-3 p-4 bg-primary border border-[var(--border-primary)] rounded-xl space-y-3 animate-in">
-                    <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                       {t("adminMisc.programs.createNewConceptNote")}
                     </p>
                     <input
@@ -1361,14 +1361,14 @@ export default function ProgramManagement() {
                       value={newNoteTitle}
                       onChange={(e) => setNewNoteTitle(e.target.value)}
                       placeholder={t("adminMisc.programs.conceptNoteTitlePlaceholder")}
-                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                      className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg p-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
                     />
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={handleCreateConceptNote}
                         disabled={creatingNote || !newNoteTitle.trim()}
-                        className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-wider disabled:opacity-50 transition-all"
+                        className="flex-1 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-50 transition-all"
                       >
                         {creatingNote ? t("adminMisc.programs.creating") : t("adminMisc.programs.createAndLink")}
                       </button>
@@ -1475,7 +1475,7 @@ export default function ProgramManagement() {
 
                     if (mats.length === 0)
                       return (
-                        <p className="text-[10px] italic opacity-40 ml-2">
+                        <p className="text-[10px] font-medium opacity-40 ml-2">
                           {t?.("admin.noProgramPdfs") || "No program-specific PDFs uploaded."}
                         </p>
                       );
@@ -1528,7 +1528,7 @@ export default function ProgramManagement() {
                     ) : (
                       <Upload className="w-4 h-4" />
                     )}
-                    <span className="text-[10px] uppercase font-black">
+                    <span className="text-[10px] uppercase font-bold">
                       {isUploading ? t?.("common.saving") || "Syncing..." : t?.("admin.uploadPdf") || "Upload Additional PDF"}
                     </span>
                   </button>
@@ -1546,7 +1546,7 @@ export default function ProgramManagement() {
                 <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                   {t?.("admin.targetGroups") || "TARGET STUDENT GROUPS"}
                 </label>
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                   {t?.("admin.assignProgramToGroups") || "Assign this program to specific student cohorts or families."}
                 </p>
                 <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-3 bg-primary rounded-2xl border border-[var(--border-primary)]">
@@ -1587,7 +1587,7 @@ export default function ProgramManagement() {
                         />
                         <div className="flex flex-col overflow-hidden">
                           <div className="flex items-center gap-2">
-                            <span className="text-[9px] font-black uppercase truncate italic">
+                            <span className="text-[10px] font-bold uppercase truncate">
                               {s.name || t("adminMisc.programs.unnamed")}
                             </span>
                             {isActive && s.default_role && (
@@ -1605,7 +1605,7 @@ export default function ProgramManagement() {
                                       window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.roleUpdated") } }));
                                     } catch (_) {}
                                   }}
-                                  className="text-[7px] font-black px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
+                                  className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
                                 >
                                   <option value={s.default_role}>{s.default_role}</option>
                                   <option value="">{t("adminMisc.programs.roleNone")}</option>
@@ -1618,12 +1618,12 @@ export default function ProgramManagement() {
                                   <option value="founder">{t("adminMisc.programs.roleFounder")}</option>
                                 </select>
                               :
-                                <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">{s.default_role}</span>
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">{s.default_role}</span>
                             )}
                           </div>
                           {isActive && (
                             <span 
-                              className="text-[8px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
+                              className="text-[10px] font-medium text-emerald-400/80 hover:text-emerald-400 truncate mt-0.5"
                               title={t("adminMisc.programs.clickToCopyRegistrationLink")}
                               onClick={async (e) => {
                                 e.stopPropagation();
@@ -1666,7 +1666,7 @@ export default function ProgramManagement() {
                         });
                       }
                     }}
-                    className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
+                    className="text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:underline"
                   >
                     {isCreatingGroup ? t?.("common.cancel") || "Cancel" : t?.("admin.createNewGroup") || "+ Create New Group"}
                   </button>
@@ -1677,7 +1677,7 @@ export default function ProgramManagement() {
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
                     PROGRAM FACILITATORS (EXTERNAL)
                   </label>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2 opacity-50">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                     Program-level group — created automatically for every program. Not Future Studio staff; access is limited to this program.
                   </p>
 
@@ -1687,21 +1687,21 @@ export default function ProgramManagement() {
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "assigned_groups" })}
                       className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
-                      <p className={`text-[8px] font-black uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>Assigned Groups Only</p>
-                      <p className="text-[7px] text-[var(--text-secondary)] mt-1">Facilitators see only their assigned participant groups.</p>
+                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>Assigned Groups Only</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">Facilitators see only their assigned participant groups.</p>
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "all" })}
                       className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
-                      <p className={`text-[8px] font-black uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>All Participants</p>
-                      <p className="text-[7px] text-[var(--text-secondary)] mt-1">Facilitators see the entire program.</p>
+                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>All Participants</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">Facilitators see the entire program.</p>
                     </button>
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">DEFAULT FACILITATOR PERMISSIONS — APPLIES TO ALL</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">DEFAULT FACILITATOR PERMISSIONS — APPLIES TO ALL</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {FACILITATOR_CAPS.map((cap) => {
                         const active = !!(editingProgram?.facilitator_default_permissions || {})[cap.key];
@@ -1710,7 +1710,7 @@ export default function ProgramManagement() {
                             key={cap.key}
                             type="button"
                             onClick={() => toggleFacDefault(cap.key)}
-                            className={`text-[7px] font-bold uppercase px-1.5 py-1.5 rounded-lg border text-left truncate transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"}`}
+                            className={`text-[10px] font-bold uppercase px-1.5 py-1.5 rounded-lg border text-left truncate transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"}`}
                           >
                             {cap.label}{active ? " ✓" : ""}
                           </button>
@@ -1720,26 +1720,26 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ASSIGNED FACILITATORS</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">ASSIGNED FACILITATORS</p>
                     {(editingProgram?.facilitators || []).length === 0 && (
-                      <p className="text-[9px] italic text-[var(--text-secondary)]">No facilitators assigned yet.</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">No facilitators assigned yet.</p>
                     )}
                     {(editingProgram?.facilitators || []).map((f) => (
                       <div key={f.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
                         <div className="flex items-center justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="text-[9px] font-black uppercase truncate">{f.name || f.email || f.cid}</p>
-                            <p className="text-[8px] text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
+                            <p className="text-[10px] font-bold uppercase truncate">{f.name || f.email || f.cid}</p>
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
                           </div>
                           <button
                             type="button"
                             onClick={() => removeFacilitator(f)}
-                            className="text-[8px] font-black uppercase text-rose-400 hover:underline shrink-0"
+                            className="text-[10px] font-bold uppercase text-rose-400 hover:underline shrink-0"
                           >
                             Remove
                           </button>
                         </div>
-                        <p className="text-[7px] font-black uppercase text-[var(--text-secondary)]">INDIVIDUAL OVERRIDES (THIS FACILITATOR ONLY)</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">INDIVIDUAL OVERRIDES (THIS FACILITATOR ONLY)</p>
                         <div className="grid grid-cols-2 gap-1">
                           {FACILITATOR_CAPS.map((cap) => {
                             const active = !!(f.permissions || {})[cap.key];
@@ -1748,7 +1748,7 @@ export default function ProgramManagement() {
                                 key={cap.key}
                                 type="button"
                                 onClick={() => toggleFacOverride(f, cap.key)}
-                                className={`text-[7px] font-bold uppercase px-1.5 py-1 rounded-lg border text-left truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                                className={`text-[10px] font-bold uppercase px-1.5 py-1 rounded-lg border text-left truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                               >
                                 {cap.label}{active ? " ✓" : ""}
                               </button>
@@ -1760,7 +1760,7 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">ADD FACILITATOR — SEARCH ALL CONTACTS</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">ADD FACILITATOR — SEARCH ALL CONTACTS</p>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         value={inviteForm.name}
@@ -1779,11 +1779,11 @@ export default function ProgramManagement() {
                       type="button"
                       disabled={facBusy}
                       onClick={createAndInviteFacilitator}
-                      className="w-full text-[8px] font-black uppercase px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
+                      className="w-full text-[10px] font-bold uppercase px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
                     >
                       CREATE &amp; INVITE NEW FACILITATOR (sends activation email)
                     </button>
-                    <p className="text-[7px] italic text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                       Not in the system? Enter name + email — an activation link is emailed, then they are added to this program's Facilitators group.
                     </p>
                     <div className="relative">
@@ -1808,13 +1808,13 @@ export default function ProgramManagement() {
                             onClick={() => addFacilitator(c)}
                             className="w-full flex items-center justify-between gap-2 p-2 rounded-lg border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
                           >
-                            <span className="text-[9px] font-black uppercase truncate">{c.name || c.email}</span>
-                            <span className="text-[8px] text-[var(--text-secondary)] truncate">{c.email && c.email !== c.name ? c.email : ""}</span>
+                            <span className="text-[10px] font-bold uppercase truncate">{c.name || c.email}</span>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{c.email && c.email !== c.name ? c.email : ""}</span>
                             <Plus className="w-3 h-3 shrink-0 text-emerald-400" />
                           </button>
                         ))}
                       {facilitatorPool.length === 0 && (
-                        <p className="text-[8px] italic text-[var(--text-secondary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                           No contacts in the CRM "Facilitators" group yet. Add them via the CRM (bulk upload or contact edit).
                         </p>
                       )}
@@ -1822,17 +1822,17 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">LEAD FACILITATOR PER PARTICIPANT GROUP</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">LEAD FACILITATOR PER PARTICIPANT GROUP</p>
                     {(editingProgram?.assigned_segments || []).map((segId) => {
                       const family = (Array.isArray(notes) ? notes : []).find((n) => String(n.id) === String(segId));
                       if (!family) return null;
                       return (
                         <div key={segId} className="flex items-center justify-between gap-2">
-                          <span className="text-[9px] font-black uppercase truncate">{family.name}</span>
+                          <span className="text-[10px] font-bold uppercase truncate">{family.name}</span>
                           <select
                             value={family.lead_facilitator_id || ""}
                             onChange={(e) => setLeadFacilitator(family.id, e.target.value || null)}
-                            className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none cursor-pointer max-w-[45%]"
+                            className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer max-w-[45%]"
                           >
                             <option value="">— None —</option>
                             {(editingProgram?.facilitators || []).map((f) => (
@@ -1843,7 +1843,7 @@ export default function ProgramManagement() {
                       );
                     })}
                     {(editingProgram?.assigned_segments || []).length === 0 && (
-                      <p className="text-[8px] italic text-[var(--text-secondary)]">Assign participant groups above to set a lead facilitator per group.</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">Assign participant groups above to set a lead facilitator per group.</p>
                     )}
                   </div>
                 </div>
@@ -1889,7 +1889,7 @@ export default function ProgramManagement() {
                     <button
                       type="button"
                       onClick={handleCreateGroupInline}
-                      className="w-full py-2.5 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all"
+                      className="w-full py-2.5 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase rounded-lg border border-blue-500/20 hover:bg-blue-500/20 transition-all"
                     >
                       {t?.("common.create") || "Create & Assign Group"}
                     </button>
@@ -1921,7 +1921,7 @@ export default function ProgramManagement() {
                     <Target className="w-3.5 h-3.5" />{" "}
                     {t("adminMisc.programs.strategicKpisConfiguration")}
                   </label>
-                  <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest italic opacity-50">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("adminMisc.programs.superAdminOnly")}
                   </span>
                 </div>
@@ -1933,10 +1933,10 @@ export default function ProgramManagement() {
                       className="flex items-center justify-between p-3.5 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-[var(--brand-orange)]/30 transition-all"
                     >
                       <div>
-                        <p className="text-xs font-bold text-white uppercase tracking-tight">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                           {kpi.title}
                         </p>
-                        <p className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest mt-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] mt-1">
                           {t("admin.targetValue")}: {kpi.target_value}%
                         </p>
                       </div>
@@ -1952,7 +1952,7 @@ export default function ProgramManagement() {
 
                   <div className="p-4 bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10 rounded-xl space-y-4">
                     <div className="space-y-1">
-                      <p className="text-[9px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                         {t("adminMisc.programs.defineNewTarget")}
                       </p>
                       <p className="text-[10px] text-[var(--text-secondary)]">
@@ -1994,7 +1994,7 @@ export default function ProgramManagement() {
                           disabled={
                             isKpiSubmitting || !editKpiInput.title.trim()
                           }
-                          className="px-4 bg-[var(--brand-orange)] text-black font-bold uppercase text-[9px] tracking-widest rounded-xl hover:bg-white transition-all disabled:opacity-50"
+                          className="px-4 bg-[var(--brand-orange)] text-black font-bold uppercase text-sm tracking-wide rounded-xl hover:bg-white transition-all disabled:opacity-50"
                         >
                           {t("adminMisc.programs.add")}
                         </button>
@@ -2007,7 +2007,7 @@ export default function ProgramManagement() {
               <button
                 type="submit"
                 disabled={isUpdating}
-                className="btn btn-primary w-full py-5 uppercase font-black tracking-[0.2em] italic shadow-xl shadow-orange-500/20"
+                className="btn btn-primary w-full py-5 text-sm font-bold uppercase tracking-wide shadow-xl shadow-orange-500/20"
               >
                 {isUpdating ? (
                   <div className="flex items-center justify-center gap-3">

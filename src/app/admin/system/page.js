@@ -190,11 +190,11 @@ export default function SystemMonitoringPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter flex items-center gap-2">
               <HeartPulse className="text-[var(--brand-orange)]" size={24} />
               {t("adminMisc.system.title")}
             </h1>
-            <p className="text-gray-400 mt-1">{t("adminMisc.system.subtitle")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("adminMisc.system.subtitle")}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={runHealthCheck} disabled={runningHealth}
@@ -439,11 +439,11 @@ export default function SystemMonitoringPage() {
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-x-auto">
                     <table className="w-full">
                       <thead><tr className="border-b border-gray-800">
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.colJob")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.colType")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.status")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.duration")}</th>
-                        <th className="text-left p-3 text-xs text-gray-400">{t("adminMisc.system.started")}</th>
+                <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.colJob")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.colType")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.status")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.duration")}</th>
+                        <th className="text-left p-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.system.started")}</th>
                       </tr></thead>
                       <tbody>
                         {jobs.map((j) => (

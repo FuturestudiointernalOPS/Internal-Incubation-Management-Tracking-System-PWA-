@@ -93,7 +93,7 @@ function ImportReviewContent() {
         <div className="flex items-center gap-3">
           <Link
             href="/admin/platform/import"
-            className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)] flex items-center gap-1"
+            className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)] flex items-center gap-1"
           >
             <ArrowLeft className="w-3 h-3" /> {t("adminMisc.platformImportReview.backToImport")}
           </Link>
@@ -102,11 +102,11 @@ function ImportReviewContent() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-amber-500" />
-            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
               {t("adminMisc.platformImportReview.eyebrow")}
             </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {t("adminMisc.platformImportReview.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -124,7 +124,7 @@ function ImportReviewContent() {
             <button
               key={tab.key}
               onClick={() => setFilter(tab.key)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+              className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
                 filter === tab.key
                   ? "bg-[var(--brand-orange)] text-black"
                   : "bg-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -179,17 +179,17 @@ function ImportReviewContent() {
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-black text-[var(--text-primary)] uppercase">
+                      <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
                         {f.applicant_name || t("adminMisc.platformImportReview.unknown")}
                       </p>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                         {f.applicant_email || t("adminMisc.platformImportReview.noEmail")} · {t("adminMisc.platformImportReview.rowPrefix")} {f.row_number} · {t("adminMisc.platformImportReview.methodLabel")} {f.method}
                       </p>
                       <p className="text-[10px] text-amber-500 font-bold mt-2">
                         {f.reason}
                       </p>
                       {f.matched_cid && (
-                        <p className="text-[9px] text-[var(--text-secondary)] mt-1 font-mono">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 font-mono">
                           {t("adminMisc.platformImportReview.linkedTo")} {f.matched_name || f.matched_cid} ({f.matched_cid})
                         </p>
                       )}
@@ -199,14 +199,14 @@ function ImportReviewContent() {
                     {f.matched_cid && (
                       <Link
                         href={`/admin/crm/timeline?cid=${f.matched_cid}`}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                       >
                         <Eye className="w-3 h-3" /> {t("adminMisc.platformImportReview.viewCrm")}
                       </Link>
                     )}
                     <Link
                       href="/admin/crm/duplicates"
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                     >
                       <User className="w-3 h-3" /> {t("adminMisc.platformImportReview.duplicates")}
                     </Link>
@@ -214,7 +214,7 @@ function ImportReviewContent() {
                       <button
                         onClick={() => resolveFlag(f.id, "resolved")}
                         disabled={resolving === f.id}
-                        className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40"
+                        className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
                       >
                         {resolving === f.id ? "..." : t("adminMisc.platformImportReview.markResolved")}
                       </button>
@@ -222,7 +222,7 @@ function ImportReviewContent() {
                       <button
                         onClick={() => resolveFlag(f.id, "pending")}
                         disabled={resolving === f.id}
-                        className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                        className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                       >
                         {t("adminMisc.platformImportReview.reopen")}
                       </button>

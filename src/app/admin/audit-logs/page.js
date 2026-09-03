@@ -138,11 +138,11 @@ export default function AuditLogsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter flex items-center gap-2">
               <Shield className="text-[var(--brand-orange)]" size={24} />
               {t("adminMisc.auditLogs.title")}
             </h1>
-            <p className="text-gray-400 mt-1">{t("adminMisc.auditLogs.subtitle")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("adminMisc.auditLogs.subtitle")}</p>
           </div>
           <button
             onClick={fetchLogs}
@@ -157,15 +157,15 @@ export default function AuditLogsPage() {
         {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-              <p className="text-2xl font-bold">{stats.total || stats.audit_logs_24h || 0}</p>
-              <p className="text-xs text-gray-400">{t("adminMisc.auditLogs.events24h")}</p>
+              <p className="text-2xl font-black tracking-tight">{stats.total || stats.audit_logs_24h || 0}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.events24h")}</p>
             </div>
             {(stats.by_severity || []).map((s) => (
               <div key={s.severity} className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <p className={`text-2xl font-bold ${s.severity === "critical" ? "text-rose-400" : s.severity === "error" ? "text-red-400" : s.severity === "warning" ? "text-amber-400" : "text-blue-400"}`}>
+                <p className={`text-2xl font-black tracking-tight ${s.severity === "critical" ? "text-rose-400" : s.severity === "error" ? "text-red-400" : s.severity === "warning" ? "text-amber-400" : "text-blue-400"}`}>
                   {s.c}
                 </p>
-                <p className="text-xs text-gray-400 capitalize">{s.severity}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{s.severity}</p>
               </div>
             ))}
           </div>
@@ -181,13 +181,13 @@ export default function AuditLogsPage() {
                 placeholder={t("adminMisc.auditLogs.searchPlaceholder")}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]"
               />
             </div>
             <select
               value={filters.event_type}
               onChange={(e) => setFilters((f) => ({ ...f, event_type: e.target.value, offset: 0 }))}
-              className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]"
+              className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white focus:outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.auditLogs.allEventTypes")}</option>
               {EVENT_TYPE_OPTIONS.filter(Boolean).map((opt) => (
@@ -197,7 +197,7 @@ export default function AuditLogsPage() {
             <select
               value={filters.severity}
               onChange={(e) => setFilters((f) => ({ ...f, severity: e.target.value, offset: 0 }))}
-              className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]"
+              className="px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm font-bold text-white focus:outline-none focus:border-[var(--brand-orange)]"
             >
               <option value="">{t("adminMisc.auditLogs.allSeverities")}</option>
               <option value="info">{t("adminMisc.auditLogs.severityInfo")}</option>
@@ -221,8 +221,8 @@ export default function AuditLogsPage() {
         ) : logs.length === 0 ? (
           <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
             <Info className="mx-auto mb-3 text-gray-500" size={40} />
-            <p className="text-gray-400">{t("adminMisc.auditLogs.emptyState")}</p>
-            <p className="text-gray-600 text-sm mt-2">{t("adminMisc.auditLogs.emptyStateDesc")}</p>
+            <p className="text-sm text-gray-400">{t("adminMisc.auditLogs.emptyState")}</p>
+            <p className="text-sm text-gray-600 mt-2">{t("adminMisc.auditLogs.emptyStateDesc")}</p>
           </div>
         ) : (
           <div className="bg-[#0f172a] border border-gray-800 rounded-xl overflow-hidden">
@@ -230,12 +230,12 @@ export default function AuditLogsPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-gray-800">
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colTimestamp")}</th>
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colEventType")}</th>
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colActor")}</th>
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colDescription")}</th>
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colSeverity")}</th>
-                    <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.auditLogs.colActions")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colTimestamp")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colEventType")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colActor")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colDescription")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colSeverity")}</th>
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.auditLogs.colActions")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -247,26 +247,26 @@ export default function AuditLogsPage() {
                         className="border-b border-gray-800/50 hover:bg-white/[0.02] transition-colors cursor-pointer"
                         onClick={() => setSelectedLog(log)}
                       >
-                        <td className="p-4 text-sm text-gray-300 whitespace-nowrap">
+                        <td className="p-4 text-sm font-bold text-gray-300 whitespace-nowrap">
                           <div className="flex items-center gap-2">
                             <Clock size={12} className="text-gray-500" />
                             {formatDate(log.created_at)}
                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="text-sm font-medium text-white">
+                          <span className="text-sm font-bold text-white">
                             {log.event_type?.replace(/_/g, " ")}
                           </span>
                         </td>
                         <td className="p-4">
-                          <div className="text-sm text-gray-300">{log.actor_name || log.actor_cid}</div>
-                          {log.actor_role && <div className="text-xs text-gray-500">{log.actor_role}</div>}
+                          <div className="text-sm font-bold text-gray-300">{log.actor_name || log.actor_cid}</div>
+                          {log.actor_role && <div className="text-[10px] font-medium text-gray-500">{log.actor_role}</div>}
                         </td>
                         <td className="p-4 text-sm text-gray-400 max-w-[300px] truncate">
                           {log.description || "-"}
                         </td>
                         <td className="p-4">
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${SEVERITY_COLORS[log.severity] || SEVERITY_COLORS.info}`}>
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${SEVERITY_COLORS[log.severity] || SEVERITY_COLORS.info}`}>
                             <SevIcon size={10} />
                             {log.severity || "info"}
                           </span>
@@ -316,7 +316,7 @@ export default function AuditLogsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setSelectedLog(null)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold flex items-center gap-2">
+                <h2 className="text-lg font-black tracking-tight flex items-center gap-2">
                   <Shield size={18} className="text-[var(--brand-orange)]" />
                   {t("adminMisc.auditLogs.detailsTitle")}
                 </h2>
@@ -327,46 +327,46 @@ export default function AuditLogsPage() {
               <div className="p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.colEventType")}</p>
-                    <p className="text-sm font-medium">{selectedLog.event_type?.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.colEventType")}</p>
+                    <p className="text-sm font-bold">{selectedLog.event_type?.replace(/_/g, " ")}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.colSeverity")}</p>
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${SEVERITY_COLORS[selectedLog.severity] || SEVERITY_COLORS.info}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.colSeverity")}</p>
+                    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${SEVERITY_COLORS[selectedLog.severity] || SEVERITY_COLORS.info}`}>
                       {selectedLog.severity || "info"}
                     </span>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.colTimestamp")}</p>
-                    <p className="text-sm">{formatDate(selectedLog.created_at)}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.colTimestamp")}</p>
+                    <p className="text-sm font-bold">{formatDate(selectedLog.created_at)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.colActor")}</p>
-                    <p className="text-sm">{selectedLog.actor_name || selectedLog.actor_cid}</p>
-                    {selectedLog.actor_role && <p className="text-xs text-gray-500">{selectedLog.actor_role}</p>}
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.colActor")}</p>
+                    <p className="text-sm font-bold">{selectedLog.actor_name || selectedLog.actor_cid}</p>
+                    {selectedLog.actor_role && <p className="text-[10px] font-medium text-gray-500">{selectedLog.actor_role}</p>}
                   </div>
                   {selectedLog.venture_id && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.venture")}</p>
-                      <p className="text-sm">{selectedLog.venture_id}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.venture")}</p>
+                      <p className="text-sm font-bold">{selectedLog.venture_id}</p>
                     </div>
                   )}
                   {selectedLog.ip_address && (
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.ipAddress")}</p>
-                      <p className="text-sm font-mono text-gray-300">{selectedLog.ip_address}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.ipAddress")}</p>
+                      <p className="text-sm font-bold font-mono text-gray-300">{selectedLog.ip_address}</p>
                     </div>
                   )}
                 </div>
                 {selectedLog.description && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.colDescription")}</p>
-                    <p className="text-sm text-gray-300">{selectedLog.description}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.colDescription")}</p>
+                    <p className="text-sm font-bold text-gray-300">{selectedLog.description}</p>
                   </div>
                 )}
                 {selectedLog.metadata && typeof selectedLog.metadata === "object" && Object.keys(selectedLog.metadata).length > 0 && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-1">{t("adminMisc.auditLogs.metadata")}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">{t("adminMisc.auditLogs.metadata")}</p>
                     <pre className="text-xs text-gray-400 bg-[#020617] rounded-lg p-3 overflow-x-auto">
                       {JSON.stringify(selectedLog.metadata, null, 2)}
                     </pre>

@@ -34,7 +34,7 @@ function formatLabel(val) {
 function InfoBlock({ label, value }) {
   return (
     <div className="p-3 bg-primary rounded-xl border border-[var(--border-primary)] print:bg-white print:border-gray-200 print:rounded print:p-2.5">
-      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 print:text-gray-500">
+      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 print:text-gray-500">
         {label}
       </p>
       <p className="text-xs font-bold text-[var(--text-primary)] leading-snug print:text-black">
@@ -132,7 +132,7 @@ export default function ReportResponses() {
           <div className="space-y-4">
             <button
               onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("adminMisc.reportsResponses.dashboard")}
@@ -152,7 +152,7 @@ export default function ReportResponses() {
 
           <div className="flex gap-3">
             <div className="p-4 bg-secondary border border-[var(--border-primary)] rounded-2xl px-8 flex flex-col justify-center shadow-sm">
-              <span className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                 {t("adminMisc.reportsResponses.totalSignals")}
               </span>
               <span className="text-[var(--text-primary)] font-black text-2xl leading-none tracking-tighter">
@@ -170,7 +170,7 @@ export default function ReportResponses() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("adminMisc.reportsResponses.searchPlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 
@@ -179,7 +179,7 @@ export default function ReportResponses() {
             <select
               value={selectedProgram}
               onChange={(e) => setSelectedProgram(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Programs">
                 {t("adminMisc.reportsResponses.allPrograms")}
@@ -237,7 +237,7 @@ export default function ReportResponses() {
 
                       <div className="flex items-center gap-8">
                         <div className="text-center">
-                          <p className="text-[8px] font-bold text-slate-600 uppercase tracking-[0.2em] mb-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 mb-1">
                             {t("adminMisc.reportsResponses.reception")}
                           </p>
                           <div className="flex gap-1 justify-center">
@@ -258,7 +258,7 @@ export default function ReportResponses() {
                     </div>
 
                     <div className="mt-6 pt-6 border-t border-[var(--border-secondary)]">
-                      <p className="text-xs font-medium text-[var(--text-secondary)] line-clamp-2 italic leading-relaxed">
+                      <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
                         "{report.progress_notes}"
                       </p>
                     </div>
@@ -331,7 +331,7 @@ export default function ReportResponses() {
             {/* Program Info Bar */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
               <div className="space-y-0.5">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest print:text-gray-500">
                   {t("adminMisc.reportsResponses.programManager")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
@@ -339,7 +339,7 @@ export default function ReportResponses() {
                 </p>
               </div>
               <div className="space-y-0.5">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest print:text-gray-500">
                   {t("adminMisc.reportsResponses.week")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
@@ -347,7 +347,7 @@ export default function ReportResponses() {
                 </p>
               </div>
               <div className="space-y-0.5">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest print:text-gray-500">
                   {t("adminMisc.reportsResponses.submitted")}
                 </p>
                 <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
@@ -355,7 +355,7 @@ export default function ReportResponses() {
                 </p>
               </div>
               <div className="space-y-0.5">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest print:text-gray-500">
                   {t("adminMisc.reportsResponses.healthStatus")}
                 </p>
                 <p
@@ -380,8 +380,8 @@ export default function ReportResponses() {
 
             {/* ───────── 1. WEEKLY OVERVIEW ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.2em] flex items-center gap-2 border-b border-[var(--brand-orange)]/20 pb-2 print:text-orange-600 print:border-orange-200">
-                <span className="w-4 h-4 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[7px] print:bg-orange-100 print:text-orange-600">
+              <h5 className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest flex items-center gap-2 border-b border-[var(--brand-orange)]/20 pb-2 print:text-orange-600 print:border-orange-200">
+                <span className="w-4 h-4 rounded-full bg-[var(--brand-orange)]/10 flex items-center justify-center text-[10px] font-bold print:bg-orange-100 print:text-orange-600">
                   1
                 </span>
                 {t("adminMisc.reportsResponses.weeklyOverview")}
@@ -404,8 +404,8 @@ export default function ReportResponses() {
 
             {/* ───────── 2. ASSIGNMENT TRACKING ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-violet-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-violet-500/20 pb-2 print:text-violet-600 print:border-violet-200">
-                <span className="w-4 h-4 rounded-full bg-violet-500/10 flex items-center justify-center text-[7px] print:bg-violet-100 print:text-violet-600">
+              <h5 className="text-[10px] font-bold text-violet-500 uppercase tracking-widest flex items-center gap-2 border-b border-violet-500/20 pb-2 print:text-violet-600 print:border-violet-200">
+                <span className="w-4 h-4 rounded-full bg-violet-500/10 flex items-center justify-center text-[10px] font-bold print:bg-violet-100 print:text-violet-600">
                   +
                 </span>
                 {t("adminMisc.reportsResponses.kpiAssignmentTracking")}
@@ -448,7 +448,7 @@ export default function ReportResponses() {
                 </div>
               ) : (
                 <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
-                  <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
+                  <p className="text-xs font-medium text-[var(--text-secondary)] print:text-gray-500">
                     {t("adminMisc.reportsResponses.noAssignmentThisWeek")}
                   </p>
                 </div>
@@ -457,8 +457,8 @@ export default function ReportResponses() {
 
             {/* ───────── 3. PARTICIPATION ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-indigo-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-indigo-500/20 pb-2 print:text-indigo-600 print:border-indigo-200">
-                <span className="w-4 h-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-[7px] print:bg-indigo-100 print:text-indigo-600">
+              <h5 className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest flex items-center gap-2 border-b border-indigo-500/20 pb-2 print:text-indigo-600 print:border-indigo-200">
+                <span className="w-4 h-4 rounded-full bg-indigo-500/10 flex items-center justify-center text-[10px] font-bold print:bg-indigo-100 print:text-indigo-600">
                   2
                 </span>
                 {t("adminMisc.reportsResponses.participation")}
@@ -491,8 +491,8 @@ export default function ReportResponses() {
 
             {/* ───────── 4. DELIVERY FEEDBACK ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-blue-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-blue-500/20 pb-2 print:text-blue-600 print:border-blue-200">
-                <span className="w-4 h-4 rounded-full bg-blue-500/10 flex items-center justify-center text-[7px] print:bg-blue-100 print:text-blue-600">
+              <h5 className="text-[10px] font-bold text-blue-500 uppercase tracking-widest flex items-center gap-2 border-b border-blue-500/20 pb-2 print:text-blue-600 print:border-blue-200">
+                <span className="w-4 h-4 rounded-full bg-blue-500/10 flex items-center justify-center text-[10px] font-bold print:bg-blue-100 print:text-blue-600">
                   3
                 </span>
                 {t("adminMisc.reportsResponses.deliveryFeedback")}
@@ -519,8 +519,8 @@ export default function ReportResponses() {
 
             {/* ───────── 5. ISSUES & SUPPORT ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-rose-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-rose-500/20 pb-2 print:text-rose-600 print:border-rose-200">
-                <span className="w-4 h-4 rounded-full bg-rose-500/10 flex items-center justify-center text-[7px] print:bg-rose-100 print:text-rose-600">
+              <h5 className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-2 border-b border-rose-500/20 pb-2 print:text-rose-600 print:border-rose-200">
+                <span className="w-4 h-4 rounded-full bg-rose-500/10 flex items-center justify-center text-[10px] font-bold print:bg-rose-100 print:text-rose-600">
                   4
                 </span>
                 {t("adminMisc.reportsResponses.issuesAndSupport")}
@@ -564,7 +564,7 @@ export default function ReportResponses() {
                 </div>
               ) : (
                 <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)] print:bg-gray-50 print:border-gray-200 print:rounded print:p-3">
-                  <p className="text-xs font-medium text-[var(--text-secondary)] italic print:text-gray-500">
+                  <p className="text-xs font-medium text-[var(--text-secondary)] print:text-gray-500">
                     {t("adminMisc.reportsResponses.noIssuesReported")}
                   </p>
                 </div>
@@ -573,8 +573,8 @@ export default function ReportResponses() {
 
             {/* ───────── 6. NEXT WEEK ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-emerald-500/20 pb-2 print:text-emerald-600 print:border-emerald-200">
-                <span className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center text-[7px] print:bg-emerald-100 print:text-emerald-600">
+              <h5 className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2 border-b border-emerald-500/20 pb-2 print:text-emerald-600 print:border-emerald-200">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/10 flex items-center justify-center text-[10px] font-bold print:bg-emerald-100 print:text-emerald-600">
                   5
                 </span>
                 {t("adminMisc.reportsResponses.nextWeekPlanning")}
@@ -595,7 +595,7 @@ export default function ReportResponses() {
 
             {/* ───────── NOTES (fallback from old system) ───────── */}
             <section className="space-y-3">
-              <h5 className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em] flex items-center gap-2 border-b border-slate-500/20 pb-2 print:text-gray-600 print:border-gray-200">
+              <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 border-b border-slate-500/20 pb-2 print:text-gray-600 print:border-gray-200">
                 {t("adminMisc.reportsResponses.notesAndReception")}
               </h5>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

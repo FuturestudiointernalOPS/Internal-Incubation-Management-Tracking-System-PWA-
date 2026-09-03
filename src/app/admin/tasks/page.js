@@ -317,7 +317,7 @@ export default function AdminTasks() {
           <div className="space-y-2">
             <button
               onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("adminMisc.tasks.dashboard")}
@@ -395,7 +395,7 @@ export default function AdminTasks() {
                 <CheckCircle2 className="w-3.5 h-3.5" />
               </div>
               <div>
-                <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {stat.label}
                 </p>
                 <p className={`text-base font-black ${stat.color}`}>
@@ -414,7 +414,7 @@ export default function AdminTasks() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 
@@ -423,7 +423,7 @@ export default function AdminTasks() {
             <select
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Users">{t("adminMisc.tasks.allUsers")}</option>
               {users.map((u) => (
@@ -439,7 +439,7 @@ export default function AdminTasks() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">{t("adminMisc.tasks.allStatuses")}</option>
               <option value="pending">{t("status.pending")}</option>
@@ -455,7 +455,7 @@ export default function AdminTasks() {
             <select
               value={filterProject}
               onChange={(e) => setFilterProject(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="All Projects">{t("adminMisc.tasks.allProjects")}</option>
               <option value="Independent">{t("adminMisc.tasks.independentTasks")}</option>
@@ -472,7 +472,7 @@ export default function AdminTasks() {
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               {sortOptions.map((opt) => (
                 <option key={opt.id} value={opt.id}>
@@ -489,10 +489,10 @@ export default function AdminTasks() {
         ) : filteredTasks.length === 0 ? (
           <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <ListTodo className="w-16 h-16 mb-4" />
-            <p className="text-[10px] font-bold uppercase tracking-widest">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("reports.noTasksFound")}
             </p>
-            <p className="text-[9px] text-slate-500 mt-2">
+            <p className="text-sm text-[var(--text-secondary)] mt-2">
               {t("adminMisc.tasks.emptyStateDesc")}
             </p>
           </div>
@@ -502,31 +502,31 @@ export default function AdminTasks() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.task")}
                     </th>
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.owner")}
                     </th>
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.project")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.status")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("time.created")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("time.updated")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("reports.carryOver")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.blockers")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.tasks.actions")}
                     </th>
                   </tr>
@@ -546,7 +546,7 @@ export default function AdminTasks() {
                             {task.title}
                           </p>
                           {task.description && (
-                            <p className="text-[9px] text-slate-500 mt-0.5 line-clamp-1">
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 line-clamp-1">
                               {task.description}
                             </p>
                           )}
@@ -554,16 +554,16 @@ export default function AdminTasks() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                          <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                             {task.user_name?.charAt(0) || "?"}
                           </div>
-                          <span className="text-[10px] font-bold uppercase tracking-tight">
+                          <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                             {task.user_name || t("adminMisc.tasks.unknown")}
                           </span>
                         </div>
                       </td>
                       <td className="p-4">
-                        <span className="text-[9px] font-bold text-indigo-500">
+                        <span className="text-sm font-bold text-indigo-500">
                           {task.project_id
                             ? projectMap[task.project_id] ||
                               t("adminMisc.tasks.projectNumber", {
@@ -574,18 +574,18 @@ export default function AdminTasks() {
                       </td>
                       <td className="text-center p-4">
                         <span
-                          className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${getStatusBg(task.status)} ${getStatusColor(task.status)}`}
+                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getStatusBg(task.status)} ${getStatusColor(task.status)}`}
                         >
                           {formatStatusLabel(task.status, t)}
                         </span>
                       </td>
                       <td className="text-center p-4">
-                        <span className="text-[9px] font-bold text-slate-500">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                           W{task.created_week}·{task.created_year}
                         </span>
                       </td>
                       <td className="text-center p-4">
-                        <span className="text-[9px] text-slate-500">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                           {new Date(
                             task.updated_at || task.created_at,
                           ).toLocaleDateString()}
@@ -593,7 +593,7 @@ export default function AdminTasks() {
                       </td>
                       <td className="text-center p-4">
                         <span
-                          className={`text-[10px] font-black ${task.carried_over_from_task_id ? "text-amber-500" : "text-slate-600"}`}
+                          className={`text-sm font-bold ${task.carried_over_from_task_id ? "text-amber-500" : "text-[var(--text-secondary)]"}`}
                         >
                           {getCarryOverCount(task)}
                         </span>
@@ -607,7 +607,7 @@ export default function AdminTasks() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-[9px] text-slate-600">—</span>
+                          <span className="text-sm font-bold text-[var(--text-secondary)]">—</span>
                         )}
                       </td>
                       <td className="text-center p-4">
@@ -690,7 +690,7 @@ export default function AdminTasks() {
 
               <div className="space-y-4">
                 <div>
-                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                     {t("adminMisc.tasks.title")}
                   </p>
                   <p className="text-sm font-bold text-[var(--text-primary)]">
@@ -700,10 +700,10 @@ export default function AdminTasks() {
 
                 {viewingTask.description && (
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("adminMisc.tasks.description")}
                     </p>
-                    <p className="text-xs text-[var(--text-secondary)]">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       {viewingTask.description}
                     </p>
                   </div>
@@ -711,15 +711,15 @@ export default function AdminTasks() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("adminMisc.tasks.owner")}
                     </p>
-                    <p className="text-xs font-bold text-[var(--text-primary)]">
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
                       {viewingTask.user_name || t("adminMisc.tasks.unknown")}
                     </p>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("adminMisc.tasks.project")}
                     </p>
                     <p className="text-xs font-bold text-indigo-500">
@@ -735,17 +735,17 @@ export default function AdminTasks() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("adminMisc.tasks.status")}
                     </p>
-                    <span
-                      className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded ${getStatusBg(viewingTask.status)} ${getStatusColor(viewingTask.status)}`}
-                    >
+                      <span
+                        className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${getStatusBg(viewingTask.status)} ${getStatusColor(viewingTask.status)}`}
+                      >
                       {formatStatusLabel(viewingTask.status, t)}
                     </span>
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("reports.carryOver")}
                     </p>
                     <p className="text-xs font-bold text-amber-500">
@@ -756,10 +756,10 @@ export default function AdminTasks() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                       {t("time.created")}
                     </p>
-                    <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                    <p className="text-sm font-bold text-[var(--text-primary)]">
                       {t("adminMisc.tasks.week")} {viewingTask.created_week} ·{" "}
                       {viewingTask.created_year}
                     </p>

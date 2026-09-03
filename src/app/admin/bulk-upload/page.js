@@ -84,11 +84,11 @@ export default function BulkUploadPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
               {t("adminMisc.bulkUpload.administration")}
             </span>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {t("adminMisc.bulkUpload.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -105,17 +105,17 @@ export default function BulkUploadPage() {
               <Download className="w-5 h-5" />
             </div>
             <div>
-              <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
+              <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                 {t("adminMisc.bulkUpload.csvTemplate")}
               </p>
-              <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                 {t("adminMisc.bulkUpload.templateHint")}
               </p>
             </div>
           </div>
           <button
             onClick={downloadTemplate}
-            className="btn btn-primary text-[10px] px-4 py-2"
+            className="btn btn-primary text-sm font-bold uppercase tracking-wide px-4 py-2"
           >
             {t("adminMisc.bulkUpload.downloadTemplate")}
           </button>
@@ -140,7 +140,7 @@ export default function BulkUploadPage() {
                 <p className="text-sm font-bold text-[var(--text-primary)]">
                   {file.name}
                 </p>
-                <p className="text-[10px] text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {(file.size / 1024).toFixed(1)} KB
                 </p>
                 <button
@@ -161,7 +161,7 @@ export default function BulkUploadPage() {
                 <p className="text-sm font-bold text-[var(--text-primary)]">
                   {t("adminMisc.bulkUpload.clickToSelect")}
                 </p>
-                <p className="text-[10px] text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("adminMisc.bulkUpload.columns")} name, email, phone{" "}
                   {t("adminMisc.bulkUpload.optional")}, group_name{" "}
                   {t("adminMisc.bulkUpload.optional")}, role{" "}
@@ -190,7 +190,7 @@ export default function BulkUploadPage() {
             <button
               onClick={handleUpload}
               disabled={uploading}
-              className="btn btn-primary w-full mt-6 py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3"
+              className="btn btn-primary w-full mt-6 py-4 text-sm font-bold uppercase tracking-wide flex items-center justify-center gap-3"
             >
               {uploading ? (
                 <>
@@ -223,34 +223,34 @@ export default function BulkUploadPage() {
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="card p-4 text-center border-l-4 border-emerald-500">
-                    <p className="text-2xl font-black text-emerald-500">
+                    <p className="text-2xl font-black tracking-tight text-emerald-500">
                       {result.created}
                     </p>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {t("adminMisc.bulkUpload.created")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-blue-500">
-                    <p className="text-2xl font-black text-blue-500">
+                    <p className="text-2xl font-black tracking-tight text-blue-500">
                       {result.updated}
                     </p>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {t("adminMisc.bulkUpload.updated")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-amber-500">
-                    <p className="text-2xl font-black text-amber-500">
+                    <p className="text-2xl font-black tracking-tight text-amber-500">
                       {result.skipped}
                     </p>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {t("adminMisc.bulkUpload.skipped")}
                     </p>
                   </div>
                   <div className="card p-4 text-center border-l-4 border-rose-500">
-                    <p className="text-2xl font-black text-rose-500">
+                    <p className="text-2xl font-black tracking-tight text-rose-500">
                       {result.errors?.length || 0}
                     </p>
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {t("adminMisc.bulkUpload.errors")}
                     </p>
                   </div>
@@ -278,7 +278,7 @@ export default function BulkUploadPage() {
                     setResult(null);
                     if (fileInputRef.current) fileInputRef.current.value = "";
                   }}
-                  className="btn w-full py-3 uppercase tracking-widest text-xs"
+                  className="btn w-full py-3 text-sm font-bold uppercase tracking-wide"
                 >
                   {t("adminMisc.bulkUpload.uploadAnother")}
                 </button>
@@ -289,7 +289,7 @@ export default function BulkUploadPage() {
 
         {/* Info card */}
         <div className="card p-6 border-indigo-500/20">
-          <h3 className="text-xs font-bold text-indigo-500 uppercase tracking-wider mb-3">
+          <h3 className="text-[11px] font-bold text-indigo-500 uppercase tracking-wide mb-3">
             {t("adminMisc.bulkUpload.whatHappensAfter")}
           </h3>
           <ul className="space-y-2 text-[11px] text-[var(--text-secondary)]">

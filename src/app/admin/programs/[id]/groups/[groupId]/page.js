@@ -110,7 +110,7 @@ export default function GroupWorkspaceV2({ params }) {
                  <h1 className="text-5xl font-black text-white tracking-tighter uppercase mb-4 flex items-center gap-3">
                     {group.name}
                     {group.type === 'facilitators' || Number(group.is_system) === 1 ? (
-                      <span className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400">
+                      <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400">
                         SYSTEM GROUP
                       </span>
                     ) : null}
@@ -121,7 +121,7 @@ export default function GroupWorkspaceV2({ params }) {
               </div>
 
               <div className="ios-card bg-[#0d0d18] border-white/5 space-y-8">
-                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
                     <Rocket className="w-4 h-4 text-indigo-400" /> {t('adminMisc.programGroups.projectConcept')}
                  </h4>
                  <textarea 
@@ -138,10 +138,10 @@ export default function GroupWorkspaceV2({ params }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <div className="ios-card bg-white/[0.02] border-white/5 space-y-6">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('adminMisc.programGroups.assetRegistry')}</h4>
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('adminMisc.programGroups.assetRegistry')}</h4>
                     <div className="space-y-4">
                        <div className="space-y-2">
-                          <label htmlFor="pitch_deck_url" className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">{t('adminMisc.programGroups.pitchDeckLink')}</label>
+                          <label htmlFor="pitch_deck_url" className="text-[10px] font-bold uppercase tracking-widest text-slate-600 pl-2">{t('adminMisc.programGroups.pitchDeckLink')}</label>
                           <input 
                              id="pitch_deck_url"
                              name="pitch_deck_url"
@@ -153,7 +153,7 @@ export default function GroupWorkspaceV2({ params }) {
                           />
                        </div>
                        <div className="space-y-2">
-                          <label htmlFor="demo_link" className="text-[9px] font-black text-slate-600 uppercase tracking-widest pl-2">{t('adminMisc.programGroups.liveDemoPortal')}</label>
+                          <label htmlFor="demo_link" className="text-[10px] font-bold uppercase tracking-widest text-slate-600 pl-2">{t('adminMisc.programGroups.liveDemoPortal')}</label>
                           <input 
                              id="demo_link"
                              name="demo_link"
@@ -167,16 +167,16 @@ export default function GroupWorkspaceV2({ params }) {
                     </div>
                  </div>
                  <div className="ios-card bg-white/[0.02] border-white/5 space-y-6">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('adminMisc.programGroups.teamComposition')}</h4>
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('adminMisc.programGroups.teamComposition')}</h4>
                     <div className="space-y-3">
                        <div className="flex items-center gap-4 p-4 rounded-xl bg-black/40 border border-white/5">
                           <div className="w-10 h-10 rounded-lg bg-[#FF6600]/80/10 border border-[#FF6600]/80/20 flex items-center justify-center text-indigo-400"><Users className="w-5 h-5" /></div>
                           <div>
-                             <p className="text-[10px] font-black text-white uppercase tracking-widest">{t('adminMisc.programGroups.foundingNode')}</p>
-                             <p className="text-[9px] text-slate-600 font-bold">{t('adminMisc.programGroups.linkedParticipant')}</p>
+                             <p className="text-[10px] font-bold text-white uppercase tracking-widest">{t('adminMisc.programGroups.foundingNode')}</p>
+                             <p className="text-[10px] font-medium text-slate-600">{t('adminMisc.programGroups.linkedParticipant')}</p>
                           </div>
                        </div>
-                       <button className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest hover:border-[#FF6600]/80/30 hover:text-indigo-400 transition-all">
+                       <button className="w-full py-3 border border-dashed border-white/10 rounded-xl text-[10px] font-bold text-slate-600 uppercase tracking-widest hover:border-[#FF6600]/80/30 hover:text-indigo-400 transition-all">
                           {t('adminMisc.programGroups.assignPersonnel')}
                        </button>
                     </div>
@@ -187,12 +187,12 @@ export default function GroupWorkspaceV2({ params }) {
            <div className="space-y-8">
               <div className="ios-card bg-mesh py-12 text-center space-y-4">
                  <Shield className="w-10 h-10 text-emerald-400 mx-auto" />
-                 <h4 className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{t('adminMisc.programGroups.escrowProtection')}</h4>
-                 <p className="text-[9px] text-slate-500 font-bold max-w-[120px] mx-auto">{t('adminMisc.programGroups.escrowDescription', { programId })}</p>
+                 <h4 className="text-[10px] font-bold text-white uppercase tracking-widest">{t('adminMisc.programGroups.escrowProtection')}</h4>
+                 <p className="text-[10px] font-medium text-slate-500 max-w-[120px] mx-auto">{t('adminMisc.programGroups.escrowDescription', { programId })}</p>
               </div>
 
               <div className="ios-card bg-[#0d0d18] border-white/5">
-                 <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6">{t('adminMisc.programGroups.executionLog')}</h4>
+                 <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">{t('adminMisc.programGroups.executionLog')}</h4>
                  <div className="space-y-6 relative">
                     <div className="absolute left-[7px] top-2 bottom-2 w-px bg-white/5" />
                     {[
@@ -202,8 +202,8 @@ export default function GroupWorkspaceV2({ params }) {
                        <div key={i} className="flex gap-4 items-start relative">
                           <div className="w-4 h-4 rounded-full bg-[#FF6600]/80 border-4 border-[#0d0d18] z-10" />
                           <div>
-                             <p className="text-[10px] font-black text-white uppercase tracking-tighter leading-none">{log.event}</p>
-                             <p className="text-[8px] text-slate-600 font-black uppercase tracking-widest mt-1">{log.date} {t('adminMisc.programGroups.timestampSuffix')}</p>
+                             <p className="text-[10px] font-bold text-white uppercase tracking-tighter leading-none">{log.event}</p>
+                             <p className="text-[10px] font-medium text-slate-600 uppercase tracking-widest mt-1">{log.date} {t('adminMisc.programGroups.timestampSuffix')}</p>
                           </div>
                        </div>
                     ))}
