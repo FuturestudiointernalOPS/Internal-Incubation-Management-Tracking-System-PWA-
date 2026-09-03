@@ -30,6 +30,24 @@ function pickValues(submissionData, keyMap) {
   return out;
 }
 
+/**
+ * Best-effort company-name extraction for manually built forms that have no
+ * settings.key mapping: look for a submitted value whose field label clearly
+ * refers to the company/venture (never the founder's name, team, contacts).
+ */
+function inferCompanyNameFromFields(submissionData, fieldRows) {
+  for (const f of fieldRows || []) {
+    const label = String(f.label || "");
+    if (!/company|venture|business|startup|organisation|organization|enterprise|\bfirm\b/i.test(label)) continue;
+    if (/founder|lead|contact|person|first|last|email|phone|\bteam\b/i.test(label)) continue;
+    const val = submissionData?.[String(f.id)];
+    if (typeof val === "string" && val.trim()) {
+      return val.trim().substring(0, 200);
+    }
+  }
+  return "";
+}
+
 async function mirrorRoleHistory(ventureId, contactCid, role, active = true) {
   try {
     const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
@@ -90,11 +108,12 @@ export async function createVentureFromSubmission({ submission, run, form, revie
 
   // ── 2. Map submission answers (fields carry settings.key set by the seed) ──
   const fieldRes = await db.execute({
-    sql: "SELECT id, settings FROM platform_form_fields WHERE form_id = ?",
+    sql: "SELECT id, label, field_type, settings FROM platform_form_fields WHERE form_id = ?",
     args: [form.id],
   });
+  const fieldRows = fieldRes.rows || [];
   const keyMap = {};
-  for (const f of fieldRes.rows || []) {
+  for (const f of fieldRows) {
     if (f.settings?.key) keyMap[String(f.id)] = f.settings.key;
   }
   const data = pickValues(submission.data || {}, keyMap);
@@ -116,7 +135,26 @@ export async function createVentureFromSubmission({ submission, run, form, revie
     }
   }
 
-  const companyName = String(data.company_name || run.name || "New Venture").trim();
+  // Company-name resolution, in order:
+  //   1. key-mapped field (settings.key = 'company_name')
+  //   2. literal 'company_name' key (staff-prefilled promote submissions)
+  //   3. a field whose label clearly names the company/venture — manually
+  //      built forms have no settings.key
+  //
+  // If none exists the approval is SKIPPED with a clear reason — a Venture is
+  // never silently named after the Run that collected its data (regression:
+  // ventures were appearing in admin lists under the intake run's name).
+  const keyedCompanyName = String(data.company_name || "").trim();
+  const companyName =
+    keyedCompanyName || inferCompanyNameFromFields(submission.data, fieldRows);
+  if (!companyName) {
+    return {
+      skipped: true,
+      reason: "missing_company_name",
+      message:
+        "The submission does not contain an identifiable company name (no key-mapped field and no company/venture-labelled answer). Fix the form's company-name field before approving.",
+    };
+  }
 
   // ── 3. Duplicate company name ──
   const dup = await db.execute({

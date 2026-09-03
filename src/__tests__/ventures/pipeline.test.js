@@ -57,8 +57,9 @@ const FIELD_ROWS = [
 
 beforeEach(() => {
   jest.clearAllMocks();
-  // Default fallback: any db.execute call without a queued response returns
-  // an empty result so extra schema/guard queries never crash the pipeline.
+  // Reset queued one-time responses from any previous (possibly failed) test,
+  // then provide a safe empty-result default for un-queued calls.
+  db.execute.mockReset();
   db.execute.mockImplementation(async () => ({ rows: [] }));
 });
 
@@ -76,12 +77,21 @@ describe("createVentureFromSubmission", () => {
   it("skips when the company name already exists", async () => {
     db.execute
       .mockResolvedValueOnce({ rows: [] }) // origins lookup
-      .mockResolvedValueOnce({ rows: [] }) // fields
+      .mockResolvedValueOnce({ rows: FIELD_ROWS }) // fields (key-mapped)
       .mockResolvedValueOnce({ rows: [{ venture_id: "VNT-DUP" }] }); // duplicate company
 
     const result = await createVentureFromSubmission({ submission: SUBMISSION, run: RUN, form: FORM, review: REVIEW });
 
     expect(result).toEqual({ skipped: true, reason: "duplicate company name", venture_id: "VNT-DUP" });
+  });
+
+  it("skips when the submission has no identifiable company name — never names the Venture after the run", async () => {
+    // Default mock returns empty rows: no key-mapped fields and no field
+    // labels, so no company name can be derived from the submission.
+    const result = await createVentureFromSubmission({ submission: SUBMISSION, run: RUN, form: FORM, review: REVIEW });
+
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toBe("missing_company_name");
   });
 
   it("creates the Venture, provenance, founder and members, and notifies", async () => {
