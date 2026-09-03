@@ -3,6 +3,43 @@ import db, { initDb } from "@/lib/db";
 import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
 
+// The pipeline adds platform_form_submissions.invitation_id lazily via
+// ensureVentureSchema() (seed/approval paths). Public submit inserts that
+// column too, so this route self-heals its own schema — cached once per
+// process, idempotent, never destructive.
+let submitSchemaPromise = null;
+async function ensurePublicSubmitSchema() {
+  if (!submitSchemaPromise) {
+    submitSchemaPromise = (async () => {
+      try {
+        await db.execute({
+          sql: "ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER",
+          args: [],
+        });
+        await db.execute({
+          sql: "CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id)",
+          args: [],
+        });
+      } catch (e) {
+        console.warn("[Public Submit] schema ensure failed:", e.message);
+      }
+      try {
+        await db.execute({
+          sql: `CREATE TABLE IF NOT EXISTS platform_submissions_rate (
+            id SERIAL PRIMARY KEY,
+            run_id INTEGER NOT NULL REFERENCES platform_form_runs(id) ON DELETE CASCADE,
+            ip TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+          )`,
+          args: [],
+        });
+      } catch (_) {}
+      return true;
+    })();
+  }
+  return submitSchemaPromise;
+}
+
 /**
  * POST /api/s/public-submit
  * Public endpoint — accepts form submissions without auth.
@@ -17,6 +54,7 @@ import { onSubmission } from "@/lib/platform/automation";
 export async function POST(req) {
   try {
     await initDb();
+    await ensurePublicSubmitSchema();
     
     // Get client IP
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
