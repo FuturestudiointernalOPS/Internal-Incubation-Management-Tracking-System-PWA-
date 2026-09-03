@@ -37,8 +37,8 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 const STATUS_CONFIG = {
   pending: {
     label: "Pending",
-    color: "text-slate-400",
-    bg: "bg-slate-500/10",
+    color: "text-[var(--text-secondary)]",
+    bg: "bg-secondary",
     dot: "bg-slate-400",
   },
   in_progress: {
@@ -79,7 +79,7 @@ const PRIORITY_COLORS = {
   critical: "bg-red-500/20 text-red-400 border-red-500/30",
   high: "bg-amber-500/20 text-amber-400 border-amber-500/30",
   medium: "bg-blue-500/10 text-blue-400",
-  low: "bg-slate-500/10 text-slate-400",
+  low: "bg-secondary text-[var(--text-secondary)]",
 };
 
 const getEventStyle = (ev) => {
@@ -91,7 +91,7 @@ const getEventStyle = (ev) => {
   if (ev.source === "task" && ev.priority && ev.priority !== "medium") {
     return PRIORITY_COLORS[ev.priority] || EVENT_BASE.task;
   }
-  return EVENT_BASE[ev.source] || "bg-slate-500/10 text-slate-400";
+  return EVENT_BASE[ev.source] || "bg-secondary text-[var(--text-secondary)]";
 };
 
 const EVENT_DOTS = {
@@ -480,7 +480,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             <p className="text-sm font-bold text-rose-400">{error}</p>
             <button
               onClick={fetchDashboardData}
-              className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest"
+              className="px-6 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide"
             >
               Retry
             </button>
@@ -508,7 +508,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Activity className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 Dashboard
               </span>
             </div>
@@ -527,7 +527,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                 {t("time.months." + MONTH_KEYS[calMonth])} {calYear}
               </span>
             </div>
@@ -539,10 +539,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                     key={v}
                     onClick={() => setCalView(v)}
                     className={cn(
-                      "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded transition-all",
+                      "text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded transition-all",
                       calView === v
                         ? "bg-[var(--brand-orange)] text-black"
-                        : "text-slate-500 hover:text-[var(--text-primary)]",
+                        : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
                     )}
                   >
                     {t("time.calendar." + v)}
@@ -557,7 +557,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               </button>
               <button
                 onClick={handleToday}
-                className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
               >
                 {t("time.today")}
               </button>
@@ -575,7 +575,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="grid grid-cols-7 gap-px bg-[var(--border-primary)] rounded-lg overflow-hidden">
               {DAY_KEYS.map((k) => (
                 <div key={k} className="bg-primary p-1 text-center">
-                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                     {t("time.days." + k)}
                   </span>
                 </div>
@@ -606,16 +606,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                     <div className="flex items-center justify-between">
                       <span
                         className={cn(
-                          "text-[8px] font-bold",
+                          "text-[10px] font-bold",
                           current
                             ? "text-[var(--brand-orange)]"
-                            : "text-slate-500",
+                            : "text-[var(--text-secondary)]",
                         )}
                       >
                         {day}
                       </span>
                       {dayEvents.length > 0 && (
-                        <span className="text-[7px] font-bold text-slate-500">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">
                           {dayEvents.length}
                         </span>
                       )}
@@ -640,7 +640,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             }
                           }}
                           className={cn(
-                            "w-full text-left px-1 py-0.5 rounded text-[7px] font-bold truncate leading-tight hover:brightness-110 transition-all",
+                            "w-full text-left px-1 py-0.5 rounded text-[10px] font-bold truncate leading-tight hover:brightness-110 transition-all",
                             getEventStyle(ev),
                           )}
                         >
@@ -685,21 +685,21 @@ export default function UnifiedDashboard({ role: propRole }) {
                       <div className="w-8 text-center shrink-0">
                         <p
                           className={cn(
-                            "text-[9px] font-black",
+                            "text-[10px] font-bold",
                             current
                               ? "text-[var(--brand-orange)]"
-                              : "text-slate-500",
+                              : "text-[var(--text-secondary)]",
                           )}
                         >
                           {d.getDate()}
                         </p>
-                        <p className="text-[6px] font-bold text-slate-600 uppercase">
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                           {t("time.days." + DAY_KEYS[d.getDay()])}
                         </p>
                       </div>
                       <div className="flex-1 space-y-1">
                         {dayEvents.length === 0 && (
-                          <p className="text-[8px] text-slate-600 italic">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {t("common.noEvents")}
                           </p>
                         )}
@@ -707,7 +707,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <button
                             key={ev.id}
                             onClick={() => setSelectedEvent(ev)}
-                            className="block w-full text-left text-[9px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
+                            className="block w-full text-left text-[11px] font-bold text-[var(--text-primary)] hover:text-[var(--brand-orange)] truncate"
                           >
                             • {ev.title}
                           </button>
@@ -733,7 +733,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                 const dayEvents = events.filter((e) => e.date === dateStr);
                 return (
                   <>
-                    <p className="text-[9px] font-bold text-[var(--text-primary)] mb-2">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] mb-2">
                       {today.toLocaleDateString("en-US", {
                         weekday: "long",
                         month: "long",
@@ -741,7 +741,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       })}
                     </p>
                     {dayEvents.length === 0 && (
-                      <p className="text-[8px] text-slate-600 italic">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {t("common.noEvents")}
                       </p>
                     )}
@@ -757,10 +757,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                             EVENT_DOTS[ev.source] || "bg-slate-400",
                           )}
                         />
-                        <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
+                        <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
                           {ev.title}
                         </span>
-                        <span className="text-[7px] font-black uppercase tracking-wider text-slate-500">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {ev.source}
                         </span>
                       </div>
@@ -776,7 +776,7 @@ export default function UnifiedDashboard({ role: propRole }) {
             {Object.entries(EVENT_DOTS).map(([key, dotClass]) => (
               <div key={key} className="flex items-center gap-1.5">
                 <div className={cn("w-2 h-2 rounded-full", dotClass)} />
-                <span className="text-[7px] font-bold text-slate-500 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   {key}
                 </span>
               </div>
@@ -789,10 +789,10 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="card border-l-4 border-l-amber-500">
             <div className="flex items-center gap-2 mb-3">
               <Target className="w-4 h-4 text-amber-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-amber-400">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-amber-400">
                 {t("dashboard.assignedToMe", "ASSIGNÉES À MOI")}
               </span>
-              <span className="text-[9px] font-bold text-slate-500 ml-auto">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
                 {assignments.filter((a) => a.status === "pending").length}{" "}
                 {t("dashboard.awaitingAction", "en attente d'action")}
               </span>
@@ -810,7 +810,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         : "border-[var(--border-primary)] bg-secondary",
                     )}
                   >
-                    <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                    <div className="w-7 h-7 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                       {(task.user_name || "?").charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -820,18 +820,18 @@ export default function UnifiedDashboard({ role: propRole }) {
                         </span>
                         {task.priority && task.priority !== "medium" && (
                           <span
-                            className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${task.priority === "critical"
+                            className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0 ${task.priority === "critical"
                                 ? "bg-red-500/10 text-red-400"
                                 : task.priority === "high"
                                   ? "bg-amber-500/10 text-amber-400"
-                                  : "bg-slate-500/10 text-slate-400"
+                                  : "bg-secondary text-[var(--text-secondary)]"
                               }`}
                           >
                             {task.priority}
                           </span>
                         )}
                       </div>
-                      <p className="text-[8px] text-slate-500 mt-0.5">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                         {t("dashboard.assignedBy", "Assigné par:")} {task.user_name || "System"}
                         {task.end_date
                           ? ` \u00B7 ${t("common.due", "Échéance:")} ${new Date(task.end_date).toLocaleDateString()}`
@@ -845,7 +845,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             handleAssignmentAction(task.id, "accepted")
                           }
                           disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
+                          className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
                         >
                           {actionLoading === task.id ? "..." : t("common.accept", "Accepter")}
                         </button>
@@ -854,7 +854,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             handleAssignmentAction(task.id, "declined")
                           }
                           disabled={actionLoading === task.id}
-                          className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
+                          className="px-3 py-1.5 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 disabled:opacity-50"
                         >
                           {actionLoading === task.id ? "..." : t("common.decline", "Refuser")}
                         </button>
@@ -868,7 +868,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           )
                         }
                         disabled={actionLoading === task.id}
-                        className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[8px] font-black uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50"
+                        className="px-3 py-1.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-lg text-[10px] font-bold uppercase tracking-widest hover:text-emerald-400 hover:border-emerald-500/30 transition-all shrink-0 disabled:opacity-50"
                       >
                         {actionLoading === task.id ? "..." : t("common.complete", "Terminé")}
                       </button>
@@ -886,7 +886,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         : "/staff/op-report",
                     )
                   }
-                  className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
+                  className="w-full text-center py-1.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
                 >
                   {t("common.viewAll", "Voir Tout")} ({assignments.length})
                 </button>
@@ -900,7 +900,7 @@ export default function UnifiedDashboard({ role: propRole }) {
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span className="text-[9px] font-black uppercase tracking-widest text-rose-400">
+              <span className="text-sm font-black uppercase tracking-tight text-rose-400">
                 {t("dashboard.attentionRequired", "Attention Requise")}
               </span>
             </div>
@@ -909,7 +909,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card border-l-4 border-l-rose-500">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-rose-500">
                     {t("dashboard.overdueTasks", "Tâches en retard")} ({attention.overdueTasks.length})
                   </span>
                 </div>
@@ -937,16 +937,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                       {t.priority && (
                         <span
                           className={cn(
-                            "text-[7px] font-black uppercase px-1.5 py-0.5 rounded",
+                            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded",
                             t.priority === "high" || t.priority === "critical"
                               ? "bg-rose-500/10 text-rose-500"
-                              : "bg-slate-500/10 text-slate-500",
+                              : "bg-secondary text-[var(--text-secondary)]",
                           )}
                         >
                           {t.priority}
                         </span>
                       )}
-                      <span className="text-[8px] text-slate-500 shrink-0">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                         {t.due_date
                           ? new Date(t.due_date).toLocaleDateString()
                           : ""}
@@ -961,7 +961,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card border-l-4 border-l-rose-500">
                 <div className="flex items-center gap-2 mb-2">
                   <Shield className="w-3.5 h-3.5 text-rose-500" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-rose-500">
                     {t("dashboard.criticalBlockers", "Bloqueurs critiques")} ({attention.criticalBlockers.length})
                   </span>
                 </div>
@@ -976,12 +976,12 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <span className="text-[10px] font-bold text-[var(--text-primary)]">
                             {b.title}
                           </span>
-                          <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500">
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500">
                             {b.severity}
                           </span>
                         </div>
                         {b.project_id && (
-                          <p className="text-[8px] text-slate-500 mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {t("common.project", "Projet:")} #{b.project_id}
                           </p>
                         )}
@@ -989,7 +989,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       <button
                         onClick={() => handleResolveBlocker(b.id)}
                         disabled={resolvingBlocker === b.id}
-                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                        className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                       >
                         {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
                       </button>
@@ -1003,7 +1003,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card border-l-4 border-l-amber-500">
                 <div className="flex items-center gap-2 mb-2">
                   <Clock className="w-3.5 h-3.5 text-amber-400" />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-amber-400">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-amber-400">
                     {t("dashboard.dueToday", "À rendre aujourd'hui")} ({attention.dueToday.length})
                   </span>
                 </div>
@@ -1019,7 +1019,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                       <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate">
                         {t.title}
                       </span>
-                      <span className="text-[7px] font-black text-slate-500 uppercase">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase">
                         {t.type}
                       </span>
                     </div>
@@ -1056,7 +1056,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card">
                 <div className="flex items-center gap-2 mb-4">
                   <TrendingUp className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                     Strategic KPIs
                   </span>
                 </div>
@@ -1066,7 +1066,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     return (
                       <div key={programId} className="space-y-2">
                         {prog && (
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-wider">
+                          <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                             {prog.name}
                           </span>
                         )}
@@ -1078,10 +1078,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                             return (
                               <div key={kpi.kpi_id} className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
                                 <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[7px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
+                                  <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase truncate max-w-[80px]">
                                     {kpi.title || kpi.name}
                                   </span>
-                                  <span className="text-[8px] font-black text-[var(--brand-orange)]">{Math.round(pct)}%</span>
+                                  <span className="text-[10px] font-bold text-[var(--brand-orange)]">{Math.round(pct)}%</span>
                                 </div>
                                 <div className="h-1 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
                                   <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all" style={{width: `${pct}%`}} />
@@ -1104,16 +1104,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Briefcase className="w-4 h-4 text-emerald-400" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                       {t("dashboard.myPrograms", "Mes Programmes")}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
                       ({quickAccess.programs?.length || 0})
                     </span>
                   </div>
                   <button
                     onClick={() => router.push("/pm/programs")}
-                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("common.viewAll", "Voir Tout")}
                   </button>
@@ -1129,7 +1129,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     />
                   </div>
                 ) : quickAccess.programs?.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-6 text-center">
+                  <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
                     {t("dashboard.noPrograms", "Aucun programme")}
                   </p>
                 ) : (
@@ -1155,7 +1155,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center">
                               <Briefcase className="w-3.5 h-3.5 text-emerald-400" />
                             </div>
-                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-emerald-500">
                               {p.status || "Active"}
                             </span>
                           </div>
@@ -1163,16 +1163,16 @@ export default function UnifiedDashboard({ role: propRole }) {
                             {p.name}
                           </p>
                           {p.description && (
-                            <p className="text-[8px] text-slate-500 mt-1 line-clamp-2">
+                            <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
                               {p.description}
                             </p>
                           )}
                           <div className="mt-3 space-y-1">
                             <div className="flex justify-between items-end">
-                              <span className="text-[7px] font-black text-slate-600 uppercase tracking-widest">
+                              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                                 {t("dashboard.kpiProgress", "KPI Progress")}
                               </span>
-                              <span className="text-[9px] font-black text-emerald-400">
+                              <span className="text-[10px] font-bold text-emerald-400">
                                 {Number(kpiProgress).toFixed(0)}%
                               </span>
                             </div>
@@ -1197,10 +1197,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                       {t("dashboard.facilitatorPrograms", "My Facilitator Programs")}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
                       ({facilitatorPrograms.length})
                     </span>
                   </div>
@@ -1216,7 +1216,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         <div className="w-7 h-7 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center">
                           <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
                         </div>
-                        <span className="text-[8px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
                           {p.status || "Active"}
                         </span>
                       </div>
@@ -1224,7 +1224,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         {p.name}
                       </p>
                       {p.description && (
-                        <p className="text-[8px] text-slate-500 mt-1 line-clamp-2">
+                        <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
                           {p.description}
                         </p>
                       )}
@@ -1240,10 +1240,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <ListTodo className="w-4 h-4 text-blue-400" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                       {t("dashboard.myTasks", "Mes Tâches")}
                     </span>
-                    <span className="text-[9px] font-bold text-slate-500">
+                    <span className="text-[10px] font-bold text-[var(--text-secondary)]">
                       ({quickAccess.tasks?.length || 0})
                     </span>
                   </div>
@@ -1255,7 +1255,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         router.push("/staff/op-report");
                       }
                     }}
-                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("dashboard.openReport", "Ouvrir le rapport")}
                   </button>
@@ -1271,7 +1271,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     />
                   </div>
                 ) : quickAccess.tasks?.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-6 text-center">
+                  <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
                     {t("dashboard.noActiveTasks", "Aucune tâche active")}
                   </p>
                 ) : (
@@ -1305,11 +1305,11 @@ export default function UnifiedDashboard({ role: propRole }) {
                         {t.end_date && (
                           <span
                             className={cn(
-                              "text-[8px] font-bold shrink-0",
+                              "text-[10px] font-bold shrink-0",
                               new Date(t.end_date) < new Date() &&
                                 t.status !== "completed"
                                 ? "text-rose-500"
-                                : "text-slate-500",
+                                : "text-[var(--text-secondary)]",
                             )}
                           >
                             {formatLocaleDate(t.end_date, { month: "short", day: "numeric" }, lang)}
@@ -1317,9 +1317,9 @@ export default function UnifiedDashboard({ role: propRole }) {
                         )}
                         <span
                           className={cn(
-                            "text-[7px] font-black uppercase px-1.5 py-0.5 rounded shrink-0",
-                            STATUS_CONFIG[t.status]?.bg || "bg-slate-500/10",
-                            STATUS_CONFIG[t.status]?.color || "text-slate-500",
+                            "text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0",
+                            STATUS_CONFIG[t.status]?.bg || "bg-secondary",
+                            STATUS_CONFIG[t.status]?.color || "text-[var(--text-secondary)]",
                           )}
                         >
                           {STATUS_CONFIG[t.status]?.label || t.status}
@@ -1337,13 +1337,13 @@ export default function UnifiedDashboard({ role: propRole }) {
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                       {t("dashboard.recentActivity", "Activité Récente")}
                     </span>
                   </div>
                   <button
                     onClick={() => router.push("/admin/op-reports")}
-                    className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("common.viewAll", "Voir Tout")}
                   </button>
@@ -1365,14 +1365,14 @@ export default function UnifiedDashboard({ role: propRole }) {
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize truncate">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] capitalize truncate">
                           {t(ACTIVITY_LABELS[act.action] || "") || act.action?.replace(/_/g, " ")}
                         </p>
-                        <p className="text-[8px] text-slate-500 truncate">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                           {act.description}
                         </p>
                       </div>
-                      <span className="text-[8px] text-slate-600 shrink-0">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                         {act.timestamp
                           ? new Date(act.timestamp).toLocaleDateString()
                           : ""}
@@ -1390,40 +1390,40 @@ export default function UnifiedDashboard({ role: propRole }) {
             <div className="card">
               <div className="flex items-center gap-2 mb-4">
                 <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                   {t("dashboard.quickStats", "Statistiques Rapides")}
                 </span>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10">
-                  <p className="text-lg font-black text-emerald-400">
+                  <p className="text-2xl font-black tracking-tight text-emerald-400">
                     {summary.programs || 0}
                   </p>
-                  <p className="text-[7px] font-black text-emerald-600/60 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
                     {t("dashboard.programs", "Programmes")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-blue-500/5 border border-blue-500/10">
-                  <p className="text-lg font-black text-blue-400">
+                  <p className="text-2xl font-black tracking-tight text-blue-400">
                     {summary.tasks?.open || 0}
                   </p>
-                  <p className="text-[7px] font-black text-blue-600/60 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
                     {t("dashboard.openTasks", "Tâches ouvertes")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/10">
-                  <p className="text-lg font-black text-rose-400">
+                  <p className="text-2xl font-black tracking-tight text-rose-400">
                     {summary.blockers?.active || 0}
                   </p>
-                  <p className="text-[7px] font-black text-rose-600/60 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
                     {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                  <p className="text-lg font-black text-amber-400">
+                  <p className="text-2xl font-black tracking-tight text-amber-400">
                     {summary.overdueTasks || 0}
                   </p>
-                  <p className="text-[7px] font-black text-amber-600/60 uppercase tracking-widest mt-0.5">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
                     {t("dashboard.overdue", "En retard")}
                   </p>
                 </div>
@@ -1435,10 +1435,10 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card">
                 <div className="flex items-center gap-2 mb-3">
                   <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                     {t("dashboard.myProjects", "Mes Projets")}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
                     {quickAccess.projects?.length || 0}
                   </span>
                 </div>
@@ -1457,10 +1457,10 @@ export default function UnifiedDashboard({ role: propRole }) {
                           {p.name}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
+                          <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500">
                             {p.status || "Active"}
                           </span>
-                          <span className="text-[7px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                             {p.role === "owner" ? t("roles.owner", "Propriétaire") : t("roles.collaborator", "Collaborateur")}
                           </span>
                         </div>
@@ -1469,7 +1469,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   ))}
                   {(!quickAccess.projects ||
                     quickAccess.projects.length === 0) && (
-                      <p className="text-[10px] text-slate-500 italic py-4 text-center">
+                      <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
                         {t("dashboard.noProjects", "Aucun projet assigné")}
                       </p>
                     )}
@@ -1482,10 +1482,10 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card">
                 <div className="flex items-center gap-2 mb-3">
                   <Shield className="w-4 h-4 text-rose-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                     {t("dashboard.activeBlockers", "Bloqueurs Actifs")}
                   </span>
-                  <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
                     {quickAccess.blockers?.length || 0}
                   </span>
                 </div>
@@ -1500,7 +1500,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                     />
                   </div>
                 ) : quickAccess.blockers?.length === 0 ? (
-                  <p className="text-[10px] text-slate-500 italic py-4 text-center">
+                  <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
                     {t("dashboard.noActiveBlockers", "Aucun bloqueur actif")}
                   </p>
                 ) : (
@@ -1516,7 +1516,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                             {b.title}
                           </p>
                           {b.severity && (
-                            <span className="text-[6px] font-black uppercase tracking-wider text-rose-500/60">
+                            <span className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
                               {b.severity}
                             </span>
                           )}
@@ -1524,7 +1524,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         <button
                           onClick={() => handleResolveBlocker(b.id)}
                           disabled={resolvingBlocker === b.id}
-                          className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[7px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
+                          className="px-2 py-1 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50 shrink-0"
                         >
                           {resolvingBlocker === b.id ? "..." : t("common.resolve", "Résoudre")}
                         </button>
@@ -1540,7 +1540,7 @@ export default function UnifiedDashboard({ role: propRole }) {
               <div className="card">
                 <div className="flex items-center gap-2 mb-3">
                   <Calendar className="w-4 h-4 text-blue-400" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                     {t("dashboard.thisWeek", "Cette Semaine")}
                   </span>
                 </div>
@@ -1567,7 +1567,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                           <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
                             {ev.title}
                           </p>
-                          <p className="text-[7px] text-slate-500">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {formatLocaleDate(ev.date, { weekday: "short", month: "short", day: "numeric" }, lang)}
                           </p>
                         </div>
@@ -1587,11 +1587,11 @@ export default function UnifiedDashboard({ role: propRole }) {
           !visibility.showQuickBlockers &&
           !fetching && (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
-              <Activity className="w-16 h-16 text-slate-700" />
-              <p className="text-base font-black text-slate-600 uppercase tracking-widest">
+              <Activity className="w-16 h-16 text-[var(--text-secondary)]" />
+              <p className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                 Welcome to your dashboard
               </p>
-              <p className="text-[10px] text-slate-700">
+              <p className="text-sm text-[var(--text-secondary)]">
                 Start by creating tasks or joining projects.
               </p>
               <div className="flex gap-3 mt-4">
@@ -1604,7 +1604,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                         : "/staff/op-report",
                     )
                   }
-                  className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                  className="px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                 >
                   <Plus className="w-4 h-4 inline mr-1" /> Create Task
                 </button>
@@ -1651,31 +1651,31 @@ export default function UnifiedDashboard({ role: propRole }) {
             </p>
             <div className="grid grid-cols-2 gap-2 text-[10px]">
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
                   Date
                 </p>
-                <p className="font-bold">{selectedEvent.date}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)]">{selectedEvent.date}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
                   Source
                 </p>
-                <p className="font-bold capitalize">{selectedEvent.source}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)] capitalize">{selectedEvent.source}</p>
               </div>
               <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
                   Type
                 </p>
-                <p className="font-bold capitalize">
+                <p className="text-sm font-bold text-[var(--text-primary)] capitalize">
                   {selectedEvent.type?.replace(/_/g, " ")}
                 </p>
               </div>
               {selectedEvent.status && (
                 <div className="p-2.5 rounded-lg bg-tertiary border border-[var(--border-primary)]">
-                  <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest mb-0.5">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
                     Status
                   </p>
-                  <p className="font-bold capitalize">{selectedEvent.status}</p>
+                  <p className="text-sm font-bold text-[var(--text-primary)] capitalize">{selectedEvent.status}</p>
                 </div>
               )}
             </div>
@@ -1685,7 +1685,7 @@ export default function UnifiedDashboard({ role: propRole }) {
                   setSelectedEvent(null);
                   router.push(`/admin/projects/${selectedEvent.project_id}`);
                 }}
-                className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                className="w-full py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all"
               >
                 View Related Project
               </button>
@@ -1713,10 +1713,10 @@ function SummaryCard({ icon: Icon, label, value, color, onClick }) {
       className="card !p-4 hover:bg-tertiary transition-all text-left group"
     >
       <Icon className={cn("w-5 h-5 mb-2", color)} />
-      <p className="text-2xl font-black text-[var(--text-primary)]">
+      <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
         {value ?? "—"}
       </p>
-      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-0.5">
         {label}
       </p>
     </button>
@@ -1738,10 +1738,10 @@ function QuickAccessPanel({
     <div className="card">
       <div className="flex items-center gap-2 mb-3">
         <Icon className={cn("w-4 h-4", color)} />
-        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+        <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
           {title}
         </span>
-        <span className="text-[9px] font-bold text-slate-500 ml-auto">
+        <span className="text-[10px] font-bold text-[var(--text-secondary)] ml-auto">
           {count}
         </span>
       </div>
@@ -1756,7 +1756,7 @@ function QuickAccessPanel({
           />
         </div>
       ) : count === 0 ? (
-        <p className="text-[10px] text-slate-500 italic py-6 text-center">
+        <p className="text-sm text-[var(--text-secondary)] py-6 text-center">
           {emptyMessage}
         </p>
       ) : (
@@ -1765,7 +1765,7 @@ function QuickAccessPanel({
           {viewAllHref && count > 0 && (
             <button
               onClick={() => router.push(viewAllHref)}
-              className="w-full text-center py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mt-1"
+              className="w-full text-center py-1.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mt-1"
             >
               View All
             </button>
@@ -1839,7 +1839,7 @@ function OperationsSection({ userId, summary }) {
             <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
               {t("dashboard.weeklyOps")}
             </h3>
-            <p className="text-[10px] text-slate-500 font-bold mt-0.5">
+            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
               {t("dashboard.weeklyOpsStatus", "Weekly stand-up & retro status")}
               {ops
                 ? ` — ${t("time.week")} ${ops.week}, ${ops.year}`
@@ -1849,7 +1849,7 @@ function OperationsSection({ userId, summary }) {
         </div>
         <button
           onClick={() => router.push("/staff/op-report")}
-          className="text-[8px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline flex items-center gap-1"
+          className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline flex items-center gap-1"
         >
           {t("dashboard.openReport", "Open Report")}{" "}
           <ChevronRight className="w-3 h-3" />
@@ -1865,10 +1865,10 @@ function OperationsSection({ userId, summary }) {
           <div className="flex items-center gap-2 min-w-0">
             <Calendar className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                 {t("reports.mondayStandup")}
               </p>
-              <p className="text-[8px] text-slate-500 font-bold mt-0.5 truncate">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate">
                 {ops === null
                   ? t("common.loading")
                   : ops.standup?.status === "submitted"
@@ -1894,10 +1894,10 @@ function OperationsSection({ userId, summary }) {
           <div className="flex items-center gap-2 min-w-0">
             <Trophy className="w-4 h-4 text-purple-400 shrink-0" />
             <div className="min-w-0">
-              <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                 {t("reports.fridayRetro")}
               </p>
-              <p className="text-[8px] text-slate-500 font-bold mt-0.5 truncate">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate">
                 {ops === null
                   ? t("common.loading")
                   : ops.retro?.status === "submitted"
@@ -1917,20 +1917,20 @@ function OperationsSection({ userId, summary }) {
       {/* Mini stats — derived from the dashboard API */}
       <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[var(--border-primary)]">
         <div className="text-center pt-2">
-          <p className="text-base font-black text-blue-400">{openTasks}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
+          <p className="text-2xl font-black tracking-tight text-blue-400">{openTasks}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
             {t("dashboard.openTasks", "Open Tasks")}
           </p>
         </div>
         <div className="text-center pt-2">
-          <p className="text-base font-black text-amber-400">{overdue}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
+          <p className="text-2xl font-black tracking-tight text-amber-400">{overdue}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
             {t("dashboard.overdue", "Overdue")}
           </p>
         </div>
         <div className="text-center pt-2">
-          <p className="text-base font-black text-rose-400">{activeBlockers}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
+          <p className="text-2xl font-black tracking-tight text-rose-400">{activeBlockers}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
             {t("dashboard.activeBlockers", "Blockers")}
           </p>
         </div>
