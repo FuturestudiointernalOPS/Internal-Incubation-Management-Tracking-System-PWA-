@@ -570,7 +570,8 @@ export async function notifyVentureFounders(dbId, title, message) {
 export async function sendFounderInvitation({ email, name, venture_name, token }) {
   // Use the existing email service
   const { sendInviteEmail } = await import("@/lib/email");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const { resolveAppUrl } = await import("@/lib/appUrl");
+  const appUrl = resolveAppUrl();
   const activationUrl = `${appUrl}/activate?token=${token}&venture=${encodeURIComponent(venture_name)}`;
 
   return sendInviteEmail({

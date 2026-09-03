@@ -12,6 +12,7 @@
 import db, { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken } from "@/lib/token-hashing";
+import { resolveAppUrl } from "@/lib/appUrl";
 
 /**
  * Read a system setting tolerating both column conventions found in the
@@ -70,9 +71,7 @@ export async function resolveVentureRun() {
 }
 
 export function ventureRunUrl(run) {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const appUrl = resolveAppUrl();
   return `${appUrl}/s/${run.public_slug}`;
 }
 

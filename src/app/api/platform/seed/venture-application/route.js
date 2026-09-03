@@ -219,7 +219,7 @@ export async function POST() {
     // ── 5. Record the configured Venture Run ──
     await updateSetting("venture_run_id", String(run.id), "system");
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    const appUrl = (await import("@/lib/appUrl")).resolveAppUrl();
 
     return NextResponse.json({
       success: true,

@@ -153,7 +153,7 @@ export async function POST(req) {
                     <p style="margin: 5px 0;"><strong>Unit Password:</strong> ${generatedPassword}</p>
                   </div>
                   <p>Use these credentials to access the program dashboard. All members of your unit will share these credentials.</p>
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://impactos-pwa.vercel.app"}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
+                  <a href="${(await import("@/lib/appUrl")).resolveAppUrl()}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
                 </div>
               `,
                 isHtml: true,
@@ -294,7 +294,7 @@ export async function PATCH(req) {
                 <p style="margin: 5px 0;"><strong>Unit Password:</strong> ${team.password}</p>
               </div>
               <p>Use these credentials to access the program dashboard.</p>
-              <a href="${process.env.NEXT_PUBLIC_APP_URL || "https://impactos-pwa.vercel.app"}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
+              <a href="${(await import("@/lib/appUrl")).resolveAppUrl()}/login" style="display: inline-block; background: #FF6600; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 10px;">Login to Command Center</a>
             </div>
           `,
             isHtml: true,

@@ -6,17 +6,11 @@
  */
 
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
+import { resolveAppUrl } from "@/lib/appUrl";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
-const rawAppUrl =
-  process.env.APP_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_ENV === "production"
-    ? "https://impactos.futurestudio.bj"
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
+const rawAppUrl = resolveAppUrl();
 const APP_URL = (typeof rawAppUrl === "string" ? rawAppUrl : "http://localhost:3000").replace(/\/login.*$/i, "").replace(/\/$/, "");
 
 // ─── GMAIL WORKSPACE TRANSPORT (decision/approval emails) ─────────────
