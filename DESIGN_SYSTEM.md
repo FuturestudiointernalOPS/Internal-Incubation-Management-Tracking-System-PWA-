@@ -86,6 +86,36 @@ These are status indicators and should remain the same color in both themes:
 - **Warning**: `text-amber-500`, `bg-amber-500/10`
 - **Info**: `text-indigo-500`, `bg-indigo-500/10`
 
+### Text Styles (Canonical Type Scale)
+
+ImpactOS uses a **fixed type scale per text role** — the same classes everywhere,
+in every dashboard, all roles. Colors may only use theme tokens or semantic
+status colors; font/weight/size/tracking/case are fixed per role below.
+
+| Role | Canonical classes | Example use |
+|---|---|---|
+| Page title | `text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]` | `<h1>` of each dashboard |
+| Section title | `text-sm font-black uppercase tracking-tight text-[var(--text-primary)]` | SectionHeader titles (A, B, C…) |
+| Card / widget title | `text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]` | Card headers (accent color allowed) |
+| Stat value | `text-2xl font-black tracking-tight text-[var(--text-primary)]` | KPI numbers (semantic color allowed) |
+| Label (uppercase caption) | `text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]` | Caption above a value/date |
+| Meta / byline | `text-[10px] font-medium text-[var(--text-secondary)]` | Subtitles, dates, author lines |
+| List item title | `text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]` | Feed rows, program rows |
+| Table header cell | `text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]` | `<th>` |
+| Table cell value | `text-sm font-bold text-[var(--text-primary)]` | Numbers in table cells (semantic color allowed) |
+| Body text | `text-sm text-[var(--text-secondary)]` | Paragraphs, descriptions |
+| Chip / badge label | `text-[10px] font-bold uppercase` | Status pills (semantic bg/text allowed) |
+| Inline action | `text-[10px] font-bold uppercase tracking-wide` | "View all" links (accent color allowed) |
+| Drawer / modal title | `text-lg font-black text-[var(--text-primary)] tracking-tight` | Modal/drawer headings |
+
+**Rules**
+
+- No `text-slate-*`, `text-gray-*`, `text-white`/`text-black` for content text (icons on colored buttons are the only exception).
+- No `italic` on content text.
+- `font-black` is reserved for titles and stat values; everything else is `font-bold` or `font-medium`.
+- Keep uppercase only through the class strings above (labels/titles); body text stays sentence case.
+- If a role is missing here, add it to this table instead of inventing a new combination.
+
 ### Radii & Transitions
 
 | Token | Value |
