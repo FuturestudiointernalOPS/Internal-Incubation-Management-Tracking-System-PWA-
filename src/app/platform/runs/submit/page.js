@@ -75,7 +75,7 @@ export default function MySubmissionsPage() {
       {/* Header */}
       <div className="sticky top-0 z-30 bg-secondary border-b border-[var(--border-primary)]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => router.push("/platform")} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
+          <button onClick={() => router.push("/platform")} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
             <ArrowLeft className="w-3 h-3" /> {t("platformMisc.runSubmit.platform")}
           </button>
           <span className="text-[var(--text-secondary)] opacity-30">|</span>
@@ -97,8 +97,8 @@ export default function MySubmissionsPage() {
         ) : submissions.length === 0 ? (
           <div className="py-16 text-center space-y-3">
             <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-            <p className="text-[12px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runSubmit.noSubmissions")}</p>
-            <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runSubmit.noSubmissionsHint")}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{t("platformMisc.runSubmit.noSubmissions")}</p>
+            <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmit.noSubmissionsHint")}</p>
           </div>
         ) : (
           submissions.map((sub) => {
@@ -115,13 +115,13 @@ export default function MySubmissionsPage() {
                       <Play className="w-4 h-4 text-[var(--brand-orange)]" />
                     </div>
                     <div>
-                      <h3 className="text-[12px] font-black text-[var(--text-primary)] uppercase">{sub.run_name || t("platformMisc.runSubmit.formRunNumber", { id: sub.run_id })}</h3>
-                      <p className="text-[9px] text-[var(--text-secondary)]">{t("platformMisc.runSubmit.id", { id: sub.run_id })}</p>
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{sub.run_name || t("platformMisc.runSubmit.formRunNumber", { id: sub.run_id })}</h3>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmit.id", { id: sub.run_id })}</p>
                     </div>
                   </div>
-                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{t(STATUS_KEYS[sub.status] || STATUS_KEYS.draft)}</span>
+                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc.color, sc.bg)}>{t(STATUS_KEYS[sub.status] || STATUS_KEYS.draft)}</span>
                 </div>
-                <div className="flex items-center gap-3 text-[9px] text-[var(--text-secondary)]">
+                <div className="flex items-center gap-3 text-[10px] font-medium text-[var(--text-secondary)]">
                   {sub.submitted_at && (
                     <span className="flex items-center gap-1">
                       <Send className="w-2.5 h-2.5" />
@@ -134,13 +134,13 @@ export default function MySubmissionsPage() {
                   </span>
                 </div>
                 {sub.status === "draft" && (
-                  <p className="text-[9px] text-amber-500 font-bold flex items-center gap-1">
+                  <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
                     <AlertTriangle className="w-2.5 h-2.5" />
                     {t("platformMisc.runSubmit.incomplete")}
                   </p>
                 )}
                 {sub.status === "revision_requested" && (
-                  <p className="text-[9px] text-amber-500 font-bold flex items-center gap-1">
+                  <p className="text-[10px] font-bold text-amber-500 flex items-center gap-1">
                     <RotateCcw className="w-2.5 h-2.5" />
                     {t("platformMisc.runSubmit.revisionRequested")}
                   </p>

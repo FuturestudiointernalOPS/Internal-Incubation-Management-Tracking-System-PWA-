@@ -263,16 +263,16 @@ export default function ReviewPage() {
 
   return (
     <div className="min-h-screen bg-primary">
-      {notif && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-xs font-black uppercase shadow-lg">{notif}</div>}
+      {notif && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-xs font-bold uppercase shadow-lg">{notif}</div>}
 
       {/* Top Bar */}
       <div className="sticky top-0 z-[100] flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary">
-        <button onClick={goBack} className="text-xs font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runReview.back")}</button>
+        <button onClick={goBack} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runReview.back")}</button>
         <span className="text-[var(--text-secondary)] opacity-20">|</span>
         <h2 className="text-sm font-black uppercase text-[var(--text-primary)] truncate">{submission?.submitter_name || t("platformMisc.runReview.reviewTitle")}</h2>
-        <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", statusColor)}>{statusLabel}</span>
+        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", statusColor)}>{statusLabel}</span>
         {isReviewLocked && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[8px] font-black uppercase border border-slate-500/20">
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[10px] font-bold uppercase border border-slate-500/20">
             <Lock className="w-2.5 h-2.5" /> {t("platformMisc.runReview.locked")}
           </span>
         )}
@@ -282,11 +282,11 @@ export default function ReviewPage() {
             <Sparkles className="w-3 h-3 text-purple-400" />
             <span className="text-xs font-black text-purple-400">{computedOverall ?? evaluation.overall_score}%</span>
             {computedOverall !== null && computedOverall !== evaluation.overall_score && (
-              <span className="text-[8px] text-slate-400 font-bold">{t("platformMisc.runReview.adjusted")}</span>
+              <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.adjusted")}</span>
             )}
           </div>
         )}
-        <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[9px] font-black uppercase hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+        <button onClick={handleReRunAI} disabled={saving || isReviewLocked} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
           <RefreshCw className={cn("w-3 h-3", saving && "animate-spin")} /> {t("platformMisc.runReview.rerunAi")}
         </button>
       </div>
@@ -312,7 +312,7 @@ export default function ReviewPage() {
                   return nameVal || t("platformMisc.runReview.applicant");
                 })()}
               </h2>
-              <p className="text-[10px] text-[var(--text-secondary)]">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                 {submission?.submitted_at ? t("platformMisc.runReview.submittedOn", { date: formatLocaleDate(submission.submitted_at, { weekday: "short", month: "short", day: "numeric", year: "numeric" }, lang) }) : t("platformMisc.runReview.submissionLabel")}
                 {run?.name ? ` · ${run.name}` : ""}
               </p>
@@ -328,7 +328,7 @@ export default function ReviewPage() {
                 if (!val) return null;
                 return (
                   <div key={f.id}>
-                    <p className="text-[9px] font-bold uppercase text-[var(--text-secondary)] tracking-wider">{f.label}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{f.label}</p>
                     <p className="text-xs font-bold text-[var(--text-primary)] mt-1 truncate">{val}</p>
                   </div>
                 );
@@ -350,7 +350,7 @@ export default function ReviewPage() {
                   sectionsWithFields.forEach(s => { allIds[s.id] = !hasCollapsed; });
                   setCollapsedSections(hasCollapsed ? {} : allIds);
                 }}
-                className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] uppercase"
+                className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               >
                 {Object.values(collapsedSections).some(v => v) ? t("platformMisc.runReview.expandAll") : t("platformMisc.runReview.collapseAll")}
               </button>
@@ -366,8 +366,8 @@ export default function ReviewPage() {
                     onClick={() => setCollapsedSections(p => ({ ...p, [sec.id]: !p[sec.id] }))}
                     className="flex items-center gap-2 w-full text-left"
                   >
-                    <h3 className="text-[10px] font-black uppercase text-[var(--brand-orange)] tracking-wider flex-1">{sec.title}</h3>
-                    <span className="text-[9px] text-[var(--text-secondary)]">{t("platformMisc.runReview.answered", { count: answered.length })}</span>
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] flex-1">{sec.title}</h3>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.answered", { count: answered.length })}</span>
                     {collapsedSections[sec.id] ? <ChevronDown className="w-3.5 h-3.5 text-[var(--text-secondary)]" /> : <ChevronUp className="w-3.5 h-3.5 text-[var(--text-secondary)]" />}
                   </button>
                   {!collapsedSections[sec.id] && (
@@ -397,23 +397,23 @@ export default function ReviewPage() {
               <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runReview.aiEvaluation")}</h2>
               <div className="ml-auto flex items-center gap-3">
                 <div className="text-right">
-                  <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runReview.overall")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.overall")}</p>
                   <div className="flex items-baseline gap-1.5">
                     <p className={cn("text-base font-black", (computedOverall ?? evaluation.overall_score) >= 80 ? "text-emerald-400" : (computedOverall ?? evaluation.overall_score) >= 60 ? "text-amber-400" : "text-rose-400")}>{computedOverall ?? evaluation.overall_score}%</p>
                     {computedOverall !== null && computedOverall !== evaluation.overall_score && (
-                      <span className="text-[8px] text-slate-400 font-bold">{t("platformMisc.runReview.adjusted")}</span>
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.adjusted")}</span>
                     )}
                   </div>
                 </div>
                 {evaluation.ranking && (
-                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] font-black text-purple-400">{evaluation.ranking}</span>
+                  <span className="px-2.5 py-1 rounded-lg bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold uppercase text-purple-400">{evaluation.ranking}</span>
                 )}
               </div>
             </div>
 
             {evaluation.recommendation && (
               <div className="px-6 py-3 bg-purple-500/5 border-b border-purple-500/10">
-                <p className="text-[9px] font-black uppercase text-purple-400 mb-1">{t("platformMisc.runReview.aiRecommendation")}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">{t("platformMisc.runReview.aiRecommendation")}</p>
                 <p className="text-[11px] text-[var(--text-primary)] leading-relaxed">{evaluation.recommendation}</p>
               </div>
             )}
@@ -456,20 +456,20 @@ export default function ReviewPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-bold text-[var(--text-primary)]">{dim.name}</span>
                           {dim.confidence != null && (
-                            <span className="text-[9px] text-[var(--text-secondary)]">{t("platformMisc.runReview.confident", { pct: (dim.confidence * 100).toFixed(0) })}</span>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runReview.confident", { pct: (dim.confidence * 100).toFixed(0) })}</span>
                           )}
                         </div>
                         {!isExp && dim.reasoning && (
-                          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 truncate max-w-xs">{dim.reasoning}</p>
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 truncate max-w-xs">{dim.reasoning}</p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         <div className="text-center">
-                          <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runReview.aiShort")}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.aiShort")}</p>
                           <p className="text-sm font-black text-purple-400">{aiScore ?? "—"}</p>
                         </div>
                       <div className="text-center">
-                          <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runReview.you")}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.you")}</p>
                           <input
                             type="number" min={0} max={10} step={0.5}
                             value={dim.human_score ?? ""}
@@ -478,14 +478,14 @@ export default function ReviewPage() {
                             onClick={e => e.stopPropagation()}
                             onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
                             className={cn(
-                              "w-12 px-1.5 py-1 rounded-lg border text-xs font-black outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                              "w-12 px-1.5 py-1 rounded-lg border text-xs font-bold outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
                               dim.human_score != null ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]" : "bg-primary border-[var(--border-primary)] text-[var(--text-primary)]",
                               isReviewLocked && "opacity-50 cursor-not-allowed"
                             )}
                           />
                         </div>
                         <div className="text-center">
-                          <p className="text-[8px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runReview.final")}</p>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runReview.final")}</p>
                           <p className={cn("text-sm font-black", scoreColor)}>{finalScore ?? "—"}</p>
                         </div>
                         {isExp ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
@@ -499,16 +499,16 @@ export default function ReviewPage() {
                         {/* Score verdict */}
                         <div className={cn("flex items-center gap-4 p-4 rounded-xl border", scoreBg)}>
                           <div>
-                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-0.5">{t("platformMisc.runReview.scoreVerdict")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-0.5">{t("platformMisc.runReview.scoreVerdict")}</p>
                             <div className="flex items-baseline gap-2">
                               <span className={cn("text-3xl font-black", scoreColor)}>{finalScore}</span>
                               <span className="text-sm text-[var(--text-secondary)] font-bold">/ 10</span>
-                              <span className={cn("text-xs font-black uppercase ml-1", scoreColor)}>— {scoreLabel}</span>
+                              <span className={cn("text-[10px] font-bold uppercase tracking-widest ml-1", scoreColor)}>— {scoreLabel}</span>
                             </div>
                           </div>
                           {dim.confidence != null && (
                             <div className="ml-auto text-right">
-                              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-0.5">{t("platformMisc.runReview.confidence")}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-0.5">{t("platformMisc.runReview.confidence")}</p>
                               <p className="text-sm font-black text-[var(--text-primary)]">{(dim.confidence * 100).toFixed(0)}%</p>
                             </div>
                           )}
@@ -517,7 +517,7 @@ export default function ReviewPage() {
                         {/* AI Reasoning */}
                         {dim.reasoning && (
                           <div>
-                            <p className="text-[9px] font-black uppercase text-purple-400 tracking-wider mb-2">{t("platformMisc.runReview.whyThisScore")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-2">{t("platformMisc.runReview.whyThisScore")}</p>
                             <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">{dim.reasoning}</p>
                           </div>
                         )}
@@ -527,7 +527,7 @@ export default function ReviewPage() {
                           <div className="grid grid-cols-2 gap-3">
                             {dim.strengths?.length > 0 && (
                               <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                                <p className="text-[9px] font-black uppercase text-emerald-400 mb-2">{t("platformMisc.runReview.strengths")}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-2">{t("platformMisc.runReview.strengths")}</p>
                                 <div className="space-y-1.5">
                                   {dim.strengths.map((s, i) => (
                                     <p key={i} className="text-[11px] text-emerald-300 leading-snug">+ {s}</p>
@@ -537,7 +537,7 @@ export default function ReviewPage() {
                             )}
                             {dim.weaknesses?.length > 0 && (
                               <div className="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
-                                <p className="text-[9px] font-black uppercase text-rose-400 mb-2">{t("platformMisc.runReview.areasToImprove")}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 mb-2">{t("platformMisc.runReview.areasToImprove")}</p>
                                 <div className="space-y-1.5">
                                   {dim.weaknesses.map((w, i) => (
                                     <p key={i} className="text-[11px] text-rose-300 leading-snug">− {w}</p>
@@ -551,10 +551,10 @@ export default function ReviewPage() {
                         {/* Evidence quotes from AI */}
                         {dim.evidence?.length > 0 && (
                           <div>
-                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">{t("platformMisc.runReview.evidenceFromApplicant")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("platformMisc.runReview.evidenceFromApplicant")}</p>
                             <div className="space-y-2">
                               {dim.evidence.map((ev, i) => (
-                                <p key={i} className="text-[11px] text-[var(--text-secondary)] italic pl-4 border-l-2 border-purple-500/30 leading-relaxed">"{ev}"</p>
+                                <p key={i} className="text-[11px] text-[var(--text-secondary)] pl-4 border-l-2 border-purple-500/30 leading-relaxed">"{ev}"</p>
                               ))}
                             </div>
                           </div>
@@ -563,14 +563,14 @@ export default function ReviewPage() {
                         {/* Relevant Q&A from the form */}
                         {qaFields.length > 0 && (
                           <div>
-                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">{t("platformMisc.runReview.relevantQA")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("platformMisc.runReview.relevantQA")}</p>
                             <div className="space-y-3">
                               {qaFields.map(f => {
                                 const val = subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
                                 if (!val) return null;
                                 return (
                                   <div key={f.id} className="rounded-xl bg-secondary border border-[var(--border-primary)] p-4">
-                                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-2">{f.label}</p>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{f.label}</p>
                                     <p className="text-[12px] text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{String(val)}</p>
                                   </div>
                                 );
@@ -584,11 +584,11 @@ export default function ReviewPage() {
                           {isReviewLocked ? (
                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-500/5 border border-slate-500/20">
                               <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <p className="text-[10px] text-slate-400 font-bold">{t("platformMisc.runReview.scoreLockedNotice")}</p>
+                              <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runReview.scoreLockedNotice")}</p>
                             </div>
                           ) : (
                             <>
-                              <p className="text-[9px] font-black uppercase text-[var(--brand-orange)] tracking-wider mb-2">{t("platformMisc.runReview.overrideScore")}</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] mb-2">{t("platformMisc.runReview.overrideScore")}</p>
                               <div className="flex items-start gap-3">
                                 <input
                                   type="number" min={0} max={10} step={0.5}
@@ -596,7 +596,7 @@ export default function ReviewPage() {
                                   placeholder={String(aiScore ?? "—")}
                                   onClick={e => e.stopPropagation()}
                                   onChange={e => updateDimScore(di, e.target.value === "" ? null : parseFloat(e.target.value))}
-                                  className="w-20 px-3 py-2 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-black text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shrink-0"
+                                  className="w-20 px-3 py-2 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none shrink-0"
                                 />
                                 <textarea
                                   value={dim.human_comment || ""}
@@ -632,7 +632,7 @@ export default function ReviewPage() {
               <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-500/5 border border-slate-500/20">
                 <Lock className="w-5 h-5 text-slate-400 shrink-0" />
                 <div>
-                  <p className="text-xs font-black text-[var(--text-primary)] uppercase">{t("platformMisc.runReview.decisionLocked")}</p>
+                  <p className="text-xs font-bold text-[var(--text-primary)] uppercase">{t("platformMisc.runReview.decisionLocked")}</p>
                   <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                     {t("platformMisc.runReview.decisionLockedPart1")}{" "}
                     <strong className={statusColor}>{statusLabel}</strong>{" "}
@@ -646,7 +646,7 @@ export default function ReviewPage() {
                   {workflow.decisions.map(d => (
                     <button key={d.id} onClick={() => setReviewData({ ...reviewData, decision: d.id })}
                       className={cn(
-                        "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase border transition-all text-center",
+                        "flex-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide border transition-all text-center",
                         reviewData.decision === d.id
                           ? `bg-${d.color}-500/10 border-${d.color}-500 text-${d.color}-400`
                           : "bg-tertiary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--text-primary)]"
@@ -657,12 +657,12 @@ export default function ReviewPage() {
                 </div>
                 <textarea value={reviewData.comment} onChange={e => setReviewData({ ...reviewData, comment: e.target.value })} rows={2}
                   placeholder={t("platformMisc.runReview.commentPlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
                 <textarea value={reviewData.internal_note} onChange={e => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2}
                   placeholder={t("platformMisc.runReview.internalNotePlaceholder")}
-                  className="w-full rounded-xl px-4 py-3 text-xs font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
+                  className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] resize-none" />
                 <button onClick={handleReview} disabled={saving}
-                  className="w-full py-3 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-black uppercase hover:brightness-110 disabled:opacity-50 transition-all">
+                  className="w-full py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50 transition-all">
                   {saving ? t("platformMisc.runReview.saving") : t("platformMisc.runReview.submitReview", { decision: decisionLabel })}
                 </button>
               </>
@@ -680,7 +680,7 @@ export default function ReviewPage() {
           {showHistory && (
             <div className="px-6 py-4 border-t border-[var(--border-primary)] space-y-3">
               {timeline.length === 0 ? (
-                <p className="text-[10px] text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runReview.noActivity")}</p>
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runReview.noActivity")}</p>
               ) : (
                 timeline.map((entry, idx) => (
                   <div key={idx} className="flex items-start gap-3">
@@ -691,8 +691,8 @@ export default function ReviewPage() {
                       entry.action === "ai_evaluated" ? "bg-purple-500" : "bg-[var(--brand-orange)]"
                     )} />
                     <div>
-                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{entry.action}</p>
-                      <p className="text-[9px] text-[var(--text-secondary)]">{new Date(entry.created_at).toLocaleString()}{entry.actor_name ? ` · ${entry.actor_name}` : ""}</p>
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{entry.action}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{new Date(entry.created_at).toLocaleString()}{entry.actor_name ? ` · ${entry.actor_name}` : ""}</p>
                     </div>
                   </div>
                 ))

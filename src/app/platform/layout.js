@@ -141,7 +141,7 @@ export default function PlatformLayout({ children }) {
                   </span>
                 )}
                 {!collapsed && mod.future && (
-                  <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[7px] font-black uppercase tracking-wider">
+                  <span className="ml-auto px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide">
                     {t("platformMisc.nav.soon")}
                   </span>
                 )}

@@ -275,7 +275,7 @@ function ResponsesContent() {
             { id: "rejected", label: t("platformMisc.responses.filterRejected"), count: subCounts.rejected },
           ].map(f => (
             <button key={f.id} onClick={() => setStatusFilter(f.id)}
-              className={cn("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+              className={cn("px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all",
                 statusFilter === f.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
               {f.label} ({f.count})
             </button>
@@ -284,13 +284,13 @@ function ResponsesContent() {
 
         {/* Column legend when form selected */}
         {selectedFormId && formFields.length > 0 && (
-          <div className="flex items-center gap-2 text-[8px] text-[var(--text-secondary)] relative">
+          <div className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)] relative">
             <button onClick={() => setShowColumnPicker(!showColumnPicker)} className="flex items-center gap-1 px-2 py-1 rounded bg-tertiary border border-[var(--border-primary)] hover:text-[var(--text-primary)]">
               <Filter className="w-3 h-3" /> {t("platformMisc.responses.columns", { visible: visibleFields.length, total: formFields.length })}
             </button>
             {showColumnPicker && (
               <div className="absolute top-full left-0 mt-1 z-50 w-64 max-h-64 overflow-y-auto rounded-xl bg-secondary border border-[var(--border-primary)] shadow-lg p-2 space-y-1" onClick={e => e.stopPropagation()}>
-                <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] px-2 py-1">{t("platformMisc.responses.selectColumns")}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] px-2 py-1">{t("platformMisc.responses.selectColumns")}</p>
                 {formFields.map(f => (
                   <label key={f.id} className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-tertiary cursor-pointer">
                     <input
@@ -300,13 +300,13 @@ function ResponsesContent() {
                       className="w-3 h-3 rounded accent-[var(--brand-orange)]"
                     />
                     <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">{f.label}</span>
-                    <span className="text-[8px] text-[var(--text-secondary)] ml-auto">{f.field_type}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{f.field_type}</span>
                   </label>
                 ))}
                 <div className="flex gap-2 px-2 pt-1 border-t border-[var(--border-primary)]">
-                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
-                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
-                  <button onClick={() => setVisibleFieldIds([])} className="text-[8px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
+                  <button onClick={() => setVisibleFieldIds(formFields.slice(0, 3).map(f => String(f.id)))} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.reset")}</button>
+                  <button onClick={() => setVisibleFieldIds(formFields.map(f => String(f.id)))} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.selectAll")}</button>
+                  <button onClick={() => setVisibleFieldIds([])} className="text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("platformMisc.responses.clear")}</button>
                 </div>
               </div>
             )}
@@ -332,7 +332,7 @@ function ResponsesContent() {
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[600px]">
               <thead className="sticky top-0 bg-secondary z-10">
-                <tr className="text-[9px] font-black uppercase text-[var(--text-secondary)] border-b border-[var(--border-primary)]">
+                <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] border-b border-[var(--border-primary)]">
                   <th className="px-3 py-3 sticky left-0 bg-secondary z-20">#</th>
                   <th className="px-3 py-3 sticky left-[40px] bg-secondary z-20">{t("platformMisc.responses.applicant")}</th>
                   {/* Dynamic form field columns */}
@@ -390,7 +390,7 @@ function ResponsesContent() {
                         ) : <span className="text-[10px] text-[var(--text-secondary)]">—</span>}
                       </td>
                       <td className="px-3 py-3">
-                        <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc)}>{s.status}</span>
+                        <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc)}>{s.status}</span>
                       </td>
                       <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] hidden lg:table-cell">
                         {s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}

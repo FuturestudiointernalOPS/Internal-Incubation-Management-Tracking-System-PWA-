@@ -102,13 +102,13 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
   const totalPages = Math.ceil(total / perPage);
   const paginated = sorted;
 
-  if (sorted.length === 0) return <div className="text-center py-16 text-[var(--text-secondary)] text-[11px] font-bold">{t("platformMisc.runs.noRunsFound")}</div>;
+  if (sorted.length === 0) return <div className="text-center py-16 text-sm text-[var(--text-secondary)]">{t("platformMisc.runs.noRunsFound")}</div>;
 
   return <>
     <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
       <table className="w-full text-left">
         <thead className="bg-tertiary">
-          <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+          <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
             <th className="px-3 py-3 w-10">{t("platformMisc.runs.colSn")}</th>
             {[
               { key: "name", label: t("platformMisc.runs.colName"), w: "" },
@@ -145,7 +145,7 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                     <span className="truncate">{r.name}</span>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] truncate max-w-[160px]">{r.form_name || "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] truncate max-w-[160px]">{r.form_name || "—"}</td>
                 <td className="px-3 py-3 text-[10px] font-bold truncate max-w-[120px]">
                   {(() => {
                     const g = groups.find((x) => (x.registration_id || x.id) === r.group_target_id);
@@ -156,10 +156,10 @@ const RunsTable = React.memo(function RunsTable({ runs, search, statusFilter, so
                     );
                   })()}
                 </td>
-                <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase whitespace-nowrap", cfg.color, cfg.bg)}>{t(cfg.label)}</span></td>
-                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.opens_at ? new Date(r.opens_at).toLocaleDateString() : "—"}</td>
-                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{r.closes_at ? new Date(r.closes_at).toLocaleDateString() : "—"}</td>
-                <td className="px-3 py-3 text-[10px] text-[var(--text-secondary)] whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
+                <td className="px-3 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", cfg.color, cfg.bg)}>{t(cfg.label)}</span></td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{r.opens_at ? new Date(r.opens_at).toLocaleDateString() : "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{r.closes_at ? new Date(r.closes_at).toLocaleDateString() : "—"}</td>
+                <td className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] whitespace-nowrap">{new Date(r.created_at).toLocaleDateString()}</td>
                 <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                   {r.status === "archived" ? (
                     <button onClick={() => onRestore(r.id)} title={t("platformMisc.runs.restore")} className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-500/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /></button>
@@ -268,7 +268,7 @@ function MiniCalendar({ value, onChange, onClose }) {
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {DAYS.map((d) => (
-          <div key={d} className="text-center text-[9px] font-black text-[var(--text-secondary)] py-1">{d}</div>
+          <div key={d} className="text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] py-1">{d}</div>
         ))}
       </div>
 
@@ -302,12 +302,12 @@ function MiniCalendar({ value, onChange, onClose }) {
 
       {/* Time picker */}
       <div className="mt-4 pt-4 border-t border-[var(--border-primary)]">
-        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] block mb-2">{t("platformMisc.runs.time")}</label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-2">{t("platformMisc.runs.time")}</label>
         <input
           type="time"
           value={timeStr}
           onChange={handleTimeChange}
-          className="w-full px-3 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-[12px] font-bold text-[var(--text-primary)] outline-none [color-scheme:dark]"
+          className="w-full px-3 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none [color-scheme:dark]"
         />
       </div>
 
@@ -319,7 +319,7 @@ function MiniCalendar({ value, onChange, onClose }) {
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 transition-all"
+          className="px-4 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           {t("platformMisc.runs.done")}
         </button>
@@ -1986,60 +1986,60 @@ export default function FormRunsPage() {
 
     return (
       <div className="flex flex-col h-screen overflow-hidden">
-        {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase animate-in">{notification}</div>}
+        {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase animate-in">{notification}</div>}
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-3 border-b border-[var(--border-primary)] bg-secondary shrink-0">
-          <button onClick={() => setSelectedRun(null)} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runs.back")}</button>
+          <button onClick={() => setSelectedRun(null)} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><ArrowLeft className="w-3 h-3 inline mr-1" /> {t("platformMisc.runs.back")}</button>
           <span className="text-[var(--text-secondary)] opacity-30">|</span>
           <Play className="w-4 h-4 text-[var(--brand-orange)]" />
           <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{selectedRun.name}</h2>
-          <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.color, cfg.bg)}>{t(cfg.label)}</span>
+          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>{t(cfg.label)}</span>
           {(() => {
             const g = groups.find((x) => (x.registration_id || x.id) === selectedRun.group_target_id);
             return g ? (
-              <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">{t("platformMisc.runs.assignedGroup", { name: g.name })}</span>
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap text-[var(--brand-orange)] bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30">{t("platformMisc.runs.assignedGroup", { name: g.name })}</span>
             ) : null;
           })()}
           {/* Status action buttons */}
           {selectedRun.status === "draft" && (
-            <button onClick={() => handleLaunch(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110">{t("platformMisc.runs.launch")}</button>
+            <button onClick={() => handleLaunch(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">{t("platformMisc.runs.launch")}</button>
           )}
           {selectedRun.status === "active" && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "closed")} className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[9px] font-black uppercase hover:bg-amber-500/20 flex items-center gap-1"><StopCircle className="w-3 h-3" /> {t("platformMisc.runs.close")}</button>
+            <button onClick={() => handleStatusChange(selectedRun.id, "closed")} className="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 flex items-center gap-1"><StopCircle className="w-3 h-3" /> {t("platformMisc.runs.close")}</button>
           )}
           {(selectedRun.status === "active" || selectedRun.status === "closed") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "cancelled")} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[9px] font-black uppercase hover:bg-rose-500/20 flex items-center gap-1"><XCircle className="w-3 h-3" /> {t("platformMisc.runs.cancel")}</button>
+            <button onClick={() => handleStatusChange(selectedRun.id, "cancelled")} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><XCircle className="w-3 h-3" /> {t("platformMisc.runs.cancel")}</button>
           )}
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "archived")} className="px-3 py-1.5 rounded-xl bg-slate-500/10 text-slate-500 border border-slate-500/30 text-[9px] font-black uppercase hover:bg-slate-500/20 flex items-center gap-1"><Archive className="w-3 h-3" /> {t("platformMisc.runs.archive")}</button>
+            <button onClick={() => handleStatusChange(selectedRun.id, "archived")} className="px-3 py-1.5 rounded-xl bg-slate-500/10 text-slate-500 border border-slate-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500/20 flex items-center gap-1"><Archive className="w-3 h-3" /> {t("platformMisc.runs.archive")}</button>
           )}
           {selectedRun.status === "archived" && (
             <>
-              <button onClick={() => handleStatusChange(selectedRun.id, "draft")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.restore")}</button>
-              <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[9px] font-black uppercase hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
+              <button onClick={() => handleStatusChange(selectedRun.id, "draft")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.restore")}</button>
+              <button onClick={() => handleDeleteRun(selectedRun.id)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1"><Trash2 className="w-3 h-3" /> {t("platformMisc.runs.delete")}</button>
             </>
           )}
           {(selectedRun.status === "closed" || selectedRun.status === "cancelled") && (
-            <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.reactivate")}</button>
+            <button onClick={() => handleStatusChange(selectedRun.id, "active")} className="px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.reactivate")}</button>
           )}
-          <button onClick={openManualAdd} className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[9px] font-black uppercase hover:bg-blue-500/20 flex items-center gap-1"><Plus className="w-3 h-3" /> {t("platformMisc.runs.addRespondent")}</button>
+          <button onClick={openManualAdd} className="px-3 py-1.5 rounded-xl bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-blue-500/20 flex items-center gap-1"><Plus className="w-3 h-3" /> {t("platformMisc.runs.addRespondent")}</button>
           {selectedRun.status === "active" && (
             <div className="ml-auto flex items-center gap-2">
               {evalProgress?.running ? (
-                <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase flex items-center gap-2">
+                <span className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase flex items-center gap-2">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   {evalProgress.evaluated}/{evalProgress.total} — {evalProgress.percent}%
                 </span>
               ) : (
                 <>
                   {evalProgress && evalProgress.failed > 0 && (
-                    <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[9px] font-black uppercase hover:bg-rose-500/20 flex items-center gap-1">
+                    <button onClick={() => handleBatchEvaluate(true)} className="px-3 py-1.5 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 flex items-center gap-1">
                       <RotateCcw className="w-3 h-3" /> {t("platformMisc.runs.retryFailed", { count: evalProgress.failed })}
                     </button>
                   )}
                   <button
                     onClick={() => handleBatchEvaluate(false)}
-                    className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 flex items-center gap-1"
+                    className="px-3 py-1.5 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1"
                   >
                     <Sparkles className="w-3 h-3" />
                     {evalProgress && evalProgress.remaining > 0 && !evalProgress.stopped
@@ -2064,7 +2064,7 @@ export default function FormRunsPage() {
                 ) : (
                   <PauseCircle className="w-4 h-4 text-purple-400" />
                 )}
-                <span className="text-[10px] font-black uppercase text-purple-300">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-purple-300">
                   {evalProgress.running ? t("platformMisc.runs.aiEvalInProgress") : t("platformMisc.runs.aiEvalPaused")}
                 </span>
               </div>
@@ -2097,7 +2097,7 @@ export default function FormRunsPage() {
                 style={{ width: `${evalProgress.percent}%` }}
               />
             </div>
-            <p className="mt-2 text-[8px] text-[var(--text-secondary)] uppercase tracking-wider">
+            <p className="mt-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {evalProgress.running
                 ? t("platformMisc.runs.evalKeepOpen")
                 : t("platformMisc.runs.evalPausedHint")}
@@ -2108,27 +2108,27 @@ export default function FormRunsPage() {
               <div className="mt-3 pt-3 border-t border-purple-500/20 grid grid-cols-2 md:grid-cols-4 gap-2">
                 <div className="text-center">
                   <p className="text-sm font-black text-emerald-500">{evalStats.approvals?.approved ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusApproved")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusApproved")}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-black text-rose-500">{evalStats.approvals?.rejected ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusRejected")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.statusRejected")}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-black text-blue-500">{evalStats.emails?.sent ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsSent")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsSent")}</p>
                 </div>
                 <div className="text-center">
                   <p className={`text-sm font-black ${(evalStats.emails?.failed ?? 0) > 0 ? "text-rose-500" : "text-[var(--text-secondary)]"}`}>{evalStats.emails?.failed ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsFailed")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.emailsFailed")}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-black text-[var(--brand-orange)]">{evalStats.emails?.activation_sent ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.activationSent")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.activationSent")}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-black text-emerald-500">{evalStats.emails?.approval_sent ?? 0}</p>
-                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.approvalEmails")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.approvalEmails")}</p>
                 </div>
               </div>
             )}
@@ -2139,11 +2139,11 @@ export default function FormRunsPage() {
         <div className="flex items-center gap-0 px-6 border-b border-[var(--border-primary)] shrink-0 bg-secondary">
           {tabs.map((t) => (
             t.href ? (
-              <a key={t.id} href={t.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <a key={t.id} href={t.href} className="flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                 <t.icon className="w-3 h-3" /> {t.label}
               </a>
             ) : (
-              <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-black uppercase border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
+              <button key={t.id} onClick={() => setDetailTab(t.id)} className={cn("flex items-center gap-1.5 px-4 py-2.5 text-[10px] font-bold uppercase tracking-wide border-b-2 transition-colors", detailTab === t.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}>
                 <t.icon className="w-3 h-3" /> {t.label}
               </button>
             )
@@ -2177,7 +2177,7 @@ export default function FormRunsPage() {
                     )}
                   >
                     <p className={cn("text-2xl font-black", s.color)}>{s.value}</p>
-                    <div className="flex items-center justify-center gap-1 mt-0.5"><s.icon className={cn("w-2.5 h-2.5", s.color)} /><p className="text-[9px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p></div>
+                    <div className="flex items-center justify-center gap-1 mt-0.5"><s.icon className={cn("w-2.5 h-2.5", s.color)} /><p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p></div>
                   </button>
                 ))}
               </div>
@@ -2191,12 +2191,12 @@ export default function FormRunsPage() {
                     value={respSearch}
                     onChange={(e) => setRespSearch(e.target.value)}
                     placeholder="Search this run's respondents (name, email, answers)..."
-                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                   />
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap" ref={filterRowRef}>
-                  <span className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                  <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <Filter className="w-3 h-3" /> Filters
                   </span>
 
@@ -2205,7 +2205,7 @@ export default function FormRunsPage() {
                     <button
                       onClick={clearScoreFilter}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
                     >
                       {scoreChipLabel} <X className="w-3 h-3" />
                     </button>
@@ -2216,7 +2216,7 @@ export default function FormRunsPage() {
                       key={label}
                       onClick={() => removeFieldFilter(label)}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
                     >
                       {label}: {val} <X className="w-3 h-3" />
                     </button>
@@ -2227,7 +2227,7 @@ export default function FormRunsPage() {
                       key={f.key}
                       onClick={() => setTrackingFilter(f.key, "")}
                       title="Remove this filter"
-                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[9px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20"
                     >
                       {f.label}: {trackingFilterOptionLabel(f.key, f.value)} <X className="w-3 h-3" />
                     </button>
@@ -2239,7 +2239,7 @@ export default function FormRunsPage() {
                       <select
                         value={scoreOp}
                         onChange={(e) => setScoreOp(e.target.value)}
-                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none"
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none"
                       >
                         <option value="gte">≥</option>
                         <option value="gt">&gt;</option>
@@ -2255,7 +2255,7 @@ export default function FormRunsPage() {
                         value={scoreVal}
                         onChange={(e) => setScoreVal(e.target.value)}
                         placeholder="80"
-                        className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                       {scoreOp === "between" && (
                         <input
@@ -2265,14 +2265,14 @@ export default function FormRunsPage() {
                           value={scoreVal2}
                           onChange={(e) => setScoreVal2(e.target.value)}
                           placeholder="90"
-                          className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                          className="w-14 px-2 py-1 rounded-md bg-primary border border-[var(--border-primary)] text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                         />
                       )}
-                      <span className="text-[9px] font-bold text-[var(--text-secondary)]">%</span>
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">%</span>
                       <button
                         onClick={() => setFilterPickerMode(null)}
                         disabled={scoreVal === ""}
-                        className="px-2 py-1 rounded-md bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase disabled:opacity-40"
+                        className="px-2 py-1 rounded-md bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
                       >
                         Apply
                       </button>
@@ -2285,7 +2285,7 @@ export default function FormRunsPage() {
                   {/* Inline editor — form field option */}
                   {filterPickerMode && filterPickerMode.type === "field" && (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
-                      <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{filterPickerMode.label}:</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{filterPickerMode.label}:</span>
                       <select
                         value=""
                         onChange={(e) => {
@@ -2294,7 +2294,7 @@ export default function FormRunsPage() {
                             setFilterPickerMode(null);
                           }
                         }}
-                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       >
                         <option value="">Select…</option>
                         {fieldOptionsOf(filterPickerMode.label).map((o, idx) => (
@@ -2312,7 +2312,7 @@ export default function FormRunsPage() {
                   {/* Inline editor — tracking filter (Approval Email / Review / Status / Activation Email / Account Status) */}
                   {filterPickerMode && filterPickerMode.type === "status" && (
                     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-tertiary border border-[var(--brand-orange)]/30">
-                      <span className="text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {TRACKING_FILTERS.find((f) => f.key === filterPickerMode.key)?.label || filterPickerMode.key}:
                       </span>
                       <select
@@ -2323,7 +2323,7 @@ export default function FormRunsPage() {
                             setFilterPickerMode(null);
                           }
                         }}
-                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-[9px] font-bold outline-none focus:border-[var(--brand-orange)]"
+                        className="bg-primary border border-[var(--border-primary)] rounded-md px-1.5 py-1 text-sm font-bold outline-none focus:border-[var(--brand-orange)]"
                       >
                         <option value="">Select…</option>
                         {trackingFilterOptions(filterPickerMode.key).map((v) => (
@@ -2341,7 +2341,7 @@ export default function FormRunsPage() {
                     <div className="relative">
                       <button
                         onClick={() => setFilterPickerOpen(!filterPickerOpen)}
-                        className="px-2.5 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:border-[var(--brand-orange)] hover:text-[var(--brand-orange)] flex items-center gap-1"
+                        className="px-2.5 py-1.5 rounded-lg border border-dashed border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:border-[var(--brand-orange)] hover:text-[var(--brand-orange)] flex items-center gap-1"
                       >
                         <Plus className="w-3 h-3" /> Add Filter
                       </button>
@@ -2364,7 +2364,7 @@ export default function FormRunsPage() {
                   {duplicateGroups.groups.length > 0 && (
                     <button
                       onClick={() => setShowDuplicates(!showDuplicates)}
-                      className={cn("px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase border", showDuplicates ? "bg-amber-500 text-black border-amber-500" : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20")}
+                      className={cn("px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide border", showDuplicates ? "bg-amber-500 text-black border-amber-500" : "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20")}
                     >
                       {showDuplicates ? "Show all" : `Duplicates (${duplicateGroups.extra})`}
                     </button>
@@ -2373,7 +2373,7 @@ export default function FormRunsPage() {
                   {hasRunFilters && (
                     <button
                       onClick={clearRunFilters}
-                      className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                      className="px-2.5 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20"
                     >
                       Clear all
                     </button>
@@ -2383,7 +2383,7 @@ export default function FormRunsPage() {
                   {visibleSubmissions.length > 0 && (
                     <button
                       onClick={() => { setShowExportOptions(true); setExportScope("filtered"); }}
-                      className="ml-auto px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[9px] font-black uppercase hover:bg-emerald-500/20 flex items-center gap-1"
+                      className="ml-auto px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 flex items-center gap-1"
                     >
                       <Download className="w-3 h-3" /> {t("platformMisc.runs.exportBtn")} ({visibleSubmissions.length})
                     </button>
@@ -2395,7 +2395,7 @@ export default function FormRunsPage() {
 
                 {/* Bulk selection bar — selection always respects the active filters */}
                 {duplicateGroups.groups.length > 0 && (
-                  <div className="flex items-center gap-2 text-[9px] font-bold text-amber-500">
+                  <div className="flex items-center gap-2 text-[10px] font-bold text-amber-500">
                     <AlertTriangle className="w-3 h-3" />
                     {duplicateGroups.groups.length} duplicate email group{duplicateGroups.groups.length === 1 ? "" : "s"} — {duplicateGroups.extra} extra submission{duplicateGroups.extra === 1 ? "" : "s"}. Only the highest-scored duplicate receives emails.
                   </div>
@@ -2412,7 +2412,7 @@ export default function FormRunsPage() {
                       />
                       Select all filtered
                     </label>
-                    <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {showDuplicates
                         ? `${visibleSubmissions.length} duplicate submission${visibleSubmissions.length === 1 ? "" : "s"}`
                         : `${filteredSubmissions.length} respondent${filteredSubmissions.length === 1 ? "" : "s"} match your filters`}
@@ -2420,7 +2420,7 @@ export default function FormRunsPage() {
                   </div>
                   {selectedIds.length > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black text-[var(--brand-orange)]">
+                      <span className="text-[10px] font-bold text-[var(--brand-orange)]">
                         {selectedIds.length} selected
                       </span>
                       <div className="relative">
@@ -2428,7 +2428,7 @@ export default function FormRunsPage() {
                           type="button"
                           onClick={() => setBulkMenuOpen(!bulkMenuOpen)}
                           disabled={bulkProcessing}
-                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-50 flex items-center gap-1"
                         >
                           Actions <ChevronDown className="w-3 h-3" />
                         </button>
@@ -2437,28 +2437,28 @@ export default function FormRunsPage() {
                             <button
                               type="button"
                               onClick={() => { setBulkMenuOpen(false); setBulkConfirmOpen(true); }}
-                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-emerald-400 hover:bg-emerald-500/10"
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-emerald-400 hover:bg-emerald-500/10"
                             >
                               {t("platformMisc.runs.approve")}
                             </button>
                             <button
                               type="button"
                               onClick={() => openActivationConfirm(false)}
-                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
                               <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
                             </button>
                             <button
                               type="button"
                               onClick={() => openActivationConfirm(true)}
-                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-amber-400 hover:bg-amber-500/10 flex items-center gap-1.5"
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-amber-400 hover:bg-amber-500/10 flex items-center gap-1.5"
                             >
                               <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.resendActivationMessage")}
                             </button>
                             <button
                               type="button"
                               onClick={openMessageComposer}
-                              className="w-full px-3 py-2 text-left text-[10px] font-black uppercase text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
                               <Mail className="w-3 h-3" /> {t("platformMisc.runs.sendCustomMessage")}
                             </button>
@@ -2469,7 +2469,7 @@ export default function FormRunsPage() {
                   )}
                 </div>
 
-                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("platformMisc.runs.showingRespondentsInRun", { start: visibleSubmissions.length === 0 ? 0 : (respSafePage - 1) * perPage + 1, end: Math.min(respSafePage * perPage, visibleSubmissions.length), total: visibleSubmissions.length })}
                 </p>
               </div>
@@ -2480,7 +2480,7 @@ export default function FormRunsPage() {
                 <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                   <table className="w-full text-left">
                     <thead className="bg-tertiary">
-                      <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                      <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         <th className="px-4 py-3 w-10">
                           <input
                             type="checkbox"
@@ -2575,14 +2575,14 @@ export default function FormRunsPage() {
                               />
                             </td>
                             {/* S/N — presentation-level row number, continuous across pages and respecting filters */}
-                            <td className="px-4 py-3 w-10 text-center text-[10px] text-[var(--text-secondary)]">
+                            <td className="px-4 py-3 w-10 text-center text-sm font-bold text-[var(--text-primary)]">
                               {(respSafePage - 1) * perPage + i + 1}
                             </td>
                             {/* Email — the address the system actually sent to (from the delivery log), falling back to the resolved respondent email */}
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1.5">
                                 <span
-                                  className="text-[10px] text-[var(--text-secondary)] truncate max-w-[160px] block"
+                                  className="text-[10px] font-medium text-[var(--text-secondary)] truncate max-w-[160px] block"
                                   title={sentLog
                                     ? t("platformMisc.runs.emailSentToTooltip", { recipient: sentLog.recipient || "n/a", type: sentLog.email_type, provider: sentLog.provider || "email", status: sentLog.status, date: sentLog.sent_at ? ", " + new Date(sentLog.sent_at).toLocaleString() : "" })
                                     : s.email || t("platformMisc.runs.noEmailProvided")}
@@ -2590,24 +2590,24 @@ export default function FormRunsPage() {
                                   {sentEmail || t("platformMisc.runs.noEmailProvided")}
                                 </span>
                                 {s.email && duplicateEmailSet.has(String(s.email).trim().toLowerCase()) && (
-                                  <span className={cn("px-1.5 py-0.5 rounded text-[7px] font-black uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
+                                  <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-bold uppercase whitespace-nowrap", duplicateGroups.keeperIds.has(s.id) ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500")}>
                                     {duplicateGroups.keeperIds.has(s.id) ? t("platformMisc.runs.emailKeeper") : t("platformMisc.runs.emailDuplicate")}
                                   </span>
                                 )}
                               </div>
                             </td>
                             {runFormFields.slice(0, 2).map(f => (
-                              <td key={f.id} className="px-3 py-3 text-[10px] text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
+                              <td key={f.id} className="px-3 py-3 text-[10px] font-medium text-[var(--text-secondary)] max-w-[150px] truncate" title={fv(f)}>{fv(f)}</td>
                             ))}
-                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{s.submitted_at ? new Date(s.submitted_at).toLocaleDateString() : "—"}</td>
                             <td className="px-4 py-3">
                               {overall != null ? (
                                 <div className="flex flex-col">
-                                  <span className={cn("text-[11px] font-black", scoreColor)}>{overall}%</span>
-                                  {ranking && <span className={cn("text-[8px] font-bold uppercase mt-0.5 px-1.5 py-0.5 rounded", scoreColor, scoreBg)}>{ranking}</span>}
+                                  <span className={cn("text-sm font-bold", scoreColor)}>{overall}%</span>
+                                  {ranking && <span className={cn("text-[10px] font-bold uppercase mt-0.5 px-1.5 py-0.5 rounded", scoreColor, scoreBg)}>{ranking}</span>}
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-[var(--text-secondary)]">—</span>
+                                <span className="text-[10px] font-medium text-[var(--text-secondary)]">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
@@ -2615,25 +2615,25 @@ export default function FormRunsPage() {
                                 (() => {
                                   const cfg = EMAIL_STATUS_CONFIG[approvalEmail.status] || { color: "text-slate-500", bg: "bg-slate-500/10", label: "platformMisc.runs.emailPending" };
                                   return (
-                                    <span title={approvalEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                    <span title={approvalEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.bg, cfg.color)}>
                                       {t(cfg.label)}
                                     </span>
                                   );
                                 })()
                               ) : (
-                                <span title={t("platformMisc.runs.emailNotSentTitle")} className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailNotSent")}</span>
+                                <span title={t("platformMisc.runs.emailNotSentTitle")} className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-400">{t("platformMisc.runs.emailNotSent")}</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-[9px] text-[var(--text-secondary)]">
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">
                               {lastReview ? <span>{lastReview.decision} {t("platformMisc.runs.by")} {lastReview.reviewer_name || lastReview.reviewer_id}</span> : "—"}
                             </td>
-                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", sc.color, sc.bg)}>{t(sc.label)}</span></td>
+                            <td className="px-4 py-3"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", sc.color, sc.bg)}>{t(sc.label)}</span></td>
                             <td className="px-4 py-3">
                               {activationEverSent || activationEmail?.status === "failed" ? (
                                 (() => {
                                   const cfg = EMAIL_STATUS_CONFIG[activationEmail.status] || { color: "text-amber-500", bg: "bg-amber-500/10", label: "platformMisc.runs.emailPending" };
                                   return (
-                                    <span title={activationEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.bg, cfg.color)}>
+                                    <span title={activationEmail.error || t(cfg.label)} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.bg, cfg.color)}>
                                       {t(cfg.label)}
                                     </span>
                                   );
@@ -2641,7 +2641,7 @@ export default function FormRunsPage() {
                               ) : (
                                 <span
                                   title={activationEmail?.error ? `${t("platformMisc.runs.activationNotSentYet")} — ${activationEmail.error}` : t("platformMisc.runs.activationNotSentYet")}
-                                  className="px-2 py-0.5 rounded text-[8px] font-black uppercase bg-slate-500/10 text-slate-400"
+                                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-500/10 text-slate-400"
                                 >
                                   {t("platformMisc.runs.emailNotSent")}
                                 </span>
@@ -2666,7 +2666,7 @@ export default function FormRunsPage() {
                                   hist?.token_valid ? t("platformMisc.runs.activationLinkValid", { date: hist.token_expires_at ? new Date(hist.token_expires_at).toLocaleString() : "" }) : (hist?.token_expires_at ? t("platformMisc.runs.activationLinkExpired") : null),
                                 ].filter(Boolean).join(" | ");
                                 return (
-                                  <span title={histTitle} className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.cls)}>
+                                  <span title={histTitle} className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.cls)}>
                                     {t(cfg.label)}
                                   </span>
                                 );
@@ -2674,16 +2674,16 @@ export default function FormRunsPage() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === s.id ? null : s)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[8px] font-black uppercase hover:bg-[var(--brand-orange)]/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
+                                <button onClick={() => setSelectedSubmission(selectedSubmission?.id === s.id ? null : s)} className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/10 hover:text-[var(--brand-orange)] flex items-center gap-1">
                                   <History className="w-3 h-3" /> {t("platformMisc.runs.history")}
                                 </button>
-                                <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase hover:bg-purple-500/20 flex items-center gap-1">
+                                <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
                                 </a>
                                 {s.status === "submitted" && (
-                                  <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
+                                  <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
-                                <button onClick={() => handleDeleteSubmission(s.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
+                                <button onClick={() => handleDeleteSubmission(s.id)} className="px-2 py-1 rounded-lg bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20">{t("platformMisc.runs.delete")}</button>
                               </div>
                             </td>
                           </tr>
@@ -2694,7 +2694,7 @@ export default function FormRunsPage() {
                 </div>
                 {respTotalPages > 1 && (
                   <div className="flex items-center justify-between pt-2">
-                    <p className="text-[10px] text-[var(--text-secondary)]">Page {respSafePage} of {respTotalPages}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">Page {respSafePage} of {respTotalPages}</p>
                     <div className="flex items-center gap-1">
                       <button onClick={() => setRespPage(Math.max(1, respSafePage - 1))} disabled={respSafePage === 1} className="px-2 py-1 rounded-lg bg-tertiary text-[10px] font-bold text-[var(--text-secondary)] disabled:opacity-30 hover:text-[var(--text-primary)]">Prev</button>
                       {Array.from({ length: Math.min(respTotalPages, 7) }, (_, i) => {
@@ -2724,12 +2724,12 @@ export default function FormRunsPage() {
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
                       {t("platformMisc.runs.bulkApproveTitle", { count: selectedIds.length })}
                     </h4>
-                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">
                       {t("platformMisc.runs.bulkApproveDesc")}
                     </p>
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
-                      <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                      <button onClick={() => setBulkConfirmOpen(false)} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={runBulkApprove} disabled={bulkProcessing} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">
                         {t("platformMisc.runs.bulkApproveConfirm", { count: selectedIds.length })}
                       </button>
                     </div>
@@ -2744,15 +2744,15 @@ export default function FormRunsPage() {
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
                       {t(activationForceResend ? "platformMisc.runs.activationResendConfirmTitle" : "platformMisc.runs.activationConfirmTitle")}
                     </h4>
-                    <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">
                       {t(activationForceResend ? "platformMisc.runs.activationResendConfirmDesc" : "platformMisc.runs.activationConfirmDesc", { count: (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length })}
                     </p>
                     {activationForceResend && eligibleResendActivationIds.slice(0, 5).map((id) => {
                       const s = submissions.find((x) => x.id === id);
                       const h = s?.activation_history;
                       return (
-                        <div key={id} className="rounded-lg bg-primary/50 border border-[var(--border-primary)] px-3 py-2 text-[9px] text-[var(--text-secondary)] space-y-0.5">
-                          <p className="font-black text-[var(--text-primary)] uppercase truncate">{s?.display_name || s?.submitter_name || `#${id}`}</p>
+                        <div key={id} className="rounded-lg bg-primary/50 border border-[var(--border-primary)] px-3 py-2 text-[10px] font-medium text-[var(--text-secondary)] space-y-0.5">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)] truncate">{s?.display_name || s?.submitter_name || `#${id}`}</p>
                           {h?.first_sent_at && <p>{t("platformMisc.runs.activationFirstSent", { date: new Date(h.first_sent_at).toLocaleString() })}</p>}
                           {h?.last_sent_at && <p>{t("platformMisc.runs.activationLastSent", { date: new Date(h.last_sent_at).toLocaleString() })}</p>}
                           <p className={h?.token_valid ? "text-emerald-500" : "text-rose-500"}>
@@ -2764,7 +2764,7 @@ export default function FormRunsPage() {
                       );
                     })}
                     {activationForceResend && eligibleResendActivationIds.length > 5 && (
-                      <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         +{eligibleResendActivationIds.length - 5} {t("platformMisc.runs.moreRecipients")}
                       </p>
                     )}
@@ -2774,8 +2774,8 @@ export default function FormRunsPage() {
                       </p>
                     )}
                     <div className="flex items-center gap-2 justify-end">
-                      <button onClick={() => setActivationConfirmOpen(false)} disabled={activationProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
-                      <button onClick={runSendActivationMessages} disabled={activationProcessing || (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">
+                      <button onClick={() => setActivationConfirmOpen(false)} disabled={activationProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={runSendActivationMessages} disabled={activationProcessing || (activationForceResend ? eligibleResendActivationIds : eligibleSendActivationIds).length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">
                         {t(activationForceResend ? "platformMisc.runs.resendActivationConfirm" : "platformMisc.runs.sendActivationConfirm")}
                       </button>
                     </div>
@@ -2788,7 +2788,7 @@ export default function FormRunsPage() {
                 <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
                   <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
                     <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
-                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                       {t("platformMisc.runs.messageSending")} {activationProgress.done}/{activationProgress.total}
                     </p>
                   </div>
@@ -2800,15 +2800,15 @@ export default function FormRunsPage() {
                 <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
                   <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
                     <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
-                    <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                       {t("platformMisc.runs.bulkApproving", { done: bulkProgress.done, total: bulkProgress.total })}
                     </p>
-                    <p className="text-[9px] text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {t("platformMisc.runs.bulkApprovingHint")}
                     </p>
                     <button
                       onClick={() => { bulkAbortRef.current = true; }}
-                      className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                      className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20"
                     >
                       {t("platformMisc.runs.bulkCancelSending")}
                     </button>
@@ -2823,17 +2823,17 @@ export default function FormRunsPage() {
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.bulkComplete")}</h4>
                     <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.bulkApprovedCount", { count: bulkSummary.approved })}</p>
                     {bulkSummary.already_approved > 0 && (
-                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkAlreadyApproved", { count: bulkSummary.already_approved })}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.bulkAlreadyApproved", { count: bulkSummary.already_approved })}</p>
                     )}
                     {bulkSummary.cancelled > 0 && (
-                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkCancelledCount", { count: bulkSummary.cancelled })}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.bulkCancelledCount", { count: bulkSummary.cancelled })}</p>
                     )}
                     {bulkSummary.failed.length > 0 && (
                       <div className="space-y-1">
                         <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.bulkFailedCount", { count: bulkSummary.failed.length })}</p>
                         <div className="max-h-32 overflow-y-auto space-y-1">
                           {bulkSummary.failed.map((f, i) => (
-                            <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.bulkFailedFallback")} — {f.error}</p>
+                            <p key={i} className="text-[10px] font-medium text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.bulkFailedFallback")} — {f.error}</p>
                           ))}
                         </div>
                       </div>
@@ -2850,7 +2850,7 @@ export default function FormRunsPage() {
                     <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{messageSummary.title}</h4>
                     <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.messageSentCount", { count: messageSummary.sent })}</p>
                     {messageSummary.already_sent > 0 && (
-                      <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.messageAlreadySentCount", { count: messageSummary.already_sent })}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.messageAlreadySentCount", { count: messageSummary.already_sent })}</p>
                     )}
                     {messageSummary.skipped > 0 && (
                       <p className="text-[10px] font-bold text-amber-500">{t("platformMisc.runs.messageSkippedCount", { count: messageSummary.skipped })}</p>
@@ -2892,11 +2892,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     const catTotal = allEmailRows.filter((r) => r.email_type === cat.key).length;
                     return (
                       <div key={cat.key} className="rounded-xl border border-[var(--border-primary)] bg-tertiary p-4 space-y-2">
-                        <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{cat.label}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{cat.label}</p>
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <button
                             onClick={() => { setEmailTypeFilter(cat.key); setEmailStatusFilter("all"); setEmailPage(1); }}
-                            className={cn("px-2 py-1 rounded-lg text-[9px] font-black uppercase border transition-all",
+                            className={cn("px-2 py-1 rounded-lg text-[10px] font-bold uppercase border transition-all",
                               emailTypeFilter === cat.key && emailStatusFilter === "all"
                                 ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                 : "bg-secondary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]")}
@@ -2911,7 +2911,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                               <button
                                 key={k}
                                 onClick={() => { setEmailTypeFilter(cat.key); setEmailStatusFilter(k); setEmailPage(1); }}
-                                className={cn("px-2 py-1 rounded-lg text-[9px] font-black uppercase border transition-all",
+                                className={cn("px-2 py-1 rounded-lg text-[10px] font-bold uppercase border transition-all",
                                   active ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                          : "bg-secondary text-[var(--text-secondary)] border-[var(--border-primary)] hover:text-[var(--text-primary)]")}
                               >
@@ -2938,7 +2938,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                         <button
                                           key={tab.key}
                                           onClick={() => { setEmailTypeFilter(tab.key); setEmailPage(1); }}
-                                          className={cn("px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all",
+                                          className={cn("px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all",
                                             emailTypeFilter === tab.key
                                               ? "bg-[var(--brand-orange)] text-black"
                                               : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]")}
@@ -2955,26 +2955,26 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                           value={emailSearch}
                                           onChange={(e) => { setEmailSearch(e.target.value); setEmailPage(1); }}
                                           placeholder={t("platformMisc.runs.emailSearchPlaceholder")}
-                                          className="w-56 pl-9 pr-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]"
+                                          className="w-56 pl-9 pr-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] outline-none focus:border-[var(--brand-orange)]"
                                         />
                                       </div>
                                       <input
                                         type="date"
                                         value={emailDateFrom}
                                         onChange={(e) => { setEmailDateFrom(e.target.value); setEmailPage(1); }}
-                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       />
-                                      <span className="text-[9px] text-[var(--text-secondary)]">{t("platformMisc.runs.emailDateTo")}</span>
+                                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.emailDateTo")}</span>
                                       <input
                                         type="date"
                                         value={emailDateTo}
                                         onChange={(e) => { setEmailDateTo(e.target.value); setEmailPage(1); }}
-                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       />
                                       <select
                                         value={emailStatusFilter}
                                         onChange={(e) => { setEmailStatusFilter(e.target.value); setEmailPage(1); }}
-                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                                        className="px-2 py-1 rounded-lg bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
                                       >
                                         <option value="all">{t("platformMisc.runs.emailAllStatuses")}</option>
                                         {EMAIL_STATUS_ORDER.map((k) => (
@@ -2984,7 +2984,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                       {(emailDateFrom || emailDateTo || emailStatusFilter !== "all" || emailSearch || emailTypeFilter !== "all") && (
                                         <button
                                           onClick={() => { setEmailStatusFilter("all"); setEmailDateFrom(""); setEmailDateTo(""); setEmailSearch(""); setEmailTypeFilter("all"); setEmailPage(1); setRetrySelected([]); }}
-                                          className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[8px] font-black uppercase border border-[var(--border-primary)] hover:text-[var(--text-primary)]"
+                                          className="px-2 py-1 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide border border-[var(--border-primary)] hover:text-[var(--text-primary)]"
                                         >
                                           {t("platformMisc.runs.emailResetFilters")}
                                         </button>
@@ -2997,14 +2997,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                           onClick={() => setRetrySelected([])}
                                           disabled={retryProcessing}
                                           title={t("platformMisc.runs.emailDeselectTitle")}
-                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase hover:text-[var(--text-primary)] disabled:opacity-50"
+                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide hover:text-[var(--text-primary)] disabled:opacity-50"
                                         >
                                           {t("platformMisc.runs.cancel")}
                                         </button>
                                         <button
                                           onClick={runRetryEmails}
                                           disabled={retryProcessing}
-                                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-50 flex items-center gap-1"
+                                          className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-50 flex items-center gap-1"
                                         >
                                           <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.emailRetrySelected")}
                                         </button>
@@ -3015,10 +3015,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                   {allEmailRows.length === 0 ? (
                                     <div className="py-12 text-center bg-secondary rounded-2xl border border-[var(--border-primary)] border-dashed">
                                       <Mail className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-                                      <p className="text-[12px] font-bold text-[var(--text-secondary)] mt-3">{t("platformMisc.runs.emailNoEmailsYet")}</p>
+                                      <p className="text-sm text-[var(--text-secondary)] mt-3">{t("platformMisc.runs.emailNoEmailsYet")}</p>
                                     </div>
                                   ) : visibleEmailRows.length === 0 ? (
-                                    <p className="text-[10px] text-[var(--text-secondary)]">
+                                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                       {emailStatusFilter !== "all"
                                         ? `${t("platformMisc.runs.emailNoMatchStatus", { label: t(EMAIL_STATUS_CONFIG[emailStatusFilter].label).toLowerCase() })} — ${t("platformMisc.runs.emailNoMatchStatusHint", { label: t(EMAIL_STATUS_CONFIG[emailStatusFilter].label).toLowerCase() })}`
                                         : t("platformMisc.runs.emailNoneMatchFilter")}
@@ -3075,12 +3075,12 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                                 </td>
                                                 <td className="px-3 py-3 whitespace-nowrap">{f.name}</td>
                                                 <td className="px-3 py-3">
-                                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", f.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
+                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", f.email_type === "activation" ? "bg-purple-500/10 text-purple-400" : "bg-cyan-500/10 text-cyan-400")}>
                                                     {f.email_type}
                                                   </span>
                                                 </td>
                                                 <td className="px-3 py-3">
-                                                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", STATUS_BADGE[f.status] || STATUS_BADGE.failed)}>
+                                                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", STATUS_BADGE[f.status] || STATUS_BADGE.failed)}>
                                                     {t(EMAIL_STATUS_CONFIG[f.status]?.label || "platformMisc.runs.emailPending")}
                                                   </span>
                                                 </td>
@@ -3104,22 +3104,22 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                       </table>
                                     </div>
                                     <div className="flex items-center justify-between gap-3 flex-wrap">
-                                      <p className="text-[9px] text-[var(--text-secondary)]">
+                                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                         {t("platformMisc.runs.emailShowingRange", { start: (safeEmailPage - 1) * EMAIL_PAGE_SIZE + 1, end: Math.min(safeEmailPage * EMAIL_PAGE_SIZE, visibleEmailRows.length), total: visibleEmailRows.length })}
                                       </p>
                                       <div className="flex items-center gap-2">
                                         <button
                                           onClick={() => setEmailPage(safeEmailPage - 1)}
                                           disabled={safeEmailPage <= 1}
-                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase border border-[var(--border-primary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide border border-[var(--border-primary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                                         >
                                           {t("platformMisc.runs.emailPagePrev")}
                                         </button>
-                                        <span className="text-[9px] text-[var(--text-secondary)]">{safeEmailPage} / {emailTotalPages}</span>
+                                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">{safeEmailPage} / {emailTotalPages}</span>
                                         <button
                                           onClick={() => setEmailPage(safeEmailPage + 1)}
                                           disabled={safeEmailPage >= emailTotalPages}
-                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase border border-[var(--border-primary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                                          className="px-3 py-1.5 rounded-lg bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide border border-[var(--border-primary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                                         >
                                           {t("platformMisc.runs.emailPageNext")}
                                         </button>
@@ -3133,15 +3133,15 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
                     <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
                       <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
-                      <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                         Retrying {retryProgress.done} of {retryProgress.total} emails...
                       </p>
-                      <p className="text-[9px] text-[var(--text-secondary)]">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         Already-sent emails are kept. Stopping leaves the remaining rows unchanged — select them again later.
                       </p>
                       <button
                         onClick={() => { retryAbortRef.current = true; }}
-                        className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[9px] font-black uppercase hover:bg-rose-500/20"
+                        className="px-4 py-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-500 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20"
                       >
                         Cancel Sending
                       </button>
@@ -3154,27 +3154,27 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
                     <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-3">
                       <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.emailRetryComplete")}</h4>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {t("platformMisc.runs.emailRetryCount", { count: retrySummary.retried })}
                       </p>
                       <p className="text-[10px] font-bold text-emerald-500">{t("platformMisc.runs.emailRetrySent", { count: retrySummary.sent })}</p>
                       {retrySummary.already_sent > 0 && (
-                        <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.emailRetryAlready", { count: retrySummary.already_sent })}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.emailRetryAlready", { count: retrySummary.already_sent })}</p>
                       )}
                       {retrySummary.cancelled > 0 && (
-                        <p className="text-[10px] font-bold text-slate-400">{t("platformMisc.runs.bulkCancelledCount", { count: retrySummary.cancelled })}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-secondary)]">{t("platformMisc.runs.bulkCancelledCount", { count: retrySummary.cancelled })}</p>
                       )}
                       {retrySummary.failed.length > 0 && (
                         <div className="space-y-1">
                           <p className="text-[10px] font-bold text-rose-500">{t("platformMisc.runs.emailRetryFailedCount", { count: retrySummary.failed.length })}</p>
                           <div className="max-h-32 overflow-y-auto space-y-1">
                             {retrySummary.failed.map((f, i) => (
-                              <p key={i} className="text-[9px] text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.emailFallback")} — {f.error}</p>
+                              <p key={i} className="text-[10px] font-medium text-[var(--text-secondary)]">• {f.name || t("platformMisc.runs.emailFallback")} — {f.error}</p>
                             ))}
                           </div>
                         </div>
                       )}
-                      <button onClick={() => setRetrySummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                      <button onClick={() => setRetrySummary(null)} className="w-full py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
                     </div>
                   </div>
                 )}
@@ -3201,16 +3201,16 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     {/* Direct Link (Submission) */}
                     <div>
                       <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.directLink")}</h3>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">{t("platformMisc.runs.directLinkDesc")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 mb-3">{t("platformMisc.runs.directLinkDesc")}</p>
                       <div className="flex gap-2">
                         <input
                           readOnly
                           value={submitUrl}
-                          className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                          className="flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
                         />
                         <button
                           onClick={() => { navigator.clipboard.writeText(submitUrl); notify(t("platformMisc.runs.linkCopied")); }}
-                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110"
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110"
                         >
                           {t("platformMisc.runs.copy")}
                         </button>
@@ -3220,7 +3220,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     {/* Embed Code */}
                     <div>
                       <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.embedCode")}</h3>
-                      <p className="text-[10px] text-[var(--text-secondary)] mt-1 mb-3">{t("platformMisc.runs.embedCodeDesc")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 mb-3">{t("platformMisc.runs.embedCodeDesc")}</p>
                       <div className="flex gap-2">
                         <textarea
                           readOnly
@@ -3230,7 +3230,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         />
                         <button
                           onClick={() => { navigator.clipboard.writeText(embedCode); notify(t("platformMisc.runs.embedCodeCopied")); }}
-                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 self-start"
+                          className="px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 self-start"
                         >
                           {t("platformMisc.runs.copy")}
                         </button>
@@ -3241,20 +3241,20 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <div className="space-y-3 p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)]">
                       <div>
                         <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.exportTitle")}</h3>
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                           {t("platformMisc.runs.exportDesc")}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <a
                           href={`/api/run-export?id=${selectedRun.id}&format=xlsx`}
-                          className="px-5 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-black uppercase hover:bg-emerald-500/20 border border-emerald-500/30 transition-all"
+                          className="px-5 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 border border-emerald-500/30 transition-all"
                         >
                           {t("platformMisc.runs.exportExcel")}
                         </a>
                         <a
                           href={`/api/run-export?id=${selectedRun.id}&format=pdf`}
-                          className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-400 text-[10px] font-black uppercase hover:bg-rose-500/20 border border-rose-500/30 transition-all"
+                          className="px-5 py-2.5 rounded-xl bg-rose-500/10 text-rose-400 text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500/20 border border-rose-500/30 transition-all"
                         >
                           {t("platformMisc.runs.exportPdf")}
                         </a>
@@ -3267,12 +3267,12 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Preview */}
                 {isActive && slug && (
                   <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
-                    <p className="text-[9px] font-bold text-emerald-400">{t("platformMisc.runs.runActiveNotice")}</p>
+                    <p className="text-[10px] font-bold text-emerald-400">{t("platformMisc.runs.runActiveNotice")}</p>
                   </div>
                 )}
                 {selectedRun.status === "draft" && (
                   <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-                    <p className="text-[9px] font-bold text-amber-400">{t("platformMisc.runs.launchFirstNotice")}</p>
+                    <p className="text-[10px] font-bold text-amber-400">{t("platformMisc.runs.launchFirstNotice")}</p>
                   </div>
                 )}
               </div>
@@ -3285,22 +3285,22 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.assignedAudiences")}</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.assignedAudiencesDesc")}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.assignedAudiencesDesc")}</p>
                 </div>
-                <button onClick={() => { setShowAssign(true); resetAssignModal(); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110"><Plus className="w-3 h-3" /> {t("platformMisc.runs.add")}</button>
+                <button onClick={() => { setShowAssign(true); resetAssignModal(); }} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110"><Plus className="w-3 h-3" /> {t("platformMisc.runs.add")}</button>
               </div>
 
               {assignments.length === 0 ? (
                 <div className="py-16 text-center bg-secondary rounded-2xl border border-[var(--border-primary)] border-dashed">
                   <Users className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-                  <p className="text-[12px] font-bold text-[var(--text-secondary)] mt-3">{t("platformMisc.runs.noAssignments")}</p>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.noAssignmentsHint")}</p>
+                  <p className="text-sm text-[var(--text-secondary)] mt-3">{t("platformMisc.runs.noAssignments")}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.noAssignmentsHint")}</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-[var(--border-primary)]">
                   <table className="w-full text-left">
                     <thead className="bg-tertiary">
-                      <tr className="text-[10px] font-black uppercase tracking-wider text-[var(--text-secondary)]">
+                      <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         <th className="px-4 py-3">{t("platformMisc.runs.colType")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.targetId")}</th>
                         <th className="px-4 py-3">{t("platformMisc.runs.colAssigned")}</th>
@@ -3314,9 +3314,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                         const targetName = a.target_name || (g ? g.name : c ? (c.name || c.email) : a.target_id);
                         return (
                           <tr key={a.id} className="text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary/50">
-                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[8px] font-black uppercase">{t(TARGET_LABELS[a.target_type]) || a.target_type}</span></td>
-                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{targetName}</td>
-                            <td className="px-4 py-3 text-[10px] text-[var(--text-secondary)]">{new Date(a.assigned_at).toLocaleDateString()}</td>
+                            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase">{t(TARGET_LABELS[a.target_type]) || a.target_type}</span></td>
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{targetName}</td>
+                            <td className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">{new Date(a.assigned_at).toLocaleDateString()}</td>
                             <td className="px-4 py-3"><button onClick={() => handleUnassign(a.id)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-3.5 h-3.5" /></button></td>
                           </tr>
                         );
@@ -3333,8 +3333,8 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addAssignment")}</h3><button onClick={() => setShowAssign(false)}><X className="w-5 h-5" /></button></div>
                     <div className="space-y-3">
                       <div className="space-y-1">
-                        <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.assignTo")}</label>
-                        <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runs.assignToHint")}</p>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.assignTo")}</label>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runs.assignToHint")}</p>
                         <div className="space-y-2 pt-1">
                           {/* User */}
                           <label className="flex items-center gap-2 cursor-pointer">
@@ -3342,7 +3342,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                             <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetUser")}</span>
                           </label>
                           {assignTypes.user && (
-                            <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
+                            <select value={assignUserId} onChange={(e) => setAssignUserId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] max-h-40">
                               <option value="">{t("platformMisc.runs.selectUser")}</option>
                               {contacts.map((c) => <option key={c.cid} value={c.cid}>{c.name || c.email || c.cid}</option>)}
                             </select>
@@ -3355,7 +3355,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           </label>
                           {assignTypes.group && (
                             <div className="space-y-1">
-                              <select value={assignGroupId} onChange={(e) => setAssignGroupId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                              <select value={assignGroupId} onChange={(e) => setAssignGroupId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                                 <option value="">{t("platformMisc.runs.selectGroup")}</option>
                                 {groups.map((g) => <option key={g.registration_id || g.id} value={g.registration_id || g.id}>{g.name}</option>)}
                               </select>
@@ -3363,7 +3363,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                 <button
                                   type="button"
                                   onClick={() => setShowInlineGroup(true)}
-                                  className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
+                                  className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
                                 >
                                   <Plus className="w-3 h-3" /> {t("platformMisc.runs.newGroup")}
                                 </button>
@@ -3375,13 +3375,13 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                     onChange={(e) => setInlineGroupName(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline(handleAssignWithGroup); }}
                                     placeholder={t("platformMisc.runs.groupNamePlaceholder")}
-                                    className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
+                                    className="flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
                                   />
                                   <button
                                     type="button"
                                     onClick={() => handleCreateGroupInline(handleAssignWithGroup)}
                                     disabled={creatingGroup || !inlineGroupName.trim()}
-                                    className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                                    className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
                                   >
                                     {creatingGroup ? "..." : t("platformMisc.runs.createAndAssign")}
                                   </button>
@@ -3397,7 +3397,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                             <span className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runs.targetProgram")}</span>
                           </label>
                           {assignTypes.program && (
-                            <select value={assignProgramId} onChange={(e) => setAssignProgramId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                            <select value={assignProgramId} onChange={(e) => setAssignProgramId(e.target.value)} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                               <option value="">{t("platformMisc.runs.selectProgram")}</option>
                               {programs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                             </select>
@@ -3410,10 +3410,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                           </label>
                           {assignTypes.other && (
                             <div className="flex gap-2 items-center">
-                              <select value={assignOtherType} onChange={(e) => setAssignOtherType(e.target.value)} className="w-2/5 rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                              <select value={assignOtherType} onChange={(e) => setAssignOtherType(e.target.value)} className="w-2/5 rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                                 {["cohort", "team", "organization", "all"].map((k) => <option key={k} value={k}>{t(TARGET_LABELS[k])}</option>)}
                               </select>
-                              <input value={assignOtherId} onChange={(e) => setAssignOtherId(e.target.value)} className="flex-1 rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} />
+                              <input value={assignOtherId} onChange={(e) => setAssignOtherId(e.target.value)} className="flex-1 rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.targetIdPlaceholder")} />
                             </div>
                           )}
                         </div>
@@ -3432,14 +3432,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.runConfiguration")}</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runConfigurationDesc")}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runConfigurationDesc")}</p>
                 </div>
                 {!editingSettings ? (
-                  <button onClick={() => setEditingSettings(true)} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[9px] font-black uppercase hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.edit")}</button>
+                  <button onClick={() => setEditingSettings(true)} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.edit")}</button>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setEditingSettings(false); setRunSettings(selectedRun.settings || {}); }} className="px-3 py-2 rounded-xl bg-tertiary text-[var(--text-secondary)] text-[9px] font-black uppercase">{t("platformMisc.runs.cancel")}</button>
-                    <button onClick={handleSaveSettings} disabled={saving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.save")}</button>
+                    <button onClick={() => { setEditingSettings(false); setRunSettings(selectedRun.settings || {}); }} className="px-3 py-2 rounded-xl bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide">{t("platformMisc.runs.cancel")}</button>
+                    <button onClick={handleSaveSettings} disabled={saving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{saving ? t("platformMisc.runs.saving") : t("platformMisc.runs.save")}</button>
                   </div>
                 )}
               </div>
@@ -3448,7 +3448,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Submission Limits */}
                 <SettingRow label={t("platformMisc.runs.settingSubmissionLimit")} icon={Hash} desc={t("platformMisc.runs.settingSubmissionLimitDesc")}>
                   {editingSettings ? (
-                    <input type="number" min="0" value={runSettings.submission_limit ?? 0} onChange={(e) => setRunSettings({ ...runSettings, submission_limit: parseInt(e.target.value) || 0 })} className="w-24 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" />
+                    <input type="number" min="0" value={runSettings.submission_limit ?? 0} onChange={(e) => setRunSettings({ ...runSettings, submission_limit: parseInt(e.target.value) || 0 })} className="w-24 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" />
                   ) : (
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">{(runSettings.submission_limit || 0) === 0 ? t("platformMisc.runs.unlimited") : runSettings.submission_limit}</span>
                   )}
@@ -3459,7 +3459,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   {editingSettings ? (
                     <Toggle checked={!!runSettings.allow_multiple} onChange={(v) => setRunSettings({ ...runSettings, allow_multiple: v })} />
                   ) : (
-                    <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded", runSettings.allow_multiple ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.allow_multiple ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
+                    <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.allow_multiple ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.allow_multiple ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
                 </SettingRow>
 
@@ -3468,7 +3468,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   {editingSettings ? (
                     <Toggle checked={!!runSettings.anonymous} onChange={(v) => setRunSettings({ ...runSettings, anonymous: v })} />
                   ) : (
-                    <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded", runSettings.anonymous ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.anonymous ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
+                    <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.anonymous ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.anonymous ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
                 </SettingRow>
 
@@ -3477,25 +3477,25 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   {editingSettings ? (
                     <Toggle checked={!!runSettings.auto_close} onChange={(v) => setRunSettings({ ...runSettings, auto_close: v })} />
                   ) : (
-                    <span className={cn("text-[10px] font-black uppercase px-2 py-0.5 rounded", runSettings.auto_close ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.auto_close ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
+                    <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded", runSettings.auto_close ? "text-emerald-500 bg-emerald-500/10" : "text-slate-500 bg-slate-500/10")}>{runSettings.auto_close ? t("platformMisc.runs.yes") : t("platformMisc.runs.no")}</span>
                   )}
                 </SettingRow>
 
                 {/* Confirmation Message */}
                 <SettingRow label={t("platformMisc.runs.settingConfirmationMessage")} icon={MessageSquare} desc={t("platformMisc.runs.settingConfirmationMessageDesc")}>
                   {editingSettings ? (
-                    <textarea value={runSettings.confirmation_message || ""} onChange={(e) => setRunSettings({ ...runSettings, confirmation_message: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.confirmationMessagePlaceholder")} />
+                    <textarea value={runSettings.confirmation_message || ""} onChange={(e) => setRunSettings({ ...runSettings, confirmation_message: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.confirmationMessagePlaceholder")} />
                   ) : (
-                    <span className="text-[10px] text-[var(--text-secondary)]">{runSettings.confirmation_message || "—"}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{runSettings.confirmation_message || "—"}</span>
                   )}
                 </SettingRow>
 
                 {/* Instructions */}
                 <SettingRow label={t("platformMisc.runs.settingSubmissionInstructions")} icon={Info} desc={t("platformMisc.runs.settingSubmissionInstructionsDesc")}>
                   {editingSettings ? (
-                    <textarea value={runSettings.instructions || ""} onChange={(e) => setRunSettings({ ...runSettings, instructions: e.target.value })} rows={3} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.instructionsPlaceholder")} />
+                    <textarea value={runSettings.instructions || ""} onChange={(e) => setRunSettings({ ...runSettings, instructions: e.target.value })} rows={3} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.instructionsPlaceholder")} />
                   ) : (
-                    <span className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">{runSettings.instructions || "—"}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)] whitespace-pre-wrap">{runSettings.instructions || "—"}</span>
                   )}
                 </SettingRow>
               </div>
@@ -3585,39 +3585,39 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <div className="space-y-2 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                 <div className="flex items-center gap-2 mb-1">
                   <Icon className="w-3.5 h-3.5 text-cyan-400" />
-                  <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{label}</p>
                   <button
                     type="button"
                     disabled={runPersonalizing === tKey}
                     onClick={() => personalizeRunTemplate(tKey, label)}
-                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[7px] font-black uppercase hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
+                    className="ml-auto px-2 py-1 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 disabled:opacity-40 transition-all flex items-center gap-1"
                   >
                     <Sparkles className="w-2.5 h-2.5" />
                     {runPersonalizing === tKey ? t("platformMisc.forms.templateWriting") : t("platformMisc.forms.templatePersonalize")}
                   </button>
                 </div>
-                <p className="text-[8px] text-[var(--text-secondary)]">{desc}</p>
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
                 <div className="space-y-1">
-                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateSubject")}</label>
                   <input
                     value={current.subject || ""}
                     onChange={(e) => updateRunTemplate(tKey, "subject", e.target.value)}
                     placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[7px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.forms.templateBody")}</label>
                   <textarea
                     value={current.body || ""}
                     onChange={(e) => updateRunTemplate(tKey, "body", e.target.value)}
                     rows={4}
                     placeholder={t("platformMisc.runs.runTemplateEmptyHint")}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
+                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-cyan-500 resize-y font-mono"
                   />
                 </div>
                 {vars && (
-                  <p className="text-[7px] text-[var(--text-secondary)] italic">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.forms.templateVariables", { vars: vars.join(", ") })}</p>
                 )}
               </div>
             );
@@ -3627,9 +3627,9 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.runTemplatesTitle")}</h3>
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runTemplatesDesc")}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.runTemplatesDesc")}</p>
                   </div>
-                  <button onClick={saveRunTemplates} disabled={runTplSaving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase hover:brightness-110 disabled:opacity-40">
+                  <button onClick={saveRunTemplates} disabled={runTplSaving} className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40">
                     {runTplSaving ? t("platformMisc.runs.saving") : t("platformMisc.forms.templatesSave")}
                   </button>
                 </div>
@@ -3682,7 +3682,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
                 <div>
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.reviewSubmission")}</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{reviewing.submitter_name || t("platformMisc.runs.anonymous")}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{reviewing.submitter_name || t("platformMisc.runs.anonymous")}</p>
                 </div>
                 <button onClick={() => setShowReview(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <X className="w-4 h-4" />
@@ -3729,11 +3729,11 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
                   return (
                     <div>
-                      <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-3">{t("platformMisc.runs.submittedAnswers")}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("platformMisc.runs.submittedAnswers")}</p>
                       <div className="space-y-3">
                         {allEntries.map(({ label, value, type }) => (
                           <div key={label} className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
-                            <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-1.5">{label}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">{label}</p>
                             <p className={cn(
                               "text-[13px] font-semibold text-[var(--text-primary)] leading-relaxed",
                               (type === "textarea" || type === "richtext") ? "whitespace-pre-wrap" : ""
@@ -3749,10 +3749,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {evaluation?.dimensions && (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-[9px] font-black uppercase text-purple-400 tracking-wider">{t("platformMisc.runs.aiEvaluation")}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">{t("platformMisc.runs.aiEvaluation")}</p>
                       <div className="flex items-center gap-3">
                         {evaluation.confidence != null && (
-                          <span className="text-[9px] text-[var(--text-secondary)]">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {t("platformMisc.runs.confidence", { percent: (evaluation.confidence * 100).toFixed(0) })}
                           </span>
                         )}
@@ -3765,7 +3765,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     <div className="rounded-xl border border-purple-500/20 overflow-hidden">
                       <table className="w-full text-left">
                         <thead className="bg-purple-500/5">
-                          <tr className="text-[8px] font-black uppercase text-[var(--text-secondary)]">
+                          <tr className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             <th className="px-3 py-2">{t("platformMisc.runs.colDimension")}</th>
                             <th className="px-3 py-2 text-center">{t("platformMisc.runs.colAi")}</th>
                             <th className="px-3 py-2 text-center">{t("platformMisc.runs.colOverride")}</th>
@@ -3778,10 +3778,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                               <td className="px-3 py-2">
                                 <span className="font-bold text-[var(--text-primary)]">{dim.name}</span>
                                 {dim.reasoning && (
-                                  <p className="text-[8px] text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.reasoning.substring(0, 120)}{dim.reasoning.length > 120 ? "..." : ""}</p>
+                                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5 leading-relaxed">{dim.reasoning.substring(0, 120)}{dim.reasoning.length > 120 ? "..." : ""}</p>
                                 )}
                                 {dim.confidence != null && (
-                                  <span className="text-[7px] text-[var(--text-secondary)] opacity-50">{t("platformMisc.runs.confidence", { percent: (dim.confidence * 100).toFixed(0) })}</span>
+                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] opacity-50">{t("platformMisc.runs.confidence", { percent: (dim.confidence * 100).toFixed(0) })}</span>
                                 )}
                               </td>
                               <td className="px-3 py-2 text-center">
@@ -3799,7 +3799,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                                     updated.dimensions[di].final_score = val ?? dim.score;
                                     setEvaluation(updated);
                                   }}
-                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none text-center"
+                                  className="w-14 px-1 py-0.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none text-center"
                                 />
                               </td>
                               <td className="px-3 py-2 text-center">
@@ -3814,8 +3814,8 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     </div>
                     {evaluation.recommendation && (
                       <div className="mt-3 p-3 rounded-xl bg-purple-500/5 border border-purple-500/10">
-                        <p className="text-[8px] font-black uppercase text-purple-400 tracking-wider mb-1">{t("platformMisc.runs.recommendation")}</p>
-                        <p className="text-[9px] text-[var(--text-secondary)] leading-relaxed">{evaluation.recommendation}</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400 mb-1">{t("platformMisc.runs.recommendation")}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">{evaluation.recommendation}</p>
                       </div>
                     )}
                   </div>
@@ -3825,7 +3825,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {reviewing.data?._scores && (
                   <div className="rounded-xl bg-tertiary border border-[var(--border-primary)] p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider">{t("platformMisc.runs.scoreBreakdown")}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.scoreBreakdown")}</p>
                       <span className={cn("text-base font-black", reviewing.data._scores.overall >= 80 ? "text-emerald-500" : reviewing.data._scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>
                         {reviewing.data._scores.overall}%
                         {reviewing.data._scores.ranking && <span className="ml-2 text-[10px] font-bold text-[var(--text-secondary)]">({reviewing.data._scores.ranking})</span>}
@@ -3833,7 +3833,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     </div>
                     {reviewing.data._scores.sections && Object.entries(reviewing.data._scores.sections).map(([name, sec]) => (
                       <div key={name} className="flex items-center justify-between text-[10px] py-1 border-t border-[var(--border-primary)]">
-                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[8px] opacity-60">{t("platformMisc.runs.weight", { weight: sec.weight })}</span></span>
+                        <span className="text-[var(--text-secondary)]">{name} <span className="text-[10px] opacity-60">{t("platformMisc.runs.weight", { weight: sec.weight })}</span></span>
                         <span className={cn("font-black", sec.score >= 80 ? "text-emerald-500" : sec.score >= 60 ? "text-amber-500" : "text-rose-500")}>{sec.score}%</span>
                       </div>
                     ))}
@@ -3843,7 +3843,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 {/* Activity Timeline */}
                 {reviewTimeline.length > 0 && (
                   <div>
-                    <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider mb-3">{t("platformMisc.runs.activityTimeline")}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("platformMisc.runs.activityTimeline")}</p>
                     <div className="space-y-2">
                       {reviewTimeline.map((entry, idx) => (
                         <div key={idx} className="flex items-start gap-3 text-[10px]">
@@ -3855,7 +3855,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                             "bg-slate-500"
                           )} />
                           <div>
-                            <span className="font-black uppercase text-[var(--text-primary)]">{entry.action}</span>
+                            <span className="font-bold uppercase tracking-wide text-[var(--text-primary)]">{entry.action}</span>
                             {entry.actor_name && <span className="text-[var(--text-secondary)]"> {t("platformMisc.runs.by")} {entry.actor_name}</span>}
                             <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleDateString()}</span>
                           </div>
@@ -3867,10 +3867,10 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
                 {/* Review Decision Form */}
                 <div className="space-y-3 pt-2 border-t border-[var(--border-primary)]">
-                  <p className="text-[9px] font-black uppercase text-[var(--text-secondary)] tracking-wider">{t("platformMisc.runs.yourDecision")}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.yourDecision")}</p>
                   <div>
-                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.decision")}</label>
-                    <select value={reviewData.decision} onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.decision")}</label>
+                    <select value={reviewData.decision} onChange={(e) => setReviewData({ ...reviewData, decision: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                       <option value="approved">{t("platformMisc.runs.decisionApprove")}</option>
                       <option value="rejected">{t("platformMisc.runs.decisionReject")}</option>
                       <option value="revision_requested">{t("platformMisc.runs.decisionRequestRevision")}</option>
@@ -3879,12 +3879,12 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.publicComment")} <span className="normal-case font-bold opacity-60">{t("platformMisc.runs.visibleToSubmitter")}</span></label>
-                    <textarea value={reviewData.comment} onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.commentPlaceholder")} />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.publicComment")} <span className="normal-case font-bold opacity-60">{t("platformMisc.runs.visibleToSubmitter")}</span></label>
+                    <textarea value={reviewData.comment} onChange={(e) => setReviewData({ ...reviewData, comment: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.commentPlaceholder")} />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black uppercase text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.internalNote")} <span className="text-amber-500 font-bold">{t("platformMisc.runs.privateNote")}</span></label>
-                    <textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5 block">{t("platformMisc.runs.internalNote")} <span className="text-amber-500 font-bold">{t("platformMisc.runs.privateNote")}</span></label>
+                    <textarea value={reviewData.internal_note} onChange={(e) => setReviewData({ ...reviewData, internal_note: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-amber-500/5 border border-amber-500/20 text-[var(--text-primary)] resize-none" placeholder={t("platformMisc.runs.internalNotePlaceholder")} />
                   </div>
                 </div>
               </div>
@@ -3896,7 +3896,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   onClick={handleReevaluate}
                   disabled={saving}
                   title={t("platformMisc.runs.reevaluateTitle")}
-                  className="flex-1 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 disabled:opacity-40 flex items-center justify-center gap-1"
+                  className="flex-1 px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 disabled:opacity-40 flex items-center justify-center gap-1"
                 >
                   <Sparkles className="w-3 h-3" /> {t("platformMisc.runs.reevaluate")}
                 </button>
@@ -3914,14 +3914,14 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.addRespondent")}</h3>
                 <button onClick={() => setShowManualAdd(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
               </div>
-              <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.addRespondentDesc")}</p>
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">{t("platformMisc.runs.addRespondentDesc")}</p>
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddName")}</label>
-                <input value={manualAddName} onChange={(e) => setManualAddName(e.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddName")}</label>
+                <input value={manualAddName} onChange={(e) => setManualAddName(e.target.value)} placeholder={t("platformMisc.runs.manualAddNamePlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddEmail")}</label>
-                <input type="email" value={manualAddEmail} onChange={(e) => setManualAddEmail(e.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.manualAddEmail")}</label>
+                <input type="email" value={manualAddEmail} onChange={(e) => setManualAddEmail(e.target.value)} placeholder={t("platformMisc.runs.manualAddEmailPlaceholder")} className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
               </div>
               <div className="flex gap-3 pt-1">
                 <button onClick={() => setShowManualAdd(false)} disabled={manualAdding} className="flex-1 btn btn-secondary">{t("platformMisc.runs.cancel")}</button>
@@ -3938,7 +3938,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)] shrink-0">
                 <div>
                   <h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.messageSend")}</h3>
-                  <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.messageRecipients", { count: selectedIds.length })}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{t("platformMisc.runs.messageRecipients", { count: selectedIds.length })}</p>
                 </div>
                 <button onClick={() => setShowMessageComposer(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary transition-colors text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4" /></button>
               </div>
@@ -3952,22 +3952,22 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       <p className="text-[10px] font-bold text-emerald-400 mt-1">{t("platformMisc.runs.messageSentCount", { count: messageResult.sent })}</p>
                       {messageResult.failed > 0 && <p className="text-[10px] font-bold text-rose-400 mt-1">{t("platformMisc.runs.messageFailedCount", { count: messageResult.failed })}</p>}
                     </div>
-                    <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase">{t("platformMisc.runs.done")}</button>
+                    <button onClick={() => { setShowMessageComposer(false); setMessageResult(null); }} className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">{t("platformMisc.runs.done")}</button>
                   </div>
                 ) : (
                   <>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.messageSubject")}</label>
-                      <input value={messageSubject} onChange={(e) => setMessageSubject(e.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageSubject")}</label>
+                      <input value={messageSubject} onChange={(e) => setMessageSubject(e.target.value)} placeholder="Enter subject..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.messageBody")}</label>
-                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-[11px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.messageBody")}</label>
+                      <textarea value={messageBody} onChange={(e) => setMessageBody(e.target.value)} rows={6} placeholder="Enter message..." className="w-full px-3 py-2.5 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] resize-y" />
                     </div>
                     <button
                       onClick={personalizeMessage}
                       disabled={aiPersonalizing}
-                      className="px-3 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase hover:bg-purple-500/20 disabled:opacity-40 flex items-center gap-1.5"
+                      className="px-3 py-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 disabled:opacity-40 flex items-center gap-1.5"
                     >
                       <Sparkles className="w-3 h-3" /> {aiPersonalizing ? t("platformMisc.runs.messagePersonalizing") : t("platformMisc.runs.messageAiPersonalize")}
                     </button>
@@ -3994,7 +3994,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 <button onClick={() => setShowExportOptions(false)} className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-tertiary text-[var(--text-secondary)]"><X className="w-4 h-4" /></button>
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.exportFormat")}</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.exportFormat")}</label>
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
                     <input type="radio" name="exportFormat" checked={exportFormat === "csv"} onChange={() => setExportFormat("csv")} className="accent-[var(--brand-orange)]" /> {t("platformMisc.runs.exportCsv")}
@@ -4005,7 +4005,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                 </div>
               </div>
               <div className="space-y-2">
-                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.exportScope")}</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.exportScope")}</label>
                 <div className="space-y-1.5">
                   {selectedIds.length > 0 && (
                     <label className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-primary)] cursor-pointer">
@@ -4019,7 +4019,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               </div>
               <button
                 onClick={() => exportParticipants(exportFormat, exportScope)}
-                className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase"
+                className="w-full py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide"
               >
                 {t("platformMisc.runs.exportAction")}
               </button>
@@ -4035,7 +4035,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
 
   return (
     <div className="p-6 space-y-6 animate-in">
-      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase">{notification}</div>}
+      {notification && <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase">{notification}</div>}
 
       {/* Operational Dashboard */}
       {dashboardStats && (
@@ -4052,7 +4052,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
               <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
               <div className="flex items-center justify-center gap-1 mt-0.5">
                 <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{s.label}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{s.label}</p>
               </div>
             </div>
           ))}
@@ -4062,13 +4062,13 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">{t("platformMisc.runs.formRuns")}</h1>
-          <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.formRunsSubtitle")}</p>
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("platformMisc.runs.formRunsSubtitle")}</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase hover:brightness-110"><Plus className="w-3.5 h-3.5" /> {t("platformMisc.runs.newRun")}</button>
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110"><Plus className="w-3.5 h-3.5" /> {t("platformMisc.runs.newRun")}</button>
       </div>
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[11px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
+        <div className="relative flex-1 max-w-sm"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-secondary)]" /><input type="text" placeholder={t("platformMisc.runs.searchPlaceholder")} value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]" /></div>
+        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2.5 rounded-xl bg-tertiary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]">
           <option value="all">{t("platformMisc.runs.allStatus")}</option><option value="draft">{t("platformMisc.runs.statusDraft")}</option><option value="scheduled">{t("platformMisc.runs.statusScheduled")}</option><option value="active">{t("platformMisc.runs.statusActive")}</option><option value="closed">{t("platformMisc.runs.statusClosed")}</option><option value="cancelled">{t("platformMisc.runs.statusCancelled")}</option><option value="archived">{t("platformMisc.runs.statusArchived")}</option>
         </select>
       </div>
@@ -4082,7 +4082,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
         <div className="fixed inset-0 z-[600] bg-black/70 flex items-center justify-center p-6" onClick={() => setShowDatePicker(null)}>
           <div onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase text-white/60">{t("platformMisc.runs.selecting")} {showDatePicker === 'opens' ? t("platformMisc.runs.opensDate") : t("platformMisc.runs.closesDate")}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{t("platformMisc.runs.selecting")} {showDatePicker === 'opens' ? t("platformMisc.runs.opensDate") : t("platformMisc.runs.closesDate")}</span>
               <button onClick={() => setShowDatePicker(null)} className="text-white/60 hover:text-white"><X className="w-4 h-4" /></button>
             </div>
             <MiniCalendar
@@ -4099,36 +4099,36 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
           <div className="card w-full max-w-md space-y-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center"><h3 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runs.newFormRun")}</h3><button onClick={() => setShowCreate(false)}><X className="w-5 h-5" /></button></div>
             <div className="space-y-4">
-              <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.form")}</label>
-                <select value={createData.form_id} onChange={(e) => setCreateData({ ...createData, form_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
+              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.form")}</label>
+                <select value={createData.form_id} onChange={(e) => setCreateData({ ...createData, form_id: e.target.value })} className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]">
                   <option value="">{t("platformMisc.runs.selectPublishedForm")}</option>
                   {forms.map((f) => <option key={f.id} value={f.id}>{f.name} (v{f.version})</option>)}
                 </select>
               </div>
-              <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.runName")}</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.runNamePlaceholder")} /></div>
-              <div className="space-y-1"><label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.description")}</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.runName")}</label><input value={createData.name} onChange={(e) => setCreateData({ ...createData, name: e.target.value })} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]" placeholder={t("platformMisc.runs.runNamePlaceholder")} /></div>
+              <div className="space-y-1"><label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.description")}</label><textarea value={createData.description} onChange={(e) => setCreateData({ ...createData, description: e.target.value })} rows={2} className="w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)] resize-none" /></div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.opens")}</label>
-                  <button onClick={() => setShowDatePicker('opens')} className={`w-full rounded-xl px-3 py-3 text-[10px] font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.opens_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.opens")}</label>
+                  <button onClick={() => setShowDatePicker('opens')} className={`w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.opens_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
                     <Calendar className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{createData.opens_at ? new Date(createData.opens_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : t("platformMisc.runs.setOpenDate")}</span>
                   </button>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.closes")}</label>
-                  <button onClick={() => setShowDatePicker('closes')} className={`w-full rounded-xl px-3 py-3 text-[10px] font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.closes_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.closes")}</label>
+                  <button onClick={() => setShowDatePicker('closes')} className={`w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border text-left flex items-center gap-2 transition-all ${createData.closes_at ? 'border-[var(--brand-orange)] text-[var(--text-primary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]'}`}>
                     <Calendar className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{createData.closes_at ? new Date(createData.closes_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : t("platformMisc.runs.setCloseDate")}</span>
                   </button>
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.assignToGroupOptional")}</label>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.assignToGroupOptional")}</label>
                 <select
                   value={createData.group_id}
                   onChange={(e) => setCreateData({ ...createData, group_id: e.target.value })}
-                  className="w-full rounded-xl px-3 py-3 text-[11px] font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
+                  className="w-full rounded-xl px-3 py-3 text-sm font-bold outline-none bg-primary border border-[var(--border-primary)] text-[var(--text-primary)]"
                 >
                   <option value="">{t("platformMisc.runs.noGroupAssignLater")}</option>
                   {groups.map((g) => (
@@ -4141,7 +4141,7 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                   <button
                     type="button"
                     onClick={() => setShowInlineGroup(true)}
-                    className="text-[9px] font-black uppercase text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
+                    className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:opacity-80 flex items-center gap-1"
                   >
                     <Plus className="w-3 h-3" /> {t("platformMisc.runs.newGroup")}
                   </button>
@@ -4153,13 +4153,13 @@ const allRetryableSelected = retryableVisible.length > 0 && retryableVisible.eve
                       onChange={(e) => setInlineGroupName(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter") handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id })); }}
                       placeholder={t("platformMisc.runs.groupNamePlaceholder")}
-                      className="flex-1 rounded-xl px-3 py-2 text-[11px] font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
+                      className="flex-1 rounded-xl px-3 py-2 text-sm font-bold outline-none bg-primary border border-[var(--brand-orange)] text-[var(--text-primary)]"
                     />
                     <button
                       type="button"
                       onClick={() => handleCreateGroupInline((grp) => setCreateData({ ...createData, group_id: grp.registration_id || grp.id }))}
                       disabled={creatingGroup || !inlineGroupName.trim()}
-                      className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                      className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide disabled:opacity-40"
                     >
                       {creatingGroup ? "..." : t("platformMisc.runs.create")}
                     </button>
@@ -4185,8 +4185,8 @@ function SettingRow({ label, icon: Icon, desc, children }) {
       <div className="flex items-start gap-2.5 min-w-0">
         <Icon className="w-4 h-4 text-[var(--text-secondary)] shrink-0 mt-0.5" />
         <div>
-          <p className="text-[10px] font-black uppercase text-[var(--text-primary)]">{label}</p>
-          <p className="text-[9px] text-[var(--text-secondary)]">{desc}</p>
+          <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{label}</p>
+          <p className="text-[10px] font-medium text-[var(--text-secondary)]">{desc}</p>
         </div>
       </div>
       <div className="shrink-0">{children}</div>
@@ -4240,7 +4240,7 @@ function SubmissionTimeline({ submission, onClose }) {
   return (
     <div className="rounded-xl border border-[var(--border-primary)] bg-secondary overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 bg-tertiary">
-        <h4 className="text-[10px] font-black uppercase text-[var(--text-primary)] flex items-center gap-1.5"><History className="w-3 h-3 text-[var(--brand-orange)]" /> {t("platformMisc.runs.submissionHistory", { name: submission.submitter_name || submission.submitter_id })}</h4>
+        <h4 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)] flex items-center gap-1.5"><History className="w-3 h-3 text-[var(--brand-orange)]" /> {t("platformMisc.runs.submissionHistory", { name: submission.submitter_name || submission.submitter_id })}</h4>
         <button onClick={onClose}><X className="w-3.5 h-3.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" /></button>
       </div>
       <div className="p-4 max-h-64 overflow-y-auto">
@@ -4248,11 +4248,11 @@ function SubmissionTimeline({ submission, onClose }) {
         {scores && (
           <div className="mb-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runs.assessmentScore")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runs.assessmentScore")}</p>
               <div className="flex items-center gap-2">
                 <span className={cn("text-[14px] font-black", scores.overall >= 80 ? "text-emerald-500" : scores.overall >= 60 ? "text-amber-500" : "text-rose-500")}>{scores.overall}%</span>
                 {scores.ranking && (
-                  <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", getScoreColor(scores.overall))}>{scores.ranking}</span>
+                  <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", getScoreColor(scores.overall))}>{scores.ranking}</span>
                 )}
               </div>
             </div>
@@ -4264,7 +4264,7 @@ function SubmissionTimeline({ submission, onClose }) {
                   <div key={name} className="flex items-center justify-between text-[10px]">
                     <div className="flex items-center gap-1.5 min-w-0">
                       <span className="text-[var(--text-primary)] font-bold truncate">{name}</span>
-                      <span className="text-[var(--text-secondary)] text-[8px]">{t("platformMisc.runs.sectionRated", { count: sec.count, weight: sec.weight })}</span>
+                      <span className="text-[var(--text-secondary)] text-[10px] font-medium">{t("platformMisc.runs.sectionRated", { count: sec.count, weight: sec.weight })}</span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {/* Score bar */}
@@ -4281,7 +4281,7 @@ function SubmissionTimeline({ submission, onClose }) {
         )}
 
         {loading ? <Loader2 className="w-4 h-4 animate-spin mx-auto text-[var(--brand-orange)]" /> : timeline.length === 0 ? (
-          <p className="text-[10px] text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runs.noTimelineEntries")}</p>
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] text-center py-4">{t("platformMisc.runs.noTimelineEntries")}</p>
         ) : (
           <div className="space-y-2">
             {timeline.map((entry, idx) => {
@@ -4298,7 +4298,7 @@ function SubmissionTimeline({ submission, onClose }) {
                 <div key={idx} className="flex items-start gap-2 text-[10px]">
                   <div className={cn("w-1.5 h-1.5 mt-1 rounded-full shrink-0", dotColor)} />
                   <div className="flex-1">
-                    <span className="font-black uppercase">{entry.action}</span>
+                    <span className="font-bold uppercase tracking-wide">{entry.action}</span>
                     {entry.actor_name && <span className="text-[var(--text-secondary)]"> {t("platformMisc.runs.by")} {entry.actor_name}</span>}
                     <span className="text-[var(--text-secondary)] ml-1">{new Date(entry.created_at).toLocaleString()}</span>
                     {entry.metadata && Object.keys(entry.metadata).length > 0 && (

@@ -222,7 +222,7 @@ export default function SubmitFormPage() {
     const hasError = errors[field.id];
     const isDisabled = isSubmitted && !needsRevision;
 
-    const baseInputClass = "w-full rounded-xl px-4 py-3 text-[11px] font-bold outline-none bg-primary border text-[var(--text-primary)] transition-colors";
+    const baseInputClass = "w-full rounded-xl px-4 py-3 text-sm font-bold outline-none bg-primary border text-[var(--text-primary)] transition-colors";
     const normalBorder = hasError ? "border-rose-500" : "border-[var(--border-primary)] focus:border-[var(--brand-orange)]";
     const inputClass = cn(baseInputClass, normalBorder, isDisabled && "opacity-60 cursor-not-allowed");
 
@@ -462,12 +462,12 @@ export default function SubmitFormPage() {
           </div>
           {existingSubmission && (
             <div className="p-4 rounded-xl bg-secondary border border-[var(--border-primary)] text-left space-y-1">
-              <p className="text-[9px] font-black uppercase text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submissionDetails")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submissionDetails")}</p>
               <p className="text-[11px] font-bold text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.status")}: <span className="text-[var(--brand-orange)]">{existingSubmission.status?.toUpperCase()}</span></p>
-              <p className="text-[10px] text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}</p>
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}</p>
             </div>
           )}
-          <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110">
+          <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">
             {t("platformMisc.runSubmitDetail.backToSubmissions")}
           </button>
         </div>
@@ -492,7 +492,7 @@ export default function SubmitFormPage() {
           <AlertTriangle className="w-8 h-8 text-rose-500 mx-auto" />
           <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{t("platformMisc.runSubmitDetail.errorTitle")}</h1>
           <p className="text-[11px] text-[var(--text-secondary)]">{error}</p>
-          <button onClick={goBack} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase">{t("platformMisc.runSubmitDetail.goBack")}</button>
+          <button onClick={goBack} className="px-4 py-2 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wide">{t("platformMisc.runSubmitDetail.goBack")}</button>
         </div>
       </div>
     );
@@ -502,7 +502,7 @@ export default function SubmitFormPage() {
   return (
     <div className="min-h-screen">
       {notification && (
-        <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-black uppercase animate-in">
+        <div className="fixed bottom-6 right-6 z-[500] px-5 py-3 rounded-xl bg-emerald-500 text-black text-[10px] font-bold uppercase animate-in">
           {notification}
         </div>
       )}
@@ -511,7 +511,7 @@ export default function SubmitFormPage() {
       <div className="sticky top-0 z-30 bg-secondary border-b border-[var(--border-primary)]">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={goBack} className="text-[10px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
+            <button onClick={goBack} className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
               <ArrowLeft className="w-3 h-3" /> {t("platformMisc.runSubmitDetail.back")}
             </button>
             <span className="text-[var(--text-secondary)] opacity-30">|</span>
@@ -519,11 +519,11 @@ export default function SubmitFormPage() {
             <h1 className="text-sm font-black uppercase text-[var(--text-primary)]">{form?.name || t("platformMisc.runSubmitDetail.formTitle")}</h1>
           </div>
           <div className="flex items-center gap-2">
-            {isDraft && <span className="px-2 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeDraft")}</span>}
-            {isSubmitted && <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeSubmitted")}</span>}
-            {isApproved && <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeApproved")}</span>}
-            {isRejected && <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeRejected")}</span>}
-            {needsRevision && <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase">{t("platformMisc.runSubmitDetail.badgeRevision")}</span>}
+            {isDraft && <span className="px-2 py-0.5 rounded bg-slate-500/10 text-slate-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeDraft")}</span>}
+            {isSubmitted && <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeSubmitted")}</span>}
+            {isApproved && <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeApproved")}</span>}
+            {isRejected && <span className="px-2 py-0.5 rounded bg-rose-500/10 text-rose-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeRejected")}</span>}
+            {needsRevision && <span className="px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase">{t("platformMisc.runSubmitDetail.badgeRevision")}</span>}
           </div>
         </div>
       </div>
@@ -533,7 +533,7 @@ export default function SubmitFormPage() {
         {run && (
           <div className="p-4 rounded-2xl bg-secondary border border-[var(--border-primary)] space-y-2">
             <h2 className="text-sm font-black uppercase text-[var(--text-primary)]">{run.name}</h2>
-            {run.description && <p className="text-[10px] text-[var(--text-secondary)]">{run.description}</p>}
+            {run.description && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{run.description}</p>}
             {run.settings?.instructions && (
               <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/10">
                 <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
@@ -541,7 +541,7 @@ export default function SubmitFormPage() {
               </div>
             )}
             {(run.opens_at || run.closes_at) && (
-              <div className="flex items-center gap-2 text-[9px] text-[var(--text-secondary)]">
+              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
                 <Clock className="w-3 h-3" />
                 {run.opens_at && <span>{t("platformMisc.runSubmitDetail.opensAt", { date: new Date(run.opens_at).toLocaleString() })}</span>}
                 {run.closes_at && <span>{t("platformMisc.runSubmitDetail.closesAt", { date: new Date(run.closes_at).toLocaleString() })}</span>}
@@ -555,7 +555,7 @@ export default function SubmitFormPage() {
           <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/10 flex items-start gap-3">
             <CheckCircle2 className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-black uppercase text-blue-500">{t("platformMisc.runSubmitDetail.alreadySubmitted")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">{t("platformMisc.runSubmitDetail.alreadySubmitted")}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                 {t("platformMisc.runSubmitDetail.submittedNotice", { date: new Date(existingSubmission.submitted_at || existingSubmission.updated_at).toLocaleString() })}
                 {isApproved && ` ${t("platformMisc.runSubmitDetail.approvedNotice")}`}
@@ -569,7 +569,7 @@ export default function SubmitFormPage() {
           <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <p className="text-[11px] font-black uppercase text-amber-500">{t("platformMisc.runSubmitDetail.revisionTitle")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">{t("platformMisc.runSubmitDetail.revisionTitle")}</p>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                 {t("platformMisc.runSubmitDetail.revisionNotice")}
               </p>
@@ -592,8 +592,8 @@ export default function SubmitFormPage() {
                   className="w-full flex items-center justify-between px-5 py-4 hover:bg-tertiary/50 transition-colors"
                 >
                   <div className="text-left">
-                    <h3 className="text-[12px] font-black uppercase text-[var(--text-primary)]">{section.title}</h3>
-                    {section.description && <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">{section.description}</p>}
+                    <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{section.title}</h3>
+                    {section.description && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{section.description}</p>}
                   </div>
                   {isExpanded ? <ChevronUp className="w-4 h-4 text-[var(--text-secondary)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-secondary)]" />}
                 </button>
@@ -601,14 +601,14 @@ export default function SubmitFormPage() {
                   <div className="px-5 pb-5 space-y-4 border-t border-[var(--border-primary)] pt-4">
                     {sectionFields.map((field) => (
                       <div key={field.id} className="space-y-1.5">
-                        <label className="flex items-center gap-1 text-[10px] font-black uppercase text-[var(--text-primary)]">
+                        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                           {field.label}
                           {field.required && <span className="text-rose-500">*</span>}
                         </label>
-                        {field.help_text && <p className="text-[9px] text-[var(--text-secondary)]">{field.help_text}</p>}
+                        {field.help_text && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{field.help_text}</p>}
                         {renderField(field)}
                         {errors[field.id] && (
-                          <p className="text-[9px] font-bold text-rose-500 flex items-center gap-1">
+                          <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
                             {errors[field.id]}
                           </p>
@@ -625,14 +625,14 @@ export default function SubmitFormPage() {
           <div className="rounded-2xl bg-secondary border border-[var(--border-primary)] p-5 space-y-4">
             {fields.map((field) => (
               <div key={field.id} className="space-y-1.5">
-                <label className="flex items-center gap-1 text-[10px] font-black uppercase text-[var(--text-primary)]">
+                <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                   {field.label}
                   {field.required && <span className="text-rose-500">*</span>}
                 </label>
-                {field.help_text && <p className="text-[9px] text-[var(--text-secondary)]">{field.help_text}</p>}
+                {field.help_text && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{field.help_text}</p>}
                 {renderField(field)}
                 {errors[field.id] && (
-                  <p className="text-[9px] font-bold text-rose-500 flex items-center gap-1">
+                  <p className="text-[10px] font-bold text-rose-500 flex items-center gap-1">
                     <AlertTriangle className="w-3 h-3" />
                     {errors[field.id]}
                   </p>
@@ -646,7 +646,7 @@ export default function SubmitFormPage() {
         {fields.length === 0 && (
           <div className="py-16 text-center">
             <FileText className="w-8 h-8 mx-auto text-[var(--text-secondary)] opacity-30" />
-            <p className="text-[12px] font-bold text-[var(--text-secondary)] mt-3">{t("platformMisc.runSubmitDetail.noFields")}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-3">{t("platformMisc.runSubmitDetail.noFields")}</p>
           </div>
         )}
 
@@ -657,7 +657,7 @@ export default function SubmitFormPage() {
               <button
                 onClick={handleSaveDraft}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-black uppercase hover:bg-tertiary/80 disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-tertiary text-[var(--text-primary)] text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary/80 disabled:opacity-50"
               >
                 <Save className="w-3.5 h-3.5" />
                 {saving ? t("platformMisc.runSubmitDetail.saving") : t("platformMisc.runSubmitDetail.saveDraft")}
@@ -665,7 +665,7 @@ export default function SubmitFormPage() {
               <button
                 onClick={handleSubmit}
                 disabled={saving}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase hover:brightness-110 disabled:opacity-50"
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
                 {saving ? t("platformMisc.runSubmitDetail.submitting") : needsRevision ? t("platformMisc.runSubmitDetail.resubmit") : t("platformMisc.runSubmitDetail.submit")}

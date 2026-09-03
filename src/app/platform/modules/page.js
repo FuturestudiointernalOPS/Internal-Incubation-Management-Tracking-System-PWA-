@@ -73,14 +73,14 @@ export default function ModulesPage() {
                 {mod.description}
               </p>
               {mod.future && (
-                <span className="inline-block mt-3 px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[8px] font-black uppercase tracking-wider">
+                <span className="inline-block mt-3 px-2 py-1 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase tracking-wide">
                   {t("platformMisc.modules.comingSoon")}
                 </span>
               )}
               {!mod.future && mod.href && (
                 <a
                   href={mod.href}
-                  className="inline-block mt-3 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
+                  className="inline-block mt-3 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline"
                 >
                   {t("platformMisc.modules.open")}
                 </a>
