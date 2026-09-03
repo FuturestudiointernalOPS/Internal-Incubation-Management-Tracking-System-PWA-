@@ -377,7 +377,7 @@ export default function AdminRelationshipsPage() {
                   <h2 className="text-lg font-black text-[var(--text-primary)]">{selected.venture_name || t("investorAdmin.relationships.venture")}</h2>
                   <p className="text-sm text-[var(--text-secondary)]">{selected.investor_name || t("investorAdmin.relationships.investor")} · {selected.organization_name || t("investorAdmin.relationships.individual")}</p>
                 </div>
-                <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${selected.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
+                <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${selected.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
                   {selected.status}
                 </span>
               </div>
@@ -389,13 +389,13 @@ export default function AdminRelationshipsPage() {
                   ["nextAction", selected.next_action || "—", null],
                 ].map(([l, v, field], i) => (
                   <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                    <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{t(`investorAdmin.relationships.${l}`)}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest">{t(`investorAdmin.relationships.${l}`)}</p>
                     <div className="flex items-center gap-1 mt-1">
                       <p className="text-xs font-bold text-[var(--text-primary)]">{v === "Unassigned" ? t("investorAdmin.relationships.unassigned") : v}</p>
                       {field && v === "Unassigned" && (
                         <div className="relative">
                           <button onClick={() => { setAssignField(field === "rm" ? "relationship_manager" : "investment_manager"); setAssignSearch(""); }}
-                            className="text-[8px] font-black text-[var(--brand-orange)] hover:underline">{t("investorAdmin.relationships.assign")}</button>
+                            className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">{t("investorAdmin.relationships.assign")}</button>
                           {assignField === (field === "rm" ? "relationship_manager" : "investment_manager") && (
                             <div className="absolute top-full left-0 mt-1 w-48 bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-xl shadow-2xl z-50">
                               <input value={assignSearch} onChange={e => setAssignSearch(e.target.value)}
@@ -405,7 +405,7 @@ export default function AdminRelationshipsPage() {
                                 {staffList.filter(s => !assignSearch || s.name?.toLowerCase().includes(assignSearch.toLowerCase()) || s.email?.toLowerCase().includes(assignSearch.toLowerCase())).slice(0, 10).map(s => (
                                   <button key={s.cid} onClick={() => handleAssign(field === "rm" ? "relationship_manager" : "investment_manager", s.cid, s.name)}
                                     className="w-full text-left px-3 py-2 hover:bg-[var(--surface-3)] text-[10px] font-bold text-[var(--text-primary)]">
-                                    {s.name}<br/><span className="text-[8px] text-[var(--text-tertiary)]">{s.email} · {s.role}</span>
+                                    {s.name}<br/><span className="text-[10px] text-[var(--text-tertiary)]">{s.email} · {s.role}</span>
                                   </button>
                                 ))}
                                 {staffList.filter(s => !assignSearch || s.name?.toLowerCase().includes(assignSearch.toLowerCase())).length === 0 && (
@@ -413,7 +413,7 @@ export default function AdminRelationshipsPage() {
                                 )}
                               </div>
                               <button onClick={() => setAssignField(null)}
-                                className="w-full px-3 py-2 border-t border-[var(--border-primary)] text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
+                                className="w-full px-3 py-2 border-t border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
                             </div>
                           )}
                         </div>
@@ -474,14 +474,14 @@ export default function AdminRelationshipsPage() {
                                   {m.duration_minutes ? t("investorAdmin.relationships.durationSuffix", { minutes: m.duration_minutes }) : ""}
                                 </p>
                                 {m.location && (
-                                  <p className="text-[9px] text-[var(--text-tertiary)] flex items-center gap-1 mt-0.5">
+                                  <p className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1 mt-0.5">
                                     <MapPin className="w-2.5 h-2.5" /> {m.location}
                                   </p>
                                 )}
-                                {m.notes && <p className="text-[10px] text-[var(--text-secondary)] mt-1 italic">{m.notes}</p>}
+                                {m.notes && <p className="text-[10px] text-[var(--text-secondary)] mt-1">{m.notes}</p>}
                                 {m.outcome && (
                                   <div className="mt-2 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                                    <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</p>
+                                    <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-wide">{t("investorAdmin.relationships.outcome")}</p>
                                     <p className="text-[10px] text-[var(--text-primary)] mt-0.5">{m.outcome}</p>
                                   </div>
                                 )}
@@ -491,7 +491,7 @@ export default function AdminRelationshipsPage() {
                                     if (!Array.isArray(items) || items.length === 0) return null;
                                     return (
                                       <div className="mt-2 space-y-1">
-                                        <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItems")}</p>
+                                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItems")}</p>
                                         {items.map((item, i) => (
                                           <p key={i} className="text-[10px] text-[var(--text-primary)] flex items-center gap-1">
                                             <span className="w-1 h-1 rounded-full bg-[var(--brand-orange)]" /> {item}
@@ -504,7 +504,7 @@ export default function AdminRelationshipsPage() {
                               </div>
                             </div>
                             <div className="flex flex-col items-end gap-2">
-                              <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                 m.status === "scheduled" ? "bg-amber-500/10 text-amber-400" :
                                 m.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
                                 "bg-rose-500/10 text-rose-400"
@@ -535,7 +535,7 @@ export default function AdminRelationshipsPage() {
                       <div key={ev.id} className="relative pl-8 py-2">
                         <div className="absolute left-2 top-3 w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
                         <p className="text-[10px] font-bold text-[var(--text-primary)]">{ev.description}</p>
-                        <p className="text-[8px] text-[var(--text-tertiary)] mt-0.5">
+                        <p className="text-[10px] text-[var(--text-tertiary)] mt-0.5">
                           {new Date(ev.created_at).toLocaleString()}
                         </p>
                       </div>
@@ -570,7 +570,7 @@ export default function AdminRelationshipsPage() {
 
                   {/* DD workspace status */}
                   <div className="flex items-center gap-3">
-                    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${ddData.workspace.status === "active" ? "bg-purple-500/10 text-purple-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${ddData.workspace.status === "active" ? "bg-purple-500/10 text-purple-400" : "bg-emerald-500/10 text-emerald-400"}`}>
                       {ddData.workspace.status}
                     </span>
                     <span className="text-[10px] text-[var(--text-tertiary)]">
@@ -592,7 +592,7 @@ export default function AdminRelationshipsPage() {
                                 <div className="flex items-center gap-2">
                                   <p className="text-xs font-bold text-[var(--text-primary)]">{r.title}</p>
                                   {r.priority && (
-                                    <span className={`px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                                       r.priority === "high" ? "bg-rose-500/10 text-rose-400" :
                                       r.priority === "medium" ? "bg-amber-500/10 text-amber-400" :
                                       "bg-slate-500/10 text-slate-400"
@@ -600,7 +600,7 @@ export default function AdminRelationshipsPage() {
                                   )}
                                 </div>
                                 {r.description && <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{r.description}</p>}
-                                <div className="flex items-center gap-3 mt-1 text-[9px] text-[var(--text-tertiary)]">
+                                <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--text-tertiary)]">
                                   {r.due_date && <span>{new Date(r.due_date).toLocaleDateString()}</span>}
                                   {r.response_text && <span className="text-emerald-400">{t("investorAdmin.relationships.responseLabel", { response: r.response_text })}</span>}
                                 </div>
@@ -611,10 +611,10 @@ export default function AdminRelationshipsPage() {
                                     if (!Array.isArray(hist) || hist.length === 0) return null;
                                     return (
                                       <details className="mt-2">
-                                        <summary className="text-[8px] font-black text-[var(--text-tertiary)] uppercase cursor-pointer">{t("investorAdmin.relationships.versionHistory")} ({hist.length})</summary>
+                                        <summary className="text-[10px] font-bold text-[var(--text-tertiary)] uppercase cursor-pointer">{t("investorAdmin.relationships.versionHistory")} ({hist.length})</summary>
                                         <div className="mt-1 space-y-1 max-h-32 overflow-y-auto">
                                           {hist.map((h, i) => (
-                                            <div key={i} className="text-[8px] text-[var(--text-tertiary)] flex items-center gap-1">
+                                            <div key={i} className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
                                               <span className="w-1 h-1 rounded-full bg-[var(--brand-orange)]" />
                                               {h.from_status} → {h.to_status} · {new Date(h.changed_at).toLocaleDateString()}
                                             </div>
@@ -626,7 +626,7 @@ export default function AdminRelationshipsPage() {
                                 })()}
                               </div>
                               <div className="flex flex-col items-end gap-2 ml-3">
-                                <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase ${
+                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                   r.status === "completed" || r.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
                                   r.status === "pending" ? "bg-amber-500/10 text-amber-400" :
                                   r.status === "closed" ? "bg-slate-500/10 text-slate-400" :
@@ -663,11 +663,11 @@ export default function AdminRelationshipsPage() {
                                     <div key={doc.id} className="flex items-center justify-between p-1.5 rounded-lg bg-[var(--surface-2)]">
                                       <div className="flex items-center gap-2">
                                         <FileText className="w-3 h-3 text-[var(--text-tertiary)]" />
-                                        <span className="text-[9px] font-bold text-[var(--text-primary)]">{doc.file_name}</span>
-                                        <span className="text-[8px] text-[var(--text-tertiary)]">{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)}KB` : ""}</span>
+                                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{doc.file_name}</span>
+                                        <span className="text-[10px] text-[var(--text-tertiary)]">{doc.file_size ? `${(doc.file_size / 1024).toFixed(1)}KB` : ""}</span>
                                       </div>
                                       <button onClick={() => handleDownload(doc.id)}
-                                        className="text-[8px] font-black text-[var(--brand-orange)] uppercase hover:underline">{t("investorAdmin.relationships.download")}</button>
+                                        className="text-[10px] font-bold text-[var(--brand-orange)] uppercase hover:underline">{t("investorAdmin.relationships.download")}</button>
                                     </div>
                                   ))}
                                 </div>
@@ -679,15 +679,15 @@ export default function AdminRelationshipsPage() {
                                       onChange={e => { if (e.target.files[0]) handleFileUpload(r.id, e.target.files[0]); }}
                                       className="hidden" />
                                     <label htmlFor={`dd-upload-${r.id}`}
-                                      className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[9px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
+                                      className="px-3 py-1.5 rounded-lg bg-[var(--surface-2)] text-[10px] font-bold text-[var(--text-secondary)] cursor-pointer hover:text-[var(--text-primary)]">
                                       {t("investorAdmin.relationships.chooseFile")}
                                     </label>
                                     <button onClick={() => setUploadReqId(null)}
-                                      className="text-[9px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
+                                      className="text-[10px] font-bold text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">{t("investorAdmin.relationships.cancel")}</button>
                                   </div>
                                 ) : (
                                   <button onClick={() => { setUploadReqId(r.id); fetchDdDocs(r.id); }}
-                                    className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
+                                    className="flex items-center gap-1 text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
                                     <Upload className="w-3 h-3" /> {t("investorAdmin.relationships.uploadDocument")}
                                   </button>
                                 )
@@ -730,7 +730,7 @@ export default function AdminRelationshipsPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <button onClick={() => setExpandedIntros(prev => ({...prev, [p.id]: !prev[p.id]}))}
-                              className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline">
+                              className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline">
                               {expandedIntros[p.id] ? t("investorAdmin.relationships.hideProfile") : t("investorAdmin.relationships.viewInvestorProfile")}
                             </button>
                             {!alreadyHas ? (
@@ -745,11 +745,11 @@ export default function AdminRelationshipsPage() {
                         </div>
                         {expandedIntros[p.id] && (
                           <div className="p-3 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)] grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {p.industries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.industries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.industries||[]).join(", ")}</p></div>}
-                            {p.countries?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.countries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.countries||[]).join(", ")}</p></div>}
-                            {p.startup_stages?.length > 0 && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.stages")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.startup_stages||[]).join(", ")}</p></div>}
-                            {(p.ticket_size_min || p.ticket_size_max) && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.ticket")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${p.ticket_size_min||"0"}–${p.ticket_size_max||"∞"}</p></div>}
-                            {p.email && <div><p className="text-[7px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.email")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{p.email}</p></div>}
+                            {p.industries?.length > 0 && <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.industries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.industries||[]).join(", ")}</p></div>}
+                            {p.countries?.length > 0 && <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.countries")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.countries||[]).join(", ")}</p></div>}
+                            {p.startup_stages?.length > 0 && <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.stages")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{(p.startup_stages||[]).join(", ")}</p></div>}
+                            {(p.ticket_size_min || p.ticket_size_max) && <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.ticket")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">${p.ticket_size_min||"0"}–${p.ticket_size_max||"∞"}</p></div>}
+                            {p.email && <div><p className="text-[10px] text-[var(--text-tertiary)] uppercase">{t("investorAdmin.relationships.email")}</p><p className="text-[10px] font-bold text-[var(--text-primary)]">{p.email}</p></div>}
                           </div>
                         )}
                       </div>
@@ -784,16 +784,16 @@ export default function AdminRelationshipsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           {w.relationship_manager_name && (
-                            <span className="text-[9px] text-[var(--text-tertiary)] flex items-center gap-1">
+                            <span className="text-[10px] text-[var(--text-tertiary)] flex items-center gap-1">
                               <Users className="w-3 h-3" /> {w.relationship_manager_name}
                             </span>
                           )}
                           {w.upcoming_meetings > 0 && (
-                            <span className="px-2 py-0.5 rounded text-[8px] font-black bg-amber-500/10 text-amber-400">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400">
                               {t("investorAdmin.relationships.upcomingMeetings", { count: w.upcoming_meetings })}
                             </span>
                           )}
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${w.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${w.status === "active" ? "bg-emerald-500/10 text-emerald-400" : "bg-slate-500/10 text-slate-400"}`}>
                             {w.status}
                           </span>
                           <ArrowRight className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
@@ -818,7 +818,7 @@ export default function AdminRelationshipsPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingType")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingType")}</label>
                   <select value={meetingForm.meeting_type} onChange={e => setMeetingForm({...meetingForm, meeting_type: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                     {MEETING_TYPES.map(mt => <option key={mt.value} value={mt.value}>{t(mt.label)}</option>)}
@@ -826,29 +826,29 @@ export default function AdminRelationshipsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dateLabel")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dateLabel")}</label>
                     <input type="date" value={meetingForm.scheduled_date} onChange={e => setMeetingForm({...meetingForm, scheduled_date: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.time")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.time")}</label>
                     <input type="time" value={meetingForm.scheduled_time} onChange={e => setMeetingForm({...meetingForm, scheduled_time: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.durationLabel")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.durationLabel")}</label>
                   <input type="number" value={meetingForm.duration_minutes} onChange={e => setMeetingForm({...meetingForm, duration_minutes: parseInt(e.target.value) || 60})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.location")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.location")}</label>
                   <input value={meetingForm.location} onChange={e => setMeetingForm({...meetingForm, location: e.target.value})}
                     placeholder={t("investorAdmin.relationships.locationPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.notes")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.notes")}</label>
                   <textarea value={meetingForm.notes} onChange={e => setMeetingForm({...meetingForm, notes: e.target.value})}
                     rows={2} placeholder={t("investorAdmin.relationships.notesPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
@@ -873,7 +873,7 @@ export default function AdminRelationshipsPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</label>
                   <select value={completeForm.outcome} onChange={e => setCompleteForm({...completeForm, outcome: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                     <option value="">{t("investorAdmin.relationships.selectOutcome")}</option>
@@ -884,13 +884,13 @@ export default function AdminRelationshipsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingNotes")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.meetingNotes")}</label>
                   <textarea value={completeForm.notes} onChange={e => setCompleteForm({...completeForm, notes: e.target.value})}
                     rows={3} placeholder={t("investorAdmin.relationships.meetingNotesPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItemsPerLine")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.actionItemsPerLine")}</label>
                   <textarea value={completeForm.action_items} onChange={e => setCompleteForm({...completeForm, action_items: e.target.value})}
                     rows={3} placeholder={t("investorAdmin.relationships.actionItemsPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />
@@ -915,21 +915,21 @@ export default function AdminRelationshipsPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.titleLabel")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.titleLabel")}</label>
                   <input value={requestForm.title} onChange={e => setRequestForm({...requestForm, title: e.target.value})}
                     placeholder={t("investorAdmin.relationships.titlePlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.category")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.category")}</label>
                     <select value={requestForm.category} onChange={e => setRequestForm({...requestForm, category: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                       {["corporate","financial","commercial","technical","legal"].map(c => <option key={c} value={c}>{c.charAt(0).toUpperCase()+c.slice(1)}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.priority")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.priority")}</label>
                     <select value={requestForm.priority} onChange={e => setRequestForm({...requestForm, priority: e.target.value})}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                       <option value="low">{t("investorAdmin.relationships.priorityLow")}</option>
@@ -939,12 +939,12 @@ export default function AdminRelationshipsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dueDate")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.dueDate")}</label>
                   <input type="date" value={requestForm.due_date} onChange={e => setRequestForm({...requestForm, due_date: e.target.value})}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.description")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.description")}</label>
                   <textarea value={requestForm.description} onChange={e => setRequestForm({...requestForm, description: e.target.value})}
                     rows={2} placeholder={t("investorAdmin.relationships.descriptionPlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none focus:border-[var(--brand-orange)]/60" />

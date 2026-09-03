@@ -1253,10 +1253,10 @@ function StaffOpReport() {
               <ChevronLeft className="w-4 h-4" />
             </button>
             <div className="text-center px-4">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("time.week")} {weekInfo.week} — {weekInfo.year}
               </p>
-              <p className="text-[9px] font-bold text-[var(--text-secondary)] opacity-50 uppercase tracking-widest mt-0.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50 mt-0.5">
                 {reportType === "standup"
                   ? t("reports.mondayStandup")
                   : t("reports.fridayRetro")}
@@ -1275,30 +1275,30 @@ function StaffOpReport() {
         <div className="flex gap-2 bg-tertiary p-1 rounded-xl border border-[var(--border-primary)] w-fit">
           <button
             onClick={() => setReportType("standup")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
               reportType === "standup"
                 ? "bg-[var(--brand-orange)] text-black shadow-lg"
-                : "text-slate-500 hover:text-white"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Calendar className="w-4 h-4" /> {t("reports.mondayStandup")}
           </button>
           <button
             onClick={() => setReportType("retro")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
               reportType === "retro"
                 ? "bg-[var(--brand-orange)] text-black shadow-lg"
-                : "text-slate-500 hover:text-white"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <Trophy className="w-4 h-4" /> {t("reports.fridayRetro")}
           </button>
           <button
             onClick={() => setReportType("summary")}
-            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            className={`flex items-center gap-2 px-6 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${
               reportType === "summary"
                 ? "bg-[var(--brand-orange)] text-black shadow-lg"
-                : "text-slate-500 hover:text-white"
+                : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             }`}
           >
             <BarChart3 className="w-4 h-4" />{" "}
@@ -1328,7 +1328,7 @@ function StaffOpReport() {
                         <h2 className="text-lg font-bold text-[var(--text-primary)]">
                           {t("reports.mondayStandup")}
                         </h2>
-                        <p className="text-[11px] text-slate-500 mt-0.5">
+                        <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                           {t("staff.opReport.manageWeeklyPlans")}
                         </p>
                       </div>
@@ -1460,16 +1460,16 @@ function StaffOpReport() {
                     <table className="w-full">
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.week")}
                         </th>
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.totalTasks")}
                         </th>
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.status")}
                         </th>
-                        <th className="text-right px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.actions")}
                         </th>
                       </tr>
@@ -1499,12 +1499,12 @@ function StaffOpReport() {
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                                     {t("staff.table.week")} {report.week_number}
                                   </span>
-                                  <span className="text-[10px] text-slate-500 ml-2">
+                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-2">
                                     {report.year}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className="text-[12px] font-medium text-slate-500">
+                                  <span className="text-[12px] font-medium text-[var(--text-secondary)]">
                                     {taskCount} {t("staff.table.tasks")}
                                   </span>
                                 </td>
@@ -1553,7 +1553,7 @@ function StaffOpReport() {
                                     <div className="bg-tertiary/50 border-t border-[var(--border-primary)]">
                                       <div className="p-4 space-y-3">
                                         <div className="flex items-center justify-between">
-                                          <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                                          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                             {report.week_number > 0
                                               ? `Week ${report.week_number}, ${report.year}`
                                               : ""}
@@ -1640,7 +1640,7 @@ function StaffOpReport() {
                                               setShowStandupModal(true);
                                               setShowTaskForm(false);
                                             }}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                                           >
                                             <ChevronRight className="w-3 h-3" />{" "}
                                             {(() => {
@@ -1665,7 +1665,7 @@ function StaffOpReport() {
                                               report.week_number &&
                                             t.created_year === report.year,
                                         ).length === 0 ? (
-                                          <p className="text-[11px] text-slate-500 text-center py-4">
+                                          <p className="text-[11px] text-[var(--text-secondary)] text-center py-4">
                                             {t("reports.noTasksFound")}
                                           </p>
                                         ) : (
@@ -1674,19 +1674,19 @@ function StaffOpReport() {
                                               <table className="w-full">
                                               <thead>
                                                 <tr className="bg-primary border-b border-[var(--border-primary)]">
-                                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                     {t("staff.table.task")}
                                                   </th>
-                                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                     {t("staff.table.project")}
                                                   </th>
-                                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                     {t("staff.table.due")}
                                                   </th>
-                                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                     {t("staff.table.blockers")}
                                                   </th>
-                                                  <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                  <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                     {t("staff.table.status")}
                                                   </th>
                                                 </tr>
@@ -1800,7 +1800,7 @@ function StaffOpReport() {
                                                                 task.priority !==
                                                                   "medium" && (
                                                                   <span
-                                                                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
                                                                       task.priority ===
                                                                       "critical"
                                                                         ? "bg-red-500/10 text-red-400"
@@ -1817,7 +1817,7 @@ function StaffOpReport() {
                                                                 )}
                                                             </div>
                                                           </td>
-                                                          <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                          <td className="px-3 py-2.5 text-[11px] text-[var(--text-secondary)]">
                                                             {task.project_id
                                                               ? assignedProjects.find(
                                                                   (p) =>
@@ -1834,7 +1834,7 @@ function StaffOpReport() {
                                                               : task.category ||
                                                                 "—"}
                                                           </td>
-                                                          <td className="px-3 py-2.5 text-[11px] text-slate-500">
+                                                          <td className="px-3 py-2.5 text-[11px] text-[var(--text-secondary)]">
                                                             {formatDate(
                                                               task.end_date,
                                                             )}
@@ -1849,14 +1849,14 @@ function StaffOpReport() {
                                                                 }
                                                               </span>
                                                             ) : (
-                                                              <span className="text-[10px] text-slate-600">
+                                                              <span className="text-[10px] text-[var(--text-secondary)]">
                                                                 —
                                                               </span>
                                                             )}
                                                           </td>
                                                           <td className="px-3 py-2.5">
                                                             <span
-                                                              className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
+                                                              className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${config.bg} ${config.color}`}
                                                             >
                                                               {t(
                                                                 statusLabelKey(
@@ -1901,7 +1901,7 @@ function StaffOpReport() {
                                                   }));
                                                   setTaskCreationOpen(true);
                                                 }}
-                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-slate-500 hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
+                                                className="w-full py-2 border border-dashed border-[var(--border-primary)] rounded-lg text-[10px] font-medium text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/30 transition-all flex items-center justify-center gap-1.5"
                                               >
                                                 <Plus className="w-3.5 h-3.5" />{" "}
                                                 {t("reports.addTask")}
@@ -1922,10 +1922,10 @@ function StaffOpReport() {
                         <tr>
                           <td colSpan={4} className="px-4 py-8 text-center">
                             <Target className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
-                            <p className="text-[12px] font-medium text-slate-500 mb-1">
+                            <p className="text-[12px] font-medium text-[var(--text-secondary)] mb-1">
                               {t("staff.opReport.noStandupReports")}
                             </p>
-                            <p className="text-[10px] text-slate-600 mb-4">
+                            <p className="text-[10px] text-[var(--text-secondary)] mb-4">
                               {tasks.length > 0
                                 ? t("staff.opReport.hasTasksPrompt", {
                                     count: tasks.length,
@@ -1963,7 +1963,7 @@ function StaffOpReport() {
                   <h2 className="text-lg font-bold text-[var(--text-primary)]">
                     {t("reports.fridayRetro")}
                   </h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                     {t("staff.opReport.reviewCompletedWork")}
                   </p>
                 </div>
@@ -1974,19 +1974,19 @@ function StaffOpReport() {
                     <table className="w-full">
                     <thead>
                       <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.week")}
                         </th>
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.totalTasks")}
                         </th>
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.completed")}
                         </th>
-                        <th className="text-left px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-left px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.status")}
                         </th>
-                        <th className="text-right px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">
+                        <th className="text-right px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("staff.table.actions")}
                         </th>
                       </tr>
@@ -2044,11 +2044,11 @@ function StaffOpReport() {
                                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                                     {t("staff.table.week")} {report.week_number}
                                   </span>
-                                  <span className="text-[10px] text-slate-500 ml-2">
+                                  <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-2">
                                     {report.year}
                                   </span>
                                 </td>
-                                <td className="px-4 py-3 text-[12px] font-medium text-slate-500">
+                                <td className="px-4 py-3 text-[12px] font-medium text-[var(--text-secondary)]">
                                   {totalTasks} {t("staff.table.tasks")}
                                 </td>
                                 <td className="px-4 py-3">
@@ -2089,7 +2089,7 @@ function StaffOpReport() {
                                   <td colSpan={5} className="px-0 py-0">
                                     <div className="bg-tertiary/50 border-t border-[var(--border-primary)] p-4">
                                       {weekTasks.length === 0 ? (
-                                        <p className="text-[11px] text-slate-500 text-center py-4">
+                                        <p className="text-[11px] text-[var(--text-secondary)] text-center py-4">
                                           {t("reports.noTasksFound")}
                                         </p>
                                       ) : (
@@ -2098,22 +2098,22 @@ function StaffOpReport() {
                                           <table className="w-full">
                                             <thead>
                                               <tr className="bg-primary border-b border-[var(--border-primary)]">
-                                                <th className="w-10 px-3 py-2 text-center text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="w-10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.opReport.done")}
                                                 </th>
-                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.table.task")}
                                                 </th>
-                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.table.project")}
                                                 </th>
-                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.table.due")}
                                                 </th>
-                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.table.blockers")}
                                                 </th>
-                                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                                   {t("staff.table.status")}
                                                 </th>
                                               </tr>
@@ -2335,7 +2335,7 @@ function StaffOpReport() {
                                                             className={`flex items-center gap-1.5 text-left ${task.subtasks?.length > 0 ? "cursor-pointer hover:text-[var(--brand-orange)]" : ""}`}
                                                           >
                                                             <span
-                                                              className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
+                                                              className={`text-[11px] font-medium ${task.status === "completed" ? "line-through text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
                                                             >
                                                               {task.title}
                                                             </span>
@@ -2343,7 +2343,7 @@ function StaffOpReport() {
                                                               task.priority !==
                                                                 "medium" && (
                                                                 <span
-                                                                  className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                                                                  className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0 ${
                                                                     task.priority ===
                                                                     "critical"
                                                                       ? "bg-red-500/10 text-red-400"
@@ -2362,7 +2362,7 @@ function StaffOpReport() {
                                                               null ||
                                                               task.status ===
                                                                 "carried_over") && (
-                                                              <span className="flex items-center gap-1 text-[8px] font-bold text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded uppercase tracking-wider ml-2">
+                                                              <span className="flex items-center gap-1 text-[10px] font-bold uppercase text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded ml-2">
                                                                 <Shield className="w-2.5 h-2.5" />{" "}
                                                                 Carryover
                                                               </span>
@@ -2471,14 +2471,14 @@ function StaffOpReport() {
                                                                         )}
                                                                       </button>
                                                                       <span
-                                                                        className={`text-[10px] ${st.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"}`}
+                                                                        className={`text-[10px] ${st.status === "completed" ? "line-through text-[var(--text-secondary)]" : "text-[var(--text-primary)]"}`}
                                                                       >
                                                                         {
                                                                           st.title
                                                                         }
                                                                       </span>
                                                                       <span
-                                                                        className={`text-[7px] px-1 py-0.5 rounded-full ${STATUS_CONFIG[st.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[st.status]?.color || "text-slate-400"}`}
+                                                                        className={`text-[10px] font-bold uppercase px-1 py-0.5 rounded-full ${STATUS_CONFIG[st.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[st.status]?.color || "text-slate-400"}`}
                                                                       >
                                                                         {t(
                                                                           statusLabelKey(
@@ -2493,7 +2493,7 @@ function StaffOpReport() {
                                                             )}
                                                         </div>
                                                       </td>
-                                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                                         {task.project_id
                                                           ? assignedProjects.find(
                                                               (p) =>
@@ -2508,7 +2508,7 @@ function StaffOpReport() {
                                                           : task.category ||
                                                             "—"}
                                                       </td>
-                                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                                         {formatDate(
                                                           task.end_date,
                                                         )}
@@ -2521,7 +2521,7 @@ function StaffOpReport() {
                                                               taskId: task.id,
                                                             })
                                                           }
-                                                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-all text-[9px]"
+                                                          className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-white/5 transition-all text-[10px] font-bold"
                                                         >
                                                           {ab.length > 0 ? (
                                                             <span className="text-rose-400 font-medium flex items-center gap-1">
@@ -2533,7 +2533,7 @@ function StaffOpReport() {
                                                                 : ""}
                                                             </span>
                                                           ) : (
-                                                            <span className="text-slate-500 hover:text-slate-300 flex items-center gap-1">
+                                                            <span className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center gap-1">
                                                               <Shield className="w-3 h-3" />
                                                               Add Blocker
                                                             </span>
@@ -2595,7 +2595,7 @@ function StaffOpReport() {
                                                               );
                                                             }
                                                           }}
-                                                          className={`text-[8px] font-semibold px-1 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
+                                                          className={`text-[10px] font-bold px-1 py-0.5 rounded-full border-0 outline-none cursor-pointer appearance-none ${STATUS_CONFIG[task.status]?.bg || "bg-slate-500/10"} ${STATUS_CONFIG[task.status]?.color || "text-slate-400"}`}
                                                         >
                                                           <option
                                                             value="pending"
@@ -2652,10 +2652,10 @@ function StaffOpReport() {
                         <tr>
                           <td colSpan={5} className="px-4 py-8 text-center">
                             <CheckCircle2 className="w-8 h-8 mx-auto mb-3 text-slate-500 opacity-30" />
-                            <p className="text-[12px] font-medium text-slate-500">
+                            <p className="text-[12px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.noWeeklyReports")}
                             </p>
-                            <p className="text-[10px] text-slate-600 mt-1">
+                            <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                               {t("staff.opReport.retroRequiresStandup")}
                             </p>
                           </td>
@@ -2671,7 +2671,7 @@ function StaffOpReport() {
                 {summaryLoading ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-                    <span className="ml-3 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                    <span className="ml-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("common.loading")}
                     </span>
                   </div>
@@ -2719,7 +2719,7 @@ function StaffOpReport() {
                               <p className="text-lg font-black text-[var(--text-primary)]">
                                 {t("staff.table.week")} {weekInfo.week}
                               </p>
-                              <p className="text-[10px] text-slate-500">
+                              <p className="text-[10px] text-[var(--text-secondary)]">
                                 {dateRange}
                               </p>
                             </div>
@@ -2730,7 +2730,7 @@ function StaffOpReport() {
                               <p className="text-2xl font-black text-[var(--text-primary)]">
                                 {planned}
                               </p>
-                              <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                 {t("staff.opReport.tasksPlanned")}
                               </p>
                             </div>
@@ -2738,7 +2738,7 @@ function StaffOpReport() {
                               <p className="text-2xl font-black text-emerald-400">
                                 {completed}
                               </p>
-                              <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                 {t("staff.table.completed")}
                               </p>
                             </div>
@@ -2746,7 +2746,7 @@ function StaffOpReport() {
                               <p className="text-2xl font-black text-indigo-400">
                                 {carriedOver}
                               </p>
-                              <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                 {t("staff.opReport.carriedOver")}
                               </p>
                             </div>
@@ -2754,13 +2754,13 @@ function StaffOpReport() {
                               <p className="text-2xl font-black text-rose-400">
                                 {activeBlockers}
                               </p>
-                              <p className="text-[8px] text-slate-500 uppercase tracking-wider">
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                 {t("staff.opReport.activeBlockers")}
                               </p>
                             </div>
                           </div>
                           <div className="flex flex-wrap gap-4 pt-2 border-t border-[var(--border-primary)]/30">
-                            <span className="text-[9px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.productivity")}:{" "}
                               <span className="font-bold text-emerald-400">
                                 {planned > 0
@@ -2769,19 +2769,19 @@ function StaffOpReport() {
                                 %
                               </span>
                             </span>
-                            <span className="text-[9px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.blockersCreated")}:{" "}
                               <span className="font-bold text-[var(--text-primary)]">
                                 {blockersCreated}
                               </span>
                             </span>
-                            <span className="text-[9px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.blockersResolved")}:{" "}
                               <span className="font-bold text-emerald-400">
                                 {blockersResolved}
                               </span>
                             </span>
-                            <span className="text-[9px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("staff.opReport.projectsContributed")}:{" "}
                               <span className="font-bold text-[var(--text-primary)]">
                                 {projectsCount}
@@ -2801,7 +2801,7 @@ function StaffOpReport() {
                         {t("staff.section.tasksWorkedOn")}
                       </h3>
                       {summaryTasks.length === 0 ? (
-                        <p className="text-[10px] text-slate-600 italic text-center py-8">
+                        <p className="text-sm text-[var(--text-secondary)] text-center py-8">
                           {t("reports.noTasksFound")}
                         </p>
                       ) : (
@@ -2809,25 +2809,25 @@ function StaffOpReport() {
                           <table className="w-full">
                             <thead>
                               <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.task")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.project")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.category")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("time.created")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.due")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.status")}
                                 </th>
-                                <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                   {t("staff.table.collaborators")}
                                 </th>
                               </tr>
@@ -2847,26 +2847,26 @@ function StaffOpReport() {
                                       <td className="px-3 py-2.5 text-[11px] font-bold text-[var(--text-primary)]">
                                         {task.title}
                                       </td>
-                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                         {projectName || "—"}
                                       </td>
-                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                         {task.category || "—"}
                                       </td>
-                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                         {formatDate(task.created_at)}
                                       </td>
-                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                         {formatDate(task.end_date)}
                                       </td>
                                       <td className="px-3 py-2.5">
                                         <span
-                                          className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
+                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
                                         >
                                           {t(statusLabelKey(task.status))}
                                         </span>
                                       </td>
-                                      <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                      <td className="px-3 py-2.5 text-[10px] text-[var(--text-secondary)]">
                                         —
                                       </td>
                                     </tr>
@@ -2884,14 +2884,14 @@ function StaffOpReport() {
                                                   key={sub.id}
                                                   className="flex items-center gap-2 text-[10px]"
                                                 >
-                                                  <span className="text-slate-500">
+                                                  <span className="text-[var(--text-secondary)]">
                                                     ↳
                                                   </span>
                                                   <span className="font-medium text-[var(--text-primary)]">
                                                     {sub.title}
                                                   </span>
                                                   <span
-                                                    className={`text-[8px] px-1.5 py-0.5 rounded-full ${subCfg.bg} ${subCfg.color}`}
+                                                    className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${subCfg.bg} ${subCfg.color}`}
                                                   >
                                                     {t(
                                                       statusLabelKey(
@@ -2935,7 +2935,7 @@ function StaffOpReport() {
                         const entries = Object.entries(grouped);
                         if (entries.length === 0)
                           return (
-                            <p className="text-[10px] text-slate-600 italic text-center py-8">
+                            <p className="text-sm text-[var(--text-secondary)] text-center py-8">
                               {t("staff.opReport.noProjectData")}
                             </p>
                           );
@@ -2979,7 +2979,7 @@ function StaffOpReport() {
                                   <p className="text-xs font-bold text-[var(--text-primary)]">
                                     {projectName}
                                   </p>
-                                  <p className="text-[9px] text-slate-500">
+                                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                     {t("staff.opReport.tasksWorkedOnCount", {
                                       count: projectTasks.length,
                                     })}{" "}
@@ -3009,7 +3009,7 @@ function StaffOpReport() {
                                           {projTask.title}
                                         </span>
                                         <span
-                                          className={`text-[8px] px-1.5 py-0.5 rounded-full ${tCfg.bg} ${tCfg.color}`}
+                                          className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${tCfg.bg} ${tCfg.color}`}
                                         >
                                           {t(statusLabelKey(projTask.status))}
                                         </span>
@@ -3055,7 +3055,7 @@ function StaffOpReport() {
                                     <p className="text-[11px] font-bold text-[var(--text-primary)]">
                                       {task.title}
                                     </p>
-                                    <p className="text-[9px] text-slate-500 mt-0.5">
+                                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                                       {t("staff.opReport.assignedBy")}{" "}
                                       {task.user_name || t("common.unknown")}{" "}
                                       {t("time.on")}{" "}
@@ -3063,7 +3063,7 @@ function StaffOpReport() {
                                     </p>
                                   </div>
                                   <span
-                                    className={`text-[8px] font-bold px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}
+                                    className={`text-[10px] font-bold uppercase px-2 py-1 rounded-full ${cfg.bg} ${cfg.color}`}
                                   >
                                     {t(statusLabelKey(task.status))}
                                   </span>
@@ -3084,7 +3084,7 @@ function StaffOpReport() {
                         {t("staff.section.blockersSummary")}
                       </h3>
                       {summaryBlockers.length === 0 ? (
-                        <p className="text-[10px] text-slate-600 italic text-center py-8">
+                        <p className="text-sm text-[var(--text-secondary)] text-center py-8">
                           {t("reports.noBlockersFound")}
                         </p>
                       ) : (
@@ -3101,16 +3101,16 @@ function StaffOpReport() {
                                 <table className="w-full">
                                   <thead>
                                     <tr className="bg-tertiary">
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.blocker")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.task")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("time.created")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.resolved")}
                                       </th>
                                     </tr>
@@ -3126,7 +3126,7 @@ function StaffOpReport() {
                                           <td className="px-3 py-2 text-[10px] font-bold text-emerald-400">
                                             {b.title}
                                           </td>
-                                          <td className="px-3 py-2 text-[10px] text-slate-500">
+                                          <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                             {summaryTasks.find(
                                               (t) => t.id === b.task_id,
                                             )?.title ||
@@ -3134,10 +3134,10 @@ function StaffOpReport() {
                                                 " #" +
                                                 b.task_id}
                                           </td>
-                                          <td className="px-3 py-2 text-[10px] text-slate-500">
+                                          <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                             {formatDate(b.created_at)}
                                           </td>
-                                          <td className="px-3 py-2 text-[10px] text-slate-500">
+                                          <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                             {formatDate(b.resolved_at)}
                                           </td>
                                         </tr>
@@ -3158,16 +3158,16 @@ function StaffOpReport() {
                                 <table className="w-full">
                                   <thead>
                                     <tr className="bg-tertiary">
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.blocker")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.task")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("time.created")}
                                       </th>
-                                      <th className="text-left px-3 py-2 text-[9px] font-semibold text-slate-500 uppercase tracking-wider">
+                                      <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.weeksOpen")}
                                       </th>
                                     </tr>
@@ -3189,7 +3189,7 @@ function StaffOpReport() {
                                             <td className="px-3 py-2 text-[10px] font-bold text-rose-400">
                                               {b.title}
                                             </td>
-                                            <td className="px-3 py-2 text-[10px] text-slate-500">
+                                            <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                               {summaryTasks.find(
                                                 (t) => t.id === b.task_id,
                                               )?.title ||
@@ -3197,12 +3197,12 @@ function StaffOpReport() {
                                                   " #" +
                                                   b.task_id}
                                             </td>
-                                            <td className="px-3 py-2 text-[10px] text-slate-500">
+                                            <td className="px-3 py-2 text-[10px] text-[var(--text-secondary)]">
                                               {formatDate(b.created_at)}
                                             </td>
                                             <td className="px-3 py-2">
                                               <span
-                                                className={`text-[9px] font-bold ${weeksOpen >= 3 ? "text-rose-400" : weeksOpen >= 2 ? "text-amber-400" : "text-slate-500"}`}
+                                                className={`text-[10px] font-bold ${weeksOpen >= 3 ? "text-rose-400" : weeksOpen >= 2 ? "text-amber-400" : "text-[var(--text-secondary)]"}`}
                                               >
                                                 {weeksOpen}w
                                               </span>
@@ -3251,7 +3251,7 @@ function StaffOpReport() {
                                     {name}
                                   </span>
                                 </div>
-                                <span className="text-[9px] text-slate-500">
+                                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                                   {t("staff.opReport.sharedTasks", {
                                     count: sharedTasks.length,
                                   })}
@@ -3267,7 +3267,7 @@ function StaffOpReport() {
                                       <span className="font-medium text-[var(--text-primary)]">
                                         {t.title}
                                       </span>
-                                      <span className="text-slate-500">
+                                      <span className="text-[var(--text-secondary)]">
                                         {summaryProjects.find(
                                           (p) =>
                                             String(p.id) ===
@@ -3303,7 +3303,7 @@ function StaffOpReport() {
                         );
                         if (carryOverTasks.length === 0)
                           return (
-                            <p className="text-[10px] text-emerald-400 italic text-center py-8">
+                            <p className="text-sm text-emerald-400 text-center py-8">
                               {t("staff.opReport.allCompleted")}
                             </p>
                           );
@@ -3321,7 +3321,7 @@ function StaffOpReport() {
                                       <p className="text-xs font-bold text-[var(--text-primary)] truncate">
                                         {task.title}
                                       </p>
-                                      <p className="text-[9px] text-slate-500 mt-0.5">
+                                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                                         {t("staff.opReport.project")}:{" "}
                                         {summaryProjects.find(
                                           (p) =>
@@ -3338,7 +3338,7 @@ function StaffOpReport() {
                                       >
                                         {weeks}
                                       </p>
-                                      <p className="text-[7px] text-slate-500 uppercase tracking-wider">
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                                         {t("staff.table.weeksOpen")}
                                       </p>
                                     </div>
@@ -3355,12 +3355,12 @@ function StaffOpReport() {
                                         }))
                                       }
                                       placeholder="Why wasn't this completed? e.g. Waiting for feedback, dependency blocked..."
-                                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-medium text-[var(--text-primary)] outline-none placeholder:text-slate-600 focus:border-[var(--brand-orange)] transition-all"
+                                      className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)] transition-all"
                                     />
                                   </div>
                                   {weeks >= 3 && (
                                     <div
-                                      className={`mt-2 text-[8px] font-black uppercase tracking-wider ${weeks >= 5 ? "text-rose-400" : "text-amber-400"}`}
+                                      className={`mt-2 text-[10px] font-bold uppercase tracking-wide ${weeks >= 5 ? "text-rose-400" : "text-amber-400"}`}
                                     >
                                       {weeks >= 5
                                         ? t("staff.opReport.criticalAttention")
@@ -3370,7 +3370,7 @@ function StaffOpReport() {
                                   {(task.blockers || []).filter(
                                     (b) => b.status === "active",
                                   ).length > 0 && (
-                                    <div className="flex items-center gap-1 mt-2 text-rose-400 text-[9px]">
+                                    <div className="flex items-center gap-1 mt-2 text-rose-400 text-[10px]">
                                       <Shield className="w-3 h-3" />
                                       {
                                         (task.blockers || []).filter(
@@ -3455,7 +3455,7 @@ function StaffOpReport() {
                                     {project.name}
                                   </p>
                                   <span
-                                    className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${healthColors[health]}`}
+                                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${healthColors[health]}`}
                                   >
                                     {health === "on_track"
                                       ? t("status.onTrack")
@@ -3469,7 +3469,7 @@ function StaffOpReport() {
                                     <span className="font-bold text-emerald-400">
                                       {completed}
                                     </span>{" "}
-                                    <span className="text-slate-500">
+                                    <span className="text-[var(--text-secondary)]">
                                       {t("status.completed")}
                                     </span>
                                   </div>
@@ -3477,7 +3477,7 @@ function StaffOpReport() {
                                     <span className="font-bold text-blue-400">
                                       {active}
                                     </span>{" "}
-                                    <span className="text-slate-500">
+                                    <span className="text-[var(--text-secondary)]">
                                       {t("status.active")}
                                     </span>
                                   </div>
@@ -3485,7 +3485,7 @@ function StaffOpReport() {
                                     <span className="font-bold text-indigo-400">
                                       {carried}
                                     </span>{" "}
-                                    <span className="text-slate-500">
+                                    <span className="text-[var(--text-secondary)]">
                                       {t("status.carriedOver")}
                                     </span>
                                   </div>
@@ -3493,13 +3493,13 @@ function StaffOpReport() {
                                     <span className="font-bold text-rose-400">
                                       {blockerCount}
                                     </span>{" "}
-                                    <span className="text-slate-500">
+                                    <span className="text-[var(--text-secondary)]">
                                       {t("staff.table.blockers")}
                                     </span>
                                   </div>
                                 </div>
                                 {collaborators.size > 0 && (
-                                  <p className="text-[9px] text-slate-500 mt-2">
+                                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2">
                                     {t("staff.table.collaborators")}:{" "}
                                     {Array.from(collaborators).join(", ")}
                                   </p>
@@ -3602,7 +3602,7 @@ function StaffOpReport() {
                                 <div key={day} className="flex gap-3">
                                   <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)] mt-1.5 shrink-0" />
                                   <div>
-                                    <p className="text-[10px] text-slate-500">
+                                    <p className="text-[10px] text-[var(--text-secondary)]">
                                       {dayLabel}
                                     </p>
                                     {events.map((ev, i) => (
@@ -3701,7 +3701,7 @@ function StaffOpReport() {
               <button
                 onClick={handleCreateNewTask}
                 disabled={!newTaskForm.name.trim() || creatingTask}
-                className="w-full px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
+                className="w-full px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide disabled:opacity-40 hover:brightness-110 transition-all"
               >
                 {creatingTask ? t("common.saving") : t("reports.addTask")}
               </button>
@@ -3729,7 +3729,7 @@ function StaffOpReport() {
                   <h2 className="text-base font-bold text-[var(--text-primary)]">
                     {t("staff.opReport.standupWeek")} {weekInfo.week}
                   </h2>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
+                  <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
                     {weekInfo.year}
                   </p>
                 </div>
@@ -3767,7 +3767,7 @@ function StaffOpReport() {
                   <div className="flex gap-2 shrink-0">
                     <button
                       onClick={discardDraft}
-                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
+                      className="px-4 py-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--text-tertiary)] hover:text-[var(--text-primary)] border border-slate-600 rounded-lg hover:border-slate-400 transition-all"
                     >
                       {t("staff.opReport.discard")}
                     </button>
@@ -3782,7 +3782,7 @@ function StaffOpReport() {
               )}
               {/* Section 2 — Weekly Focus */}
               <div>
-                <h3 className="text-[11px] font-semibold text-slate-500 mb-2 flex items-center gap-1.5">
+                <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)] mb-2 flex items-center gap-1.5">
                   <Target className="w-3.5 h-3.5" />{" "}
                   {t("staff.opReport.weeklyFocus")}
                 </h3>
@@ -3862,7 +3862,7 @@ function StaffOpReport() {
                         ?.blockers || []
                     : taskRows[blockerModal]?.blockers || [];
                 return bs.length === 0 ? (
-                  <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-4">
+                  <p className="text-sm text-[var(--text-secondary)] text-center py-4">
                     {t("staff.opReport.noBlockersDeclared")}
                   </p>
                 ) : (
@@ -3880,12 +3880,12 @@ function StaffOpReport() {
                           <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                             {b.title || b.description}
                           </p>
-                          <span className="text-[7px] font-black uppercase text-rose-500/60 shrink-0">
+                          <span className="text-[10px] font-bold uppercase text-rose-500/60 shrink-0">
                             {b.severity || "medium"}
                           </span>
                         </div>
                         {b.description && b.description !== b.title && (
-                          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {b.description}
                           </p>
                         )}
@@ -3894,18 +3894,18 @@ function StaffOpReport() {
                             href={b.reference_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[8px] text-blue-400 underline break-all"
+                            className="text-[10px] text-blue-400 underline break-all"
                           >
                             {b.reference_url}
                           </a>
                         )}
                         {b.notes && (
-                          <p className="text-[8px] text-slate-500 italic mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {b.notes}
                           </p>
                         )}
                         {b.resolved_at && (
-                          <p className="text-[8px] text-[var(--text-secondary)]">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                             Resolved{" "}
                             {new Date(b.resolved_at).toLocaleDateString()}
                           </p>
@@ -3931,12 +3931,12 @@ function StaffOpReport() {
                             }
                             setBlockerModal(null);
                           }}
-                          className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
+                          className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide bg-rose-500/10 text-rose-400 rounded-lg hover:bg-rose-500 hover:text-white transition-all shrink-0"
                         >
                           {t("staff.opReport.resolve")}
                         </button>
                       ) : (
-                        <span className="px-2.5 py-1 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 rounded-lg">
+                        <span className="px-2.5 py-1 text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400 rounded-lg">
                           {t("staff.opReport.resolved")}
                         </span>
                       )}
@@ -3958,7 +3958,7 @@ function StaffOpReport() {
 
               if (isClosed) {
                 return (
-                  <p className="text-[9px] text-rose-400 italic text-center py-2">
+                  <p className="text-[10px] text-rose-400 text-center py-2">
                     Cannot add blockers — this task is {taskStatus}.
                   </p>
                 );
@@ -4053,7 +4053,7 @@ function StaffOpReport() {
                       }
                     }}
                     disabled={!newBlockerTitle.trim()}
-                    className="w-full px-3 py-2 bg-rose-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30"
+                    className="w-full px-3 py-2 bg-rose-500 text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-30"
                   >
                     {t("staff.opReport.addBlockerButton")}
                   </button>
@@ -4078,8 +4078,8 @@ function StaffOpReport() {
               </div>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
-              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">Cancel</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide bg-rose-500 text-white hover:bg-rose-600 transition-all">Confirm</button>
             </div>
           </div>
         </div>
@@ -4095,7 +4095,7 @@ function Section({ title, icon: Icon, color, children }) {
       <div className="flex items-center gap-2 pb-1 border-b border-[var(--border-primary)]/30">
         <Icon className={`w-3.5 h-3.5 ${color}`} />
         <span
-          className={`text-[9px] font-black uppercase tracking-[0.2em] ${color}`}
+          className={`text-[10px] font-bold uppercase tracking-widest ${color}`}
         >
           {title}
         </span>

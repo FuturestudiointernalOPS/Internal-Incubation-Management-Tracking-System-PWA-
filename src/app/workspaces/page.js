@@ -121,16 +121,16 @@ export default function WorkspacesPage() {
             {title}
           </p>
           {(completed || badge) && (
-            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+            <span className="px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
               {t("common.workspaces.completedViewOnly")}
             </span>
           )}
         </div>
-        <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
           {role}
         </p>
       </div>
-      <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
+      <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
         {t("common.workspaces.open")}
         <ArrowRight className="w-3.5 h-3.5" />
       </span>
@@ -236,7 +236,7 @@ export default function WorkspacesPage() {
                           <p className="text-[12px] font-black uppercase truncate text-[var(--text-primary)]">
                             {m.group_name}
                           </p>
-                          <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                             {m.status}
                             {m.started_at
                               ? ` · ${new Date(m.started_at).toLocaleDateString()} → ${

@@ -54,7 +54,7 @@ export default function AppStatusBadge({
   // Pill (default)
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color} ${pulse ? "animate-pulse" : ""} ${className}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color} ${pulse ? "animate-pulse" : ""} ${className}`}
     >
       {cfg.dot && (
         <span

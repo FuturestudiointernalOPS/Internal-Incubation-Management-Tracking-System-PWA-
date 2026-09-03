@@ -94,8 +94,8 @@ export default function RecycleBinPage() {
       <div className="space-y-8">
         <header className="flex items-center justify-between">
           <div>
-            <h2 className="text-4xl font-black text-white tracking-tighter uppercase mb-2">{t('adminMisc.recycleBin.title')}</h2>
-            <p className="text-slate-400 font-bold tracking-tight">{t('adminMisc.recycleBin.subtitle')}</p>
+            <h2 className="text-2xl md:text-3xl font-black tracking-tighter uppercase mb-2">{t('adminMisc.recycleBin.title')}</h2>
+            <p className="text-slate-400 font-bold text-sm tracking-tight">{t('adminMisc.recycleBin.subtitle')}</p>
           </div>
           <button onClick={fetchArchived} className="btn-ghost p-3" title={t('adminMisc.recycleBin.refresh')}>
             <RefreshCw className="w-5 h-5" />

@@ -85,7 +85,7 @@ function MetricCard({ label, value, icon: Icon, color, trend }) {
         </div>
         {trend !== undefined && (
           <span
-            className={`text-[9px] font-black uppercase tracking-wider ${trend >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+            className={`text-[10px] font-bold uppercase ${trend >= 0 ? "text-emerald-400" : "text-rose-400"}`}
           >
             {trend >= 0 ? "+" : ""}
             {trend}%
@@ -94,11 +94,11 @@ function MetricCard({ label, value, icon: Icon, color, trend }) {
       </div>
       <div className="space-y-1">
         <div className="flex items-end gap-2">
-          <span className="text-2xl font-black text-[var(--text-primary)]">
+          <span className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
             {value}%
           </span>
         </div>
-        <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
           {label}
         </p>
         <div className="w-full h-1.5 bg-white/10 rounded-full mt-2 overflow-hidden">
@@ -142,15 +142,15 @@ function AnnouncementItem({ announcement }) {
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-[12px] font-bold text-[var(--text-primary)]">
+        <p className="text-[11px] font-bold text-[var(--text-primary)]">
           {announcement.title}
         </p>
         {announcement.message && (
-          <p className="text-[11px] text-[var(--text-secondary)] mt-1 line-clamp-2">
+          <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
             {announcement.message}
           </p>
         )}
-        <p className="text-[9px] text-[var(--text-tertiary)] mt-1.5">
+        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1.5">
           {announcement.createdAt
             ? formatLocaleDate(announcement.createdAt, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }, lang)
             : ""}
@@ -270,7 +270,7 @@ export default function ParticipantDashboardHome() {
         </div>
         <button
           onClick={fetchDashboard}
-          className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5" /> {t("participantMisc.dashboardHome.retry")}
         </button>
@@ -337,11 +337,11 @@ export default function ParticipantDashboardHome() {
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="text-[9px] font-black text-emerald-400 uppercase tracking-[0.3em]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
               {t("participantMisc.dashboardHome.activeSession")}
             </span>
           </div>
-          <h1 className="text-3xl font-black text-[var(--text-primary)] tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {t("participantMisc.dashboardHome.welcomeBack")}{" "}
             <span className="text-[var(--brand-orange)]">
               {participant?.name?.split(" ")[0] ||
@@ -352,19 +352,19 @@ export default function ParticipantDashboardHome() {
             <div className="flex flex-wrap items-center gap-4 mt-4">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20">
                 <BookOpen className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider">
                   {primaryProgram.name}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <Users className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-[10px] font-black text-blue-400 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
                   {primaryProgram.cohort}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <Layers className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
                   {t("participantMisc.dashboardHome.weekOf", {
                     current: primaryProgram.currentWeek,
                     total: primaryProgram.durationWeeks || "?",
@@ -382,7 +382,7 @@ export default function ParticipantDashboardHome() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.1 }}
       >
-        <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider mb-4">
+        <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] mb-4">
           {t("participantMisc.dashboardHome.yourProgress")}
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
@@ -437,7 +437,7 @@ export default function ParticipantDashboardHome() {
         <div className="space-y-3">
           {actionCenter.overdue.length > 0 && (
             <div className="card border-l-4 border-l-rose-500 !py-3 !px-4">
-              <p className="text-[8px] font-black text-rose-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-500">
                 {t("participantMisc.dashboardHome.overdue", {
                   count: actionCenter.overdue.length,
                 })}
@@ -450,7 +450,7 @@ export default function ParticipantDashboardHome() {
                   >
                     <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
                     <span className="truncate">{item.title}</span>
-                    <span className="text-[7px] text-rose-500 shrink-0">
+                    <span className="text-[10px] font-bold text-rose-500 shrink-0">
                       {item.daysOverdue}d
                     </span>
                   </div>
@@ -460,7 +460,7 @@ export default function ParticipantDashboardHome() {
           )}
           {actionCenter.dueSoon.length > 0 && (
             <div className="card border-l-4 border-l-amber-500 !py-3 !px-4">
-              <p className="text-[8px] font-black text-amber-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-amber-500">
                 {t("participantMisc.dashboardHome.dueThisWeek", {
                   count: actionCenter.dueSoon.length,
                 })}
@@ -473,7 +473,7 @@ export default function ParticipantDashboardHome() {
                   >
                     <Clock className="w-3 h-3 text-amber-500 shrink-0" />
                     <span className="truncate">{item.title}</span>
-                    <span className="text-[7px] text-amber-500 shrink-0">
+                    <span className="text-[10px] font-bold text-amber-500 shrink-0">
                       {item.daysLeft}d
                     </span>
                   </div>
@@ -483,7 +483,7 @@ export default function ParticipantDashboardHome() {
           )}
           {actionCenter.pendingSubmissions.length > 0 && (
             <div className="card border-l-4 border-l-blue-500 !py-3 !px-4">
-              <p className="text-[8px] font-black text-blue-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
                 {t("participantMisc.dashboardHome.pendingReview", {
                   count: actionCenter.pendingSubmissions.length,
                 })}
@@ -500,7 +500,7 @@ export default function ParticipantDashboardHome() {
                         id: item.deliverableId,
                       })}
                     </span>
-                    <span className="text-[7px] text-blue-500 shrink-0">
+                    <span className="text-[10px] font-bold text-blue-500 shrink-0">
                       {item.status}
                     </span>
                   </div>
@@ -519,7 +519,7 @@ export default function ParticipantDashboardHome() {
       >
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+            <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
               {t("participantMisc.dashboardHome.announcements")}
             </h2>
             {announcements.filter((a) => !a.isRead).length > 0 && (
@@ -537,7 +537,7 @@ export default function ParticipantDashboardHome() {
             <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center mb-3">
               <Bell className="w-6 h-6 text-[var(--text-tertiary)]" />
             </div>
-            <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("participantMisc.dashboardHome.noAnnouncements")}
             </p>
           </div>

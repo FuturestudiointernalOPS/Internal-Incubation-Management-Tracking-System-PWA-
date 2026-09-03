@@ -75,7 +75,7 @@ export default function FamilyRegistrationLink() {
               </div>
               <h2 className="text-3xl font-black text-white uppercase tracking-tighter mb-2">{t("rootMisc.registerFamily.registrationConfirmed")}</h2>
               <p className="text-slate-400 font-bold mb-6">{t("rootMisc.registerFamily.addedToGroupPrefix")}{" "}<span className="text-white uppercase tracking-widest text-[10px] bg-white/5 py-1 px-2 rounded ml-1">{decodedFamilyName}</span>{" "}{t("rootMisc.registerFamily.groupSuffix")}</p>
-              <p className="text-xs text-slate-500 font-bold italic">{t("rootMisc.registerFamily.closeWindow")}</p>
+              <p className="text-xs text-slate-500 font-bold">{t("rootMisc.registerFamily.closeWindow")}</p>
            </motion.div>
            <GlobalToast />
         </div>
@@ -100,7 +100,7 @@ export default function FamilyRegistrationLink() {
              </div>
              <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-2 rounded-full mb-4">
                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-               <span className="text-[10px] font-black uppercase tracking-widest text-slate-300">{t("rootMisc.registerFamily.targetGroup")} {decodedFamilyName}</span>
+               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-300">{t("rootMisc.registerFamily.targetGroup")} {decodedFamilyName}</span>
              </div>
              <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-4">{t("rootMisc.registerFamily.secureIntakeForm")}</h1>
              <p className="text-slate-400 font-bold">{t("rootMisc.registerFamily.fillDetails")}</p>
@@ -108,7 +108,7 @@ export default function FamilyRegistrationLink() {
 
           <form onSubmit={handleSubmit} className="bg-white/[0.02] border border-white/5 p-8 sm:p-12 rounded-[2rem] space-y-6 shadow-2xl backdrop-blur-xl group">
              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.fullIdentityName")}</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.fullIdentityName")}</label>
                 <div className="relative">
                    <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                    <input type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder={t("rootMisc.registerFamily.namePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
@@ -117,14 +117,14 @@ export default function FamilyRegistrationLink() {
 
              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.emailAddress")}</label>
+                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.emailAddress")}</label>
                    <div className="relative">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                       <input type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder={t("rootMisc.registerFamily.emailPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
                    </div>
                 </div>
                 <div className="space-y-2">
-                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.phoneNumber")}</label>
+                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.phoneNumber")}</label>
                    <div className="relative">
                       <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                       <input type="tel" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} placeholder={t("rootMisc.registerFamily.phonePlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
@@ -133,7 +133,7 @@ export default function FamilyRegistrationLink() {
              </div>
 
              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.dateOfBirth")}</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.dateOfBirth")}</label>
                 <div className="relative">
                    <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                    <input type="date" value={formData.dob} onChange={e => setFormData({...formData, dob: e.target.value})} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />
@@ -141,7 +141,7 @@ export default function FamilyRegistrationLink() {
              </div>
 
              <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.physicalAddress")}</label>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest pl-2">{t("rootMisc.registerFamily.physicalAddress")}</label>
                 <div className="relative">
                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                    <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} placeholder={t("rootMisc.registerFamily.addressPlaceholder")} className="w-full bg-white/5 border border-white/5 focus:border-indigo-500/50 outline-none rounded-xl py-4 pl-12 pr-6 font-bold text-white transition-all" />

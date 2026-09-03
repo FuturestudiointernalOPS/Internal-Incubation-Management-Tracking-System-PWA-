@@ -91,7 +91,7 @@ export default function SearchableSelect({
   return (
     <div className={`space-y-1 ${className}`} ref={rootRef}>
       {label && (
-        <p className="flex items-center gap-2 text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
           {Icon && <Icon className="w-3 h-3" />} {label}
         </p>
       )}

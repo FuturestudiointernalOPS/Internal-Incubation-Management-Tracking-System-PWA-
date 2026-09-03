@@ -451,7 +451,7 @@ export default function ProjectDetail() {
           </p>
           <button
             onClick={() => router.push("/admin/projects")}
-            className="mt-6 flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+            className="mt-6 flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.backToProjects")}
           </button>
@@ -505,7 +505,7 @@ export default function ProjectDetail() {
                 };
                 router.push(roleMap[userRole] || "/admin/projects");
               }}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("adminMisc.projectDetail.allProjects")}
@@ -520,7 +520,7 @@ export default function ProjectDetail() {
                     {project.name}
                   </h1>
                   <span
-                    className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
+                    className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                   >
                     {projectStatusLabels[project.status] || project.status}
                   </span>
@@ -569,7 +569,7 @@ export default function ProjectDetail() {
           </div>
           <button
             onClick={fetchProject}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[9px] font-black uppercase tracking-widest"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[10px] font-bold uppercase tracking-wide"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.projectDetail.refresh")}
           </button>
@@ -582,7 +582,7 @@ export default function ProjectDetail() {
               <Target className="w-4 h-4 text-emerald-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.progress")}
               </p>
               <p className="text-xl font-black text-emerald-500">
@@ -595,7 +595,7 @@ export default function ProjectDetail() {
               <ListTodo className="w-4 h-4 text-[var(--text-primary)]" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.tasks")}
               </p>
               <p className="text-xl font-black">
@@ -608,7 +608,7 @@ export default function ProjectDetail() {
               <Shield className="w-4 h-4 text-rose-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.activeBlockers")}
               </p>
               <p className="text-xl font-black text-rose-500">
@@ -621,7 +621,7 @@ export default function ProjectDetail() {
               <Users className="w-4 h-4 text-blue-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.team")}
               </p>
               <p className="text-xl font-black text-blue-500">
@@ -699,7 +699,7 @@ export default function ProjectDetail() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 -mb-[1px] shrink-0 whitespace-nowrap ${
+                    className={`flex items-center gap-1.5 px-3 py-3 text-[10px] font-bold uppercase tracking-widest transition-all border-b-2 -mb-[1px] shrink-0 whitespace-nowrap ${
                       isActive
                         ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
                         : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
@@ -719,7 +719,7 @@ export default function ProjectDetail() {
           <div className="space-y-6">
             {/* Progress bar */}
             <div className="card space-y-3">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.overallProgress")}
               </h3>
               <div className="flex items-center gap-4">
@@ -777,7 +777,7 @@ export default function ProjectDetail() {
                     {item.count}
                   </p>
                   <p
-                    className={`text-[7px] font-bold uppercase tracking-widest mt-1 ${item.color}`}
+                    className={`text-[10px] font-bold uppercase tracking-widest mt-1 ${item.color}`}
                   >
                     {item.label}
                   </p>
@@ -788,7 +788,7 @@ export default function ProjectDetail() {
             {/* Timeline Health */}
             {project.timelineHealth !== undefined && (
               <div className="card space-y-2">
-                <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.timelineCoverage")}
                 </h3>
                 <div className="flex items-center gap-3">
@@ -856,7 +856,7 @@ export default function ProjectDetail() {
                 <button
                   key={f.id}
                   onClick={() => setBlockerFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                     blockerFilter === f.id
                       ? "bg-[var(--brand-orange)] text-black"
                       : "bg-tertiary text-slate-500 hover:text-[var(--text-primary)]"
@@ -870,10 +870,10 @@ export default function ProjectDetail() {
             {filteredBlockers.length === 0 ? (
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <Shield className="w-12 h-12 mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.noBlockers")}
                 </p>
-                <p className="text-[9px] text-slate-500 mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   {t("adminMisc.projectDetail.noBlockersHint")}
                 </p>
               </div>
@@ -909,7 +909,7 @@ export default function ProjectDetail() {
                           {blocker.title}
                         </p>
                         <span
-                          className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                          className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                             blocker.status === "active"
                               ? "bg-rose-500/10 text-rose-500"
                               : "bg-emerald-500/10 text-emerald-500"
@@ -919,7 +919,7 @@ export default function ProjectDetail() {
                             blocker.status}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 mt-1.5 text-[9px] text-slate-500">
+                      <div className="flex items-center gap-3 mt-1.5 text-[10px] font-medium text-[var(--text-secondary)]">
                         {blocker.task_title && (
                           <span>
                             {t("adminMisc.projectDetail.taskLabel")}{" "}
@@ -967,7 +967,7 @@ export default function ProjectDetail() {
             <div className="card border-l-4 border-l-[var(--brand-orange)]">
               <div className="flex items-center gap-2 mb-3">
                 <Rocket className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                   {t("adminMisc.projectDetail.projectOwner")}
                 </span>
               </div>
@@ -980,13 +980,13 @@ export default function ProjectDetail() {
                     <p className="text-sm font-bold text-[var(--text-primary)]">
                       {project.owner_name}
                     </p>
-                    <p className="text-[8px] text-slate-500 mt-0.5">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                       {t("adminMisc.projectDetail.ownerAccountable")}
                     </p>
                   </div>
                 </div>
               ) : (
-                <p className="text-[10px] text-slate-500 italic">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.noOwnerAssigned")}
                 </p>
               )}
@@ -997,11 +997,11 @@ export default function ProjectDetail() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-blue-500" />
-                  <span className="text-[9px] font-black uppercase tracking-widest text-blue-500">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-blue-500">
                     {t("adminMisc.projectDetail.collaborators")}
                   </span>
                 </div>
-                <span className="text-[9px] font-bold text-slate-500">
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.totalCount", {
                     count: members.length,
                   })}
@@ -1010,7 +1010,7 @@ export default function ProjectDetail() {
 
               {/* Collaborator list */}
               {members.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic text-center py-6">
+                <p className="text-sm text-[var(--text-secondary)] text-center py-6">
                   {t("adminMisc.projectDetail.noCollaborators")}
                 </p>
               ) : (
@@ -1021,7 +1021,7 @@ export default function ProjectDetail() {
                       className="flex items-center justify-between p-2.5 rounded-xl bg-tertiary/50 hover:bg-tertiary transition-all"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                        <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                           {(member.name || member.member_id || "?").charAt(0)}
                         </div>
                         <div>
@@ -1032,12 +1032,12 @@ export default function ProjectDetail() {
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             {member.member_role && (
-                              <span className="text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
                                 {member.member_role}
                               </span>
                             )}
                             {member.role && (
-                              <span className="text-[8px] text-slate-500">
+                              <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                                 {member.role}
                               </span>
                             )}
@@ -1056,7 +1056,7 @@ export default function ProjectDetail() {
                             console.error(e);
                           }
                         }}
-                        className="text-[8px] font-black uppercase text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all"
+                        className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 px-2 py-1 rounded-lg hover:bg-rose-500/10 transition-all"
                       >
                         {t("adminMisc.projectDetail.remove")}
                       </button>
@@ -1067,7 +1067,7 @@ export default function ProjectDetail() {
 
               {/* Add Collaborator */}
               <div className="pt-3 border-t border-[var(--border-primary)]/30">
-                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                   {t("adminMisc.projectDetail.addCollaborator")}
                 </p>
                 <div className="flex gap-2">
@@ -1114,7 +1114,7 @@ export default function ProjectDetail() {
                         }
                       }
                     }}
-                    className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
+                    className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110"
                   >
                     {t("adminMisc.projectDetail.add")}
                   </button>
@@ -1131,7 +1131,7 @@ export default function ProjectDetail() {
             <div className="card space-y-4">
               <div className="flex items-center gap-2">
                 <Edit3 className="w-4 h-4 text-[var(--brand-orange)]" />
-                <h3 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
+                <h3 className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
                   {t("adminMisc.projectDetail.thisWeeksUpdate")}
                 </h3>
                 <button
@@ -1148,14 +1148,14 @@ export default function ProjectDetail() {
                       } else window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'error', message: t((data.error || t("adminMisc.projectDetail.generateFailed")) || "") || (data.error || t("adminMisc.projectDetail.generateFailed")) } }));
                     } catch (_) {}
                   }}
-                  className="ml-auto px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
+                  className="ml-auto px-3 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all"
                 >
                   {t("adminMisc.projectDetail.generateReport")}
                 </button>
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectDetail.overallStatus")}
                   </label>
                   <select
@@ -1183,7 +1183,7 @@ export default function ProjectDetail() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectDetail.accomplishmentsThisWeek")}
                   </label>
                   <textarea
@@ -1200,7 +1200,7 @@ export default function ProjectDetail() {
                   />
                 </div>
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectDetail.currentFocus")}
                   </label>
                   <textarea
@@ -1217,7 +1217,7 @@ export default function ProjectDetail() {
                   />
                 </div>
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectDetail.blockersIssues")}
                   </label>
                   <textarea
@@ -1234,7 +1234,7 @@ export default function ProjectDetail() {
                   />
                 </div>
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectDetail.nextSteps")}
                   </label>
                   <textarea
@@ -1256,7 +1256,7 @@ export default function ProjectDetail() {
                     savingUpdate ||
                     (!updateForm.accomplishments && !updateForm.current_focus)
                   }
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   {savingUpdate
@@ -1270,10 +1270,10 @@ export default function ProjectDetail() {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-slate-500" />
-                <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                   {t("adminMisc.projectDetail.previousUpdates")}
                 </h3>
-                <span className="text-[9px] font-bold text-slate-500 ml-auto">
+                <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
                   {t("adminMisc.projectDetail.totalCount", {
                     count: updates.length,
                   })}
@@ -1283,15 +1283,15 @@ export default function ProjectDetail() {
               {updates.length === 0 && !updatesLoading ? (
                 <div className="card py-12 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                   <FileText className="w-10 h-10 mb-2" />
-                  <p className="text-[9px] font-bold uppercase tracking-widest">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {t("adminMisc.projectDetail.noUpdates")}
                   </p>
-                  <p className="text-[8px] text-slate-500 mt-1">
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.projectDetail.noUpdatesHint")}
                   </p>
                 </div>
               ) : updatesLoading ? (
-                <div className="text-center py-8 text-[10px] text-slate-500 italic">
+                <div className="text-center py-8 text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.loadingUpdates")}
                 </div>
               ) : (
@@ -1320,7 +1320,7 @@ export default function ProjectDetail() {
                               })}
                             </span>
                             <span
-                              className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${
+                              className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded ${
                                 statusBg[update.overall_status] ||
                                 "bg-slate-500/10"
                               } ${
@@ -1332,13 +1332,13 @@ export default function ProjectDetail() {
                                 update.overall_status.replace(/_/g, " ")}
                             </span>
                           </div>
-                          <span className="text-[8px] text-slate-500">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {new Date(update.created_at).toLocaleDateString()}
                           </span>
                         </div>
                         {update.accomplishments && (
                           <div>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                               {t("adminMisc.projectDetail.accomplishments")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
@@ -1348,7 +1348,7 @@ export default function ProjectDetail() {
                         )}
                         {update.current_focus && (
                           <div>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                               {t("adminMisc.projectDetail.currentFocus")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
@@ -1358,7 +1358,7 @@ export default function ProjectDetail() {
                         )}
                         {update.blockers && (
                           <div>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                               {t("adminMisc.projectDetail.blockers")}
                             </p>
                             <p className="text-[10px] text-rose-400 whitespace-pre-wrap">
@@ -1368,7 +1368,7 @@ export default function ProjectDetail() {
                         )}
                         {update.next_steps && (
                           <div>
-                            <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                               {t("adminMisc.projectDetail.nextSteps")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)] whitespace-pre-wrap">
@@ -1389,7 +1389,7 @@ export default function ProjectDetail() {
         {activeTab === "approvals" && (
           <div className="space-y-4">
             {approvalsLoading ? (
-              <div className="text-center py-8 text-[10px] text-slate-500 italic">
+              <div className="text-center py-8 text-[10px] font-medium text-[var(--text-secondary)]">
                 {t("adminMisc.projectDetail.loadingRequests")}
               </div>
             ) : approvalRequests.filter((r) => r.status === "pending")
@@ -1398,10 +1398,10 @@ export default function ProjectDetail() {
                 0 ? (
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <UserPlus className="w-12 h-12 mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.noContributionRequests")}
                 </p>
-                <p className="text-[9px] text-slate-500 mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   {t("adminMisc.projectDetail.noContributionRequestsHint")}
                 </p>
               </div>
@@ -1411,7 +1411,7 @@ export default function ProjectDetail() {
                 {approvalRequests.filter((r) => r.status === "pending").length >
                   0 && (
                   <div className="space-y-2">
-                    <h3 className="text-[9px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-2">
+                    <h3 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5" />
                       {t("adminMisc.projectDetail.pendingReview", {
                         count: approvalRequests.filter(
@@ -1434,7 +1434,7 @@ export default function ProjectDetail() {
                                     id: req.task_id,
                                   })}
                               </p>
-                              <p className="text-[9px] text-slate-500 mt-0.5">
+                              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                                 {t("adminMisc.projectDetail.by")}{" "}
                                 {req.requester_name ||
                                   req.requester_name_lookup ||
@@ -1449,7 +1449,7 @@ export default function ProjectDetail() {
                               onClick={() =>
                                 handleApprovalAction(req.id, "approved")
                               }
-                              className="px-4 py-2 bg-emerald-500 text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                              className="px-4 py-2 bg-emerald-500 text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                             >
                               {t("adminMisc.projectDetail.approve")}
                             </button>
@@ -1465,7 +1465,7 @@ export default function ProjectDetail() {
                                     reason,
                                   );
                               }}
-                              className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                              className="px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                             >
                               {t("adminMisc.projectDetail.reject")}
                             </button>
@@ -1479,7 +1479,7 @@ export default function ProjectDetail() {
                 {approvalRequests.filter((r) => r.status !== "pending").length >
                   0 && (
                   <div className="space-y-2">
-                    <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                    <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectDetail.history")}
                     </h3>
                     {approvalRequests
@@ -1495,7 +1495,7 @@ export default function ProjectDetail() {
                         >
                           <div className="flex items-center gap-2">
                             <span
-                              className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                              className={`text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
                                 req.status === "approved"
                                   ? "bg-emerald-500/10 text-emerald-500"
                                   : "bg-rose-500/10 text-rose-500"
@@ -1510,7 +1510,7 @@ export default function ProjectDetail() {
                                 })}
                             </span>
                           </div>
-                          <p className="text-[9px] text-slate-500 mt-1">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                             {req.requester_name || req.requester_id} ·{" "}
                             {new Date(req.created_at).toLocaleDateString()}
                             {req.rejection_reason && (
@@ -1585,13 +1585,13 @@ export default function ProjectDetail() {
                 {discussions.map((msg) => (
                   <div key={msg.id} className="card p-4 space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black text-[var(--text-primary)]">
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold text-[var(--text-primary)]">
                         {(msg.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
                         {msg.sender_name || t("adminMisc.projectDetail.unknown")}
                       </span>
-                      <span className="text-[8px] text-slate-500 ml-auto">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
                         {new Date(msg.created_at).toLocaleDateString(
                           undefined,
                           {
@@ -1619,10 +1619,10 @@ export default function ProjectDetail() {
             {timeline.length === 0 ? (
               <div className="card py-16 flex flex-col items-center justify-center text-center opacity-50 border-dashed">
                 <Clock className="w-12 h-12 mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("adminMisc.projectDetail.noActivity")}
                 </p>
-                <p className="text-[9px] text-slate-500 mt-1">
+                <p className="text-sm text-[var(--text-secondary)] mt-1">
                   {t("adminMisc.projectDetail.noActivityHint")}
                 </p>
               </div>
@@ -1654,7 +1654,7 @@ export default function ProjectDetail() {
                       <div className="card p-3">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span
-                            className={`text-[8px] font-black uppercase tracking-widest ${
+                            className={`text-[10px] font-bold uppercase tracking-widest ${
                               entry.action_type?.includes("COMPLETED")
                                 ? "text-emerald-500"
                                 : entry.action_type?.includes("BLOCKED")
@@ -1663,14 +1663,14 @@ export default function ProjectDetail() {
                                     ? "text-blue-500"
                                     : entry.action_type?.includes("ASSIGNED")
                                       ? "text-amber-500"
-                                      : "text-slate-500"
+                                      : "text-[var(--text-secondary)]"
                             }`}
                           >
                             {entry.action_type?.replace(/_/g, " ") ||
                               entry.action ||
                               t("adminMisc.projectDetail.update")}
                           </span>
-                          <span className="text-[9px] text-slate-500">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {new Date(entry.created_at).toLocaleDateString(
                               "en-US",
                               {
@@ -1688,9 +1688,9 @@ export default function ProjectDetail() {
                           </p>
                         )}
                         {entry.actor_name && (
-                          <p className="text-[9px] text-slate-500 mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {t("adminMisc.projectDetail.by")}{" "}
-                            <span className="font-bold">
+                            <span className="font-bold text-[var(--text-primary)]">
                               {entry.actor_name}
                             </span>
                           </p>

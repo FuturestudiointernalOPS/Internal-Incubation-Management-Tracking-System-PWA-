@@ -173,7 +173,7 @@ export default function RegisterVenturePage() {
           <div>
             <div className="flex items-center gap-2">
               <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 Venture OS
               </span>
             </div>

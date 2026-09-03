@@ -86,7 +86,7 @@ export default function PlatformDashboard() {
               <p className={cn("text-xl font-black", s.color)}>{s.value}</p>
               <div className="flex items-center justify-center gap-1 mt-1">
                 <s.icon className={cn("w-2.5 h-2.5", s.color)} />
-                <p className="text-[8px] font-bold uppercase text-[var(--text-secondary)]">{t(s.label)}</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t(s.label)}</p>
               </div>
             </div>
           ))}
@@ -109,7 +109,7 @@ export default function PlatformDashboard() {
                   "bg-[var(--brand-orange)]"
                 )} />
                 <span className="font-bold text-[var(--text-primary)] flex-1">{entry.details || entry.action}</span>
-                <span className="text-[9px] text-[var(--text-secondary)]">{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : ""}</span>
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">{entry.created_at ? new Date(entry.created_at).toLocaleDateString() : ""}</span>
               </div>
             ))}
           </div>

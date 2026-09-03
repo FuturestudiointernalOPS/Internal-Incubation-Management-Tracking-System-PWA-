@@ -242,11 +242,11 @@ export default function PendingUsersPage() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("adminMisc.pendingUsers.userManagement")}
               </span>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("adminMisc.pendingUsers.title")}
             </h1>
             <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -265,7 +265,7 @@ export default function PendingUsersPage() {
             </button>
             <button
               onClick={() => router.push("/admin/bulk-upload")}
-              className="btn btn-primary text-[10px] font-black uppercase tracking-wider px-4 py-3"
+              className="btn btn-primary text-sm font-bold uppercase tracking-wide px-4 py-3"
             >
               {t("adminMisc.pendingUsers.bulkUpload")}
             </button>
@@ -277,19 +277,19 @@ export default function PendingUsersPage() {
           <div className="card p-5 flex items-center gap-4 border-l-4 border-[var(--brand-orange)]">
             <Users className="w-6 h-6 text-[var(--brand-orange)]" />
             <div>
-              <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.pendingUsers.totalPending")}
               </p>
-              <p className="text-2xl font-black">{total}</p>
+              <p className="text-2xl font-black tracking-tight">{total}</p>
             </div>
           </div>
           <div className="card p-5 flex items-center gap-4 border-l-4 border-emerald-500">
             <Shield className="w-6 h-6 text-emerald-500" />
             <div>
-              <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.pendingUsers.groups")}
               </p>
-              <p className="text-2xl font-black">
+              <p className="text-2xl font-black tracking-tight">
                 {Object.keys(grouped).length}
               </p>
             </div>
@@ -297,10 +297,10 @@ export default function PendingUsersPage() {
           <div className="card p-5 flex items-center gap-4 border-l-4 border-amber-500">
             <Clock className="w-6 h-6 text-amber-500" />
             <div>
-              <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.pendingUsers.awaitingReview")}
               </p>
-              <p className="text-2xl font-black">{total}</p>
+              <p className="text-2xl font-black tracking-tight">{total}</p>
             </div>
           </div>
         </div>
@@ -408,19 +408,19 @@ export default function PendingUsersPage() {
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-[var(--border-primary)]/50">
-                          <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.pendingUsers.colName")}
                           </th>
-                          <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.pendingUsers.colEmail")}
                           </th>
-                          <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest hidden md:table-cell">
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hidden md:table-cell">
                             {t("adminMisc.pendingUsers.colRole")}
                           </th>
-                          <th className="text-left p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest hidden md:table-cell">
+                          <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hidden md:table-cell">
                             {t("adminMisc.pendingUsers.colRegistered")}
                           </th>
-                          <th className="text-right p-4 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                          <th className="text-right p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                             {t("adminMisc.pendingUsers.colActions")}
                           </th>
                         </tr>
@@ -433,15 +433,15 @@ export default function PendingUsersPage() {
                           >
                             <td className="p-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-black uppercase">
+                                <div className="w-8 h-8 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                                   {user.name?.charAt(0)}
                                 </div>
                                 <div>
-                                  <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tight">
+                                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                     {user.name}
                                   </p>
                                   {user.phone && (
-                                    <p className="text-[8px] text-[var(--text-secondary)]">
+                                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                       {user.phone}
                                     </p>
                                   )}
@@ -451,13 +451,13 @@ export default function PendingUsersPage() {
                             <td className="p-4">
                               <div className="flex items-center gap-2">
                                 <Mail className="w-3 h-3 text-[var(--text-secondary)]" />
-                                <span className="text-[11px] text-[var(--text-secondary)] truncate max-w-[160px]">
+                                <span className="text-[11px] font-medium text-[var(--text-secondary)] truncate max-w-[160px]">
                                   {user.email}
                                 </span>
                               </div>
                             </td>
                             <td className="p-4 hidden md:table-cell">
-                              <span className="text-[9px] font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 uppercase">
+                              <span className="text-[10px] font-bold px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 uppercase">
                                 {user.role}
                               </span>
                             </td>
@@ -474,7 +474,7 @@ export default function PendingUsersPage() {
                               <div className="flex items-center justify-end gap-2 flex-wrap">
                                 <select
                                   id={"role-" + user.cid}
-                                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none text-[var(--text-primary)]"
+                                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-sm font-bold outline-none text-[var(--text-primary)]"
                                 >
                                   <option value="participant">{t("adminMisc.pendingUsers.roleParticipant")}</option>
                                   <option value="member">{t("adminMisc.pendingUsers.roleMember")}</option>
@@ -511,7 +511,7 @@ export default function PendingUsersPage() {
                                                                   title={t("adminMisc.pendingUsers.resendInvite")}
                                                                 >
                                                                   <Mail className="w-4 h-4" />
-                                                                  <span className="text-[8px] font-black uppercase hidden lg:inline">{t("adminMisc.pendingUsers.resend")}</span>
+                                                                  <span className="text-[10px] font-bold uppercase tracking-wide hidden lg:inline">{t("adminMisc.pendingUsers.resend")}</span>
                                                                 </button>
                                                                 <button
                                                                   onClick={() =>
@@ -526,7 +526,7 @@ export default function PendingUsersPage() {
                                   ) : (
                                     <>
                                       <CheckCircle className="w-4 h-4" />
-                                      <span className="text-[8px] font-black uppercase hidden lg:inline">
+                                      <span className="text-[10px] font-bold uppercase tracking-wide hidden lg:inline">
                                         {t("adminMisc.pendingUsers.approve")}
                                       </span>
                                     </>

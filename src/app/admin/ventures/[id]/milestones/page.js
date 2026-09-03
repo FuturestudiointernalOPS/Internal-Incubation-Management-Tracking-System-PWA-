@@ -285,7 +285,7 @@ export default function VentureMilestonesPage() {
                   {/* Deliverables */}
                   {isExpanded && (
                     <div className="mt-4 pl-7 space-y-2">
-                      {milestoneDels.length === 0 && <p className="text-[10px] text-slate-500 italic">{t("vadmin.milestones.noDeliverablesYet")}</p>}
+                      {milestoneDels.length === 0 && <p className="text-sm text-[var(--text-secondary)]">{t("vadmin.milestones.noDeliverablesYet")}</p>}
                       {milestoneDels.map((d) => {
                         const dc = DEL_STATUS_CFG[d.status] || DEL_STATUS_CFG.pending;
                         return (
@@ -316,7 +316,7 @@ export default function VentureMilestonesPage() {
                                   className="px-2 py-1 bg-emerald-500/10 text-emerald-400 rounded-lg text-[7px] font-black uppercase hover:brightness-110">{t("vadmin.milestones.review")}</button>
                               )}
                               {d.rejection_reason && (
-                                <span className="text-[7px] text-rose-400 italic max-w-[120px] truncate" title={d.rejection_reason}>{d.rejection_reason}</span>
+                                <span className="text-[10px] text-rose-400 max-w-[120px] truncate" title={d.rejection_reason}>{d.rejection_reason}</span>
                               )}
                             </div>
                           </div>

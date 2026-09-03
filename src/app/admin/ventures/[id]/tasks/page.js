@@ -407,12 +407,12 @@ export default function VentureTasksPage() {
                 </div>
                 {showComments && (
                   <div className="space-y-3">
-                    {comments.length === 0 && <p className="text-[10px] text-slate-500 italic">No comments</p>}
+                    {comments.length === 0 && <p className="text-sm text-[var(--text-secondary)]">No comments</p>}
                     {comments.map((c) => (
                       <div key={c.id} className="p-3 bg-primary rounded-xl border border-[var(--border-primary)]">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-[9px] font-bold text-[var(--text-primary)]">{c.author_name || c.author_cid}</span>
-                          <span className="text-[7px] text-slate-500">{new Date(c.created_at).toLocaleString()}</span>
+                          <span className="text-[10px] text-[var(--text-secondary)]">{new Date(c.created_at).toLocaleString()}</span>
                         </div>
                         <p className="text-[10px] text-[var(--text-secondary)]">{c.body}</p>
                       </div>

@@ -335,7 +335,7 @@ export default function VentureTimelinePage() {
                 <Clock className="w-3.5 h-3.5" /> Upcoming Deadlines (next 7 days) ({delays?.upcoming_deadlines?.length || 0})
               </h3>
               {(delays?.upcoming_deadlines || []).length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic">No upcoming deadlines this week</p>
+                <p className="text-sm text-[var(--text-secondary)]">No upcoming deadlines this week</p>
               ) : (
                 <div className="space-y-2">
                   {delays.upcoming_deadlines.map((item, i) => (

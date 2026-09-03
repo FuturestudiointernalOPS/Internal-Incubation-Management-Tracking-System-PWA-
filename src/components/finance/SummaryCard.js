@@ -32,20 +32,20 @@ export default function SummaryCard({ title, value, status = "blue", subtext, ic
       )}
       <div className="min-w-0">
         <p
-          className="text-[9px] font-bold uppercase tracking-widest"
+          className="text-[10px] font-bold uppercase tracking-widest"
           style={{ color: "var(--text-secondary)" }}
         >
           {title}
         </p>
         <p
-          className="text-xl font-black mt-0.5 truncate"
+          className="text-2xl font-black tracking-tight mt-0.5 truncate"
           style={{ color: colors.text }}
         >
           {value}
         </p>
         {subtext && (
           <p
-            className="text-[10px] mt-0.5 truncate"
+            className="text-[10px] font-medium mt-0.5 truncate"
             style={{ color: "var(--text-secondary)" }}
           >
             {subtext}

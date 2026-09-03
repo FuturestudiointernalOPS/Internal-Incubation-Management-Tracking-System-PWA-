@@ -437,7 +437,7 @@ export default function NewProgram() {
         <header className="space-y-4 border-b border-[var(--border-primary)] pb-10">
           <button
             onClick={() => router.push("/admin/programs")}
-            className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+            className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
           >
             <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
             {t("adminMisc.newProgram.programList")}
@@ -445,11 +445,11 @@ export default function NewProgram() {
           <div className="space-y-1">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("adminMisc.newProgram.administration")}
               </span>
             </div>
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tighter text-[var(--text-primary)]">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("adminMisc.newProgram.title")}
             </h1>
           </div>
@@ -459,7 +459,7 @@ export default function NewProgram() {
           {/* Template Selector */}
           {templates.length > 0 && (
             <div className="space-y-3">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.startFromTemplate")}
               </label>
               <div className="flex gap-3">
@@ -509,7 +509,7 @@ export default function NewProgram() {
                       setApplyingTemplate(false);
                     }
                   }}
-                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all disabled:opacity-40"
+                  className="px-6 py-3 bg-indigo-500 text-white rounded-xl text-sm font-bold uppercase tracking-wide hover:bg-indigo-600 transition-all disabled:opacity-40"
                 >
                   {applyingTemplate ? t("adminMisc.newProgram.creating") : t("admin.apply")}
                 </button>
@@ -520,7 +520,7 @@ export default function NewProgram() {
           {/* SECTION: BASIC IDENTITY */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.programName")}
               </label>
               <input
@@ -534,7 +534,7 @@ export default function NewProgram() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("adminMisc.newProgram.startDate")}
               </label>
               <input
@@ -551,7 +551,7 @@ export default function NewProgram() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("adminMisc.newProgram.endDate")}
               </label>
               <input
@@ -566,7 +566,7 @@ export default function NewProgram() {
                 className={`w-full bg-secondary border rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
               />
               {dateError && (
-                <p className="text-[9px] font-bold text-rose-400 uppercase tracking-widest mt-1 ml-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 mt-1 ml-2">
                   {dateError}
                 </p>
               )}
@@ -580,7 +580,7 @@ export default function NewProgram() {
                   );
                   const weeks = Math.max(1, Math.ceil(diffDays / 7));
                   return (
-                    <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest mt-1 ml-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mt-1 ml-2">
                       {t("adminMisc.newProgram.computedDuration", { weeks })}
                     </p>
                   );
@@ -591,7 +591,7 @@ export default function NewProgram() {
           {/* Program Type & Vision & Objectives */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.programType")}
               </label>
               <div className="flex gap-2">
@@ -667,7 +667,7 @@ export default function NewProgram() {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.visibility")}
               </label>
               <select
@@ -689,7 +689,7 @@ export default function NewProgram() {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.language")}
               </label>
               <select
@@ -707,7 +707,7 @@ export default function NewProgram() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.vision")}
               </label>
               <textarea
@@ -721,7 +721,7 @@ export default function NewProgram() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("admin.objectives")}
               </label>
               <textarea
@@ -739,7 +739,7 @@ export default function NewProgram() {
           {/* Expected Outcomes & Success Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("adminMisc.newProgram.expectedOutcomes")}
               </label>
               <textarea
@@ -753,7 +753,7 @@ export default function NewProgram() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                 {t("adminMisc.newProgram.successMetrics")}
               </label>
               <textarea
@@ -769,7 +769,7 @@ export default function NewProgram() {
           </div>
 
           <div className="space-y-4">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-2">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
               {t("admin.conceptNote")}
             </label>
 
@@ -790,10 +790,10 @@ export default function NewProgram() {
                   onClick={() =>
                     setProgram({ ...program, conceptNoteType: opt.id })
                   }
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                     (program.conceptNoteType || "text") === opt.id
                       ? "bg-[var(--brand-orange)] text-black"
-                      : "text-slate-500 hover:text-white"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <opt.icon className="w-3.5 h-3.5" />
@@ -848,12 +848,12 @@ export default function NewProgram() {
                 />
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl group-hover:border-[var(--brand-orange)] transition-all bg-primary/50">
                   <Upload className="w-8 h-8 text-slate-500 group-hover:text-[var(--brand-orange)] mb-3 transition-all" />
-                  <p className="text-[10px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
                     {program.conceptNoteFile ||
                       t("adminMisc.newProgram.clickToUpload")}
                   </p>
                   {program.conceptNoteFile && (
-                    <p className="text-[8px] text-emerald-400 mt-2 font-semibold">
+                    <p className="text-[10px] font-medium text-emerald-400 mt-2">
                       {t("adminMisc.newProgram.fileSelected", {
                         name: program.conceptNoteFile,
                       })}
@@ -882,13 +882,13 @@ export default function NewProgram() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                       {t("adminMisc.newProgram.knowledgeNodeLink")}
                     </label>
                     <button
                       type="button"
                       onClick={() => setIsCreatingKB(!isCreatingKB)}
-                      className="text-[8px] font-bold text-[var(--brand-orange)] uppercase tracking-widest hover:underline"
+                      className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline"
                     >
                       {isCreatingKB
                         ? t("adminMisc.newProgram.cancel")
@@ -930,13 +930,13 @@ export default function NewProgram() {
                           className="absolute inset-0 opacity-0 cursor-pointer z-10"
                         />
                         <div className="flex flex-col items-center justify-center h-full border border-dashed border-[var(--border-primary)] rounded-lg group-hover:border-[var(--brand-orange)]">
-                          <p className="text-[8px] font-black uppercase text-white/40">
+                          <p className="text-[10px] font-bold uppercase text-white/40">
                             {t("adminMisc.newProgram.uploadDocumentsForKb")}
                           </p>
                         </div>
                       </div>
                       {newKB.files.length > 0 && (
-                        <div className="text-[8px] font-bold text-emerald-400 uppercase italic">
+                        <div className="text-[10px] font-bold uppercase text-emerald-400">
                           {t("adminMisc.newProgram.documentsAttached", {
                             count: newKB.files.length,
                           })}
@@ -945,7 +945,7 @@ export default function NewProgram() {
                       <button
                         type="button"
                         onClick={handleCreateKBInline}
-                        className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[9px] font-black uppercase rounded-lg border border-[var(--brand-orange)]/20"
+                        className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase rounded-lg border border-[var(--brand-orange)]/20"
                       >
                         {t("adminMisc.newProgram.initializeKnowledgeBase")}
                       </button>
@@ -968,7 +968,7 @@ export default function NewProgram() {
                     ) : (
                       <Upload className="w-6 h-6 text-[var(--text-secondary)] group-hover:text-[var(--brand-orange)] mb-2 transition-all" />
                     )}
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
                       {isUploading
                         ? t("adminMisc.newProgram.uploadingAssets")
                         : t("adminMisc.newProgram.attachProgramMaterials")}
@@ -1019,7 +1019,7 @@ export default function NewProgram() {
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-1">
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                     {t("adminMisc.newProgram.groupTarget")}
                   </label>
                   <button
@@ -1033,7 +1033,7 @@ export default function NewProgram() {
                         }));
                       }
                     }}
-                    className="text-[8px] font-bold text-blue-400 uppercase tracking-widest hover:underline"
+                    className="text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:underline"
                   >
                     {isCreatingGroup
                       ? t("adminMisc.newProgram.cancel")
@@ -1084,7 +1084,7 @@ export default function NewProgram() {
                     <button
                       type="button"
                       onClick={handleCreateGroupInline}
-                      className="w-full py-2 bg-blue-500/10 text-blue-400 text-[9px] font-black uppercase rounded-lg border border-blue-500/20"
+                      className="w-full py-2 bg-blue-500/10 text-blue-400 text-[10px] font-bold uppercase rounded-lg border border-blue-500/20"
                     >
                       {t("adminMisc.newProgram.generateGroupAndUrl")}
                     </button>
@@ -1093,11 +1093,11 @@ export default function NewProgram() {
 
                 {createdGroup && (
                   <div className="p-4 bg-emerald-500/5 border border-emerald-500/20 rounded-xl space-y-2">
-                    <p className="text-[9px] font-black text-emerald-400 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">
                       {t("adminMisc.newProgram.publicRegistrationUrl")}
                     </p>
                     <div className="flex items-center justify-between gap-3 bg-black/40 p-2 rounded border border-white/5 overflow-hidden">
-                      <span className="text-[8px] font-mono text-white/60 truncate">
+                      <span className="text-[10px] font-mono text-white/60 truncate">
                         {window.location.origin}/register-participant?group_id=
                         {createdGroup.registration_id && encodeURIComponent(createdGroup.registration_id)}
                       </span>
@@ -1135,7 +1135,7 @@ export default function NewProgram() {
 
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                     {t("adminMisc.newProgram.programManager")}
                   </label>
                   <select
@@ -1156,7 +1156,7 @@ export default function NewProgram() {
                 </div>
 
                 <div className="space-y-3">
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                     {t("adminMisc.newProgram.assignedTeam")}
                   </label>
                   <div className="flex flex-wrap gap-2 mb-3">
@@ -1207,14 +1207,14 @@ export default function NewProgram() {
                   <Target className="w-5 h-5" />
                 </div>
                 <div className="text-left">
-                  <h3 className="text-xl font-bold text-white uppercase tracking-tight italic">
+                  <h3 className="text-xl font-black text-white uppercase tracking-tight">
                     {t("adminMisc.newProgram.strategicKpisConfiguration")}
                   </h3>
-                  <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                     {t("adminMisc.newProgram.defineKpiTargets")}
                   </p>
-                  <p className="text-[11px] text-slate-400 mt-3 max-w-2xl leading-relaxed">
-                    <strong className="text-white">
+                  <p className="text-sm text-[var(--text-secondary)] mt-3 max-w-2xl leading-relaxed">
+                    <strong className="text-[var(--text-primary)]">
                       {t("adminMisc.newProgram.targetTitle")}
                     </strong>{" "}
                     {t("adminMisc.newProgram.targetDescription")}
@@ -1225,7 +1225,7 @@ export default function NewProgram() {
 
             <div className="grid grid-cols-1 md:grid-cols-1 gap-6 items-end">
               <div className="space-y-1 text-left">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
                   {t("adminMisc.newProgram.kpiTitle")}
                 </label>
                 <div className="flex gap-3">
@@ -1284,7 +1284,7 @@ export default function NewProgram() {
 
             {kpisList.length > 0 && (
               <div className="space-y-3 pt-4 border-t border-[var(--border-primary)]">
-                <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic text-left">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] text-left">
                   {t("adminMisc.newProgram.definedKpis", {
                     count: kpisList.length,
                   })}

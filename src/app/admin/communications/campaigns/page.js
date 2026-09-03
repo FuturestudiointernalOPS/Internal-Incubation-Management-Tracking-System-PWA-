@@ -315,9 +315,9 @@ export default function CampaignsPage() {
                  <div className={`w-10 h-5 rounded-full border border-white/10 transition-all p-1 flex ${hideCompleted ? 'bg-[#FF6600]/80 justify-end' : 'bg-white/5 justify-start'}`}>
                     <div className="w-3 h-3 bg-white rounded-full shadow-sm shadow-black/20" />
                  </div>
-                 <span className="text-[10px] font-black text-slate-500 group-hover:text-slate-400 uppercase tracking-widest transition-colors">{t('crm.campaigns.hideFinished')}</span>
+                 <span className="text-[10px] font-bold text-slate-500 group-hover:text-slate-400 uppercase tracking-widest transition-colors">{t('crm.campaigns.hideFinished')}</span>
               </label>
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">{t('crm.campaigns.itemsCount', { count: filteredCampsList.length })}</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('crm.campaigns.itemsCount', { count: filteredCampsList.length })}</p>
            </div>
         </div>
 
@@ -361,19 +361,19 @@ export default function CampaignsPage() {
                     <div className="flex items-center gap-2 mb-3">
                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-400">
                           <Settings2 className="w-3 h-3" />
-                          <span className="text-[9px] font-black uppercase tracking-tighter">
+                          <span className="text-[10px] font-bold uppercase tracking-wide">
                              {c.sent_contacts > 0 ? t('crm.campaigns.phasesCount', { current: Math.min(c.current_step + 1, c.total_steps), total: c.total_steps }) : t('crm.campaigns.pendingActivation')}
                           </span>
                        </div>
                     </div>
                     <div className="mb-4">
                        <h3 className="text-xl font-black text-white uppercase tracking-tighter group-hover:text-indigo-400 transition-colors truncate">{c.name}</h3>
-                       <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">{t('crm.campaigns.ref', { id: c.id })}</p>
+                       <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mt-1">{t('crm.campaigns.ref', { id: c.id })}</p>
                     </div>
                     
                    <div className="space-y-4 flex-1">
                       <div className="flex justify-between items-end mb-1">
-                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('crm.campaigns.progress')}</p>
+                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('crm.campaigns.progress')}</p>
                          <p className="text-xs font-black text-white">{p}%</p>
                       </div>
                       <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -381,18 +381,18 @@ export default function CampaignsPage() {
                       </div>
                       <div className="grid grid-cols-2 gap-4 pt-2">
                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('crm.campaigns.audience')}</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{t('crm.campaigns.audience')}</p>
                             <p className="text-lg font-black text-white">{c.total_contacts}</p>
                          </div>
                          <div className="bg-white/5 p-3 rounded-xl border border-white/5">
-                            <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t('crm.campaigns.sent')}</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">{t('crm.campaigns.sent')}</p>
                             <p className="text-lg font-black text-emerald-400">{c.sent_contacts}</p>
                          </div>
                       </div>
                    </div>
 
                    <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">
                          {p === 100 ? t('crm.campaigns.reviewLog') : t('crm.campaigns.editPipeline')}
                       </span>
                       <button 
@@ -426,11 +426,11 @@ export default function CampaignsPage() {
                  <div className="w-full md:w-1/2 p-8 overflow-y-auto custom-scrollbar border-r border-white/5 space-y-8">
                     <div className="space-y-6">
                        <div>
-                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.campaignName')}</label>
+                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.campaignName')}</label>
                          <input required type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder={t('crm.campaigns.namePlaceholder')} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
                        </div>
                        <div>
-                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.formLogic')}</label>
+                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.formLogic')}</label>
                          <select value={form.form_id} onChange={e => setForm({...form, form_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none appearance-none font-bold">
                             <option value="" className="bg-[#080810]">{t('crm.campaigns.noFormRequired')}</option>
                             {forms.map(f => <option key={f.form_id} value={f.form_id} className="bg-[#080810]">{f.name}</option>)}
@@ -440,14 +440,14 @@ export default function CampaignsPage() {
 
                     <div className="space-y-6">
                        <div className="flex items-center justify-between">
-                         <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">{t('crm.campaigns.sequencePipeline')}</h4>
-                         <button type="button" onClick={() => addStep(false)} className="px-3 py-1 bg-[#FF6600]/80/10 text-indigo-400 text-[10px] font-black uppercase rounded-lg border border-[#FF6600]/80/20 hover:bg-[#FF6600]/80 hover:text-white transition-all">{t('crm.campaigns.addFollowUp')}</button>
+                         <h4 className="text-[11px] font-bold text-indigo-400 uppercase tracking-wide flex items-center gap-2">{t('crm.campaigns.sequencePipeline')}</h4>
+                         <button type="button" onClick={() => addStep(false)} className="px-3 py-1 bg-[#FF6600]/80/10 text-indigo-400 text-[10px] font-bold uppercase rounded-lg border border-[#FF6600]/80/20 hover:bg-[#FF6600]/80 hover:text-white transition-all">{t('crm.campaigns.addFollowUp')}</button>
                        </div>
                        <div className="space-y-4">
                           {form.steps.map((step, idx) => (
                              <div key={idx} className="p-5 rounded-2xl bg-white/[0.02] border border-white/5 space-y-4">
                                <div className="flex items-center justify-between">
-                                 <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">{t('crm.campaigns.emailStep', { idx: idx + 1 })}</span>
+                                 <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{t('crm.campaigns.emailStep', { idx: idx + 1 })}</span>
                                  {idx > 0 && <button type="button" onClick={() => removeStep(idx, false)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>}
                                </div>
                                <input placeholder={t('crm.campaigns.subjectPlaceholder')} value={step.subject} onChange={e => updateStep(idx, 'subject', e.target.value, false)} className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold text-white outline-none" />
@@ -481,15 +481,15 @@ export default function CampaignsPage() {
                  {/* Right: Target Picker */}
                  <div className="w-full md:w-1/2 p-8 overflow-y-auto custom-scrollbar flex flex-col bg-[#0d0d18]/30">
                     <div className="flex items-center justify-between mb-6">
-                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('crm.campaigns.selectAudience')}</h4>
+                       <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('crm.campaigns.selectAudience')}</h4>
                        <span className="badge badge-glow-success bg-emerald-500/10 text-emerald-400">{t('crm.campaigns.activeTargets', { count: form.cids.length })}</span>
                     </div>
 
                     <div className="mb-6">
-                       <p className="text-[8px] font-black text-slate-600 uppercase mb-2 tracking-[0.2em]">{t('crm.campaigns.pickFamilies')}</p>
+                       <p className="text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-widest">{t('crm.campaigns.pickFamilies')}</p>
                        <div className="flex flex-wrap gap-2">
                           {families.map(f => (
-                             <button key={f.id} type="button" onClick={() => selectFamily(f.name, false)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">
+                             <button key={f.id} type="button" onClick={() => selectFamily(f.name, false)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-bold text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">
                                 + {f.name}
                              </button>
                           ))}
@@ -505,7 +505,7 @@ export default function CampaignsPage() {
                           <div key={c.cid} onClick={() => toggleContact(c.cid)} className={`p-4 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${form.cids.includes(c.cid) ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80' : 'bg-white/5 border-white/5 hover:bg-white/10'}`}>
                              <div>
                                 <p className="text-xs font-black text-white">{c.name}</p>
-                                <p className="text-[9px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
+                                <p className="text-[10px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
                              </div>
                              {form.cids.includes(c.cid) && <CheckCircle className="w-4 h-4 text-indigo-400" />}
                           </div>
@@ -542,7 +542,7 @@ export default function CampaignsPage() {
                         value={selectedCampaign.name} 
                         onChange={e => setSelectedCampaign({...selectedCampaign, name: e.target.value})} 
                      />
-                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
                         {selectedCampaign.sent_contacts >= selectedCampaign.total_contacts ? t('crm.campaigns.historicalArchive') : t('crm.campaigns.activeDispatchPipeline')} 
                      </p>
                    </div>
@@ -550,8 +550,8 @@ export default function CampaignsPage() {
                 <div className="flex items-center gap-4">
                     <div className="hidden sm:flex items-center gap-3 mr-4 pr-6 border-r border-white/5">
                         <div className="flex flex-col items-end">
-                           <span className="text-[8px] font-black text-slate-500 uppercase tracking-[0.2em] leading-none mb-1">{t('crm.campaigns.masterSwitch')}</span>
-                           <span className={`text-[10px] font-black uppercase tracking-widest ${selectedCampaign.status === 'paused' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-1">{t('crm.campaigns.masterSwitch')}</span>
+                           <span className={`text-[10px] font-bold uppercase tracking-widest ${selectedCampaign.status === 'paused' ? 'text-rose-400' : 'text-emerald-400'}`}>
                               {selectedCampaign.status === 'paused' ? t('crm.campaigns.campaignOff') : t('crm.campaigns.campaignOn')}
                            </span>
                         </div>
@@ -570,7 +570,7 @@ export default function CampaignsPage() {
                     <button 
                        onClick={() => deleteCampaign(selectedCampaign.id)}
                        disabled={isSubmitting} 
-                       className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-3 rounded-xl border border-rose-500/20 transition-all font-black text-[10px] flex items-center gap-2 uppercase tracking-widest shadow-lg shadow-rose-500/10 pr-5"
+                       className="bg-rose-500/10 hover:bg-rose-500 text-rose-500 hover:text-white p-3 rounded-xl border border-rose-500/20 transition-all font-bold text-[10px] flex items-center gap-2 uppercase tracking-widest shadow-lg shadow-rose-500/10 pr-5"
                     >
                        <Trash2 className="w-4 h-4" />
                        {t('crm.campaigns.destroy')}
@@ -591,16 +591,16 @@ export default function CampaignsPage() {
                     <div className="space-y-12">
                        <section className="space-y-6">
                           <div className="flex items-center justify-between border-b border-white/5 pb-4">
-                             <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t('crm.campaigns.targetSelection')}</h4>
+                             <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('crm.campaigns.targetSelection')}</h4>
                              <span className="badge badge-glow-success bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20">{t('crm.campaigns.contactsCount', { count: selectedCampaign.cids?.length })}</span>
                           </div>
                           
                           {selectedCampaign.sent_contacts < selectedCampaign.total_contacts && (
                             <div className="space-y-4">
-                               <p className="text-[8px] font-black text-slate-600 uppercase mb-2 tracking-[0.2em]">{t('crm.campaigns.addFamilies')}</p>
+                               <p className="text-[10px] font-bold text-slate-600 uppercase mb-2 tracking-widest">{t('crm.campaigns.addFamilies')}</p>
                                <div className="flex flex-wrap gap-2">
                                   {families.map(f => (
-                                     <button key={f.id} onClick={() => selectFamily(f.name, true)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-heavy text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">+ {f.name}</button>
+                                     <button key={f.id} onClick={() => selectFamily(f.name, true)} className="px-3 py-1.5 rounded-lg border border-white/5 bg-white/5 text-[10px] font-bold text-slate-400 hover:border-[#FF6600]/80/50 hover:text-white transition-all uppercase">+ {f.name}</button>
                                   ))}
                                </div>
                             </div>
@@ -622,7 +622,7 @@ export default function CampaignsPage() {
                                    }} className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center justify-between ${isPicked ? 'bg-[#FF6600]/80/10 border-[#FF6600]/80/50' : 'bg-white/5 border-white/5 hover:bg-white/10'} ${selectedCampaign.sent_contacts >= selectedCampaign.total_contacts ? 'cursor-default' : ''}`}>
                                       <div>
                                          <p className="text-[10px] font-black text-white truncate">{c.name}</p>
-                                         <p className="text-[8px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
+                                         <p className="text-[10px] text-slate-500 font-bold uppercase">{t(GROUP_LABELS[c.group_name] || '') || c.group_name || t('crm.campaigns.individual')}</p>
                                       </div>
                                       {isPicked && <CheckCircle className="w-3.5 h-3.5 text-indigo-400" />}
                                    </div>
@@ -632,11 +632,11 @@ export default function CampaignsPage() {
                        </section>
 
                        <section className="space-y-6">
-                          <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-4">{t('crm.campaigns.logicConfig')}</h4>
+                          <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-white/5 pb-4">{t('crm.campaigns.logicConfig')}</h4>
                           <div className="space-y-4">
                              <div className="flex justify-between items-center text-xs font-bold">
                                 <span className="text-slate-500 uppercase tracking-widest">{t('crm.campaigns.activeForm')}</span>
-                                <select disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts} value={selectedCampaign.form_id || ''} onChange={e => setSelectedCampaign({...selectedCampaign, form_id: e.target.value})} className="bg-transparent text-white text-right outline-none disabled:opacity-50 italic">
+                                <select disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts} value={selectedCampaign.form_id || ''} onChange={e => setSelectedCampaign({...selectedCampaign, form_id: e.target.value})} className="bg-transparent text-white text-right outline-none disabled:opacity-50">
                                    <option value="" className="bg-[#080810]">{t('crm.campaigns.none')}</option>
                                    {forms.map(f => <option key={f.form_id} value={f.form_id} className="bg-[#080810]">{f.name}</option>)}
                                 </select>
@@ -652,7 +652,7 @@ export default function CampaignsPage() {
 
                  {/* Main Pipeline */}
                  <div className="flex-1 p-4 md:p-10 overflow-y-auto bg-transparent custom-scrollbar">
-                    <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-8 flex items-center gap-3">
+                    <h4 className="text-[11px] font-bold text-indigo-400 uppercase tracking-wide mb-8 flex items-center gap-3">
                        <Settings2 className="w-5 h-5" /> {t('crm.campaigns.pipelineSequenceModification')}
                     </h4>
                     
@@ -664,11 +664,11 @@ export default function CampaignsPage() {
                                    <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center font-black text-white text-lg">{idx + 1}</div>
                                    <div className="flex-1 min-w-[200px]">
                                       <div className="flex items-center justify-between mb-1">
-                                         <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{idx === 0 ? t('crm.campaigns.anchorStep') : t('crm.campaigns.followUpStep', { idx })}</p>
+                                         <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{idx === 0 ? t('crm.campaigns.anchorStep') : t('crm.campaigns.followUpStep', { idx })}</p>
                                          {step.delivered_count > 0 && (
                                             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
                                                <CheckCircle className="w-3 h-3" />
-                                               <span className="text-[8px] font-black uppercase tracking-tighter">{t('crm.campaigns.receivedBy', { count: step.delivered_count })}</span>
+                                               <span className="text-[10px] font-bold uppercase tracking-wide">{t('crm.campaigns.receivedBy', { count: step.delivered_count })}</span>
                                             </div>
                                          )}
                                       </div>
@@ -689,7 +689,7 @@ export default function CampaignsPage() {
 
                              <div className="space-y-6">
                                 <div className="space-y-2">
-                                   <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t('crm.campaigns.emailSubject')}</label>
+                                   <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t('crm.campaigns.emailSubject')}</label>
                                    <input 
                                        disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
                                        value={step.subject} 
@@ -700,7 +700,7 @@ export default function CampaignsPage() {
                                 <div className="grid grid-cols-2 gap-6">
                                    {['days', 'hours', 'minutes'].includes(step.wait_type) && (
                                       <div>
-                                         <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.waitDurationLabel', { unit: waitTypeLabels[step.wait_type] })}</label>
+                                         <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.waitDurationLabel', { unit: waitTypeLabels[step.wait_type] })}</label>
                                          <input 
                                             disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
                                             type="number" 
@@ -716,7 +716,7 @@ export default function CampaignsPage() {
                                    )}
                                    {step.wait_type === 'date' && (
                                       <div>
-                                         <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.targetDateTime')}</label>
+                                         <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.targetDateTime')}</label>
                                          <input 
                                             disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
                                             type="datetime-local" 
@@ -728,7 +728,7 @@ export default function CampaignsPage() {
                                    )}
                                 </div>
                                 <div>
-                                   <label className="block text-[8px] font-black text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.messageContent')}</label>
+                                   <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">{t('crm.campaigns.messageContent')}</label>
                                    <textarea 
                                       disabled={selectedCampaign.sent_contacts >= selectedCampaign.total_contacts}
                                       value={step.body} 
@@ -749,7 +749,7 @@ export default function CampaignsPage() {
                           </div>
                        ))}
                        {selectedCampaign.sent_contacts < selectedCampaign.total_contacts && (
-                          <button onClick={() => addStep(true)} className="w-full py-6 border-2 border-dashed border-white/5 rounded-3xl text-slate-500 hover:text-indigo-400 hover:border-[#FF6600]/80/30 hover:bg-[#FF6600]/80/5 transition-all text-[10px] font-black uppercase tracking-[0.3em]">{t('crm.campaigns.addSequentialMessage')}</button>
+                          <button onClick={() => addStep(true)} className="w-full py-6 border-2 border-dashed border-white/5 rounded-3xl text-slate-500 hover:text-indigo-400 hover:border-[#FF6600]/80/30 hover:bg-[#FF6600]/80/5 transition-all text-[10px] font-bold uppercase tracking-widest">{t('crm.campaigns.addSequentialMessage')}</button>
                        )}
                     </div>
                  </div>

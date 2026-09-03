@@ -78,7 +78,7 @@ export default function CrmDashboardPage() {
       <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
         {/* Back nav */}
         <nav className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <button onClick={goBack} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wide hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToPrevious")}
           </button>
@@ -86,7 +86,7 @@ export default function CrmDashboardPage() {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-black uppercase tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {t("crm.overview.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -98,23 +98,23 @@ export default function CrmDashboardPage() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5">
             <Users className="w-5 h-5 text-[var(--brand-orange)] mb-2" />
-            <p className="text-2xl font-black">{loading ? "—" : stats?.totalContacts || 0}</p>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("crm.overview.totalContacts")}</p>
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">{loading ? "—" : stats?.totalContacts || 0}</p>
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("crm.overview.totalContacts")}</p>
           </div>
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5">
             <UserPlus className="w-5 h-5 text-amber-500 mb-2" />
-            <p className="text-2xl font-black">{loading ? "—" : stats?.pendingApprovals || 0}</p>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("crm.overview.pendingApprovals")}</p>
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">{loading ? "—" : stats?.pendingApprovals || 0}</p>
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("crm.overview.pendingApprovals")}</p>
           </div>
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5">
             <Activity className="w-5 h-5 text-emerald-500 mb-2" />
-            <p className="text-2xl font-black">—</p>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("crm.overview.activePrograms")}</p>
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">—</p>
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("crm.overview.activePrograms")}</p>
           </div>
           <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5">
             <Clock className="w-5 h-5 text-blue-500 mb-2" />
-            <p className="text-2xl font-black">—</p>
-            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">{t("crm.overview.thisMonth")}</p>
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">—</p>
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("crm.overview.thisMonth")}</p>
           </div>
         </div>
 
@@ -129,7 +129,7 @@ export default function CrmDashboardPage() {
             <Link
               key={link.href}
               href={link.href}
-              className="bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-center text-xs font-bold uppercase tracking-wider hover:border-[var(--brand-orange)] transition-colors"
+              className="bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-center text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)] transition-colors"
             >
               {link.label}
             </Link>
@@ -138,11 +138,11 @@ export default function CrmDashboardPage() {
 
         {/* Recent Contacts */}
         <div className="bg-primary border border-[var(--border-primary)] rounded-2xl p-5">
-          <h2 className="text-sm font-black uppercase tracking-wider mb-4">{t("crm.overview.recentContacts")}</h2>
+          <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)] mb-4">{t("crm.overview.recentContacts")}</h2>
           {loading ? (
-            <p className="text-xs text-[var(--text-secondary)]">{t("crm.overview.loading")}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{t("crm.overview.loading")}</p>
           ) : recentContacts.length === 0 ? (
-            <p className="text-xs text-[var(--text-secondary)] italic">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("crm.overview.noContacts")}
             </p>
           ) : (
@@ -154,10 +154,10 @@ export default function CrmDashboardPage() {
                   className="flex items-center justify-between p-3 rounded-xl hover:bg-tertiary transition-colors"
                 >
                   <div>
-                    <p className="text-sm font-bold">{c.name}</p>
-                    <p className="text-[10px] text-[var(--text-secondary)]">{c.email}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">{c.name}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">{c.email}</p>
                   </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-tertiary">
+                  <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-tertiary text-[var(--text-primary)]">
                     {t(ROLE_LABELS[c.role] || "") || c.role || t("crm.roles.unassigned")}
                   </span>
                 </Link>
@@ -166,7 +166,7 @@ export default function CrmDashboardPage() {
           )}
         </div>
 
-        <p className="text-[10px] text-[var(--text-secondary)] text-center italic">
+        <p className="text-[10px] font-medium text-[var(--text-secondary)] text-center">
           {t("crm.overview.foundationNote")}
         </p>
       </div>

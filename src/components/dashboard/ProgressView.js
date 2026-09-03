@@ -31,12 +31,12 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }) {
           <Icon className={`w-5 h-5 ${color.text}`} />
         </div>
         <span
-          className={`text-2xl font-black ${value >= 50 ? "text-emerald-400" : value >= 25 ? "text-amber-400" : "text-rose-400"}`}
+          className={`text-2xl font-black tracking-tight ${value >= 50 ? "text-emerald-400" : value >= 25 ? "text-amber-400" : "text-rose-400"}`}
         >
           {value}%
         </span>
       </div>
-      <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
         {label}
       </p>
       <div className="w-full h-2 bg-white/10 rounded-full mt-3 overflow-hidden">
@@ -49,7 +49,7 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }) {
         />
       </div>
       {subtitle && (
-        <p className="text-[8px] text-[var(--text-tertiary)] mt-2">
+        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2">
           {subtitle}
         </p>
       )}
@@ -89,7 +89,7 @@ function MilestoneItem({ milestone }) {
         >
           {milestone.title}
         </p>
-        <p className="text-[8px] text-[var(--text-tertiary)] mt-0.5">
+        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
           {t("participantMisc.progress.week", { week: milestone.week || "?" })}
           {milestone.score > 0
             ? t("participantMisc.progress.scoreSuffix", {
@@ -122,12 +122,12 @@ function WeekHistoryBar({ week }) {
 
   return (
     <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--surface-2)] transition-all">
-      <span className="text-[9px] font-black text-[var(--text-secondary)] w-12 shrink-0">
+      <span className="text-[10px] font-bold text-[var(--text-secondary)] w-12 shrink-0">
         {t("participantMisc.progress.week", { week: week.week })}
       </span>
       <div className="flex-1 space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-[7px] font-bold text-[var(--text-tertiary)] w-14">
+          <span className="text-[10px] font-bold text-[var(--text-secondary)] w-14">
             {t("participantMisc.progress.deliverables")}
           </span>
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -136,12 +136,12 @@ function WeekHistoryBar({ week }) {
               style={{ width: `${delPct}%` }}
             />
           </div>
-          <span className="text-[8px] font-bold text-[var(--text-secondary)] w-10 text-right">
+          <span className="text-[10px] font-bold text-[var(--text-secondary)] w-10 text-right">
             {week.deliverablesCompleted}/{week.deliverablesTotal}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[7px] font-bold text-[var(--text-tertiary)] w-14">
+          <span className="text-[10px] font-bold text-[var(--text-secondary)] w-14">
             {t("participantMisc.progress.attendance")}
           </span>
           <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
@@ -150,7 +150,7 @@ function WeekHistoryBar({ week }) {
               style={{ width: `${sesPct}%` }}
             />
           </div>
-          <span className="text-[8px] font-bold text-[var(--text-secondary)] w-10 text-right">
+          <span className="text-[10px] font-bold text-[var(--text-secondary)] w-10 text-right">
             {week.sessionsAttended}/{week.sessionsTotal}
           </span>
         </div>
@@ -232,10 +232,10 @@ export default function ProgressView({ programId: filterProgramId }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <AlertCircle className="w-10 h-10 text-rose-400" />
-        <p className="text-[12px] text-[var(--text-secondary)]">{error}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
           onClick={fetchProgress}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.progress.retry")}
         </button>
@@ -247,7 +247,7 @@ export default function ProgressView({ programId: filterProgramId }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <BookOpen className="w-12 h-12 text-[var(--text-tertiary)]" />
-        <p className="text-[12px] font-bold text-[var(--text-secondary)]">
+        <p className="text-sm text-[var(--text-secondary)]">
           {t("participantMisc.progress.noProgressData")}
         </p>
       </div>
@@ -273,10 +273,10 @@ export default function ProgressView({ programId: filterProgramId }) {
     >
       {/* Header */}
       <div>
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
           {t("participantMisc.progress.myProgress")}
         </h1>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {data.participant.name} · {t("participantMisc.progress.programCount", { count: data.totals.programs })}
           {data.totals.programs > 1 ? "s" : ""}
         </p>
@@ -286,7 +286,7 @@ export default function ProgressView({ programId: filterProgramId }) {
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={() => setSelectedProgram("all")}
-          className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
             selectedProgram === "all"
               ? "bg-[var(--brand-orange)] text-black"
               : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
@@ -298,7 +298,7 @@ export default function ProgressView({ programId: filterProgramId }) {
           <button
             key={p.id}
             onClick={() => setSelectedProgram(p.id)}
-            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all ${
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
               selectedProgram === p.id
                 ? "bg-[var(--brand-orange)] text-black"
                 : "bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
@@ -412,7 +412,7 @@ export default function ProgressView({ programId: filterProgramId }) {
         <div>
           <button
             onClick={() => setShowMilestones(!showMilestones)}
-            className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3"
           >
             <Award className="w-4 h-4" />
             {t("participantMisc.progress.milestonesCount", {
@@ -425,7 +425,7 @@ export default function ProgressView({ programId: filterProgramId }) {
               {milestones.length === 0 ? (
                 <div className="text-center py-8 bg-[var(--bg-tertiary)] rounded-xl border border-[var(--border-primary)]">
                   <Award className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {t("participantMisc.progress.noMilestones")}
                   </p>
                 </div>
@@ -444,7 +444,7 @@ export default function ProgressView({ programId: filterProgramId }) {
         <div>
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-2 text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3"
+            className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3"
           >
             <TrendingUp className="w-4 h-4" />
             {t("participantMisc.progress.weeklyBreakdown")}
@@ -461,39 +461,39 @@ export default function ProgressView({ programId: filterProgramId }) {
 
       {/* Stats summary */}
       <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl p-5">
-        <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-4">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
           {t("participantMisc.progress.summary")}
         </h3>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <p className="text-lg font-black text-[var(--text-primary)]">
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
               {data.totals.submissions}
             </p>
-            <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.progress.totalSubmissions")}
             </p>
           </div>
           <div>
-            <p className="text-lg font-black text-emerald-400">
+            <p className="text-2xl font-black tracking-tight text-emerald-400">
               {data.totals.approved}
             </p>
-            <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.progress.approved")}
             </p>
           </div>
           <div>
-            <p className="text-lg font-black text-[var(--text-primary)]">
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
               {data.totals.sessions}
             </p>
-            <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.progress.totalSessions")}
             </p>
           </div>
           <div>
-            <p className="text-lg font-black text-[var(--text-primary)]">
+            <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">
               {data.totals.rituals}
             </p>
-            <p className="text-[8px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.progress.ritualSubmissions")}
             </p>
           </div>

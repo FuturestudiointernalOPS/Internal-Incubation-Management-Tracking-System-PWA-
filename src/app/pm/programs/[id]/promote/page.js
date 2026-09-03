@@ -286,13 +286,13 @@ export default function PromoteToVenture() {
             <div className="flex justify-center gap-4 mt-4">
               <div className="text-center p-4 bg-primary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-lg font-black text-[var(--brand-orange)]">{promotionResult.founders?.length || 0}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.promote.founders")}
                 </p>
               </div>
               <div className="text-center p-4 bg-primary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-lg font-black text-[var(--brand-orange)]">{promotionResult.members?.length || 0}</p>
-                <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("pmMisc.promote.members")}
                 </p>
               </div>
@@ -327,7 +327,7 @@ export default function PromoteToVenture() {
                       className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                       disabled={submitting}
                     />
-                    <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {t("pmMisc.promote.prefillHint")}
                     </p>
                   </div>

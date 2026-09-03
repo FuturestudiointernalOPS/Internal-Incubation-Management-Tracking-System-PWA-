@@ -136,7 +136,7 @@ export default function NotificationsPage() {
     <>
       <div className="space-y-8 pb-20">
         {toast && (
-          <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
+          <div className={`fixed top-6 right-6 z-50 px-4 py-2.5 rounded-xl shadow-2xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 ${toast.type==="error"?"bg-rose-600":"bg-emerald-600"} text-white`}>
             {toast.type==="error"?<AlertCircle className="w-3.5 h-3.5"/>:<CheckCircle2 className="w-3.5 h-3.5"/>}{toast.msg}
           </div>
         )}
@@ -146,13 +146,13 @@ export default function NotificationsPage() {
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center"><Bell className="w-6 h-6 text-[var(--brand-orange)]" /></div>
             <div>
-              <h1 className="text-2xl font-black text-[var(--text-primary)]">{t("adminMisc.notifications.title")}</h1>
-              <p className="text-xs text-slate-500">{t("adminMisc.notifications.unreadTotal", { unread: unreadCount, total: notifications.length })}</p>
+              <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">{t("adminMisc.notifications.title")}</h1>
+              <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.notifications.unreadTotal", { unread: unreadCount, total: notifications.length })}</p>
             </div>
           </div>
           <div className="flex gap-2">
-            <button onClick={sendTest} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary flex items-center gap-1.5"><Send className="w-3 h-3" /> {t("adminMisc.notifications.test")}</button>
-            <button onClick={markAllRead} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> {t("adminMisc.notifications.markAllRead")}</button>
+            <button onClick={sendTest} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary flex items-center gap-1.5"><Send className="w-3 h-3" /> {t("adminMisc.notifications.test")}</button>
+            <button onClick={markAllRead} className="px-3 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 flex items-center gap-1.5"><CheckCircle2 className="w-3 h-3" /> {t("adminMisc.notifications.markAllRead")}</button>
           </div>
         </div>
 
@@ -165,7 +165,7 @@ export default function NotificationsPage() {
             const Icon = tab.icon;
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 border-b-2 transition-all ${activeTab===tab.id?"border-[var(--brand-orange)] text-[var(--brand-orange)]":"border-transparent text-slate-500"}`}>
+                className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 border-b-2 transition-all ${activeTab===tab.id?"border-[var(--brand-orange)] text-[var(--brand-orange)]":"border-transparent text-[var(--text-secondary)]"}`}>
                 <Icon className="w-3 h-3" />{tab.label}
               </button>
             );
@@ -177,15 +177,15 @@ export default function NotificationsPage() {
           <>
             {/* Filter */}
             <div className="flex gap-1 overflow-x-auto pb-1">
-              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wider whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-slate-500"}`}>{t("adminMisc.notifications.all")}</button>
+              <button onClick={() => setFilterType("")} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${!filterType?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t("adminMisc.notifications.all")}</button>
               {Object.keys(TYPE_COLORS).map((t) => (
-                <button key={t} onClick={() => setFilterType(t)} className={`px-2.5 py-1 rounded-lg text-[7px] font-black uppercase tracking-wider whitespace-nowrap ${filterType===t?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-slate-500"}`}>{t}</button>
+                <button key={t} onClick={() => setFilterType(t)} className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase whitespace-nowrap ${filterType===t?"bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]":"bg-tertiary text-[var(--text-secondary)]"}`}>{t}</button>
               ))}
             </div>
 
             {/* List */}
             {filtered.length === 0 ? (
-              <div className="text-center py-16"><Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-slate-500">{t("adminMisc.notifications.noNotifications")}</p></div>
+              <div className="text-center py-16"><Bell className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.notifications.noNotifications")}</p></div>
             ) : (
               <div className="space-y-2">
                 {filtered.map((n) => (
@@ -196,12 +196,12 @@ export default function NotificationsPage() {
                       <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${n.status==="unread" ? "bg-[var(--brand-orange)]" : "bg-transparent"}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[n.type] || TYPE_COLORS.system}`}>{n.type}</span>
-                          {n.priority === "urgent" && <span className="text-[7px] font-black text-rose-400">{t("adminMisc.notifications.urgent")}</span>}
-                          <span className="text-[8px] text-slate-500 ml-auto">{new Date(n.created_at).toLocaleString()}</span>
+                          <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${TYPE_COLORS[n.type] || TYPE_COLORS.system}`}>{n.type}</span>
+                          {n.priority === "urgent" && <span className="text-[10px] font-bold uppercase text-rose-400">{t("adminMisc.notifications.urgent")}</span>}
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">{new Date(n.created_at).toLocaleString()}</span>
                         </div>
                         <p className={`text-xs mt-1 ${n.status==="unread" ? "font-bold text-[var(--text-primary)]" : "font-medium text-[var(--text-secondary)]"}`}>{n.title}</p>
-                        {n.body && <p className="text-[9px] text-slate-500 mt-0.5">{n.body}</p>}
+                        {n.body && <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">{n.body}</p>}
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {n.status === "unread" && <button onClick={(e) => { e.stopPropagation(); markRead(n.id); }} className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]"><CheckCircle2 className="w-3.5 h-3.5" /></button>}
@@ -221,12 +221,12 @@ export default function NotificationsPage() {
           <div className="space-y-6">
             {Object.entries(preferences.preferences || {}).map(([type, channels]) => (
               <div key={type} className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 capitalize">{type}</h3>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{type}</h3>
                 <div className="flex gap-4">
                   {["in_app", "email", "sms", "push"].map((channel) => (
                     <button key={channel} onClick={() => togglePref(type, channel)}
-                      className={`px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-wider border transition-all ${
-                        channels[channel] ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-primary text-slate-500 border-[var(--border-primary)]"
+                      className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase border transition-all ${
+                        channels[channel] ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-primary text-[var(--text-secondary)] border-[var(--border-primary)]"
                       }`}>
                       {channel === "in_app" ? t("adminMisc.notifications.inApp") : channel.charAt(0).toUpperCase() + channel.slice(1)}
                     </button>
@@ -235,7 +235,7 @@ export default function NotificationsPage() {
               </div>
             ))}
             <div className="card">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t("adminMisc.notifications.deliverySettings")}</h3>
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">{t("adminMisc.notifications.deliverySettings")}</h3>
               <div className="space-y-3">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
                   <span className="text-[10px] font-bold text-[var(--text-primary)]">{t("adminMisc.notifications.digestFrequency")}</span>
@@ -245,7 +245,7 @@ export default function NotificationsPage() {
                       setPreferences((p) => ({ ...p, digest_frequency: e.target.value }));
                       notify(t("adminMisc.notifications.updated"));
                     }}
-                    className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-[9px] font-bold outline-none">
+                    className="bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-1.5 text-sm font-bold outline-none">
                     <option value="realtime">{t("adminMisc.notifications.realtime")}</option><option value="hourly">{t("adminMisc.notifications.hourly")}</option><option value="daily">{t("adminMisc.notifications.daily")}</option><option value="weekly">{t("adminMisc.notifications.weekly")}</option>
                   </select>
                 </div>

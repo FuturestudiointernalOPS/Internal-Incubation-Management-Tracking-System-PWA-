@@ -44,7 +44,7 @@ export default function ErrorPage({ error, reset }) {
           <>
             <br />
             <span
-              className="text-[9px] font-mono mt-2 block opacity-60"
+              className="text-[10px] font-mono mt-2 block opacity-60"
               style={{ color: "var(--text-tertiary)" }}
             >
               {t(error.message || "") || error.message}

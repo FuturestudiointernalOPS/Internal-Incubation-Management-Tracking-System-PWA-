@@ -78,15 +78,15 @@ export default function PlatformSettings() {
                       {mod.name}
                     </p>
                     {mod.future && (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[7px] font-black uppercase">
+                      <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[10px] font-bold uppercase">
                         {t("platformMisc.settings.futureBadge")}
                       </span>
                     )}
                   </div>
-                  <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {mod.description}
                   </p>
-                  <p className="text-[8px] text-[var(--text-secondary)] mt-1 opacity-50">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                     {t("platformMisc.settings.moduleMeta", {
                       id: mod.id,
                       order: mod.order,
@@ -99,7 +99,7 @@ export default function PlatformSettings() {
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
-                      "flex items-center gap-1 text-[8px] font-black uppercase",
+                      "flex items-center gap-1 text-[10px] font-bold uppercase",
                       mod.enabled ? "text-emerald-500" : "text-rose-500",
                     )}
                   >
@@ -145,7 +145,7 @@ export default function PlatformSettings() {
                   <td className="px-4 py-3">
                     <span
                       className={cn(
-                        "flex items-center gap-1.5 text-[9px] font-black uppercase",
+                        "flex items-center gap-1.5 text-[10px] font-bold uppercase",
                         svc.loaded ? "text-emerald-500" : "text-amber-500",
                       )}
                     >
@@ -186,7 +186,7 @@ export default function PlatformSettings() {
             {t("platformMisc.settings.registryIntro2")}{" "}
             <code className="text-[var(--brand-orange)]">src/lib/platform/registry.js</code>.
           </p>
-          <pre className="p-4 rounded-xl bg-primary text-[9px] font-mono text-[var(--text-secondary)] overflow-x-auto">
+          <pre className="p-4 rounded-xl bg-primary text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto">
 {`{
   id: "module-id",
   name: "Module Name",

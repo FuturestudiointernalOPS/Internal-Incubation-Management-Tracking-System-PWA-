@@ -102,8 +102,8 @@ export default function SuperAdminStandardization() {
                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }} className="ios-card w-full max-w-md !p-10 space-y-8 border-[#FF6600]/20">
                     <div className="flex justify-between items-start">
                        <div className="space-y-2">
-                          <h3 className="text-2xl font-black text-white uppercase italic">{t("adminMisc.standardization.updateStandard")}</h3>
-                          <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("adminMisc.standardization.renameOperationalNode")}</p>
+                          <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{t("adminMisc.standardization.updateStandard")}</h3>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.standardization.renameOperationalNode")}</p>
                        </div>
                        <button onClick={() => { setEditingItem(null); setError(''); }} className="text-slate-600 hover:text-white transition-colors"><X className="w-6 h-6" /></button>
                     </div>
@@ -118,14 +118,14 @@ export default function SuperAdminStandardization() {
                        <div className="grid grid-cols-2 gap-4">
                           <button 
                              onClick={() => { setEditingItem(null); setError(''); }}
-                             className="py-5 bg-white/5 text-slate-500 font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white/10 transition-all italic"
+                             className="py-5 bg-white/5 text-slate-500 font-bold uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white/10 transition-all"
                           >
                              {t("adminMisc.standardization.cancel")}
                           </button>
                           <button 
                              onClick={() => handleSaveType(editingItem)}
                              disabled={isProcessing || !editingItem.label}
-                             className="py-5 bg-[#FF6600] text-black font-black uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20 italic"
+                             className="py-5 bg-[#FF6600] text-black font-bold uppercase text-[10px] tracking-widest rounded-2xl hover:bg-white transition-all shadow-xl shadow-[#FF6600]/20"
                           >
                              {isProcessing ? t("adminMisc.standardization.saving") : t("adminMisc.standardization.saveEvolution")}
                           </button>
@@ -141,9 +141,9 @@ export default function SuperAdminStandardization() {
               <div className="space-y-4">
                  <div className="flex items-center gap-4">
                     <Shield className="w-5 h-5 text-[#FF6600]" />
-                    <span className="text-[10px] font-black text-[#FF6600] uppercase tracking-[0.4em]">{t("adminMisc.standardization.operationalGovernance")}</span>
+                    <span className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">{t("adminMisc.standardization.operationalGovernance")}</span>
                  </div>
-                 <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tighter uppercase italic leading-none">{t("adminMisc.standardization.operationalStandards")}</h2>
+                 <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tighter uppercase leading-none">{t("adminMisc.standardization.operationalStandards")}</h2>
               </div>
               <button 
                  onClick={() => router.push('/admin/programs')}
@@ -157,21 +157,21 @@ export default function SuperAdminStandardization() {
            <div className="flex items-center gap-10 border-b border-white/5 pb-4">
                 <button 
                    onClick={() => setActiveTab('task')}
-                   className={`text-[11px] font-black uppercase tracking-[0.3em] pb-4 transition-all relative ${activeTab === 'task' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
+                   className={`text-[11px] font-bold uppercase tracking-widest pb-4 transition-all relative ${activeTab === 'task' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
                 >
                    {t("adminMisc.standardization.tabTasks")}
                    {activeTab === 'task' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6600]" />}
                 </button>
                 <button 
                    onClick={() => setActiveTab('deliverable')}
-                   className={`text-[11px] font-black uppercase tracking-[0.3em] pb-4 transition-all relative ${activeTab === 'deliverable' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
+                   className={`text-[11px] font-bold uppercase tracking-widest pb-4 transition-all relative ${activeTab === 'deliverable' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
                 >
                    {t("adminMisc.standardization.tabDeliverables")}
                    {activeTab === 'deliverable' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6600]" />}
                 </button>
                 <button 
                    onClick={() => setActiveTab('media')}
-                   className={`text-[11px] font-black uppercase tracking-[0.3em] pb-4 transition-all relative ${activeTab === 'media' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
+                   className={`text-[11px] font-bold uppercase tracking-widest pb-4 transition-all relative ${activeTab === 'media' ? 'text-[#FF6600]' : 'text-slate-500 hover:text-white'}`}
                 >
                    {t("adminMisc.standardization.tabMedia")}
                    {activeTab === 'media' && <motion.div layoutId="tab-active" className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#FF6600]" />}
@@ -189,11 +189,11 @@ export default function SuperAdminStandardization() {
                  <div className="flex-1 space-y-4 w-full">
                     <div className="flex items-center gap-4">
                        <Plus className="w-5 h-5 text-[#FF6600]" />
-                       <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">{t("adminMisc.standardization.registerNew", { type: activeTab === 'task' ? t("adminMisc.standardization.operationalTask") : t("adminMisc.standardization.tacticalDeliverable") })}</h4>
+                       <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t("adminMisc.standardization.registerNew", { type: activeTab === 'task' ? t("adminMisc.standardization.operationalTask") : t("adminMisc.standardization.tacticalDeliverable") })}</h4>
                     </div>
                     <input 
                        placeholder={t("adminMisc.standardization.enterNamePlaceholder", { category: activeTab === 'deliverable' ? t("adminMisc.standardization.deliverableName") : t("adminMisc.standardization.taskName"), example: activeTab === 'deliverable' ? t("adminMisc.standardization.pitchDeck") : t("adminMisc.standardization.workshop") })}
-                       className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black text-2xl uppercase placeholder:text-slate-700 tracking-widest italic focus:border-[#FF6600] transition-all"
+                       className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black text-2xl uppercase placeholder:text-slate-700 tracking-widest focus:border-[#FF6600] transition-all"
                        value={newType.label}
                        onChange={e => setNewType({ category: activeTab, label: e.target.value })}
                     />
@@ -201,7 +201,7 @@ export default function SuperAdminStandardization() {
                  <button 
                     onClick={() => handleSaveType({ category: activeTab, label: newType.label })}
                     disabled={!newType.label || isProcessing}
-                    className="w-full md:w-auto px-16 py-8 bg-[#FF6600] text-black font-black uppercase text-[12px] tracking-[0.3em] rounded-3xl hover:bg-white transition-all disabled:opacity-20 shadow-2xl shadow-[#FF6600]/30 italic whitespace-nowrap"
+                    className="w-full md:w-auto px-16 py-8 bg-[#FF6600] text-black font-black uppercase text-[12px] tracking-widest rounded-3xl hover:bg-white transition-all disabled:opacity-20 shadow-2xl shadow-[#FF6600]/30 whitespace-nowrap"
                  >
                     {isProcessing ? t("adminMisc.standardization.deploying") : t("adminMisc.standardization.addNew", { category: activeTab === 'deliverable' ? t("adminMisc.standardization.deliverableName") : t("adminMisc.standardization.taskName") })}
                  </button>
@@ -210,8 +210,8 @@ export default function SuperAdminStandardization() {
               <div className="ios-card bg-white/[0.01] border-white/5 !p-10 flex items-center gap-6 opacity-60 grayscale shadow-inner">
                  <Lock className="w-8 h-8 text-slate-600" />
                  <div className="text-left">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic leading-none mb-2">{t("adminMisc.standardization.immutableMediaRegistry")}</h4>
-                    <p className="text-xs font-bold text-slate-700 italic">{t("adminMisc.standardization.submissionFormatsLocked")}</p>
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none mb-2">{t("adminMisc.standardization.immutableMediaRegistry")}</h4>
+                    <p className="text-xs font-bold text-slate-700">{t("adminMisc.standardization.submissionFormatsLocked")}</p>
                  </div>
               </div>
            )}
@@ -219,7 +219,7 @@ export default function SuperAdminStandardization() {
            <div className="space-y-8">
               <div className="flex items-center gap-4">
                  <div className="h-px flex-1 bg-white/5" />
-                 <h3 className="text-[10px] font-black text-slate-700 uppercase tracking-[0.5em] italic">{t("adminMisc.standardization.activeRegistry")}</h3>
+                 <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest">{t("adminMisc.standardization.activeRegistry")}</h3>
                  <div className="h-px flex-1 bg-white/5" />
               </div>
 
@@ -238,7 +238,7 @@ export default function SuperAdminStandardization() {
                              <div className="w-12 h-12 rounded-xl bg-white/5 flex items-center justify-center text-slate-600 group-hover:text-[#FF6600] group-hover:bg-[#FF6600]/10 transition-all border border-white/5 group-hover:border-[#FF6600]/20">
                                 <IconComponent className="w-5 h-5" />
                              </div>
-                             <span className="text-sm font-black text-white uppercase tracking-widest italic">{item.label}</span>
+                             <span className="text-sm font-black text-white uppercase tracking-widest">{item.label}</span>
                           </div>
                           
                           {/* BUTTONS - HIDDEN FOR MEDIA */}
@@ -259,7 +259,7 @@ export default function SuperAdminStandardization() {
               
               {types.filter(t => t.category === activeTab).length === 0 && (
                  <div className="py-20 text-center border-2 border-dashed border-white/5 rounded-[3rem] opacity-30">
-                    <p className="text-[11px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.standardization.registryEmpty")}</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.standardization.registryEmpty")}</p>
                  </div>
               )}
            </div>

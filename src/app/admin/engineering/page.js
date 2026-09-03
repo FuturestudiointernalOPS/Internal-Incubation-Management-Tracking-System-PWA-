@@ -150,20 +150,20 @@ export default function EngineeringOperations() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Wrench className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("engineering.overview.eyebrow")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("engineering.overview.title")}
             </h1>
-            <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("engineering.overview.subtitle")}
             </p>
           </div>
           <button
             onClick={fetchDashboard}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("engineering.overview.refresh")}
           </button>
@@ -190,7 +190,7 @@ export default function EngineeringOperations() {
                   className="card bg-secondary border-[var(--border-primary)] p-5 space-y-2 hover:border-[var(--brand-orange)]/30 transition-all text-left"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {stat.label}
                     </p>
                     <div
@@ -223,10 +223,10 @@ export default function EngineeringOperations() {
                   <Bug className="w-6 h-6 text-red-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                     {t("engineering.overview.errorLogs")}
                   </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.unresolvedCount", { count: data?.unresolvedErrors?.length || 0 })}
                   </p>
                 </div>
@@ -239,10 +239,10 @@ export default function EngineeringOperations() {
                   <Users className="w-6 h-6 text-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                     {t("engineering.overview.developers")}
                   </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.teamMembersCount", { count: data?.developers?.length || 0 })}
                   </p>
                 </div>
@@ -255,10 +255,10 @@ export default function EngineeringOperations() {
                   <ListTodo className="w-6 h-6 text-amber-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                     {t("engineering.overview.devTasks")}
                   </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.activeTasksCount", { count: data?.activeTasks?.length || 0 })}
                   </p>
                 </div>
@@ -271,10 +271,10 @@ export default function EngineeringOperations() {
                   <BarChart3 className="w-6 h-6 text-emerald-400" />
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                     {t("engineering.overview.reports")}
                   </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {t("engineering.overview.reportsSubtitle")}
                   </p>
                 </div>
@@ -287,13 +287,13 @@ export default function EngineeringOperations() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Bug className="w-4 h-4 text-red-400" />
-                    <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+                    <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                       {t("engineering.overview.recentUnresolvedErrors")}
                     </h2>
                   </div>
                   <button
                     onClick={() => router.push("/admin/engineering/error-logs")}
-                    className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest hover:underline"
+                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("engineering.overview.viewAll")}
                   </button>
@@ -311,7 +311,7 @@ export default function EngineeringOperations() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span
-                              className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                 err.severity === "critical"
                                   ? "bg-red-500/10 text-red-400"
                                   : err.severity === "fatal"
@@ -322,15 +322,15 @@ export default function EngineeringOperations() {
                               {t(SEV_KEYS[err.severity] || "") || err.severity}
                             </span>
                             {err.task_id && (
-                              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider">
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase">
                                 {t("engineering.overview.taskNumber", { taskId: err.task_id })}
                               </span>
                             )}
                           </div>
-                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                             {t(err.message || "") || err.message}
                           </p>
-                          <p className="text-[8px] font-bold text-slate-500 mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {err.page && `${err.page}`}
                             {err.user_name && ` — ${err.user_name}`}
                             {err.created_at &&
@@ -350,10 +350,10 @@ export default function EngineeringOperations() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-red-400" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                     {t("engineering.overview.overdueTasks")}
                   </h2>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-400 uppercase tracking-wider">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-red-500/10 text-red-400 uppercase">
                     {data.overdueTasks.length}
                   </span>
                 </div>
@@ -365,10 +365,10 @@ export default function EngineeringOperations() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                             {task.title}
                           </p>
-                          <p className="text-[8px] font-bold text-slate-500 mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {task.assignee_name &&
                               t("engineering.overview.assignedTo", { name: task.assignee_name })}
                             {task.end_date &&
@@ -376,12 +376,12 @@ export default function EngineeringOperations() {
                           </p>
                         </div>
                         <span
-                          className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ml-2 ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase shrink-0 ml-2 ${
                             task.priority === "critical"
                               ? "bg-red-500/10 text-red-400"
                               : task.priority === "high"
                                 ? "bg-amber-500/10 text-amber-400"
-                                : "bg-slate-500/10 text-slate-400"
+                                : "bg-slate-500/10 text-[var(--text-secondary)]"
                           }`}
                         >
                           {t(SEV_KEYS[task.priority] || "") || task.priority || t("engineering.overview.severityValues.medium")}
@@ -398,7 +398,7 @@ export default function EngineeringOperations() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                     {t("engineering.overview.activeBlockers")}
                   </h2>
                 </div>
@@ -410,17 +410,17 @@ export default function EngineeringOperations() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-bold text-[var(--text-primary)] truncate">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                             {blocker.title}
                           </p>
-                          <p className="text-[8px] font-bold text-slate-500 mt-0.5">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                             {t("engineering.overview.taskTitle", { title: blocker.task_title })}
                             {blocker.reported_by_name &&
                               ` — ${t("engineering.overview.reportedBy", { name: blocker.reported_by_name })}`}
                           </p>
                         </div>
                         <span
-                          className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider shrink-0 ml-2 ${
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase shrink-0 ml-2 ${
                             blocker.severity === "critical"
                               ? "bg-red-500/10 text-red-400"
                               : "bg-amber-500/10 text-amber-400"

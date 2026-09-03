@@ -390,7 +390,7 @@ export function FacilitatorsPanel({ programId }) {
           <div className="flex items-center gap-2">
             <button
               onClick={openInviteModal}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
             >
               <Send className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.inviteFacilitators")}
             </button>
@@ -407,10 +407,10 @@ export function FacilitatorsPanel({ programId }) {
         <div className="flex items-center gap-3 p-4 rounded-2xl border border-blue-500/20 bg-blue-500/5">
           <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0" />
           <div>
-            <p className="text-[10px] font-black uppercase text-blue-400">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
               {t("pmMisc.facilitators.systemGroupLabel")}
             </p>
-            <p className="text-[9px] text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("pmMisc.facilitators.systemGroupDescription")}
             </p>
           </div>
@@ -423,10 +423,10 @@ export function FacilitatorsPanel({ programId }) {
           </h2>
           {conflictError && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 space-y-2">
-              <p className="text-[9px] font-black uppercase text-rose-400">{t("errors.roleConflictParticipantFacilitator")}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">{t("errors.roleConflictParticipantFacilitator")}</p>
               <a
                 href={`mailto:info@futurestudio.bj?subject=${encodeURIComponent(t("pmMisc.facilitators.conflictSubject", { program: program?.name || id }))}&body=${encodeURIComponent(t("pmMisc.facilitators.conflictBody", { name: conflictError.name, email: conflictError.email, program: program?.name || id }))}`}
-                className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase text-[var(--brand-orange)] hover:underline"
+                className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:underline"
               >
                 <Mail className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.contactSupport")}
               </a>
@@ -450,19 +450,19 @@ export function FacilitatorsPanel({ programId }) {
                 onClick={() => addFacilitator(c)}
                 className="w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-dashed border-[var(--border-primary)] hover:border-[var(--brand-orange)] text-left transition-all"
               >
-                <span className="text-[10px] font-black uppercase truncate">{c.name}</span>
-                <span className="text-[9px] text-[var(--text-secondary)] truncate">{c.email}</span>
+                <span className="text-[10px] font-bold uppercase truncate">{c.name}</span>
+                <span className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{c.email}</span>
                 <Plus className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
               </button>
             ))}
             {search.trim() && filteredPool.length === 0 && (
-              <p className="text-[9px] italic text-[var(--text-secondary)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("pmMisc.facilitators.noContacts")}
               </p>
             )}
           </div>
 
-          <p className="text-[9px] text-[var(--text-secondary)]">
+          <p className="text-sm text-[var(--text-secondary)]">
             {t("pmMisc.facilitators.inviteHint")}
           </p>
         </section>
@@ -477,8 +477,8 @@ export function FacilitatorsPanel({ programId }) {
               onClick={() => saveProgramConfig({ facilitator_scope: "assigned_groups" })}
               className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
-              <p className="text-[10px] font-black uppercase">{t("pmMisc.facilitators.assignedGroupsOnly")}</p>
-              <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+              <p className="text-[11px] font-bold uppercase tracking-wide">{t("pmMisc.facilitators.assignedGroupsOnly")}</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
                 {t("pmMisc.facilitators.assignedGroupsDesc")}
               </p>
             </button>
@@ -486,8 +486,8 @@ export function FacilitatorsPanel({ programId }) {
               onClick={() => saveProgramConfig({ facilitator_scope: "all" })}
               className={`p-4 rounded-2xl border text-left transition-all ${program.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
             >
-              <p className="text-[10px] font-black uppercase">{t("pmMisc.facilitators.allParticipants")}</p>
-              <p className="text-[9px] text-[var(--text-secondary)] mt-1">
+              <p className="text-[11px] font-bold uppercase tracking-wide">{t("pmMisc.facilitators.allParticipants")}</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-1">
                 {t("pmMisc.facilitators.allParticipantsDesc")}
               </p>
             </button>
@@ -506,7 +506,7 @@ export function FacilitatorsPanel({ programId }) {
                 <button
                   key={cap.key}
                   onClick={() => toggleDefault(cap.key)}
-                  className={`p-3 rounded-xl border text-left text-[9px] font-black uppercase transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                  className={`p-3 rounded-xl border text-left text-[10px] font-bold uppercase transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
                   {t(cap.label)}
                   {active ? " ✓" : ""}
@@ -526,18 +526,18 @@ export function FacilitatorsPanel({ programId }) {
               <div key={f.id} className="rounded-2xl border border-[var(--border-primary)] p-4 bg-secondary space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-black uppercase truncate">{f.name || f.email || f.cid}</p>
-                    <p className="text-[9px] text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
+                    <p className="text-[11px] font-bold uppercase truncate">{f.name || f.email || f.cid}</p>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{f.email && f.email !== f.name ? f.email : ""}</p>
                   </div>
                   <button
                     onClick={() => removeFacilitator(f)}
-                    className="flex items-center gap-1 text-[9px] font-black uppercase text-rose-400 hover:underline shrink-0"
+                    className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-rose-400 hover:underline shrink-0"
                   >
                     <Trash2 className="w-3 h-3" /> {t("pmMisc.facilitators.remove")}
                   </button>
                 </div>
                 <div>
-                  <p className="text-[8px] font-black uppercase text-[var(--text-secondary)] mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                     {t("pmMisc.facilitators.individualOverrides")}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -547,7 +547,7 @@ export function FacilitatorsPanel({ programId }) {
                         <button
                           key={cap.key}
                           onClick={() => toggleOverride(f, cap.key)}
-                          className={`p-2 rounded-lg border text-left text-[8px] font-black uppercase truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                          className={`p-2 rounded-lg border text-left text-[10px] font-bold uppercase truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                         >
                           {t(cap.label)}
                           {active ? " ✓" : ""}
@@ -559,7 +559,7 @@ export function FacilitatorsPanel({ programId }) {
               </div>
             ))}
             {(program.facilitators || []).length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-4 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
                 {t("pmMisc.facilitators.noneAssigned")}
               </p>
             )}
@@ -578,7 +578,7 @@ export function FacilitatorsPanel({ programId }) {
                 <select
                   value={g.lead_facilitator_id || ""}
                   onChange={(e) => setLead(g.id, e.target.value || null)}
-                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none cursor-pointer max-w-[45%]"
+                  className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer max-w-[45%]"
                 >
                   <option value="">{t("pmMisc.facilitators.noneOption")}</option>
                   {(program.facilitators || []).map((f) => (
@@ -588,7 +588,7 @@ export function FacilitatorsPanel({ programId }) {
               </div>
             ))}
             {families.length === 0 && (
-              <p className="text-[9px] italic text-[var(--text-secondary)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("pmMisc.facilitators.noGroups")}
               </p>
             )}
@@ -602,7 +602,7 @@ export function FacilitatorsPanel({ programId }) {
           </h2>
           <div className="space-y-3">
             {reviews.length === 0 && (
-              <p className="text-[10px] italic text-[var(--text-secondary)] py-4 text-center">
+              <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
                 {t("pmMisc.facilitators.noReviews")}
               </p>
             )}
@@ -611,11 +611,11 @@ export function FacilitatorsPanel({ programId }) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <ClipboardList className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <p className="text-[10px] font-black uppercase">
+                    <p className="text-[11px] font-bold uppercase tracking-wide">
                       {r.facilitator_name || r.facilitator_id}
                     </p>
                   </div>
-                  <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded ${
+                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                     r.pm_decision === "changes_requested"
                       ? "bg-rose-500/15 text-rose-400"
                       : r.status === "decided"
@@ -625,7 +625,7 @@ export function FacilitatorsPanel({ programId }) {
                     {reviewStatusLabel(r)}
                   </span>
                 </div>
-                <div className="grid sm:grid-cols-2 gap-2 text-[9px]">
+                <div className="grid sm:grid-cols-2 gap-2 text-[10px]">
                   {(r.overall_rating || r.participant_progress) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.overall")}</strong> {reviewRatingLabel(r.overall_rating) || r.participant_progress}</p>}
                   {r.engagement && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.engagement")}</strong> {reviewEngagementLabel(r.engagement)}</p>}
                   {(r.went_well || r.completed_work) && <p className="text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.weeklyReview.wentWell")}</strong> {r.went_well || r.completed_work}</p>}
@@ -636,12 +636,12 @@ export function FacilitatorsPanel({ programId }) {
                 </div>
                 {r.pm_decision ? (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-                    <p className="text-[8px] font-black uppercase text-emerald-400 mb-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
                       {t("pmMisc.facilitators.pmDecision", { pm: r.pm_decision_by || t("pmMisc.facilitators.pmShort") })}
                     </p>
-                    <p className="text-[9px] text-[var(--text-primary)]">{r.pm_decision}</p>
+                    <p className="text-[10px] font-bold text-[var(--text-primary)]">{r.pm_decision}</p>
                     {r.pm_decision_note && (
-                      <p className="text-[9px] text-[var(--text-secondary)] mt-1">{r.pm_decision_note}</p>
+                      <p className="text-sm text-[var(--text-secondary)] mt-1">{r.pm_decision_note}</p>
                     )}
                   </div>
                 ) : (
@@ -661,13 +661,13 @@ export function FacilitatorsPanel({ programId }) {
                     <div className="flex gap-2">
                       <button
                         onClick={() => recordDecision(r.id, "acknowledged")}
-                        className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
+                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"
                       >
                         <Check className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.acknowledge")}
                       </button>
                       <button
                         onClick={() => recordDecision(r.id, "changes_requested")}
-                        className="flex items-center gap-1.5 text-[9px] font-black uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
+                        className="flex items-center gap-1.5 text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg bg-amber-500/15 text-amber-400 hover:bg-amber-500/25"
                       >
                         <RotateCcw className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.weeklyReview.requestChanges")}
                       </button>
@@ -684,7 +684,7 @@ export function FacilitatorsPanel({ programId }) {
           <div className="fixed inset-0 z-[600] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-base font-black uppercase tracking-tight">{t("pmMisc.facilitators.inviteModalTitle")}</h2>
+                <h2 className="text-lg font-black text-[var(--text-primary)] tracking-tight">{t("pmMisc.facilitators.inviteModalTitle")}</h2>
                 <button onClick={() => setShowInviteModal(false)} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)]"><X className="w-4 h-4" /></button>
               </div>
               <p className="text-[10px] text-[var(--text-secondary)]">{t("pmMisc.facilitators.inviteModalDescription")}</p>
@@ -699,11 +699,11 @@ export function FacilitatorsPanel({ programId }) {
                 <button
                   onClick={handlePreviewInvites}
                   disabled={previewing || !parseInviteEmails().length}
-                  className="px-3 py-2 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
+                  className="px-3 py-2 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-40"
                 >
                   {t("pmMisc.facilitators.review")}
                 </button>
-                <p className="text-[9px] text-[var(--text-secondary)] text-right">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] text-right">
                   {t("pmMisc.facilitators.defaultAccess")} <strong className="text-[var(--text-primary)]">{t("pmMisc.facilitators.fullAccess")}</strong>
                 </p>
               </div>
@@ -714,9 +714,9 @@ export function FacilitatorsPanel({ programId }) {
                     <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold truncate">{r.email}</p>
-                        {r.name && <p className="text-[9px] text-[var(--text-secondary)]">{r.name}</p>}
+                        {r.name && <p className="text-[10px] font-medium text-[var(--text-secondary)]">{r.name}</p>}
                       </div>
-                      <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "conflict" || r.status === "invalid" || r.status === "already_facilitator" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${r.status === "conflict" || r.status === "invalid" || r.status === "already_facilitator" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}>
                         {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
                       </span>
                     </div>
@@ -730,9 +730,9 @@ export function FacilitatorsPanel({ programId }) {
                     <div key={r.email} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border-primary)] bg-primary">
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold truncate">{r.name || r.email}</p>
-                        <p className="text-[9px] text-[var(--text-secondary)] truncate">{r.email}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">{r.email}</p>
                       </div>
-                      <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded ${r.status === "invited" || r.status === "activation_sent" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                      <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded ${r.status === "invited" || r.status === "activation_sent" ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
                         {t(`pmMisc.facilitators.inviteStatus_${r.status}`) || r.status}
                       </span>
                     </div>
@@ -741,14 +741,14 @@ export function FacilitatorsPanel({ programId }) {
               )}
 
               <div className="flex justify-end gap-2 pt-2">
-                <button onClick={() => setShowInviteModal(false)} className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase text-[var(--text-secondary)]">
+                <button onClick={() => setShowInviteModal(false)} className="px-4 py-2.5 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase text-[var(--text-secondary)]">
                   {t("pmMisc.facilitators.cancel")}
                 </button>
                 {!inviteResults && (
                   <button
                     onClick={handleInviteAll}
                     disabled={inviting || !parseInviteEmails().length}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase disabled:opacity-40"
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-wide disabled:opacity-40"
                   >
                     <Send className="w-3.5 h-3.5" /> {t("pmMisc.facilitators.inviteAll")}
                   </button>

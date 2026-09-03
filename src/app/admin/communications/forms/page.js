@@ -367,7 +367,7 @@ export default function FormsPage() {
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
-                    <span className="badge badge-glow-success uppercase text-[8px] font-black h-fit ml-2">
+                    <span className="badge badge-glow-success uppercase text-[10px] font-bold h-fit ml-2">
                       {t("crm.forms.active")}
                     </span>
                   </div>
@@ -376,13 +376,13 @@ export default function FormsPage() {
                 <h3 className="text-xl font-black text-white uppercase tracking-tighter mb-1 truncate">
                   {f.name}
                 </h3>
-                <p className="text-xs text-slate-500 font-bold mb-6 italic">
+                <p className="text-xs text-slate-500 font-bold mb-6">
                   {t("crm.forms.idLabel")} {f.form_id}
                 </p>
 
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div className="bg-white/5 border border-white/5 rounded-2xl p-4 flex flex-col">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
                       {t("crm.forms.questions")}
                     </p>
                     <p className="text-lg font-black text-white">
@@ -393,7 +393,7 @@ export default function FormsPage() {
                     onClick={() => openResponses(f)}
                     className="bg-[#FF6600]/10 border border-[#FF6600]/20 rounded-2xl p-4 flex flex-col hover:bg-[#FF6600]/20 transition-all group/resp"
                   >
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 group-hover/resp:text-[#FF6600]">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover/resp:text-[#FF6600]">
                       {t("crm.forms.responses")}
                     </p>
                     <p className="text-lg font-black text-white">{t("crm.forms.viewList")}</p>
@@ -432,7 +432,7 @@ export default function FormsPage() {
                   <h3 className="text-xl font-black text-white uppercase tracking-tighter">
                     {selectedForm.name} — {t("crm.forms.responses")}
                   </h3>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                     {t("crm.forms.submissionsFound", { count: responses.length })}
                   </p>
                 </div>
@@ -443,16 +443,16 @@ export default function FormsPage() {
               <table className="executive-table w-full">
                 <thead>
                   <tr className="border-b border-white/5 bg-white/[0.02]">
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left">
                       {t("crm.forms.respondent")}
                     </th>
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left">
                       {t("crm.forms.originGroup")}
                     </th>
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-left">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left">
                       {t("crm.forms.submissionDate")}
                     </th>
-                    <th className="px-8 py-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">
                       {t("crm.forms.action")}
                     </th>
                   </tr>
@@ -464,7 +464,7 @@ export default function FormsPage() {
                       className="group hover:bg-white/[0.01] border-b border-white/[0.02]"
                     >
                       <td className="px-8 py-6">
-                        <p className="font-black text-white uppercase italic">
+                        <p className="font-bold text-white uppercase">
                           {r.name || t("crm.forms.anonymous")}
                         </p>
                         <p className="text-[10px] font-bold text-slate-500 font-mono">
@@ -472,7 +472,7 @@ export default function FormsPage() {
                         </p>
                       </td>
                       <td className="px-8 py-6">
-                        <p className="text-[10px] font-black text-white uppercase italic">
+                        <p className="text-[10px] font-bold text-white uppercase">
                           {r.group_name || t("crm.forms.individual")}
                         </p>
                       </td>
@@ -487,7 +487,7 @@ export default function FormsPage() {
                             setSelectedResponse(r);
                             setShowResponseDetails(true);
                           }}
-                          className="px-4 py-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-400 hover:text-[#FF6600] transition-all border border-white/5 text-[10px] font-black uppercase tracking-widest"
+                          className="px-4 py-2 bg-white/5 hover:bg-[#FF6600]/10 rounded-lg text-slate-400 hover:text-[#FF6600] transition-all border border-white/5 text-[10px] font-bold uppercase tracking-widest"
                         >
                           {t("crm.forms.viewDetails")}
                         </button>
@@ -519,7 +519,7 @@ export default function FormsPage() {
             <div className="relative w-full max-w-2xl bg-[#0d0d18] border border-white/10 rounded-[2rem] shadow-2xl overflow-hidden animation-pop">
               <header className="px-8 py-6 border-b border-white/5 flex items-center justify-between">
                 <div>
-                  <h4 className="text-xl font-black text-white uppercase italic">
+                  <h4 className="text-xl font-black text-white uppercase">
                     {t("crm.forms.responseDetails")}
                   </h4>
                   <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">
@@ -537,7 +537,7 @@ export default function FormsPage() {
                 {Object.entries(selectedResponse.answers).map(
                   ([key, val], idx) => (
                     <div key={idx} className="space-y-2">
-                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         {t("crm.forms.questionNumber", { n: idx + 1 })}
                       </p>
                       <div className="p-4 bg-white/5 border border-white/5 rounded-2xl">
@@ -582,7 +582,7 @@ export default function FormsPage() {
               <div className="flex-1 overflow-auto p-8 custom-scrollbar">
                 <div className="max-w-2xl mx-auto space-y-8">
                   <div>
-                    <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-3">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-3">
                       {t("crm.forms.formNameLabel")}
                     </label>
                     <input
@@ -595,7 +595,7 @@ export default function FormsPage() {
                   </div>
 
                   <div className="space-y-4">
-                    <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">
+                    <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
                       {t("crm.forms.deploymentContext")}
                     </label>
                     <div className="flex gap-4">
@@ -641,14 +641,14 @@ export default function FormsPage() {
                         />
                       )}
                     </div>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest italic opacity-60">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-60">
                       {t("crm.forms.linkGroupHint")}
                     </p>
                   </div>
 
                   <div className="space-y-6">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                         {t("crm.forms.questions")}
                       </h4>
                       <span className="badge bg-white/5 text-white">
@@ -684,7 +684,7 @@ export default function FormsPage() {
                               />
                             </div>
                             <div className="flex items-center gap-4">
-                              <span className="text-[10px] uppercase font-black tracking-widest text-slate-500 bg-white/5 px-2 py-1 rounded">
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-slate-500 bg-white/5 px-2 py-1 rounded">
                                 {field.type === "text"
                                   ? t("crm.forms.freeText")
                                   : t("crm.forms.yesNo")}

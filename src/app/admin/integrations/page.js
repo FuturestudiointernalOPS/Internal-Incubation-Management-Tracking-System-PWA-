@@ -299,11 +299,11 @@ export default function IntegrationsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter flex items-center gap-2">
               <Plug className="text-[var(--brand-orange)]" size={24} />
               {t("adminMisc.integrations.title")}
             </h1>
-            <p className="text-gray-400 mt-1">{t("adminMisc.integrations.subtitle")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("adminMisc.integrations.subtitle")}</p>
           </div>
           <button onClick={fetchData} className="flex items-center gap-2 px-4 py-2 bg-[#0f172a] border border-gray-800 rounded-xl hover:bg-[#1e293b] transition-colors text-sm">
             <RefreshCw size={14} /> {t("adminMisc.integrations.refresh")}
@@ -343,7 +343,7 @@ export default function IntegrationsPage() {
             {activeTab === "integrations" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.connectedIntegrations")}</h2>
+                  <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.connectedIntegrations")}</h2>
                   <button
                     onClick={() => setShowAddIntegration(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
@@ -355,8 +355,8 @@ export default function IntegrationsPage() {
                 {integrations.length === 0 ? (
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                     <Plug className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.integrations.noIntegrations")}</p>
-                    <p className="text-gray-600 text-sm mt-2">{t("adminMisc.integrations.noIntegrationsHint")}</p>
+                    <p className="text-sm text-gray-400">{t("adminMisc.integrations.noIntegrations")}</p>
+                    <p className="text-sm text-gray-600 mt-2">{t("adminMisc.integrations.noIntegrationsHint")}</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -370,7 +370,7 @@ export default function IntegrationsPage() {
                               <p className="text-xs text-gray-500">{integ.provider}</p>
                             </div>
                           </div>
-                          <span className={`text-xs px-2.5 py-1 rounded-full ${
+                          <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full ${
                             integ.status === "connected" ? "bg-emerald-500/10 text-emerald-400" :
                             integ.status === "error" ? "bg-red-500/10 text-red-400" :
                             "bg-gray-500/10 text-gray-400"
@@ -416,7 +416,7 @@ export default function IntegrationsPage() {
             {activeTab === "api_keys" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.apiKeys")}</h2>
+                  <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.apiKeys")}</h2>
                   <button
                     onClick={() => setShowAddKey(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
@@ -445,7 +445,7 @@ export default function IntegrationsPage() {
                 {apiKeys.length === 0 ? (
                   <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                     <Key className="mx-auto mb-3 text-gray-500" size={40} />
-                    <p className="text-gray-400">{t("adminMisc.integrations.noApiKeys")}</p>
+                    <p className="text-sm text-gray-400">{t("adminMisc.integrations.noApiKeys")}</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -456,7 +456,7 @@ export default function IntegrationsPage() {
                             <div className="flex items-center gap-3 mb-2">
                               <Key size={16} className="text-[var(--brand-orange)]" />
                               <p className="font-medium">{key.name}</p>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${key.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
+                              <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${key.is_active ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"}`}>
                                 {key.is_active ? t("adminMisc.integrations.active") : t("adminMisc.integrations.revoked")}
                               </span>
                             </div>
@@ -492,7 +492,7 @@ export default function IntegrationsPage() {
             {activeTab === "webhooks" && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-bold">{t("adminMisc.integrations.webhooks")}</h2>
+                  <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.webhooks")}</h2>
                   <button
                     onClick={() => setShowAddWebhook(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold hover:opacity-90 transition-opacity"
@@ -507,7 +507,7 @@ export default function IntegrationsPage() {
                     {webhooks.length === 0 ? (
                       <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-12 text-center">
                         <Webhook className="mx-auto mb-3 text-gray-500" size={40} />
-                        <p className="text-gray-400">{t("adminMisc.integrations.noWebhooks")}</p>
+                        <p className="text-sm text-gray-400">{t("adminMisc.integrations.noWebhooks")}</p>
                       </div>
                     ) : (
                       <div className="space-y-3">
@@ -529,7 +529,7 @@ export default function IntegrationsPage() {
                               </div>
                               <div className="flex items-center gap-2">
                                 {wh.last_status && (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
                                     wh.last_status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                                   }`}>
                                     {wh.last_status}
@@ -573,7 +573,7 @@ export default function IntegrationsPage() {
                             <div key={log.id} className="bg-[#020617] rounded-lg p-3 text-xs">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-gray-400">{log.event_type}</span>
-                                <span className={`px-1.5 py-0.5 rounded ${
+                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${
                                   log.status === "success" ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
                                 }`}>{log.status}</span>
                               </div>
@@ -599,12 +599,12 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddIntegration(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">{t("adminMisc.integrations.addIntegration")}</h2>
+                <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.addIntegration")}</h2>
                 <button onClick={() => setShowAddIntegration(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.provider")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.provider")}</label>
                   <select value={newIntegration.provider} onChange={(e) => setNewIntegration((p) => ({ ...p, provider: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]">
                     <option value="">{t("adminMisc.integrations.selectProvider")}</option>
@@ -614,7 +614,7 @@ export default function IntegrationsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.labelOptional")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.labelOptional")}</label>
                   <input type="text" value={newIntegration.label} onChange={(e) => setNewIntegration((p) => ({ ...p, label: e.target.value }))}
                     placeholder={t("adminMisc.integrations.labelPlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
@@ -633,31 +633,31 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddKey(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">{t("adminMisc.integrations.generateApiKey")}</h2>
+                <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.generateApiKey")}</h2>
                 <button onClick={() => setShowAddKey(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
                   <input type="text" value={newKey.name} onChange={(e) => setNewKey((k) => ({ ...k, name: e.target.value }))}
                     placeholder={t("adminMisc.integrations.apiKeyNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.description")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.description")}</label>
                   <textarea value={newKey.description} onChange={(e) => setNewKey((k) => ({ ...k, description: e.target.value }))}
                     placeholder={t("adminMisc.integrations.descriptionPlaceholder")}
                     rows={2}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.scopesRequired")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.scopesRequired")}</label>
                   <div className="flex flex-wrap gap-2">
                     {API_SCOPES.map((scope) => (
                       <button key={scope} onClick={() => setNewKey((k) => ({
                         ...k, scopes: k.scopes.includes(scope) ? k.scopes.filter((s) => s !== scope) : [...k.scopes, scope],
                       }))}
-                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                        className={`text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg border transition-colors ${
                           newKey.scopes.includes(scope)
                             ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                             : "bg-[#020617] border-gray-800 text-gray-400 hover:border-gray-600"
@@ -668,7 +668,7 @@ export default function IntegrationsPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.expiresAtOptional")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.expiresAtOptional")}</label>
                   <input type="datetime-local" value={newKey.expires_at} onChange={(e) => setNewKey((k) => ({ ...k, expires_at: e.target.value }))}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
@@ -686,36 +686,36 @@ export default function IntegrationsPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAddWebhook(false)}>
             <div className="bg-[#0f172a] border border-gray-800 rounded-xl w-full max-w-lg m-4" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <h2 className="text-lg font-bold">{t("adminMisc.integrations.createWebhook")}</h2>
+                <h2 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.createWebhook")}</h2>
                 <button onClick={() => setShowAddWebhook(false)} className="p-2 hover:bg-white/5 rounded-lg"><X size={16} /></button>
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.nameRequired")}</label>
                   <input type="text" value={newWebhook.name} onChange={(e) => setNewWebhook((w) => ({ ...w, name: e.target.value }))}
                     placeholder={t("adminMisc.integrations.webhookNamePlaceholder")}
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.callbackUrlRequired")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.callbackUrlRequired")}</label>
                   <input type="url" value={newWebhook.url} onChange={(e) => setNewWebhook((w) => ({ ...w, url: e.target.value }))}
                     placeholder="https://hooks.example.com/notify"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.secretOptional")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.secretOptional")}</label>
                   <input type="text" value={newWebhook.secret} onChange={(e) => setNewWebhook((w) => ({ ...w, secret: e.target.value }))}
                     placeholder="webhook_secret_123"
                     className="w-full px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm text-white placeholder-gray-500 focus:outline-none focus:border-[var(--brand-orange)]" />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-400 mb-1 block">{t("adminMisc.integrations.eventsRequired")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block">{t("adminMisc.integrations.eventsRequired")}</label>
                   <div className="flex flex-wrap gap-2">
                     {WEBHOOK_EVENT_OPTIONS.map((evt) => (
                       <button key={evt} onClick={() => setNewWebhook((w) => ({
                         ...w, events: w.events.includes(evt) ? w.events.filter((e) => e !== evt) : [...w.events, evt],
                       }))}
-                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                        className={`text-[10px] font-bold uppercase px-3 py-1.5 rounded-lg border transition-colors ${
                           newWebhook.events.includes(evt)
                             ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                             : "bg-[#020617] border-gray-800 text-gray-400 hover:border-gray-600"
@@ -743,7 +743,7 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Trash2 size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.removeIntegration")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.disconnectConfirm", { name: confirmAction.name })}</p></div>
+                      <div><h3 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.removeIntegration")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.disconnectConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>
@@ -755,7 +755,7 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Key size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.revokeApiKey")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.revokeConfirm", { name: confirmAction.name })}</p></div>
+                      <div><h3 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.revokeApiKey")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.revokeConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>
@@ -767,7 +767,7 @@ export default function IntegrationsPage() {
                   <>
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-red-500/10 rounded-xl"><Webhook size={24} className="text-red-400" /></div>
-                      <div><h3 className="text-lg font-bold">{t("adminMisc.integrations.deleteWebhook")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.deleteConfirm", { name: confirmAction.name })}</p></div>
+                      <div><h3 className="text-lg font-black tracking-tight">{t("adminMisc.integrations.deleteWebhook")}</h3><p className="text-sm text-gray-400">{t("adminMisc.integrations.deleteConfirm", { name: confirmAction.name })}</p></div>
                     </div>
                     <div className="flex gap-3">
                       <button onClick={() => setConfirmAction(null)} className="flex-1 px-4 py-2.5 bg-[#020617] border border-gray-800 rounded-lg text-sm hover:bg-[#1e293b]">{t("adminMisc.integrations.cancel")}</button>

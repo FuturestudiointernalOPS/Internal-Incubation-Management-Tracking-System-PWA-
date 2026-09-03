@@ -179,7 +179,7 @@ export default function PMGroups() {
             <h1 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
               {t("pmMisc.contacts.myGroups")}
             </h1>
-            <span className="px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)] text-[8px] font-black">
+            <span className="px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold">
               {programs.length} {t("pmMisc.contacts.programs")} · {totalAcrossAll}{" "}
               {t("pmMisc.contacts.contacts")}
             </span>
@@ -200,13 +200,13 @@ export default function PMGroups() {
           {/* ───── Programs Sidebar ───── */}
           <div className="w-56 lg:w-64 flex-shrink-0 border-r border-[var(--border-primary)] bg-tertiary/20 flex flex-col">
             <div className="p-3 border-b border-[var(--border-primary)]">
-              <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("pmMisc.contacts.myPrograms")}
               </p>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1">
               {programs.length === 0 ? (
-                <p className="text-[10px] text-[var(--text-secondary)] italic text-center py-8">
+                <p className="text-sm text-[var(--text-secondary)] text-center py-8">
                   {t("pmMisc.contacts.noProgramsAssigned")}
                 </p>
               ) : (
@@ -248,7 +248,7 @@ export default function PMGroups() {
                         >
                           {prog.name}
                         </p>
-                        <p className="text-[7px] text-[var(--text-secondary)] mt-0.5">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                           {count}{" "}
                           {count !== 1
                             ? t("pmMisc.contacts.contacts")
@@ -291,7 +291,7 @@ export default function PMGroups() {
                         {currentProgram?.name || t("pmMisc.contacts.program")}
                       </h2>
                     </div>
-                    <span className="text-[9px] text-[var(--text-secondary)]">
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {filteredItems.length}{" "}
                       {filteredItems.length !== 1
                         ? t("pmMisc.contacts.items")
@@ -322,7 +322,7 @@ export default function PMGroups() {
                         key={tabItem.id}
                         onClick={() => setTab(tabItem.id)}
                         className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all",
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all",
                           tab === tabItem.id
                             ? "bg-[var(--brand-orange)] text-black"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary",
@@ -354,7 +354,7 @@ export default function PMGroups() {
                             ? t("pmMisc.contacts.noTeamsFound")
                             : t("pmMisc.contacts.noStaffFound")}
                       </p>
-                      <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                         {search
                           ? t("pmMisc.contacts.tryDifferentSearch")
                           : tab === "participants"
@@ -401,13 +401,13 @@ export default function PMGroups() {
                                 <p className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-tight truncate">
                                   {name}
                                 </p>
-                                <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5 truncate">
+                                <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5 truncate">
                                   {role}
                                 </p>
                                 {email && (
                                   <a
                                     href={`mailto:${email}`}
-                                    className="text-[8px] text-[var(--brand-orange)] mt-1 block truncate hover:underline"
+                                    className="text-[10px] text-[var(--brand-orange)] mt-1 block truncate hover:underline"
                                   >
                                     {email}
                                   </a>
@@ -420,7 +420,7 @@ export default function PMGroups() {
                               {email && (
                                 <a
                                   href={`mailto:${email}`}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/20 transition-all text-[8px] font-black uppercase tracking-widest"
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/20 transition-all text-[10px] font-bold uppercase tracking-wide"
                                 >
                                   <Mail className="w-3 h-3" />
                                   {t("pmMisc.contacts.email")}
@@ -429,7 +429,7 @@ export default function PMGroups() {
                               {phone && (
                                 <a
                                   href={`tel:${phone}`}
-                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-emerald-400 hover:border-emerald-500/20 transition-all text-[8px] font-black uppercase tracking-widest"
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-emerald-400 hover:border-emerald-500/20 transition-all text-[10px] font-bold uppercase tracking-wide"
                                 >
                                   <Phone className="w-3 h-3" />
                                   {t("pmMisc.contacts.call")}

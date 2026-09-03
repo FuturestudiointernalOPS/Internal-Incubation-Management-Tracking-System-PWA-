@@ -310,12 +310,12 @@ export default function CrmDetailPage({ params }) {
               </p>
               <div className="flex flex-wrap gap-1.5 mt-3">
                 {currentRoles.map(r => (
-                  <span key={r.id} className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                  <span key={r.id} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                     {t(ROLE_LABELS[r.role] || "") || r.role}
                   </span>
                 ))}
                 {pastRoles.length > 0 && (
-                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)]">
+                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-tertiary text-[var(--text-secondary)]">
                     {t("crm.people.previousCount", { count: pastRoles.length })}
                   </span>
                 )}
@@ -324,7 +324,7 @@ export default function CrmDetailPage({ params }) {
 
             <div className="flex flex-col items-end gap-2 shrink-0">
               <span
-                className={`px-2 py-1 rounded text-[9px] font-black uppercase ${
+                className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${
                   invitationStatus === "activated"
                     ? "bg-emerald-500/10 text-emerald-400"
                     : invitationStatus === "sent"
@@ -338,14 +338,14 @@ export default function CrmDetailPage({ params }) {
               </span>
 
               {invitationStatus === "activated" ? (
-                <span className="text-[9px] font-bold text-emerald-400 uppercase tracking-widest">
+                <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
                   {t("crm.contacts.invitationActivated") || "Activated"}
                 </span>
               ) : (
                 <button
                   onClick={handleInviteUser}
                   disabled={inviting}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
                 >
                   {inviting ? <Clock className="w-3.5 h-3.5 animate-spin" /> : invitationStatus === "not_invited" ? <Send className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
                   {inviting
@@ -358,7 +358,7 @@ export default function CrmDetailPage({ params }) {
 
               {inviteMessage && (
                 <p
-                  className={`text-[9px] font-bold ${
+                  className={`text-[10px] font-bold ${
                     inviteMessage.type === "success" ? "text-emerald-400" : "text-rose-400"
                   }`}
                 >
@@ -417,7 +417,7 @@ export default function CrmDetailPage({ params }) {
                   }`}
                 >
                   <p className="text-lg font-black">{p.count}</p>
-                  <p className="text-[9px] font-bold uppercase text-[var(--text-secondary)]">{p.label}</p>
+                  <p className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">{p.label}</p>
                 </button>
               ))}
             </div>
@@ -428,7 +428,7 @@ export default function CrmDetailPage({ params }) {
                 <button
                   key={f}
                   onClick={() => setModuleFilter(f)}
-                  className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border transition-colors ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-colors ${
                     moduleFilter === f ? "bg-[var(--brand-orange)] text-black border-orange-600" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"
                   }`}
                 >
@@ -462,7 +462,7 @@ export default function CrmDetailPage({ params }) {
                             <div className="flex items-start justify-between gap-2">
                               <p className="text-sm font-bold">{ev.description}</p>
                               {ev.context_module && (
-                                <span className={`shrink-0 text-[7px] font-black uppercase px-1.5 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
+                                <span className={`shrink-0 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
                                   {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
                                 </span>
                               )}
@@ -511,7 +511,7 @@ export default function CrmDetailPage({ params }) {
                 </div>
               ))}
               {events.filter(e => e.event_type === "note_added").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noNotes")}</p>
+                <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noNotes")}</p>
               )}
             </div>
           </div>
@@ -588,7 +588,7 @@ export default function CrmDetailPage({ params }) {
                 </div>
               ))}
               {events.filter(e => e.event_type === "meeting_held").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noMeetings")}</p>
+                <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noMeetings")}</p>
               )}
             </div>
           </div>
@@ -619,7 +619,7 @@ export default function CrmDetailPage({ params }) {
                 </div>
               ))}
               {events.filter(e => e.event_type === "document_attached").length === 0 && (
-                <p className="text-xs text-[var(--text-secondary)] italic py-4">{t("crm.people.noDocuments")}</p>
+                <p className="text-sm text-[var(--text-secondary)] py-4">{t("crm.people.noDocuments")}</p>
               )}
             </div>
           </div>
@@ -650,7 +650,7 @@ export default function CrmDetailPage({ params }) {
                               {t(PROGRAM_ROLE_LABELS[p.role] || "") || p.role}
                             </p>
                           </div>
-                          <span className={`shrink-0 text-[8px] font-black uppercase px-2 py-0.5 rounded-full border ${p.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"}`}>
+                          <span className={`shrink-0 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${p.status === "active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-tertiary text-[var(--text-secondary)] border-[var(--border-primary)]"}`}>
                             {p.status === "active" ? t("crm.people.activeStatus") : t("crm.people.completedStatus")}
                           </span>
                         </div>

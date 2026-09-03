@@ -258,10 +258,10 @@ export default function VentureFeedbackPage() {
                     {f.rating_communication && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">Comm: {f.rating_communication}/5</span>}
                     {f.rating_expertise && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Exp: {f.rating_expertise}/5</span>}
                     {f.rating_availability && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Avail: {f.rating_availability}/5</span>}
-                    {f.rating_helpfulness && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">Help: {f.rating_helpfulness}/5</span>}
+                    {f.rating_helpfulness && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">Help: {f.rating_helpfulness}/5</span>}
                   </div>
-                  {f.comments && <p className="text-[9px] text-slate-500 italic">"{f.comments}"</p>}
-                  <div className="flex items-center gap-2 mt-2 text-[7px] text-slate-600">
+                  {f.comments && <p className="text-sm text-[var(--text-secondary)]">"{f.comments}"</p>}
+                  <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-secondary)]">
                     <span>{f.coach_name || "Unknown coach"}</span>
                     <span>· {new Date(f.created_at).toLocaleDateString()}</span>
                     {f.is_anonymous && <span>· Anonymous</span>}

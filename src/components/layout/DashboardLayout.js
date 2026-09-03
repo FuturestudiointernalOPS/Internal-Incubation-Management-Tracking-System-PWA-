@@ -396,7 +396,7 @@ const SidebarContent = ({
             }
             className={`w-full flex items-center justify-between transition-all font-bold uppercase ${
               isTop
-                ? "px-4 py-3.5 rounded-xl text-[12px] tracking-wider"
+                ? "px-4 py-3.5 rounded-xl text-[11px] tracking-wide"
                 : "px-4 py-2 rounded-lg text-[11px] tracking-wide"
             } ${
               onPath
@@ -451,13 +451,11 @@ const SidebarContent = ({
         }}
         className={`w-full flex items-center transition-all font-bold uppercase ${
           isTop
-            ? "gap-4 px-4 py-3.5 rounded-xl text-[12px] tracking-wider"
+            ? "gap-4 px-4 py-3.5 rounded-xl text-[11px] tracking-wide"
             : "gap-3 px-4 py-2 rounded-lg text-[11px] tracking-wide"
         } ${
           isActive
-            ? isTop
-              ? "bg-[var(--brand-orange)] text-white border border-orange-600/20 italic"
-              : "text-[var(--brand-orange)] bg-tertiary"
+            ? "text-[var(--brand-orange)] bg-tertiary border border-[var(--border-secondary)]"
             : onPath
               ? "text-[var(--text-primary)] bg-tertiary border border-[var(--border-secondary)]"
               : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"
@@ -465,7 +463,7 @@ const SidebarContent = ({
       >
         {item.icon && (
           <item.icon
-            className={`w-4 h-4 flex-shrink-0 ${isActive ? "text-black" : onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
+            className={`w-4 h-4 flex-shrink-0 ${isActive || onPath ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
           />
         )}
         {show && <span className="truncate">{label(item)}</span>}
@@ -499,7 +497,7 @@ const SidebarContent = ({
 
       {!collapsed && (
         <div className="px-3 mb-4">
-          <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-40">
+          <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
             {t("navigation.mainOperations")}
           </p>
         </div>
@@ -521,7 +519,7 @@ const SidebarContent = ({
             onMouseEnter={() => clearTimeout(flyoutTimer.current)}
             onMouseLeave={scheduleFlyoutClose}
           >
-            <p className="px-3 py-1.5 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-40">
+            <p className="px-3 py-1.5 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
               {label(parent)}
             </p>
             {kids.map((kid) => renderNavItem(kid, 1, true))}
@@ -531,14 +529,14 @@ const SidebarContent = ({
 
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
         {!collapsed && (
-          <p className="px-3 mb-2 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-30">
+          <p className="px-3 mb-2 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
             {t("navigation.userProtocol")}
           </p>
         )}
         <div className="space-y-1">
           <button
             onClick={() => toggleMenu("profile")}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-black uppercase tracking-widest text-[10px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-bold uppercase tracking-wide text-[11px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}
           >
             <div className="flex items-center gap-4">
               <User className="w-4 h-4 flex-shrink-0" />
@@ -573,14 +571,14 @@ const SidebarContent = ({
             const current = localStorage.getItem("impactos_lang") || "en";
             switchLang(current === "en" ? "fr" : "en");
           }}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-black uppercase tracking-widest text-[10px]"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-bold uppercase tracking-wide text-[11px]"
         >
           <Globe className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>FR/EN</span>}
         </button>
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-black uppercase tracking-widest text-[10px]"
+          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-bold uppercase tracking-wide text-[11px]"
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span>{t(tnav("logout"))}</span>}
@@ -1836,7 +1834,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Accept
                                 </button>
@@ -1883,7 +1881,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Decline
                                 </button>
@@ -1934,7 +1932,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Accept
                                 </button>
@@ -1977,7 +1975,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Decline
                                 </button>
@@ -1986,7 +1984,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                           </div>
                         ))
                       ) : (
-                        <p className="text-[10px] opacity-40 italic py-4 text-center">
+                        <p className="text-[10px] opacity-40 py-4 text-center">
                           {t(tnav("no_new_intel"))}
                         </p>
                       )}
@@ -2021,10 +2019,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
               <div className="mb-6 p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center gap-3">
                 <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
                     STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
                   </p>
-                  <p className="text-[9px] text-amber-500/70 mt-0.5">
+                  <p className="text-[10px] font-medium text-amber-500/70 mt-0.5">
                     You are viewing the application as this user. Log out to return to your own account.
                   </p>
                 </div>
@@ -2056,7 +2054,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         </p>
                       </div>
                     </div>
-                    <span className="text-[9px] text-[var(--text-secondary)] uppercase">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                       {t("common.viewAll")} →
                     </span>
                   </div>
@@ -2096,7 +2094,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-all"
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
                     Accept
                   </button>
@@ -2115,7 +2113,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
                   >
                     Decline
                   </button>
@@ -2155,7 +2153,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-all"
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
                     Accept
                   </button>
@@ -2174,7 +2172,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
                   >
                     Decline
                   </button>

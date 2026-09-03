@@ -604,7 +604,7 @@ function ContactsPageContent() {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.4em]">
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   {t("crm.contacts.contact")}
                 </span>
               </div>
@@ -671,7 +671,7 @@ function ContactsPageContent() {
                         <span className="break-words whitespace-normal">
                           {isAll ? t("crm.contacts.allContacts") : name} {!!f.is_archived && t("crm.contacts.archivedSuffix")}
                         </span>
-                        <span className={`shrink-0 text-[8px] font-black px-1.5 py-0.5 rounded-full ${selectedGroup === name ? "bg-black/20" : "bg-tertiary"}`}>
+                        <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${selectedGroup === name ? "bg-black/20" : "bg-tertiary"}`}>
                           {isAll ? contacts.length : segmentCounts[String(name).toUpperCase()] || 0}
                         </span>
                       </button>
@@ -769,7 +769,7 @@ function ContactsPageContent() {
               <div className="flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1">
                 <button
                   onClick={() => setSelectedTeamTab("All Teams")}
-                  className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedTeamTab === "All Teams" ? "bg-blue-500 text-white border-blue-500" : "bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100"}`}
+                  className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${selectedTeamTab === "All Teams" ? "bg-blue-500 text-white border-blue-500" : "bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100"}`}
                 >
                   {t("crm.contacts.allTeams")}
                 </button>
@@ -783,7 +783,7 @@ function ContactsPageContent() {
                     <button
                       key={team.id}
                       onClick={() => setSelectedTeamTab(team.id)}
-                      className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${selectedTeamTab === team.id ? "bg-blue-500 text-white border-blue-500" : "bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100"}`}
+                      className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border transition-all ${selectedTeamTab === team.id ? "bg-blue-500 text-white border-blue-500" : "bg-transparent text-[var(--text-secondary)] border-[var(--border-primary)] opacity-40 hover:opacity-100"}`}
                     >
                       {team.name}
                     </button>
@@ -818,7 +818,7 @@ function ContactsPageContent() {
                             <span className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-tight">
                               {c.name}
                             </span>
-                            <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                            <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                               {c.email}
                             </span>
                           </div>
@@ -826,18 +826,18 @@ function ContactsPageContent() {
                         <td>
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
-                              <span className="px-2 py-0.5 bg-primary border border-[var(--border-primary)] rounded text-[9px] font-black uppercase text-[var(--brand-orange)]">
+                              <span className="px-2 py-0.5 bg-primary border border-[var(--border-primary)] rounded text-[10px] font-bold uppercase text-[var(--brand-orange)]">
                                 {t(GROUP_LABELS[c.group_name] || "") || c.group_name || t("crm.contacts.individual")}
                               </span>
                               {c.v2_team_id && (
-                                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[9px] font-black uppercase text-blue-500">
+                                <span className="px-2 py-0.5 bg-blue-500/10 border border-blue-500/20 rounded text-[10px] font-bold uppercase text-blue-500">
                                   {teams.find((t) => t.id === c.v2_team_id)
                                     ?.name || t("crm.contacts.subteam")}
                                 </span>
                               )}
                             </div>
                             <span
-                              className={`w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                              className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                 c.status === "pending"
                                   ? "bg-orange-500/10 text-orange-400"
                                   : c.status === "inactive"
@@ -848,7 +848,7 @@ function ContactsPageContent() {
                               {t(CONTACT_STATUS_LABELS[c.status] || "") || c.status}
                             </span>
                             <span
-                              className={`w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                              className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                 c.invitation_status === "activated"
                                   ? "bg-emerald-500/10 text-emerald-400"
                                   : c.invitation_status === "sent"
@@ -869,7 +869,7 @@ function ContactsPageContent() {
                                       ? `${t("crm.contacts.activationEmailSent")} — ${new Date(c.activation_email_sent_at).toLocaleString()}`
                                       : (c.activation_email_error || t("crm.contacts.activationEmailNotSent"))
                                 }
-                                className={`w-fit px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                                className={`w-fit px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                                   c.activation_email_status === "failed"
                                     ? "bg-rose-500/10 text-rose-400"
                                     : c.activation_email_sent_at
@@ -1005,7 +1005,7 @@ function ContactsPageContent() {
                                   setSelectedGroup("All Contacts");
                                   setSelectedTeamTab("All Teams");
                                 }}
-                                className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all"
+                                className="px-4 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all"
                               >
                                 {t("common.clearFilter")}
                               </button>
@@ -1126,7 +1126,7 @@ function ContactsPageContent() {
               </select>
               {/* Role Selection */}
               <div className="space-y-1">
-                <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
                   {t("crm.contacts.roleOverride")}
                 </label>
                 <select
@@ -1142,16 +1142,16 @@ function ContactsPageContent() {
                   <option value="intern">{t("crm.contacts.roleIntern")}</option>
                   <option value="facilitator">{t("crm.contacts.roleFacilitator")}</option>
                 </select>
-                <p className="text-[8px] text-[var(--text-secondary)] ml-1 opacity-60">
+                <p className="text-[10px] text-[var(--text-secondary)] ml-1 opacity-60">
                   {t("crm.contacts.roleHelper")}
                 </p>
               </div>
               {/* Program Assignments */}
               <div className="space-y-2">
-                <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
+                <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-1">
                   {t("crm.contacts.programAssignment")}
                 </label>
-                <p className="text-[8px] text-[var(--text-secondary)] ml-1 mb-1 opacity-60">
+                <p className="text-[10px] text-[var(--text-secondary)] ml-1 mb-1 opacity-60">
                   {t("crm.contacts.programHelper")}
                 </p>
                 <select
@@ -1356,13 +1356,13 @@ function ContactsPageContent() {
                         parts.map((c) => c.cid || c.id).filter(Boolean),
                       );
                     }}
-                    className="text-[8px] font-bold text-blue-400 uppercase tracking-wider hover:underline"
+                    className="text-[10px] font-bold text-blue-400 uppercase tracking-wide hover:underline"
                   >
                     {t("crm.contacts.selectAll")}
                   </button>
                   <button
                     onClick={() => setBulkSelected([])}
-                    className="text-[8px] font-bold text-rose-400 uppercase tracking-wider hover:underline"
+                    className="text-[10px] font-bold text-rose-400 uppercase tracking-wide hover:underline"
                   >
                     {t("crm.contacts.clear")}
                   </button>
@@ -1392,7 +1392,7 @@ function ContactsPageContent() {
                               : [...prev, cid],
                           );
                         }}
-                        className={`flex items-center gap-2 p-2.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all text-left ${
+                        className={`flex items-center gap-2 p-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all text-left ${
                           isSelected
                             ? "bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/30 text-[var(--brand-orange)]"
                             : "bg-tertiary border border-transparent text-[var(--text-secondary)] hover:border-[var(--border-primary)]"
@@ -1406,14 +1406,14 @@ function ContactsPageContent() {
                           }`}
                         >
                           {isSelected && (
-                            <span className="text-[8px] text-black font-black">
+                            <span className="text-[10px] text-black font-black">
                               ✓
                             </span>
                           )}
                         </div>
                         <div className="min-w-0">
                           <p className="truncate">{c.name || t("crm.contacts.unknown")}</p>
-                          <p className="text-[7px] opacity-50 truncate">
+                          <p className="text-[10px] opacity-50 truncate">
                             {c.email || cid}
                           </p>
                         </div>
@@ -1426,7 +1426,7 @@ function ContactsPageContent() {
                     c.role === "participant" ||
                     c.role === "unassigned",
                 ).length === 0 && (
-                  <p className="text-[10px] text-slate-500 italic col-span-2 py-8 text-center">
+                  <p className="text-sm text-[var(--text-secondary)] col-span-2 py-8 text-center">
                     {t("crm.contacts.noParticipantsFound")}
                   </p>
                 )}
@@ -1502,8 +1502,8 @@ function ContactsPageContent() {
               </div>
             </div>
             <div className="flex gap-3 justify-end">
-              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">{t("crm.contacts.cancel")}</button>
-              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">{t("crm.contacts.confirm")}</button>
+              <button onClick={() => setConfirmTarget(null)} className="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">{t("crm.contacts.cancel")}</button>
+              <button onClick={() => { confirmTarget.onConfirm(); setConfirmTarget(null); }} className="px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest bg-rose-500 text-white hover:bg-rose-600 transition-all">{t("crm.contacts.confirm")}</button>
             </div>
           </div>
         </div>

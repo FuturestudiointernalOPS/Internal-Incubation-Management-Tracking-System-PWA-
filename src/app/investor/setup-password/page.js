@@ -81,13 +81,13 @@ function SetupPasswordForm() {
 
         <div className="bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl p-6 space-y-4">
           <div>
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.setupPassword.newPasswordLabel")}</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.newPasswordLabel")}</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
               placeholder={t("investorMisc.setupPassword.passwordPlaceholder")}
               className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
           </div>
           <div>
-            <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.setupPassword.confirmPasswordLabel")}</label>
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.setupPassword.confirmPasswordLabel")}</label>
             <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
               placeholder={t("investorMisc.setupPassword.confirmPasswordPlaceholder")}
               className="w-full mt-1 px-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />

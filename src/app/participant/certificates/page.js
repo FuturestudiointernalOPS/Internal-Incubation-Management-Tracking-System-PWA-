@@ -72,7 +72,7 @@ export default function ParticipantCertificatesPage() {
                   <p className="text-[11px] font-bold text-[var(--text-primary)]">
                     {c.program_name}
                   </p>
-                  <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mt-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mt-1">
                     {t("participant.certificateIssued")}
                     {c.completed_at || c.accepted_at
                       ? ` · ${fmt(c.completed_at || c.accepted_at)}`

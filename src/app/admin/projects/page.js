@@ -415,7 +415,7 @@ export default function AdminProjects() {
                 };
                 router.push(destMap[role] || "/admin");
               }}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("navigation.dashboard")}
@@ -445,7 +445,7 @@ export default function AdminProjects() {
                   setShowCreateModal(true);
                   fetchStaff();
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
               >
                 <Plus className="w-3.5 h-3.5" />{" "}
                 {t("adminMisc.projectsList.createProject")}
@@ -470,7 +470,7 @@ export default function AdminProjects() {
                   <ListTodo className="w-3.5 h-3.5 text-[var(--text-primary)]" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.tasks")}
                   </p>
                   <p className="text-base font-black">
@@ -483,7 +483,7 @@ export default function AdminProjects() {
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.completed")}
                   </p>
                   <p className="text-base font-black text-emerald-500">
@@ -496,7 +496,7 @@ export default function AdminProjects() {
                   <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.carriedOver")}
                   </p>
                   <p className="text-base font-black text-amber-500">
@@ -509,7 +509,7 @@ export default function AdminProjects() {
                   <Shield className="w-3.5 h-3.5 text-rose-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.active")}
                   </p>
                   <p className="text-base font-black text-rose-500">
@@ -522,7 +522,7 @@ export default function AdminProjects() {
                   <Users className="w-3.5 h-3.5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.teamMembers")}
                   </p>
                   <p className="text-base font-black text-blue-500">
@@ -535,7 +535,7 @@ export default function AdminProjects() {
                   <Briefcase className="w-3.5 h-3.5 text-indigo-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("admin.activePrograms")}
                   </p>
                   <p className="text-base font-black text-indigo-500">
@@ -548,7 +548,7 @@ export default function AdminProjects() {
                   <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("admin.activeBlockerRate")}
                   </p>
                   <p className="text-base font-black text-orange-500">
@@ -561,7 +561,7 @@ export default function AdminProjects() {
                   <Clock className="w-3.5 h-3.5 text-cyan-500" />
                 </div>
                 <div>
-                  <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("reports.avgResolution")}
                   </p>
                   <p className="text-base font-black text-cyan-500">
@@ -572,7 +572,7 @@ export default function AdminProjects() {
             </div>
             {analytics.weeklyProductivity?.length > 0 && (
               <div className="card p-4 space-y-2">
-                <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("staff.opReport.productivity")}
                 </p>
                 <div className="flex items-end gap-2 h-16">
@@ -593,7 +593,7 @@ export default function AdminProjects() {
                             height: `${Math.max((w.completed / max) * 100, 4)}%`,
                           }}
                         />
-                        <span className="text-[7px] text-slate-500">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                           {w.week}
                         </span>
                       </div>
@@ -613,7 +613,7 @@ export default function AdminProjects() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("common.search")}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
           <div className="relative">
@@ -621,7 +621,7 @@ export default function AdminProjects() {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+              className="w-full bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
             >
               <option value="all">
                 {t("adminMisc.projectsList.allStatuses")}
@@ -648,10 +648,10 @@ export default function AdminProjects() {
         ) : filteredProjects.length === 0 ? (
           <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
             <Briefcase className="w-16 h-16 mb-4" />
-            <p className="text-[10px] font-bold uppercase tracking-widest">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("adminMisc.projectsList.noProjectsFound")}
             </p>
-            <p className="text-[9px] text-slate-500 mt-2">
+            <p className="text-sm text-[var(--text-secondary)] mt-2">
               {t("adminMisc.projectsList.emptyStateDesc")}
             </p>
           </div>
@@ -661,34 +661,34 @@ export default function AdminProjects() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[var(--border-primary)]">
-                    <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.project")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.status")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.priority")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.tasks")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.completed")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.blockers")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.progress")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.start")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("adminMisc.projectsList.end")}
                     </th>
-                    <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest"></th>
+                    <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -709,7 +709,7 @@ export default function AdminProjects() {
                             <p className="text-xs font-bold uppercase tracking-tight text-[var(--text-primary)]">
                               {project.name}
                             </p>
-                            <p className="text-[9px] text-slate-500">
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("adminMisc.projectsList.project")}
                             </p>
                           </div>
@@ -717,14 +717,14 @@ export default function AdminProjects() {
                       </td>
                       <td className="text-center p-4">
                         <span
-                          className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
+                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                         >
                           {project.status}
                         </span>
                       </td>
                       <td className="text-center p-4">
                         <span
-                          className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                          className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
                             project.priority === "critical"
                               ? "bg-red-500/10 text-red-400"
                               : project.priority === "high"
@@ -758,7 +758,7 @@ export default function AdminProjects() {
                             {project.blockerStats?.active || 0}
                           </span>
                           {project.blockerStats?.total > 0 && (
-                            <span className="text-[8px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               / {project.blockerStats.total}
                             </span>
                           )}
@@ -774,7 +774,7 @@ export default function AdminProjects() {
                               }}
                             />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500 w-8 text-right">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] w-8 text-right">
                             {project.completionRate || 0}%
                           </span>
                         </div>
@@ -809,7 +809,7 @@ export default function AdminProjects() {
                                 quickStatus(project, "Paused");
                               }}
                               disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
+                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
                               {actionLoading
                                 ? "..."
@@ -823,7 +823,7 @@ export default function AdminProjects() {
                                 quickStatus(project, "Active");
                               }}
                               disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
+                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
                               {actionLoading
                                 ? "..."
@@ -841,7 +841,7 @@ export default function AdminProjects() {
                                 );
                               }}
                               disabled={actionLoading}
-                              className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
+                              className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-purple-500/10 text-purple-400 hover:bg-purple-500 hover:text-white transition-all disabled:opacity-40 disabled:cursor-wait"
                             >
                               {actionLoading
                                 ? "..."
@@ -871,7 +871,7 @@ export default function AdminProjects() {
                               fetchMembers(project.id);
                               fetchStaff();
                             }}
-                            className="px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
+                            className="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)] hover:text-black transition-all"
                           >
                             {t("adminMisc.projectsList.edit")}
                           </button>
@@ -885,7 +885,7 @@ export default function AdminProjects() {
                               }
                             }}
                             disabled={actionLoading}
-                            className={`px-2 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-40 disabled:cursor-wait ${
+                            className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-40 disabled:cursor-wait ${
                               project.status === "Archived"
                                 ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500 hover:text-white"
                                 : "bg-slate-500/10 text-slate-500 hover:bg-rose-500 hover:text-white"
@@ -930,7 +930,7 @@ export default function AdminProjects() {
             {/* Editable project fields */}
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.projectName")}
                 </label>
                 <input
@@ -938,12 +938,12 @@ export default function AdminProjects() {
                   onChange={(e) =>
                     setEditProject((p) => ({ ...p, name: e.target.value }))
                   }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
                 />
               </div>
 
               <div className="col-span-2">
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.description")}
                 </label>
                 <textarea
@@ -960,7 +960,7 @@ export default function AdminProjects() {
                 />
               </div>
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.status")}
                 </label>
                 <select
@@ -968,7 +968,7 @@ export default function AdminProjects() {
                   onChange={(e) =>
                     setEditProject((p) => ({ ...p, status: e.target.value }))
                   }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none text-[var(--text-primary)] appearance-none cursor-pointer"
                 >
                   <option value="Active">
                     {t("adminMisc.projectsList.statusActive")}
@@ -988,7 +988,7 @@ export default function AdminProjects() {
                 </select>
               </div>
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.priority")}
                 </label>
                 <select
@@ -996,7 +996,7 @@ export default function AdminProjects() {
                   onChange={(e) =>
                     setEditProject((p) => ({ ...p, priority: e.target.value }))
                   }
-                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-xs font-bold outline-none appearance-none cursor-pointer"
+                  className="w-full bg-primary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold outline-none appearance-none cursor-pointer"
                 >
                   <option value="critical">
                     {t("adminMisc.projectsList.priorityCritical")}
@@ -1013,7 +1013,7 @@ export default function AdminProjects() {
                 </select>
               </div>
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.startDate")}
                 </label>
                 <input
@@ -1029,7 +1029,7 @@ export default function AdminProjects() {
                 />
               </div>
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.endDate")}
                 </label>
                 <input
@@ -1042,7 +1042,7 @@ export default function AdminProjects() {
                 />
               </div>
               <div className="col-span-2">
-                <label className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.projectLeads")}
                 </label>
                 <div className="max-h-32 overflow-y-auto space-y-1 border border-[var(--border-primary)] rounded-lg p-2">
@@ -1087,13 +1087,13 @@ export default function AdminProjects() {
 
             {/* Concept Note */}
             <div className="p-3 rounded-lg bg-tertiary/50 border border-[var(--border-primary)] space-y-2">
-              <p className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("adminMisc.projectsList.conceptNote")}{" "}
-                <span className="text-slate-600 font-normal normal-case">
+                <span className="text-[var(--text-secondary)] font-normal normal-case">
                   {t("adminMisc.projectsList.optional")}
                 </span>
               </p>
-              <p className="text-[8px] text-[var(--text-secondary)]">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                 {t("adminMisc.projectsList.uploadOrLinkHint")}
               </p>
               {editProject.conceptNoteUrl && (
@@ -1117,7 +1117,7 @@ export default function AdminProjects() {
                   onClick={() =>
                     document.getElementById("edit-concept-file")?.click()
                   }
-                  className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider"
+                  className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest"
                 >
                   {editProject.conceptNoteUrl
                     ? t("adminMisc.projectsList.replaceFile")
@@ -1147,7 +1147,7 @@ export default function AdminProjects() {
                       }
                     }}
                     disabled={uploadingEditConcept}
-                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
+                    className="px-3 py-1.5 bg-emerald-500 text-black rounded-lg text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
                   >
                     {uploadingEditConcept
                       ? "..."
@@ -1157,7 +1157,7 @@ export default function AdminProjects() {
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex-1 h-px bg-[var(--border-primary)]" />
-                <span className="text-[8px] text-[var(--text-secondary)] font-bold">
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("adminMisc.projectsList.or")}
                 </span>
                 <div className="flex-1 h-px bg-[var(--border-primary)]" />
@@ -1179,7 +1179,7 @@ export default function AdminProjects() {
             <button
               onClick={handleSaveProject}
               disabled={savingEdit || !editProject.name.trim()}
-              className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+              className="w-full py-2.5 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
             >
               {savingEdit
                 ? t("adminMisc.projectsList.saving")
@@ -1188,12 +1188,12 @@ export default function AdminProjects() {
 
             {/* Collaborators */}
             <div className="pt-3 border-t border-[var(--border-primary)]/30">
-              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                 {t("adminMisc.projectsList.collaborators")}
               </p>
               <div className="space-y-1.5 max-h-32 overflow-y-auto mb-3">
                 {(projectMembers[showMemberModal] || []).length === 0 ? (
-                  <p className="text-[10px] text-slate-600 italic text-center py-4">
+                  <p className="text-sm text-[var(--text-secondary)] text-center py-4">
                     {t("adminMisc.projectsList.noCollaborators")}
                   </p>
                 ) : (
@@ -1203,13 +1203,13 @@ export default function AdminProjects() {
                       className="flex items-center justify-between p-2 rounded-lg bg-tertiary/50"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                           {m.name?.charAt(0) || "?"}
                         </div>
                         <span className="text-[10px] font-bold text-[var(--text-primary)]">
                           {m.name || m.user_cid}
                         </span>
-                        <span className="text-[7px] text-slate-500 uppercase">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase">
                           {m.role}
                         </span>
                       </div>
@@ -1217,7 +1217,7 @@ export default function AdminProjects() {
                         onClick={() =>
                           handleRemoveMember(showMemberModal, m.user_cid)
                         }
-                        className="text-[7px] font-black uppercase text-rose-400 hover:text-rose-300"
+                        className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300"
                       >
                         {t("adminMisc.projectsList.remove")}
                       </button>
@@ -1254,7 +1254,7 @@ export default function AdminProjects() {
                       sel.value = "";
                     }
                   }}
-                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110"
+                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-sm font-bold uppercase tracking-wide hover:brightness-110"
                 >
                   {t("adminMisc.projectsList.add")}
                 </button>
@@ -1294,7 +1294,7 @@ export default function AdminProjects() {
             {/* Scrollable body */}
             <div className="space-y-4 overflow-y-auto flex-1 px-5 py-4">
               <div>
-                <label htmlFor="project-name" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-name" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.projectNameRequired")}
                 </label>
                 <input
@@ -1309,7 +1309,7 @@ export default function AdminProjects() {
               </div>
 
               <div>
-                <label htmlFor="project-description" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-description" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.description")}
                 </label>
                 <textarea
@@ -1330,7 +1330,7 @@ export default function AdminProjects() {
               {/* Start / End Dates */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label htmlFor="project-start-date" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label htmlFor="project-start-date" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectsList.startDate")}
                   </label>
                   <input
@@ -1347,7 +1347,7 @@ export default function AdminProjects() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="project-end-date" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label htmlFor="project-end-date" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("adminMisc.projectsList.endDate")}
                   </label>
                   <input
@@ -1363,13 +1363,13 @@ export default function AdminProjects() {
               </div>
 
               <div>
-                <label htmlFor="project-concept-url" className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label htmlFor="project-concept-url" className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                   {t("adminMisc.projectsList.conceptNote")}{" "}
-                  <span className="text-slate-600 font-normal">
+                  <span className="text-[var(--text-secondary)] font-normal">
                     {t("adminMisc.projectsList.optional")}
                   </span>
                 </label>
-                <p className="text-[8px] text-[var(--text-secondary)] mb-2">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] mb-2">
                   {t("adminMisc.projectsList.uploadOrLinkHint")}
                 </p>
                 <div className="space-y-2">
@@ -1409,7 +1409,7 @@ export default function AdminProjects() {
                           }
                         }}
                         disabled={uploadingConcept}
-                        className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-30"
+                        className="px-3 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-widest disabled:opacity-30"
                       >
                         {uploadingConcept
                           ? "..."

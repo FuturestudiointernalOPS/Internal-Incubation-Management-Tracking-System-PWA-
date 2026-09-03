@@ -244,8 +244,8 @@ export default function SuperAdminExecutiveView({ params }) {
                    <Briefcase className="w-6 h-6" />
                 </div>
                 <div>
-                   <h2 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter leading-none">{program.name}</h2>
-                   <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mt-2 italic">{t("adminMisc.programDetail.programOverviewLabel", { id: program.id })}</p>
+                   <h2 className="text-2xl md:text-3xl font-black text-[var(--text-primary)] uppercase tracking-tighter leading-none">{program.name}</h2>
+                   <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mt-2">{t("adminMisc.programDetail.programOverviewLabel", { id: program.id })}</p>
                 </div>
              </div>
           </div>
@@ -253,7 +253,7 @@ export default function SuperAdminExecutiveView({ params }) {
           <div className="flex items-center gap-6">
              {program.assigned_segments?.length > 0 && program.assigned_segments[0] && (
                 <div className="flex flex-col items-end gap-2 px-6 py-2 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
-                   <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest italic">{t("adminMisc.programDetail.registrationNode")}</p>
+                   <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t("adminMisc.programDetail.registrationNode")}</p>
                    {regForm ? (
                       <div className="flex items-center gap-3">
                          <button 
@@ -261,7 +261,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                navigator.clipboard.writeText(regForm.link);
                                window.dispatchEvent(new CustomEvent('impactos:notify', { detail: { type: 'success', message: t("adminMisc.programDetail.urlCopied") } }));
                             }}
-                            className="flex items-center gap-2 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
+                            className="flex items-center gap-2 text-[10px] font-bold text-white hover:text-blue-400 transition-colors uppercase"
                          >
                             <LinkIcon className="w-3 h-3" /> {t("adminMisc.programDetail.copyGroupUrl")}
                          </button>
@@ -269,17 +269,17 @@ export default function SuperAdminExecutiveView({ params }) {
                             href={regForm.link}
                             target="_blank"
                             rel="noreferrer"
-                            className="flex items-center gap-1 text-[10px] font-black text-white hover:text-blue-400 transition-colors uppercase italic"
+                            className="flex items-center gap-1 text-[10px] font-bold text-white hover:text-blue-400 transition-colors uppercase"
                          >
                             <ExternalLink className="w-3 h-3" /> {t("adminMisc.programDetail.openForm")}
                          </a>
                       </div>
                    ) : (
                       <div className="flex flex-col items-end gap-1">
-                         <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest italic">{t("adminMisc.programDetail.noFormYet")}</p>
+                         <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programDetail.noFormYet")}</p>
                          <a
                             href="/platform/forms"
-                            className="text-[9px] font-black text-blue-400 hover:underline uppercase italic"
+                            className="text-[10px] font-bold text-blue-400 hover:underline uppercase"
                          >
                             {t("adminMisc.programDetail.goToCrmForms")}
                          </a>
@@ -288,13 +288,13 @@ export default function SuperAdminExecutiveView({ params }) {
                 </div>
              )}
              <div className="text-right">
-                <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1 italic">{t("adminMisc.programDetail.leadProgramManager")}</p>
-                <p className="text-sm font-black text-[var(--text-primary)] uppercase italic">{program.pm_name || t("adminMisc.programDetail.unassigned")}</p>
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1">{t("adminMisc.programDetail.leadProgramManager")}</p>
+                <p className="text-sm font-black text-[var(--text-primary)] uppercase">{program.pm_name || t("adminMisc.programDetail.unassigned")}</p>
              </div>
              <div className="w-px h-8 bg-white/10" />
              <div className="text-right">
-                <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest mb-1 italic">{t("adminMisc.programDetail.status")}</p>
-                <p className="text-sm font-black text-[#FF6600] uppercase italic">{program.status || t("adminMisc.programDetail.active")}</p>
+                <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-1">{t("adminMisc.programDetail.status")}</p>
+                <p className="text-sm font-black text-[#FF6600] uppercase">{program.status || t("adminMisc.programDetail.active")}</p>
              </div>
           </div>
         </header>
@@ -304,27 +304,27 @@ export default function SuperAdminExecutiveView({ params }) {
            <div className="ios-card bg-secondary border-[var(--border-primary)] !p-8 relative group overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-[#FF6600]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
               <div className="relative z-10">
-                 <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4 italic flex items-center gap-2">
+                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-4 flex items-center gap-2">
                     {t("adminMisc.programDetail.completionRate")}
                     <AlertCircle className="w-3 h-3 text-[var(--text-secondary)] cursor-help" title={t("adminMisc.programDetail.completionRateTooltip")} />
                  </p>
-                 <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{durationCompletion.toFixed(1)}%</h4>
-                 <p className="text-[7px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em] mt-3 italic leading-relaxed">
+                 <h4 className="text-3xl font-black text-[var(--text-primary)]">{durationCompletion.toFixed(1)}%</h4>
+                 <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mt-3 leading-relaxed">
                     {t("adminMisc.programDetail.overallProgress")}
                  </p>
               </div>
            </div>
            <div className="ios-card bg-secondary border-[var(--border-primary)] !p-8">
-              <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4 italic">{t("adminMisc.programDetail.weeksElapsed")}</p>
-              <h4 className="text-3xl font-black text-[var(--text-primary)] italic">{elapsedWeeksShown}/{totalWeeks}</h4>
+              <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-4">{t("adminMisc.programDetail.weeksElapsed")}</p>
+              <h4 className="text-3xl font-black text-[var(--text-primary)]">{elapsedWeeksShown}/{totalWeeks}</h4>
            </div>
            <div className="ios-card bg-white/[0.02] border-white/5 !p-8">
-              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-4 italic">{t("adminMisc.programDetail.weeklyReports")}</p>
-              <h4 className="text-3xl font-black text-[#FF6600] italic">{t("adminMisc.programDetail.reportLogs", { count: reports.length })}</h4>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">{t("adminMisc.programDetail.weeklyReports")}</p>
+              <h4 className="text-3xl font-black text-[#FF6600]">{t("adminMisc.programDetail.reportLogs", { count: reports.length })}</h4>
            </div>
            <div className="ios-card bg-[#FF6600]/5 border-[#FF6600]/20 !p-8">
-              <p className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest mb-4 italic">{t("adminMisc.programDetail.adminComments")}</p>
-              <h4 className="text-3xl font-black text-white italic">{followups.length}</h4>
+              <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest mb-4">{t("adminMisc.programDetail.adminComments")}</p>
+              <h4 className="text-3xl font-black text-white">{followups.length}</h4>
            </div>
         </div>
 
@@ -336,13 +336,13 @@ export default function SuperAdminExecutiveView({ params }) {
                  <div>
                     <div className="flex items-center gap-3">
                        <Target className="w-5 h-5 text-[#FF6600]" />
-                       <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{t("adminMisc.programDetail.strategicKpis")}</h3>
+                       <h3 className="text-xl font-black text-white uppercase tracking-tighter">{t("adminMisc.programDetail.strategicKpis")}</h3>
                     </div>
-                    <p className="text-[11px] text-slate-400 mt-2 max-w-md">
+                    <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md">
                        {t("adminMisc.programDetail.kpiDescription")}
                     </p>
                  </div>
-                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic mt-2">{t("adminMisc.programDetail.definedBySuperAdmin")}</p>
+                 <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-2">{t("adminMisc.programDetail.definedBySuperAdmin")}</p>
               </div>
 
               <div className="space-y-4">
@@ -350,7 +350,7 @@ export default function SuperAdminExecutiveView({ params }) {
                     <div key={kpi.id} className="flex items-center justify-between p-4 bg-white/[0.02] border border-white/5 rounded-2xl group hover:border-[#FF6600]/30 transition-all">
                        <div className="flex flex-col text-left">
                           <p className="text-xs font-black text-white uppercase tracking-tighter">{kpi.title}</p>
-                          <p className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest mt-1">{t("adminMisc.programDetail.targetLabel", { value: kpi.target_value })}</p>
+                          <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest mt-1">{t("adminMisc.programDetail.targetLabel", { value: kpi.target_value })}</p>
                        </div>
                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button 
@@ -370,7 +370,7 @@ export default function SuperAdminExecutiveView({ params }) {
                  ))}
 
                  <div className="pt-6 border-t border-white/5 space-y-4">
-                    <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{isEditingKpi ? t("adminMisc.programDetail.editStrategicKpi") : t("adminMisc.programDetail.defineNewKpi")}</h4>
+                    <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{isEditingKpi ? t("adminMisc.programDetail.editStrategicKpi") : t("adminMisc.programDetail.defineNewKpi")}</h4>
                     <div className="grid grid-cols-2 gap-4">
                        <input 
                           type="text"
@@ -389,12 +389,12 @@ export default function SuperAdminExecutiveView({ params }) {
                     </div>
                     <div className="flex justify-end gap-3">
                        {isEditingKpi && (
-                          <button onClick={() => { setIsEditingKpi(null); setKpiForm({ title: '', target_value: '' }); }} className="text-[9px] font-black text-slate-500 uppercase italic">{t("adminMisc.programDetail.cancel")}</button>
+                          <button onClick={() => { setIsEditingKpi(null); setKpiForm({ title: '', target_value: '' }); }} className="text-[10px] font-bold text-slate-500 uppercase">{t("adminMisc.programDetail.cancel")}</button>
                        )}
                        <button 
                           onClick={() => handleKpiAction(isEditingKpi ? 'update' : 'create', isEditingKpi)}
                           disabled={isSubmitting || !kpiForm.title || !kpiForm.target_value}
-                          className="px-6 py-2 bg-[#FF6600] text-black text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                          className="px-6 py-2 bg-[#FF6600] text-black text-sm font-bold uppercase tracking-wide rounded-lg hover:bg-white transition-all disabled:opacity-50"
                        >
                           {isSubmitting ? '...' : isEditingKpi ? t("adminMisc.programDetail.updateKpi") : t("adminMisc.programDetail.deployKpi")}
                        </button>
@@ -408,7 +408,7 @@ export default function SuperAdminExecutiveView({ params }) {
               <div className="flex justify-between items-center">
                  <div className="flex items-center gap-3">
                     <BookOpen className="w-5 h-5 text-blue-400" />
-                    <h3 className="text-xl font-black text-white uppercase italic tracking-tighter">{t("adminMisc.programDetail.knowledgeInfrastructure")}</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tighter">{t("adminMisc.programDetail.knowledgeInfrastructure")}</h3>
                  </div>
               </div>
 
@@ -416,12 +416,12 @@ export default function SuperAdminExecutiveView({ params }) {
                  {program.note_title ? (
                     <div className="space-y-6">
                        <div className="p-6 bg-blue-500/5 border border-blue-500/10 rounded-3xl text-left">
-                          <h4 className="text-lg font-black text-white uppercase italic tracking-tighter mb-2">{program.note_title}</h4>
-                          <p className="text-xs text-slate-400 font-bold leading-relaxed">{program.note_description || t("adminMisc.programDetail.knowledgeAssetFallback")}</p>
+                          <h4 className="text-lg font-black text-white uppercase tracking-tighter mb-2">{program.note_title}</h4>
+                          <p className="text-sm text-slate-400 leading-relaxed">{program.note_description || t("adminMisc.programDetail.knowledgeAssetFallback")}</p>
                        </div>
                        
                        <div className="space-y-4">
-                          <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic text-left">{t("adminMisc.programDetail.attachedFiles")}</p>
+                          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest text-left">{t("adminMisc.programDetail.attachedFiles")}</p>
                           <div className="grid grid-cols-1 gap-3">
                              {program.knowledge_assets?.map((asset, idx) => (
                                 <a 
@@ -444,7 +444,7 @@ export default function SuperAdminExecutiveView({ params }) {
                  ) : (
                     <div className="p-12 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center gap-4 opacity-40 text-left">
                        <AlertCircle className="w-10 h-10 text-slate-700" />
-                       <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.noKnowledgeBase")}</p>
+                       <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.noKnowledgeBase")}</p>
                     </div>
                  )}
               </div>
@@ -455,7 +455,7 @@ export default function SuperAdminExecutiveView({ params }) {
         <div className="space-y-12">
            <div className="flex items-center gap-4">
               <Clock className="w-5 h-5 text-slate-700" />
-              <h3 className="text-xl font-black text-white uppercase tracking-widest italic">{t("adminMisc.programDetail.programSchedule")}</h3>
+              <h3 className="text-xl font-black text-white uppercase tracking-widest">{t("adminMisc.programDetail.programSchedule")}</h3>
            </div>
 
            <div className="space-y-8 relative">
@@ -521,7 +521,7 @@ export default function SuperAdminExecutiveView({ params }) {
                           <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
                              <div className="flex-1 space-y-4">
                                 <div className="flex items-center gap-3">
-                                   <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">
+                                   <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
                                       {weekSessions[0]?.title || t("adminMisc.programDetail.weekActivities", { week: wn })}
                                    </h4>
                                    {isCompleted && <CheckCircle2 className="w-5 h-5 text-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]" />}
@@ -530,8 +530,8 @@ export default function SuperAdminExecutiveView({ params }) {
                                 {/* WEEKLY PROGRESS BAR */}
                                 <div className="space-y-3 max-w-md">
                                    <div className="flex justify-between items-end">
-                                      <p className="text-[9px] font-black text-slate-600 uppercase tracking-widest italic">{t("adminMisc.programDetail.weekCompletion")}</p>
-                                      <p className="text-[10px] font-black text-[#FF6600] italic">{weekProgress.toFixed(0)}%</p>
+                                      <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{t("adminMisc.programDetail.weekCompletion")}</p>
+                                      <p className="text-[10px] font-bold text-[#FF6600]">{weekProgress.toFixed(0)}%</p>
                                    </div>
                                    <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                                       <motion.div 
@@ -540,14 +540,14 @@ export default function SuperAdminExecutiveView({ params }) {
                                          className={`h-full bg-gradient-to-r ${weekProgress === 100 ? 'from-emerald-500 to-emerald-400' : 'from-[#FF6600] to-[#FF9900]'}`}
                                       />
                                    </div>
-                                   <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest italic">
+                                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                                       {t("adminMisc.programDetail.participantsCompleted", { count: weekCompleters.size, total: participants.length })}
                                    </p>
                                 </div>
                              </div>
 
                              <div className="flex flex-col lg:flex-row gap-4">
-                                <div className={`px-6 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border flex items-center gap-2 ${
+                                <div className={`px-6 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest border flex items-center gap-2 ${
                                    weekReports.length > 0 ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'
                                 }`}>
                                    <BookOpen className="w-3 h-3" />
@@ -562,7 +562,7 @@ export default function SuperAdminExecutiveView({ params }) {
                              <div className="space-y-6">
                                 <div className="flex items-center gap-3">
                                    <Target className="w-3.5 h-3.5 text-slate-600" />
-                                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.activities")}</p>
+                                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.activities")}</p>
                                 </div>
                                 <div className="space-y-3">
                                    {weekSessions.map((session, sIdx) => {
@@ -584,7 +584,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                                   <div className={`w-2 h-2 rounded-full ${session.status === 'completed' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : session.status === 'in progress' ? 'bg-amber-500' : 'bg-slate-800'}`} />
                                                   <div className="flex flex-col">
                                                      <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{session.title}</p>
-                                                     <p className="text-[7px] font-black text-[#FF6600] uppercase tracking-widest">{t("adminMisc.programDetail.assignmentStyle", { type: session.assignment_type || t("adminMisc.programDetail.workshop") })}</p>
+                                                     <p className="text-[10px] font-bold text-[#FF6600] uppercase tracking-widest">{t("adminMisc.programDetail.assignmentStyle", { type: session.assignment_type || t("adminMisc.programDetail.workshop") })}</p>
                                                   </div>
                                                </div>
                                                <div className="flex items-center gap-4">
@@ -603,16 +603,16 @@ export default function SuperAdminExecutiveView({ params }) {
                                                   >
                                                      <div className="p-6 rounded-2xl bg-white/[0.03] border border-white/5 ml-4 mt-2 space-y-6 text-left">
                                                         <div className="space-y-2">
-                                                           <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.activityGoal")}</p>
-                                                           <p className="text-xs text-slate-300 font-bold leading-relaxed">{session.description || t("adminMisc.programDetail.noActivityGoal")}</p>
+                                                           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.activityGoal")}</p>
+                                                           <p className="text-sm text-slate-300 leading-relaxed">{session.description || t("adminMisc.programDetail.noActivityGoal")}</p>
                                                         </div>
 
                                                         {materials.length > 0 && (
                                                            <div className="space-y-3">
-                                                              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.lessonMaterials")}</p>
+                                                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.lessonMaterials")}</p>
                                                               <div className="flex flex-wrap gap-2">
                                                                  {materials.map((m, mIdx) => (
-                                                                    <a key={`material-${mIdx}`} href={m.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[9px] font-black text-[#FF6600] uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all">
+                                                                    <a key={`material-${mIdx}`} href={m.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-black/40 border border-white/10 rounded-xl text-[10px] font-bold text-[#FF6600] uppercase tracking-widest hover:bg-[#FF6600] hover:text-black transition-all">
                                                                        {m.title || t("adminMisc.programDetail.resourceLink")}
                                                                     </a>
                                                                  ))}
@@ -623,10 +623,10 @@ export default function SuperAdminExecutiveView({ params }) {
                                                         {/* SESSION FEEDBACK */}
                                                         <div className="pt-4 border-t border-white/5 space-y-4">
                                                            <div className="flex justify-between items-center">
-                                                              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.activityFeedback")}</p>
+                                                              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.activityFeedback")}</p>
                                                               <button 
                                                                  onClick={() => setNewFollowup({ week: wn, session_id: session.id, comment: '' })}
-                                                                 className="text-[8px] font-black text-[#FF6600] uppercase tracking-widest"
+                                                                 className="text-[10px] font-bold text-[#FF6600] uppercase tracking-wide"
                                                               >
                                                                  + {t("adminMisc.programDetail.leaveComment")}
                                                               </button>
@@ -655,11 +655,11 @@ export default function SuperAdminExecutiveView({ params }) {
                                                                     rows={2}
                                                                  />
                                                                  <div className="flex justify-end gap-2">
-                                                                    <button onClick={() => setNewFollowup({ week: null, session_id: null, comment: '' })} className="px-4 py-1.5 text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.cancel")}</button>
+                                                                    <button onClick={() => setNewFollowup({ week: null, session_id: null, comment: '' })} className="px-4 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide">{t("adminMisc.programDetail.cancel")}</button>
                                                                     <button 
                                                                        disabled={isSubmitting || !newFollowup.comment.trim()}
                                                                        onClick={() => handleAddFollowup(wn, session.id)}
-                                                                       className="px-4 py-1.5 bg-[#FF6600] text-black text-[8px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all"
+                                                                       className="px-4 py-1.5 bg-[#FF6600] text-black text-sm font-bold uppercase tracking-wide rounded-lg hover:bg-white transition-all"
                                                                     >
                                                                        {isSubmitting ? '...' : t("adminMisc.programDetail.post")}
                                                                     </button>
@@ -674,7 +674,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                          </div>
                                       );
                                    })}
-                                   {weekSessions.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">{t("adminMisc.programDetail.noActivities")}</p>}
+                                   {weekSessions.length === 0 && <p className="text-[10px] font-medium text-slate-700 uppercase">{t("adminMisc.programDetail.noActivities")}</p>}
                                 </div>
                              </div>
 
@@ -682,7 +682,7 @@ export default function SuperAdminExecutiveView({ params }) {
                              <div className="space-y-6">
                                 <div className="flex items-center gap-3">
                                    <Layers className="w-3.5 h-3.5 text-slate-600" />
-                                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.requiredTasks")}</p>
+                                   <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.requiredTasks")}</p>
                                 </div>
                                 <div className="space-y-3">
                                    {weekDocs.map((doc, dIdx) => (
@@ -691,7 +691,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                             <CheckCircle2 className={`w-4 h-4 ${doc.is_completed ? 'text-emerald-500' : 'text-slate-800'}`} />
                                             <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{doc.title}</p>
                                          </div>
-                                         <span className={`text-[8px] font-black uppercase tracking-widest ${doc.is_completed ? 'text-emerald-500' : 'text-slate-600'}`}>{doc.is_completed ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
+                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${doc.is_completed ? 'text-emerald-500' : 'text-slate-600'}`}>{doc.is_completed ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
                                       </div>
                                    ))}
                                    {/* Auto-added presence task for weeks with scheduled sessions */}
@@ -701,10 +701,10 @@ export default function SuperAdminExecutiveView({ params }) {
                                             <CheckCircle2 className={`w-4 h-4 ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-800'}`} />
                                             <p className="text-xs font-black text-white uppercase tracking-tighter truncate max-w-[200px]">{t("pmMisc.workspace.attendance")}</p>
                                          </div>
-                                         <span className={`text-[8px] font-black uppercase tracking-widest ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-600'}`}>{weekPresentCount > 0 ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
+                                         <span className={`text-[10px] font-bold uppercase tracking-widest ${weekPresentCount > 0 ? 'text-emerald-500' : 'text-slate-600'}`}>{weekPresentCount > 0 ? t("adminMisc.programDetail.done") : t("adminMisc.programDetail.pending")}</span>
                                       </div>
                                    )}
-                                   {weekDocs.length === 0 && weekSessionIds.length === 0 && <p className="text-[9px] font-bold text-slate-700 uppercase italic">{t("adminMisc.programDetail.noTasks")}</p>}
+                                   {weekDocs.length === 0 && weekSessionIds.length === 0 && <p className="text-[10px] font-medium text-slate-700 uppercase">{t("adminMisc.programDetail.noTasks")}</p>}
                                 </div>
                              </div>
                           </div>
@@ -721,7 +721,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                                {report.report_type === 'pm' ? t("adminMisc.programDetail.pmIntelligenceReport") : t("adminMisc.programDetail.instructorProgressReport")}
                                             </p>
                                          </div>
-                                         <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest italic">
+                                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
                                             {t("adminMisc.programDetail.submittedBy", { name: report.teacher_name || report.instructor_name })}
                                          </span>
                                       </div>
@@ -729,7 +729,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                       {report.report_type === 'pm' ? (
                                          <div className="space-y-4">
                                             <div className="flex items-center gap-2">
-                                               <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${report.status === 'on-track' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                               <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${report.status === 'on-track' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
                                                   {report.status}
                                                </span>
                                             </div>
@@ -740,36 +740,36 @@ export default function SuperAdminExecutiveView({ params }) {
                                             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                                                {report.week_status && (
                                                   <div className="space-y-1">
-                                                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.weekStatus")}</p>
-                                                     <span className="inline-block px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10">{report.week_status.replace(/_/g, ' ')}</span>
+                                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.weekStatus")}</p>
+                                                     <span className="inline-block px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/10">{report.week_status.replace(/_/g, ' ')}</span>
                                                   </div>
                                                )}
                                                {report.week_rating && (
                                                   <div className="space-y-1">
-                                                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.weekRating")}</p>
-                                                     <span className="inline-block px-2 py-1 rounded text-[9px] font-black uppercase tracking-wider bg-white/5 border border-white/10">{report.week_rating}</span>
+                                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.weekRating")}</p>
+                                                     <span className="inline-block px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest bg-white/5 border border-white/10">{report.week_rating}</span>
                                                   </div>
                                                )}
                                                {report.main_topic && (
                                                   <div className="space-y-1">
-                                                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.mainTopic")}</p>
+                                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.mainTopic")}</p>
                                                      <p className="text-xs font-bold text-white">{report.main_topic}</p>
                                                   </div>
                                                )}
                                                {report.reception_score != null && (
                                                   <div className="space-y-1">
-                                                     <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.receptionScore")}</p>
-                                                     <span className="inline-block px-2 py-1 rounded text-[9px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/20">{report.reception_score}/10</span>
+                                                     <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.receptionScore")}</p>
+                                                     <span className="inline-block px-2 py-1 rounded text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20">{report.reception_score}/10</span>
                                                   </div>
                                                )}
                                             </div>
                                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                                <div className="space-y-2">
-                                                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.progressNotes")}</p>
+                                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.progressNotes")}</p>
                                                   <p className="text-sm text-slate-200 font-bold leading-relaxed">{report.progress_notes || '—'}</p>
                                                </div>
                                                <div className="space-y-2">
-                                                  <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.actionPlan")}</p>
+                                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.actionPlan")}</p>
                                                   <p className="text-sm text-slate-200 font-bold leading-relaxed">{report.action_taken || '—'}</p>
                                                </div>
                                             </div>
@@ -777,19 +777,19 @@ export default function SuperAdminExecutiveView({ params }) {
                                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4 border-t border-white/5">
                                                   {report.attendance_level && (
                                                      <div className="space-y-1">
-                                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.attendance")}</p>
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.attendance")}</p>
                                                         <span className="text-xs font-bold text-white">{report.attendance_level}</span>
                                                      </div>
                                                   )}
                                                   {report.participation_level && (
                                                      <div className="space-y-1">
-                                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.participation")}</p>
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.participation")}</p>
                                                         <span className="text-xs font-bold text-white">{report.participation_level}</span>
                                                      </div>
                                                   )}
                                                   {report.program_on_track != null && (
                                                      <div className="space-y-1">
-                                                        <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.programOnTrack")}</p>
+                                                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.programOnTrack")}</p>
                                                         <span className={`text-xs font-bold ${report.program_on_track ? 'text-emerald-400' : 'text-rose-400'}`}>{report.program_on_track ? t("adminMisc.programDetail.yes") : t("adminMisc.programDetail.no")}</span>
                                                      </div>
                                                   )}
@@ -805,10 +805,10 @@ export default function SuperAdminExecutiveView({ params }) {
                           {/* FOLLOW-UPS (ADMIN COMMENTS) */}
                           <div className="mt-10 pt-10 border-t border-white/5 space-y-6">
                              <div className="flex items-center justify-between">
-                                <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest italic">{t("adminMisc.programDetail.adminComments")}</h5>
+                                <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.programDetail.adminComments")}</h5>
                                 <button 
                                    onClick={() => setNewFollowup({ week: wn, comment: '' })}
-                                   className="text-[9px] font-black text-[#FF6600] uppercase tracking-widest hover:text-white transition-colors"
+                                   className="text-[10px] font-bold text-[#FF6600] uppercase tracking-wide hover:text-white transition-colors"
                                 >
                                    + {t("adminMisc.programDetail.addComment")}
                                 </button>
@@ -822,7 +822,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                          <p className="text-xs text-white font-bold">{f.comment}</p>
-                                         <p className="text-[8px] font-black text-[#FF6600]/50 uppercase mt-2">{new Date(f.created_at).toLocaleString()}</p>
+                                         <p className="text-[10px] font-bold text-[#FF6600]/50 uppercase mt-2">{new Date(f.created_at).toLocaleString()}</p>
                                       </div>
                                    </div>
                                 ))}
@@ -843,14 +843,14 @@ export default function SuperAdminExecutiveView({ params }) {
                                       <div className="flex justify-end gap-3">
                                          <button 
                                             onClick={() => setNewFollowup({ week: null, comment: '' })}
-                                            className="px-6 py-2 text-[9px] font-black text-slate-500 uppercase tracking-widest"
+                                            className="px-6 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wide"
                                          >
                                             {t("adminMisc.programDetail.cancel")}
                                          </button>
                                          <button 
                                             disabled={isSubmitting || !newFollowup.comment.trim()}
                                             onClick={() => handleAddFollowup(wn)}
-                                            className="px-6 py-2 bg-[#FF6600] text-black text-[9px] font-black uppercase tracking-widest rounded-lg hover:bg-white transition-all disabled:opacity-50"
+                                            className="px-6 py-2 bg-[#FF6600] text-black text-sm font-bold uppercase tracking-wide rounded-lg hover:bg-white transition-all disabled:opacity-50"
                                          >
                                             {isSubmitting ? t("adminMisc.programDetail.saving") : t("adminMisc.programDetail.postComment")}
                                          </button>
@@ -861,7 +861,7 @@ export default function SuperAdminExecutiveView({ params }) {
                                 {weekFollowups.length === 0 && !newFollowup.week && (
                                    <div className="flex items-center gap-3 text-slate-700">
                                       <AlertCircle className="w-3 h-3" />
-                                      <p className="text-[9px] font-black uppercase italic tracking-widest">{t("adminMisc.programDetail.noComments")}</p>
+                                      <p className="text-[10px] font-bold uppercase tracking-widest">{t("adminMisc.programDetail.noComments")}</p>
                                    </div>
                                 )}
                              </div>

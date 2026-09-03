@@ -264,7 +264,7 @@ export default function StaffProjectDetail() {
           </p>
           <button
             onClick={() => router.push("/staff/projects")}
-            className="mt-6 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest"
+            className="mt-6 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide"
           >
             <ArrowLeft className="w-3.5 h-3.5 inline mr-2" />
             {t("staffMisc.projectDetail.backToProjects")}
@@ -294,7 +294,7 @@ export default function StaffProjectDetail() {
           <div className="space-y-3">
             <button
               onClick={() => router.push("/staff/projects")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("staffMisc.projectDetail.allProjects")}
@@ -309,7 +309,7 @@ export default function StaffProjectDetail() {
                     {project.name}
                   </h1>
                   <span
-                    className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
+                    className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded ${STATUS_BG[project.status] || "bg-slate-500/10"} ${STATUS_COLORS[project.status] || "text-slate-400"}`}
                   >
                     {project.status &&
                       t(PROJECT_STATUS_LABELS[project.status] || project.status)}
@@ -348,7 +348,7 @@ export default function StaffProjectDetail() {
           </div>
           <button
             onClick={fetchProject}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[9px] font-black uppercase tracking-widest"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-[var(--border-primary)] hover:bg-tertiary transition-all text-[10px] font-bold uppercase tracking-wide"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("staffMisc.projectDetail.refresh")}
           </button>
@@ -361,7 +361,7 @@ export default function StaffProjectDetail() {
               <Target className="w-4 h-4 text-emerald-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.projectDetail.statProgress")}
               </p>
               <p className="text-xl font-black text-emerald-500">
@@ -374,7 +374,7 @@ export default function StaffProjectDetail() {
               <ListTodo className="w-4 h-4 text-[var(--text-primary)]" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.projectDetail.statTasks")}
               </p>
               <p className="text-xl font-black">
@@ -387,7 +387,7 @@ export default function StaffProjectDetail() {
               <Shield className="w-4 h-4 text-rose-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.projectDetail.statBlockers")}
               </p>
               <p className="text-xl font-black text-rose-500">
@@ -400,7 +400,7 @@ export default function StaffProjectDetail() {
               <Users className="w-4 h-4 text-blue-500" />
             </div>
             <div>
-              <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.projectDetail.statTeam")}
               </p>
               <p className="text-xl font-black text-blue-500">
@@ -465,7 +465,7 @@ export default function StaffProjectDetail() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-1.5 px-3 py-3 text-[9px] font-black uppercase tracking-widest transition-all border-b-2 -mb-[1px] shrink-0 whitespace-nowrap ${isActive ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"}`}
+                    className={`flex items-center gap-1.5 px-3 py-3 text-[10px] font-bold uppercase tracking-wide transition-all border-b-2 -mb-[1px] shrink-0 whitespace-nowrap ${isActive ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                   >
                     <TabIcon className="w-3 h-3 shrink-0" />
                     {tab.label}
@@ -480,7 +480,7 @@ export default function StaffProjectDetail() {
         {activeTab === "overview" && (
           <div className="space-y-6">
             <div className="card space-y-3">
-              <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+              <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 {t("staffMisc.projectDetail.overallProgress")}
               </h3>
               <div className="flex items-center gap-4">
@@ -532,7 +532,7 @@ export default function StaffProjectDetail() {
                 return (
                   <div key={key} className={`card p-4 ${bg}`}>
                     <p className={`text-2xl font-black ${color}`}>{count}</p>
-                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {label}
                     </p>
                   </div>
@@ -541,7 +541,7 @@ export default function StaffProjectDetail() {
             </div>
             {tasks.length > 0 && (
               <div className="card">
-                <h3 className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">
                   {t("staffMisc.projectDetail.latestTasks")}
                 </h3>
                 <div className="space-y-2">
@@ -556,7 +556,7 @@ export default function StaffProjectDetail() {
                       <span className="text-[11px] font-bold text-[var(--text-primary)] flex-1 truncate">
                         {task.title}
                       </span>
-                      <span className="text-[9px] text-[var(--text-secondary)]">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {task.assignee_name || task.user_name}
                       </span>
                     </div>
@@ -609,7 +609,7 @@ export default function StaffProjectDetail() {
                 <button
                   key={f.id}
                   onClick={() => setBlockerFilter(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${blockerFilter === f.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-slate-500 hover:text-[var(--text-primary)]"}`}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide transition-all ${blockerFilter === f.id ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
                 >
                   {f.label}
                 </button>
@@ -641,14 +641,14 @@ export default function StaffProjectDetail() {
                         {blocker.title}
                       </p>
                       {blocker.task_title && (
-                        <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                           {t("staffMisc.projectDetail.taskLabel", {
                             title: blocker.task_title,
                           })}
                         </p>
                       )}
                       {blocker.user_name && (
-                        <p className="text-[8px] text-slate-500 mt-0.5">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                           {t("staffMisc.projectDetail.raisedBy", {
                             name: blocker.user_name,
                           })}
@@ -656,7 +656,7 @@ export default function StaffProjectDetail() {
                       )}
                     </div>
                     <span
-                      className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${blocker.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
+                      className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${blocker.status === "active" ? "bg-rose-500/10 text-rose-500" : "bg-emerald-500/10 text-emerald-500"}`}
                     >
                       {t(BLOCKER_STATUS_LABELS[blocker.status] || blocker.status)}
                     </span>
@@ -680,7 +680,7 @@ export default function StaffProjectDetail() {
             ) : (
               members.map((m, i) => (
                 <div key={i} className="card flex items-center gap-3 p-4">
-                  <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-black text-[var(--text-primary)]">
+                  <div className="w-8 h-8 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase text-[var(--text-primary)]">
                     {(m.name || "?").charAt(0).toUpperCase()}
                   </div>
                   <div className="flex-1">
@@ -688,13 +688,13 @@ export default function StaffProjectDetail() {
                       {m.name || m.member_id || t("staffMisc.projectDetail.unknown")}
                     </p>
                     {m.email && (
-                      <p className="text-[9px] text-[var(--text-secondary)]">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {m.email}
                       </p>
                     )}
                   </div>
                   <span
-                    className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${m.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
+                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${m.member_role === "lead" ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]" : "bg-slate-500/10 text-slate-500"}`}
                   >
                     {t(
                       MEMBER_ROLE_LABELS[m.member_role] ||
@@ -716,7 +716,7 @@ export default function StaffProjectDetail() {
                 {t("staffMisc.projectDetail.postWeeklyUpdate")}
               </h3>
               <div>
-                <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 block">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
                   {t("staffMisc.projectDetail.statusField")}
                 </label>
                 <select
@@ -751,7 +751,7 @@ export default function StaffProjectDetail() {
                 { key: "notes", label: t("staffMisc.projectDetail.fieldNotes") },
               ].map(({ key, label }) => (
                 <div key={key}>
-                  <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1 block">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
                     {label}
                   </label>
                   <textarea
@@ -770,7 +770,7 @@ export default function StaffProjectDetail() {
                   savingUpdate ||
                   (!updateForm.accomplishments && !updateForm.current_focus)
                 }
-                className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 <Send className="w-4 h-4" />
                 {savingUpdate
@@ -788,14 +788,14 @@ export default function StaffProjectDetail() {
                 {updates.map((u) => (
                   <div key={u.id} className="card p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-[9px] font-black text-[var(--text-primary)]">
+                      <span className="text-[10px] font-bold text-[var(--text-primary)]">
                         {t("staffMisc.projectDetail.weekLabel", {
                           week: u.week_number,
                           year: u.year,
                         })}
                       </span>
                       <span
-                        className={`text-[7px] font-black uppercase px-2 py-0.5 rounded-full ${u.overall_status === "on_track" ? "bg-emerald-500/10 text-emerald-500" : u.overall_status === "at_risk" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}
+                        className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${u.overall_status === "on_track" ? "bg-emerald-500/10 text-emerald-500" : u.overall_status === "at_risk" ? "bg-amber-500/10 text-amber-500" : "bg-rose-500/10 text-rose-500"}`}
                       >
                         {t(UPDATE_STATUS_LABELS[u.overall_status] || u.overall_status)}
                       </span>
@@ -848,7 +848,7 @@ export default function StaffProjectDetail() {
                 <button
                   onClick={handlePostDiscussion}
                   disabled={postingDiscussion || !newDiscussion.trim()}
-                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center gap-2 self-end"
+                  className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 flex items-center gap-2 self-end"
                 >
                   <Send className="w-3.5 h-3.5" />
                   {postingDiscussion ? "..." : t("messaging.postDiscussion")}
@@ -876,13 +876,13 @@ export default function StaffProjectDetail() {
                 {discussions.map((msg) => (
                   <div key={msg.id} className="card p-4 space-y-1.5">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black text-[var(--text-primary)]">
+                      <div className="w-6 h-6 rounded-full bg-[var(--bg-tertiary)] border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase text-[var(--text-primary)]">
                         {(msg.sender_name || "?").charAt(0).toUpperCase()}
                       </div>
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">
                         {msg.sender_name || t("staffMisc.projectDetail.unknown")}
                       </span>
-                      <span className="text-[8px] text-slate-500 ml-auto">
+                      <span className="text-[10px] font-medium text-[var(--text-secondary)] ml-auto">
                         {new Date(msg.created_at).toLocaleDateString(
                           undefined,
                           {
@@ -913,7 +913,7 @@ export default function StaffProjectDetail() {
                 <p className="text-[10px] font-bold uppercase tracking-widest">
                   {t("staffMisc.projectDetail.noActivityYet")}
                 </p>
-                <p className="text-[9px] text-slate-500 mt-1">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                   {t("staffMisc.projectDetail.timelineEmptyHint")}
                 </p>
               </div>
@@ -929,21 +929,21 @@ export default function StaffProjectDetail() {
                       {entry.description || entry.action_type}
                     </p>
                     {entry.task_title && (
-                      <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                         {t("staffMisc.projectDetail.taskLabel", {
                           title: entry.task_title,
                         })}
                       </p>
                     )}
                     {entry.actor_name && (
-                      <p className="text-[8px] text-slate-500 mt-0.5">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                         {t("staffMisc.projectDetail.byActor", {
                           name: entry.actor_name,
                         })}
                       </p>
                     )}
                   </div>
-                  <span className="text-[8px] text-slate-500 shrink-0">
+                  <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                     {new Date(entry.created_at).toLocaleDateString()}
                   </span>
                 </div>

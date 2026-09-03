@@ -98,7 +98,7 @@ export default function GlobalToast() {
               </div>
               <div className="flex-1 min-w-0">
                 <p
-                  className={`text-[9px] font-black uppercase tracking-[0.2em] mb-1 opacity-60 ${style.text}`}
+                  className={`text-[10px] font-bold uppercase tracking-widest mb-1 opacity-60 ${style.text}`}
                 >
                   {style.label}
                 </p>

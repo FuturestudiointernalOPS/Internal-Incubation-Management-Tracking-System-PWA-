@@ -278,20 +278,20 @@ export default function UserAccessSummary() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("adminMisc.access.administration")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("adminMisc.access.title")}
             </h1>
-            <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("adminMisc.access.subtitle")}
             </p>
           </div>
           <button
             onClick={() => { setSelectedUser(null); setUserData(null); fetchUsers(); }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" /> {t("adminMisc.access.refresh")}
           </button>
@@ -306,7 +306,7 @@ export default function UserAccessSummary() {
                 value={searchQuery}
                 onChange={(e) => searchUsers(e.target.value)}
                 placeholder={t("adminMisc.access.searchPlaceholder")}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 text-sm font-bold transition-all"
               />
             </div>
 
@@ -329,10 +329,10 @@ export default function UserAccessSummary() {
                           <User className="w-5 h-5 text-[var(--brand-orange)]" />
                         </div>
                         <div>
-                          <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                             {u.name}
                           </p>
-                          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                          <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                             {u.email} · {u.role} · {u.status}
                           </p>
                         </div>
@@ -351,14 +351,14 @@ export default function UserAccessSummary() {
                       <button
                         onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                         disabled={safePage === 1}
-                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
                         {t("common.previous")}
                       </button>
                       <button
                         onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                         disabled={safePage === totalPages}
-                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        className="px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
                         {t("common.next")}
                       </button>
@@ -383,26 +383,26 @@ export default function UserAccessSummary() {
                   <p className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
                     {userData.user.name}
                   </p>
-                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     {userData.user.email}
                   </p>
                   <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase">
                       {userData.user.role}
                     </span>
                     {(userData.groups || []).map((g) => (
-                      <span key={g} className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider">
+                      <span key={g} className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase">
                         {g}
                       </span>
                     ))}
                     {/* Access Profile Badge */}
                     {userData.profile.assigned && (
-                      <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 uppercase">
                         {userData.profile.assigned.name}
                       </span>
                     )}
                     {!userData.profile.assigned && userData.profile.roleDefault && (
-                      <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-500/10 text-teal-400 uppercase">
                         {userData.profile.roleDefault.name} {t("adminMisc.access.roleDefaultSuffix")}
                       </span>
                     )}
@@ -430,27 +430,27 @@ export default function UserAccessSummary() {
                   <div className="ios-card !p-5 border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Layers className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.accessProfile")}
                       </h3>
                     </div>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.effectiveProfile")}</span>
-                        <span className={`text-[9px] font-black ${userData.profile.effectiveSource === "user" ? "text-purple-400" : userData.profile.effectiveSource === "role" ? "text-teal-400" : "text-slate-400"}`}>
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.access.effectiveProfile")}</span>
+                        <span className={`text-[10px] font-bold ${userData.profile.effectiveSource === "user" ? "text-purple-400" : userData.profile.effectiveSource === "role" ? "text-teal-400" : "text-[var(--text-secondary)]"}`}>
                           {userData.profile.assigned?.name || userData.profile.roleDefault?.name || t("adminMisc.access.legacyRoleCapabilities")}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.source")}</span>
-                        <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.access.source")}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">
                           {userData.profile.effectiveSource === "user" ? t("adminMisc.access.sourceUserOverride") : userData.profile.effectiveSource === "role" ? t("adminMisc.access.sourceRoleDefault") : t("adminMisc.access.sourceLegacy")}
                         </span>
                       </div>
                       {userData.profile.assigned && (
                         <div className="flex justify-between items-center">
-                          <span className="text-[9px] font-bold text-[var(--text-secondary)]">{t("adminMisc.access.roleDefault")}</span>
-                          <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.access.roleDefault")}</span>
+                          <span className="text-[10px] font-bold text-[var(--text-primary)]">
                             {userData.profile.roleDefault?.name || t("adminMisc.access.none")}
                           </span>
                         </div>
@@ -462,10 +462,10 @@ export default function UserAccessSummary() {
                   <div className="ios-card !p-5 border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Award className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.responsibilities")}
                       </h3>
-                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                         {(userData.responsibilities || []).length}
                       </span>
                     </div>
@@ -477,11 +477,11 @@ export default function UserAccessSummary() {
                       if (blocked.length === 0) return null;
                       return (
                         <div className="mb-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                          <p className="text-[9px] font-bold text-amber-400 flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-amber-400 flex items-center gap-1.5">
                             <AlertTriangle className="w-3 h-3" />
                             {t("adminMisc.access.roleIncompatibilityTitle")}
                           </p>
-                          <p className="text-[8px] font-bold text-amber-400/90 mt-1">
+                          <p className="text-sm text-amber-400/90 mt-1">
                             {t("adminMisc.access.roleIncompatibilityBody", {
                               role: userRole,
                               features: blocked.map((b) => b.name).join(", "),
@@ -491,7 +491,7 @@ export default function UserAccessSummary() {
                       );
                     })()}
                     {userData.responsibilities.length === 0 ? (
-                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noResponsibilities")}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noResponsibilities")}</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {userData.responsibilities.map((r) => {
@@ -501,7 +501,7 @@ export default function UserAccessSummary() {
                             <span
                               key={r.id}
                               title={blocked ? t("adminMisc.access.roleIncompatibilityTitle") : undefined}
-                              className={`text-[8px] font-bold px-2 py-1 rounded uppercase tracking-wider flex items-center gap-1 ${
+                              className={`text-[10px] font-bold px-2 py-1 rounded uppercase flex items-center gap-1 ${
                                 blocked
                                   ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
                                   : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
@@ -520,15 +520,15 @@ export default function UserAccessSummary() {
                   <div className="ios-card !p-5 border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-4">
                       <Briefcase className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.assignments")}
                       </h3>
-                      <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]">
                         {(userData.assignments || []).length}
                       </span>
                     </div>
                     {(userData.assignments || []).length === 0 ? (
-                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noAssignments")}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noAssignments")}</p>
                     ) : (
                       <div className="space-y-2">
                         {(userData.assignments || []).map((a, i) => {
@@ -550,26 +550,26 @@ export default function UserAccessSummary() {
                               }`}
                             >
                               <div className="flex items-center justify-between">
-                                <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                                <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                   {a.title || a.role}
                                 </p>
                                 {isCurrent ? (
-                                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase tracking-wider">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase">
                                     Current
                                   </span>
                                 ) : (
-                                  <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 uppercase tracking-wider">
+                                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-500/10 text-[var(--text-secondary)] uppercase">
                                     Ended
                                   </span>
                                 )}
                               </div>
                               <div className="mt-1.5 space-y-0.5">
-                                <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                   {a.context_type} · {a.context_id || "global"}
                                   {scopeLabel ? ` · ${scopeLabel}` : ""}
                                 </p>
                                 {a.status && (
-                                  <p className="text-[8px] font-bold text-[var(--text-secondary)] opacity-70">
+                                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                     Status: {a.status}
                                   </p>
                                 )}
@@ -580,7 +580,7 @@ export default function UserAccessSummary() {
                                       {Object.keys(a.capability_overrides || a.permissions).map((k) => (
                                         <span
                                           key={k}
-                                          className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                                          className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase"
                                         >
                                           {k.replace(/\./g, " ")}
                                         </span>
@@ -593,7 +593,7 @@ export default function UserAccessSummary() {
                                     .map((r) => r.name);
                                   if (blockedFeatures.length === 0) return null;
                                   return (
-                                    <p className="flex items-start gap-1 text-[8px] font-bold text-amber-400 pt-1">
+                                    <p className="flex items-start gap-1 text-sm font-bold text-amber-400 pt-1">
                                       <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                                       <span>
                                         {t("adminMisc.access.assignmentRoleWarning", {
@@ -616,18 +616,18 @@ export default function UserAccessSummary() {
                   <div className="ios-card !p-5 border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-4">
                       <UserCheck className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.supervisor")}
                       </h3>
                     </div>
 
                     {supervisorMsg && (
-                      <p className="text-[8px] font-bold text-emerald-400 mb-2">
+                      <p className="text-sm font-bold text-emerald-400 mb-2">
                         {supervisorMsg}
                       </p>
                     )}
                     {supervisorError && (
-                      <p className="text-[8px] font-bold text-red-400 mb-2">
+                      <p className="text-sm font-bold text-red-400 mb-2">
                         {supervisorError}
                       </p>
                     )}
@@ -635,11 +635,11 @@ export default function UserAccessSummary() {
                     {currentSupervisor ? (
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider truncate">
+                          <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">
                             {currentSupervisor.name}
                           </p>
                           {currentSupervisor.email && (
-                            <p className="text-[8px] font-bold text-[var(--text-secondary)] truncate">
+                            <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                               {currentSupervisor.email}
                             </p>
                           )}
@@ -647,7 +647,7 @@ export default function UserAccessSummary() {
                         <button
                           onClick={removeSupervisor}
                           disabled={savingSupervisor}
-                          className="shrink-0 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-40"
+                          className="shrink-0 px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-wide hover:bg-red-500/20 transition-all disabled:opacity-40"
                         >
                           {t("adminMisc.access.removeSupervisor")}
                         </button>
@@ -658,7 +658,7 @@ export default function UserAccessSummary() {
                           value={supervisorQuery}
                           onChange={(e) => setSupervisorQuery(e.target.value)}
                           placeholder={t("adminMisc.access.supervisorSearchPlaceholder")}
-                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[9px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
+                          className="w-full bg-secondary border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50"
                         />
                         <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
                           {filteredSupervisors.map((u) => (
@@ -669,20 +669,20 @@ export default function UserAccessSummary() {
                               className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg hover:bg-tertiary transition-all text-left"
                             >
                               <div className="min-w-0">
-                                <p className="text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wide truncate">
+                                <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide truncate">
                                   {u.name || u.cid}
                                 </p>
-                                <p className="text-[7px] font-bold text-[var(--text-secondary)] truncate">
+                                <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                                   {u.email}
                                 </p>
                               </div>
-                              <span className="text-[7px] font-bold text-[var(--brand-orange)] shrink-0">
+                              <span className="text-[10px] font-bold text-[var(--brand-orange)] shrink-0">
                                 {u.role}
                               </span>
                             </button>
                           ))}
                           {filteredSupervisors.length === 0 && (
-                            <p className="text-[8px] font-bold text-slate-500 py-2 text-center">
+                            <p className="text-sm text-[var(--text-secondary)] py-2 text-center">
                               {t("adminMisc.access.supervisorNoResults")}
                             </p>
                           )}
@@ -692,7 +692,7 @@ export default function UserAccessSummary() {
                             setShowSupervisorPicker(false);
                             setSupervisorQuery("");
                           }}
-                          className="text-[8px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                          className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         >
                           {t("common.cancel")}
                         </button>
@@ -700,7 +700,7 @@ export default function UserAccessSummary() {
                     ) : (
                       <button
                         onClick={() => setShowSupervisorPicker(true)}
-                        className="w-full px-3 py-2 rounded-lg bg-secondary border border-dashed border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/40 transition-all"
+                        className="w-full px-3 py-2 rounded-lg bg-secondary border border-dashed border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)] hover:border-[var(--brand-orange)]/40 transition-all"
                       >
                         {t("adminMisc.access.assignSupervisor")}
                       </button>
@@ -711,25 +711,25 @@ export default function UserAccessSummary() {
                   <div className="ios-card !p-5 border-[var(--border-primary)]">
                     <div className="flex items-center gap-2 mb-4">
                       <AlertTriangle className="w-4 h-4 text-[var(--brand-orange)]" />
-                      <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                      <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                         {t("adminMisc.access.permissionOverrides")}
                       </h3>
                     </div>
                     {(userData.individualGrants || []).length === 0 && (userData.individualRestrictions || []).length === 0 ? (
-                      <p className="text-[9px] font-bold text-slate-500">{t("adminMisc.access.noOverrides")}</p>
+                      <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.access.noOverrides")}</p>
                     ) : (
                       <div className="space-y-3">
                         {(userData.individualGrants || []).length > 0 && (
                           <div>
-                            <p className="text-[8px] font-bold text-emerald-400 mb-1.5 uppercase tracking-wider">{t("adminMisc.access.grants")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1.5">{t("adminMisc.access.grants")}</p>
                             <div className="space-y-1">
                               {userData.individualGrants.map((g, i) => (
-                                <div key={i} className="flex items-center gap-2 text-[8px] font-bold">
+                                <div key={i} className="flex items-center gap-2 text-[10px] font-medium">
                                   <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                                   <span className="text-[var(--text-primary)]">{g.module}.{g.capability.replace(/_/g, " ")}</span>
                                   <span className={ACCESS_COLORS[g.access_level] || "text-slate-500"}>({t(ACCESS_LEVEL_KEYS[g.access_level] || "adminMisc.access.accessLevelNone")})</span>
                                   {g.expires_at && (
-                                    <span className="text-slate-500 flex items-center gap-1">
+                                    <span className="text-[var(--text-secondary)] flex items-center gap-1">
                                       <Clock className="w-2.5 h-2.5" />
                                       {new Date(g.expires_at).toLocaleDateString()}
                                     </span>
@@ -741,14 +741,14 @@ export default function UserAccessSummary() {
                         )}
                         {(userData.individualRestrictions || []).length > 0 && (
                           <div>
-                            <p className="text-[8px] font-bold text-red-400 mb-1.5 uppercase tracking-wider">{t("adminMisc.access.restrictions")}</p>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1.5">{t("adminMisc.access.restrictions")}</p>
                             <div className="space-y-1">
                               {userData.individualRestrictions.map((r, i) => (
-                                <div key={i} className="flex items-center gap-2 text-[8px] font-bold">
+                                <div key={i} className="flex items-center gap-2 text-[10px] font-medium">
                                   <X className="w-3 h-3 text-red-400" />
                                   <span className="text-[var(--text-primary)]">{r.module}.{r.capability.replace(/_/g, " ")}</span>
                                   {r.expires_at && (
-                                    <span className="text-slate-500 flex items-center gap-1">
+                                    <span className="text-[var(--text-secondary)] flex items-center gap-1">
                                       <Clock className="w-2.5 h-2.5" />
                                       {new Date(r.expires_at).toLocaleDateString()}
                                     </span>
@@ -767,7 +767,7 @@ export default function UserAccessSummary() {
                 <div className="ios-card !p-5 border-[var(--border-primary)]">
                   <div className="flex items-center gap-2 mb-4">
                     <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-                    <h3 className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+                    <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
                       {t("adminMisc.access.accessibleModules")}
                     </h3>
                   </div>
@@ -779,7 +779,7 @@ export default function UserAccessSummary() {
                       if (!hasAccess) return null;
                       return (
                         <div key={category.label}>
-                          <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] mb-2 opacity-50">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                             {t(category.label)}
                           </p>
                           {category.modules.map((modKey) => {
@@ -788,15 +788,15 @@ export default function UserAccessSummary() {
                             if (!permissions || Object.keys(permissions).length === 0) return null;
                             return (
                               <div key={modKey} className="mb-3 last:mb-0">
-                                <p className="text-[9px] font-black text-[var(--text-primary)] uppercase tracking-wider mb-1">
+                                <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-1">
                                   {modData?.name || modKey}
                                 </p>
                                 <div className="flex flex-wrap gap-1.5">
                                   {Object.entries(permissions).map(([cap, level]) => (
-                                    <span key={cap} className={`text-[7px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                    <span key={cap} className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                       level > 0
                                         ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                                        : "bg-slate-500/10 text-slate-500"
+                                        : "bg-slate-500/10 text-[var(--text-secondary)]"
                                     }`}>
                                       {cap.replace(/_/g, " ")}
                                       <span className={`ml-1 ${ACCESS_COLORS[level] || "text-slate-500"}`}>

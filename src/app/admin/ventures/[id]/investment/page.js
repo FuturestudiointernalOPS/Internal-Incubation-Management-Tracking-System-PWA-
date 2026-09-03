@@ -89,16 +89,16 @@ export default function VentureInvestmentPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
+              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
               <ArrowLeft className="w-3 h-3" /> Back to Dashboard
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> Investment Readiness
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">{venture?.company_name || ""}</p>
           </div>
           <button onClick={handleEvaluate} disabled={evaluating}
-            className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-2">
+            className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-2">
             {evaluating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             {evaluating ? "Evaluating..." : "Run Assessment"}
           </button>
@@ -117,7 +117,7 @@ export default function VentureInvestmentPage() {
                 {overallScore}
               </div>
               <div className="mt-3">
-                <span className={`text-[9px] font-black uppercase px-2 py-1 rounded ${level.color || "text-slate-500 bg-slate-500/10"}`}>
+                <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${level.color || "text-slate-500 bg-slate-500/10"}`}>
                   {level.label || "Not Ready"}
                 </span>
               </div>
@@ -133,8 +133,8 @@ export default function VentureInvestmentPage() {
                   { min: 76, max: 100, label: "Fundraising Ready", color: "text-[var(--brand-orange)]" },
                 ].map((l) => (
                   <div key={l.label} className={`p-2 rounded-lg ${overallScore >= l.min && overallScore <= l.max ? "bg-[var(--brand-orange)]/10" : "bg-tertiary"}`}>
-                    <p className={`text-[7px] font-black uppercase ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.min}-{l.max}</p>
-                    <p className={`text-[8px] font-bold ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.label}</p>
+                    <p className={`text-[10px] font-bold uppercase ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.min}-{l.max}</p>
+                    <p className={`text-[10px] font-bold ${overallScore >= l.min && overallScore <= l.max ? l.color : "text-slate-500"}`}>{l.label}</p>
                   </div>
                 ))}
               </div>
@@ -144,9 +144,9 @@ export default function VentureInvestmentPage() {
 
         {/* Category Breakdown */}
         <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Category Breakdown</h3>
+          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Category Breakdown</h3>
           <div className="space-y-3">
-            {categories.length === 0 && <p className="text-sm text-slate-500 text-center py-4">Run an assessment to see category scores</p>}
+            {categories.length === 0 && <p className="text-sm text-[var(--text-secondary)] text-center py-4">Run an assessment to see category scores</p>}
             {categories.map((cat) => {
               const Icon = CATEGORY_ICONS[cat.category] || Target;
               const score = cat.score || 0;
@@ -172,11 +172,11 @@ export default function VentureInvestmentPage() {
 
         {/* Recommendations */}
         <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4 flex items-center gap-2">
             <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Recommendations
           </h3>
           {recommendations.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">No recommendations yet. Run an assessment to generate them.</p>
+            <p className="text-sm text-[var(--text-secondary)] text-center py-4">No recommendations yet. Run an assessment to generate them.</p>
           ) : (
             <div className="space-y-3">
               {recommendations.map((r) => (
@@ -184,15 +184,15 @@ export default function VentureInvestmentPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                           r.priority === "high" ? "bg-rose-500/10 text-rose-400" :
                           r.priority === "medium" ? "bg-amber-500/10 text-amber-400" :
                           "bg-slate-500/10 text-slate-400"
                         }`}>{r.priority}</span>
                         <p className="text-[11px] font-bold text-[var(--text-primary)]">{r.title}</p>
                       </div>
-                      <p className="text-[9px] text-slate-500 mt-1">{r.description}</p>
-                      <div className="flex items-center gap-3 mt-2 text-[8px] text-slate-500">
+                      <p className="text-[10px] text-[var(--text-secondary)] mt-1">{r.description}</p>
+                      <div className="flex items-center gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
                         <span>⏱ {r.estimated_effort || "2-4 weeks"}</span>
                         <span>Impact: <span className={r.expected_impact === "high" ? "text-emerald-400" : r.expected_impact === "medium" ? "text-amber-400" : "text-slate-400"}>{r.expected_impact}</span></span>
                         {r.resource_id && <span className="text-[var(--brand-orange)]">📚 Resource available</span>}
@@ -208,7 +208,7 @@ export default function VentureInvestmentPage() {
         {/* History Timeline */}
         {history.length > 0 && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Score History</h3>
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Score History</h3>
             <div className="space-y-2">
               {history.map((h, i) => (
                 <div key={h.id || i} className="flex items-center gap-4 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
@@ -220,12 +220,12 @@ export default function VentureInvestmentPage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-bold text-[var(--text-primary)]">{h.new_score}</span>
-                      {h.previous_score && <span className="text-[8px] text-slate-500">(was {h.previous_score})</span>}
-                      <span className="text-[7px] text-slate-500 capitalize">{h.new_level?.replace(/_/g, " ")}</span>
+                      <span className="text-[10px] text-[var(--text-secondary)]">(was {h.previous_score})</span>
+                      <span className="text-[10px] text-[var(--text-secondary)] capitalize">{h.new_level?.replace(/_/g, " ")}</span>
                     </div>
-                    <p className="text-[8px] text-slate-600">{new Date(h.created_at).toLocaleString()}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">{new Date(h.created_at).toLocaleString()}</p>
                   </div>
-                  <span className={`text-[8px] font-bold ${h.new_score >= (h.previous_score || 0) ? "text-emerald-400" : "text-rose-400"}`}>
+                  <span className={`text-[10px] font-bold ${h.new_score >= (h.previous_score || 0) ? "text-emerald-400" : "text-rose-400"}`}>
                     {h.previous_score ? `${h.new_score - h.previous_score > 0 ? "+" : ""}${h.new_score - (h.previous_score || 0)}` : "—"}
                   </span>
                 </div>

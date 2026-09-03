@@ -124,9 +124,9 @@ export default function CalendarPanel({
   const closePopup = () => setSelectedDay(null);
 
   const daySize = compact
-    ? "min-h-[32px] text-[8px]"
-    : "min-h-[44px] text-[9px]";
-  const headerSize = compact ? "text-[7px]" : "text-[8px]";
+    ? "min-h-[32px] text-[10px]"
+    : "min-h-[44px] text-[10px]";
+  const headerSize = "text-[10px]";
   const gap = compact ? "gap-1" : "gap-1.5";
 
   return (
@@ -146,16 +146,14 @@ export default function CalendarPanel({
             <Calendar
               className={`${compact ? "w-3 h-3" : "w-3.5 h-3.5"} text-[#FF6600]`}
             />
-            <span
-              className={`${compact ? "text-[9px]" : "text-[10px]"} font-black text-[var(--text-primary)] uppercase tracking-wider`}
-            >
+            <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
               {t("time.months." + MONTH_KEYS[month])} {year}
             </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={handleToday}
-              className={`px-1.5 py-0.5 rounded ${compact ? "text-[7px]" : "text-[8px]"} font-black uppercase tracking-widest hover:bg-white/5 transition-all text-slate-500 hover:text-[var(--text-primary)]`}
+              className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-white/5 transition-all text-[var(--text-secondary)] hover:text-[var(--text-primary)]`}
             >
               {t("time.today")}
             </button>
@@ -172,7 +170,7 @@ export default function CalendarPanel({
 
         {/* Day headers */}
         <div
-          className={`grid grid-cols-7 ${gap} text-center ${headerSize} font-black text-slate-500 uppercase tracking-widest mb-1.5`}
+          className={`grid grid-cols-7 ${gap} text-center ${headerSize} font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-1.5`}
         >
           {DAY_KEYS.map((k) => (
             <div key={k}>{t("time.days." + k)}</div>
@@ -195,20 +193,15 @@ export default function CalendarPanel({
                 key={dateStr}
                 onClick={() => handleDayClick(day)}
                 className={cn(
-                  `${daySize} flex flex-col items-center justify-center rounded-lg font-black transition-all cursor-pointer`,
+                  `${daySize} flex flex-col items-center justify-center rounded-lg font-bold transition-all cursor-pointer`,
                   today
                     ? "bg-[#FF6600] text-white shadow-lg shadow-[#FF6600]/30"
                     : hasEvents
                       ? "bg-[#FF6600]/15 text-[#FF6600] border border-[#FF6600]/20 hover:bg-[#FF6600]/25"
-                      : "text-slate-600 hover:text-[var(--text-primary)] hover:bg-white/5",
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-white/5",
                 )}
               >
-                <span
-                  className={cn(
-                    compact ? "text-[9px]" : "text-[10px]",
-                    "leading-none",
-                  )}
-                >
+                <span className="text-[10px] font-bold leading-none">
                   {day}
                 </span>
                 {hasEvents && (
@@ -234,12 +227,12 @@ export default function CalendarPanel({
                   className={`w-1.5 h-1.5 rounded-full shrink-0 ${EVENT_DOTS[ev.source] || "bg-slate-400"}`}
                 />
                 <span
-                  className={`${compact ? "text-[8px]" : "text-[9px]"} font-bold text-[var(--text-primary)] flex-1 truncate`}
+                  className={`text-[10px] font-bold text-[var(--text-primary)] flex-1 truncate`}
                 >
                   {ev.title}
                 </span>
                 {ev.time && (
-                  <span className="text-[7px] text-slate-500 flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+                  <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-all">
                     <Clock className="w-2.5 h-2.5" />
                     {ev.time}
                   </span>
@@ -247,7 +240,7 @@ export default function CalendarPanel({
               </div>
             ))}
             {events.length > 3 && (
-              <p className={`text-[7px] text-slate-500 text-center pt-0.5`}>
+              <p className={`text-[10px] font-medium text-[var(--text-secondary)] text-center pt-0.5`}>
                 +{events.length - 3} {t("common.more")}
               </p>
             )}
@@ -269,7 +262,7 @@ export default function CalendarPanel({
             <div className="flex items-center justify-between p-5 pb-0">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-[#FF6600]" />
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                   {new Date(year, month, selectedDay.day).toLocaleDateString(
                     "en-US",
                     {
@@ -291,7 +284,7 @@ export default function CalendarPanel({
             {/* Events */}
             <div className="px-5 pb-5 space-y-2">
               {selectedDay.events.length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("common.noEvents")}
                 </p>
               ) : (
@@ -305,7 +298,7 @@ export default function CalendarPanel({
                     className={cn(
                       "p-3 rounded-xl border cursor-pointer hover:brightness-110 transition-all",
                       EVENT_COLORS[ev.source] ||
-                        "bg-slate-500/10 text-slate-400 border-slate-500/20",
+                        "bg-[var(--surface-3)] text-[var(--text-tertiary)] border-[var(--border-primary)]",
                     )}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -313,7 +306,7 @@ export default function CalendarPanel({
                         {ev.title}
                       </p>
                       {ev.source && (
-                        <span className="text-[7px] font-black uppercase tracking-wider opacity-60 shrink-0">
+                        <span className="text-[10px] font-bold uppercase tracking-wider opacity-60 shrink-0">
                           {ev.source}
                         </span>
                       )}
@@ -321,18 +314,18 @@ export default function CalendarPanel({
                     {(ev.time || ev.type) && (
                       <div className="flex items-center gap-3 mt-1.5">
                         {ev.time && (
-                          <span className="text-[8px] text-slate-500 flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" />
                             {ev.time}
                           </span>
                         )}
                         {ev.type && (
-                          <span className="text-[8px] text-slate-500 capitalize">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] capitalize">
                             {ev.type.replace(/_/g, " ")}
                           </span>
                         )}
                         {ev.status && (
-                          <span className="text-[8px] text-slate-500 capitalize">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] capitalize">
                             {ev.status}
                           </span>
                         )}

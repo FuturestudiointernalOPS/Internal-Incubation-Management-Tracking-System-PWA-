@@ -234,12 +234,12 @@ export default function CollectionsPage() {
               {node.name}
             </p>
             {node.description && (
-              <p className="text-[9px] text-[var(--text-secondary)] truncate">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] truncate">
                 {node.description}
               </p>
             )}
           </div>
-          <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.color, cfg.bg)}>
+          <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>
             {t(cfg.label)}
           </span>
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -324,7 +324,7 @@ export default function CollectionsPage() {
               key={mode.id}
               onClick={() => setViewMode(mode.id)}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all",
+                "px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
                 viewMode === mode.id
                   ? "bg-[var(--brand-orange)] text-black"
                   : "text-[var(--text-secondary)]",
@@ -349,7 +349,7 @@ export default function CollectionsPage() {
               <p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">
                 {t("platformMisc.collections.noCollections")}
               </p>
-              <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                 {t("platformMisc.collections.createFirstPrompt")}
               </p>
             </div>
@@ -372,7 +372,7 @@ export default function CollectionsPage() {
               <p className="text-[11px] text-[var(--text-secondary)] mt-3 font-bold">
                 {t("platformMisc.collections.noCollections")}
               </p>
-              <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                 {t("platformMisc.collections.createFirstPrompt")}
               </p>
             </div>
@@ -434,27 +434,27 @@ export default function CollectionsPage() {
                   )}
 
                   {parent && (
-                    <p className="text-[9px] text-[var(--text-secondary)] mt-2 opacity-50">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-2 opacity-50">
                       {t("platformMisc.collections.nestedIn", { name: parent.name })}
                     </p>
                   )}
 
                   <div className="flex items-center gap-2 mt-3 flex-wrap">
-                    <span className={cn("px-2 py-0.5 rounded text-[8px] font-black uppercase", cfg.color, cfg.bg)}>
+                    <span className={cn("px-2 py-0.5 rounded text-[10px] font-bold uppercase", cfg.color, cfg.bg)}>
                       {t(cfg.label)}
                     </span>
                     {Array.isArray(col.tags) &&
                       col.tags.slice(0, 3).map((tag) => (
                         <span
                           key={tag}
-                          className="px-2 py-0.5 rounded bg-tertiary text-[var(--text-secondary)] text-[8px] font-bold"
+                          className="px-2 py-0.5 rounded bg-tertiary text-[var(--text-secondary)] text-[10px] font-bold"
                         >
                           {tag}
                         </span>
                       ))}
                   </div>
 
-                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--border-primary)] text-[9px] text-[var(--text-secondary)]">
+                  <div className="flex items-center gap-3 mt-3 pt-3 border-t border-[var(--border-primary)] text-[10px] text-[var(--text-secondary)]">
                     {col.owner_name && (
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
@@ -504,7 +504,7 @@ export default function CollectionsPage() {
 
             <div className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("platformMisc.collections.name")}
                 </label>
                 <input
@@ -516,7 +516,7 @@ export default function CollectionsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("platformMisc.collections.description")}
                 </label>
                 <textarea
@@ -530,7 +530,7 @@ export default function CollectionsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("platformMisc.collections.parent")}
                   </label>
                   <select
@@ -549,7 +549,7 @@ export default function CollectionsPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("platformMisc.collections.visibility")}
                   </label>
                   <select
@@ -565,7 +565,7 @@ export default function CollectionsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("platformMisc.collections.tagsLabel")}
                 </label>
                 <input
@@ -578,7 +578,7 @@ export default function CollectionsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("platformMisc.collections.status")}
                   </label>
                   <select
@@ -592,7 +592,7 @@ export default function CollectionsPage() {
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("platformMisc.collections.category")}
                   </label>
                   <input
@@ -603,7 +603,7 @@ export default function CollectionsPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("platformMisc.collections.color")}
                   </label>
                   <input
@@ -660,8 +660,8 @@ export default function CollectionsPage() {
             </div>
             {archiveConfirm.action === 'archive' ? (
               <div className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 space-y-2">
-                <p className="text-[9px] font-bold text-amber-500 uppercase">{t("platformMisc.collections.archiveExplanationTitle")}</p>
-                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                <p className="text-[10px] font-bold text-amber-500 uppercase">{t("platformMisc.collections.archiveExplanationTitle")}</p>
+                <ul className="text-[10px] font-medium text-[var(--text-secondary)] space-y-1 list-disc list-inside">
                   <li>{t("platformMisc.collections.archiveHidden")}</li>
                   <li>{t("platformMisc.collections.archiveFormsAccessible")}</li>
                   <li>{t("platformMisc.collections.archiveRestorable")}</li>
@@ -670,8 +670,8 @@ export default function CollectionsPage() {
               </div>
             ) : (
               <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20 space-y-2">
-                <p className="text-[9px] font-bold text-emerald-500 uppercase">{t("platformMisc.collections.restoreExplanationTitle")}</p>
-                <ul className="text-[9px] text-[var(--text-secondary)] space-y-1 list-disc list-inside">
+                <p className="text-[10px] font-bold text-emerald-500 uppercase">{t("platformMisc.collections.restoreExplanationTitle")}</p>
+                <ul className="text-[10px] font-medium text-[var(--text-secondary)] space-y-1 list-disc list-inside">
                   <li>{t("platformMisc.collections.restoreActive")}</li>
                   <li>{t("platformMisc.collections.restoreReappear")}</li>
                   <li>{t("platformMisc.collections.restoreFormsUnchanged")}</li>

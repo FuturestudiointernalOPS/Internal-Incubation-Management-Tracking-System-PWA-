@@ -88,17 +88,17 @@ export default function ParticipantFollowupsPage() {
                     <p className="text-[12px] font-bold text-[var(--text-primary)]">
                       {f.comment || t("participantMisc.followups.followUpMeeting")}
                     </p>
-                    <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                       {f.program_name || ""}
                       {f.deliverable_title ? ` · ${f.deliverable_title}` : ""}
                     </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${statusStyles[f.status] || statusStyles.scheduled}`}>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusStyles[f.status] || statusStyles.scheduled}`}>
                     {f.status || t("participantMisc.followups.statusScheduled")}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 text-[9px] text-[var(--text-tertiary)]">
+                <div className="flex items-center gap-4 text-[10px] font-medium text-[var(--text-tertiary)]">
                   {f.scheduled_at && (
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-3 h-3" />
@@ -116,7 +116,7 @@ export default function ParticipantFollowupsPage() {
                     href={f.meeting_link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[9px] font-bold text-[var(--brand-orange)] hover:brightness-110 transition-all"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:brightness-110 transition-all"
                   >
                     <Video className="w-3 h-3" />
                     {t("participantMisc.followups.joinMeeting")}
@@ -128,9 +128,9 @@ export default function ParticipantFollowupsPage() {
                   <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
                     <div className="flex items-center gap-1.5 mb-1">
                       <MessageSquare className="w-3 h-3 text-blue-400" />
-                      <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">{t("participantMisc.followups.notes")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t("participantMisc.followups.notes")}</span>
                     </div>
-                    <p className="text-[9px] text-[var(--text-primary)]">{f.notes}</p>
+                    <p className="text-[10px] text-[var(--text-primary)]">{f.notes}</p>
                   </div>
                 )}
               </div>

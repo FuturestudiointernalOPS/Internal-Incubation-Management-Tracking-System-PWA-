@@ -71,7 +71,7 @@ export default function ExecutiveDashboardPage() {
                 <k.icon className={`w-5 h-5 ${k.color}`} />
                 <div>
                   <p className="text-2xl font-black text-[var(--text-primary)]">{k.value}</p>
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{k.label}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{k.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -90,7 +90,7 @@ export default function ExecutiveDashboardPage() {
                 [t("investorAdmin.dashboard.conversionRate"), fund.total_sought > 0 ? `${Math.round((fund.total_committed / fund.total_sought) * 100)}%` : "—"],
               ].map(([l, v], i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                  <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{l}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
                   <p className="text-sm font-black text-[var(--text-primary)] mt-1">{v}</p>
                 </div>
               ))}
@@ -108,7 +108,7 @@ export default function ExecutiveDashboardPage() {
                 [t("investorAdmin.dashboard.pipelineTotal"), (d.pipeline || []).reduce((s, p) => s + p.count, 0)],
               ].map(([l, v], i) => (
                 <div key={i} className="p-3 rounded-xl bg-[var(--surface-2)]">
-                  <p className="text-[7px] font-black text-[var(--text-tertiary)] uppercase tracking-widest">{l}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
                   <p className="text-sm font-black text-[var(--text-primary)] mt-1">{v}</p>
                 </div>
               ))}
@@ -122,7 +122,7 @@ export default function ExecutiveDashboardPage() {
           <div className="flex flex-wrap gap-2">
             {(d.pipeline || []).map(p => (
               <div key={p.stage} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--surface-2)]">
-                <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase ${STAGE_COLORS[p.stage] || "bg-slate-500/10 text-slate-400"}`}>{STAGE_LABELS[p.stage] || p.stage}</span>
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STAGE_COLORS[p.stage] || "bg-slate-500/10 text-slate-400"}`}>{STAGE_LABELS[p.stage] || p.stage}</span>
                 <span className="text-sm font-black text-[var(--text-primary)]">{p.count}</span>
               </div>
             ))}
@@ -142,7 +142,7 @@ export default function ExecutiveDashboardPage() {
                   <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-[var(--surface-2)]">
                     <div className="flex-1 mr-3">
                       <p className="text-[10px] font-bold text-[var(--text-primary)]">{c.venture_name}</p>
-                      <p className="text-[8px] text-[var(--text-tertiary)]">{c.industry || "—"}</p>
+                      <p className="text-[10px] text-[var(--text-tertiary)]">{c.industry || "—"}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">

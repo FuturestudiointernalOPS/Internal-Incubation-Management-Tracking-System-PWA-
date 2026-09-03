@@ -123,14 +123,14 @@ export default function DevelopersPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("engineering.developers.eyebrow")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("engineering.developers.pageTitle")}
             </h1>
-            <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("engineering.developers.teamMembers", {
                 count: developers.length,
               })}
@@ -138,7 +138,7 @@ export default function DevelopersPage() {
           </div>
           <button
             onClick={fetchDevelopers}
-            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
           >
             <RefreshCw className="w-3.5 h-3.5" />{" "}
             {t("engineering.developers.refresh")}
@@ -152,7 +152,7 @@ export default function DevelopersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("engineering.developers.searchPlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 font-bold text-xs transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl pl-10 pr-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 text-sm font-bold transition-all"
           />
         </div>
 
@@ -170,12 +170,12 @@ export default function DevelopersPage() {
         ) : filtered.length === 0 ? (
           <div className="py-20 flex flex-col items-center justify-center opacity-40">
             <Users className="w-16 h-16 text-slate-500 mb-4" />
-            <p className="text-lg font-black text-[var(--text-primary)] uppercase">
+            <p className="text-sm text-[var(--text-secondary)]">
               {search
                 ? t("engineering.developers.noMatches")
                 : t("engineering.developers.noDevelopersYet")}
             </p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               {search
                 ? t("engineering.developers.tryDifferentSearch")
                 : t("engineering.developers.developersAppearHint")}
@@ -207,11 +207,11 @@ export default function DevelopersPage() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                           {dev.name}
                         </p>
                         <span
-                          className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                             dev.role === "developer"
                               ? "bg-orange-500/10 text-[var(--brand-orange)]"
                               : "bg-blue-500/10 text-blue-400"
@@ -220,7 +220,7 @@ export default function DevelopersPage() {
                           {dev.role}
                         </span>
                         <span
-                          className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase ${
                             dev.status === "active" || dev.status === "approved"
                               ? "bg-emerald-500/10 text-emerald-400"
                               : "bg-amber-500/10 text-amber-400"
@@ -229,7 +229,7 @@ export default function DevelopersPage() {
                           {dev.status}
                         </span>
                       </div>
-                      <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                         {dev.email}
                         {dev.active_tasks > 0 &&
                           t("engineering.developers.activeTasksSuffix", {
@@ -244,7 +244,7 @@ export default function DevelopersPage() {
                       <button
                         onClick={() => handleActivate(dev.cid)}
                         disabled={actionLoading}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[8px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all disabled:opacity-50"
                       >
                         <CheckCircle2 className="w-3 h-3" />{" "}
                         {t("engineering.developers.approve")}
@@ -253,7 +253,7 @@ export default function DevelopersPage() {
                     {dev.role === "intern" && (
                       <button
                         onClick={() => setShowPromoteModal(dev)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/10 text-[var(--brand-orange)] text-[8px] font-black uppercase tracking-widest hover:bg-orange-500/20 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-orange-500/20 transition-all"
                       >
                         <ShieldCheck className="w-3 h-3" />{" "}
                         {t("engineering.developers.promote")}
@@ -273,7 +273,7 @@ export default function DevelopersPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <ShieldCheck className="w-5 h-5 text-[var(--brand-orange)]" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">
+                  <h2 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                     {t("engineering.developers.promoteModalTitle", {
                       name: showPromoteModal.name,
                     })}
@@ -287,7 +287,7 @@ export default function DevelopersPage() {
                 </button>
               </div>
 
-              <p className="text-xs font-bold text-[var(--text-secondary)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("engineering.developers.selectRoleFor")}{" "}
                 <strong className="text-[var(--text-primary)]">
                   {showPromoteModal.name}
@@ -303,10 +303,10 @@ export default function DevelopersPage() {
                   disabled={actionLoading}
                   className="w-full p-4 rounded-xl bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20 transition-all text-left"
                 >
-                  <p className="text-xs font-black text-[var(--brand-orange)] uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-[var(--brand-orange)] uppercase tracking-wide">
                     {t("engineering.developers.developerRole")}
                   </p>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                     {t("engineering.developers.developerRoleDesc")}
                   </p>
                 </button>
@@ -315,10 +315,10 @@ export default function DevelopersPage() {
                   disabled={actionLoading}
                   className="w-full p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-all text-left"
                 >
-                  <p className="text-xs font-black text-blue-400 uppercase tracking-tight">
+                  <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wide">
                     {t("engineering.developers.internRole")}
                   </p>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-1">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                     {t("engineering.developers.internRoleDesc")}
                   </p>
                 </button>
@@ -334,7 +334,7 @@ export default function DevelopersPage() {
 
               <button
                 onClick={() => setShowPromoteModal(null)}
-                className="w-full py-3 rounded-xl text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:bg-tertiary transition-all"
+                className="w-full py-3 rounded-xl text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:bg-tertiary transition-all"
               >
                 {t("engineering.developers.cancel")}
               </button>

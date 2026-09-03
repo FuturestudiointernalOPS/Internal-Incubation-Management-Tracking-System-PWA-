@@ -70,14 +70,14 @@ export default function AdminMetricsDashboard() {
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" />
           <div>
-            <h1 className="text-2xl font-black uppercase tracking-tight text-[var(--text-primary)]">{t("adminMisc.metrics.title")}</h1>
-            <p className="text-[10px] text-[var(--text-secondary)]">{t("adminMisc.metrics.subtitle")}</p>
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">{t("adminMisc.metrics.title")}</h1>
+            <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.metrics.subtitle")}</p>
           </div>
         </header>
 
         {programs.length === 0 && (
           <div className="p-12 text-center">
-            <p className="text-[10px] text-[var(--text-secondary)] italic">{t("adminMisc.metrics.noProgramsFound")}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{t("adminMisc.metrics.noProgramsFound")}</p>
           </div>
         )}
 
@@ -92,13 +92,13 @@ export default function AdminMetricsDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{prog.name}</h3>
-                    <p className="text-[8px] text-[var(--text-secondary)] uppercase tracking-widest mt-1">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                       {prog.pm_name ? t("adminMisc.metrics.pmLabel", { name: prog.pm_name }) : t("adminMisc.metrics.noPmAssigned")} · {t("adminMisc.metrics.statusLabel", { status: prog.status || "Active" })}
                     </p>
                   </div>
                   <div className={`text-right ${getHealthColor(health)}`}>
-                    <p className="text-2xl font-black">{formatPct(health)}</p>
-                    <p className="text-[8px] font-black uppercase tracking-widest">{getHealthLabel(health)}</p>
+                    <p className="text-2xl font-black tracking-tight">{formatPct(health)}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest">{getHealthLabel(health)}</p>
                   </div>
                 </div>
 
@@ -106,10 +106,10 @@ export default function AdminMetricsDashboard() {
                   <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/10 space-y-3">
                     <div className="flex items-center gap-2">
                       <Target className="w-4 h-4 text-blue-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-blue-400">{t("adminMisc.metrics.operationalExecution")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">{t("adminMisc.metrics.operationalExecution")}</span>
                     </div>
                     <div className="flex items-end justify-between">
-                      <span className="text-3xl font-black text-blue-400">{formatPct(opPct)}</span>
+                      <span className="text-2xl font-black tracking-tight text-blue-400">{formatPct(opPct)}</span>
                     </div>
                     <div className="w-full h-2 bg-blue-500/10 rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${opPct}%` }} />
@@ -119,10 +119,10 @@ export default function AdminMetricsDashboard() {
                   <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-3">
                     <div className="flex items-center gap-2">
                       <Users className="w-4 h-4 text-emerald-400" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-emerald-400">{t("adminMisc.metrics.studentEngagement")}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">{t("adminMisc.metrics.studentEngagement")}</span>
                     </div>
                     <div className="flex items-end justify-between">
-                      <span className="text-3xl font-black text-emerald-400">{formatPct(stdSubRate)}</span>
+                      <span className="text-2xl font-black tracking-tight text-emerald-400">{formatPct(stdSubRate)}</span>
                     </div>
                     <div className="w-full h-2 bg-emerald-500/10 rounded-full overflow-hidden">
                       <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${stdSubRate}%` }} />
@@ -133,15 +133,15 @@ export default function AdminMetricsDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-[var(--border-primary)]">
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className={`w-3 h-3 ${health >= 80 ? 'text-emerald-500' : health >= 50 ? 'text-amber-500' : 'text-rose-500'}`} />
-                    <span className="text-[8px] font-bold text-[var(--text-secondary)]">{t("adminMisc.metrics.overallHealth", { value: formatPct(health) })}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.metrics.overallHealth", { value: formatPct(health) })}</span>
                   </div>
                   <div className={`flex items-center gap-2 ${opPct >= 80 ? 'text-emerald-500' : opPct >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
                     <Activity className="w-3 h-3" />
-                    <span className="text-[8px] font-bold">{t("adminMisc.metrics.executionLabel", { value: getHealthLabel(opPct) })}</span>
+                    <span className="text-[10px] font-medium">{t("adminMisc.metrics.executionLabel", { value: getHealthLabel(opPct) })}</span>
                   </div>
                   <div className={`flex items-center gap-2 ${stdSubRate >= 80 ? 'text-emerald-500' : stdSubRate >= 50 ? 'text-amber-500' : 'text-rose-500'}`}>
                     <Users className="w-3 h-3" />
-                    <span className="text-[8px] font-bold">{t("adminMisc.metrics.engagementLabel", { value: getHealthLabel(stdSubRate) })}</span>
+                    <span className="text-[10px] font-medium">{t("adminMisc.metrics.engagementLabel", { value: getHealthLabel(stdSubRate) })}</span>
                   </div>
                 </div>
               </div>

@@ -272,14 +272,14 @@ export default function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-3.5 h-3.5 accent-[var(--brand-orange)] cursor-pointer"
                 />
-                <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Remember Me
                 </span>
               </label>
               <button
                 type="button"
                 onClick={() => router.push("/forgot-password")}
-                className="text-[9px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wider"
+                className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline uppercase tracking-wide"
               >
                 Forgot Password?
               </button>
@@ -321,19 +321,19 @@ export default function LoginPage() {
             {devToolsOpen && (
               <div className="px-4 pb-4 space-y-3 animate-in">
                 <div className="border-t border-amber-500/20 pt-3">
-                  <p className="text-[9px] font-bold text-amber-500/70 uppercase tracking-wider mb-2">
+                  <p className="text-[10px] font-bold text-amber-500/70 uppercase tracking-wide mb-2">
                     Login as any user without password
                   </p>
 
                   {/* Debug info */}
                   {impersonateDebug && (
                     <div className="mb-2 p-2 rounded bg-amber-500/10 border border-amber-500/20">
-                      <p className="text-[8px] font-bold text-amber-500/80 uppercase">{impersonateDebug}</p>
+                      <p className="text-[10px] font-bold text-amber-500/80 uppercase">{impersonateDebug}</p>
                     </div>
                   )}
 
                   {/* Role selector */}
-                  <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
                     Role
                   </label>
                   <select
@@ -352,7 +352,7 @@ export default function LoginPage() {
                   {/* User selector */}
                   {selectedRole && impersonateUsers[selectedRole] && (
                     <>
-                      <label className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
                         User
                       </label>
                       <select
@@ -374,7 +374,7 @@ export default function LoginPage() {
                   {impersonateError && (
                     <div className="p-2 rounded-md bg-rose-500/10 border border-rose-500/20 flex items-center gap-2 mb-2">
                       <AlertCircle className="w-3 h-3 text-rose-500" />
-                      <span className="text-[9px] font-bold text-rose-500 uppercase">
+                      <span className="text-[10px] font-bold uppercase text-rose-500">
                         {impersonateError}
                       </span>
                     </div>
@@ -415,7 +415,7 @@ export default function LoginPage() {
         </div>
 
         <div className="text-center">
-          <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-40">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-40">
             &copy; 2026 FutureStudio Operational Asset.
           </p>
         </div>

@@ -35,7 +35,7 @@ export default function PermissionMatrix({
     <div className="space-y-8">
       {MODULE_CATEGORIES.map((category) => (
         <div key={category.label} className="space-y-3">
-          <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-50 pl-1">
+          <h3 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-50 pl-1">
             {category.label}
           </h3>
           {category.modules.map((modKey) => {
@@ -69,7 +69,7 @@ export default function PermissionMatrix({
                       {mod.name}
                     </span>
                   </div>
-                  <span className="text-[8px] font-bold text-slate-500">
+                  <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                     {caps.length} capabilities
                   </span>
                 </button>
@@ -79,13 +79,13 @@ export default function PermissionMatrix({
                     <table className="w-full border-collapse">
                       <thead>
                         <tr className="border-b border-[var(--border-primary)]">
-                          <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-40">
+                          <th className="text-left px-5 py-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-40">
                             Capability
                           </th>
                           {LEVELS_ORDER.map((level) => (
                             <th
                               key={level}
-                              className="px-3 py-3 text-center text-[8px] font-black uppercase tracking-widest whitespace-nowrap"
+                              className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
                               style={{
                                 color:
                                   level === 0
@@ -96,7 +96,7 @@ export default function PermissionMatrix({
                               {ACCESS_LABELS[level]}
                             </th>
                           ))}
-                          <th className="px-3 py-3 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-24">
+                          <th className="px-3 py-3 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-24">
                             Actions
                           </th>
                         </tr>
@@ -132,7 +132,7 @@ export default function PermissionMatrix({
                                       title="Inherited from role/group"
                                     />
                                   )}
-                                  <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                                  <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                     {cap.replace(/_/g, " ")}
                                   </span>
                                 </div>
@@ -165,13 +165,13 @@ export default function PermissionMatrix({
                                       </div>
                                     ) : isActive && origin === "granted" ? (
                                       <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto">
-                                        <span className="text-[8px] font-black text-emerald-400">
+                                        <span className="text-[10px] font-bold text-emerald-400">
                                           {ACCESS_SHORT[level]}
                                         </span>
                                       </div>
                                     ) : isActive && origin === "inherited" ? (
                                       <div className="w-6 h-6 rounded-lg bg-slate-500/20 border border-slate-500/40 flex items-center justify-center mx-auto">
-                                        <span className="text-[8px] font-black text-slate-400">
+                                        <span className="text-[10px] font-bold text-slate-400">
                                           {ACCESS_SHORT[level]}
                                         </span>
                                       </div>
@@ -184,7 +184,7 @@ export default function PermissionMatrix({
                                         }}
                                       >
                                         <span
-                                          className="text-[8px] font-black"
+                                          className="text-[10px] font-bold"
                                           style={{
                                             color: ACCESS_COLORS[level],
                                           }}

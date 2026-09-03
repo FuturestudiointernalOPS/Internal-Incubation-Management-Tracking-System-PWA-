@@ -381,19 +381,19 @@ export default function TeamManagementPage({ params }) {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-[var(--border-primary)]">
-                  <th className="text-left px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("admin.teams.teamName")}
                   </th>
-                  <th className="text-left px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="text-left px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("admin.teams.handler")}
                   </th>
-                  <th className="text-center px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="text-center px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("admin.teams.members")}
                   </th>
-                  <th className="text-right px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="text-right px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("adminMisc.programTeams.actions")}
                   </th>
-                  <th className="text-right px-6 py-4 text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                  <th className="text-right px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     {t("adminMisc.programTeams.workspace")}
                   </th>
                 </tr>
@@ -534,7 +534,7 @@ export default function TeamManagementPage({ params }) {
 
               {/* Team Name */}
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest pl-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] pl-1">
                   {t("admin.teams.teamName")}
                 </label>
                 <input
@@ -549,7 +549,7 @@ export default function TeamManagementPage({ params }) {
 
               {/* Handler */}
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest pl-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] pl-1">
                   {t("admin.teams.handler")}
                 </label>
                 <select
@@ -576,7 +576,7 @@ export default function TeamManagementPage({ params }) {
 
               {/* Members */}
               <div className="space-y-2">
-                <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest pl-1">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] pl-1">
                   {t("admin.teams.members")}{" "}
                   <span className="text-[var(--text-tertiary)]">
                     {t("adminMisc.programTeams.membersSelected", {
@@ -624,7 +624,7 @@ export default function TeamManagementPage({ params }) {
                             <span className="text-xs font-bold text-[var(--text-primary)] truncate">
                               {p.name || t("adminMisc.programTeams.unnamed")}
                             </span>
-                            <span className="text-[9px] text-[var(--text-tertiary)] truncate">
+                            <span className="text-[10px] font-medium text-[var(--text-tertiary)] truncate">
                               {p.email || ""}
                             </span>
                           </div>

@@ -118,29 +118,29 @@ export default function AssignedTasks() {
               {task.title}
             </h3>
             {task.priority === "critical" && (
-              <span className="text-[8px] font-black text-rose-400 px-1.5 py-0.5 rounded-full bg-rose-500/10 uppercase">
+              <span className="text-[10px] font-bold uppercase text-rose-400 px-1.5 py-0.5 rounded-full bg-rose-500/10">
                 {t("developer.critical")}
               </span>
             )}
             {task.priority === "high" && (
-              <span className="text-[8px] font-black text-amber-400 px-1.5 py-0.5 rounded-full bg-amber-500/10 uppercase">
+              <span className="text-[10px] font-bold uppercase text-amber-400 px-1.5 py-0.5 rounded-full bg-amber-500/10">
                 {t("developer.high")}
               </span>
             )}
           </div>
           <div className="flex flex-wrap items-center gap-3 mt-1.5">
-            <span className="flex items-center gap-1 text-[9px] text-slate-500">
+            <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--text-secondary)]">
               <User className="w-3 h-3" />{" "}
               {task.user_name || t("developer.unknown")}
             </span>
             {task.end_date && (
-              <span className="flex items-center gap-1 text-[9px] text-slate-500">
+              <span className="flex items-center gap-1 text-[10px] font-medium text-[var(--text-secondary)]">
                 <Calendar className="w-3 h-3" /> Due:{" "}
                 {new Date(task.end_date).toLocaleDateString("en-GB")}
               </span>
             )}
             <span
-              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full ${task.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : task.status === "blocked" ? "bg-rose-500/10 text-rose-400" : "bg-blue-500/10 text-blue-400"}`}
+              className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${task.status === "completed" ? "bg-emerald-500/10 text-emerald-400" : task.status === "blocked" ? "bg-rose-500/10 text-rose-400" : "bg-blue-500/10 text-blue-400"}`}
             >
               {task.status === "in_progress" ? "In Progress" : task.status}
             </span>
@@ -189,7 +189,7 @@ export default function AssignedTasks() {
                   <Clock className="w-4 h-4 text-amber-400" />
                   {t("developer.pendingReview")} ({pendingAssignments.length})
                 </h2>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-[10px] text-[var(--text-secondary)]">
                   {t("developer.pendingHint")}
                 </p>
                 <div className="space-y-3">
@@ -203,7 +203,7 @@ export default function AssignedTasks() {
                           <h3 className="text-sm font-bold text-[var(--text-primary)]">
                             {a.task_title}
                           </h3>
-                          <div className="flex items-center gap-3 mt-1 text-[9px] text-slate-500">
+                          <div className="flex items-center gap-3 mt-1 text-[10px] text-[var(--text-secondary)]">
                             <span className="flex items-center gap-1">
                               <Send className="w-3 h-3" />{" "}
                               {t("developer.assignedBy")}{" "}
@@ -221,7 +221,7 @@ export default function AssignedTasks() {
                           <button
                             onClick={() => handleResponse(a.id, "decline")}
                             disabled={responding === a.id}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
+                            className="flex items-center gap-1.5 px-4 py-2 bg-rose-500/10 text-rose-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-rose-500 hover:text-white transition-all disabled:opacity-40"
                           >
                             <XCircle className="w-3.5 h-3.5" />{" "}
                             {t("developer.decline")}
@@ -229,7 +229,7 @@ export default function AssignedTasks() {
                           <button
                             onClick={() => handleResponse(a.id, "accept")}
                             disabled={responding === a.id}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[8px] font-black uppercase tracking-wider hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-500/10 text-emerald-400 rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500 hover:text-white transition-all disabled:opacity-40"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />{" "}
                             {t("developer.accept")}
@@ -293,10 +293,10 @@ export default function AssignedTasks() {
               pendingAssignments.length === 0 && (
                 <div className="text-center py-20">
                   <CheckCircle2 className="w-12 h-12 mx-auto mb-4 text-slate-600" />
-                  <p className="text-sm font-bold text-slate-500">
+                  <p className="text-sm font-bold text-[var(--text-secondary)]">
                     {t("developer.noAssignedTasks")}
                   </p>
-                  <p className="text-[10px] text-slate-600 mt-1">
+                  <p className="text-[10px] text-[var(--text-secondary)] mt-1">
                     {t("developer.noAssignedTasksHint")}
                   </p>
                 </div>

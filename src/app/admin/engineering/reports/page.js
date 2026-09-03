@@ -73,14 +73,14 @@ export default function EngineeringReports() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 Engineering Reports
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               Reports
             </h1>
-            <p className="text-xs font-bold text-[var(--text-secondary)] opacity-60">
+            <p className="text-sm text-[var(--text-secondary)]">
               Error trends, resolution metrics, and development velocity
             </p>
           </div>
@@ -90,7 +90,7 @@ export default function EngineeringReports() {
                 <button
                   key={p.value}
                   onClick={() => setPeriod(p.value)}
-                  className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${
                     period === p.value
                       ? "bg-[var(--brand-orange)] text-black"
                       : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -118,32 +118,32 @@ export default function EngineeringReports() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="card bg-secondary border-[var(--border-primary)] p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Total Errors</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Total Errors</p>
                   <Bug className="w-4 h-4 text-red-400" />
                 </div>
-                <p className="text-3xl font-black text-red-400">{data.summary.total}</p>
+                <p className="text-2xl font-black tracking-tight text-red-400">{data.summary.total}</p>
               </div>
               <div className="card bg-secondary border-[var(--border-primary)] p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Resolved</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Resolved</p>
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 </div>
-                <p className="text-3xl font-black text-emerald-400">{data.summary.resolved}</p>
-                <p className="text-[8px] font-bold text-slate-500">{data.summary.resolutionRate}% rate</p>
+                <p className="text-2xl font-black tracking-tight text-emerald-400">{data.summary.resolved}</p>
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">{data.summary.resolutionRate}% rate</p>
               </div>
               <div className="card bg-secondary border-[var(--border-primary)] p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Open</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Open</p>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                 </div>
-                <p className="text-3xl font-black text-amber-400">{data.summary.unresolved}</p>
+                <p className="text-2xl font-black tracking-tight text-amber-400">{data.summary.unresolved}</p>
               </div>
               <div className="card bg-secondary border-[var(--border-primary)] p-5 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Avg Resolution</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Avg Resolution</p>
                   <Clock className="w-4 h-4 text-blue-400" />
                 </div>
-                <p className="text-3xl font-black text-blue-400">{data.summary.avgResolutionHours}h</p>
+                <p className="text-2xl font-black tracking-tight text-blue-400">{data.summary.avgResolutionHours}h</p>
               </div>
             </div>
 
@@ -155,8 +155,8 @@ export default function EngineeringReports() {
                     <ListTodo className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Dev Tasks Created</p>
-                    <p className="text-xl font-black text-[var(--text-primary)]">{data.devTasks.total_tasks}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Dev Tasks Created</p>
+                    <p className="text-2xl font-black tracking-tight text-[var(--text-primary)]">{data.devTasks.total_tasks}</p>
                   </div>
                 </div>
                 <div className="ios-card !p-4 border-[var(--border-primary)] flex items-center gap-4">
@@ -164,8 +164,8 @@ export default function EngineeringReports() {
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Completed</p>
-                    <p className="text-xl font-black text-emerald-400">{data.devTasks.completed_tasks}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Completed</p>
+                    <p className="text-2xl font-black tracking-tight text-emerald-400">{data.devTasks.completed_tasks}</p>
                   </div>
                 </div>
                 <div className="ios-card !p-4 border-[var(--border-primary)] flex items-center gap-4">
@@ -173,8 +173,8 @@ export default function EngineeringReports() {
                     <AlertTriangle className="w-5 h-5 text-red-400" />
                   </div>
                   <div>
-                    <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Critical Tasks</p>
-                    <p className="text-xl font-black text-red-400">{data.devTasks.critical_tasks}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Critical Tasks</p>
+                    <p className="text-2xl font-black tracking-tight text-red-400">{data.devTasks.critical_tasks}</p>
                   </div>
                 </div>
               </div>
@@ -185,20 +185,20 @@ export default function EngineeringReports() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <Bug className="w-4 h-4 text-red-400" />
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Most Recurring Bugs</h2>
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Most Recurring Bugs</h2>
                 </div>
                 <div className="space-y-1">
                   {data.topErrors.slice(0, 10).map((err, i) => (
                     <div key={i} className="ios-card !p-3 border-[var(--border-primary)] flex items-center justify-between">
                       <div className="flex-1 min-w-0">
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{t(err.message || "") || err.message}</p>
-                        <p className="text-[7px] font-bold text-slate-500 mt-0.5">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">{t(err.message || "") || err.message}</p>
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                           Severity: {err.severity} · Last: {new Date(err.last_occurrence).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-3">
-                        <span className="text-xs font-black text-red-400">{err.count}x</span>
-                        <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">{err.resolved_count} resolved</span>
+                        <span className="text-sm font-bold text-red-400">{err.count}x</span>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 uppercase">{err.resolved_count} resolved</span>
                       </div>
                     </div>
                   ))}
@@ -210,7 +210,7 @@ export default function EngineeringReports() {
             {data.bySeverity?.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-4">
-                  <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Errors by Severity</h2>
+                  <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Errors by Severity</h2>
                   <div className="space-y-2">
                     {data.bySeverity.map((s) => {
                       const pct = data.summary.total > 0 ? Math.round((parseInt(s.count) / data.summary.total) * 100) : 0;
@@ -220,7 +220,7 @@ export default function EngineeringReports() {
                         : "bg-slate-500";
                       return (
                         <div key={s.severity} className="space-y-1">
-                          <div className="flex justify-between text-[9px] font-bold">
+                          <div className="flex justify-between text-[10px] font-bold">
                             <span className="text-[var(--text-primary)] uppercase tracking-wider">{(s.severity || "unknown").replace(/_/g, " ")}</span>
                             <span className="text-[var(--text-secondary)]">{s.count} ({pct}%)</span>
                           </div>
@@ -236,15 +236,15 @@ export default function EngineeringReports() {
                 {/* Errors by page */}
                 {data.byPage?.length > 0 && (
                   <div className="space-y-4">
-                    <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Errors by Page</h2>
+                    <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Errors by Page</h2>
                     <div className="space-y-1">
                       {data.byPage.slice(0, 8).map((p, i) => {
                         const pct = data.summary.total > 0 ? Math.round((parseInt(p.count) / data.summary.total) * 100) : 0;
                         return (
                           <div key={i} className="flex items-center gap-3">
-                            <span className="text-[8px] font-bold text-slate-500 w-4">{i + 1}.</span>
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)] w-4">{i + 1}.</span>
                             <div className="flex-1">
-                              <div className="flex justify-between text-[9px] font-bold mb-0.5">
+                              <div className="flex justify-between text-[10px] font-bold mb-0.5">
                                 <span className="text-[var(--text-primary)] truncate">{p.page}</span>
                                 <span className="text-[var(--text-secondary)] shrink-0 ml-2">{p.count}</span>
                               </div>
@@ -264,7 +264,7 @@ export default function EngineeringReports() {
             {/* Weekly trend */}
             {data.weeklyTrend?.length > 0 && (
               <div className="space-y-4">
-                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">Weekly Trend (Last 8 Weeks)</h2>
+                <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">Weekly Trend (Last 8 Weeks)</h2>
                 <div className="ios-card !p-5 border-[var(--border-primary)]">
                   <div className="flex items-end gap-2 h-32">
                     {data.weeklyTrend.map((w, i) => {
@@ -274,19 +274,19 @@ export default function EngineeringReports() {
                       const heightPct = (total / maxVal) * 100;
                       return (
                         <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <span className="text-[7px] font-bold text-slate-500">{total}</span>
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)]">{total}</span>
                           <div className="w-full flex flex-col-reverse" style={{ height: `${heightPct}%` }}>
                             <div className="w-full bg-emerald-500/60 rounded-t transition-all" style={{ height: `${(resolved / total) * 100}%` }} />
                             <div className="w-full bg-red-500/40 rounded-t transition-all" style={{ height: `${((total - resolved) / total) * 100}%` }} />
                           </div>
-                          <span className="text-[7px] font-bold text-slate-600 mt-1">
+                          <span className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                             {new Date(w.week).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                           </span>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="flex items-center gap-4 mt-4 text-[8px] font-bold text-slate-500">
+                  <div className="flex items-center gap-4 mt-4 text-[10px] font-medium text-[var(--text-secondary)]">
                     <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-red-500/40" /> Unresolved</span>
                     <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-sm bg-emerald-500/60" /> Resolved</span>
                   </div>
@@ -297,25 +297,25 @@ export default function EngineeringReports() {
             {/* Error-prone pages */}
             {data.topPages?.length > 0 && (
               <div className="space-y-4">
-                <h2 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-wider">{t("engineering.reports.mostErrorPronePages")}</h2>
+                <h2 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">{t("engineering.reports.mostErrorPronePages")}</h2>
                 <div className="ios-card !p-0 border-[var(--border-primary)]">
                   <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="border-b border-[var(--border-primary)] bg-tertiary/30">
-                        <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Page</th>
-                        <th className="text-center px-4 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Errors</th>
-                        <th className="text-center px-4 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Affected Users</th>
-                        <th className="text-right px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">Last Error</th>
+                        <th className="text-left px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Page</th>
+                        <th className="text-center px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Errors</th>
+                        <th className="text-center px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Affected Users</th>
+                        <th className="text-right px-5 py-3 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Last Error</th>
                       </tr>
                     </thead>
                     <tbody>
                       {data.topPages.map((p, i) => (
                         <tr key={i} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
-                          <td className="px-5 py-3 text-[9px] font-bold text-[var(--text-primary)]">{p.page === "unknown" ? "—" : p.page}</td>
-                          <td className="px-4 py-3 text-center"><span className="text-[9px] font-black text-red-400">{p.total_errors}</span></td>
-                          <td className="px-4 py-3 text-center text-[9px] font-bold text-[var(--text-secondary)]">{p.affected_users}</td>
-                          <td className="px-5 py-3 text-right text-[8px] font-bold text-slate-500">{new Date(p.last_error).toLocaleDateString()}</td>
+                          <td className="px-5 py-3 text-sm font-bold text-[var(--text-primary)]">{p.page === "unknown" ? "—" : p.page}</td>
+                          <td className="px-4 py-3 text-center"><span className="text-sm font-bold text-red-400">{p.total_errors}</span></td>
+                          <td className="px-4 py-3 text-center text-sm font-bold text-[var(--text-primary)]">{p.affected_users}</td>
+                          <td className="px-5 py-3 text-right text-sm font-bold text-[var(--text-secondary)]">{new Date(p.last_error).toLocaleDateString()}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -328,8 +328,8 @@ export default function EngineeringReports() {
         ) : (
           <div className="py-20 text-center opacity-40">
             <BarChart3 className="w-16 h-16 text-slate-500 mx-auto mb-4" />
-            <p className="text-lg font-black text-[var(--text-primary)] uppercase">No data yet</p>
-            <p className="text-xs font-bold text-slate-500 mt-1">Errors will appear here once the system captures them</p>
+            <p className="text-sm text-[var(--text-secondary)]">No data yet</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-1">Errors will appear here once the system captures them</p>
           </div>
         )}
       </div>

@@ -43,7 +43,7 @@ function StatusBadge({ status }) {
   };
   const c = config[status?.toLowerCase()] || "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   return (
-    <span className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}>
+    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}>
       {status?.replace(/_/g, " ") || "draft"}
     </span>
   );
@@ -134,7 +134,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
           <p className="text-[10px] font-bold text-[var(--text-primary)]">
             {submission.v2_deliverables?.title || "Untitled"}
           </p>
-          <p className="text-[8px] text-[var(--text-secondary)] mt-1">
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
             {submission.v2_participants?.name || "Anonymous"} · Week{" "}
             {submission.v2_deliverables?.week_number || "?"}
           </p>
@@ -144,7 +144,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => { setAction("approved"); setError(null); }}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
               action === "approved"
                 ? "bg-emerald-500 text-white ring-2 ring-emerald-400"
                 : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
@@ -154,7 +154,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
           </button>
           <button
             onClick={() => { setAction("revision_requested"); setError(null); }}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
               action === "revision_requested"
                 ? "bg-blue-500 text-white ring-2 ring-blue-400"
                 : "bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20"
@@ -164,7 +164,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
           </button>
           <button
             onClick={() => { setAction("rejected"); setError(null); }}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
               action === "rejected"
                 ? "bg-rose-500 text-white ring-2 ring-rose-400"
                 : "bg-rose-500/10 border border-rose-500/20 text-rose-400 hover:bg-rose-500/20"
@@ -174,7 +174,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
           </button>
           <button
             onClick={() => { setAction("pending_followup"); setError(null); }}
-            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all ${
+            className={`flex items-center justify-center gap-2 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${
               action === "pending_followup"
                 ? "bg-purple-500 text-white ring-2 ring-purple-400"
                 : "bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500/20"
@@ -187,7 +187,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
         {/* Dynamic Form Fields */}
         {(action === "revision_requested" || action === "approved") && (
           <div className="space-y-2">
-            <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {action === "revision_requested"
                 ? t("teacher.feedbackPlaceholder")
                 : "Feedback (optional)"}
@@ -204,7 +204,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
 
         {action === "rejected" && (
           <div className="space-y-2">
-            <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("teacher.rejectionReasonRequired")}
             </label>
             <textarea
@@ -221,7 +221,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Date
                 </label>
                 <input
@@ -232,7 +232,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Time
                 </label>
                 <input
@@ -245,7 +245,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Duration (min)
                 </label>
                 <input
@@ -259,7 +259,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   Meeting Link
                 </label>
                 <input
@@ -272,7 +272,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
               </div>
             </div>
             <div className="space-y-1">
-              <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                 Notes (optional)
               </label>
               <textarea
@@ -289,7 +289,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
         {/* Evaluation Section based on grading_mode */}
         {action === "approved" && program && (
           <div className="space-y-2">
-            <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("teacher.evaluation")}
             </label>
             {program.grading_mode === "academic" ? (
@@ -304,12 +304,12 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
               <div className="space-y-2">
                 {["Idea", "Execution", "Market", "Team", "Traction"].map((dim) => (
                   <div key={dim} className="flex items-center gap-3">
-                    <span className="text-[8px] font-bold text-[var(--text-secondary)] w-16">{dim}</span>
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)] w-16">{dim}</span>
                     <div className="flex gap-1">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
                           key={star}
-                          className={`w-5 h-5 rounded text-[8px] font-black ${
+                          className={`w-5 h-5 rounded text-[10px] font-bold ${
                             star <= 3
                               ? "bg-amber-500/20 text-amber-400"
                               : "bg-white/5 text-[var(--text-tertiary)]"
@@ -330,7 +330,7 @@ function ReviewActionModal({ submission, onClose, onSubmit, t, program }) {
         {error && (
           <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20">
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-            <p className="text-[9px] font-bold text-rose-400">{error}</p>
+            <p className="text-[10px] font-bold text-rose-400">{error}</p>
           </div>
         )}
 
@@ -449,11 +449,11 @@ export default function SubmissionsHub() {
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
                 {t("teacher.reviews")}
               </span>
             </div>
-            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase italic">
+            <h1 className="text-4xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
               {t("teacher.reviews")}{" "}
               <span className="text-[var(--text-secondary)] opacity-40">
                 Hub
@@ -466,7 +466,7 @@ export default function SubmissionsHub() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest outline-none focus:border-[var(--brand-orange)]/40 transition-all"
+              className="px-3 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide outline-none focus:border-[var(--brand-orange)]/40 transition-all"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -492,7 +492,7 @@ export default function SubmissionsHub() {
         {loading ? (
           <div className="flex flex-col items-center justify-center py-40 gap-4">
             <div className="w-10 h-10 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
-            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("common.loading")}
             </p>
           </div>
@@ -609,7 +609,7 @@ export default function SubmissionsHub() {
                         const subWithFeedback = { ...sub };
                         setReviewModal(subWithFeedback);
                       }}
-                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-black text-[9px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all"
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 font-bold text-[10px] uppercase tracking-wide hover:bg-rose-500 hover:text-white transition-all"
                     >
                       <XCircle className="w-3.5 h-3.5" /> {t("teacher.reject")}
                     </button>
@@ -618,7 +618,7 @@ export default function SubmissionsHub() {
                         const subWithFeedback = { ...sub };
                         setReviewModal(subWithFeedback);
                       }}
-                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 font-black text-[9px] uppercase tracking-widest hover:bg-purple-500 hover:text-white transition-all"
+                      className="flex items-center justify-center gap-2 py-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 font-bold text-[10px] uppercase tracking-wide hover:bg-purple-500 hover:text-white transition-all"
                     >
                       <CalendarDays className="w-3.5 h-3.5" /> {t("teacher.scheduleFollowup")}
                     </button>
@@ -642,17 +642,17 @@ export default function SubmissionsHub() {
         <div className="fixed bottom-10 right-10 z-[200]">
           <div className="ios-card bg-secondary border-[var(--border-primary)] !p-6 shadow-2xl flex items-center gap-8">
             <div className="flex flex-col">
-              <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest opacity-60">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-60">
                 Queue Status
               </span>
-              <span className="text-xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">
+              <span className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
                 {submissions.length} Pending
               </span>
             </div>
             <div className="h-10 w-px bg-[var(--border-secondary)]" />
             <div className="flex gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-500">
                 System Active
               </span>
             </div>

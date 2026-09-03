@@ -116,7 +116,7 @@ export default function DeveloperRetro() {
   const iC =
     "w-full bg-secondary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/50 transition-all";
   const lC =
-    "text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest block mb-1.5";
+    "text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5";
 
   return (
     <>
@@ -210,7 +210,7 @@ export default function DeveloperRetro() {
                     setNewCompleted,
                   )
                 }
-                className="px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all shrink-0"
+                className="px-4 py-3 rounded-xl bg-emerald-500/10 text-emerald-400 text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -271,7 +271,7 @@ export default function DeveloperRetro() {
                     setNewUnfinished,
                   )
                 }
-                className="px-4 py-3 rounded-xl bg-amber-500/10 text-amber-400 text-[9px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all shrink-0"
+                className="px-4 py-3 rounded-xl bg-amber-500/10 text-amber-400 text-[10px] font-bold uppercase tracking-wide hover:bg-amber-500/20 transition-all shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -283,7 +283,7 @@ export default function DeveloperRetro() {
             <label className={lC}>
               {t("developerMisc.retro.carryoverLabel")}
             </label>
-            <p className="text-[8px] font-bold text-slate-500 -mt-1">
+            <p className="text-[10px] font-medium text-[var(--text-secondary)] -mt-1">
               {t("developerMisc.retro.carryoverHint")}
             </p>
             <div className="space-y-2">
@@ -335,7 +335,7 @@ export default function DeveloperRetro() {
                     newCarryover,
                   )
                 }
-                className="px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 text-[9px] font-black uppercase tracking-widest hover:bg-indigo-500/20 transition-all shrink-0"
+                className="px-4 py-3 rounded-xl bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 transition-all shrink-0"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
@@ -381,14 +381,14 @@ export default function DeveloperRetro() {
               <label className={lC + " text-red-400"}>
                 {t("developerMisc.retro.blockersLabel")}
               </label>
-              <p className="text-[8px] font-bold text-slate-500 -mt-1">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] -mt-1">
                 {t("developerMisc.retro.blockersHint")}
               </p>
               <div className="flex items-center gap-4">
                 <button
                   type="button"
                   onClick={() => setHadBlockers(true)}
-                  className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === true ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                  className={`px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${hadBlockers === true ? "bg-red-500/10 text-red-400 border border-red-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
                   {t("developerMisc.retro.yes")}
                 </button>
@@ -398,7 +398,7 @@ export default function DeveloperRetro() {
                     setHadBlockers(false);
                     setBlockerDesc("");
                   }}
-                  className={`px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${hadBlockers === false ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
+                  className={`px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${hadBlockers === false ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30" : "bg-secondary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                 >
                   {t("developerMisc.retro.no")}
                 </button>
@@ -421,7 +421,7 @@ export default function DeveloperRetro() {
               <label className={lC + " text-emerald-400"}>
                 {t("developerMisc.retro.lessonsLabel")}
               </label>
-              <p className="text-[8px] font-bold text-slate-500 -mt-1">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] -mt-1">
                 {t("developerMisc.retro.lessonsHint")}
               </p>
               <textarea
@@ -451,7 +451,7 @@ export default function DeveloperRetro() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center gap-2 px-8 py-4 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-8 py-4 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:opacity-90 transition-all disabled:opacity-50"
           >
             {submitting ? (
               <>

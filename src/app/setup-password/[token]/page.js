@@ -268,7 +268,7 @@ export default function SetupPasswordPage({ params }) {
           </form>
         </div>
 
-        <p className="text-center text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em] opacity-40">
+        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-40">
           {t("rootMisc.setupPassword.secureLinkNote")}
         </p>
       </motion.div>

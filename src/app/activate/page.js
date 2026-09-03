@@ -107,7 +107,7 @@ export default function ActivatePage() {
           </p>
           <a
             href="/login"
-            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
+            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide text-center hover:brightness-110 transition-all"
           >
             {t("rootMisc.activate.goToLogin")}
           </a>
@@ -129,7 +129,7 @@ export default function ActivatePage() {
           </p>
           <a
             href="/login"
-            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
+            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide text-center hover:brightness-110 transition-all"
           >
             {t("rootMisc.activate.backToLogin")}
           </a>
@@ -149,7 +149,7 @@ export default function ActivatePage() {
           </p>
           <a
             href="/login"
-            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest text-center hover:brightness-110 transition-all"
+            className="inline-block w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide text-center hover:brightness-110 transition-all"
           >
             {t("rootMisc.activate.backToLogin")}
           </a>
@@ -189,7 +189,7 @@ export default function ActivatePage() {
                   {userInfo.role ? ` · ${userInfo.role}` : ""}
                 </p>
                 <div className="mt-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-                  <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1">
                     {t("rootMisc.activate.email")}
                   </label>
                   <p className="text-[13px] font-bold text-[var(--text-primary)]">
@@ -202,7 +202,7 @@ export default function ActivatePage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                 {mode === "reset" ? t("rootMisc.activate.newPassword") : t("rootMisc.activate.password")}
               </label>
               <div className="relative">
@@ -225,7 +225,7 @@ export default function ActivatePage() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider ml-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">
                 {t("rootMisc.activate.confirmPassword")}
               </label>
               <input
@@ -247,7 +247,7 @@ export default function ActivatePage() {
             <button
               type="submit"
               disabled={submitting || !password || !confirmPassword}
-              className="w-full py-3.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-30 flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

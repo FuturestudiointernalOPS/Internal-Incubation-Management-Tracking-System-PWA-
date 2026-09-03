@@ -333,18 +333,18 @@ export default function AdminOpReports() {
           <div className="space-y-2">
             <button
               onClick={() => router.push("/admin")}
-              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[9px] uppercase tracking-widest"
+              className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
             >
               <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
               {t("navigation.dashboard")}
             </button>
             <div className="flex items-center gap-2 mt-2">
               <BarChart3 className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.3em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("reports.operationalReports")}
               </span>
             </div>
-            <h1 className="text-4xl font-bold tracking-tight text-[var(--text-primary)]">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
               {t("reports.companyReports")}
             </h1>
           </div>
@@ -411,7 +411,7 @@ export default function AdminOpReports() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("common.search")}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
               />
             </div>
             <div className="relative">
@@ -419,7 +419,7 @@ export default function AdminOpReports() {
               <select
                 value={filterUser}
                 onChange={(e) => setFilterUser(e.target.value)}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="All Users">{t("common.allUsers")}</option>
                 {users.map((u) => (
@@ -434,7 +434,7 @@ export default function AdminOpReports() {
               <select
                 value={filterType}
                 onChange={(e) => setFilterType(e.target.value)}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allTypes")}</option>
                 <option value="standup">{t("reports.mondayStandup")}</option>
@@ -446,7 +446,7 @@ export default function AdminOpReports() {
               <select
                 value={filterMonth}
                 onChange={(e) => setFilterMonth(e.target.value)}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allMonths")}</option>
                 {MONTHS.map((m) => (
@@ -459,7 +459,7 @@ export default function AdminOpReports() {
               <select
                 value={filterProject}
                 onChange={(e) => setFilterProject(e.target.value)}
-                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-xs font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 pr-4 text-sm font-bold text-[var(--text-primary)] outline-none appearance-none cursor-pointer focus:border-[var(--brand-orange)]"
               >
                 <option value="all">{t("reports.filter.allProjects")}</option>
                 {allProjects.map((p) => (
@@ -546,7 +546,7 @@ export default function AdminOpReports() {
                       <span className="text-xs font-black uppercase tracking-tight text-[var(--text-primary)]">
                         {stat.name}
                       </span>
-                      <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-primary rounded">
+                      <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)] px-1.5 py-0.5 bg-primary rounded">
                         {stat.role}
                       </span>
                     </div>
@@ -560,7 +560,7 @@ export default function AdminOpReports() {
                         {stat.blockers.length}
                       </span>
                     </div>
-                    <p className="text-[8px] text-slate-600 mt-1">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                       {stat.latest
                         ? new Date(stat.latest).toLocaleDateString()
                         : t("reports.noActivity")}
@@ -572,7 +572,7 @@ export default function AdminOpReports() {
             {/* REPORTS LIST */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+                <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                   {viewingUser
                     ? t("reports.userReports", { name: viewingUser.name })
                     : t("reports.recentReports")}
@@ -580,7 +580,7 @@ export default function AdminOpReports() {
                 {viewingUser && (
                   <button
                     onClick={() => setViewingUser(null)}
-                    className="text-[9px] font-black text-[var(--brand-orange)] uppercase hover:underline"
+                    className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline"
                   >
                     {t("common.clearFilter")}
                   </button>
@@ -592,7 +592,7 @@ export default function AdminOpReports() {
               ) : filteredReports.length === 0 ? (
                 <div className="card py-32 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
                   <FileText className="w-16 h-16 mb-4" />
-                  <p className="text-[10px] font-bold uppercase tracking-widest">
+                  <p className="text-sm text-[var(--text-secondary)]">
                     {t("reports.noReportsFound")}
                   </p>
                 </div>
@@ -615,7 +615,7 @@ export default function AdminOpReports() {
                 <div className="flex justify-center pt-2">
                   <button
                     onClick={() => setReportsPage((p) => p + 1)}
-                    className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
+                    className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
                   >
                     {t("reports.loadMore", {
                       count: filteredReports.length - reportsPage * PAGE_SIZE,
@@ -678,7 +678,7 @@ export default function AdminOpReports() {
                     <CheckCircle2 className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <p className="text-[7px] font-bold text-slate-500 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {stat.label}
                     </p>
                     <p className={`text-base font-black ${stat.color}`}>
@@ -691,12 +691,12 @@ export default function AdminOpReports() {
 
             {/* Recent Tasks Table */}
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                 {t("reports.recentReports")}
               </h3>
               <button
                 onClick={() => router.push("/admin/tasks")}
-                className="text-[9px] font-black text-indigo-500 uppercase hover:underline flex items-center gap-1"
+                className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide hover:underline flex items-center gap-1"
               >
                 <ListTodo className="w-3 h-3" /> {t("reports.viewAllTasks")}
               </button>
@@ -707,7 +707,7 @@ export default function AdminOpReports() {
             ) : allTasks.length === 0 ? (
               <div className="card py-20 text-center opacity-40 border-dashed">
                 <ListTodo className="w-12 h-12 mx-auto mb-3" />
-                <p className="text-[10px] font-bold uppercase tracking-widest">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("reports.noTasksFound")}
                 </p>
               </div>
@@ -717,19 +717,19 @@ export default function AdminOpReports() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-[var(--border-primary)]">
-                        <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("reports.table.task")}
                         </th>
-                        <th className="text-left p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("reports.table.owner")}
                         </th>
-                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("time.week")}
                         </th>
-                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("reports.table.status")}
                         </th>
-                        <th className="text-center p-4 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        <th className="text-center p-4 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("reports.table.blockers")}
                         </th>
                       </tr>
@@ -747,7 +747,7 @@ export default function AdminOpReports() {
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[8px] font-black uppercase">
+                              <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                                 {task.user_name?.charAt(0) || "?"}
                               </div>
                               <span className="text-[10px] font-bold uppercase tracking-tight">
@@ -756,15 +756,15 @@ export default function AdminOpReports() {
                             </div>
                           </td>
                           <td className="text-center p-4">
-                            <span className="text-[9px] font-bold text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               W{task.created_week}·{task.created_year}
                             </span>
                           </td>
                           <td className="text-center p-4">
                             <span
-                              className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+                              className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
                                 {
-                                  pending: "bg-slate-500/10 text-slate-400",
+                                  pending: "bg-slate-500/10 text-[var(--text-secondary)]",
                                   in_progress: "bg-blue-500/10 text-blue-500",
                                   blocked: "bg-rose-500/10 text-rose-500",
                                   completed:
@@ -772,7 +772,7 @@ export default function AdminOpReports() {
                                   carried_over:
                                     "bg-amber-500/10 text-amber-500",
                                 }[task.status] ||
-                                "bg-slate-500/10 text-slate-400"
+                                "bg-slate-500/10 text-[var(--text-secondary)]"
                               }`}
                             >
                               {{
@@ -793,7 +793,7 @@ export default function AdminOpReports() {
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-[9px] text-slate-600">
+                              <span className="text-sm font-bold text-[var(--text-secondary)]">
                                 —
                               </span>
                             )}
@@ -811,12 +811,12 @@ export default function AdminOpReports() {
         {activeTab === "blockers" && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+              <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                 {t("reports.blockers")}
               </h3>
               {/* Week selector */}
               <div className="flex items-center gap-2">
-                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   {t("time.week")}
                 </span>
                 <select
@@ -915,7 +915,7 @@ export default function AdminOpReports() {
                 return (
                   <div className="card py-20 text-center opacity-40 border-dashed">
                     <AlertTriangle className="w-12 h-12 mx-auto mb-3" />
-                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                    <p className="text-sm text-[var(--text-secondary)]">
                       {t("reports.noBlockersFound")}
                     </p>
                   </div>
@@ -963,7 +963,7 @@ export default function AdminOpReports() {
                   {/* Effort Analysis Summary */}
                   {userAvgData.length > 1 && (
                     <div className="card p-4">
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">
                         {t("reports.effortAnalysis")}
                       </p>
                       <div className="space-y-2">
@@ -988,7 +988,7 @@ export default function AdminOpReports() {
                                 ? t("common.noData")
                                 : t("reports.hoursAvg", { hours: u.avgHours })}
                             </span>
-                            <span className="w-16 text-right text-slate-500">
+                            <span className="w-16 text-right text-[var(--text-secondary)]">
                               {u.activeCount > 0
                                 ? t("reports.nActive", { count: u.activeCount })
                                 : t("reports.nTotal", {
@@ -1007,28 +1007,28 @@ export default function AdminOpReports() {
                       <table className="w-full">
                         <thead>
                           <tr className="bg-tertiary border-b border-[var(--border-primary)]">
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.blocker")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.staff")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.task")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.project")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("time.created")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.resolved")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.duration")}
                             </th>
-                            <th className="text-left px-3 py-2 text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                            <th className="text-left px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("reports.table.status")}
                             </th>
                           </tr>
@@ -1055,7 +1055,7 @@ export default function AdminOpReports() {
                                   </td>
                                   <td className="px-3 py-2.5 text-[10px]">
                                     <div className="flex items-center gap-1.5">
-                                      <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black uppercase">
+                                      <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold uppercase">
                                         {b.user_name?.charAt(0) || "?"}
                                       </div>
                                       <span>
@@ -1063,16 +1063,16 @@ export default function AdminOpReports() {
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                  <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                     {task?.title || `#${b.task_id}`}
                                   </td>
-                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                  <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                     {projectName || task?.category || "—"}
                                   </td>
-                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                  <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                     {formatDateTime(b.created_at)}
                                   </td>
-                                  <td className="px-3 py-2.5 text-[10px] text-slate-500">
+                                  <td className="px-3 py-2.5 text-[10px] font-medium text-[var(--text-secondary)]">
                                     {b.status === "resolved"
                                       ? formatDateTime(b.resolved_at)
                                       : "—"}
@@ -1086,7 +1086,7 @@ export default function AdminOpReports() {
                                   </td>
                                   <td className="px-3 py-2.5">
                                     <span
-                                      className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
+                                      className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${b.status === "active" ? "bg-rose-500/10 text-rose-400" : "bg-emerald-500/10 text-emerald-400"}`}
                                     >
                                       {b.status}
                                     </span>
@@ -1104,7 +1104,7 @@ export default function AdminOpReports() {
                     <div className="flex justify-center px-4 pb-4">
                       <button
                         onClick={() => setBlockersPage((p) => p + 1)}
-                        className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[9px] font-black uppercase tracking-widest hover:border-[var(--brand-orange)]/30 transition-all"
+                        className="px-6 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wide hover:border-[var(--brand-orange)]/30 transition-all"
                       >
                         {t("reports.loadMore", {
                           count: filtered.length - blockersPage * PAGE_SIZE,
@@ -1116,29 +1116,29 @@ export default function AdminOpReports() {
                   {/* Summary stats */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div className="card p-3">
-                      <p className="text-2xl font-bold text-rose-400">
+                      <p className="text-2xl font-black tracking-tight text-rose-400">
                         {filtered.filter((b) => b.status === "active").length}
                       </p>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("status.active")}
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-bold text-emerald-400">
+                      <p className="text-2xl font-black tracking-tight text-emerald-400">
                         {filtered.filter((b) => b.status === "resolved").length}
                       </p>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("status.resolved")}
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-bold">{filtered.length}</p>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      <p className="text-2xl font-black tracking-tight">{filtered.length}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("common.total")}
                       </p>
                     </div>
                     <div className="card p-3">
-                      <p className="text-2xl font-bold">
+                      <p className="text-2xl font-black tracking-tight">
                         {(() => {
                           const resolved = filtered.filter(
                             (b) => b.status === "resolved" && b.resolved_at,
@@ -1156,7 +1156,7 @@ export default function AdminOpReports() {
                           return `${h}h`;
                         })()}
                       </p>
-                      <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("reports.avgResolution")}
                       </p>
                     </div>
@@ -1188,7 +1188,7 @@ export default function AdminOpReports() {
           >
             <div className="flex justify-between items-start">
               <div>
-                <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   {t("reports.staffTimeline")}
                 </span>
                 <h3 className="text-2xl font-black text-white uppercase tracking-tight mt-1">
@@ -1214,7 +1214,7 @@ export default function AdminOpReports() {
             </div>
 
             <div className="flex flex-wrap gap-4 text-[10px] font-bold">
-              <span className="text-slate-500">
+              <span className="text-[var(--text-secondary)]">
                 {t("reports.totalReports")}: {userReports.length}
               </span>
               <span className="text-[var(--brand-orange)]">
@@ -1275,7 +1275,7 @@ export default function AdminOpReports() {
                     <p className="text-lg font-black text-emerald-500">
                       {reliability}%
                     </p>
-                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("reports.reliability")}
                     </p>
                   </div>
@@ -1283,7 +1283,7 @@ export default function AdminOpReports() {
                     <p className="text-lg font-black text-[var(--brand-orange)]">
                       {uniqueWeeks}
                     </p>
-                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("reports.activeWeeks")}
                     </p>
                   </div>
@@ -1293,7 +1293,7 @@ export default function AdminOpReports() {
                         ? uniqueWeeks * 2 - total
                         : 0}
                     </p>
-                    <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                       {t("reports.missedReports")}
                     </p>
                   </div>
@@ -1326,7 +1326,7 @@ export default function AdminOpReports() {
                       <p className="text-[10px] font-black uppercase">
                         W{r.week_number} · {r.year}
                       </p>
-                      <p className="text-[8px] text-slate-500">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {new Date(r.created_at).toLocaleDateString()}
                       </p>
                     </div>
@@ -1337,7 +1337,7 @@ export default function AdminOpReports() {
                     )}
                     <span
                       className={
-                        "text-[8px] font-black uppercase px-2 py-0.5 rounded " +
+                        "text-[10px] font-bold uppercase px-2 py-0.5 rounded " +
                         (r.status === "submitted"
                           ? "bg-emerald-500/10 text-emerald-500"
                           : "bg-amber-500/10 text-amber-500")
@@ -1372,10 +1372,10 @@ export default function AdminOpReports() {
 function StatCard({ label, value }) {
   return (
     <div className="p-3 bg-secondary border border-[var(--border-primary)] rounded-xl px-5 flex flex-col justify-center shadow-sm min-w-[90px]">
-      <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-0.5">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-0.5">
         {label}
       </span>
-      <span className="text-xl font-bold tracking-tight text-[var(--text-primary)]">
+      <span className="text-xl font-black tracking-tight text-[var(--text-primary)]">
         {value}
       </span>
     </div>
@@ -1406,7 +1406,7 @@ function ReportCard({ report, onClick }) {
               <span className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
                 {report.user_name}
               </span>
-              <span className="text-[8px] font-bold text-slate-500 uppercase px-1.5 py-0.5 bg-tertiary rounded">
+              <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)] px-1.5 py-0.5 bg-tertiary rounded">
                 {report.user_role}
               </span>
             </div>
@@ -1431,7 +1431,7 @@ function ReportCard({ report, onClick }) {
         </div>
         <div className="flex items-center gap-2">
           <span
-            className={`text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded ${
+            className={`text-[10px] font-bold uppercase px-2 py-1 rounded ${
               report.status === "submitted"
                 ? "bg-emerald-500/10 text-emerald-500"
                 : "bg-amber-500/10 text-amber-500"
@@ -1480,7 +1480,7 @@ function MonthlyBreakdown({ reports }) {
 
   return (
     <div className="space-y-6">
-      <h3 className="text-sm font-black uppercase tracking-wider text-[var(--text-primary)]">
+      <h3 className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
         {t("reports.monthlyActivity")}
       </h3>
       <div className="grid grid-cols-1 gap-4">
@@ -1493,7 +1493,7 @@ function MonthlyBreakdown({ reports }) {
                   {group.label}
                 </h4>
               </div>
-              <div className="flex gap-3 text-[10px] font-bold text-slate-500">
+              <div className="flex gap-3 text-[10px] font-medium text-[var(--text-secondary)]">
                 <span>
                   {group.standups} {t("reports.standups")}
                 </span>
@@ -1519,7 +1519,7 @@ function MonthlyBreakdown({ reports }) {
                 }}
               />
             </div>
-            <div className="flex items-center gap-1 mt-2 text-[8px] font-bold text-slate-600">
+            <div className="flex items-center gap-1 mt-2 text-[10px] font-medium text-[var(--text-secondary)]">
               <span className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />{" "}
               {t("reports.standups")}
               <span className="w-2 h-2 rounded-full bg-emerald-500 ml-3" />{" "}
@@ -1588,7 +1588,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
     <div className="space-y-8">
       {/* Monthly Report Volume Chart */}
       <div className="card">
-        <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-6">
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-6">
           {t("reports.monthlyReportVolume")}
         </h3>
         <div className="space-y-3">
@@ -1597,7 +1597,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
             const pct = (total / maxMonthly) * 100;
             return (
               <div key={m.key}>
-                <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 mb-1">
+                <div className="flex items-center justify-between text-[10px] font-bold text-[var(--text-secondary)] mb-1">
                   <span>{m.label}</span>
                   <span className="font-black text-[var(--text-primary)]">
                     {t("reports.nReports", { count: total })}
@@ -1613,7 +1613,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                     style={{ width: `${(m.retros / maxMonthly) * 100}%` }}
                   />
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-[7px] font-bold text-slate-600">
+                <div className="flex items-center gap-3 mt-1 text-[10px] font-medium text-[var(--text-secondary)]">
                   <span className="flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />{" "}
                     {t("reports.nStandups", { count: m.standups })}
@@ -1638,15 +1638,15 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Blocker Trend */}
         <div className="card">
-          <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
             {t("reports.blockersOverTime")}
           </h3>
           {blockerTrend.length > 0 ? (
             <div className="space-y-2.5">
               {blockerTrend.map((m) => (
                 <div key={m.key}>
-                  <div className="flex items-center justify-between text-[9px] font-bold mb-1">
-                    <span className="text-slate-500">{m.label}</span>
+                  <div className="flex items-center justify-between text-[10px] font-bold mb-1">
+                    <span className="text-[var(--text-secondary)]">{m.label}</span>
                     <span className="text-rose-500 font-black">
                       {t("reports.nBlockers", { count: m.blockers })}
                     </span>
@@ -1663,7 +1663,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
           ) : (
             <div className="py-8 text-center">
               <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2 opacity-40" />
-              <p className="text-[10px] text-slate-500 italic">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("reports.noBlockersReported")}
               </p>
             </div>
@@ -1672,7 +1672,7 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
 
         {/* Recently Active Staff */}
         <div className="card">
-          <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-4">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-4">
             {t("reports.recentlyActive")}
           </h3>
           <div className="space-y-2">
@@ -1682,14 +1682,14 @@ function TrendsDashboard({ reports, allReports, onViewReport }) {
                 className="flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)]"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-7 h-7 rounded-full bg-tertiary flex items-center justify-center text-[9px] font-black uppercase">
+                  <div className="w-7 h-7 rounded-full bg-tertiary flex items-center justify-center text-[10px] font-bold uppercase">
                     {s.name?.charAt(0)}
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-tight">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                       {s.name}
                     </p>
-                    <p className="text-[8px] text-slate-500">
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {t("reports.nReports", { count: s.total })} ·{" "}
                       {new Date(s.latest).toLocaleDateString()}
                     </p>
@@ -1771,7 +1771,7 @@ function ReportDetailModal({ report, onClose }) {
     const c = cfg[status] || cfg.pending;
     return (
       <span
-        className={`text-[8px] font-bold px-1.5 py-0.5 rounded ${c.bg} ${c.color}`}
+        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${c.bg} ${c.color}`}
       >
         {c.label}
       </span>
@@ -1810,7 +1810,7 @@ function ReportDetailModal({ report, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-start print:hidden">
           <div>
-            <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+            <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
               {report.report_type === "standup"
                 ? t("reports.standup")
                 : t("reports.retro")}{" "}
@@ -1930,7 +1930,7 @@ function ReportDetailModal({ report, onClose }) {
                 }
               }}
               id="pdf-export-btn"
-              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest"
+              className="btn btn-secondary !py-2 !px-4 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wide"
             >
               <Download className="w-4 h-4" /> {t("reports.exportPdf")}
             </button>
@@ -1966,7 +1966,7 @@ function ReportDetailModal({ report, onClose }) {
               <h1 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight print:text-black">
                 {report.user_name}
               </h1>
-              <p className="text-[10px] text-slate-500 print:text-gray-500">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] print:text-gray-500">
                 {report.report_type === "standup"
                   ? t("reports.standup")
                   : t("reports.retro")}{" "}
@@ -1978,15 +1978,15 @@ function ReportDetailModal({ report, onClose }) {
           {/* Info bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-5 bg-tertiary rounded-2xl border border-[var(--border-primary)] print:bg-gray-50 print:border print:border-gray-200 print:rounded print:p-4">
             <div className="space-y-0.5">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] print:text-gray-500">
                 {t("reports.teamMember")}
               </p>
-              <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
+              <p className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                 {report.user_name}
               </p>
             </div>
             <div className="space-y-0.5">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] print:text-gray-500">
                 {t("reports.role")}
               </p>
               <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
@@ -1994,18 +1994,18 @@ function ReportDetailModal({ report, onClose }) {
               </p>
             </div>
             <div className="space-y-0.5">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] print:text-gray-500">
                 {t("time.week")}
               </p>
-              <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
+              <p className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                 W{report.week_number} · {report.year}
               </p>
             </div>
             <div className="space-y-0.5">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest print:text-gray-500">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] print:text-gray-500">
                 {t("time.submitted")}
               </p>
-              <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
+              <p className="text-sm font-bold text-[var(--text-primary)] uppercase tracking-wide print:text-black">
                 {new Date(report.created_at).toLocaleDateString()}
               </p>
             </div>
@@ -2020,7 +2020,7 @@ function ReportDetailModal({ report, onClose }) {
               </span>
             </div>
           ) : weekTasks.length === 0 ? (
-            <p className="text-[10px] text-gray-500 italic text-center py-8">
+            <p className="text-[10px] text-gray-500 text-center py-8">
               {t("reports.noTasksWeek")}
             </p>
           ) : (

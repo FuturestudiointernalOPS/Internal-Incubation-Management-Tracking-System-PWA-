@@ -93,9 +93,9 @@ export default function VentureReportsPage() {
 
   const kpiCard = (label, value, sub, color = "text-[var(--text-primary)]") => (
     <div className="p-4 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
-      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{label}</p>
+      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{label}</p>
       <p className={`text-2xl font-black mt-1 ${typeof value === "number" && value > 0 && label.includes("Overdue") ? "text-rose-400" : color}`}>{value}</p>
-      {sub && <p className="text-[8px] text-slate-500 mt-0.5">{sub}</p>}
+      {sub && <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{sub}</p>}
     </div>
   );
 
@@ -122,19 +122,19 @@ export default function VentureReportsPage() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <button onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
+              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
               <ArrowLeft className="w-3 h-3" /> Back to Dashboard
             </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" /> Reports & Analytics
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name || ""}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">{venture?.company_name || ""}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => handleExport("csv")} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
+            <button onClick={() => handleExport("csv")} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <Download className="w-3 h-3" /> CSV
             </button>
-            <button onClick={fetchData} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
+            <button onClick={fetchData} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
           </div>
@@ -152,8 +152,8 @@ export default function VentureReportsPage() {
             const Icon = tab.icon;
             return (
               <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`px-4 py-2.5 text-[8px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all border-b-2 ${
-                  activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-slate-500 hover:text-[var(--text-primary)]"
+                className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 transition-all border-b-2 ${
+                  activeTab === tab.id ? "border-[var(--brand-orange)] text-[var(--brand-orange)]" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}>
                 <Icon className="w-3 h-3" />{tab.label}
               </button>
@@ -178,19 +178,19 @@ export default function VentureReportsPage() {
 
             {/* Overall Progress */}
             <div className="card">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Overall Completion</h3>
+              <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Overall Completion</h3>
               {progressBar(kpis.overall_completion || 0)}
               <div className="grid grid-cols-3 gap-4 mt-4">
                 <div>
-                  <div className="flex justify-between text-[8px] text-slate-500 mb-1"><span>Milestones</span><span>{charts.completion_breakdown?.milestones || 0}%</span></div>
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mb-1"><span>Milestones</span><span>{charts.completion_breakdown?.milestones || 0}%</span></div>
                   {progressBar(charts.completion_breakdown?.milestones || 0)}
                 </div>
                 <div>
-                  <div className="flex justify-between text-[8px] text-slate-500 mb-1"><span>Tasks</span><span>{charts.completion_breakdown?.tasks || 0}%</span></div>
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mb-1"><span>Tasks</span><span>{charts.completion_breakdown?.tasks || 0}%</span></div>
                   {progressBar(charts.completion_breakdown?.tasks || 0)}
                 </div>
                 <div>
-                  <div className="flex justify-between text-[8px] text-slate-500 mb-1"><span>Deliverables</span><span>{charts.completion_breakdown?.deliverables || 0}%</span></div>
+                  <div className="flex justify-between text-[10px] text-[var(--text-secondary)] mb-1"><span>Deliverables</span><span>{charts.completion_breakdown?.deliverables || 0}%</span></div>
                   {progressBar(charts.completion_breakdown?.deliverables || 0)}
                 </div>
               </div>
@@ -199,7 +199,7 @@ export default function VentureReportsPage() {
             {/* Activity Trend (last 30 days) */}
             {(charts.activity_trend_30d || []).length > 0 && (
               <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Activity Trend (30 days)</h3>
+                <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3">Activity Trend (30 days)</h3>
                 <div className="flex items-end gap-1 h-24">
                   {charts.activity_trend_30d.slice(-14).map((d, i) => {
                     const maxH = Math.max(...charts.activity_trend_30d.map((x) => x.total), 1);
@@ -207,7 +207,7 @@ export default function VentureReportsPage() {
                       <div key={i} className="flex-1 flex flex-col items-center gap-0.5">
                         <div className="w-full bg-emerald-500/30 rounded-t" style={{ height: `${(d.completed / maxH) * 100}%` }} />
                         <div className="w-full bg-[var(--brand-orange)]/30 rounded-t" style={{ height: `${(d.created / maxH) * 100}%` }} />
-                        <span className="text-[6px] text-slate-500 mt-0.5">{d.date?.slice(5)}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)] mt-0.5">{d.date?.slice(5)}</span>
                       </div>
                     );
                   })}
@@ -238,9 +238,9 @@ export default function VentureReportsPage() {
         {/* Milestones Tab */}
         {activeTab === "milestones" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">All Milestones</h3>
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">All Milestones</h3>
             {milestones.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-8">No milestones</p>
+              <p className="text-sm text-[var(--text-secondary)] text-center py-8">No milestones</p>
             ) : (
               <div className="space-y-3">
                 {milestones.map((m) => (
@@ -248,7 +248,7 @@ export default function VentureReportsPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-[var(--text-primary)]">{m.title}</span>
-                        <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                           m.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
                           m.status === "in_progress" ? "bg-amber-500/10 text-amber-400" :
                           m.status === "delayed" ? "bg-rose-500/10 text-rose-400" :
@@ -258,7 +258,7 @@ export default function VentureReportsPage() {
                       <span className="text-[9px] font-bold">{m.completion_percentage || 0}%</span>
                     </div>
                     {progressBar(m.completion_percentage || 0)}
-                    <div className="flex gap-4 mt-2 text-[8px] text-slate-500">
+                    <div className="flex gap-4 mt-2 text-[10px] text-[var(--text-secondary)]">
                       <span>Deliverables: {m.del_done || 0}/{m.del_total || 0}</span>
                       <span>Tasks: {m.task_done || 0}/{m.task_total || 0}</span>
                       {m.due_date && <span>Due: {new Date(m.due_date).toLocaleDateString()}</span>}
@@ -273,9 +273,9 @@ export default function VentureReportsPage() {
         {/* Tasks Tab */}
         {activeTab === "tasks" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Recent Tasks</h3>
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Recent Tasks</h3>
             {tasks.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-8">No tasks</p>
+              <p className="text-sm text-[var(--text-secondary)] text-center py-8">No tasks</p>
             ) : (
               <div className="space-y-1">
                 {tasks.map((t) => (
@@ -286,14 +286,14 @@ export default function VentureReportsPage() {
                     }`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{t.title}</p>
-                      <p className="text-[8px] text-slate-500">{t.assigned_name || "Unassigned"} {t.milestone_title ? `· ${t.milestone_title}` : ""}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{t.assigned_name || "Unassigned"} {t.milestone_title ? `· ${t.milestone_title}` : ""}</p>
                     </div>
-                    <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
+                    <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                       t.priority === "critical" ? "bg-rose-500/10 text-rose-400" :
                       t.priority === "high" ? "bg-amber-500/10 text-amber-400" :
                       "bg-slate-500/10 text-slate-500"
                     }`}>{t.priority}</span>
-                    <span className="text-[8px] text-slate-500 capitalize">{t.status?.replace(/_/g, " ")}</span>
+                    <span className="text-[10px] text-[var(--text-secondary)] capitalize">{t.status?.replace(/_/g, " ")}</span>
                   </div>
                 ))}
               </div>
@@ -304,9 +304,9 @@ export default function VentureReportsPage() {
         {/* Team Productivity Tab */}
         {activeTab === "team" && (
           <div className="card">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Team Productivity</h3>
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">Team Productivity</h3>
             {team.length === 0 ? (
-              <p className="text-sm text-slate-500 text-center py-8">No team data</p>
+              <p className="text-sm text-[var(--text-secondary)] text-center py-8">No team data</p>
             ) : (
               <div className="space-y-4">
                 {team.map((m, i) => (
@@ -318,13 +318,13 @@ export default function VentureReportsPage() {
                         </div>
                         <div>
                           <p className="text-xs font-bold text-[var(--text-primary)]">{m.name || "Unnamed"}</p>
-                          <p className="text-[8px] text-slate-500">{m.completed}/{m.total_tasks} tasks done</p>
+                          <p className="text-[10px] text-[var(--text-secondary)]">{m.completed}/{m.total_tasks} tasks done</p>
                         </div>
                       </div>
                       <span className="text-lg font-black text-[var(--brand-orange)]">{m.completion_rate || 0}%</span>
                     </div>
                     {progressBar(m.completion_rate || 0)}
-                    <div className="flex gap-3 mt-2 text-[8px] text-slate-500">
+                    <div className="flex gap-3 mt-2 text-[10px] text-[var(--text-secondary)]">
                       <span>📊 {m.total_tasks} tasks</span>
                       {m.blocked > 0 && <span className="text-rose-400">🚫 {m.blocked} blocked</span>}
                       {m.overdue > 0 && <span className="text-rose-400">⏰ {m.overdue} overdue</span>}
@@ -334,17 +334,17 @@ export default function VentureReportsPage() {
                 ))}
                 {/* Workload distribution bar */}
                 <div className="mt-4">
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-wider mb-2">Workload Distribution</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-2">Workload Distribution</p>
                   {team.map((m, i) => {
                     const total = team.reduce((s, x) => s + x.total_tasks, 1);
                     const pct = (m.total_tasks / total) * 100;
                     return (
                       <div key={i} className="flex items-center gap-2 mb-1">
-                        <span className="text-[8px] font-bold text-slate-500 w-24 truncate">{m.name}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] w-24 truncate">{m.name}</span>
                         <div className="flex-1 bg-tertiary rounded-full h-3 overflow-hidden">
                           <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                        <span className="text-[8px] text-slate-500 w-8 text-right">{m.total_tasks}</span>
+                        <span className="text-[10px] text-[var(--text-secondary)] w-8 text-right">{m.total_tasks}</span>
                       </div>
                     );
                   })}

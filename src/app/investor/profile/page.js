@@ -185,7 +185,7 @@ export default function InvestorProfilePage() {
             <AppCard padding="lg">
               <div className="space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.organizationName")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.organizationName")}</label>
                   <div className="relative mt-1.5">
                     <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                     <input value={orgName} onChange={e => setOrgName(e.target.value)}
@@ -194,14 +194,14 @@ export default function InvestorProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.biography")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.biography")}</label>
                   <textarea value={biography} onChange={e => setBiography(e.target.value)}
                     rows={3} placeholder={t("investorMisc.profile.bioPlaceholder")}
                     className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.website")}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.website")}</label>
                     <div className="relative mt-1.5">
                       <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                       <input value={website} onChange={e => setWebsite(e.target.value)}
@@ -210,7 +210,7 @@ export default function InvestorProfilePage() {
                     </div>
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.linkedin")}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.linkedin")}</label>
                     <div className="relative mt-1.5">
                       <Link className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
                       <input value={linkedin} onChange={e => setLinkedin(e.target.value)}
@@ -234,7 +234,7 @@ export default function InvestorProfilePage() {
               <div className="space-y-5">
                 {/* Industries */}
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.industries")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.industries")}</label>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {INDUSTRY_OPTIONS.map(ind => (
                       <button key={ind} onClick={() => toggleArray(industries, setIndustries, ind)}
@@ -251,7 +251,7 @@ export default function InvestorProfilePage() {
 
                 {/* Countries */}
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1.5">
                     <MapPin className="w-3 h-3" /> {t("investorMisc.profile.countries")}
                   </label>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -270,7 +270,7 @@ export default function InvestorProfilePage() {
 
                 {/* Stages */}
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1.5">
                     <TrendingUp className="w-3 h-3" /> {t("investorMisc.profile.startupStages")}
                   </label>
                   <div className="flex flex-wrap gap-2 mt-2">
@@ -289,7 +289,7 @@ export default function InvestorProfilePage() {
 
                 {/* Ticket Size */}
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest flex items-center gap-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] flex items-center gap-1.5">
                     <DollarSign className="w-3 h-3" /> {t("investorMisc.profile.ticketSize")}
                   </label>
                   <div className="grid grid-cols-2 gap-3 mt-2">
@@ -304,7 +304,7 @@ export default function InvestorProfilePage() {
 
                 {/* Philosophy */}
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorMisc.profile.investmentPhilosophy")}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("investorMisc.profile.investmentPhilosophy")}</label>
                   <textarea value={philosophy} onChange={e => setPhilosophy(e.target.value)}
                     rows={2} placeholder={t("investorMisc.profile.philosophyPlaceholder")}
                     className="w-full mt-2 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60 resize-none" />

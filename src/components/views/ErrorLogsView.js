@@ -76,7 +76,7 @@ function SeverityBadge({ severity }) {
   };
   return (
     <span
-      className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded"
+      className="text-[10px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded"
       style={{ color: c.color, background: c.bg }}
     >
       {t(SEV_KEYS[severity] || "") || severity || t(SEV_KEYS.unknown)}
@@ -88,13 +88,13 @@ function ResolvedBadge({ resolved }) {
   const { t } = useI18n();
   if (resolved) {
     return (
-      <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
         {t("engineering.errorLogs.resolved")}
       </span>
     );
   }
   return (
-    <span className="px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border bg-amber-500/10 text-amber-400 border-amber-500/20">
+    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border bg-amber-500/10 text-amber-400 border-amber-500/20">
       {t("engineering.errorLogs.open")}
     </span>
   );
@@ -103,10 +103,10 @@ function ResolvedBadge({ resolved }) {
 function FieldChip({ label, value }) {
   return (
     <div className="p-2.5 rounded-lg bg-primary border border-[var(--border-primary)]">
-      <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
         {label}
       </p>
-      <p className="text-[9px] font-bold mt-0.5 text-[var(--text-primary)] break-all">
+      <p className="text-[10px] font-bold mt-0.5 text-[var(--text-primary)] break-all">
         {value}
       </p>
     </div>
@@ -266,14 +266,14 @@ export default function ErrorLogsView({
               <>
                 <button
                   onClick={bulkResolve}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-500/20 transition-all"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />{" "}
                   {t("engineering.errorLogs.resolveCount", { count: sel.size })}
                 </button>
                 <button
                   onClick={copySelected}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                  className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide hover:opacity-90 transition-all"
                 >
                   <Copy className="w-3.5 h-3.5" />{" "}
                   {copied
@@ -284,7 +284,7 @@ export default function ErrorLogsView({
             )}
             <button
               onClick={fetchErrors}
-              className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 bg-secondary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wide hover:bg-tertiary transition-all"
             >
               <RefreshCw className="w-3.5 h-3.5" />{" "}
               {t("engineering.errorLogs.refresh")}
@@ -296,21 +296,21 @@ export default function ErrorLogsView({
         <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
           <button
             onClick={() => setTab("unresolved")}
-            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "unresolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${tab === "unresolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             <span className="w-2 h-2 rounded-full bg-amber-400" />{" "}
               {t("engineering.errorLogs.open")}
           </button>
           <button
             onClick={() => setTab("resolved")}
-            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tab === "resolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-2 ${tab === "resolved" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400" />{" "}
               {t("engineering.errorLogs.resolved")}
           </button>
           <button
             onClick={() => setTab("all")}
-            className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tab === "all" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${tab === "all" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
           >
             {t("engineering.errorLogs.all")}
           </button>
@@ -361,7 +361,7 @@ export default function ErrorLogsView({
                   if (allSel) setSel(new Set());
                   else setSel(new Set(errors.map((e) => e.id)));
                 }}
-                className="flex items-center gap-2 text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
               >
                 {allSel ? (
                   <CheckSquare className="w-4 h-4" />
@@ -373,7 +373,7 @@ export default function ErrorLogsView({
                   : t("engineering.errorLogs.selectAll")}
               </button>
               {sel.size > 0 && (
-                <span className="text-[9px] font-bold text-[var(--brand-orange)]">
+                <span className="text-[10px] font-bold text-[var(--brand-orange)]">
                   {t("engineering.errorLogs.selectedCount", { count: sel.size })}
                 </span>
               )}
@@ -402,7 +402,7 @@ export default function ErrorLogsView({
                   ? t("engineering.errorLogs.noResolvedErrors")
                   : t("engineering.errorLogs.noErrors")}
             </p>
-            <p className="text-xs font-bold text-slate-500 mt-1">
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               {sev !== "all" || cat !== "all" || q
                 ? t("engineering.errorLogs.tryDifferentFilters")
                 : t("engineering.errorLogs.emptyHint")}
@@ -434,7 +434,7 @@ export default function ErrorLogsView({
                         <ResolvedBadge resolved={error.resolved} />
                         {error.category && (
                           <span
-                            className="text-[7px] font-bold px-1 py-0.5 rounded uppercase tracking-wider"
+                            className="text-[10px] font-bold px-1 py-0.5 rounded uppercase tracking-wider"
                             style={{
                               color: CAT[error.category]?.color,
                               background: CAT[error.category]?.bg,
@@ -450,21 +450,21 @@ export default function ErrorLogsView({
                     </div>
                     <div className="hidden lg:flex items-center gap-4 flex-shrink-0">
                       {error.page && (
-                        <span className="text-[8px] font-bold text-slate-500 max-w-[160px] truncate">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] max-w-[160px] truncate">
                           {error.page}
                         </span>
                       )}
                       {error.user_name && (
-                        <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1">
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)] flex items-center gap-1">
                           <User className="w-3 h-3" /> {error.user_name}
                         </span>
                       )}
                       {(parseInt(error.occurrence_count) || 1) > 1 && (
-                        <span className="text-[8px] font-black text-orange-400">
+                        <span className="text-[10px] font-bold text-orange-400">
                           x{error.occurrence_count}
                         </span>
                       )}
-                      <span className="text-[8px] font-bold text-slate-500 flex items-center gap-1 whitespace-nowrap">
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)] flex items-center gap-1 whitespace-nowrap">
                         <Calendar className="w-3 h-3" />{" "}
                         {error.created_at
                           ? new Date(error.created_at).toLocaleString()
@@ -501,10 +501,10 @@ export default function ErrorLogsView({
                       {/* Stack Trace */}
                       {error.stack && (
                         <div>
-                          <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
                             {t("engineering.errorLogs.stackTrace")}
                           </p>
-                          <pre className="text-[9px] font-mono text-[var(--text-secondary)] bg-primary rounded-xl p-3 overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto border border-[var(--border-primary)]">
+                          <pre className="text-[10px] font-mono text-[var(--text-secondary)] bg-primary rounded-xl p-3 overflow-x-auto whitespace-pre-wrap max-h-40 overflow-y-auto border border-[var(--border-primary)]">
                             {error.stack}
                           </pre>
                         </div>
@@ -562,10 +562,10 @@ export default function ErrorLogsView({
                         )}
                         {error.url && (
                           <div className="p-2.5 rounded-lg bg-primary border border-[var(--border-primary)] md:col-span-2">
-                            <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                               {t("engineering.errorLogs.url")}
                             </p>
-                            <p className="text-[9px] font-bold mt-0.5 text-[var(--text-primary)] truncate">
+                            <p className="text-[10px] font-bold mt-0.5 text-[var(--text-primary)] truncate">
                               {error.url}
                             </p>
                           </div>
@@ -574,7 +574,7 @@ export default function ErrorLogsView({
 
                       {/* Resolution Panel */}
                       <div className="p-4 rounded-xl bg-primary border border-[var(--border-primary)] space-y-3">
-                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                           {t("engineering.errorLogs.resolution")}
                         </p>
                         <textarea
@@ -595,7 +595,7 @@ export default function ErrorLogsView({
                               handleToggleResolved(error.id, !!error.resolved)
                             }
                             disabled={actionLoading}
-                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all disabled:opacity-50"
                             style={{
                               background: error.resolved
                                 ? "rgba(239,68,68,0.15)"
@@ -618,7 +618,7 @@ export default function ErrorLogsView({
                             )}
                           </button>
                           {error.resolved_at && (
-                            <span className="text-[8px] text-slate-500">
+                            <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                               {t("engineering.errorLogs.resolvedOnDate", {
                                 date: new Date(
                                   error.resolved_at,
@@ -629,7 +629,7 @@ export default function ErrorLogsView({
                         </div>
                         {error.resolution_notes && (
                           <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
                               {t("engineering.errorLogs.previousNotes")}
                             </p>
                             <p className="text-[10px] text-[var(--text-secondary)]">

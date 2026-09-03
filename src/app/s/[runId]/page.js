@@ -457,7 +457,7 @@ export default function PublicSubmitPage() {
                 {validSections.map((_, i) => (
                   <div key={i} className={`h-1 flex-1 rounded-full ${i <= currentSection ? "bg-orange-500" : "bg-slate-700"}`} />
                 ))}
-                <span className="text-[9px] font-black text-slate-500 ml-2">{currentSection + 1}/{validSections.length}</span>
+                <span className="text-[10px] font-bold text-slate-500 ml-2">{currentSection + 1}/{validSections.length}</span>
               </div>
 
               {/* Section title */}

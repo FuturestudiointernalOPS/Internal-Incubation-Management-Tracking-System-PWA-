@@ -175,7 +175,7 @@ export default class AppErrorBoundary extends Component {
               <>
                 <br />
                 <span
-                  className="text-[9px] font-mono mt-1 block opacity-60"
+                  className="text-[10px] font-mono mt-1 block opacity-60"
                   style={{ color: "var(--text-tertiary)" }}
                 >
                   {this.state.error.message}

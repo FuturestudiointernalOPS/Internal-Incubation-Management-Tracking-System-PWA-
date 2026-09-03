@@ -409,7 +409,7 @@ export default function PermissionManager() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-[var(--brand-orange)]" />
-              <span className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-[0.4em]">
+              <span className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-widest">
                 {t("engineering.permissions.authorization")}
               </span>
             </div>
@@ -427,31 +427,31 @@ export default function PermissionManager() {
           <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit flex-wrap">
             <button
               onClick={() => setActiveTab("eligibility")}
-              className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "eligibility" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "eligibility" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabEligibility")}
             </button>
             <button
               onClick={() => setActiveTab("setup")}
-              className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "setup" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "setup" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabAccessSetup")}
             </button>
             <button
               onClick={() => setActiveTab("search")}
-              className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "search" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabUserSearch")}
             </button>
             <button
               onClick={() => setActiveTab("audit")}
-              className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "audit" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "audit" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabAudit")}
             </button>
             <button
               onClick={() => setActiveTab("governance")}
-              className={`px-5 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${activeTab === "governance" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "governance" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabGovernance")}
             </button>
@@ -459,19 +459,19 @@ export default function PermissionManager() {
           {/* Secondary admin section — responsibilities remain available but
               stay visually out of the primary configuration workflow. */}
           <div className="flex items-center gap-2 pl-1">
-            <span className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] opacity-50">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">
               {t("engineering.permissions.tabSecondaryAdmin")}
             </span>
             <div className="h-3 w-px bg-[var(--border-primary)]" />
             <button
               onClick={() => setActiveTab("responsibilities")}
-              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "responsibilities" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabResponsibilities")}
             </button>
             <button
               onClick={() => setActiveTab("access")}
-              className={`px-3 py-1.5 rounded-lg text-[8px] font-black uppercase tracking-widest transition-all ${activeTab === "access" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "access" ? "bg-secondary text-[var(--brand-orange)]" : "text-[var(--text-secondary)] opacity-70 hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabResponsibilityAccess")}
             </button>
@@ -488,13 +488,13 @@ export default function PermissionManager() {
             <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
               <button
                 onClick={() => setSetupSection("profiles")}
-                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${setupSection === "profiles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "profiles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
               >
                 {t("engineering.permissions.tabAccessProfiles")}
               </button>
               <button
                 onClick={() => setSetupSection("roles")}
-                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${setupSection === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "roles" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
               >
                 {t("engineering.permissions.tabRoleDefaults")}
               </button>
@@ -527,7 +527,7 @@ export default function PermissionManager() {
                   setSearchQuery("");
                   setSearchResults(allUsers);
                 }}
-                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="px-4 py-3 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("engineering.permissions.clear")}
               </button>
@@ -578,20 +578,20 @@ export default function PermissionManager() {
                         {userPerms.user.email}
                       </p>
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[8px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-orange-500/10 text-[var(--brand-orange)] uppercase tracking-wider">
                           {userPerms.user.role}
                         </span>
                         {(userPerms.groups || []).map((g) => (
                           <span
                             key={g}
-                            className="text-[8px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
+                            className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 uppercase tracking-wider"
                           >
                             {g}
                           </span>
                         ))}
                         {userPerms.effectiveProfile && (
                           <span
-                            className={`text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
                               userPerms.effectiveProfile.source === "user"
                                 ? "bg-purple-500/10 text-purple-400"
                                 : userPerms.effectiveProfile.source === "role"
@@ -633,7 +633,7 @@ export default function PermissionManager() {
                             setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
-                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[8px] font-black uppercase tracking-widest hover:bg-purple-500/20 transition-all"
+                        className="px-3 py-2 rounded-xl bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-widest hover:bg-purple-500/20 transition-all"
                       >
                         <Shield className="w-3 h-3 inline mr-1" />
                         {t("engineering.permissions.makeSuperAdmin")}
@@ -664,7 +664,7 @@ export default function PermissionManager() {
                             setActionError(t("engineering.permissions.networkError"));
                           }
                         }}
-                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all"
+                        className="px-3 py-2 rounded-xl bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all"
                       >
                         <Shield className="w-3 h-3 inline mr-1" />
                         {t("engineering.permissions.removeSuperAdmin")}
@@ -710,13 +710,13 @@ export default function PermissionManager() {
                         <button
                           onClick={() => saveProfileOverride("")}
                           disabled={assignBusy}
-                          className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[8px] font-black uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all disabled:opacity-50"
                         >
                           {t("engineering.permissions.removeOverride")}
                         </button>
                       )}
                     </div>
-                    <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                       {userPerms.effectiveProfile?.source === "user"
                         ? t("engineering.permissions.currentOverride", {
                             name:
@@ -764,7 +764,7 @@ export default function PermissionManager() {
                           <button
                             onClick={() => saveProfileOverride(assignProfileId)}
                             disabled={!assignProfileId || assignBusy}
-                            className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                            className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
                           >
                             {t("engineering.permissions.assign")}
                           </button>
@@ -773,7 +773,7 @@ export default function PermissionManager() {
                               setShowAssignForm(false);
                               setAssignProfileId("");
                             }}
-                            className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                            className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                           >
                             {t("engineering.permissions.cancel")}
                           </button>
@@ -786,7 +786,7 @@ export default function PermissionManager() {
                           setAssignProfileId("");
                           loadAssignProfiles();
                         }}
-                        className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                        className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                       >
                         {t("engineering.permissions.assignProfile")}
                       </button>
@@ -795,7 +795,7 @@ export default function PermissionManager() {
                 )}
 
                 {/* Legend */}
-                <div className="flex items-center gap-4 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+                <div className="flex items-center gap-4 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-slate-400" />{" "}
                     {t("engineering.permissions.legendInherited")}
@@ -833,7 +833,7 @@ export default function PermissionManager() {
                   <div className="space-y-8">
                     {MODULE_CATEGORIES.map((category) => (
                       <div key={category.label} className="space-y-3">
-                        <h3 className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-[0.3em] opacity-50 pl-1">
+                        <h3 className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-50 pl-1">
                           {t(category.label)}
                         </h3>
                         {category.modules.map((modKey) => {
@@ -867,7 +867,7 @@ export default function PermissionManager() {
                                     {mod.name}
                                   </span>
                                 </div>
-                                <span className="text-[8px] font-bold text-slate-500">
+                                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                                   {t("engineering.permissions.capabilitiesCount", { count: caps.length })}
                                 </span>
                               </button>
@@ -877,13 +877,13 @@ export default function PermissionManager() {
                                   <table className="w-full border-collapse">
                                     <thead>
                                       <tr className="border-b border-[var(--border-primary)]">
-                                        <th className="text-left px-5 py-3 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-40">
+                                        <th className="text-left px-5 py-3 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-40">
                                           {t("engineering.permissions.capability")}
                                         </th>
                                         {LEVELS_ORDER.map((level) => (
                                           <th
                                             key={level}
-                                            className="px-3 py-3 text-center text-[8px] font-black uppercase tracking-widest whitespace-nowrap"
+                                            className="px-3 py-3 text-center text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
                                             style={{
                                               color:
                                                 level === 0
@@ -894,7 +894,7 @@ export default function PermissionManager() {
                                             {t(ACCESS_LEVEL_KEYS[level])}
                                           </th>
                                         ))}
-                                        <th className="px-3 py-3 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest w-24">
+                                        <th className="px-3 py-3 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest w-24">
                                           {t("engineering.permissions.actions")}
                                         </th>
                                       </tr>
@@ -931,7 +931,7 @@ export default function PermissionManager() {
                                                     title={t("engineering.permissions.titleInherited")}
                                                   />
                                                 )}
-                                                <span className="text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                                                <span className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                                   {capabilityLabel(modKey, cap)}
                                                 </span>
                                               </div>
@@ -987,14 +987,14 @@ export default function PermissionManager() {
                                                   ) : isActive &&
                                                     origin === "granted" ? (
                                                     <div className="w-6 h-6 rounded-lg bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center mx-auto">
-                                                      <span className="text-[8px] font-black text-emerald-400">
+                                                      <span className="text-[10px] font-bold text-emerald-400">
                                                         {ACCESS_SHORT[level]}
                                                       </span>
                                                     </div>
                                                   ) : isActive &&
                                                     origin === "inherited" ? (
                                                     <div className="w-6 h-6 rounded-lg bg-slate-500/20 border border-slate-500/40 flex items-center justify-center mx-auto">
-                                                      <span className="text-[8px] font-black text-slate-400">
+                                                      <span className="text-[10px] font-bold text-slate-400">
                                                         {ACCESS_SHORT[level]}
                                                       </span>
                                                     </div>
@@ -1008,7 +1008,7 @@ export default function PermissionManager() {
                                                       }}
                                                     >
                                                       <span
-                                                        className="text-[8px] font-black"
+                                                        className="text-[10px] font-bold"
                                                         style={{
                                                           color:
                                                             ACCESS_COLORS[
@@ -1242,7 +1242,7 @@ function RoleDefaultsView() {
         <p className="text-sm font-black text-[var(--text-primary)] uppercase">
           {t("engineering.permissions.noDefaultsSeeded")}
         </p>
-        <p className="text-[10px] font-bold text-slate-500 mt-1">
+        <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">
           {t("engineering.permissions.noDefaultsHint")}
         </p>
       </div>
@@ -1257,7 +1257,7 @@ function RoleDefaultsView() {
         </p>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+          className="px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all"
         >
           {t("engineering.permissions.setRoleDefaultTitle")}
         </button>
@@ -1277,10 +1277,10 @@ function RoleDefaultsView() {
       {/* Set Role Default form — connects a role to its default Access Profile */}
       {showForm && (
         <div className="ios-card !p-5 border-[var(--border-primary)] space-y-4">
-          <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+          <h4 className="text-[11px] font-bold text-[var(--brand-orange)] uppercase tracking-wide">
             {t("engineering.permissions.setRoleDefaultTitle")}
           </h4>
-          <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
             {t("engineering.permissions.roleDefaultHint")}
           </p>
           <div className="space-y-3">
@@ -1333,7 +1333,7 @@ function RoleDefaultsView() {
                   !roleDefaultData.profile_id ||
                   busy
                 }
-                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
               >
                 {t("engineering.permissions.setDefault")}
               </button>
@@ -1342,7 +1342,7 @@ function RoleDefaultsView() {
                   setShowForm(false);
                   setRoleDefaultData({ role_name: "", profile_id: "" });
                 }}
-                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("engineering.permissions.cancel")}
               </button>
@@ -1354,10 +1354,10 @@ function RoleDefaultsView() {
           default for that role; click a cell to set/change the default. */}
       <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
         <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
             {t("engineering.permissions.roleDefaultsMatrixTitle")}
           </p>
-          <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
             {t("engineering.permissions.roleDefaultsMatrixHint")}
           </p>
         </div>
@@ -1365,13 +1365,13 @@ function RoleDefaultsView() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[var(--border-primary)]">
-                <th className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
+                <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
                   {t("engineering.permissions.roleColumn")}
                 </th>
                 {profiles.map((p) => (
                   <th
                     key={p.id}
-                    className={`px-2 py-2 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap ${p.is_active ? "" : "opacity-40"}`}
+                    className={`px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap ${p.is_active ? "" : "opacity-40"}`}
                   >
                     {p.name}
                   </th>
@@ -1386,7 +1386,7 @@ function RoleDefaultsView() {
                     key={role}
                     className="border-b border-[var(--border-primary)] last:border-0"
                   >
-                    <td className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
+                    <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
                     </td>
                     {profiles.map((p) => {
@@ -1413,7 +1413,7 @@ function RoleDefaultsView() {
                                 ? t("engineering.permissions.roleDefaultsCellDefault", { role })
                                 : t("engineering.permissions.roleDefaultsCellSet", { role })
                             }
-                            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
                               isDefault
                                 ? "bg-teal-500/15 text-teal-400"
                                 : "bg-primary text-[var(--text-secondary)] opacity-50 hover:opacity-100 hover:text-[var(--text-primary)]"
@@ -1431,7 +1431,7 @@ function RoleDefaultsView() {
           </table>
         </div>
       </div>
-      <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
         {t("engineering.permissions.defaultAccessHintTail")}
       </p>
     </div>
@@ -1886,7 +1886,7 @@ function AccessProfilesView() {
             </p>
             <button
               onClick={() => setShowCreateForm(!showCreateForm)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all shrink-0"
             >
               <Plus className="w-3 h-3" /> {t("engineering.permissions.newProfile")}
             </button>
@@ -1918,7 +1918,7 @@ function AccessProfilesView() {
                   <button
                     onClick={createProfile}
                     disabled={!newProfile.name.trim()}
-                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
+                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-50"
                   >
                     {t("engineering.permissions.create")}
                   </button>
@@ -1927,7 +1927,7 @@ function AccessProfilesView() {
                       setShowCreateForm(false);
                       setNewProfile({ name: "", description: "" });
                     }}
-                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                   >
                     {t("engineering.permissions.cancel")}
                   </button>
@@ -1942,7 +1942,7 @@ function AccessProfilesView() {
               <p className="text-sm font-black text-[var(--text-primary)] uppercase">
                 {t("engineering.permissions.noAccessProfiles")}
               </p>
-              <p className="text-[10px] font-bold text-slate-500 mt-1">
+              <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-1">
                 {t("engineering.permissions.noAccessProfilesHint")}
               </p>
             </div>
@@ -1967,7 +1967,7 @@ function AccessProfilesView() {
                             <p className="text-[10px] font-black text-[var(--text-primary)] uppercase truncate">
                               {profile.name}
                             </p>
-                            <p className="text-[8px] font-bold text-[var(--text-secondary)] truncate">
+                            <p className="text-[10px] font-bold text-[var(--text-secondary)] truncate">
                               {t("engineering.permissions.capabilitiesCount", { count: profile.capability_count || 0 })}
                               {isDefaultFor.length > 0
                                 ? ` · ${t("engineering.permissions.defaultFor", { roles: isDefaultFor.join(", ") })}`
@@ -2025,7 +2025,7 @@ function AccessProfilesView() {
                       <button
                         onClick={renameProfile}
                         disabled={!renameValue.trim()}
-                        className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[8px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+                        className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
                       >
                         {t("common.save")}
                       </button>
@@ -2034,7 +2034,7 @@ function AccessProfilesView() {
                           setRenameMode(false);
                           setRenameValue("");
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                       >
                         {t("engineering.permissions.cancel")}
                       </button>
@@ -2057,13 +2057,13 @@ function AccessProfilesView() {
                     </div>
                   )}
                   {selectedProfile.description && (
-                    <p className="text-[9px] font-bold text-[var(--text-secondary)] mt-0.5">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                       {selectedProfile.description}
                     </p>
                   )}
                 </div>
                 <span
-                  className={`text-[9px] font-black px-2 py-1 rounded shrink-0 ${
+                  className={`text-[10px] font-bold px-2 py-1 rounded shrink-0 ${
                     selectedProfile.is_active
                       ? "bg-emerald-500/10 text-emerald-400"
                       : "bg-red-500/10 text-red-400"
@@ -2077,19 +2077,19 @@ function AccessProfilesView() {
 
               {selectedIsDefaultFor.length > 0 && (
                 <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <p className="text-[9px] font-bold text-amber-400">
+                  <p className="text-[10px] font-bold text-amber-400">
                     {t("engineering.permissions.profileInUseWarning", {
                       roles: selectedIsDefaultFor.join(", "),
                     })}
                   </p>
-                  <p className="text-[8px] font-bold text-amber-400/70 mt-0.5">
+                  <p className="text-[10px] font-bold text-amber-400/70 mt-0.5">
                     {t("engineering.permissions.profileChangeAffectsUsers")}
                   </p>
                 </div>
               )}
 
               <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                   {changesCount > 0
                     ? t("engineering.permissions.changesPending", {
                         count: changesCount,
@@ -2100,14 +2100,14 @@ function AccessProfilesView() {
                   <button
                     onClick={discardChanges}
                     disabled={changesCount === 0 || saving}
-                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
+                    className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
                   >
                     {t("engineering.permissions.discardChanges")}
                   </button>
                   <button
                     onClick={saveChanges}
                     disabled={changesCount === 0 || saving}
-                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
+                    className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all disabled:opacity-40"
                   >
                     {saving
                       ? t("engineering.permissions.saving")
@@ -2118,7 +2118,7 @@ function AccessProfilesView() {
 
               {selectedIsDefaultFor.length > 0 ? (
                 <div className="p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {t("engineering.permissions.profileEligibilityFilterHint", {
                       roles: selectedIsDefaultFor.join(", "),
                     })}
@@ -2126,7 +2126,7 @@ function AccessProfilesView() {
                 </div>
               ) : (
                 <div className="p-3 rounded-xl bg-secondary/50 border border-[var(--border-primary)]">
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {t("engineering.permissions.profileNoRolesHint")}
                   </p>
                 </div>
@@ -2155,7 +2155,7 @@ function AccessProfilesView() {
                           {mod.name}
                         </h4>
                         {moduleChanged && (
-                          <span className="text-[8px] font-black text-amber-400 uppercase tracking-wider">
+                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
                             {t("engineering.permissions.changedBadge")}
                           </span>
                         )}
@@ -2164,13 +2164,13 @@ function AccessProfilesView() {
                         <table className="w-full text-left min-w-[480px]">
                           <thead>
                             <tr className="border-b border-[var(--border-primary)]">
-                              <th className="px-4 py-2.5 text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                              <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                                 {t("engineering.permissions.capability")}
                               </th>
                               {LEVELS_ORDER.map((l) => (
                                 <th
                                   key={l}
-                                  className="px-1 py-2.5 text-center text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest"
+                                  className="px-1 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"
                                 >
                                   {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
                                 </th>
@@ -2186,10 +2186,10 @@ function AccessProfilesView() {
                                   key={cap}
                                   className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
                                 >
-                                  <td className="px-4 py-2 text-[9px] font-bold text-[var(--text-primary)] uppercase tracking-wider">
+                                  <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
                                     {capabilityLabel(modKey, cap)}
                                     {changed && (
-                                      <span className="ml-2 text-[7px] font-black text-amber-400 uppercase tracking-wider">
+                                      <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
                                         {t("engineering.permissions.changedBadge")}
                                       </span>
                                     )}
@@ -2199,7 +2199,7 @@ function AccessProfilesView() {
                                       <button
                                         onClick={() => setDraftLevel(modKey, cap, l)}
                                         title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
-                                        className={`w-8 h-8 rounded-lg border text-[8px] font-black transition-all ${
+                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all ${
                                           level === l
                                             ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
                                             : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
@@ -2226,7 +2226,7 @@ function AccessProfilesView() {
               <p className="text-xs font-black text-[var(--text-primary)] uppercase">
                 {t("engineering.permissions.selectProfilePromptTitle")}
               </p>
-              <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+              <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                 {t("engineering.permissions.selectProfilePrompt")}
               </p>
             </div>
@@ -2272,13 +2272,13 @@ function AccessProfilesView() {
             <div className="flex justify-end gap-2 mt-5">
               <button
                 onClick={() => setPendingSaveConfirm(null)}
-                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="px-4 py-2 rounded-xl bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("engineering.permissions.cancel")}
               </button>
               <button
                 onClick={confirmSave}
-                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                className="px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all"
               >
                 {t("engineering.permissions.confirmChanges")}
               </button>
@@ -2446,7 +2446,7 @@ function ResponsibilitiesView() {
                   <p className="text-[11px] font-black text-[var(--text-primary)] uppercase">
                     {u.name}
                   </p>
-                  <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {u.role}
                   </p>
                 </div>
@@ -2455,7 +2455,7 @@ function ResponsibilitiesView() {
             </button>
           ))}
           {searchResults.length === 0 && (
-            <p className="text-[10px] font-bold text-slate-500 py-4 text-center">
+            <p className="text-sm text-[var(--text-secondary)] py-4 text-center">
               {t("engineering.permissions.noUsersFound")}
             </p>
           )}
@@ -2472,7 +2472,7 @@ function ResponsibilitiesView() {
                   setSelectedUser(null);
                   setResponsibilities([]);
                 }}
-                className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
               >
                 {t("engineering.permissions.back")}
               </button>
@@ -2484,7 +2484,7 @@ function ResponsibilitiesView() {
                   <p className="text-sm font-black text-[var(--text-primary)] uppercase">
                     {selectedUser.name}
                   </p>
-                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                     {selectedUser.role} · {selectedUser.email}
                   </p>
                 </div>
@@ -2524,7 +2524,7 @@ function ResponsibilitiesView() {
                   <AlertTriangle className="w-3.5 h-3.5" />
                   {t("engineering.permissions.responsibilityRoleWarningTitle")}
                 </p>
-                <p className="text-[9px] font-bold text-amber-400/90 mt-1">
+                <p className="text-[10px] font-bold text-amber-400/90 mt-1">
                   {t("engineering.permissions.responsibilityRoleWarningBody", {
                     role: selectedUser.role,
                     features: blockedAssigned.map((r) => r.name).join(", "),
@@ -2576,7 +2576,7 @@ function ResponsibilitiesView() {
                           {resp.name}
                         </p>
                         {resp.description && (
-                          <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+                          <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                             {resp.description}
                           </p>
                         )}
@@ -2599,7 +2599,7 @@ function ResponsibilitiesView() {
                     resp.key,
                     resp.allowed_roles,
                   ) && (
-                    <p className="mt-2 flex items-start gap-1 text-[8px] font-bold text-amber-400">
+                    <p className="mt-2 flex items-start gap-1 text-[10px] font-bold text-amber-400">
                       <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
                       <span>
                         {t("engineering.permissions.responsibilityRoleWarning", {
@@ -2783,7 +2783,7 @@ function ResponsibilityAccessView() {
                         {resp.name}
                       </p>
                       <span
-                        className={`text-[7px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
                           isCustom
                             ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
                             : "bg-slate-500/10 text-slate-400"
@@ -2795,7 +2795,7 @@ function ResponsibilityAccessView() {
                       </span>
                     </div>
                     {resp.description && (
-                      <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
                         {resp.description}
                       </p>
                     )}
@@ -2803,7 +2803,7 @@ function ResponsibilityAccessView() {
                   <button
                     onClick={() => resetAccess(resp)}
                     disabled={savingId === resp.id}
-                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
+                    className="shrink-0 px-2.5 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all disabled:opacity-40"
                   >
                     {t("engineering.permissions.accessReset")}
                   </button>
@@ -2819,7 +2819,7 @@ function ResponsibilityAccessView() {
                         onClick={() => toggleRole(resp, role)}
                         disabled={saving}
                         title={role}
-                        className={`text-[8px] font-black uppercase tracking-wider px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
+                        className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1.5 rounded-lg border transition-all disabled:opacity-50 ${
                           active
                             ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]/40 text-[var(--brand-orange)]"
                             : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] opacity-70 hover:opacity-100"
@@ -2985,7 +2985,7 @@ function EligibilityView() {
         onClick={() => setFeature(featureKey, value)}
         disabled={!canConfigure}
         title={t(labelKey)}
-        className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-wider transition-all disabled:opacity-40 ${active ? activeCls : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60 hover:opacity-100"}`}
+        className={`px-2.5 py-1 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all disabled:opacity-40 ${active ? activeCls : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)] opacity-60 hover:opacity-100"}`}
       >
         {t(labelKey)}
       </button>
@@ -3006,13 +3006,13 @@ function EligibilityView() {
       <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
         <button
           onClick={() => setViewMode("identity")}
-          className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === "identity" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === "identity" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
         >
           {t("engineering.permissions.eligibilityIdentityView")}
         </button>
         <button
           onClick={() => setViewMode("matrix")}
-          className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === "matrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${viewMode === "matrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
         >
           {t("engineering.permissions.eligibilityMatrixView")}
         </button>
@@ -3022,10 +3022,10 @@ function EligibilityView() {
       {viewMode === "matrix" && data && (
         <div className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden">
           <div className="p-3 bg-secondary border-b border-[var(--border-primary)]">
-            <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
               {t("engineering.permissions.eligibilityMatrixTitle")}
             </p>
-            <p className="text-[8px] font-bold text-[var(--text-secondary)] mt-0.5">
+            <p className="text-[10px] font-bold text-[var(--text-secondary)] mt-0.5">
               {t("engineering.permissions.eligibilityMatrixHint")}
             </p>
           </div>
@@ -3033,13 +3033,13 @@ function EligibilityView() {
             <table className="w-full text-left">
               <thead>
                 <tr className="border-b border-[var(--border-primary)]">
-                  <th className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
+                  <th className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] sticky left-0 bg-secondary">
                     {t("engineering.permissions.eligibilityIdentity")}
                   </th>
                   {(data.features || []).map((f) => (
                     <th
                       key={f}
-                      className="px-2 py-2 text-[8px] font-black uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap"
+                      className="px-2 py-2 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] whitespace-nowrap"
                     >
                       {f}
                     </th>
@@ -3052,7 +3052,7 @@ function EligibilityView() {
                     key={role}
                     className="border-b border-[var(--border-primary)] last:border-0"
                   >
-                    <td className="px-3 py-1.5 text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
+                    <td className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)] sticky left-0 bg-secondary">
                       {role}
                     </td>
                     {(data.features || []).map((f) => {
@@ -3072,7 +3072,7 @@ function EligibilityView() {
                               setViewMode("identity");
                             }}
                             title={`${role} → ${f}: ${value === 1 ? t("engineering.permissions.eligibilityEligible") : value === 0 ? t("engineering.permissions.eligibilityNotEligible") : t("engineering.permissions.eligibilityUnset")}`}
-                            className={`px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider ${
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                               value === 1
                                 ? "bg-emerald-500/15 text-emerald-400"
                                 : value === 0
@@ -3099,14 +3099,14 @@ function EligibilityView() {
 
       <div className="flex items-start gap-2 p-3 rounded-xl bg-[var(--brand-orange)]/5 border border-[var(--brand-orange)]/20">
         <Info className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
-        <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+        <p className="text-[10px] font-bold text-[var(--text-secondary)]">
           {t("engineering.permissions.eligibilityHint")}
         </p>
       </div>
 
       {!canConfigure && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-          <p className="text-[9px] font-bold text-amber-400">
+          <p className="text-[10px] font-bold text-amber-400">
             {t("engineering.permissions.eligibilityReadOnly")}
           </p>
         </div>
@@ -3115,7 +3115,7 @@ function EligibilityView() {
       {/* Identity selector */}
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
             {t("engineering.permissions.eligibilityIdentityType")}
           </p>
           <div className="flex gap-1 bg-secondary rounded-xl p-1 border border-[var(--border-primary)] w-fit">
@@ -3126,7 +3126,7 @@ function EligibilityView() {
                   setIdentityType(type);
                   setIdentityValue("");
                 }}
-                className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${identityType === type ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${identityType === type ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
               >
                 {type === "role"
                   ? t("engineering.permissions.eligibilityRole")
@@ -3136,7 +3136,7 @@ function EligibilityView() {
           </div>
         </div>
         <div className="flex-1 min-w-[200px]">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1.5">
             {t("engineering.permissions.eligibilityIdentity")}
           </p>
           <select
@@ -3168,19 +3168,19 @@ function EligibilityView() {
               </p>
               <div className="flex items-center gap-2 flex-wrap">
                 {msg && (
-                  <span className="text-[9px] font-bold text-emerald-400">
+                  <span className="text-[10px] font-bold text-emerald-400">
                     {msg}
                   </span>
                 )}
                 {err && (
-                  <span className="text-[9px] font-bold text-red-400">
+                  <span className="text-[10px] font-bold text-red-400">
                     {err}
                   </span>
                 )}
                 <button
                   onClick={save}
                   disabled={!canConfigure || !hasChanges || saving}
-                  className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest transition-all disabled:opacity-40"
+                  className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest transition-all disabled:opacity-40"
                 >
                   {saving
                     ? t("engineering.permissions.eligibilitySaving")
@@ -3202,7 +3202,7 @@ function EligibilityView() {
                       <p className="text-[10px] font-black uppercase tracking-wider text-[var(--text-primary)]">
                         {featureKey}
                       </p>
-                      <p className="text-[8px] font-bold text-[var(--text-secondary)] opacity-60">
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] opacity-60">
                         {state === 1
                           ? t("engineering.permissions.eligibilityEligible")
                           : state === 0
@@ -3238,7 +3238,7 @@ function EligibilityView() {
               })}
             </div>
           </div>
-          <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+          <p className="text-[10px] font-bold text-[var(--text-secondary)]">
             {t("engineering.permissions.eligibilityLegend")}
           </p>
         </>
@@ -3278,10 +3278,10 @@ function AccessExplanationPanel({ explanation, t }) {
     if (entries.length === 0) return null;
     return (
       <div>
-        <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
           {t(labelKey)}
         </p>
-        <p className="text-[9px] font-bold text-[var(--text-primary)] mt-0.5">
+        <p className="text-[10px] font-bold text-[var(--text-primary)] mt-0.5">
           {entries
             .map(([mod, caps]) =>
               `${mod}: ${Object.entries(caps)
@@ -3300,7 +3300,7 @@ function AccessExplanationPanel({ explanation, t }) {
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between px-4 py-3 bg-tertiary/30 hover:bg-tertiary/50 transition-all"
       >
-        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-primary)] flex items-center gap-2">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)] flex items-center gap-2">
           <Info className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("engineering.permissions.explanationTitle")}
         </span>
@@ -3313,11 +3313,11 @@ function AccessExplanationPanel({ explanation, t }) {
       {open && (
         <div className="p-4 space-y-3 divide-y divide-[var(--border-primary)]">
           <div>
-            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.explanationEligibility")}
             </p>
             {Object.keys(eligibility).length === 0 ? (
-              <p className="text-[9px] font-bold text-slate-500 mt-1">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
                 {t("engineering.permissions.explanationNone")}
               </p>
             ) : (
@@ -3330,10 +3330,10 @@ function AccessExplanationPanel({ explanation, t }) {
                       }`}
                     />
                     <div>
-                      <p className="text-[9px] font-black uppercase tracking-wider text-[var(--text-primary)]">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-primary)]">
                         {feature}
                       </p>
-                      <p className="text-[8px] font-bold text-[var(--text-secondary)]">
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)]">
                         {info.eligible
                           ? t("engineering.permissions.eligibilityEligible")
                           : t("engineering.permissions.eligibilityNotEligible")}
@@ -3351,7 +3351,7 @@ function AccessExplanationPanel({ explanation, t }) {
             )}
           </div>
           <div className="pt-3 space-y-2">
-            <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.explanationSources")}
             </p>
             {sourceBlock(
@@ -3367,7 +3367,7 @@ function AccessExplanationPanel({ explanation, t }) {
               sources.grants,
             )}
             {!hasSources && (
-              <p className="text-[9px] font-bold text-slate-500">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                 {t("engineering.permissions.explanationNone")}
               </p>
             )}
@@ -3525,7 +3525,7 @@ function AuditView() {
         />
         <button
           onClick={applyFilters}
-          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+          className="px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:opacity-90 transition-all"
         >
           {t("engineering.permissions.eligibilitySave")}
         </button>
@@ -3541,10 +3541,10 @@ function AuditView() {
         className="ios-card !p-0 border-[var(--border-primary)] overflow-hidden"
       >
         <div className="px-5 py-3 bg-secondary border-b border-[var(--border-primary)] flex items-center justify-between">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-primary)]">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
             {t("engineering.permissions.auditTotal", { total })}
           </p>
-          <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+          <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
             {t("engineering.permissions.auditReadOnly")}
           </p>
         </div>
@@ -3565,7 +3565,7 @@ function AuditView() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="border-b border-[var(--border-primary)] text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">
+                <tr className="border-b border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                   <th className="px-4 py-2.5">{t("engineering.permissions.auditDate")}</th>
                   <th className="px-4 py-2.5">{t("engineering.permissions.auditActor")}</th>
                   <th className="px-4 py-2.5">{t("engineering.permissions.auditTarget")}</th>
@@ -3578,24 +3578,24 @@ function AuditView() {
               <tbody>
                 {entries.map((e) => (
                   <tr key={e.id} className="border-b border-[var(--border-primary)]/50 last:border-b-0 hover:bg-tertiary/20 transition-all">
-                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
                       {fmtDate(e.created_at)}
                     </td>
-                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-primary)]">
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
                       {e.actor_name || e.actor_cid || "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-primary)]">
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-primary)]">
                       {e.target_name || e.target_cid || "—"}
                     </td>
                     <td className="px-4 py-2.5">
-                      <span className="px-2 py-0.5 rounded-md text-[8px] font-black uppercase bg-blue-500/10 text-blue-400">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-blue-500/10 text-blue-400">
                         {e.action}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)]">
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)]">
                       {e.module ? `${e.module}.${e.capability || "*"}` : e.details ? String(e.details).slice(0, 48) : "—"}
                     </td>
-                    <td className="px-4 py-2.5 text-[9px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
+                    <td className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] whitespace-nowrap">
                       {e.previous_value || e.new_value ? (
                         <span>
                           <span className="text-slate-500 line-through">{e.previous_value || "—"}</span>
@@ -3609,7 +3609,7 @@ function AuditView() {
                     <td className="px-4 py-2.5">
                       <button
                         onClick={() => setDetail(e)}
-                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[8px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                        className="px-3 py-1.5 rounded-lg bg-secondary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all"
                       >
                         {t("engineering.permissions.auditViewDetail")}
                       </button>
@@ -3677,7 +3677,7 @@ function AuditView() {
 function Field({ label, value }) {
   return (
     <div>
-      <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-0.5">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-0.5">{label}</p>
       <p className="text-[10px] font-bold text-[var(--text-primary)] break-words">{value}</p>
     </div>
   );
@@ -3766,7 +3766,7 @@ function GovernanceView() {
       <p className="text-2xl font-black" style={{ color }}>
         {value}
       </p>
-      <p className="text-[8px] font-black uppercase tracking-widest mt-1" style={{ color: "var(--text-secondary)" }}>
+      <p className="text-[10px] font-bold uppercase tracking-widest mt-1" style={{ color: "var(--text-secondary)" }}>
         {label}
       </p>
     </div>
@@ -3788,7 +3788,7 @@ function GovernanceView() {
         <>
           {/* Membership status — FUTURE STUDIO */}
           <div className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.governanceMembership")}
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -3801,7 +3801,7 @@ function GovernanceView() {
 
           {/* Recent permission changes */}
           <div className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.governanceRecent")}
             </h3>
             {recent.length === 0 ? (
@@ -3826,12 +3826,12 @@ function GovernanceView() {
                       <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
                         {e.actor_name || e.actor_cid} → {e.target_name || e.target_cid}
                       </p>
-                      <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                      <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
                         {e.action}
                         {e.module ? ` · ${e.module}.${e.capability || "*"}` : ""}
                       </p>
                     </div>
-                    <span className="text-[8px] font-bold text-[var(--text-tertiary)] whitespace-nowrap">
+                    <span className="text-[10px] font-bold text-[var(--text-tertiary)] whitespace-nowrap">
                       {e.created_at ? new Date(e.created_at).toLocaleDateString("en-GB") : "—"}
                     </span>
                   </div>
@@ -3842,7 +3842,7 @@ function GovernanceView() {
 
           {/* Protected configuration */}
           <div className="space-y-2">
-            <h3 className="text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            <h3 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("engineering.permissions.governanceProtected")}
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -3850,7 +3850,7 @@ function GovernanceView() {
                 className="rounded-xl p-4"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
               >
-                <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
                   {t("engineering.permissions.governanceProtectedGroups")}
                 </p>
                 {protectedGroups.length === 0 ? (
@@ -3860,7 +3860,7 @@ function GovernanceView() {
                     {protectedGroups.map((g) => (
                       <span
                         key={g}
-                        className="px-2 py-1 rounded-md text-[8px] font-black uppercase bg-amber-500/10 text-amber-400"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400"
                       >
                         {g}
                       </span>
@@ -3872,7 +3872,7 @@ function GovernanceView() {
                 className="rounded-xl p-4"
                 style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
               >
-                <p className="text-[8px] font-black uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-tertiary)] mb-2">
                   {t("engineering.permissions.governanceDefaultProfiles")}
                 </p>
                 {defaultProfiles.length === 0 ? (
@@ -3882,7 +3882,7 @@ function GovernanceView() {
                     {defaultProfiles.map((p) => (
                       <span
                         key={p.role}
-                        className="px-2 py-1 rounded-md text-[8px] font-black uppercase bg-teal-500/10 text-teal-400"
+                        className="px-2 py-1 rounded-md text-[10px] font-bold uppercase bg-teal-500/10 text-teal-400"
                       >
                         {p.role} → {p.profileName}
                       </span>
@@ -3958,7 +3958,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
 
   const row = (label, value, strong) => (
     <div className="flex items-start justify-between gap-3 py-1.5">
-      <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] shrink-0">
         {label}
       </span>
       <span
@@ -3982,13 +3982,13 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
             <h4 className="text-sm font-black uppercase tracking-tight" style={{ color: "var(--text-primary)" }}>
               {capabilityLabel(module, capability)}
             </h4>
-            <p className="text-[9px] font-bold text-[var(--text-tertiary)]">
+            <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
               {module}.{capability} — {feature}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <span
-              className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase ${
+              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${
                 allowed ? "bg-emerald-500/10 text-emerald-400" : "bg-red-500/10 text-red-400"
               }`}
             >
@@ -4017,7 +4017,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
               eligibility.eligible ? "#10B981" : "#EF4444",
             )}
             {(eligibility.sources || []).length > 0 && (
-              <p className="text-[8px] font-bold text-[var(--text-tertiary)] text-right">
+              <p className="text-[10px] font-bold text-[var(--text-tertiary)] text-right">
                 {eligibility.sources
                   .map((s) => `${s.identity_type}:${s.identity_value}${Number(s.eligible) === 0 ? " (deny)" : ""}`)
                   .join(", ")}
@@ -4039,7 +4039,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
                         {t("engineering.permissions.whyMembershipActive")}
                       </span>
                     </span>
-                    <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                    <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
                       {t("engineering.permissions.whyExpires")}: {m.expires_at ? fmtDate(m.expires_at) : t("membership.status.never")}
                     </p>
                   </div>
@@ -4052,13 +4052,13 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
                         {t("engineering.permissions.whyMembershipExpired")}
                       </span>
                     </span>
-                    <p className="text-[8px] font-bold text-[var(--text-tertiary)]">
+                    <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
                       {t("engineering.permissions.whyMembershipNotContributing")}
                     </p>
                   </div>
                 ))}
                 {inactiveMembers.length > 0 && (
-                  <p className="text-[8px] font-bold text-right mt-1" style={{ color: "var(--text-tertiary)" }}>
+                  <p className="text-[10px] font-bold text-right mt-1" style={{ color: "var(--text-tertiary)" }}>
                     {t("engineering.permissions.whyAccountIntact")}
                   </p>
                 )}
@@ -4104,7 +4104,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
               restriction ? "#EF4444" : undefined,
             )}
             {restriction && (
-              <p className="text-[8px] font-bold text-right" style={{ color: "#EF4444" }}>
+              <p className="text-[10px] font-bold text-right" style={{ color: "#EF4444" }}>
                 {t("engineering.permissions.whyRestrictionPrecedence")}
               </p>
             )}
@@ -4118,7 +4118,7 @@ function CapabilityWhyModal({ userPerms, module, capability, t, lang, onClose })
           {/* Final result */}
           <div className="py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-tertiary)]">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
                 {t("engineering.permissions.whyFinal")}
               </span>
               <span
