@@ -185,7 +185,7 @@ export default function AdminInvestorsPage() {
                         </p>
                         <p className="text-xs text-[var(--text-secondary)]">{inv.email}{inv.review_notes ? t("investorAdmin.list.hasReviewNotes") : ""}</p>
                       </div>
-                      <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider ${statusColor} bg-opacity-10`}>
+                      <span className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${statusColor} bg-opacity-10`}>
                         <StatusIcon className="w-3 h-3" />
                         {t(STATUS_LABELS[inv.approval_status])}
                       </span>
@@ -262,16 +262,16 @@ export default function AdminInvestorsPage() {
                     [t("investorAdmin.list.completion"), `${detail.profile_completion || 0}%`],
                   ].map(([l, v], i) => (
                     <div key={i} className="p-3 rounded-xl bg-[var(--surface-3)]">
-                      <p className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{l}</p>
                       <p className="text-xs font-bold text-[var(--text-primary)] mt-1">{v}</p>
                     </div>
                   ))}
                 </div>
-                {detail.biography && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">{t("investorAdmin.list.biography")}</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
-                {detail.investment_experience && <div><p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest mb-1">{t("investorAdmin.list.experience")}</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
+                {detail.biography && <div><p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-1">{t("investorAdmin.list.biography")}</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
+                {detail.investment_experience && <div><p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-1">{t("investorAdmin.list.experience")}</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
                 {detail.review_notes ? (
                   <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
-                    <p className="text-[9px] font-black text-amber-400 uppercase tracking-widest mb-1">{t("investorAdmin.list.reviewNotes")}</p>
+                    <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wide mb-1">{t("investorAdmin.list.reviewNotes")}</p>
                     <p className="text-xs text-[var(--text-primary)]">{detail.review_notes}</p>
                     {detail.reviewed_by && <p className="text-[10px] text-[var(--text-tertiary)] mt-1">{t("investorAdmin.list.reviewedBy")} {detail.reviewed_by}</p>}
                   </div>

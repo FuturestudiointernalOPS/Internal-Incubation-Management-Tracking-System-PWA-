@@ -736,7 +736,7 @@ export default function VentureDetailPage({ params }) {
                     );
                   })}
                   {(venture.activity || []).length === 0 && (
-                    <p className="text-[10px] text-slate-500 italic py-3 text-center">No activity yet</p>
+                    <p className="text-sm text-[var(--text-secondary)] py-3 text-center">No activity yet</p>
                   )}
                 </div>
               </div>
@@ -759,7 +759,7 @@ export default function VentureDetailPage({ params }) {
               </button>
             </div>
             {(venture.founders || []).length === 0 ? (
-              <p className="text-[10px] text-slate-500 italic py-6 text-center">No founders registered</p>
+              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No founders registered</p>
             ) : (
               <div className="space-y-3">
                 {(venture.founders || []).map((founder, i) => (
@@ -815,7 +815,7 @@ export default function VentureDetailPage({ params }) {
               Activity Log
             </h3>
             {(venture.activity || []).length === 0 ? (
-              <p className="text-[10px] text-slate-500 italic py-6 text-center">No activity recorded</p>
+              <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No activity recorded</p>
             ) : (
               <div className="space-y-1">
                 {(venture.activity || []).map((act, i) => {
@@ -926,7 +926,7 @@ export default function VentureDetailPage({ params }) {
                 Startup Profile Wizard History
               </h3>
               {(venture.history || []).length === 0 ? (
-                <p className="text-[10px] text-slate-500 italic py-6 text-center">No wizard history yet</p>
+                <p className="text-sm text-[var(--text-secondary)] py-6 text-center">No wizard history yet</p>
               ) : (
                 <div className="space-y-2">
                   {(venture.history || []).map((entry, i) => (

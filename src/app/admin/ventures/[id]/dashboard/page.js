@@ -45,7 +45,7 @@ function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, on
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor || "bg-[var(--brand-orange)]/10"}`}>
             <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
           </div>
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{title}</h3>
+          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
         </div>
         {onRefresh && (
           <button onClick={onRefresh} className="p-1.5 hover:bg-white/5 rounded-lg transition-all">
@@ -60,12 +60,12 @@ function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, on
       ) : error ? (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <AlertCircle className="w-8 h-8 text-rose-400 mb-2" />
-          <p className="text-[9px] font-bold text-rose-400">{error}</p>
+          <p className="text-[10px] font-bold text-rose-400">{error}</p>
         </div>
       ) : empty ? (
         <div className="flex flex-col items-center justify-center py-6 text-center">
           <Icon className="w-8 h-8 text-slate-600 mb-2" />
-          <p className="text-[9px] font-bold text-slate-500">{emptyMessage || "No data available"}</p>
+          <p className="text-[10px] font-bold text-[var(--text-secondary)]">{emptyMessage || "No data available"}</p>
         </div>
       ) : (
         children
@@ -239,7 +239,7 @@ export default function VentureDashboardPage() {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Dashboard Error</h2>
-          <p className="text-slate-500 mb-6">{error}</p>
+          <p className="text-[var(--text-secondary)] mb-6">{error}</p>
           <button onClick={() => setRefreshKey((k) => k + 1)} className="btn btn-primary gap-2">
             <RefreshCw className="w-4 h-4" /> Retry
           </button>
@@ -259,7 +259,7 @@ export default function VentureDashboardPage() {
           <div>
             <button
               onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2"
+              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2"
             >
               <ChevronRight className="w-3 h-3 rotate-180" /> Back to {v.company_name || "Venture"}
             </button>
@@ -267,13 +267,13 @@ export default function VentureDashboardPage() {
               <Rocket className="w-7 h-7 text-[var(--brand-orange)]" />
               Startup Dashboard
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
               {v.company_name} · {v.venture_id} · Updated {new Date().toLocaleTimeString()}
             </p>
           </div>
           <button
             onClick={() => setRefreshKey((k) => k + 1)}
-            className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+            className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
             Refresh All
@@ -283,46 +283,46 @@ export default function VentureDashboardPage() {
         {/* Health Summary */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
-            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Profile</p>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1">Profile</p>
             <p className="text-2xl font-black text-emerald-400">{d.profile_completion?.percentage || 0}%</p>
-            <p className="text-[8px] text-emerald-500/60 mt-0.5">{d.profile_completion?.is_submitted ? "Submitted" : `${d.profile_completion?.missing?.length || 0} sections missing`}</p>
+            <p className="text-[10px] text-emerald-500/60 mt-0.5">{d.profile_completion?.is_submitted ? "Submitted" : `${d.profile_completion?.missing?.length || 0} sections missing`}</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-500/10 to-amber-500/5 border border-amber-500/20">
-            <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1">Stage</p>
+            <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1">Stage</p>
             <p className="text-2xl font-black text-amber-400 capitalize">{d.venture?.business_stage?.replace(/_/g, " ") || "—"}</p>
-            <p className="text-[8px] text-amber-500/60 mt-0.5">Current milestone</p>
+            <p className="text-[10px] text-amber-500/60 mt-0.5">Current milestone</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20">
-            <p className="text-[8px] font-black text-blue-400 uppercase tracking-widest mb-1">Team</p>
+            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-1">Team</p>
             <p className="text-2xl font-black text-blue-400">{d.founders?.active || 0}</p>
-            <p className="text-[8px] text-blue-500/60 mt-0.5">Active members</p>
+            <p className="text-[10px] text-blue-500/60 mt-0.5">Active members</p>
           </div>
           <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
-            <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1">Readiness</p>
+            <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">Readiness</p>
             <p className="text-2xl font-black text-purple-400">{d.investment_readiness?.score || 0}%</p>
-            <p className="text-[8px] text-purple-500/60 mt-0.5">Investment score</p>
+            <p className="text-[10px] text-purple-500/60 mt-0.5">Investment score</p>
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-3 flex items-center gap-2">
             <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Quick Actions
           </h3>
           <div className="flex flex-wrap gap-2">
-            <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="px-3 py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="px-3 py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <Layers className="w-3 h-3" /> Profile Wizard
             </button>
-            <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <Shield className="w-3 h-3" /> Upload Documents
             </button>
-            <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <User className="w-3 h-3" /> Invite Founder
             </button>
-            <button onClick={() => router.push(`/admin/ventures/${id}/edit`)} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/admin/ventures/${id}/edit`)} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <Building2 className="w-3 h-3" /> Edit Venture
             </button>
-            <button onClick={() => router.push(`/admin/knowledge`)} className="px-3 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+            <button onClick={() => router.push(`/admin/knowledge`)} className="px-3 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
               <BookOpen className="w-3 h-3" /> Knowledge Hub
             </button>
           </div>
@@ -341,7 +341,7 @@ export default function VentureDashboardPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-3xl font-black text-[var(--text-primary)]">{d.profile_completion?.percentage || 0}%</span>
-                  <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="text-[8px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline flex items-center gap-1">
+                  <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:underline flex items-center gap-1">
                     Open <ArrowRight className="w-3 h-3" />
                   </button>
                 </div>
@@ -356,7 +356,7 @@ export default function VentureDashboardPage() {
                       ) : (
                         <div className="w-3 h-3 rounded-full border-2 border-slate-600 shrink-0" />
                       )}
-                      <span className={`text-[9px] font-bold ${item.completed ? "text-emerald-400" : "text-slate-500"}`}>{item.name}</span>
+                      <span className={`text-[10px] font-bold ${item.completed ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{item.name}</span>
                     </div>
                   ))}
                 </div>
@@ -372,16 +372,16 @@ export default function VentureDashboardPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-3xl font-black text-purple-400">{d.investment_readiness?.score || 0}%</span>
-                  <span className="text-[9px] font-bold text-slate-500 capitalize">{d.investment_readiness?.stage?.replace(/_/g, " ") || "Unknown"}</span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)] capitalize">{d.investment_readiness?.stage?.replace(/_/g, " ") || "Unknown"}</span>
                 </div>
                 <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
                   <div className="h-full bg-gradient-to-r from-purple-500 to-purple-400 rounded-full transition-all" style={{ width: `${d.investment_readiness?.score || 0}%` }} />
                 </div>
                 {(d.investment_readiness?.next_milestones || []).length > 0 && (
                   <div className="space-y-1">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider">Next Milestones</p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Next Milestones</p>
                     {d.investment_readiness.next_milestones.map((m, i) => (
-                      <div key={i} className="flex items-center gap-2 text-[9px] text-slate-400">
+                      <div key={i} className="flex items-center gap-2 text-[10px] text-[var(--text-secondary)]">
                         <Target className="w-3 h-3 text-[var(--brand-orange)] shrink-0" />
                         {m}
                       </div>
@@ -405,13 +405,13 @@ export default function VentureDashboardPage() {
                     d.verification?.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
                     "bg-slate-500/10 text-slate-400"
                   }`}>{d.verification?.status?.replace(/_/g, " ") || "Draft"}</span>
-                  <span className="text-[9px] font-bold text-slate-500">{d.verification?.verified_count || 0}/{d.verification?.total_count || 6} verified</span>
+                  <span className="text-[10px] font-bold text-[var(--text-secondary)]">{d.verification?.verified_count || 0}/{d.verification?.total_count || 6} verified</span>
                 </div>
                 <div className="space-y-1.5">
                   {(d.verification?.categories || []).map((cat, i) => (
                     <div key={i} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
-                      <span className="text-[8px] font-bold text-slate-500">{cat.label}</span>
-                      <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${
+                      <span className="text-[10px] font-bold text-[var(--text-secondary)]">{cat.label}</span>
+                      <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
                         cat.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
                         cat.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
                         cat.status === "under_review" ? "bg-amber-500/10 text-amber-400" :
@@ -420,7 +420,7 @@ export default function VentureDashboardPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all">
+                <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
                   Open Verification
                 </button>
               </div>
@@ -439,25 +439,25 @@ export default function VentureDashboardPage() {
                 <div className="grid grid-cols-3 gap-2">
                   <div className="p-2 bg-tertiary rounded-lg text-center">
                     <p className="text-lg font-black text-[var(--text-primary)]">{d.founders?.active || 0}</p>
-                    <p className="text-[7px] font-black text-emerald-400 uppercase tracking-wider">Active</p>
+                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider">Active</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
                     <p className="text-lg font-black text-amber-400">{d.founders?.pending || 0}</p>
-                    <p className="text-[7px] font-black text-amber-400 uppercase tracking-wider">Pending</p>
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Pending</p>
                   </div>
                   <div className="p-2 bg-tertiary rounded-lg text-center">
                     <p className="text-lg font-black text-rose-400">{d.founders?.suspended || 0}</p>
-                    <p className="text-[7px] font-black text-rose-400 uppercase tracking-wider">Suspended</p>
+                    <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Suspended</p>
                   </div>
                 </div>
                 <div className="space-y-1.5">
                   {(d.founders?.founders || []).slice(0, 4).map((f) => (
                     <div key={f.id} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[7px] font-black shrink-0">{f.name?.charAt(0)}</div>
+                        <div className="w-6 h-6 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold shrink-0">{f.name?.charAt(0)}</div>
                         <div className="min-w-0">
-                          <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{f.name}</p>
-                          <p className="text-[7px] text-slate-500 truncate">{f.role_label || f.role}</p>
+                          <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{f.name}</p>
+                          <p className="text-[10px] text-[var(--text-secondary)] truncate">{f.role_label || f.role}</p>
                         </div>
                       </div>
                       {f.is_owner && <Crown className="w-3 h-3 text-amber-400 shrink-0" />}
@@ -465,7 +465,7 @@ export default function VentureDashboardPage() {
                     </div>
                   ))}
                 </div>
-                <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="w-full py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all">
+                <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="w-full py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
                   Manage Team
                 </button>
               </div>
@@ -481,14 +481,14 @@ export default function VentureDashboardPage() {
                 {(d.kpis || []).length === 0 ? (
                   <div className="flex flex-col items-center py-4">
                     <BarChart3 className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-[9px] text-slate-500">No KPIs configured</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">No KPIs configured</p>
                   </div>
                 ) : (
                   (d.kpis || []).slice(0, 4).map((kpi) => (
                     <div key={kpi.id} className="space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold text-[var(--text-primary)]">{kpi.title}</span>
-                        <span className="text-[8px] font-bold text-slate-500">{kpi.current}{kpi.unit} / {kpi.target}{kpi.unit}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{kpi.title}</span>
+                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">{kpi.current}{kpi.unit} / {kpi.target}{kpi.unit}</span>
                       </div>
                       <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
                         <div className={`h-full rounded-full ${
@@ -510,22 +510,22 @@ export default function VentureDashboardPage() {
               <div className="space-y-3">
                 {(d.coaching?.coaches || []).length > 0 && (
                   <div>
-                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Coaches</p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Coaches</p>
                     {d.coaching.coaches.slice(0, 3).map((c, i) => (
                       <div key={c.cid || i} className="flex items-center gap-2 p-1.5">
-                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[6px] font-black">{c.name?.charAt(0)}</div>
-                        <span className="text-[9px] font-bold text-[var(--text-primary)]">{c.name}</span>
+                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{c.name?.charAt(0)}</div>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{c.name}</span>
                       </div>
                     ))}
                   </div>
                 )}
                 {(d.coaching?.advisors || []).length > 0 && (
                   <div>
-                    <p className="text-[7px] font-black text-slate-500 uppercase tracking-wider mb-1.5">Advisors</p>
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">Advisors</p>
                     {d.coaching.advisors.slice(0, 3).map((a, i) => (
                       <div key={a.cid || i} className="flex items-center gap-2 p-1.5">
-                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[6px] font-black">{a.name?.charAt(0)}</div>
-                        <span className="text-[9px] font-bold text-[var(--text-primary)]">{a.name}</span>
+                        <div className="w-5 h-5 rounded-full bg-primary border border-[var(--border-primary)] flex items-center justify-center text-[10px] font-bold">{a.name?.charAt(0)}</div>
+                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{a.name}</span>
                       </div>
                     ))}
                   </div>
@@ -546,7 +546,7 @@ export default function VentureDashboardPage() {
                 {(d.meetings || []).length === 0 ? (
                   <div className="flex flex-col items-center py-4">
                     <Calendar className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-[9px] text-slate-500">No scheduled meetings</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">No scheduled meetings</p>
                   </div>
                 ) : (
                   (d.meetings || []).slice(0, 4).map((m, i) => (
@@ -560,7 +560,7 @@ export default function VentureDashboardPage() {
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{m.title}</p>
-                        <p className="text-[8px] text-slate-500">{m.date ? new Date(m.date).toLocaleDateString() : ""}{m.time ? ` at ${m.time}` : ""}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{m.date ? new Date(m.date).toLocaleDateString() : ""}{m.time ? ` at ${m.time}` : ""}</p>
                       </div>
                     </div>
                   ))
@@ -585,8 +585,8 @@ export default function VentureDashboardPage() {
                       <Activity className="w-3 h-3" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-[8px] font-bold text-[var(--text-primary)] truncate">{a.action?.replace(/_/g, " ")}</p>
-                      <p className="text-[7px] text-slate-500">{a.actor} · {a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{a.action?.replace(/_/g, " ")}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)]">{a.actor} · {a.created_at ? new Date(a.created_at).toLocaleDateString() : ""}</p>
                     </div>
                   </div>
                 ))}
@@ -603,15 +603,15 @@ export default function VentureDashboardPage() {
                 {(d.documents?.recent || []).length === 0 ? (
                   <div className="flex flex-col items-center py-4">
                     <FileText className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-[9px] text-slate-500">Upload your first document</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">Upload your first document</p>
                   </div>
                 ) : (
                   (d.documents?.recent || []).slice(0, 4).map((doc, i) => (
                     <div key={doc.id || i} className="flex items-center gap-3 p-2 bg-tertiary rounded-lg">
                       <FileText className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
                       <div className="min-w-0">
-                        <p className="text-[9px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</p>
-                        <p className="text-[7px] text-slate-500">{doc.category?.replace(/_/g, " ")} · {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : ""}</p>
+                        <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">{doc.category?.replace(/_/g, " ")} · {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : ""}</p>
                       </div>
                     </div>
                   ))
@@ -630,8 +630,8 @@ export default function VentureDashboardPage() {
                   <div key={n.id || i} className={`flex items-start gap-3 p-2 rounded-lg ${!n.is_read ? "bg-rose-500/5 border border-rose-500/10" : "hover:bg-tertiary"}`}>
                     <Bell className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${n.is_read ? "text-slate-600" : "text-rose-400"}`} />
                     <div className="min-w-0">
-                      <p className="text-[8px] font-bold text-[var(--text-primary)] truncate">{n.title}</p>
-                      <p className="text-[7px] text-slate-500 truncate">{n.message}</p>
+                      <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{n.title}</p>
+                      <p className="text-[10px] text-[var(--text-secondary)] truncate">{n.message}</p>
                     </div>
                   </div>
                 ))}

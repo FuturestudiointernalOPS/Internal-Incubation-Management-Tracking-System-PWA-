@@ -200,7 +200,7 @@ export default function AdminCampaignsPage() {
                 <s.icon className={`w-5 h-5 ${s.color}`} />
                 <div>
                   <p className="text-2xl font-black text-[var(--text-primary)]">{s.value}</p>
-                  <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{s.label}</p>
+                  <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{s.label}</p>
                 </div>
               </div>
             </AppCard>
@@ -218,7 +218,7 @@ export default function AdminCampaignsPage() {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.ventureLabel")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.ventureLabel")}</label>
                   <select value={form.venture_id} onChange={e => setForm({ ...form, venture_id: e.target.value })}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60">
                     <option value="">{t("investorAdmin.campaigns.selectVenture")}</option>
@@ -228,20 +228,20 @@ export default function AdminCampaignsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.campaignNameLabel")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.campaignNameLabel")}</label>
                   <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
                     placeholder={t("investorAdmin.campaigns.campaignNamePlaceholder")}
                     className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.targetRaiseLabel")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.targetRaiseLabel")}</label>
                     <input type="number" value={form.target_raise} onChange={e => setForm({ ...form, target_raise: e.target.value })}
                       placeholder="250000"
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.minInvestmentLabel")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.minInvestmentLabel")}</label>
                     <input type="number" value={form.min_investment} onChange={e => setForm({ ...form, min_investment: e.target.value })}
                       placeholder="25000"
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-[var(--brand-orange)]/60" />
@@ -249,22 +249,22 @@ export default function AdminCampaignsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.openingDateLabel")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.openingDateLabel")}</label>
                     <input type="date" value={form.opening_date} onChange={e => setForm({ ...form, opening_date: e.target.value })}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                   <div>
-                    <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.closingDateLabel")}</label>
+                    <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.closingDateLabel")}</label>
                     <input type="date" value={form.closing_date} onChange={e => setForm({ ...form, closing_date: e.target.value })}
                       className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]/60" />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.visibilityLabel")}</label>
+                  <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.campaigns.visibilityLabel")}</label>
                   <div className="flex gap-2 mt-1">
                     {["public", "invite_only", "private"].map(v => (
                       <button key={v} onClick={() => setForm({ ...form, visibility: v })}
-                        className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all ${
                           form.visibility === v ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>{t(VIS_LABELS[v])}</button>
                     ))}
@@ -302,10 +302,10 @@ export default function AdminCampaignsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="text-sm font-black text-[var(--text-primary)]">{c.name}</h4>
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${STATUS_COLORS[c.status]}`}>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${STATUS_COLORS[c.status]}`}>
                             {c.status}
                           </span>
-                          <span className="text-[9px] text-[var(--text-tertiary)]">{t(VIS_LABELS[c.visibility])}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)]">{t(VIS_LABELS[c.visibility])}</span>
                         </div>
                         <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{c.venture_name || c.venture_id}{c.industry ? ` · ${c.industry}` : ""}{c.country ? ` · ${c.country}` : ""}</p>
                       </div>
@@ -314,7 +314,7 @@ export default function AdminCampaignsPage() {
                     {/* Progress bar */}
                     {c.target_raise > 0 && (
                       <div className="space-y-1">
-                        <div className="flex justify-between text-[9px]">
+                        <div className="flex justify-between text-[10px]">
                           <span className="font-bold text-[var(--text-secondary)]">{t("investorAdmin.campaigns.raisedAmount", { amount: Number(c.current_raised || 0).toLocaleString() })}</span>
                           <span className="font-black text-[var(--text-primary)]">{t("investorAdmin.campaigns.ofTarget", { pct, amount: Number(c.target_raise).toLocaleString() })}</span>
                         </div>

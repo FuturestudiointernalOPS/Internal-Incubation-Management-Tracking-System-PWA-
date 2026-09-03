@@ -399,9 +399,9 @@ export default function VentureFundraisingPage() {
                     <option value="demo">Demo</option><option value="reminder">Reminder</option><option value="follow_up">Follow-up</option><option value="task">Task</option>
                   </select>
                   <input value={activityForm.title} onChange={(e) => setActivityForm((p) => ({ ...p, title: e.target.value }))} placeholder="Activity..." className="flex-1 bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none" />
-                  <button onClick={addActivity} disabled={!activityForm.title.trim()} className="px-2 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[7px] font-black uppercase disabled:opacity-30"><Plus className="w-3 h-3" /></button>
+                  <button onClick={addActivity} disabled={!activityForm.title.trim()} className="px-2 py-1.5 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase disabled:opacity-30"><Plus className="w-3 h-3" /></button>
                 </div>
-                {(selectedOpp.activities||[]).length === 0 && <p className="text-[9px] text-slate-500 italic">No activities</p>}
+                {(selectedOpp.activities||[]).length === 0 && <p className="text-sm text-[var(--text-secondary)]">No activities</p>}
                 {(selectedOpp.activities||[]).map((a) => {
                   const Icon = ACTIVITY_ICONS[a.activity_type] || MessageCircle;
                   return (

@@ -254,7 +254,7 @@ export default function MembershipPage() {
                   {g.name}
                   {g.isProtected && (
                     <span
-                      className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider"
+                      className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider"
                       style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
                     >
                       {t("membership.page.protected")}
@@ -320,7 +320,7 @@ export default function MembershipPage() {
             className="px-5 py-3 flex items-center justify-between border-b"
             style={{ borderColor: "var(--border-primary)" }}
           >
-            <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
               {selectedGroup
                 ? `${selectedGroup} — ${filtered.length} ${t("membership.page.membersCount")}`
                 : `${t("membership.page.viewAllGroups")} — ${filtered.length} ${t("membership.page.membersCount")}`}
@@ -356,7 +356,7 @@ export default function MembershipPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
-                  <tr className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                  <tr className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                     <th className="px-5 py-3">{t("membership.columns.name")}</th>
                     <th className="px-5 py-3">{t("membership.columns.role")}</th>
                     <th className="px-5 py-3">{t("membership.columns.group")}</th>
@@ -404,7 +404,7 @@ export default function MembershipPage() {
                         <td className="px-5 py-3.5">
                           <Badge label={statusKey(derived)} style={STATUS_STYLE[derived] || STATUS_STYLE.active} />
                           {derived === "expiringSoon" && (
-                            <p className="text-[9px] mt-1" style={{ color: "#F59E0B" }}>
+                            <p className="text-[10px] mt-1" style={{ color: "#F59E0B" }}>
                               {EXPIRING_SOON_DAYS} {t("time.days")}
                             </p>
                           )}
@@ -565,7 +565,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
       <div className="space-y-6">
         {/* Person */}
         <section>
-          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-primary)" }}>
             {t("membership.detail.personSection")}
           </p>
           <div
@@ -581,7 +581,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               </p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.columns.role")}
               </p>
               <p className="text-xs font-bold mt-1" style={{ color: "var(--text-primary)" }}>
@@ -589,7 +589,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               </p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.columns.accountStatus")}
               </p>
               <div className="mt-1">
@@ -606,7 +606,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
 
         {/* Organizational membership */}
         <section>
-          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-primary)" }}>
             {t("membership.detail.membershipSection")}
           </p>
           <div
@@ -614,7 +614,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
             style={{ background: "var(--surface-2)", border: "1px solid var(--border-primary)" }}
           >
             <div className="col-span-2">
-              <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.columns.group")}
               </p>
               <p className="text-xs font-bold mt-1 flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
@@ -622,7 +622,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
                 {member.group_name}
                 {isProtected && (
                   <span
-                    className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase"
+                    className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase"
                     style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
                   >
                     {t("membership.page.protected")}
@@ -631,7 +631,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               </p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.columns.membershipStatus")}
               </p>
               <div className="mt-1">
@@ -639,7 +639,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
               </div>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.columns.start")} / {t("membership.columns.expires")}
               </p>
               <p className="text-xs font-bold mt-1" style={{ color: "var(--text-primary)" }}>
@@ -654,7 +654,7 @@ function DetailModal({ member, derived, isProtected, t, lang, fmtDate, onClose, 
 
         {/* Access — separate concept, deep link to Permissions */}
         <section>
-          <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>
+          <p className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "var(--text-primary)" }}>
             {t("membership.detail.accessSection")}
           </p>
           <div

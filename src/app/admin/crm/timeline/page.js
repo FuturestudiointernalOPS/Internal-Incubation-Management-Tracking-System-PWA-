@@ -241,7 +241,7 @@ function TimelinePageContent() {
                         <div className="flex items-start justify-between gap-3">
                           <p className="text-sm font-bold">{ev.description}</p>
                           {ev.context_module && (
-                            <span className={`shrink-0 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
+                            <span className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border ${MODULE_COLORS[ev.context_module] || MODULE_COLORS.system}`}>
                               {t(MODULE_LABELS[ev.context_module] || "") || ev.context_module}
                             </span>
                           )}
@@ -258,7 +258,7 @@ function TimelinePageContent() {
           </div>
         )}
 
-        <p className="text-[10px] text-[var(--text-secondary)] text-center italic">
+        <p className="text-[10px] text-[var(--text-secondary)] text-center">
           {t("crm.timeline.phaseNote")}
         </p>
       </div>

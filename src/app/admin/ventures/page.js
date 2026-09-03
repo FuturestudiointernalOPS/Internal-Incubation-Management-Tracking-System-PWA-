@@ -116,7 +116,7 @@ export default function VenturesPage() {
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-[var(--brand-orange)]" />
-              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.3em]">
+              <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
                 {t("vadmin.list.ventureOs")}
               </span>
             </div>
@@ -221,7 +221,7 @@ export default function VenturesPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[var(--border-primary)] text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">
+                  <tr className="border-b border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                     <th className="text-left px-5 py-3">{t("vadmin.list.venture")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.industry")}</th>
                     <th className="text-left px-5 py-3">{t("vadmin.list.stage")}</th>

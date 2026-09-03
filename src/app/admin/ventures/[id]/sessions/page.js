@@ -302,12 +302,12 @@ export default function VentureSessionsPage() {
 
               {/* Notes */}
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1.5"><BookOpen className="w-3 h-3"/> {t("vadmin.sessions.notesCount", { count: selectedSession.notes?.length||0 })}</p>
-                {(selectedSession.notes||[]).length===0 && <p className="text-[9px] text-slate-500 italic">{t("vadmin.sessions.noNotesYet")}</p>}
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1.5"><BookOpen className="w-3 h-3"/> {t("vadmin.sessions.notesCount", { count: selectedSession.notes?.length||0 })}</p>
+                {(selectedSession.notes||[]).length===0 && <p className="text-sm text-[var(--text-secondary)]">{t("vadmin.sessions.noNotesYet")}</p>}
                 {(selectedSession.notes||[]).map((n)=>(
                   <div key={n.id} className="p-3 bg-primary rounded-xl mb-2 border border-[var(--border-primary)]">
-                    <p className="text-[9px] text-[var(--text-secondary)]">{n.content}</p>
-                    <p className="text-[7px] text-slate-500 mt-1">{n.author_name} · {new Date(n.created_at).toLocaleString()}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)]">{n.content}</p>
+                    <p className="text-[10px] text-[var(--text-secondary)] mt-1">{n.author_name} · {new Date(n.created_at).toLocaleString()}</p>
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">
@@ -318,14 +318,14 @@ export default function VentureSessionsPage() {
 
               {/* Action Items */}
               <div>
-                <p className="text-[9px] font-black text-slate-500 uppercase mb-2 flex items-center gap-1.5"><Target className="w-3 h-3"/> {t("vadmin.sessions.actionItemsCount", { count: selectedSession.action_items?.length||0 })}</p>
-                {(selectedSession.action_items||[]).length===0 && <p className="text-[9px] text-slate-500 italic">{t("vadmin.sessions.noActionItems")}</p>}
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest mb-2 flex items-center gap-1.5"><Target className="w-3 h-3"/> {t("vadmin.sessions.actionItemsCount", { count: selectedSession.action_items?.length||0 })}</p>
+                {(selectedSession.action_items||[]).length===0 && <p className="text-sm text-[var(--text-secondary)]">{t("vadmin.sessions.noActionItems")}</p>}
                 {(selectedSession.action_items||[]).map((a)=>(
                   <div key={a.id} className="flex items-center gap-2 p-2 bg-primary rounded-lg mb-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${a.status==="completed"?"bg-emerald-500":"bg-amber-500"}`} />
                     <span className="text-[10px] font-bold text-[var(--text-primary)] flex-1">{a.title}</span>
-                    {a.owner_name && <span className="text-[8px] text-slate-500">{a.owner_name}</span>}
-                    {a.due_date && <span className="text-[8px] text-slate-500">{new Date(a.due_date).toLocaleDateString()}</span>}
+                    {a.owner_name && <span className="text-[10px] text-[var(--text-secondary)]">{a.owner_name}</span>}
+                    {a.due_date && <span className="text-[10px] text-[var(--text-secondary)]">{new Date(a.due_date).toLocaleDateString()}</span>}
                   </div>
                 ))}
                 <div className="flex gap-2 mt-2">

@@ -271,11 +271,11 @@ export default function SegmentsPage() {
               <div className="flex-1 overflow-auto flex flex-col md:flex-row h-full">
                  <div className="w-full md:w-1/2 p-8 border-b md:border-b-0 md:border-r border-white/5 space-y-6">
                     <div>
-                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.segmentName")}</label>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.segmentName")}</label>
                       <input type="text" value={segmentName} onChange={e => setSegmentName(e.target.value)} placeholder={t("crm.segments.segmentNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
                     </div>
                     <div className="space-y-4">
-                      <label className="block text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] pt-4 border-t border-white/5">{t("crm.segments.filters")}</label>
+                      <label className="block text-[10px] font-bold text-indigo-400 uppercase tracking-widest pt-4 border-t border-white/5">{t("crm.segments.filters")}</label>
                       <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1">{t("crm.segments.fromCampaign")}</label>
                         <select value={filters.campaign_id} onChange={e => handleFilterChange('campaign_id', e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 appearance-none font-bold">
@@ -301,7 +301,7 @@ export default function SegmentsPage() {
                  </div>
                  <div className="w-full md:w-1/2 p-8 bg-white/[0.02]">
                     <div className="flex items-center justify-between mb-6">
-                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{t("crm.segments.preview")}</h4>
+                       <h4 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("crm.segments.preview")}</h4>
                        <span className="badge badge-glow-success bg-[#FF6600]/80/20 text-indigo-400">{t("crm.segments.peopleCount", { count: previewContacts.length })}</span>
                     </div>
                     {isPreviewing ? (
@@ -336,11 +336,11 @@ export default function SegmentsPage() {
               </div>
               <form onSubmit={launchCampaign} className="space-y-4">
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.campaignName")}</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.campaignName")}</label>
                   <input required autoFocus type="text" value={campaignConfig.name} onChange={e => setCampaignConfig({...campaignConfig, name: e.target.value})} placeholder={t("crm.segments.campaignNamePlaceholder")} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.formOptional")}</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t("crm.segments.formOptional")}</label>
                   <select value={campaignConfig.form_id} onChange={e => setCampaignConfig({...campaignConfig, form_id: e.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold appearance-none">
                      <option value="" className="bg-[#080810]">{t("crm.segments.noForm")}</option>
                      {forms.map(f => <option key={f.form_id} value={f.form_id} className="bg-[#080810]">{f.name}</option>)}

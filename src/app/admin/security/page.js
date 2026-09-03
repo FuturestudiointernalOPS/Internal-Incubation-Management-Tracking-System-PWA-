@@ -248,11 +248,11 @@ export default function SecurityPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter flex items-center gap-2">
               <Shield className="text-[var(--brand-orange)]" size={24} />
               {t("adminMisc.security.title")}
             </h1>
-            <p className="text-gray-400 mt-1">{t("adminMisc.security.subtitle")}</p>
+            <p className="text-sm text-gray-400 mt-1">{t("adminMisc.security.subtitle")}</p>
           </div>
           <button
             onClick={() => { setLoading(true); Promise.all([fetchSummary(), fetchSessions(), fetchEvents(), fetchLoginHistory()]).finally(() => setLoading(false)); }}
@@ -304,39 +304,39 @@ export default function SecurityPage() {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">
                   <Monitor size={14} />
                   {t("adminMisc.security.activeSessions")}
                 </div>
-                <p className="text-2xl font-bold">{summary?.active_sessions || 0}</p>
+                <p className="text-2xl font-black tracking-tight">{summary?.active_sessions || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">
                   <AlertTriangle size={14} />
                   {t("adminMisc.security.unresolvedEvents")}
                 </div>
-                <p className="text-2xl font-bold text-amber-400">{summary?.unresolved_events || 0}</p>
+                <p className="text-2xl font-black tracking-tight text-amber-400">{summary?.unresolved_events || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">
                   <CheckCircle2 size={14} />
                   {t("adminMisc.security.loginSuccess")}
                 </div>
-                <p className="text-2xl font-bold text-emerald-400">{summary?.login_successes || 0}</p>
+                <p className="text-2xl font-black tracking-tight text-emerald-400">{summary?.login_successes || 0}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
+                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-gray-400 mb-2">
                   <XCircle size={14} />
                   {t("adminMisc.security.loginFailures")}
                 </div>
-                <p className="text-2xl font-bold text-red-400">{summary?.login_failures || 0}</p>
+                <p className="text-2xl font-black tracking-tight text-red-400">{summary?.login_failures || 0}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Recent Security Events */}
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">{t("adminMisc.security.recentSecurityEvents")}</h3>
+                <h3 className="text-sm font-black uppercase tracking-tight text-gray-300 mb-4">{t("adminMisc.security.recentSecurityEvents")}</h3>
                 {events.length === 0 ? (
                   <p className="text-gray-500 text-sm">{t("adminMisc.security.noSecurityEvents24h")}</p>
                 ) : (
@@ -359,7 +359,7 @@ export default function SecurityPage() {
 
               {/* Recent Login Activity */}
               <div className="bg-[#0f172a] border border-gray-800 rounded-xl p-4">
-                <h3 className="text-sm font-medium text-gray-300 mb-4">{t("adminMisc.security.recentLoginActivity")}</h3>
+                <h3 className="text-sm font-black uppercase tracking-tight text-gray-300 mb-4">{t("adminMisc.security.recentLoginActivity")}</h3>
                 {loginHistory.length === 0 ? (
                   <p className="text-gray-500 text-sm">{t("adminMisc.security.noLoginActivity24h")}</p>
                 ) : (
@@ -403,12 +403,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colUser")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDeviceBrowser")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colIpLocation")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colCreated")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colActions")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colUser")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colDeviceBrowser")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colIpLocation")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colCreated")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colStatus")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -474,12 +474,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colTimestamp")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colEventType")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDescription")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colSeverity")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colActions")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colTimestamp")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colEventType")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colDescription")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colSeverity")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colStatus")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colActions")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -539,12 +539,12 @@ export default function SecurityPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-800">
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colTimestamp")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colUser")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colAction")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colDeviceBrowser")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colIpLocation")}</th>
-                        <th className="text-left p-4 text-xs text-gray-400 font-medium">{t("adminMisc.security.colStatus")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colTimestamp")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colUser")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colAction")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colDeviceBrowser")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colIpLocation")}</th>
+                        <th className="text-left p-4 text-[10px] font-bold uppercase tracking-widest text-gray-400">{t("adminMisc.security.colStatus")}</th>
                       </tr>
                     </thead>
                     <tbody>
