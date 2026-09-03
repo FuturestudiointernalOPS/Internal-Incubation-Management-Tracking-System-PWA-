@@ -48,6 +48,19 @@ const DECISION_EMAIL_DEFAULT =
   process.env.DECISION_EMAIL_PROVIDER ||
   (GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN ? "gmail" : "resend");
 
+// Gmail is the primary provider for ALL transactional email types whenever
+// the existing Gmail (Google Workspace) credentials are configured — the
+// same credentials already used for decision/approval emails. Resend remains
+// the automatic fallback inside sendEmail(). Environments without Gmail
+// credentials degrade to Resend automatically (never a broken default).
+// Set EMAIL_PRIMARY_PROVIDER=resend to force Resend-first globally.
+const EMAIL_PRIMARY_DEFAULT =
+  process.env.EMAIL_PRIMARY_PROVIDER === "resend"
+    ? "resend"
+    : GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN
+      ? "gmail"
+      : "resend";
+
 function gmailCredentialsAvailable() {
   return !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
 }
@@ -283,7 +296,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject, html, provider: "resend" });
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -358,7 +371,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
     </html>
   `;
 
-  return sendEmail({ to, subject, html, provider: "resend" });
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -673,7 +686,7 @@ async function sendEmail({ to, subject, html, provider }) {
     return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
   }
 
-  const chosen = provider || "gmail";
+  const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
   const sendWith = (p) =>
     p === "gmail"
