@@ -33,6 +33,7 @@ export default function CourseThumb({
     <img
       src={src}
       alt={alt}
+      referrerPolicy="no-referrer"
       className={`${className} shrink-0 object-cover`}
       loading="lazy"
       {...imgProps}

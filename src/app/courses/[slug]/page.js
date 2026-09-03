@@ -138,7 +138,7 @@ export default function PublicCourseDetailPage({ params }) {
           >
             {course.thumbnail_url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={course.thumbnail_url} alt={course.title} className="w-full h-full object-cover" />
+              <img src={course.thumbnail_url} alt={course.title} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
             ) : (
               <GraduationCap className="w-14 h-14" style={{ color: "var(--text-tertiary)" }} />
             )}

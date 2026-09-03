@@ -2,6 +2,7 @@
 
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
+import CourseImageUpload from "./CourseImageUpload";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -48,11 +49,9 @@ export default function CourseFormFields({ value, onChange, errors = {} }) {
         />
       </div>
 
-      <AppInput
-        label={t("lms.fields.thumbnail")}
+      <CourseImageUpload
         value={value.thumbnail_url || ""}
-        onChange={set("thumbnail_url")}
-        placeholder={t("lms.fields.thumbnailPlaceholder")}
+        onChange={(url) => onChange({ ...value, thumbnail_url: url })}
       />
 
       <AppSelect

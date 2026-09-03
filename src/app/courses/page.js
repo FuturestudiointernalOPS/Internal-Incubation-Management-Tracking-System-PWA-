@@ -85,6 +85,7 @@ export default function PublicCoursesPage() {
                     <img
                       src={course.thumbnail_url}
                       alt={course.title}
+                      referrerPolicy="no-referrer"
                       className="w-full h-full object-cover"
                     />
                   ) : (
