@@ -7,7 +7,6 @@ import {
   Loader2,
   ChevronRight,
   User,
-  Shield,
   Users,
   Edit3,
   Archive,
@@ -19,7 +18,6 @@ import {
   FileText,
   Upload,
   Target,
-  Filter,
   Copy,
   ExternalLink,
 } from "lucide-react";
@@ -30,19 +28,30 @@ import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const FACILITATOR_CAPS = [
-  { key: "participants.view", label: "View participants" },
-  { key: "participants.manage", label: "Manage participants" },
-  { key: "attendance.view", label: "View attendance" },
-  { key: "attendance.record", label: "Record attendance" },
-  { key: "assignments.view", label: "View assignments" },
-  { key: "assignments.review", label: "Review assignments" },
-  { key: "assignments.grade", label: "Grade assignments" },
-  { key: "sessions.conduct", label: "Conduct sessions" },
-  { key: "sessions.record", label: "Record sessions" },
-  { key: "progress.view", label: "View progress" },
-  { key: "groups.view", label: "View groups" },
-  { key: "groups.manage", label: "Manage groups" },
+  { key: "participants.view", labelKey: "capParticipantsView" },
+  { key: "participants.manage", labelKey: "capParticipantsManage" },
+  { key: "attendance.view", labelKey: "capAttendanceView" },
+  { key: "attendance.record", labelKey: "capAttendanceRecord" },
+  { key: "assignments.view", labelKey: "capAssignmentsView" },
+  { key: "assignments.review", labelKey: "capAssignmentsReview" },
+  { key: "assignments.grade", labelKey: "capAssignmentsGrade" },
+  { key: "sessions.conduct", labelKey: "capSessionsConduct" },
+  { key: "sessions.record", labelKey: "capSessionsRecord" },
+  { key: "progress.view", labelKey: "capProgressView" },
+  { key: "groups.view", labelKey: "capGroupsView" },
+  { key: "groups.manage", labelKey: "capGroupsManage" },
 ];
+
+// Convert a date value (YYYY-MM-DD or ISO datetime) into a safe
+// YYYY-MM-DD value for <input type="date">, without UTC day shifts.
+const toDateInputValue = (value) => {
+  if (!value) return "";
+  const s = String(value);
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? "" : d.toISOString().split("T")[0];
+};
 
 export default function ProgramManagement() {
   const { t } = useI18n();
@@ -93,7 +102,6 @@ export default function ProgramManagement() {
   const [knowledgeItems, setKnowledgeItems] = useState([]);
   const [showCreateNote, setShowCreateNote] = useState(false);
   const [newNoteTitle, setNewNoteTitle] = useState("");
-  const [newNoteFiles, setNewNoteFiles] = useState([]);
   const [creatingNote, setCreatingNote] = useState(false);
 
   const [editingKpis, setEditingKpis] = useState([]);
@@ -109,6 +117,16 @@ export default function ProgramManagement() {
   const [facilitatorPool, setFacilitatorPool] = useState([]);
   const [facilitatorSearch, setFacilitatorSearch] = useState("");
   const [facBusy, setFacBusy] = useState(false);
+  const [userRole, setUserRole] = useState("");
+
+  // Load the stored role once (safe JSON parse). Used to gate the
+  // per-group default-role editor — never parse localStorage in render.
+  useEffect(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "{}");
+      if (u.role) setUserRole(u.role);
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     if (!editingProgram?.id) return;
@@ -149,11 +167,31 @@ export default function ProgramManagement() {
         });
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Facilitator added" },
+            detail: {
+              type: "success",
+              message: t("adminMisc.programs.facilitatorAdded"),
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.addFacilitatorFailed"),
+            },
           }),
         );
       }
     } catch (_) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.addFacilitatorFailed"),
+          },
+        }),
+      );
     } finally {
       setFacBusy(false);
     }
@@ -161,18 +199,39 @@ export default function ProgramManagement() {
 
   const removeFacilitator = async (f) => {
     if (!f?.id) return;
-    const res = await fetch("/api/program-staff", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: f.id }),
-    });
-    if ((await res.json()).success) {
-      setEditingProgram({
-        ...editingProgram,
-        facilitators: (editingProgram.facilitators || []).filter(
-          (x) => x.id !== f.id,
-        ),
+    try {
+      const res = await fetch("/api/program-staff", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: f.id }),
       });
+      const data = await res.json();
+      if (data.success) {
+        setEditingProgram({
+          ...editingProgram,
+          facilitators: (editingProgram.facilitators || []).filter(
+            (x) => x.id !== f.id,
+          ),
+        });
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.facilitatorRemoveFailed"),
+            },
+          }),
+        );
+      }
+    } catch (_) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.facilitatorRemoveFailed"),
+          },
+        }),
+      );
     }
   };
 
@@ -181,18 +240,39 @@ export default function ProgramManagement() {
     const next = { ...current };
     if (next[capKey]) delete next[capKey];
     else next[capKey] = capKey.startsWith("view") ? 1 : 2;
-    const res = await fetch("/api/program-staff", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: f.id, permissions: next }),
-    });
-    if ((await res.json()).success) {
-      setEditingProgram({
-        ...editingProgram,
-        facilitators: (editingProgram.facilitators || []).map((x) =>
-          x.id === f.id ? { ...x, permissions: next } : x,
-        ),
+    try {
+      const res = await fetch("/api/program-staff", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: f.id, permissions: next }),
       });
+      const data = await res.json();
+      if (data.success) {
+        setEditingProgram({
+          ...editingProgram,
+          facilitators: (editingProgram.facilitators || []).map((x) =>
+            x.id === f.id ? { ...x, permissions: next } : x,
+          ),
+        });
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.facilitatorOverrideFailed"),
+            },
+          }),
+        );
+      }
+    } catch (_) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.facilitatorOverrideFailed"),
+          },
+        }),
+      );
     }
   };
 
@@ -213,7 +293,10 @@ export default function ProgramManagement() {
     if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Name and email are required" },
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.nameAndEmailRequired"),
+          },
         }),
       );
       return;
@@ -243,21 +326,27 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "success",
-              message: "Invitation sent — facilitator added to program",
+              message: t("adminMisc.programs.inviteSent"),
             },
           }),
         );
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: data.error || "Invite failed" },
+            detail: {
+              type: "error",
+              message: data.error || t("adminMisc.programs.inviteFailed"),
+            },
           }),
         );
       }
     } catch (_) {
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Invite failed" },
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.inviteFailed"),
+          },
         }),
       );
     } finally {
@@ -272,7 +361,8 @@ export default function ProgramManagement() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: familyId, lead_facilitator_id: cid || null }),
       });
-      if ((await res.json()).success) {
+      const data = await res.json();
+      if (data.success) {
         setNotes((prev) =>
           (prev || []).map((n) =>
             n.id === familyId ? { ...n, lead_facilitator_id: cid || null } : n,
@@ -280,11 +370,32 @@ export default function ProgramManagement() {
         );
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "success", message: "Lead facilitator updated" },
+            detail: {
+              type: "success",
+              message: t("adminMisc.programs.leadFacilitatorUpdated"),
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.leadFacilitatorUpdateFailed"),
+            },
           }),
         );
       }
-    } catch (_) {}
+    } catch (_) {
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.leadFacilitatorUpdateFailed"),
+          },
+        }),
+      );
+    }
   };
 
   // Pre-fetch form run URLs for assigned groups when edit modal opens
@@ -493,14 +604,17 @@ export default function ProgramManagement() {
           new CustomEvent("impactos:notify", {
             detail: {
               type: "success",
-              message: "Saved",
+              message: t("adminMisc.programs.saved"),
             },
           }),
         );
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
-            detail: { type: "error", message: t((json.error || "Save failed.") || "") || (json.error || "Save failed.") },
+            detail: {
+              type: "error",
+              message: json.error || t("adminMisc.programs.saveFailed"),
+            },
           }),
         );
       }
@@ -508,7 +622,10 @@ export default function ProgramManagement() {
       console.error("Update Failure:", e);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Update failed: " + (t(e.message || "") || e.message) },
+          detail: {
+            type: "error",
+            message: e.message || t("adminMisc.programs.saveFailed"),
+          },
         }),
       );
     } finally {
@@ -516,11 +633,24 @@ export default function ProgramManagement() {
     }
   };
 
-  const handleArchiveAction = async (id, isArchiving, e) => {
+  const handleArchiveAction = async (id, isArchiving, e, name) => {
     if (!id) return;
     e.stopPropagation();
-    if (isArchiving && !window.confirm("Are you sure you want to archive this program? This action can be undone by restoring.")) return;
-    if (!isArchiving && !window.confirm("Are you sure you want to restore this program?")) return;
+    const progName = name || "";
+    if (
+      isArchiving &&
+      !window.confirm(
+        t("adminMisc.programs.confirmArchive", { name: progName }),
+      )
+    )
+      return;
+    if (
+      !isArchiving &&
+      !window.confirm(
+        t("adminMisc.programs.confirmRestore", { name: progName }),
+      )
+    )
+      return;
     try {
       const res = await fetch("/api/pm/programs", {
         method: "PUT",
@@ -530,9 +660,28 @@ export default function ProgramManagement() {
           is_archived: isArchiving ? 1 : 0,
         }),
       });
-      if ((await res.json()).success) fetchData(true);
+      const data = await res.json();
+      if (data.success) fetchData(true);
+      else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.archiveActionFailed"),
+            },
+          }),
+        );
+      }
     } catch (e) {
       console.error("Archive Failure:", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.archiveActionFailed"),
+          },
+        }),
+      );
     }
   };
 
@@ -554,44 +703,93 @@ export default function ProgramManagement() {
       });
       const data = await res.json();
       if (data.success) {
-        const newSegment = data.group ||
-          data.family || { id: data.id, name: groupName };
+        const newSegment =
+          data.group || data.family || { id: data.id, name: groupName };
         const current = Array.isArray(editingProgram?.assigned_segments)
           ? editingProgram.assigned_segments
           : [];
         setEditingProgram({
           ...editingProgram,
-          assigned_segments: [...current, newSegment.id],
+          assigned_segments: [...current, String(newSegment.id)],
         });
         setNotes((prev) => [...prev, newSegment]);
         setIsCreatingGroup(false);
-        setNewGroup({ name: "", description: "", type: "cohort", default_role: "" });
+        setNewGroup({
+          name: "",
+          description: "",
+          type: "cohort",
+          default_role: "",
+        });
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: {
               type: "success",
-              message: `Group "${groupName}" created and assigned.`,
+              message: t("adminMisc.programs.groupCreatedAndAssigned", {
+                name: groupName,
+              }),
+            },
+          }),
+        );
+      } else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: data.error || t("adminMisc.programs.groupCreationFailed"),
             },
           }),
         );
       }
     } catch (e) {
       console.error("Group creation failed:", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.groupCreationFailed"),
+          },
+        }),
+      );
     }
   };
 
-  const handlePermanentDelete = async (id, e) => {
+  const handlePermanentDelete = async (id, e, name) => {
     if (!id) return;
     e.stopPropagation();
+    if (
+      !window.confirm(
+        t("adminMisc.programs.confirmDelete", { name: name || "" }),
+      )
+    )
+      return;
     try {
       const res = await fetch("/api/pm/programs", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if ((await res.json()).success) fetchData(true);
+      const data = await res.json();
+      if (data.success) fetchData(true);
+      else {
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: {
+              type: "error",
+              message: t("adminMisc.programs.archiveActionFailed"),
+            },
+          }),
+        );
+      }
     } catch (e) {
       console.error("Delete Failure:", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.archiveActionFailed"),
+          },
+        }),
+      );
     }
   };
 
@@ -658,20 +856,20 @@ export default function ProgramManagement() {
             new CustomEvent("impactos:notify", {
               detail: {
                 type: "success",
-                message: "Concept note created and linked to program.",
+                message: t("adminMisc.programs.conceptNoteCreatedAndLinked"),
               },
             }),
           );
         }
         setNewNoteTitle("");
-        setNewNoteFiles([]);
         setShowCreateNote(false);
       } else {
         window.dispatchEvent(
           new CustomEvent("impactos:notify", {
             detail: {
               type: "error",
-              message: t((data.error || "Failed to create concept note.") || "") || (data.error || "Failed to create concept note."),
+              message:
+                data.error || t("adminMisc.programs.conceptNoteCreateFailed"),
             },
           }),
         );
@@ -680,7 +878,10 @@ export default function ProgramManagement() {
       console.error("Create concept note failed:", e);
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
-          detail: { type: "error", message: "Failed to create concept note." },
+          detail: {
+            type: "error",
+            message: t("adminMisc.programs.conceptNoteCreateFailed"),
+          },
         }),
       );
     } finally {
@@ -816,13 +1017,15 @@ export default function ProgramManagement() {
                             ? "bg-emerald-500/10 text-emerald-500"
                             : p?.status === "in_progress"
                               ? "bg-blue-500/10 text-blue-500"
-                              : p?.status === "pending"
-                                ? "bg-amber-500/10 text-amber-500"
-                                : p?.status === "completed"
-                                  ? "bg-purple-500/10 text-purple-500"
-                                  : p?.status === "archived"
-                                    ? "bg-rose-500/10 text-rose-500"
-                                    : "bg-slate-500/10 text-[var(--text-secondary)]"
+                              : p?.status === "planned"
+                                ? "bg-sky-500/10 text-sky-500"
+                                : p?.status === "pending"
+                                  ? "bg-amber-500/10 text-amber-500"
+                                  : p?.status === "completed"
+                                    ? "bg-purple-500/10 text-purple-500"
+                                    : p?.status === "archived"
+                                      ? "bg-rose-500/10 text-rose-500"
+                                      : "bg-slate-500/10 text-[var(--text-secondary)]"
                         }`}
                       >
                         {p?.status === "active"
@@ -873,7 +1076,7 @@ export default function ProgramManagement() {
                           <>
                             <button
                               onClick={(e) =>
-                                handleArchiveAction(p?.id, false, e)
+                                handleArchiveAction(p?.id, false, e, p?.name)
                               }
                               title={t("adminMisc.programs.restore")}
                               className="p-2 hover:text-emerald-500"
@@ -881,7 +1084,9 @@ export default function ProgramManagement() {
                               <RotateCcw className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={(e) => handlePermanentDelete(p?.id, e)}
+                              onClick={(e) =>
+                                handlePermanentDelete(p?.id, e, p?.name)
+                              }
                               title={t("adminMisc.programs.delete")}
                               className="p-2 hover:text-rose-500"
                             >
@@ -903,16 +1108,14 @@ export default function ProgramManagement() {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                // Formater les dates pour input type="date" (YYYY-MM-DD)
+                                // Format dates for <input type="date"> (YYYY-MM-DD)
                                 const formatted = { ...p };
-                                if (p.start_date) {
-                                  const d = new Date(p.start_date);
-                                  formatted.start_date = d.toISOString().split('T')[0];
-                                }
-                                if (p.end_date) {
-                                  const d = new Date(p.end_date);
-                                  formatted.end_date = d.toISOString().split('T')[0];
-                                }
+                                formatted.start_date = toDateInputValue(
+                                  p.start_date,
+                                );
+                                formatted.end_date = toDateInputValue(
+                                  p.end_date,
+                                );
                                 setEditingProgram(formatted);
                                 setProgramDateError("");
                               }}
@@ -933,7 +1136,7 @@ export default function ProgramManagement() {
                             </button>
                             <button
                               onClick={(e) =>
-                                handleArchiveAction(p?.id, true, e)
+                                handleArchiveAction(p?.id, true, e, p?.name)
                               }
                               title={t("adminMisc.programs.archive")}
                               className="p-2 hover:text-orange-500"
@@ -1170,10 +1373,14 @@ export default function ProgramManagement() {
                           <p className="text-[10px] font-bold uppercase text-[var(--text-primary)] ml-2 truncate">{formName}</p>
                         )}
                         <div className="flex items-center gap-2 bg-primary/50 rounded-xl px-1 py-1 border border-[var(--border-primary)]">
-                          <code className="flex-1 text-[10px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate" style={{ color: "var(--text-primary)" }}>>
-                            {formUrl}
-                          </code>
+                        <code
+                          className="flex-1 text-[10px] font-mono bg-black/30 px-4 py-3 rounded-xl border border-[var(--border-primary)] truncate"
+                          style={{ color: "var(--text-primary)" }}
+                        >
+                          {formUrl}
+                        </code>
                           <button
+                            type="button"
                             onClick={() => {
                               navigator.clipboard.writeText(formUrl);
                               window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.registrationLinkCopied") } }));
@@ -1489,7 +1696,7 @@ export default function ProgramManagement() {
                           >
                             <div className="flex items-center gap-3">
                               <FileText className="w-4 h-4 text-blue-500" />
-                              <span className="text-[10px] font-bold text-white uppercase truncate max-w-[200px]">
+                              <span className="text-[10px] font-bold text-[var(--text-primary)] uppercase truncate max-w-[200px]">
                                 {f.name || t("adminMisc.programs.untitledPdf")}
                               </span>
                             </div>
@@ -1557,31 +1764,34 @@ export default function ProgramManagement() {
                     )
                       ? editingProgram.assigned_segments
                       : [];
-                    const isActive = assignedSegments.includes(s.id);
+                    const isActive = assignedSegments.some(
+                      (id) => String(id) === String(s.id),
+                    );
+                    const canEditRole = userRole === "super_admin";
                     return (
-                      <button
+                      <div
                         key={s.id}
-                        type="button"
-                        onClick={() => {
-                          const current = Array.isArray(
-                            editingProgram?.assigned_segments,
-                          )
-                            ? editingProgram.assigned_segments
-                            : [];
-                          const next = current.includes(s.id)
-                            ? current.filter((id) => id !== s.id)
-                            : [...current, s.id];
-                          setEditingProgram({
-                            ...editingProgram,
-                            assigned_segments: next,
-                          });
-                        }}
-                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
+                        className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
                           isActive
                             ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)] text-[var(--brand-orange)]"
                             : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)]"
                         }`}
                       >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = isActive
+                              ? assignedSegments.filter(
+                                  (id) => String(id) !== String(s.id),
+                                )
+                              : [...assignedSegments, s.id];
+                            setEditingProgram({
+                              ...editingProgram,
+                              assigned_segments: next,
+                            });
+                          }}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
+                        >
                         <Users
                           className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${isActive ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}
                         />
@@ -1590,35 +1800,10 @@ export default function ProgramManagement() {
                             <span className="text-[10px] font-bold uppercase truncate">
                               {s.name || t("adminMisc.programs.unnamed")}
                             </span>
-                            {isActive && s.default_role && (
-                              typeof window !== "undefined" && JSON.parse(localStorage.getItem("user") || "{}").role === "super_admin" ?
-                                <select
-                                  value={s.default_role}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={async (e) => {
-                                    e.stopPropagation();
-                                    const newRole = e.target.value || null;
-                                    try {
-                                      await fetch("/api/families", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id, default_role: newRole }) });
-                                      const updated = (Array.isArray(notes) ? notes : []).map((n) => n.id === s.id ? { ...n, default_role: newRole } : n);
-                                      setNotes(updated);
-                                      window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("adminMisc.programs.roleUpdated") } }));
-                                    } catch (_) {}
-                                  }}
-                                  className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30"
-                                >
-                                  <option value={s.default_role}>{s.default_role}</option>
-                                  <option value="">{t("adminMisc.programs.roleNone")}</option>
-                                  <option value="participant">{t("adminMisc.programs.roleParticipant")}</option>
-                                  <option value="staff">{t("adminMisc.programs.roleStaff")}</option>
-                                  <option value="program_manager">{t("adminMisc.programs.roleProgramManager")}</option>
-                                  <option value="teacher">{t("adminMisc.programs.roleTeacher")}</option>
-                                  <option value="mentor">{t("adminMisc.programs.roleMentor")}</option>
-                                  <option value="investor">{t("adminMisc.programs.roleInvestor")}</option>
-                                  <option value="founder">{t("adminMisc.programs.roleFounder")}</option>
-                                </select>
-                              :
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">{s.default_role}</span>
+                            {isActive && s.default_role && !canEditRole && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase shrink-0">
+                                {s.default_role}
+                              </span>
                             )}
                           </div>
                           {isActive && (
@@ -1634,20 +1819,112 @@ export default function ProgramManagement() {
                                   const run = (frData.success ? frData.runs || [] : []).find((x) => x.status === "active" && x.public_slug);
                                   if (run) {
                                     navigator.clipboard.writeText(`${window.location.origin}/s/${run.public_slug}`);
-                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t?.("admin.copied") || "Registration link copied to clipboard" } }));
+                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "success", message: t("admin.copied") } }));
                                   } else {
-                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") || "No form yet — create a form in CRM first" } }));
+                                    window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") } }));
                                   }
                                 } catch (_) {
-                                  window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") || "No form yet — create a form in CRM first" } }));
+                                  window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("adminMisc.programs.noFormYet") } }));
                                 }
                               }}
                             >
-                              {t?.("admin.copyLink") || "Copy Link"}
+                              {t("admin.copyLink")}
                             </span>
                           )}
                         </div>
-                      </button>
+                        </button>
+                        {isActive && s.default_role && canEditRole && (
+                          <select
+                            value={s.default_role}
+                            onChange={async (e) => {
+                              const newRole = e.target.value || null;
+                              try {
+                                const res = await fetch("/api/families", {
+                                  method: "PUT",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    id: s.id,
+                                    default_role: newRole,
+                                  }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  const updated = (Array.isArray(notes)
+                                    ? notes
+                                    : []
+                                  ).map((n) =>
+                                    String(n.id) === String(s.id)
+                                      ? { ...n, default_role: newRole }
+                                      : n,
+                                  );
+                                  setNotes(updated);
+                                  window.dispatchEvent(
+                                    new CustomEvent("impactos:notify", {
+                                      detail: {
+                                        type: "success",
+                                        message: t(
+                                          "adminMisc.programs.roleUpdated",
+                                        ),
+                                      },
+                                    }),
+                                  );
+                                } else {
+                                  window.dispatchEvent(
+                                    new CustomEvent("impactos:notify", {
+                                      detail: {
+                                        type: "error",
+                                        message: t(
+                                          "adminMisc.programs.roleUpdateFailed",
+                                        ),
+                                      },
+                                    }),
+                                  );
+                                }
+                              } catch (_) {
+                                window.dispatchEvent(
+                                  new CustomEvent("impactos:notify", {
+                                    detail: {
+                                      type: "error",
+                                      message: t(
+                                        "adminMisc.programs.roleUpdateFailed",
+                                      ),
+                                    },
+                                  }),
+                                );
+                              }
+                            }}
+                            className="text-[10px] font-bold px-1 py-0.5 rounded bg-purple-500/20 text-purple-400 uppercase outline-none border-none cursor-pointer hover:bg-purple-500/30 shrink-0"
+                          >
+                            <option value={s.default_role}>
+                              {s.default_role}
+                            </option>
+                            <option value="">
+                              {t("adminMisc.programs.roleNone")}
+                            </option>
+                            <option value="participant">
+                              {t("adminMisc.programs.roleParticipant")}
+                            </option>
+                            <option value="staff">
+                              {t("adminMisc.programs.roleStaff")}
+                            </option>
+                            <option value="program_manager">
+                              {t("adminMisc.programs.roleProgramManager")}
+                            </option>
+                            <option value="teacher">
+                              {t("adminMisc.programs.roleTeacher")}
+                            </option>
+                            <option value="mentor">
+                              {t("adminMisc.programs.roleMentor")}
+                            </option>
+                            <option value="investor">
+                              {t("adminMisc.programs.roleInvestor")}
+                            </option>
+                            <option value="founder">
+                              {t("adminMisc.programs.roleFounder")}
+                            </option>
+                          </select>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1675,10 +1952,10 @@ export default function ProgramManagement() {
                 {/* ═══ PROGRAM FACILITATORS (EXTERNAL PERSONNEL) ═══ */}
                 <div className="space-y-3 mt-4 pt-4 border-t border-[var(--border-primary)]/40">
                   <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest ml-2">
-                    PROGRAM FACILITATORS (EXTERNAL)
+                    {t("adminMisc.programs.programFacilitatorsTitle")}
                   </label>
                   <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-2">
-                    Program-level group — created automatically for every program. Not Future Studio staff; access is limited to this program.
+                    {t("adminMisc.programs.programFacilitatorsHint")}
                   </p>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -1687,21 +1964,21 @@ export default function ProgramManagement() {
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "assigned_groups" })}
                       className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope !== "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
-                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>Assigned Groups Only</p>
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">Facilitators see only their assigned participant groups.</p>
+                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope !== "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>{t("adminMisc.programs.scopeAssignedGroups")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("adminMisc.programs.scopeAssignedGroupsHint")}</p>
                     </button>
                     <button
                       type="button"
                       onClick={() => setEditingProgram({ ...editingProgram, facilitator_scope: "all" })}
                       className={`p-3 rounded-xl border text-left transition-all ${editingProgram?.facilitator_scope === "all" ? "bg-[var(--brand-orange)]/10 border-[var(--brand-orange)]" : "bg-secondary border-[var(--border-primary)]"}`}
                     >
-                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>All Participants</p>
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">Facilitators see the entire program.</p>
+                      <p className={`text-[10px] font-bold uppercase ${editingProgram?.facilitator_scope === "all" ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)]"}`}>{t("adminMisc.programs.scopeAll")}</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">{t("adminMisc.programs.scopeAllHint")}</p>
                     </button>
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">DEFAULT FACILITATOR PERMISSIONS — APPLIES TO ALL</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.defaultPermissionsTitle")}</p>
                     <div className="grid grid-cols-2 gap-1.5">
                       {FACILITATOR_CAPS.map((cap) => {
                         const active = !!(editingProgram?.facilitator_default_permissions || {})[cap.key];
@@ -1712,7 +1989,7 @@ export default function ProgramManagement() {
                             onClick={() => toggleFacDefault(cap.key)}
                             className={`text-[10px] font-bold uppercase px-1.5 py-1.5 rounded-lg border text-left truncate transition-all ${active ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400" : "bg-secondary border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--brand-orange)]"}`}
                           >
-                            {cap.label}{active ? " ✓" : ""}
+                            {t(`adminMisc.programs.${cap.labelKey}`)}{active ? " ✓" : ""}
                           </button>
                         );
                       })}
@@ -1720,9 +1997,9 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">ASSIGNED FACILITATORS</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.assignedFacilitatorsTitle")}</p>
                     {(editingProgram?.facilitators || []).length === 0 && (
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">No facilitators assigned yet.</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.programs.noFacilitatorsAssigned")}</p>
                     )}
                     {(editingProgram?.facilitators || []).map((f) => (
                       <div key={f.id} className="rounded-xl border border-[var(--border-primary)] p-2.5 space-y-2 bg-secondary">
@@ -1736,10 +2013,10 @@ export default function ProgramManagement() {
                             onClick={() => removeFacilitator(f)}
                             className="text-[10px] font-bold uppercase text-rose-400 hover:underline shrink-0"
                           >
-                            Remove
+                            {t("adminMisc.programs.remove")}
                           </button>
                         </div>
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">INDIVIDUAL OVERRIDES (THIS FACILITATOR ONLY)</p>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.individualOverridesTitle")}</p>
                         <div className="grid grid-cols-2 gap-1">
                           {FACILITATOR_CAPS.map((cap) => {
                             const active = !!(f.permissions || {})[cap.key];
@@ -1750,7 +2027,7 @@ export default function ProgramManagement() {
                                 onClick={() => toggleFacOverride(f, cap.key)}
                                 className={`text-[10px] font-bold uppercase px-1.5 py-1 rounded-lg border text-left truncate transition-all ${active ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-primary border-[var(--border-primary)] text-[var(--text-secondary)]"}`}
                               >
-                                {cap.label}{active ? " ✓" : ""}
+                                {t(`adminMisc.programs.${cap.labelKey}`)}{active ? " ✓" : ""}
                               </button>
                             );
                           })}
@@ -1760,18 +2037,18 @@ export default function ProgramManagement() {
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">ADD FACILITATOR — SEARCH ALL CONTACTS</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.addFacilitatorTitle")}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         value={inviteForm.name}
                         onChange={(e) => setInviteForm({ ...inviteForm, name: e.target.value })}
-                        placeholder="New facilitator name…"
+                        placeholder={t("adminMisc.programs.newFacilitatorNamePlaceholder")}
                         className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                       <input
                         value={inviteForm.email}
                         onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                        placeholder="New facilitator email…"
+                        placeholder={t("adminMisc.programs.newFacilitatorEmailPlaceholder")}
                         className="bg-primary border border-[var(--border-primary)] rounded-xl px-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                     </div>
@@ -1781,17 +2058,17 @@ export default function ProgramManagement() {
                       onClick={createAndInviteFacilitator}
                       className="w-full text-[10px] font-bold uppercase px-3 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 hover:bg-blue-500/25 transition-all"
                     >
-                      CREATE &amp; INVITE NEW FACILITATOR (sends activation email)
+                      {t("adminMisc.programs.createAndInviteFacilitator")}
                     </button>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                      Not in the system? Enter name + email — an activation link is emailed, then they are added to this program's Facilitators group.
+                      {t("adminMisc.programs.createAndInviteHint")}
                     </p>
                     <div className="relative">
                       <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
                       <input
                         value={facilitatorSearch}
                         onChange={(e) => setFacilitatorSearch(e.target.value)}
-                        placeholder="Search by name or email…"
+                        placeholder={t("adminMisc.programs.searchFacilitatorPlaceholder")}
                         className="w-full bg-primary border border-[var(--border-primary)] rounded-xl pl-9 pr-3 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)]"
                       />
                     </div>
@@ -1815,14 +2092,14 @@ export default function ProgramManagement() {
                         ))}
                       {facilitatorPool.length === 0 && (
                         <p className="text-[10px] font-medium text-[var(--text-secondary)]">
-                          No contacts in the CRM "Facilitators" group yet. Add them via the CRM (bulk upload or contact edit).
+                          {t("adminMisc.programs.noContactsInFacilitatorGroup")}
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="p-3 bg-primary rounded-2xl border border-[var(--border-primary)] space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">LEAD FACILITATOR PER PARTICIPANT GROUP</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("adminMisc.programs.leadFacilitatorPerGroupTitle")}</p>
                     {(editingProgram?.assigned_segments || []).map((segId) => {
                       const family = (Array.isArray(notes) ? notes : []).find((n) => String(n.id) === String(segId));
                       if (!family) return null;
@@ -1834,7 +2111,7 @@ export default function ProgramManagement() {
                             onChange={(e) => setLeadFacilitator(family.id, e.target.value || null)}
                             className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none cursor-pointer max-w-[45%]"
                           >
-                            <option value="">— None —</option>
+                            <option value="">{t("adminMisc.programs.noneOption")}</option>
                             {(editingProgram?.facilitators || []).map((f) => (
                               <option key={f.cid} value={f.cid}>{f.name}</option>
                             ))}
@@ -1843,7 +2120,7 @@ export default function ProgramManagement() {
                       );
                     })}
                     {(editingProgram?.assigned_segments || []).length === 0 && (
-                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">Assign participant groups above to set a lead facilitator per group.</p>
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("adminMisc.programs.assignGroupsForLeadFacilitatorHint")}</p>
                     )}
                   </div>
                 </div>
@@ -1943,7 +2220,7 @@ export default function ProgramManagement() {
                       <button
                         type="button"
                         onClick={() => handleDeleteEditKpi(kpi.id)}
-                        className="text-slate-500 hover:text-rose-500 transition-colors p-2"
+                        className="text-[var(--text-secondary)] hover:text-rose-500 transition-colors p-2"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1964,7 +2241,7 @@ export default function ProgramManagement() {
                         placeholder={t("adminMisc.programs.kpiTitlePlaceholder", {
                           title: t("admin.kpiTitle"),
                         })}
-                        className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                        className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                         value={editKpiInput.title}
                         onChange={(e) =>
                           setEditKpiInput({
@@ -1978,8 +2255,8 @@ export default function ProgramManagement() {
                           type="number"
                           min="0"
                           max="100"
-                          placeholder="80%"
-                          className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-white outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
+                          placeholder={t("adminMisc.programs.targetPercentSample")}
+                          className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] text-xs font-bold"
                           value={editKpiInput.target_value}
                           onChange={(e) =>
                             setEditKpiInput({
