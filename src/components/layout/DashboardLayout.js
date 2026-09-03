@@ -1285,6 +1285,24 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     return commSubIds.some((id) => unreadByType[id] > 0);
   }, [unreadByType]);
 
+  // Personal relationships (program participation + venture membership) —
+  // these drive the personal sidebar so it reflects actual membership, not
+  // the legacy contact.role string.
+  const [relationships, setRelationships] = useState(null);
+  useEffect(() => {
+    if (!user.cid) return;
+    let alive = true;
+    fetch("/api/me/relationships")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d.success) setRelationships(d);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [user.cid]);
+
   const navItems = useMemo(() => {
     // Priority: page context > user.role (from session) > role (from prop) > fallback 'admin'.
     // The sidebar follows the page context so a user acting under another role
@@ -1344,6 +1362,36 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const matrix = buildRoleNav(activeRole);
     const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
 
+    // Personal roles: sidebar is relationship-driven (Phase 1). A person with
+    // no program and no venture sees only Dashboard; programs/certificates
+    // appear only for participants, ventures only for venture members.
+    const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
+    if (PERSONAL_ROLES.includes(activeRole)) {
+      const rel = relationships || {
+        isProgramParticipant: false,
+        isVentureMember: false,
+        ventures: [],
+      };
+      const homeRole = sessionRole || activeRole;
+      const dashboardHref =
+        homeRole === "team"
+          ? "/team"
+          : homeRole === "participant"
+            ? "/participant"
+            : "/workspaces";
+      const items = [
+        { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
+      ];
+      if (rel.isProgramParticipant) {
+        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
+        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
+      }
+      if (rel.isVentureMember) {
+        items.push({ id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" });
+      }
+      return items;
+    }
+
     // If user has responsibilities assigned, build nav from responsibilities
     // across ALL role views instead of just the user's role view
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
@@ -1395,7 +1443,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // Capability projection (visibility only — the server remains authoritative).
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
     return attachIcons(projectNavForCapabilities(base, effectiveCaps, activeRole));
-  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname, effectiveCaps]);
+  }, [user.role, user.groups, role, pmPrograms, userResponsibilities, pathname, effectiveCaps, relationships]);
 
   // Active navigation path — the current page plus every ancestor node id.
   const activePathIds = useMemo(

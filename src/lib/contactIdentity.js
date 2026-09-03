@@ -173,6 +173,59 @@ export async function ensureContactIdentitySchema() {
   return schemaPromise;
 }
 
+let backfillPromise = null;
+
+/**
+ * PHASE 2 — the neutral default role is 'member', not 'participant'.
+ *
+ * 1. Existing databases: change the column default so any future contact
+ *    created without an explicit role is a neutral member (fresh installs
+ *    already get this from supabase/v2_schema_init.sql).
+ * 2. Conservative one-time backfill: contacts still carrying the legacy
+ *    'participant' role WITHOUT any real program/group/venture relationship
+ *    become 'member'. Genuine participants (participant_programs or
+ *    v2_participants), legacy group members, and venture members are NEVER
+ *    touched. The UPDATE is naturally idempotent (safe to re-run); executed
+ *    once per process via a cached promise.
+ */
+export function backfillNeutralParticipantRoles() {
+  if (!backfillPromise) {
+    backfillPromise = (async () => {
+      try {
+        await db.execute({
+          sql: "ALTER TABLE contacts ALTER COLUMN role SET DEFAULT 'member'",
+          args: [],
+        });
+      } catch (e) {
+        console.warn("[Contact Identity] role default change skipped:", e.message);
+      }
+      try {
+        await safe(
+          `UPDATE contacts c
+           SET role = 'member'
+           WHERE c.role = 'participant'
+             AND NOT EXISTS (SELECT 1 FROM participant_programs pp WHERE pp.participant_id = c.cid)
+             AND NOT EXISTS (
+               SELECT 1 FROM v2_participants vp
+               WHERE vp.user_id = c.cid OR vp.email = c.email
+             )
+             AND NOT EXISTS (SELECT 1 FROM user_groups ug WHERE ug.user_cid = c.cid)
+             AND (c.group_name IS NULL OR c.group_name = '')
+             AND NOT EXISTS (
+               SELECT 1 FROM venture_members vm
+               WHERE vm.contact_id = c.cid AND vm.removed_at IS NULL
+             )`,
+          [],
+        );
+      } catch (e) {
+        console.warn("[Contact Identity] neutral role backfill skipped:", e.message);
+      }
+      return true;
+    })();
+  }
+  return backfillPromise;
+}
+
 /**
  * Resolve a person from email + phone against the existing Contact model.
  *
@@ -385,4 +438,5 @@ export default {
   listContactEmails,
   removeContactEmail,
   syncVentureRoleHistory,
+  backfillNeutralParticipantRoles,
 };
