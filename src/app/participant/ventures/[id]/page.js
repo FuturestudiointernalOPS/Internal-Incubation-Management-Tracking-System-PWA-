@@ -9,16 +9,25 @@ import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
 import { FoundersTab, TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
-import { DashboardTab, HistoryTab, ProgressTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
-import { JourneyTab, PlaybookTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
+import { DashboardTab, ProgressTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
+import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
 import { MilestonesTab, ActionPlansTab, TasksTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
-import { StandupsTab, RetrosTab, BlockersTab } from "@/components/ventures/workspace/tabs/ReportingTabs";
 import { CalendarTab } from "@/components/ventures/workspace/tabs/ScheduleTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
-import { AdvisorsTab, CoachingTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { AdvisorsTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
-const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
+const TABS = [
+  "profile", "settings", "founders", "team", "dashboard",
+  // "history", // Program history — staff/admin view only (not founder-facing)
+  "journey",
+  // "playbook", // Facilitator review guide — staff only
+  "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks",
+  // "standups", "retros", "blockers", // Weekly review reports — staff/facilitator only
+  "calendar", "progress", "documents", "advisors",
+  // "coaching", // Coaching/session management — facilitator only
+  "kpis", "investment",
+];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
 const STATUSES = ["active", "paused", "graduated", "archived"];
@@ -577,9 +586,9 @@ export default function VentureDetail() {
         {activeTab === "founders" && <FoundersTab />}
         {activeTab === "team" && <TeamTab />}
         {activeTab === "dashboard" && <DashboardTab />}
-        {activeTab === "history" && <HistoryTab />}
+        {/* "history" removed — program history is staff/admin-only */}
         {activeTab === "journey" && <JourneyTab />}
-        {activeTab === "playbook" && <PlaybookTab />}
+        {/* "playbook" removed — facilitator guide is staff-only */}
         {activeTab === "businessModel" && <BusinessModelTab />}
         {activeTab === "discovery" && <DiscoveryTab />}
         {activeTab === "validation" && <ValidationTab />}
@@ -587,14 +596,12 @@ export default function VentureDetail() {
         {activeTab === "milestones" && <MilestonesTab />}
         {activeTab === "actionPlans" && <ActionPlansTab />}
         {activeTab === "tasks" && <TasksTab />}
-        {activeTab === "standups" && <StandupsTab />}
-        {activeTab === "retros" && <RetrosTab />}
-        {activeTab === "blockers" && <BlockersTab />}
+        {/* "standups", "retros", "blockers" removed — weekly review reports are staff/facilitator-only */}
         {activeTab === "calendar" && <CalendarTab />}
         {activeTab === "progress" && <ProgressTab />}
         {activeTab === "documents" && <DocumentsTab />}
         {activeTab === "advisors" && <AdvisorsTab />}
-        {activeTab === "coaching" && <CoachingTab />}
+        {/* "coaching" removed — session management is facilitator-only */}
         {activeTab === "kpis" && <KpisTab />}
         {activeTab === "investment" && <InvestmentTab />}
 

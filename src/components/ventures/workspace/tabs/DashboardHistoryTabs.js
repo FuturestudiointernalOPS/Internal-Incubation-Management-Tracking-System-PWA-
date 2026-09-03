@@ -53,7 +53,7 @@ export function DashboardTab() {
       <div className="rounded-xl p-6 border" style={cardStyle}>
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <Bell size={16} style={{ color: "var(--brand-orange)" }} />
-          {t("venture.recentNotifications")} {dashboardData.notifications?.unread > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">{dashboardData.notifications.unread} {t("venture.unread")}</span>}
+          {t("venture.recentNotifications")} {dashboardData.notifications?.unread > 0 && <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400">{dashboardData.notifications.unread} {t("venture.unread")}</span>}
         </h3>
         {!dashboardData.notifications?.recent?.length ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noNotifications")}</p>
