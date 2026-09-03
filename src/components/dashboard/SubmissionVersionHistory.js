@@ -62,7 +62,7 @@ function StatusBadge({ status }) {
   }
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
     >
       {label}
     </span>
@@ -110,13 +110,13 @@ function VersionTimeline({ versions, onRefresh }) {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="text-[11px] font-black text-[var(--brand-orange)]">
+                <span className="text-[11px] font-bold text-[var(--brand-orange)]">
                   v{ver.version_number || idx + 1}
                 </span>
                 <StatusBadge status={ver.status} />
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[8px] text-[var(--text-tertiary)]">
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {ver.created_at
                     ? new Date(ver.created_at).toLocaleDateString()
                     : ""}
@@ -150,7 +150,7 @@ function VersionTimeline({ versions, onRefresh }) {
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
                       >
                         <FileText className="w-3 h-3 text-[var(--brand-orange)]" />
-                        <span className="text-[8px] font-bold text-[var(--brand-orange)]">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)]">
                           {t("participant.viewFile")}
                         </span>
                         <ExternalLink className="w-2.5 h-2.5 text-[var(--text-tertiary)]" />
@@ -164,7 +164,7 @@ function VersionTimeline({ versions, onRefresh }) {
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] hover:border-[var(--brand-orange)]/30 transition-all"
                       >
                         <ExternalLink className="w-3 h-3 text-blue-400" />
-                        <span className="text-[8px] font-bold text-blue-400">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-blue-400">
                           {t("participant.supportingUrl")}
                         </span>
                       </a>
@@ -176,11 +176,11 @@ function VersionTimeline({ versions, onRefresh }) {
                     <div className="p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <MessageSquare className="w-3 h-3 text-blue-400" />
-                        <span className="text-[7px] font-black text-blue-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
                           {t("participant.feedback")}
                         </span>
                       </div>
-                      <p className="text-[9px] text-[var(--text-primary)] leading-relaxed">
+                      <p className="text-sm text-[var(--text-primary)] leading-relaxed">
                         {ver.feedback}
                       </p>
                     </div>
@@ -191,11 +191,11 @@ function VersionTimeline({ versions, onRefresh }) {
                     <div className="p-2.5 rounded-lg bg-rose-500/5 border border-rose-500/10">
                       <div className="flex items-center gap-1.5 mb-1">
                         <XCircle className="w-3 h-3 text-rose-400" />
-                        <span className="text-[7px] font-black text-rose-400 uppercase tracking-widest">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
                           {t("participant.rejectionReason")}
                         </span>
                       </div>
-                      <p className="text-[9px] text-[var(--text-primary)] leading-relaxed">
+                      <p className="text-sm text-[var(--text-primary)] leading-relaxed">
                         {ver.rejection_reason}
                       </p>
                     </div>
@@ -204,7 +204,7 @@ function VersionTimeline({ versions, onRefresh }) {
                   {/* Review Action */}
                   {ver.review_action && (
                     <div className="flex items-center gap-2">
-                      <span className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("participant.action")}:
                       </span>
                       <StatusBadge status={ver.review_action} />
@@ -214,11 +214,11 @@ function VersionTimeline({ versions, onRefresh }) {
                   {/* Score */}
                   {ver.evaluation_score > 0 && (
                     <div className="flex items-center gap-2">
-                      <span className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                         {t("participant.score")}:
                       </span>
                       <span
-                        className={`text-[10px] font-black ${
+                        className={`text-[10px] font-bold ${
                           ver.evaluation_score >= 70
                             ? "text-emerald-400"
                             : ver.evaluation_score >= 40
@@ -300,7 +300,7 @@ export default function SubmissionVersionHistory({
     return (
       <div className="flex items-center gap-3 p-4 rounded-lg bg-rose-500/5 border border-rose-500/10">
         <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-        <p className="text-[9px] font-bold text-rose-400">{error}</p>
+        <p className="text-[10px] font-bold text-rose-400">{error}</p>
         <button
           onClick={fetchVersions}
           className="ml-auto p-1.5 rounded-lg hover:bg-rose-500/10"
@@ -316,7 +316,7 @@ export default function SubmissionVersionHistory({
     return (
       <div className="text-center py-8">
         <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-        <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+        <p className="text-sm text-[var(--text-secondary)]">
           {t("participant.noSubmissionsYet")}
         </p>
       </div>
@@ -328,7 +328,7 @@ export default function SubmissionVersionHistory({
       {!compact && (
         <div className="flex items-center gap-2">
           <Send className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
             {t("participant.submissionHistory")} ({groupedData.length} {t("participant.deliverables").toLowerCase()})
           </span>
         </div>
@@ -350,12 +350,12 @@ export default function SubmissionVersionHistory({
             >
               <div className="flex items-center gap-2">
                 <FileText className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
-                <span className="text-[10px] font-bold text-[var(--text-primary)]">
+                <span className="text-[11px] font-bold text-[var(--text-primary)]">
                   {group.deliverable_title || t("participant.deliverableNumber", { id: group.deliverable_id })}
                 </span>
                 {group.deliverable_due_date && (
                   <span
-                    className={`text-[7px] font-bold ${
+                    className={`text-[10px] font-bold ${
                       new Date(group.deliverable_due_date) < new Date()
                         ? "text-rose-400"
                         : "text-amber-400"
@@ -366,7 +366,7 @@ export default function SubmissionVersionHistory({
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[8px] text-[var(--text-tertiary)]">
+                <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {group.versions.length > 1
                     ? t("participant.versionCountPlural", { count: group.versions.length })
                     : t("participant.versionCount", { count: group.versions.length })}

@@ -30,12 +30,12 @@ function StatusBadge({ status }) {
     active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     completed: "bg-blue-500/10 text-blue-400 border-blue-500/20",
     pending: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    archived: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+    archived: "bg-white/5 text-[var(--text-tertiary)] border-white/10",
   };
   const classes = config[status?.toLowerCase()] || config.active;
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider border ${classes}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
     >
       {status || t("participantMisc.programListing.active")}
     </span>
@@ -52,10 +52,10 @@ function MiniMetric({ icon: Icon, label, value, color }) {
         <Icon className={`w-3 h-3 ${color.text}`} />
       </div>
       <div>
-        <span className="text-[11px] font-black text-[var(--text-primary)]">
+        <span className="text-[11px] font-bold text-[var(--text-primary)]">
           {value}%
         </span>
-        <p className="text-[7px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
           {label}
         </p>
       </div>
@@ -96,7 +96,7 @@ function ProgramCard({ program, onSelect }) {
           <div className="flex items-center gap-2 mb-1.5">
             <StatusBadge status={displayStatus} />
             {program.status && String(program.status).toLowerCase() !== "active" && (
-              <span className="px-1.5 py-0.5 rounded text-[7px] font-black uppercase tracking-wider bg-slate-500/10 text-slate-400 border border-slate-500/20">
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-white/5 text-[var(--text-tertiary)] border border-white/10">
                 {t("participantMisc.programListing.viewOnly")}
               </span>
             )}
@@ -134,7 +134,7 @@ function ProgramCard({ program, onSelect }) {
               />
             </g>
           </svg>
-          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-black text-[var(--text-primary)]">
+          <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-[var(--text-primary)]">
             {metrics.percentComplete}%
           </span>
         </div>
@@ -145,7 +145,7 @@ function ProgramCard({ program, onSelect }) {
         {program.cohort && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
-            <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)]">
               {program.cohort}
             </span>
           </div>
@@ -153,7 +153,7 @@ function ProgramCard({ program, onSelect }) {
         {program.durationWeeks && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Layers className="w-3 h-3 text-[var(--text-tertiary)]" />
-            <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)]">
               {t("participantMisc.programListing.weekRange", {
                 current: program.currentWeek,
                 total: program.durationWeeks,
@@ -164,7 +164,7 @@ function ProgramCard({ program, onSelect }) {
         {program.facilitators?.length > 0 && (
           <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
             <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
-            <span className="text-[8px] font-bold text-[var(--text-tertiary)]">
+            <span className="text-[10px] font-bold text-[var(--text-secondary)]">
               {t("participantMisc.programListing.facilitators", {
                 count: program.facilitators.length,
               })}
@@ -202,7 +202,7 @@ function ProgramCard({ program, onSelect }) {
       <div className="flex items-center justify-between mt-4 pt-3 border-t border-[var(--border-primary)]">
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3 h-3 text-[var(--text-tertiary)]" />
-          <span className="text-[8px] text-[var(--text-tertiary)]">
+          <span className="text-[10px] font-medium text-[var(--text-secondary)]">
             {program.startDate
               ? formatLocaleDate(program.startDate, { month: "short", day: "numeric" }, lang)
               : t("participantMisc.programListing.na")}{" "}
@@ -212,7 +212,7 @@ function ProgramCard({ program, onSelect }) {
               : t("participantMisc.programListing.na")}
           </span>
         </div>
-        <div className="flex items-center gap-1 text-[9px] font-bold text-[var(--brand-orange)] group-hover:gap-2 transition-all">
+        <div className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] group-hover:gap-2 transition-all">
           <span>{t("participantMisc.programListing.details")}</span>
           <ChevronRight className="w-3 h-3" />
         </div>
@@ -323,13 +323,13 @@ export default function ProgramListing() {
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
             {t("participantMisc.programListing.failedToLoadPrograms")}
           </h3>
-          <p className="text-[12px] text-[var(--text-secondary)] mt-2">
+          <p className="text-sm text-[var(--text-secondary)] mt-2">
             {error}
           </p>
         </div>
         <button
           onClick={fetchPrograms}
-          className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+          className="flex items-center gap-2 px-6 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5" /> {t("participantMisc.programListing.retry")}
         </button>
@@ -351,7 +351,7 @@ export default function ProgramListing() {
           <h3 className="text-lg font-black text-[var(--text-primary)] uppercase tracking-tight">
             {t("participantMisc.programListing.noProgramsYet")}
           </h3>
-          <p className="text-[12px] text-[var(--text-secondary)] mt-2 max-w-md">
+          <p className="text-sm text-[var(--text-secondary)] mt-2 max-w-md">
             {t("participantMisc.programListing.noProgramsHint")}
           </p>
         </div>
@@ -375,10 +375,10 @@ export default function ProgramListing() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
           {t("participantMisc.programListing.myPrograms")}
         </h1>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("participantMisc.programListing.enrolledCount", {
             count: programs.length,
           })}
@@ -391,7 +391,7 @@ export default function ProgramListing() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.programListing.activePrograms", {
                 count: activePrograms.length,
               })}
@@ -414,7 +414,7 @@ export default function ProgramListing() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-slate-500" />
-            <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
               {t("participantMisc.programListing.otherPrograms", {
                 count: otherPrograms.length,
               })}

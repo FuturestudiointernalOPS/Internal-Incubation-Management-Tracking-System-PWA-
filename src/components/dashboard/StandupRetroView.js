@@ -92,7 +92,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
         </span>
         <div className="flex items-center gap-2 shrink-0">
           {task.blockers?.length > 0 && (
-            <span className="flex items-center gap-1 text-[9px] font-bold text-red-400">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-red-400">
               <AlertTriangle className="w-3 h-3" /> {task.blockers.length}
             </span>
           )}
@@ -103,11 +103,11 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
             <User className="w-3.5 h-3.5 text-[var(--text-tertiary)]" />
           )}
           {task.is_carryover && (
-            <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 uppercase">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 uppercase">
               {t("staffMisc.standupRetro.carryoverWeek", { week: task.created_week })}
             </span>
           )}
-          <span className={`text-[8px] font-bold uppercase tracking-wider ${cfg.text}`}>{statusLabels[task.status] || statusLabels.pending}</span>
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${cfg.text}`}>{statusLabels[task.status] || statusLabels.pending}</span>
           <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-tertiary)] ml-1 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
@@ -119,7 +119,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
           )}
           {task.blockers?.length > 0 && (
             <div>
-              <p className="text-[8px] font-black text-red-400 uppercase tracking-wider mb-1.5">{t("staffMisc.standupRetro.blockers", { count: task.blockers.length })}</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1.5">{t("staffMisc.standupRetro.blockers", { count: task.blockers.length })}</p>
               {task.blockers.map((b) => (
                 <div key={b.id} className="flex items-center gap-2 text-[10px]">
                   <AlertTriangle className="w-3 h-3 text-red-400" />
@@ -129,7 +129,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
               ))}
             </div>
           )}
-          <div className="flex flex-wrap items-center gap-3 text-[9px] text-[var(--text-tertiary)]">
+          <div className="flex flex-wrap items-center gap-3 text-[10px] font-medium text-[var(--text-tertiary)]">
             {task.start_date && <span>{t("staffMisc.standupRetro.startDate", { date: task.start_date })}</span>}
             {task.end_date && <span>{t("staffMisc.standupRetro.dueDate", { date: task.end_date })}</span>}
             {task.assigned_to && <span>{t("staffMisc.standupRetro.assignedTo", { name: task.assigned_to })}</span>}
@@ -140,7 +140,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
             {/* Assign */}
             <div className="relative">
               {!showAssign ? (
-                <button onClick={(e) => { e.stopPropagation(); setShowAssign(true); }} className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                <button onClick={(e) => { e.stopPropagation(); setShowAssign(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                   + {task.assigned_to ? t("staffMisc.standupRetro.reassign") : t("staffMisc.standupRetro.assign")}
                 </button>
               ) : (
@@ -151,7 +151,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
                     className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
                     onClick={(e) => e.stopPropagation()}
                     onKeyDown={(e) => { if (e.key === "Escape") { setShowAssign(false); setAssignSearch(""); } }} />
-                  <button onClick={(e) => { e.stopPropagation(); setShowAssign(false); setAssignSearch(""); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); setShowAssign(false); setAssignSearch(""); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
                   {assignSearch && filteredStaff.length > 0 && (
                     <div className="absolute top-full left-0 mt-1 w-48 rounded-lg border border-white/10 bg-[#0f172a] shadow-xl z-10" onClick={(e) => e.stopPropagation()}>
                       {filteredStaff.map((s) => (
@@ -168,7 +168,7 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
 
             {/* Due date */}
             {!showDueDate ? (
-              <button onClick={(e) => { e.stopPropagation(); setShowDueDate(true); }} className="text-[9px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); setShowDueDate(true); }} className="text-[10px] font-bold text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
                 + {task.end_date ? t("staffMisc.standupRetro.changeDue") : t("staffMisc.standupRetro.dueDateButton")}
               </button>
             ) : (
@@ -176,13 +176,13 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
                 <input type="date" value={dueDate} onChange={(e) => { setDueDate(e.target.value); onSetDueDate(task.id, e.target.value); setShowDueDate(false); }}
                   className="w-32 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none"
                   onClick={(e) => e.stopPropagation()} />
-                <button onClick={(e) => { e.stopPropagation(); setShowDueDate(false); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+                <button onClick={(e) => { e.stopPropagation(); setShowDueDate(false); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
               </div>
             )}
 
             {/* Add blocker */}
             {!showBlocker ? (
-              <button onClick={(e) => { e.stopPropagation(); setShowBlocker(true); }} className="text-[9px] font-bold text-red-400/70 hover:text-red-400 transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); setShowBlocker(true); }} className="text-[10px] font-bold text-red-400/70 hover:text-red-400 transition-colors">
                 + {t("staffMisc.standupRetro.blocker")}
               </button>
             ) : (
@@ -190,8 +190,8 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
                 <input type="text" value={blockerTitle} onChange={(e) => setBlockerTitle(e.target.value)}
                   placeholder={t("staffMisc.standupRetro.whatsBlocking")} autoFocus
                   className="w-40 px-2 py-1 rounded bg-white/[0.05] border border-white/10 text-[10px] text-[var(--text-primary)] outline-none" />
-                <button type="submit" className="text-[9px] font-bold text-red-400">{t("staffMisc.standupRetro.add")}</button>
-                <button type="button" onClick={() => { setShowBlocker(false); setBlockerTitle(""); }} className="text-[9px] text-[var(--text-tertiary)]">✕</button>
+                <button type="submit" className="text-[10px] font-bold text-red-400">{t("staffMisc.standupRetro.add")}</button>
+                <button type="button" onClick={() => { setShowBlocker(false); setBlockerTitle(""); }} className="text-[10px] text-[var(--text-tertiary)]">✕</button>
               </form>
             )}
           </div>
@@ -199,22 +199,22 @@ function TaskRow({ task, expanded, onToggle, onStatusChange, onArchive, onDelete
           <div className="flex items-center gap-2 pt-2">
             {!isDone && (
               <button onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, "completed"); }}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors">
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors">
                 <CheckCircle2 className="w-3 h-3" /> {t("staffMisc.standupRetro.complete")}
               </button>
             )}
             {task.status === "blocked" && (
               <button onClick={(e) => { e.stopPropagation(); onStatusChange(task.id, "in_progress"); }}
-                className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-white/5 text-[var(--text-secondary)] hover:bg-white/10 transition-colors">
+                className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/5 text-[var(--text-secondary)] hover:bg-white/10 transition-colors">
                 {t("staffMisc.standupRetro.unblock")}
               </button>
             )}
             <button onClick={(e) => { e.stopPropagation(); onArchive(task.id); }}
-              className="px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors">
               {t("staffMisc.standupRetro.archive")}
             </button>
             <button onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-              className="px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider text-red-400/60 hover:text-red-400 transition-colors">
+              className="px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-red-400/60 hover:text-red-400 transition-colors">
               {t("staffMisc.standupRetro.delete")}
             </button>
           </div>
@@ -394,7 +394,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       )}
 
       <div className="text-center space-y-1">
-        <p className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">{t("staffMisc.standupRetro.weeklyOps")}</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">{t("staffMisc.standupRetro.weeklyOps")}</p>
         <h2 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tighter">{t("staffMisc.standupRetro.weekLabel", { week: week.week, year: week.year })}</h2>
         {contextLabel && <p className="text-[10px] text-[var(--text-secondary)]">{contextLabel}</p>}
       </div>
@@ -402,8 +402,8 @@ export default function StandupRetroView({ user, context, contextLabel }) {
       <div className="flex items-center justify-center gap-4">
         <button onClick={() => changeWeek(-1)} className="p-2 rounded-lg hover:bg-white/5"><ChevronLeft className="w-4 h-4 text-[var(--text-secondary)]" /></button>
         <div className="flex bg-white/5 rounded-lg p-0.5">
-          <button onClick={() => { setTab("standup"); setExpandedTask(null); }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-wider ${tab === "standup" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}><Calendar className="w-3.5 h-3.5" />{t("staffMisc.standupRetro.standupTab")}</button>
-          <button onClick={() => { setTab("retro"); setExpandedTask(null); }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[10px] font-black uppercase tracking-wider ${tab === "retro" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}><Trophy className="w-3.5 h-3.5" />{t("staffMisc.standupRetro.retroTab")}</button>
+          <button onClick={() => { setTab("standup"); setExpandedTask(null); }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider ${tab === "standup" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}><Calendar className="w-3.5 h-3.5" />{t("staffMisc.standupRetro.standupTab")}</button>
+          <button onClick={() => { setTab("retro"); setExpandedTask(null); }} className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider ${tab === "retro" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)]"}`}><Trophy className="w-3.5 h-3.5" />{t("staffMisc.standupRetro.retroTab")}</button>
         </div>
         <button onClick={() => changeWeek(1)} className="p-2 rounded-lg hover:bg-white/5"><ChevronRight className="w-4 h-4 text-[var(--text-secondary)]" /></button>
       </div>
@@ -417,8 +417,8 @@ export default function StandupRetroView({ user, context, contextLabel }) {
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider">{t("staffMisc.standupRetro.tasksThisWeek", { count: tasks.length })}</span>
-          <span className="text-[9px] font-black text-[var(--text-secondary)]">{tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 0}%</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("staffMisc.standupRetro.tasksThisWeek", { count: tasks.length })}</span>
+          <span className="text-[10px] font-bold text-[var(--text-secondary)]">{tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 0}%</span>
         </div>
         <div className="h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
           <div className="h-full rounded-full bg-[var(--brand-orange)] transition-all duration-700 ease-out" style={{ width: `${tasks.length > 0 ? Math.round((done.length / tasks.length) * 100) : 0}%` }} />
@@ -433,7 +433,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
 
       <div className="rounded-xl border border-white/[0.06] overflow-hidden" style={{ backgroundColor: "rgb(255 255 255 / 0.01)" }}>
         {tasks.length === 0 ? (
-          <div className="text-center py-10"><p className="text-[11px] text-[var(--text-tertiary)] italic">{t("staffMisc.standupRetro.noTasksYet")}</p></div>
+          <div className="text-center py-10"><p className="text-[11px] text-[var(--text-tertiary)]">{t("staffMisc.standupRetro.noTasksYet")}</p></div>
         ) : (
           tasks.map((task) => (
             <TaskRow key={task.id} task={task} expanded={expandedTask === task.id}
@@ -444,7 +444,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
           ))
         )}
         {!showNewTask ? (
-          <button onClick={() => setShowNewTask(true)} className="w-full px-4 py-3 text-left text-[11px] text-[var(--text-tertiary)] italic hover:text-[var(--text-secondary)] hover:bg-white/[0.02] transition-colors">
+          <button onClick={() => setShowNewTask(true)} className="w-full px-4 py-3 text-left text-[11px] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] hover:bg-white/[0.02] transition-colors">
             + {t("staffMisc.standupRetro.writeNextTask")}
           </button>
         ) : (
@@ -461,17 +461,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
         {tab === "standup" ? (
           <>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.thisWeeksPriorities")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.thisWeeksPriorities")}</label>
               <textarea value={standupForm.priorities} onChange={(e) => setStandupForm((f) => ({ ...f, priorities: e.target.value }))} rows={3} placeholder={t("staffMisc.standupRetro.prioritiesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.expectedDeliverables")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.expectedDeliverables")}</label>
               <textarea value={standupForm.deliverables} onChange={(e) => setStandupForm((f) => ({ ...f, deliverables: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.deliverablesPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.blockersSupportNeeded")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.blockersSupportNeeded")}</label>
               <textarea value={standupForm.notes} onChange={(e) => setStandupForm((f) => ({ ...f, notes: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.supportPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
@@ -479,17 +479,17 @@ export default function StandupRetroView({ user, context, contextLabel }) {
         ) : (
           <>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.whatWentWell")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWentWell")}</label>
               <textarea value={retroForm.wentWell} onChange={(e) => setRetroForm((f) => ({ ...f, wentWell: e.target.value }))} rows={3} placeholder={t("staffMisc.standupRetro.wentWellPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.whatDidntGoWell")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatDidntGoWell")}</label>
               <textarea value={retroForm.wentWrong} onChange={(e) => setRetroForm((f) => ({ ...f, wentWrong: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.wentWrongPlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider block mb-1.5">{t("staffMisc.standupRetro.whatWillImprove")}</label>
+              <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] block mb-1.5">{t("staffMisc.standupRetro.whatWillImprove")}</label>
               <textarea value={retroForm.improve} onChange={(e) => setRetroForm((f) => ({ ...f, improve: e.target.value }))} rows={2} placeholder={t("staffMisc.standupRetro.improvePlaceholder")}
                 className="w-full px-4 py-3 rounded-xl bg-white/[0.02] border border-white/[0.08] text-[var(--text-primary)] text-[12px] font-medium outline-none resize-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)]/40 transition-colors" />
             </div>
@@ -497,7 +497,7 @@ export default function StandupRetroView({ user, context, contextLabel }) {
         )}
 
         <button type="submit" disabled={saving}
-          className="w-full py-3.5 rounded-xl text-[12px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+          className="w-full py-3.5 rounded-xl text-sm font-bold uppercase tracking-wide transition-all flex items-center justify-center gap-2 disabled:opacity-40"
           style={{ backgroundColor: "var(--brand-orange)", color: "#000" }}>
           {saving ? t("staffMisc.standupRetro.saving") : <><Send className="w-4 h-4" /> {tab === "standup" ? t("staffMisc.standupRetro.submitStandup") : t("staffMisc.standupRetro.submitRetro")}</>}
         </button>

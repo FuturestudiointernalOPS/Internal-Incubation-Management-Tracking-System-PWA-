@@ -51,7 +51,7 @@ export const ACCOUNT_STYLE = {
 export function Badge({ label, style }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-wider"
+      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider"
       style={{ background: style.bg, color: style.color }}
     >
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: style.color }} />
@@ -571,10 +571,10 @@ export function HistoryModal({ member, t, lang, fmtDate, onClose }) {
                     )}
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold" style={{ color: "var(--text-secondary)" }}>
+                    <p className="text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
                       {fmtDate(ev.created_at)}
                     </p>
-                    <p className="text-[9px]" style={{ color: "var(--text-tertiary)" }}>
+                    <p className="text-[10px] font-medium" style={{ color: "var(--text-secondary)" }}>
                       {by && by !== "system" && by !== "admin"
                         ? `${t("membership.detail.by")}: ${by}`
                         : t("membership.detail.bySystem")}

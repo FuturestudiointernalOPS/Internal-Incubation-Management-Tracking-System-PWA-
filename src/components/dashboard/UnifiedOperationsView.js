@@ -149,7 +149,7 @@ export default function UnifiedOperationsView({
         <div>
           <div className="flex items-center gap-3 mb-1">
             <Target className="w-5 h-5 text-[var(--brand-orange)]" />
-            <span className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-[0.3em]">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
               {context.context_type === "staff"
                 ? "Staff Operations"
                 : context.context_type === "venture"
@@ -157,10 +157,10 @@ export default function UnifiedOperationsView({
                   : "Program Operations"}
             </span>
           </div>
-          <h2 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
+          <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {contextLabel}
           </h2>
-          <p className="text-[10px] text-[var(--text-secondary)] mt-1">
+          <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1">
             Week {weekInfo.week}, {weekInfo.year} —{" "}
             {activeCount} active tasks · {blockedCount} blocked ·{" "}
             {progress}% complete
@@ -169,7 +169,7 @@ export default function UnifiedOperationsView({
 
         <button
           onClick={() => setShowCreateTask(!showCreateTask)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all"
           style={{
             backgroundColor: "var(--brand-orange)",
             color: "#000",
@@ -347,7 +347,7 @@ export default function UnifiedOperationsView({
                         </p>
                         {isCarryover && (
                           <span
-                            className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                            className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                             style={{
                               backgroundColor: "rgb(168 85 247 / 0.2)",
                               color: "rgb(192 132 252)",
@@ -359,7 +359,7 @@ export default function UnifiedOperationsView({
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span
-                          className="text-[8px] font-bold uppercase tracking-wider"
+                          className="text-[10px] font-bold uppercase tracking-wider"
                           style={{
                             color: isCompleted
                               ? "rgb(34 197 94)"
@@ -371,12 +371,12 @@ export default function UnifiedOperationsView({
                           {task.status.replace(/_/g, " ")}
                         </span>
                         {task.priority && (
-                          <span className="text-[7px] text-[var(--text-tertiary)]">
+                          <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
                             · {task.priority}
                           </span>
                         )}
                         {task.blockers?.length > 0 && (
-                          <span className="text-[7px] text-red-400">
+                          <span className="text-[10px] font-medium text-red-400">
                             · {task.blockers.length} blocker
                             {task.blockers.length > 1 ? "s" : ""}
                           </span>
@@ -402,7 +402,7 @@ export default function UnifiedOperationsView({
                       style={{ borderColor: "rgb(255 255 255 / 0.04)" }}
                     >
                       {task.description && (
-                        <p className="text-[9px] text-[var(--text-secondary)] pt-2">
+                        <p className="text-sm text-[var(--text-secondary)] pt-2">
                           {task.description}
                         </p>
                       )}
@@ -410,7 +410,7 @@ export default function UnifiedOperationsView({
                       {/* Blockers */}
                       {task.blockers?.length > 0 && (
                         <div>
-                          <p className="text-[8px] font-black text-red-400 uppercase tracking-wider mb-1">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-1">
                             Blockers
                           </p>
                           {task.blockers.map((b) => (
@@ -419,10 +419,10 @@ export default function UnifiedOperationsView({
                               className="flex items-center gap-2 py-1"
                             >
                               <AlertTriangle className="w-3 h-3 text-red-400" />
-                              <span className="text-[9px] text-[var(--text-primary)]">
+                              <span className="text-[11px] font-bold text-[var(--text-primary)]">
                                 {b.title}
                               </span>
-                              <span className="text-[7px] text-[var(--text-tertiary)]">
+                              <span className="text-[10px] font-medium text-[var(--text-tertiary)]">
                                 {b.severity}
                               </span>
                             </div>
@@ -439,7 +439,7 @@ export default function UnifiedOperationsView({
                                 e.stopPropagation();
                                 handleStatusChange(task.id, "completed");
                               }}
-                              className="flex items-center gap-1 px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider transition-all"
+                              className="flex items-center gap-1 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all"
                               style={{
                                 backgroundColor: "rgb(34 197 94 / 0.15)",
                                 color: "rgb(134 239 172)",
@@ -455,7 +455,7 @@ export default function UnifiedOperationsView({
                                   e.stopPropagation();
                                   handleStatusChange(task.id, "in_progress");
                                 }}
-                                className="px-3 py-1 rounded text-[8px] font-black uppercase tracking-wider"
+                                className="px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider"
                                 style={{
                                   backgroundColor:
                                     "rgb(255 255 255 / 0.05)",
@@ -471,19 +471,19 @@ export default function UnifiedOperationsView({
                       {/* Meta */}
                       <div className="flex flex-wrap gap-3 pt-1">
                         {task.start_date && (
-                          <span className="text-[7px] text-[var(--text-tertiary)] flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {task.start_date}
                           </span>
                         )}
                         {task.end_date && (
-                          <span className="text-[7px] text-[var(--text-tertiary)] flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
                             <ArrowUpRight className="w-3 h-3" />
                             Due: {task.end_date}
                           </span>
                         )}
                         {task.assigned_to && task.assigned_to !== user?.cid && (
-                          <span className="text-[7px] text-[var(--text-tertiary)] flex items-center gap-1">
+                          <span className="text-[10px] font-medium text-[var(--text-tertiary)] flex items-center gap-1">
                             <User className="w-3 h-3" />
                             Assigned
                           </span>
@@ -513,11 +513,11 @@ function StatCard({ icon: Icon, label, value, color }) {
     >
       <div className="flex items-center gap-2 mb-1">
         <Icon className="w-3.5 h-3.5" style={{ color }} />
-        <span className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
           {label}
         </span>
       </div>
-      <span className="text-xl font-black" style={{ color: "var(--text-primary)" }}>
+      <span className="text-2xl font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
         {value}
       </span>
     </div>

@@ -916,7 +916,7 @@ export default function TaskManager({
 
           {/* Task number in standup mode */}
           {mode === "standup" && !isSub && (
-            <span className="w-5 h-5 flex items-center justify-center rounded-md bg-tertiary border border-[var(--border-primary)] text-[9px] font-black text-slate-500 shrink-0">
+            <span className="w-5 h-5 flex items-center justify-center rounded-md bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold text-slate-500 shrink-0">
               {++taskIndex}
             </span>
           )}
@@ -944,7 +944,7 @@ export default function TaskManager({
                 const allDone = done === total;
                 return (
                   <span
-                    className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${allDone ? "text-emerald-400 bg-emerald-500/10" : "text-indigo-400 bg-indigo-500/10"}`}
+                    className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${allDone ? "text-emerald-400 bg-emerald-500/10" : "text-indigo-400 bg-indigo-500/10"}`}
                     title={`${done} of ${total} sub-tasks completed`}
                   >
                     {done}/{total} done
@@ -957,7 +957,7 @@ export default function TaskManager({
               className={`flex-1 text-[11px] font-medium min-w-0 truncate ${task.status === "completed" ? "line-through text-slate-500" : "text-[var(--text-primary)]"} ${isSub ? "text-[10px]" : ""}`}
             >
               {isSub && (
-                <span className="text-[7px] text-indigo-400 mr-1 uppercase tracking-wider font-bold">
+                <span className="text-[10px] text-indigo-400 mr-1 uppercase tracking-wider font-bold">
                   Sub:
                 </span>
               )}
@@ -969,7 +969,7 @@ export default function TaskManager({
           {task.priority && task.priority !== "medium" && (
             <span
               className={cn(
-                "text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
+                "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0",
                 PRIORITY_CONFIG[task.priority]?.bg,
                 PRIORITY_CONFIG[task.priority]?.color,
               )}
@@ -980,7 +980,7 @@ export default function TaskManager({
 
           {/* Creator + Assignee + Project / Category tag */}
           {!isSub && (
-            <div className="hidden sm:flex items-center gap-2 shrink-0 text-[8px]">
+            <div className="hidden sm:flex items-center gap-2 shrink-0 text-[10px] font-medium">
               {task.user_name && (
                 <span
                   className="text-slate-500 flex items-center gap-1"
@@ -1011,7 +1011,7 @@ export default function TaskManager({
                   className="text-slate-500 flex items-center gap-1"
                   title="Due date"
                 >
-                  <span className="text-[8px]">
+                  <span className="text-[10px]">
                     {new Date(task.end_date).toLocaleDateString("en-GB", {
                       day: "2-digit",
                       month: "2-digit",
@@ -1028,7 +1028,7 @@ export default function TaskManager({
               value={task.status || "pending"}
               onChange={(e) => updateStatus(task.id, e.target.value)}
               disabled={readOnly}
-              className={`text-[8px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${cfg.bg} ${cfg.color}`}
+              className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full border-0 outline-none appearance-none shrink-0 ${readOnly ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${cfg.bg} ${cfg.color}`}
             >
               {STATUS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value} className="bg-primary">
@@ -1054,7 +1054,7 @@ export default function TaskManager({
             <Shield className="w-3 h-3" />
             {(task.blockers || []).filter((b) => b.status === "active").length >
               0 && (
-              <span className="text-[7px] font-black ml-0.5">
+              <span className="text-[10px] font-bold ml-0.5">
                 {
                   (task.blockers || []).filter((b) => b.status === "active")
                     .length
@@ -1298,7 +1298,7 @@ export default function TaskManager({
               onChange={(e) =>
                 setResourceForm((p) => ({ ...p, name: e.target.value }))
               }
-              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
             />
             <input
               type="url"
@@ -1307,26 +1307,26 @@ export default function TaskManager({
               onChange={(e) =>
                 setResourceForm((p) => ({ ...p, url: e.target.value }))
               }
-              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
               autoFocus
             />
             <input
               type="file"
               accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
               onChange={(e) => setResourceFile(e.target.files?.[0] || null)}
-              className="w-full text-[9px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[8px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
+              className="w-full text-[10px] text-slate-400 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black"
             />
             <div className="flex gap-1 justify-end">
               <button
                 onClick={() => setAddResourceTaskId(null)}
-                className="px-2 py-1 text-[8px] font-bold text-slate-500 uppercase"
+                className="px-2 py-1 text-[10px] font-bold text-slate-500 uppercase"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleSaveResource(task.id)}
                 disabled={(!resourceFile && !resourceForm.url) || resourceAdding}
-                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase"
+                className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[10px] font-bold uppercase"
               >
                 {resourceAdding ? "Saving..." : "Save"}
               </button>
@@ -1341,14 +1341,14 @@ export default function TaskManager({
           {!readOnly && (
             <button
               onClick={() => setAddResourceTaskId(task.id)}
-              className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
+              className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 hover:text-emerald-400 transition-colors"
             >
               <Plus className="w-2.5 h-2.5" /> Resource
             </button>
           )}
           <button
             onClick={() => toggleComments(task.id)}
-            className="flex items-center gap-1 text-[8px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
+            className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-400 transition-colors"
           >
             <MessageSquare className="w-2.5 h-2.5" />
             Comments{task.commentCount > 0 ? ` (${task.commentCount})` : ""}
@@ -1358,7 +1358,7 @@ export default function TaskManager({
               onClick={() =>
                 openSubTask(task.id, task.project_id, task.category, task.title)
               }
-              className="flex items-center gap-1 text-[8px] font-black uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
+              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-indigo-400 hover:text-indigo-300 transition-all"
             >
               <Plus className="w-2.5 h-2.5" /> Sub-task
             </button>
@@ -1371,15 +1371,15 @@ export default function TaskManager({
             className={`mt-1 p-2 rounded-lg bg-tertiary border border-[var(--border-primary)] flex flex-col gap-2 ${isSub ? "ml-10" : "ml-8"} max-w-md`}
           >
             {loadingComments ? (
-              <p className="text-[9px] text-slate-500 italic">Loading...</p>
+              <p className="text-[10px] font-medium text-slate-500">Loading...</p>
             ) : (commentsByTask[task.id] || []).length === 0 ? (
-              <p className="text-[9px] text-slate-500 italic">
+              <p className="text-[10px] font-medium text-slate-500">
                 No comments yet.
               </p>
             ) : (
               <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto">
                 {(commentsByTask[task.id] || []).map((c) => (
-                  <div key={c.id} className="text-[9px]">
+                  <div key={c.id} className="text-[10px]">
                     <span className="font-black text-[var(--text-primary)]">
                       {c.sender_name || c.sender_id}:{" "}
                     </span>
@@ -1400,12 +1400,12 @@ export default function TaskManager({
                     if (e.key === "Enter") postComment(task.id);
                   }}
                   placeholder="Write a comment..."
-                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                  className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
                 />
                 <button
                   onClick={() => postComment(task.id)}
                   disabled={!newComment.trim() || postingComment}
-                  className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                  className="px-2 py-1 bg-[var(--brand-orange)] text-black rounded text-[10px] font-bold uppercase disabled:opacity-40"
                 >
                   Send
                 </button>
@@ -1466,11 +1466,11 @@ export default function TaskManager({
       {showTaskForm ? (
         <div className="p-3 rounded-xl border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/[0.02] space-y-3">
           <div className="flex items-center justify-between">
-            <h4 className="text-[9px] font-black text-[var(--brand-orange)] uppercase tracking-widest">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
               {pendingParentTaskId ? "Add Sub-task" : "New Task"}
             </h4>
             {pendingParentTaskId && (
-              <span className="text-[7px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded uppercase font-black">
+              <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded uppercase font-bold">
                 Sub-task
               </span>
             )}
@@ -1500,7 +1500,7 @@ export default function TaskManager({
             <div className="grid grid-cols-2 gap-2">
               {/* Project picker */}
               <div className="relative" ref={projectDropdownRef}>
-                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Project
                 </label>
                 {form.project_id ? (
@@ -1529,7 +1529,7 @@ export default function TaskManager({
                     {showProjectDropdown && (
                       <div className="absolute z-10 mt-1 w-full max-h-32 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
                         {filteredProjects.length === 0 ? (
-                          <p className="px-3 py-2 text-[9px] text-slate-500 italic">
+                          <p className="px-3 py-2 text-[10px] font-medium text-slate-500">
                             No projects
                           </p>
                         ) : (
@@ -1559,7 +1559,7 @@ export default function TaskManager({
 
               {/* Category (only when no project) */}
               <div>
-                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Category
                 </label>
                 <select
@@ -1594,10 +1594,10 @@ export default function TaskManager({
           {/* Inherited badge for sub-tasks */}
           {pendingParentTaskId && form.project_id && (
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20">
-              <span className="text-[8px] font-bold text-indigo-400">
+              <span className="text-[10px] font-bold text-indigo-400">
                 Inherited from parent
               </span>
-              <span className="text-[8px] text-slate-500">
+              <span className="text-[10px] text-slate-500">
                 {selectedProject?.name || form.category || ""}
               </span>
             </div>
@@ -1607,7 +1607,7 @@ export default function TaskManager({
           <div className="grid grid-cols-2 gap-2">
             {mode === "project" && projectMembers.length > 0 && (
               <div>
-                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Assign to
                 </label>
                 <select
@@ -1630,7 +1630,7 @@ export default function TaskManager({
               </div>
             )}
             <div>
-              <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                 Priority
               </label>
               <select
@@ -1664,7 +1664,7 @@ export default function TaskManager({
                 const today = new Date().toISOString().split("T")[0];
                 return today;
               })()}
-              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none"
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
             />
             <input
               type="date"
@@ -1673,13 +1673,13 @@ export default function TaskManager({
                 setForm((p) => ({ ...p, due_date: e.target.value }))
               }
               min={form.start_date || (() => { const t = new Date().toISOString().split("T")[0]; return t; })()}
-              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[9px] font-bold outline-none"
+              className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1.5 text-[10px] font-bold outline-none"
             />
           </div>
 
           {/* Resource Link */}
           <div>
-            <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
               Resource Link (optional)
             </label>
             <input
@@ -1693,7 +1693,7 @@ export default function TaskManager({
 
           {/* Attachment (file upload) */}
           <div>
-            <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
               Attachment (optional)
             </label>
             <input
@@ -1702,17 +1702,17 @@ export default function TaskManager({
                 setTaskFile(e.target.files?.[0] || null);
                 e.target.value = "";
               }}
-              className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+              className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
             />
             {taskFile && (
               <div className="mt-1 flex items-center gap-2">
-                <p className="text-[8px] text-slate-500 truncate">
+                <p className="text-[10px] font-medium text-slate-500 truncate">
                   {taskFile.name} ({(taskFile.size / 1024).toFixed(0)} KB)
                 </p>
                 <button
                   type="button"
                   onClick={() => setTaskFile(null)}
-                  className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                  className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
                 >
                   {t("common.remove")}
                 </button>
@@ -1729,7 +1729,7 @@ export default function TaskManager({
                 !form.name.trim() ||
                 (!form.project_id && !form.category)
               }
-              className="flex-1 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
+              className="flex-1 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider disabled:opacity-40 hover:brightness-110 transition-all"
             >
               {creating
                 ? "Saving..."
@@ -1741,7 +1741,7 @@ export default function TaskManager({
             </button>
             <button
               onClick={handleCloseForm}
-              className="px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[8px] font-black uppercase tracking-wider text-slate-500 hover:text-[var(--text-primary)] transition-all"
+              className="px-3 py-2 bg-tertiary border border-[var(--border-primary)] rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-[var(--text-primary)] transition-all"
             >
               {addedCount > 0 ? "Done" : "Cancel"}
             </button>
@@ -1751,7 +1751,7 @@ export default function TaskManager({
         !readOnly && (
           <button
             onClick={() => setShowTaskForm(true)}
-            className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all w-fit"
+            className="flex items-center gap-2 px-3 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all w-fit"
           >
             <Plus className="w-3 h-3" /> New Task
           </button>
@@ -1781,7 +1781,7 @@ export default function TaskManager({
             </div>
 
             <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-              <p className="text-[9px] font-bold text-indigo-400">
+              <p className="text-[10px] font-bold text-indigo-400">
                 Parent task:{" "}
                 <span className="text-white">{subTaskModal.title}</span>
               </p>
@@ -1796,7 +1796,7 @@ export default function TaskManager({
               if (subs.length === 0) return null;
               return (
                 <div>
-                  <p className="text-[8px] font-bold text-slate-500 uppercase tracking-widest mb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
                     Existing sub-tasks ({subs.length})
                   </p>
                   <div className="space-y-1 max-h-32 overflow-y-auto">
@@ -1810,7 +1810,7 @@ export default function TaskManager({
                           {st.title}
                         </span>
                         <span
-                          className={`text-[7px] font-semibold px-1.5 py-0.5 rounded-full ${
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                             st.status === "completed"
                               ? "bg-emerald-500/10 text-emerald-400"
                               : "bg-slate-500/10 text-slate-400"
@@ -1866,7 +1866,7 @@ export default function TaskManager({
               {subTaskSuccess && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span className="text-[9px] font-bold text-emerald-400">
+                  <span className="text-[10px] font-bold text-emerald-400">
                     {subTaskSuccess}
                   </span>
                 </div>
@@ -1947,7 +1947,7 @@ export default function TaskManager({
                 className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-2.5 text-[10px] font-bold outline-none focus:border-[var(--brand-orange)] transition-all"
               />
               <div>
-                <label className="text-[7px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Attachment (optional)
                 </label>
                 <input
@@ -1956,17 +1956,17 @@ export default function TaskManager({
                     setSubTaskFile(e.target.files?.[0] || null);
                     e.target.value = "";
                   }}
-                  className="w-full text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                 />
                 {subTaskFile && (
                   <div className="mt-1 flex items-center gap-2">
-                    <p className="text-[8px] text-slate-500 truncate">
+                    <p className="text-[10px] font-medium text-slate-500 truncate">
                       {subTaskFile.name} ({(subTaskFile.size / 1024).toFixed(0)} KB)
                     </p>
                     <button
                       type="button"
                       onClick={() => setSubTaskFile(null)}
-                      className="text-[8px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
+                      className="text-[10px] font-bold uppercase text-rose-400 hover:text-rose-300 shrink-0"
                     >
                       {t("common.remove")}
                     </button>
@@ -1977,18 +1977,18 @@ export default function TaskManager({
                 <button
                   onClick={addSubTaskFromModal}
                   disabled={!subTaskInput.trim()}
-                  className="flex-1 py-3 bg-indigo-500 text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-indigo-500 text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" /> Add
                 </button>
                 <button
                   onClick={() => setSubTaskModal(null)}
-                  className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
+                  className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm font-bold uppercase tracking-wide text-slate-500 hover:text-[var(--text-primary)] transition-all"
                 >
                   Done
                 </button>
               </div>
-              <p className="text-[8px] text-slate-500 text-center">
+              <p className="text-[10px] font-medium text-slate-500 text-center">
                 Press Enter to add another, or click Done when finished.
               </p>
             </div>
@@ -2039,7 +2039,7 @@ export default function TaskManager({
               />
 
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Resource Link (optional)
                 </label>
                 <input
@@ -2054,7 +2054,7 @@ export default function TaskManager({
               </div>
 
               <div>
-                <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                   Priority
                 </label>
                 <select
@@ -2078,7 +2078,7 @@ export default function TaskManager({
               {/* Assignee dropdown (project mode only) */}
               {mode === "project" && projectMembers.length > 0 && (
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                     Assign to
                   </label>
                   <select
@@ -2106,7 +2106,7 @@ export default function TaskManager({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                     Start Date
                   </label>
                   <input
@@ -2149,7 +2149,7 @@ export default function TaskManager({
                   />
                 </div>
                 <div>
-                  <label className="text-[8px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
                     End Date
                   </label>
                   <input
@@ -2206,13 +2206,13 @@ export default function TaskManager({
                   }
                 }}
                 disabled={!editForm.name.trim()}
-                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 disabled:opacity-40"
+                className="flex-1 py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide hover:brightness-110 disabled:opacity-40"
               >
                 Save
               </button>
               <button
                 onClick={() => setEditTaskModal(null)}
-                className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-500 hover:text-[var(--text-primary)] transition-all"
+                className="flex-1 py-3 bg-tertiary border border-[var(--border-primary)] rounded-xl text-sm font-bold uppercase tracking-wide text-slate-500 hover:text-[var(--text-primary)] transition-all"
               >
                 Cancel
               </button>
@@ -2269,7 +2269,7 @@ export default function TaskManager({
                 <>
                   {activeBlockers.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
                         Active ({activeBlockers.length})
                       </p>
                       {activeBlockers.map((b) => (
@@ -2282,21 +2282,21 @@ export default function TaskManager({
                               <span className="text-[10px] text-rose-400 font-bold">
                                 {b.title}
                               </span>
-                              <span className="text-[7px] font-black uppercase text-rose-500/60">
+                              <span className="text-[10px] font-bold uppercase text-rose-500/60">
                                 {b.severity || "medium"}
                               </span>
                             </div>
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => toggleBlockerDiscuss(b.id)}
-                                className="px-2 py-0.5 text-[7px] font-black uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
+                                className="px-2 py-0.5 text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500 hover:text-white transition-all"
                               >
                                 Discuss
                               </button>
                               {!readOnly && (
                                 <button
                                   onClick={() => handleResolveBlocker(b.id)}
-                                  className="px-2 py-0.5 text-[7px] font-black uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
+                                  className="px-2 py-0.5 text-[10px] font-bold uppercase bg-rose-500/20 text-rose-400 rounded hover:bg-rose-500 hover:text-white transition-all"
                                 >
                                   Resolve
                                 </button>
@@ -2306,7 +2306,7 @@ export default function TaskManager({
                           {(b.description || b.reference_url || b.notes) && (
                             <div className="mt-1.5 pt-1.5 border-t border-rose-500/10 space-y-1">
                               {b.description && (
-                                <p className="text-[9px] text-slate-400">
+                                <p className="text-[10px] font-medium text-slate-400">
                                   {b.description}
                                 </p>
                               )}
@@ -2315,13 +2315,13 @@ export default function TaskManager({
                                   href={b.reference_url}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="text-[8px] text-blue-400 underline break-all"
+                                  className="text-[10px] text-blue-400 underline break-all"
                                 >
                                   {b.reference_url}
                                 </a>
                               )}
                               {b.notes && (
-                                <p className="text-[8px] text-slate-500 italic">
+                                <p className="text-[10px] font-medium text-slate-500">
                                   {b.notes}
                                 </p>
                               )}
@@ -2331,7 +2331,7 @@ export default function TaskManager({
                           {openBlockerDiscuss === b.id && (
                             <div className="mt-2 pt-2 border-t border-rose-500/10 space-y-1.5">
                               {(blockerMessages[b.id] || []).map((msg) => (
-                                <div key={msg.id} className="text-[9px]">
+                                <div key={msg.id} className="text-[10px]">
                                   <span className="font-black text-[var(--text-primary)]">
                                     {msg.sender_name || msg.sender_id}:{" "}
                                   </span>
@@ -2353,14 +2353,14 @@ export default function TaskManager({
                                         postBlockerMessage(b.id);
                                     }}
                                     placeholder="Reply..."
-                                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[9px] outline-none"
+                                    className="flex-1 bg-primary border border-[var(--border-primary)] rounded px-2 py-1 text-[10px] outline-none"
                                   />
                                   <button
                                     onClick={() => postBlockerMessage(b.id)}
                                     disabled={
                                       !newBlockerMsg.trim() || postingBlockerMsg
                                     }
-                                    className="px-2 py-1 bg-blue-500 text-white rounded text-[8px] font-bold uppercase disabled:opacity-40"
+                                    className="px-2 py-1 bg-blue-500 text-white rounded text-[10px] font-bold uppercase disabled:opacity-40"
                                   >
                                     Send
                                   </button>
@@ -2374,7 +2374,7 @@ export default function TaskManager({
                   )}
                   {resolvedBlockers.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
                         Resolved ({resolvedBlockers.length})
                       </p>
                       {resolvedBlockers.map((b) => (
@@ -2452,7 +2452,7 @@ export default function TaskManager({
                 <button
                   onClick={handleAddBlocker}
                   disabled={!blockerTitle.trim() || blockerAdding}
-                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
+                  className="w-full px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider disabled:opacity-30 hover:bg-rose-600 transition-all"
                 >
                   {blockerAdding
                     ? t("staff.opReport.addingBlocker")
@@ -2492,13 +2492,13 @@ export default function TaskManager({
                   setConfirmAction(null);
                   cb();
                 }}
-                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[9px] font-black uppercase tracking-wider hover:bg-rose-600 transition-all"
+                className="flex-1 px-4 py-2.5 bg-rose-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-wider hover:bg-rose-600 transition-all"
               >
                 Confirm
               </button>
               <button
                 onClick={() => setConfirmAction(null)}
-                className="flex-1 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[9px] font-black uppercase tracking-wider text-slate-400 hover:text-[var(--text-primary)] transition-all"
+                className="flex-1 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] rounded-xl text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-[var(--text-primary)] transition-all"
               >
                 Cancel
               </button>

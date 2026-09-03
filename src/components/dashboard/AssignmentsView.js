@@ -40,7 +40,7 @@ function StatusBadge({ status }) {
     "bg-white/5 text-[var(--text-tertiary)] border-white/10";
   return (
     <span
-      className={`px-2 py-0.5 rounded text-[7px] font-black uppercase tracking-wider border ${c}`}
+      className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${c}`}
     >
       {statusLabels[status?.toLowerCase()] || status || statusLabels.draft}
     </span>
@@ -219,10 +219,10 @@ export default function AssignmentsView() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <AlertCircle className="w-10 h-10 text-rose-400" />
-        <p className="text-[12px] text-[var(--text-secondary)]">{error}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{error}</p>
         <button
           onClick={fetchAssignments}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("participantMisc.assignments.retry")}
         </button>
@@ -238,10 +238,10 @@ export default function AssignmentsView() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
           {t("participantMisc.assignments.title")}
         </h1>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("participantMisc.assignments.summary", {
             total: assignments.length,
             pending: assignments.filter((a) => !a.submission).length,
@@ -282,7 +282,7 @@ export default function AssignmentsView() {
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16">
           <FileText className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
-          <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+          <p className="text-sm text-[var(--text-secondary)]">
             {t("participantMisc.assignments.noMatches")}
           </p>
         </div>
@@ -320,19 +320,19 @@ export default function AssignmentsView() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <p className="text-[12px] font-bold text-[var(--text-primary)] truncate">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                       {a.title}
                     </p>
                     {a.submission && (
                       <StatusBadge status={a.submission.status} />
                     )}
                     {isOverdue && (
-                      <span className="text-[8px] font-black text-rose-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-rose-400">
                         {t("participantMisc.assignments.overdue")}
                       </span>
                     )}
                   </div>
-                  <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
                     {a.programName}{" "}
                     {a.dueDate
                       ? t("participantMisc.assignments.due", {
@@ -346,7 +346,7 @@ export default function AssignmentsView() {
                       : ""}
                   </p>
                   {a.description && (
-                    <p className="text-[9px] text-[var(--text-secondary)] mt-1 line-clamp-2">
+                    <p className="text-sm text-[var(--text-secondary)] mt-1 line-clamp-2">
                       {a.description}
                     </p>
                   )}
@@ -354,10 +354,10 @@ export default function AssignmentsView() {
                     a.submission?.status === "rejected") &&
                     (a.submission.feedback || a.submission.rejectionReason) && (
                       <div className="mt-2 p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <p className="text-[8px] font-black text-blue-400 uppercase tracking-wider">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-400">
                           {t("participantMisc.assignments.feedbackLabel")}
                         </p>
-                        <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+                        <p className="text-sm text-[var(--text-secondary)] mt-0.5">
                           {a.submission.rejectionReason || a.submission.feedback}
                         </p>
                       </div>
@@ -367,7 +367,7 @@ export default function AssignmentsView() {
                       href={a.resourceUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                      className="inline-flex items-center gap-1 mt-2 px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                     >
                       <ExternalLink className="w-3 h-3" />
                       {a.resourceLabel || t("participantMisc.assignments.openResource")}
@@ -394,7 +394,7 @@ export default function AssignmentsView() {
                         setSubmitFile(null);
                         setFeedback(null);
                       }}
-                      className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[8px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                      className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                     >
                       {a.submission?.status === "revision_requested"
                         ? t("participantMisc.assignments.resubmit")
@@ -425,7 +425,7 @@ export default function AssignmentsView() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-black text-[var(--text-primary)] uppercase tracking-tight">
+                <h3 className="text-lg font-black text-[var(--text-primary)] tracking-tight">
                   {t("participantMisc.assignments.submitTitle")}
                 </h3>
                 <button onClick={() => setShowSubmitModal(null)}>
@@ -436,14 +436,14 @@ export default function AssignmentsView() {
                 {showSubmitModal.title}
               </p>
               {showSubmitModal.allowedFormat && (
-                <p className="text-[9px] text-[var(--text-secondary)]">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("participantMisc.assignments.format", {
                     format: showSubmitModal.allowedFormat,
                   })}
                 </p>
               )}
               {showSubmitModal.description && (
-                <p className="text-[9px] text-[var(--text-secondary)] whitespace-pre-wrap">
+                <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap">
                   {showSubmitModal.description}
                 </p>
               )}
@@ -452,7 +452,7 @@ export default function AssignmentsView() {
                   href={showSubmitModal.resourceUrl}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all"
+                  className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-[var(--bg-primary)] border border-[var(--brand-orange)]/30 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
                 >
                   <ExternalLink className="w-3 h-3" />
                   {showSubmitModal.resourceLabel || t("participantMisc.assignments.openResource")}
@@ -465,16 +465,16 @@ export default function AssignmentsView() {
                 onChange={(e) => setSubmitUrl(e.target.value)}
                 className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[11px] font-bold outline-none focus:border-[var(--brand-orange)]"
               />
-              <div className="text-[9px] font-bold text-[var(--text-secondary)] text-center">
+              <div className="text-[10px] font-medium text-[var(--text-secondary)] text-center">
                 {t("participantMisc.assignments.orDivider")}
               </div>
               <input
                 type="file"
                 onChange={(e) => { setSubmitFile(e.target.files[0] || null); setSubmitUrl(""); }}
-                className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:bg-[var(--brand-orange)] file:text-black hover:file:bg-white transition-all"
+                className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)] file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-[var(--brand-orange)] file:text-black hover:file:bg-white transition-all"
               />
               {submitFile && (
-                <p className="text-[9px] text-emerald-400 font-bold">
+                <p className="text-[10px] font-bold text-emerald-400">
                   {t("participantMisc.assignments.selectedFile", {
                     name: submitFile.name,
                     size: (submitFile.size / 1024).toFixed(1),
@@ -483,7 +483,7 @@ export default function AssignmentsView() {
               )}
               {feedback && (
                 <p
-                  className={`text-[9px] font-bold ${
+                  className={`text-[10px] font-bold ${
                     feedback.type === "error"
                       ? "text-rose-400"
                       : "text-emerald-400"
@@ -495,7 +495,7 @@ export default function AssignmentsView() {
               <button
                 onClick={handleSubmit}
                 disabled={(!submitUrl && !submitFile) || submitting}
-                className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 flex items-center justify-center gap-2"
+                className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 flex items-center justify-center gap-2"
               >
                 {submitting ? (
                   <RefreshCw className="w-4 h-4 animate-spin" />

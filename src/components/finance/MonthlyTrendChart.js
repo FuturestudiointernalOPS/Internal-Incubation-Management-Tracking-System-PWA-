@@ -53,7 +53,7 @@ export default function MonthlyTrendChart({ monthlyData = [], totalBudget = 0 })
           {t("finance.chart.title")}
         </h3>
         <p
-          className="text-[10px] italic text-center py-12"
+          className="text-sm text-center py-12"
           style={{ color: "var(--text-secondary)" }}
         >
           {t("common.noData")}

@@ -138,7 +138,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
           >
             {config && <config.icon className={`w-5 h-5 ${config.color}`} />}
           </div>
-          <span className="text-[12px] font-black text-[var(--text-primary)] uppercase tracking-wider">
+          <span className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
             {t("participantMisc.rituals.newForm", {
               type: t("participantMisc.rituals." + type),
             })}
@@ -171,7 +171,7 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
       <div className="space-y-3">
         {(fieldConfigs[type] || []).map((field) => (
           <div key={field.key}>
-            <label className="text-[8px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-1 block">
+            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1 block">
               {field.label}
             </label>
             {field.type === "select" ? (
@@ -206,13 +206,13 @@ function RitualForm({ type, programs, onSubmit, onClose }) {
       <div className="flex gap-2">
         <button
           onClick={onClose}
-          className="flex-1 py-2.5 rounded-lg text-[9px] font-black uppercase tracking-wider text-[var(--text-secondary)] hover:bg-white/5 transition-all"
+          className="flex-1 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:bg-white/5 transition-all"
         >
           {t("participantMisc.rituals.cancel")}
         </button>
         <button
           onClick={handleSubmit}
-          className="flex-1 py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all flex items-center justify-center gap-2"
+          className="flex-1 py-2.5 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all flex items-center justify-center gap-2"
         >
           <Send className="w-3 h-3" /> {t("participantMisc.rituals.submit")}
         </button>
@@ -316,10 +316,10 @@ export default function RitualsView() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
           {t("participantMisc.rituals.title")}
         </h1>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("participantMisc.rituals.subtitle")}
         </p>
       </div>
@@ -341,10 +341,10 @@ export default function RitualsView() {
             >
               <rt.icon className={`w-5 h-5 ${rt.color}`} />
             </div>
-            <p className="text-[11px] font-black text-[var(--text-primary)]">
+            <p className="text-[11px] font-bold text-[var(--text-primary)]">
               {t("participantMisc.rituals." + rt.id)}
             </p>
-            <p className="text-[8px] text-[var(--text-secondary)] mt-0.5">
+            <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
               {t("participantMisc.rituals.submittedCount", {
                 count: history[rt.id]?.length || 0,
               })}
@@ -365,7 +365,7 @@ export default function RitualsView() {
 
       {/* History */}
       <div>
-        <h2 className="text-[11px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-3">
+        <h2 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-3">
           {t("participantMisc.rituals.recentActivity")}
         </h2>
         {loading ? (
@@ -380,10 +380,10 @@ export default function RitualsView() {
         ) : allHistory.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12">
             <Zap className="w-10 h-10 text-[var(--text-tertiary)] mb-3" />
-            <p className="text-[11px] font-bold text-[var(--text-secondary)]">
+            <p className="text-sm text-[var(--text-secondary)]">
               {t("participantMisc.rituals.noSubmissions")}
             </p>
-            <p className="text-[9px] text-[var(--text-tertiary)] mt-1">
+            <p className="text-sm text-[var(--text-secondary)] mt-1">
               {t("participantMisc.rituals.noSubmissionsHint")}
             </p>
           </div>
@@ -404,11 +404,11 @@ export default function RitualsView() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-[var(--text-primary)] capitalize">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)] capitalize">
                       {t("participantMisc.rituals." + item.ritualType)} ·{" "}
                       {t("participantMisc.rituals.week")} {item.week_number || "?"}
                     </p>
-                    <p className="text-[8px] text-[var(--text-secondary)] truncate">
+                    <p className="text-sm text-[var(--text-secondary)] truncate">
                       {item.what_done ||
                         item.learnings ||
                         item.went_well ||
@@ -417,7 +417,7 @@ export default function RitualsView() {
                         t("participantMisc.rituals.submitted")}
                     </p>
                   </div>
-                  <span className="text-[7px] text-[var(--text-tertiary)] shrink-0">
+                  <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                     {item.created_at
                       ? new Date(item.created_at).toLocaleDateString()
                       : ""}

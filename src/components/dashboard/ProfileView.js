@@ -33,7 +33,7 @@ import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-op
 function InfoRow({ icon: Icon, label, value, editable, onChange }) {
   return (
     <div className="space-y-1">
-      <p className="flex items-center gap-2 text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-wider mb-1">
+      <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
         <Icon className="w-3 h-3" /> {label}
       </p>
       {editable ? (
@@ -59,7 +59,7 @@ function SectionCard({ title, icon: Icon, children, className = "" }) {
     >
       <div className="flex items-center gap-2 mb-4">
         <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
-        <h3 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-wider">
+        <h3 className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-primary)]">
           {title}
         </h3>
       </div>
@@ -73,7 +73,7 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
   if (!rows || rows.length === 0) return null;
   return (
     <div>
-      <p className="text-[9px] font-black text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">
         {title}
       </p>
       <div className="space-y-2">
@@ -83,15 +83,15 @@ function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
             className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
           >
             <div className="min-w-0">
-              <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+              <p className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                 {h.program_name}
               </p>
-              <p className="text-[8px] text-[var(--text-tertiary)]">
+              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                 {roleLabel(h.role)}
               </p>
             </div>
             <span
-              className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+              className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
                 h.status === "active"
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "bg-white/5 text-[var(--text-tertiary)]"
@@ -414,12 +414,12 @@ export default function ProfileView() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <AlertCircle className="w-12 h-12 text-rose-400" />
-        <p className="text-[12px] font-bold text-[var(--text-secondary)]">
+        <p className="text-sm text-[var(--text-secondary)]">
           {t("adminMisc.profile.loadError")}
         </p>
         <button
           onClick={() => window.location.reload()}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide"
         >
           <RefreshCw className="w-3 h-3" /> {t("adminMisc.profile.retry")}
         </button>
@@ -435,10 +435,10 @@ export default function ProfileView() {
     >
       {/* Header */}
       <div>
-        <h1 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
+        <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
           {t("adminMisc.profile.title")}
         </h1>
-        <p className="text-[11px] text-[var(--text-secondary)] mt-1">
+        <p className="text-sm text-[var(--text-secondary)] mt-1">
           {t("adminMisc.profile.subtitle")}
         </p>
       </div>
@@ -474,17 +474,17 @@ export default function ProfileView() {
             <h2 className="text-base font-black text-[var(--text-primary)]">
               {contact.name}
             </h2>
-            <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider mt-1">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
               {roleLabel(deriveCurrentRole())}
             </p>
             {uploadingPhoto && (
-              <p className="text-[9px] font-bold text-[var(--brand-orange)] mt-2">
+              <p className="text-[10px] font-bold text-[var(--brand-orange)] mt-2">
                 {t("adminMisc.profile.uploadingPhoto")}
               </p>
             )}
             {photoMessage && (
               <p
-                className={`text-[9px] font-bold mt-2 ${
+                className={`text-[10px] font-bold mt-2 ${
                   photoMessage.type === "success"
                     ? "text-emerald-400"
                     : "text-rose-400"
@@ -494,11 +494,11 @@ export default function ProfileView() {
               </p>
             )}
             <div className="mt-4 pt-4 border-t border-[var(--border-primary)] space-y-2 text-left">
-              <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
                 <Mail className="w-3 h-3 shrink-0" />
                 <span className="truncate">{contact.email}</span>
               </div>
-              <div className="flex items-center gap-2 text-[9px] text-[var(--text-tertiary)]">
+              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
                 <Calendar className="w-3 h-3 shrink-0" />
                 <span>CID: {contact.cid?.substring(0, 16)}...</span>
               </div>
@@ -508,18 +508,18 @@ export default function ProfileView() {
           {/* Programs summary */}
           <SectionCard title={t("adminMisc.profile.enrolledPrograms")} icon={BookOpen}>
             {programs.length === 0 ? (
-              <p className="text-[10px] text-[var(--text-tertiary)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("adminMisc.profile.noPrograms")}
               </p>
             ) : (
               <div className="space-y-2">
                 {programs.slice(0, 5).map((p) => (
                   <div key={p.id} className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                    <span className="text-[11px] font-bold text-[var(--text-primary)] truncate">
                       {p.name}
                     </span>
                     <span
-                      className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                      className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                         p.status === "active"
                           ? "bg-emerald-500/10 text-emerald-400"
                           : "bg-white/5 text-[var(--text-tertiary)]"
@@ -622,7 +622,7 @@ export default function ProfileView() {
           {/* Program History */}
           <SectionCard title={t("adminMisc.profile.programHistory")} icon={BookOpen}>
             {history.length === 0 ? (
-              <p className="text-[10px] text-[var(--text-tertiary)]">
+              <p className="text-sm text-[var(--text-secondary)]">
                 {t("adminMisc.profile.noHistory")}
               </p>
             ) : (
@@ -649,7 +649,7 @@ export default function ProfileView() {
           <div id="timeline">
             <SectionCard title={t("participant.activityTimeline")} icon={Clock}>
               {timeline.length === 0 ? (
-                <p className="text-[10px] text-[var(--text-tertiary)]">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("participant.timelineEmpty")}
                 </p>
               ) : (
@@ -661,10 +661,10 @@ export default function ProfileView() {
                     >
                       <Clock className="w-3.5 h-3.5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
                       <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-[var(--text-primary)]">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)]">
                           {e.description}
                         </p>
-                        <p className="text-[8px] font-bold uppercase tracking-wider text-[var(--text-tertiary)] mt-1">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
                           {(e.event_type || "").replace(/_/g, " ")} ·{" "}
                           {e.created_at ? new Date(e.created_at).toLocaleDateString() : ""}
                         </p>
@@ -685,11 +685,11 @@ export default function ProfileView() {
                     <Building2 className="w-5 h-5 text-[var(--brand-orange)]" />
                   </div>
                   <div>
-                    <p className="text-[12px] font-black text-[var(--text-primary)]">
+                    <p className="text-[11px] font-bold text-[var(--text-primary)]">
                       {groupInfo.name}
                     </p>
                     {groupInfo.project_description && (
-                      <p className="text-[9px] text-[var(--text-secondary)]">
+                      <p className="text-sm text-[var(--text-secondary)]">
                         {groupInfo.project_description}
                       </p>
                     )}
@@ -700,7 +700,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.url}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[8px] font-bold text-[var(--brand-orange)] hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:brightness-110 transition-all"
                     >
                       <Globe className="w-3 h-3" /> {t("adminMisc.profile.website")}
                     </a>
@@ -709,7 +709,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.demo_link}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[8px] font-bold text-blue-400 hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:brightness-110 transition-all"
                     >
                       <ExternalLink className="w-3 h-3" /> {t("adminMisc.profile.demo")}
                     </a>
@@ -718,7 +718,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.pitch_deck_url}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[8px] font-bold text-purple-400 hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-purple-400 hover:brightness-110 transition-all"
                     >
                       <ExternalLink className="w-3 h-3" /> {t("adminMisc.profile.pitchDeck")}
                     </a>
@@ -744,10 +744,10 @@ export default function ProfileView() {
                       key={p.id}
                       className="px-3 py-1.5 rounded-lg bg-[var(--brand-orange)]/10 border border-[var(--brand-orange)]/20"
                     >
-                      <p className="text-[9px] font-bold text-[var(--brand-orange)]">
+                      <p className="text-[10px] font-bold text-[var(--brand-orange)]">
                         {p.name}
                       </p>
-                      <p className="text-[7px] text-[var(--text-tertiary)]">
+                      <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                         {t("adminMisc.profile.weekProgress", {
                           week: p.currentWeek,
                           duration: p.durationWeeks || "?",
@@ -767,7 +767,7 @@ export default function ProfileView() {
             {submissions.length === 0 ? (
               <div className="text-center py-6">
                 <FileText className="w-8 h-8 text-[var(--text-tertiary)] mx-auto mb-2" />
-                <p className="text-[10px] font-bold text-[var(--text-secondary)]">
+                <p className="text-sm text-[var(--text-secondary)]">
                   {t("adminMisc.profile.noSubmissions")}
                 </p>
               </div>
@@ -799,10 +799,10 @@ export default function ProfileView() {
                         />
                       </div>
                       <div>
-                        <p className="text-[9px] font-bold text-[var(--text-primary)]">
+                        <p className="text-[11px] font-bold text-[var(--text-primary)]">
                           {t("adminMisc.profile.deliverableNumber", { id: sub.document_id || sub.deliverable_id })}
                         </p>
-                        <p className="text-[7px] text-[var(--text-tertiary)]">
+                        <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                           {sub.created_at
                             ? new Date(sub.created_at).toLocaleDateString()
                             : ""}
@@ -811,7 +811,7 @@ export default function ProfileView() {
                     </div>
                     <div className="flex items-center gap-2">
                       <span
-                        className={`text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded ${
+                        className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
                           sub.status === "approved"
                             ? "bg-emerald-500/10 text-emerald-400"
                             : sub.status === "pending"
@@ -822,7 +822,7 @@ export default function ProfileView() {
                         {sub.status || "draft"}
                       </span>
                       {sub.score > 0 && (
-                        <span className="text-[8px] font-bold text-emerald-400">
+                        <span className="text-[10px] font-bold text-emerald-400">
                           {sub.score} pts
                         </span>
                       )}
@@ -830,7 +830,7 @@ export default function ProfileView() {
                         <a
                           href={sub.file_url}
                           target="_blank"
-                          className="text-[var(--brand-orange)] hover:underline text-[8px] font-bold"
+                          className="text-[var(--brand-orange)] hover:underline"
                         >
                           <ExternalLink className="w-3 h-3" />
                         </a>
@@ -866,7 +866,7 @@ export default function ProfileView() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-30"
+            className="flex items-center gap-2 px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-30"
           >
             <Save className="w-3.5 h-3.5" />{" "}
             {saving ? t("adminMisc.profile.saving") : t("adminMisc.profile.saveChanges")}

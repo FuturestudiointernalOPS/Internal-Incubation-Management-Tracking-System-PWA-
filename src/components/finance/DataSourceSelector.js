@@ -22,7 +22,7 @@ export default function DataSourceSelector({
     return (
       <div className="flex items-center gap-2">
         <label
-          className="text-[9px] font-bold uppercase tracking-widest"
+          className="text-[10px] font-bold uppercase tracking-widest"
           style={{ color: "var(--text-secondary)" }}
         >
           {t("finance.selector.label")}
@@ -48,7 +48,7 @@ export default function DataSourceSelector({
   return (
     <div className="flex items-center gap-2">
       <label
-        className="text-[9px] font-bold uppercase tracking-widest"
+        className="text-[10px] font-bold uppercase tracking-widest"
         style={{ color: "var(--text-secondary)" }}
       >
         {t("finance.selector.label")}

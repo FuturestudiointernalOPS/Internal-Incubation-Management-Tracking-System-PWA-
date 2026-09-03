@@ -122,12 +122,12 @@ export default function ContextSwitcher() {
       <p className="text-[11px] font-black uppercase tracking-tight text-[var(--text-primary)] truncate">
         {item.title}
         {item.completed && (
-          <span className="ml-2 text-[8px] font-black uppercase tracking-wider text-[var(--brand-orange)]">
+          <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
             {t("common.workspaces.completedViewOnly")}
           </span>
         )}
       </p>
-      <p className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)] mt-0.5">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5">
         {item.role}
       </p>
     </button>
@@ -137,7 +137,7 @@ export default function ContextSwitcher() {
     <div className="relative hidden sm:block">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-primary/50 text-[9px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-primary/50 text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
         title={t("common.workspaces.contexts")}
       >
         <Layers className="w-3.5 h-3.5" />
@@ -160,7 +160,7 @@ export default function ContextSwitcher() {
 
             {orgItems.length > 0 && (
               <div className="mt-2 pt-2 border-t border-[var(--border-primary)]">
-                <p className="px-3 pb-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="px-3 pb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   <Building2 className="w-3 h-3" />
                   {t("common.workspaces.groupFutureStudio")}
                 </p>
@@ -172,7 +172,7 @@ export default function ContextSwitcher() {
 
             {programItems.length > 0 && (
               <div className="mt-2 pt-2 border-t border-[var(--border-primary)]">
-                <p className="px-3 pb-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="px-3 pb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   <GraduationCap className="w-3 h-3" />
                   {t("common.workspaces.groupPrograms")}
                 </p>
@@ -184,7 +184,7 @@ export default function ContextSwitcher() {
 
             {ventureItems.length > 0 && (
               <div className="mt-2 pt-2 border-t border-[var(--border-primary)]">
-                <p className="px-3 pb-1 flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+                <p className="px-3 pb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
                   <Rocket className="w-3 h-3" />
                   {t("common.workspaces.groupVentures")}
                 </p>

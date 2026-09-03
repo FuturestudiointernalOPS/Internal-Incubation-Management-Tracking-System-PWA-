@@ -949,7 +949,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 : sendModes[0] || "individual",
             );
           }}
-          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--brand-orange)] text-black rounded-lg text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all"
         >
           <Send className="w-3.5 h-3.5" /> {t("messaging.new")}
         </button>
@@ -990,7 +990,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     ? t("messaging.noMatchingConversations")
                     : t("messaging.noConversations")}
                 </p>
-                <p className="text-[9px] text-[var(--text-secondary)] mt-1 opacity-50">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-1 opacity-50">
                   {t("messaging.clickNewToStart")}
                 </p>
               </div>
@@ -1036,7 +1036,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                         >
                           {thread.label}
                         </p>
-                        <span className="text-[8px] text-[var(--text-secondary)] shrink-0">
+                        <span className="text-[10px] font-medium text-[var(--text-secondary)] shrink-0">
                           {formatTime(lastMsg?.created_at)}
                         </span>
                       </div>
@@ -1053,7 +1053,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                           ))}
                         <p
                           className={cn(
-                            "text-[9px] truncate flex-1",
+                            "text-[10px] truncate flex-1",
                             unread > 0
                               ? "font-bold text-[var(--text-primary)]"
                               : "text-[var(--text-secondary)]",
@@ -1128,7 +1128,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <p className="text-[12px] font-black text-[var(--text-primary)] uppercase tracking-wider truncate">
                     {activeConversation.label}
                   </p>
-                  <p className="text-[8px] text-[var(--text-secondary)]">
+                  <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                     {activeMessages.length !== 1
                       ? t("messaging.messageCountPlural", {
                           count: activeMessages.length,
@@ -1144,7 +1144,7 @@ export default function MessagingChat({ role = "super_admin" }) {
               <div className="flex-1 overflow-y-auto px-4 lg:px-6 py-4 space-y-2">
                 {activeMessages.length === 0 ? (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-[10px] text-[var(--text-secondary)] italic">
+                    <p className="text-[10px] text-[var(--text-secondary)]">
                       {t("messaging.noMessages")}
                     </p>
                   </div>
@@ -1178,7 +1178,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                               target="_blank"
                               rel="noopener noreferrer"
                               className={cn(
-                                "flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-md text-[9px] font-bold transition-colors",
+                                "flex items-center gap-1.5 mt-1.5 px-2 py-1 rounded-md text-[10px] font-bold transition-colors",
                                 isSent
                                   ? "bg-black/10 text-black hover:bg-black/20"
                                   : "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/20",
@@ -1196,7 +1196,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                               isSent ? "justify-end" : "justify-start",
                             )}
                           >
-                            <span className="text-[8px] opacity-50">
+                            <span className="text-[10px] font-medium opacity-50">
                               {formatTime(msg.created_at)}
                             </span>
                             {showRead && (
@@ -1220,7 +1220,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                       <input
                         type="file"
                         onChange={handleReplyFile}
-                        className="flex-1 text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                        className="flex-1 text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-tertiary file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                       />
                       {replyUploading && (
                         <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-orange)] shrink-0" />
@@ -1259,7 +1259,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <button
                     onClick={() => setReplyShowAttachment(!replyShowAttachment)}
                     className={cn(
-                      "px-2.5 py-2.5 rounded-xl text-[9px] font-black transition-all",
+                      "px-2.5 py-2.5 rounded-xl text-[10px] font-bold transition-all",
                       replyShowAttachment || replyAttachmentUrl
                         ? "bg-[var(--brand-orange)]/20 text-[var(--brand-orange)]"
                         : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
@@ -1280,7 +1280,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                   <button
                     onClick={handleReply}
                     disabled={!replyText.trim() || sending}
-                    className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-1.5"
+                    className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-wide hover:brightness-110 transition-all disabled:opacity-30 flex items-center gap-1.5"
                   >
                     {sending ? (
                       <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -1337,7 +1337,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     <button
                       key={mode}
                       onClick={() => setSendMode(mode)}
-                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[9px] font-black uppercase tracking-wider transition-all ${
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all ${
                         sendMode === mode
                           ? "bg-[var(--brand-orange)] text-black"
                           : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -1359,7 +1359,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     <span className="text-[11px] font-bold text-[var(--text-primary)]">
                       {selectedContact.name}
                     </span>
-                    <span className="text-[9px] text-[var(--text-secondary)]">
+                    <span className="text-[10px] font-medium text-[var(--text-secondary)]">
                       {selectedContact.email}
                     </span>
                     <button
@@ -1388,7 +1388,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     {showContactDropdown && (
                       <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
                         {filteredContacts.length === 0 ? (
-                          <p className="px-4 py-3 text-[10px] text-[var(--text-secondary)] italic">
+                          <p className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">
                             {t("messaging.noContactsFound")}
                           </p>
                         ) : (
@@ -1405,7 +1405,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                               <p className="text-[11px] font-bold text-[var(--text-primary)]">
                                 {c.name}
                               </p>
-                              <p className="text-[8px] text-[var(--text-secondary)]">
+                              <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                                 {c.email}
                               </p>
                             </button>
@@ -1421,7 +1421,7 @@ export default function MessagingChat({ role = "super_admin" }) {
             {/* Group: contact group selector */}
             {sendMode === "group" && (
               <div className="space-y-2">
-                <p className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+                <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                   {t("messaging.selectGroup")}
                 </p>
                 <select
@@ -1438,7 +1438,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     </option>
                   ))}
                 </select>
-                <p className="text-[8px] text-[var(--text-secondary)] italic">
+                <p className="text-[10px] font-medium text-[var(--text-secondary)]">
                   {t("messaging.groupMessageInfo")}
                 </p>
               </div>
@@ -1479,7 +1479,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     {showProgramDropdown && (
                       <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow-xl">
                         {filteredPrograms.length === 0 ? (
-                          <p className="px-4 py-3 text-[10px] text-[var(--text-secondary)] italic">
+                          <p className="px-4 py-3 text-[10px] font-medium text-[var(--text-secondary)]">
                             {t("messaging.noProgramsFound")}
                           </p>
                         ) : (
@@ -1530,7 +1530,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                     <input
                       type="file"
                       onChange={handleComposeFile}
-                      className="flex-1 text-[9px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-[var(--bg-primary)] file:text-[8px] file:font-black file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
+                      className="flex-1 text-[10px] text-slate-400 file:mr-2 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-[var(--bg-primary)] file:text-[10px] file:font-bold file:uppercase file:tracking-wider file:text-[var(--text-primary)] file:cursor-pointer"
                     />
                     {composeUploading && (
                       <Loader2 className="w-3.5 h-3.5 animate-spin text-[var(--brand-orange)] shrink-0" />
@@ -1589,7 +1589,7 @@ export default function MessagingChat({ role = "super_admin" }) {
                 (sendMode === "group" && !composeGroupId) ||
                 (sendMode === "program" && !composeProgram)
               }
-              className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-wider disabled:opacity-30 hover:brightness-110 transition-all flex items-center justify-center gap-2"
+              className="w-full py-3 bg-[var(--brand-orange)] text-black rounded-xl text-sm font-bold uppercase tracking-wide disabled:opacity-30 hover:brightness-110 transition-all flex items-center justify-center gap-2"
             >
               {sending ? (
                 <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />

@@ -165,7 +165,7 @@ export default function MembershipSection({ cid, t, lang }) {
             </span>
             {isProtected(m.group_name) && (
               <span
-                className="px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase"
+                className="px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase"
                 style={{ background: "rgba(245,158,11,0.15)", color: "#F59E0B" }}
               >
                 {t("membership.page.protected")}
@@ -261,13 +261,13 @@ export default function MembershipSection({ cid, t, lang }) {
         <>
           {/* Current memberships */}
           <section>
-            <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
               {t("membership.section.current")}
             </p>
             {current.length === 0 ? (
               <div
-                className="rounded-xl p-4 text-[10px]"
-                style={{ background: "var(--surface-2)", border: "1px dashed var(--border-primary)", color: "var(--text-tertiary)" }}
+                className="rounded-xl p-4 text-sm"
+                style={{ background: "var(--surface-2)", border: "1px dashed var(--border-primary)", color: "var(--text-secondary)" }}
               >
                 {t("membership.section.empty")}
               </div>
@@ -279,7 +279,7 @@ export default function MembershipSection({ cid, t, lang }) {
           {/* Past memberships */}
           {past.length > 0 && (
             <section>
-              <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: "var(--text-tertiary)" }}>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--text-secondary)" }}>
                 {t("membership.section.past")}
               </p>
               <div className="space-y-3">{past.map(renderCard)}</div>

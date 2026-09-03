@@ -1775,7 +1775,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Accept
                                 </button>
@@ -1822,7 +1822,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Decline
                                 </button>
@@ -1873,7 +1873,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-emerald-500 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Accept
                                 </button>
@@ -1916,7 +1916,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                                       fetchNotifications();
                                     } catch (_) {}
                                   }}
-                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[8px] font-black uppercase"
+                                  className="flex-1 py-1 px-2 bg-slate-600 text-white rounded text-[10px] font-bold uppercase"
                                 >
                                   Decline
                                 </button>
@@ -1925,7 +1925,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                           </div>
                         ))
                       ) : (
-                        <p className="text-[10px] opacity-40 italic py-4 text-center">
+                        <p className="text-[10px] opacity-40 py-4 text-center">
                           {t(tnav("no_new_intel"))}
                         </p>
                       )}
@@ -1960,10 +1960,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
               <div className="mb-6 p-3 rounded-lg bg-amber-500/15 border border-amber-500/40 flex items-center gap-3">
                 <Wrench className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">
+                  <p className="text-[10px] font-bold text-amber-500 uppercase tracking-widest">
                     STAGING ENVIRONMENT — Impersonating: {user?.name || "Unknown"} ({user?.role || "unknown"})
                   </p>
-                  <p className="text-[9px] text-amber-500/70 mt-0.5">
+                  <p className="text-[10px] font-medium text-amber-500/70 mt-0.5">
                     You are viewing the application as this user. Log out to return to your own account.
                   </p>
                 </div>
@@ -1995,7 +1995,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         </p>
                       </div>
                     </div>
-                    <span className="text-[9px] text-[var(--text-secondary)] uppercase">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
                       {t("common.viewAll")} →
                     </span>
                   </div>
@@ -2035,7 +2035,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-all"
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
                     Accept
                   </button>
@@ -2054,7 +2054,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
                   >
                     Decline
                   </button>
@@ -2094,7 +2094,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-emerald-600 transition-all"
+                    className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-emerald-600 transition-all"
                   >
                     Accept
                   </button>
@@ -2113,7 +2113,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                         fetchNotifications();
                       } catch (_) {}
                     }}
-                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[9px] font-black uppercase tracking-wider hover:bg-slate-500 transition-all"
+                    className="px-4 py-2 bg-slate-600 text-white rounded-lg text-[10px] font-bold uppercase tracking-wide hover:bg-slate-500 transition-all"
                   >
                     Decline
                   </button>
