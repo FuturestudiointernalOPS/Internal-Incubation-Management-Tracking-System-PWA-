@@ -670,7 +670,7 @@ export default function VentureDetail() {
         {activeTab === "founders" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t("venture.founders")} ({getFounders().length})</h2>
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.founders")} ({getFounders().length})</h2>
               <button onClick={() => { setAddMemberType("founder"); setShowAddMember(true); }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
                 style={{ backgroundColor: "var(--brand-orange)" }}>
@@ -707,7 +707,7 @@ export default function VentureDetail() {
         {activeTab === "team" && (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">{t("venture.teamMembers")} ({getTeam().length})</h2>
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({getTeam().length})</h2>
               <button onClick={() => { setAddMemberType("team_member"); setShowAddMember(true); }}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
                 style={{ backgroundColor: "var(--brand-orange)" }}>
@@ -917,7 +917,7 @@ export default function VentureDetail() {
         {/* Journey Tab */}
         {activeTab === "journey" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{t('venture.standardJourney')||'Standard Venture Journey'}</h2>
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.standardJourney')||'Standard Venture Journey'}</h2>
             <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.journeyDesc')||'Complete each stage to progress your venture. Stages unlock as the previous one is approved by your mentor.'}</p>
             <div className="space-y-2">
               {journeyStages.map((stage, i) => (
@@ -951,7 +951,7 @@ export default function VentureDetail() {
         {/* Playbook Tab */}
         {activeTab === "playbook" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold">{t('venture.facilitatorPlaybook')||'Facilitator Playbook'}</h2>
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.facilitatorPlaybook')||'Facilitator Playbook'}</h2>
             <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.playbookDesc')||'Standard review guide for each incubation stage.'}</p>
             <div className="space-y-3">
               {playbookEntries.map(entry => (
@@ -1001,7 +1001,7 @@ export default function VentureDetail() {
         {/* Discovery Tab */}
         {activeTab === "discovery" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.discovery')} ({interviews.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.discovery')} ({interviews.length})</h2>
               <button onClick={()=>setShowAddInterview(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Lightbulb size={16}/> {t('venture.addInterview')}</button>
             </div>
             {interviews.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No interviews yet</div>):
@@ -1021,7 +1021,7 @@ export default function VentureDetail() {
         {/* Validation Tab */}
         {activeTab === "validation" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.validation')} ({validations.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.validation')} ({validations.length})</h2>
               <button onClick={()=>setShowAddValidation(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Target size={16}/> {t('venture.addEntry')}</button>
             </div>
             {['problem','solution','product'].map(type=>{
@@ -1045,7 +1045,7 @@ export default function VentureDetail() {
         {/* PMF Tab */}
         {activeTab === "pmf" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.pmf')} ({assessments.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.pmf')} ({assessments.length})</h2>
               <button onClick={()=>setShowAddPmf(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><TrendingUp size={16}/> {t('venture.addAssessment')}</button>
             </div>
             {assessments.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No assessments yet</div>):
@@ -1067,7 +1067,7 @@ export default function VentureDetail() {
         {/* Milestones Tab */}
         {activeTab === "milestones" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.milestones')} ({milestones.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.milestones')} ({milestones.length})</h2>
               <button onClick={()=>setShowAddMilestone(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><CheckSquare size={16}/> {t('venture.addMilestone')}</button>
             </div>
             {milestones.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No milestones yet</div>):
@@ -1096,7 +1096,7 @@ export default function VentureDetail() {
         {/* Action Plans Tab */}
         {activeTab === "actionPlans" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.actionPlans')} ({actionPlans.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.actionPlans')} ({actionPlans.length})</h2>
               <button onClick={()=>setShowAddAction(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><ListChecks size={16}/> {t('venture.addAction')}</button>
             </div>
             {actionPlans.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>No actions yet</div>):
@@ -1119,7 +1119,7 @@ export default function VentureDetail() {
         {/* Tasks Tab */}
         {activeTab === "tasks" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.tasks')} ({tasks.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.tasks')} ({tasks.length})</h2>
               <button onClick={()=>setShowAddTask(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><ListTodo size={16}/> {t('venture.addTask')}</button>
             </div>
             {tasks.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
@@ -1148,7 +1148,7 @@ export default function VentureDetail() {
         {/* Standups Tab */}
         {activeTab === "standups" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.standups')} ({standups.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.standups')} ({standups.length})</h2>
               <button onClick={()=>setShowAddStandup(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><MessageCircle size={16}/> {t('venture.addStandup')}</button>
             </div>
             {!currentWeekStandup && (
@@ -1184,7 +1184,7 @@ export default function VentureDetail() {
         {/* Retros Tab */}
         {activeTab === "retros" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.retros')} ({retros.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.retros')} ({retros.length})</h2>
               <button onClick={()=>setShowAddRetro(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><RotateCcw size={16}/> {t('venture.addRetro')}</button>
             </div>
             {!currentWeekRetro && (
@@ -1221,7 +1221,7 @@ export default function VentureDetail() {
         {/* Blockers Tab */}
         {activeTab === "blockers" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.blockers')} ({blockers.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.blockers')} ({blockers.length})</h2>
               <button onClick={()=>setShowAddBlocker(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><AlertTriangle size={16}/> {t('venture.addBlocker')}</button>
             </div>
             {blockers.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
@@ -1248,7 +1248,7 @@ export default function VentureDetail() {
         {/* Calendar Tab */}
         {activeTab === "calendar" && (
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold flex items-center gap-2"><CalendarDays size={18}/> {t('venture.calendar')}</h2>
+            <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)] flex items-center gap-1.5"><CalendarDays size={14}/> {t('venture.calendar')}</h2>
             {calendarEvents.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
               calendarEvents.map((ev,i)=>{
                 const typeIcon = ev.type==='milestone'?'🗓':ev.type==='task'?'📋':ev.type==='action'?'📌':ev.type==='coaching'?'🎯':ev.type==='followup'?'📅':'📅';
@@ -1310,7 +1310,7 @@ export default function VentureDetail() {
         {/* Documents Tab */}
         {activeTab === "documents" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.documents')} ({documents.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.documents')} ({documents.length})</h2>
               <button onClick={()=>setShowAddDocument(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><FileText size={16}/> {t('venture.upload')}</button>
             </div>
             <div className="flex gap-2">
@@ -1351,7 +1351,7 @@ export default function VentureDetail() {
         {/* Advisors Tab */}
         {activeTab === "advisors" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.advisors')} ({advisors.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.advisors')} ({advisors.length})</h2>
               <button onClick={()=>setShowAddAdvisor(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><GraduationCap size={16}/> {t('venture.addAdvisor')}</button>
             </div>
             {advisors.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
@@ -1375,7 +1375,7 @@ export default function VentureDetail() {
         {/* Coaching Tab */}
         {activeTab === "coaching" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.coaching')} ({coachingSessions.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.coaching')} ({coachingSessions.length})</h2>
               <button onClick={()=>setShowAddCoaching(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Award size={16}/> {t('venture.addSession')}</button>
             </div>
             {coachingSessions.length===0?(<div className="rounded-xl p-6 border text-center" style={{...cardStyle,color:'var(--text-secondary)'}}>{t('venture.noEvents')}</div>):
@@ -1416,7 +1416,7 @@ export default function VentureDetail() {
         {/* KPIs Tab */}
         {activeTab === "kpis" && (
           <div className="space-y-4">
-            <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">{t('venture.kpis')} ({kpis.length})</h2>
+            <div className="flex items-center justify-between"><h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.kpis')} ({kpis.length})</h2>
               <div className="flex gap-2">
                 <button onClick={()=>setShowAddKpiDefinition(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm" style={{color:'var(--text-secondary)',border:'1px solid rgb(255 255 255 / 0.15)'}}><Gauge size={16}/> {t('venture.create')}</button>
                 <button onClick={()=>setShowAddKpi(true)} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white" style={{backgroundColor:'var(--brand-orange)'}}><Gauge size={16}/> {t('venture.assignKpi')}</button>
@@ -1446,7 +1446,7 @@ export default function VentureDetail() {
           {/* Investment Readiness Tab */}
           {activeTab === "investment" && (
             <div className="space-y-4">
-              <h2 className="text-lg font-semibold">{t('venture.investmentReadiness')||'Investment Readiness'}</h2>
+              <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.investmentReadiness')||'Investment Readiness'}</h2>
               <p className="text-sm" style={{color:'var(--text-secondary)'}}>{t('venture.investmentDesc')||'Documents required before a venture can be introduced to investors.'}</p>
               {investmentReadiness ? (
                 <>
