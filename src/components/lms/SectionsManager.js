@@ -17,6 +17,7 @@ import AppInput from "@/components/ui/AppInput";
 import AppModal from "@/components/ui/AppModal";
 import LessonModal from "./LessonModal";
 import AssessmentModal from "./AssessmentModal";
+import AssessmentViewModal from "./AssessmentViewModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { extractYouTubeVideoId } from "@/lib/lms/youtube";
@@ -30,6 +31,7 @@ export default function SectionsManager({ course, onChange }) {
   const [sectionModal, setSectionModal] = useState(null); // { mode, section }
   const [lessonModal, setLessonModal] = useState(null); // { mode, sectionId, lesson }
   const [assessmentModal, setAssessmentModal] = useState(null); // { mode, sectionId, assessment }
+  const [viewAssessment, setViewAssessment] = useState(null); // assessment shown in read-only view
   const [savingId, setSavingId] = useState(null);
 
   const api = async (url, method, body) => {
@@ -94,6 +96,20 @@ export default function SectionsManager({ course, onChange }) {
   const deleteAssessment = (assessment) => {
     if (!window.confirm(`${t("lms.confirm.deleteAssessment")}\n${t("lms.confirm.deleteAssessmentHint")}`)) return;
     mutate(`/api/lms/assessments/${assessment.id}`, "DELETE", null, "lms.courses.saved", assessment.id);
+  };
+
+  const openAssessmentView = (assessment) => setViewAssessment(assessment);
+
+  const openAssessmentEdit = (assessment) => {
+    setViewAssessment(null);
+    setAssessmentModal({ mode: "edit", sectionId: assessment.section_id || null, assessment });
+  };
+
+  const handleRowKeyDown = (e, action) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      action();
+    }
   };
 
   const courseAssessments = course.courseAssessments || [];
@@ -275,8 +291,13 @@ export default function SectionsManager({ course, onChange }) {
               {/* Section assessment */}
               {section.assessment && (
                 <div
-                  className="mt-2 rounded-lg border p-3"
-                  style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openAssessmentView(section.assessment)}
+                  onKeyDown={(e) => handleRowKeyDown(e, () => openAssessmentView(section.assessment))}
+                  className="mt-2 rounded-lg border p-3 cursor-pointer transition-colors bg-[var(--surface-2)] hover:bg-[var(--surface-1)]"
+                  style={{ borderColor: "var(--border-primary)" }}
+                  title={t("lms.assessments.viewAssessment")}
                 >
                   <div className="flex items-center gap-2">
                     <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
@@ -288,7 +309,10 @@ export default function SectionsManager({ course, onChange }) {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setAssessmentModal({ mode: "edit", sectionId: section.id, assessment: section.assessment })}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAssessmentEdit(section.assessment);
+                      }}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.assessments.edit")}
@@ -297,7 +321,10 @@ export default function SectionsManager({ course, onChange }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteAssessment(section.assessment)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteAssessment(section.assessment);
+                      }}
                       className="p-1.5 rounded-lg transition-colors"
                       style={{ color: "var(--text-tertiary)" }}
                       title={t("lms.assessments.delete")}
@@ -349,8 +376,13 @@ export default function SectionsManager({ course, onChange }) {
             {courseAssessments.map((assessment) => (
               <div
                 key={assessment.id}
-                className="flex items-center gap-3 p-3 rounded-lg border"
-                style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+                role="button"
+                tabIndex={0}
+                onClick={() => openAssessmentView(assessment)}
+                onKeyDown={(e) => handleRowKeyDown(e, () => openAssessmentView(assessment))}
+                className="flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors bg-[var(--surface-1)] hover:bg-[var(--surface-2)]"
+                style={{ borderColor: "var(--border-primary)" }}
+                title={t("lms.assessments.viewAssessment")}
               >
                 <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
                 <div className="flex-1 min-w-0">
@@ -364,7 +396,10 @@ export default function SectionsManager({ course, onChange }) {
                 </div>
                 <button
                   type="button"
-                  onClick={() => setAssessmentModal({ mode: "edit", sectionId: null, assessment })}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openAssessmentEdit(assessment);
+                  }}
                   className="p-1.5 rounded-lg transition-colors"
                   style={{ color: "var(--text-tertiary)" }}
                   title={t("lms.assessments.edit")}
@@ -373,7 +408,10 @@ export default function SectionsManager({ course, onChange }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => deleteAssessment(assessment)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteAssessment(assessment);
+                  }}
                   className="p-1.5 rounded-lg transition-colors"
                   style={{ color: "var(--text-tertiary)" }}
                   title={t("lms.assessments.delete")}
@@ -452,6 +490,15 @@ export default function SectionsManager({ course, onChange }) {
           courseId={course.id}
           sectionId={assessmentModal.sectionId}
           assessment={assessmentModal.assessment}
+        />
+      )}
+
+      {viewAssessment && (
+        <AssessmentViewModal
+          isOpen
+          onClose={() => setViewAssessment(null)}
+          onEdit={() => openAssessmentEdit(viewAssessment)}
+          assessment={viewAssessment}
         />
       )}
     </div>

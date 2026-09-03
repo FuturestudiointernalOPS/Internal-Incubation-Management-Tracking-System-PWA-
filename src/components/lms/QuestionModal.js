@@ -60,7 +60,15 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
     return Object.keys(next).length === 0;
   };
 
-  const save = async () => {
+  const resetForNext = () => {
+    setText("");
+    setOptions([{ text: "" }, { text: "" }]);
+    setCorrect("");
+    setPoints(1);
+    setErrors({});
+  };
+
+  const persist = async (keepOpen) => {
     if (!validate()) return;
     if (mode !== "edit" && !assessmentId) {
       notify("error", "lms.errors.assessmentNotFound");
@@ -85,13 +93,22 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.saved");
       onSaved();
-      onClose();
+      if (mode !== "edit" && keepOpen) {
+        // Batch mode: reset the form and let the author keep adding questions
+        // without reopening the modal for every question.
+        resetForNext();
+      } else {
+        onClose();
+      }
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
       setSaving(false);
     }
   };
+
+  const save = () => persist(false);
+  const saveAndAddAnother = () => persist(true);
 
   return (
     <AppModal
@@ -230,10 +247,15 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
           onChange={(e) => setPoints(e.target.value)}
         />
 
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex flex-wrap justify-end gap-3 pt-2">
           <AppButton variant="ghost" onClick={onClose}>
             {t("common.cancel")}
           </AppButton>
+          {mode !== "edit" && (
+            <AppButton variant="secondary" icon={Plus} disabled={saving} onClick={saveAndAddAnother}>
+              {t("lms.questions.saveAndAddAnother")}
+            </AppButton>
+          )}
           <AppButton variant="primary" loading={saving} onClick={save}>
             {t("common.save")}
           </AppButton>
