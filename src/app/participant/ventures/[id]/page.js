@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Loader2, UserPlus, X, Users, BarChart3, Bell, Clock, H
 import { useI18n } from "@/lib/i18n";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { useRouter, useParams } from "next/navigation";
+import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 
 const TABS = ["profile", "settings", "founders", "team", "dashboard", "history", "journey", "playbook", "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks", "standups", "retros", "blockers", "calendar", "progress", "documents", "advisors", "coaching", "kpis", "investment"];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
@@ -478,36 +479,38 @@ export default function VentureDetail() {
     </DashboardLayout>
   );
 
+  // Phase 1/2 shell: identity + status are shared components (see
+  // components/ventures). Display name follows the admin rule company_name
+  // first.
+  const ventureDisplayName = venture.company_name || venture.name || "Venture";
+
   return (
     <DashboardLayout role={user.role || "participant"}>
       <div className="p-6 max-w-4xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
         {/* Back */}
-        <button onClick={() => router.push("/participant/ventures")} className="flex items-center gap-2 transition-colors" style={{ color: "var(--text-secondary)" }}>
-          <ArrowLeft size={18} /> {t("venture.myVentures")}
+        <button onClick={() => router.push("/participant/ventures")} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-colors" style={{ color: "var(--text-secondary)" }}>
+          <ArrowLeft size={16} /> {t("venture.myVentures")}
         </button>
 
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-xl" style={{ backgroundColor: form.brandColor || "#f60" }}>
-            {venture.name?.charAt(0)?.toUpperCase() || "V"}
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">{venture.name}</h1>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {t(`venture.stages.${venture.business_stage || "idea"}`)}{venture.industry && <> • {venture.industry}</>}
-            </p>
-          </div>
-        </div>
+        {/* Venture identity — shared header component (admin-consistent) */}
+        <VenturePageHeader
+          displayName={ventureDisplayName}
+          brandColor={form.brandColor}
+          ventureId={venture.venture_id}
+          status={venture.status}
+          metaItems={[
+            t(`venture.stages.${venture.business_stage || "idea"}`),
+            venture.industry,
+            venture.country,
+          ]}
+        />
 
-        {/* Tabs */}
-        <div className="flex gap-1 border-b flex-wrap" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
+        {/* Tabs — admin-style: scrollable, uppercase, orange active underline */}
+        <div className="flex items-center gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
           {TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
-              style={{
-                borderColor: activeTab === tab ? "var(--brand-orange)" : "transparent",
-                color: activeTab === tab ? "var(--brand-orange)" : "var(--text-secondary)",
-              }}
+              className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              style={{ borderColor: activeTab === tab ? "var(--brand-orange)" : "transparent" }}
             >{t(`venture.${tab}`)}</button>
           ))}
         </div>

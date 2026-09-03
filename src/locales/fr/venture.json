@@ -1,6 +1,9 @@
 {
   "venture": {
     "label": "Venture",
+    "statusActive": "Actif",
+    "statusPaused": "En pause",
+    "statusArchived": "Archivée",
     "title": "Entreprises",
     "createVenture": "Créer une entreprise",
     "applyAsVenture": "Postuler en tant que Venture",

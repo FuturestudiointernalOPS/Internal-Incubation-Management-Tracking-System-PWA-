@@ -1,6 +1,9 @@
 {
   "venture": {
     "label": "Venture",
+    "statusActive": "Active",
+    "statusPaused": "Paused",
+    "statusArchived": "Archived",
     "title": "Ventures",
     "createVenture": "Create Venture",
     "applyAsVenture": "Apply as a Venture",
