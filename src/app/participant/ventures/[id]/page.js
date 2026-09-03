@@ -15,7 +15,7 @@ import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/works
 import { MilestonesTab, ActionPlansTab, TasksTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
 import { CalendarTab } from "@/components/ventures/workspace/tabs/ScheduleTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
-import { AdvisorsTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { AdvisorsTab, CoachingTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
 const TABS = [
   "profile", "settings", "founders", "team", "dashboard",
@@ -23,9 +23,8 @@ const TABS = [
   "journey",
   // "playbook", // Facilitator review guide — staff only
   "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks",
+  "calendar", "progress", "documents", "advisors", "coaching",
   // "standups", "retros", "blockers", // Weekly review reports — staff/facilitator only
-  "calendar", "progress", "documents", "advisors",
-  // "coaching", // Coaching/session management — facilitator only
   "kpis", "investment",
 ];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
@@ -601,7 +600,8 @@ export default function VentureDetail() {
         {activeTab === "progress" && <ProgressTab />}
         {activeTab === "documents" && <DocumentsTab />}
         {activeTab === "advisors" && <AdvisorsTab />}
-        {/* "coaching" removed — session management is facilitator-only */}
+        {/* Coaching (founder view) — scheduling only; facilitator notes are not rendered */}
+        {activeTab === "coaching" && <CoachingTab />}
         {activeTab === "kpis" && <KpisTab />}
         {activeTab === "investment" && <InvestmentTab />}
 
