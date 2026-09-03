@@ -1881,27 +1881,7 @@ function OperationsSection({ userId, summary }) {
         </button>
       </div>
 
-      {/* Mini stats — derived from the dashboard API */}
-      <div className="grid grid-cols-3 gap-2 pt-1 border-t border-[var(--border-primary)]">
-        <div className="text-center pt-2">
-          <p className="text-base font-black text-blue-400">{openTasks}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
-            {t("dashboard.openTasks", "Open Tasks")}
-          </p>
-        </div>
-        <div className="text-center pt-2">
-          <p className="text-base font-black text-amber-400">{overdue}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
-            {t("dashboard.overdue", "Overdue")}
-          </p>
-        </div>
-        <div className="text-center pt-2">
-          <p className="text-base font-black text-rose-400">{activeBlockers}</p>
-          <p className="text-[7px] font-black text-slate-500 uppercase tracking-widest">
-            {t("dashboard.activeBlockers", "Blockers")}
-          </p>
-        </div>
-      </div>
+
     </div>
   );
 }
