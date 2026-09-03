@@ -503,7 +503,7 @@ export default function VentureDetail() {
         <div className="flex gap-1 border-b flex-wrap" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
           {TABS.map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
-              className="px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize"
+              className="px-4 py-2 text-sm font-medium border-b-2 transition-colors"
               style={{
                 borderColor: activeTab === tab ? "var(--brand-orange)" : "transparent",
                 color: activeTab === tab ? "var(--brand-orange)" : "var(--text-secondary)",
