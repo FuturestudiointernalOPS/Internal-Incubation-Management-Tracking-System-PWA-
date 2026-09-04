@@ -104,12 +104,12 @@
 | `src/components/lms/CourseStatusBadge.js` | CourseStatusBadge | Draft/published/archived pill for authoring UI. |
 | `src/components/lms/CourseFormFields.js` | CourseFormFields | Shared course metadata form (title, description, thumbnail, visibility, free/paid + price). |
 | `src/components/lms/CourseList.js` | CourseList | Admin course list: search, status filter, open/publish/archive. |
-| `src/components/lms/CourseEditor.js` | CourseEditor | Admin authoring workspace (details + sections + lessons + assessments + preview + publish). |
+| `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: first-lesson video (click to launch) left, name/description/curriculum right. |
+| `src/components/lms/CourseEditor.js` | CourseEditor | Admin course workspace: read-only presentation by default; Edit toggles the authoring form (details + sections + lessons + assessments + publish). |
 | `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals. |
 | `src/components/lms/LessonModal.js` | LessonModal | Lesson create/edit with live YouTube validation. |
 | `src/components/lms/AssessmentModal.js` | AssessmentModal | Assessment create/edit with question management. |
 | `src/components/lms/QuestionModal.js` | QuestionModal | MC / True-False question authoring. |
-| `src/components/lms/CoursePreviewModal.js` | CoursePreviewModal | Read-only author preview of the course structure. |
 | `src/components/lms/EnrollModal.js` | EnrollModal | Admin enrollment enabler (list learners, enroll by email/cid). |
 | `src/components/lms/LearnerProgressBar.js` | LearnerProgressBar | Accessible progress bar (role=progressbar, design-system colors). |
 | `src/components/lms/LessonStateIcon.js` | LessonStateIcon | ✓ completed / ▶ current / ○ not-started lesson states. |
