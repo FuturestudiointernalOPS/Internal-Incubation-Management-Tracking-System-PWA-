@@ -28,8 +28,8 @@ export const MODULE_TO_FEATURE = {
   projects: "project_ownership",
   users: "user_management",
   reports: "reporting",
-  messaging: "messaging",
-  internal_comms: "internal_comms",
+  messaging: "communication",
+  internal_comms: "communication",
   knowledge: "knowledge_base",
   tasks: "tasks",
   ventures: "ventures",
@@ -47,6 +47,13 @@ export const MODULE_TO_FEATURE = {
  */
 export const FEATURE_ELIGIBILITY_DEFAULTS = {
   crm: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ],
+  communication: [
     "super_admin",
     "staff",
     "program_manager",
@@ -75,18 +82,9 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   engineering: ["super_admin", "developer"],
   user_management: ["super_admin", "staff"],
   system_settings: ["super_admin", "staff"],
-  messaging: ["super_admin", "staff", "program_manager", "developer"],
   tasks: ["super_admin", "staff", "program_manager", "team"],
   ventures: ["super_admin", "staff", "program_manager", "investor"],
   investor: ["super_admin", "staff", "investor"],
-  internal_comms: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-    "participant",
-  ],
 };
 
 let eligibilitySchemaPromise = null;

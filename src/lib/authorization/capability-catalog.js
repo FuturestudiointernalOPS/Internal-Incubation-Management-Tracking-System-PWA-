@@ -11,7 +11,7 @@
 
 export const CAPABILITY_CATALOG = {
   contacts: {
-    name: "Contacts (CRM)",
+    name: "Contacts",
     risk: "medium",
     capabilities: {
       view: { label: "View", risk: "low", description: "See people and contact records" },
@@ -44,7 +44,7 @@ export const CAPABILITY_CATALOG = {
     },
   },
   messaging: {
-    name: "Messaging",
+    name: "Messages",
     risk: "medium",
     capabilities: {
       view: { label: "View", risk: "low", description: "Read conversations" },
@@ -53,7 +53,7 @@ export const CAPABILITY_CATALOG = {
     },
   },
   internal_comms: {
-    name: "Internal Communication",
+    name: "Announcements",
     risk: "medium",
     capabilities: {
       view: { label: "View", risk: "low", description: "See internal communication" },

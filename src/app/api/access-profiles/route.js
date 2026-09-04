@@ -5,7 +5,82 @@ import {
   PERMISSION_MODULES,
   logPermissionAudit,
 } from "@/lib/auth";
-import { requireAuthorization, invalidateAllAuthorizationContexts } from "@/lib/authorization";
+import {
+  requireAuthorization,
+  invalidateAllAuthorizationContexts,
+  MODULE_TO_FEATURE,
+  evaluateEligibility,
+  validateCapabilitiesWithinEligibility,
+} from "@/lib/authorization";
+
+/**
+ * Dependency normalization for profile capabilities.
+ *
+ * View is the base capability: in any module that carries a `view`
+ * capability, granting another action (edit / create / delete / …) without
+ * view is impossible — view is auto-granted (level 1). Zero rows are dropped
+ * (absence already means level 0).
+ */
+function normalizeCapabilities(caps) {
+  const out = {};
+  for (const [module, capMap] of Object.entries(caps || {})) {
+    if (!capMap || typeof capMap !== "object") continue;
+    const next = {};
+    for (const [capability, level] of Object.entries(capMap)) {
+      const lvl = Math.max(0, Number(level) || 0);
+      if (lvl > 0) next[capability] = lvl;
+    }
+    if (Object.prototype.hasOwnProperty.call(next, "view") && next.view === 0) {
+      const othersActive = Object.keys(next).some(
+        (c) => c !== "view" && next[c] > 0,
+      );
+      if (othersActive) next.view = 1; // edit/create/delete imply view
+    }
+    if (Object.keys(next).length > 0) out[module] = next;
+  }
+  return out;
+}
+
+/** Roles that use this profile as their default access template. */
+async function profileDefaultRoles(profileId) {
+  const res = await db.execute({
+    sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
+    args: [profileId],
+  });
+  return res.rows.map((r) => r.role_name);
+}
+
+/** Per-feature eligibility map for a role (fail closed on missing rows). */
+async function eligibilityForRole(role) {
+  const res = await db.execute({
+    sql: `SELECT feature_key, eligible FROM feature_eligibility
+          WHERE identity_type = 'role' AND identity_value = ?`,
+    args: [role],
+  });
+  const map = {};
+  for (const feature of Object.values(MODULE_TO_FEATURE)) {
+    map[feature] = evaluateEligibility(res.rows, feature);
+  }
+  return map;
+}
+
+/**
+ * A profile that is the default for role(s) must never grant a capability
+ * whose feature one of those roles is not eligible for. Mirrors
+ * assertTemplateCapsEligible (role-defaults route) but validates the incoming
+ * payload instead of the persisted rows.
+ */
+async function assertCapsEligibleForRoles(caps, roles) {
+  for (const role of roles) {
+    const eligibility = await eligibilityForRole(role);
+    const { valid, violations } = validateCapabilitiesWithinEligibility(
+      caps,
+      eligibility,
+    );
+    if (!valid) return { valid: false, violations, role };
+  }
+  return { valid: true, violations: [], role: null };
+}
 
 /**
  * GET /api/access-profiles
@@ -127,15 +202,14 @@ export async function POST(req) {
 
     // Add capabilities if provided
     if (capabilities && typeof capabilities === "object") {
-      for (const [module, caps] of Object.entries(capabilities)) {
-        if (typeof caps === "object") {
-          for (const [capability, level] of Object.entries(caps)) {
-            await db.execute({
-              sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-                    VALUES (?, ?, ?, ?)`,
-              args: [profileId, module, capability, level],
-            });
-          }
+      const normalized = normalizeCapabilities(capabilities);
+      for (const [module, caps] of Object.entries(normalized)) {
+        for (const [capability, level] of Object.entries(caps)) {
+          await db.execute({
+            sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+                  VALUES (?, ?, ?, ?)`,
+            args: [profileId, module, capability, level],
+          });
         }
       }
     }
@@ -243,6 +317,27 @@ export async function PUT(req) {
 
     // Replace capabilities if provided
     if (capabilities && typeof capabilities === "object") {
+      const normalized = normalizeCapabilities(capabilities);
+
+      // Eligibility is the boundary: when this profile is the default for
+      // role(s), none of those roles may receive a capability whose feature
+      // they are not eligible for.
+      const defaultRoles = await profileDefaultRoles(id);
+      if (defaultRoles.length > 0) {
+        const check = await assertCapsEligibleForRoles(normalized, defaultRoles);
+        if (!check.valid) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "errors.ineligibleTemplateCaps",
+              violations: check.violations,
+              role: check.role,
+            },
+            { status: 400 },
+          );
+        }
+      }
+
       // Clear existing
       await db.execute({
         sql: "DELETE FROM access_profile_capabilities WHERE profile_id = ?",
@@ -250,15 +345,13 @@ export async function PUT(req) {
       });
 
       // Insert new
-      for (const [module, caps] of Object.entries(capabilities)) {
-        if (typeof caps === "object") {
-          for (const [capability, level] of Object.entries(caps)) {
-            await db.execute({
-              sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-                    VALUES (?, ?, ?, ?)`,
-              args: [id, module, capability, level],
-            });
-          }
+      for (const [module, caps] of Object.entries(normalized)) {
+        for (const [capability, level] of Object.entries(caps)) {
+          await db.execute({
+            sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
+                  VALUES (?, ?, ?, ?)`,
+            args: [id, module, capability, level],
+          });
         }
       }
     }

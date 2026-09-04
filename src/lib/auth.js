@@ -390,9 +390,9 @@ export const PERMISSION_MODULES = {
     name: "Reports",
     capabilities: ["view", "create", "export", "delete"],
   },
-  messaging: { name: "Messaging", capabilities: ["view", "send", "delete"] },
+  messaging: { name: "Messages", capabilities: ["view", "send", "delete"] },
   internal_comms: {
-    name: "Internal Communication",
+    name: "Announcements",
     capabilities: ["view", "create_announcements", "moderate"],
   },
   contacts: {

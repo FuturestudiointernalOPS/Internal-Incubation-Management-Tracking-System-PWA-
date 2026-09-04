@@ -59,6 +59,11 @@ export function ensureCapabilityBackfills() {
           // Permissions UI owns eligibility configuration (see migrations.js).
           runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill),
           runAuthzMigration("eligibility-policy-3", ensureFinalPolicyBackfill),
+          // Communication is the consolidated feature behind the messaging +
+          // internal_comms modules (Messages / Announcements). Existing DBs
+          // carry legacy messaging/internal_comms rows — leave them untouched
+          // (harmless, no longer evaluated) and add the new feature rows.
+          runAuthzMigration("communication-feature-v1", ensureCommunicationFeatureBackfill),
           // Phase 1: organizational membership bootstrap — existing group edges
           // become active, no-expiry memberships (zero behavior change at
           // cutover; see membership.js).
@@ -851,4 +856,37 @@ export async function ensureFinalPolicyBackfill() {
             )`,
     args: [],
   });
+}
+
+// ─── Communication feature (consolidated) ───────────────────────────────────
+// The `communication` feature is the single eligibility feature behind the
+// Messages (messaging) and Announcements (internal_comms) modules — mirroring
+// how `crm` is the feature behind the Contacts module. It replaces the legacy
+// messaging + internal_comms feature keys in the UI while the legacy rows stay
+// in the database untouched (never evaluated after the MODULE_TO_FEATURE
+// remap). Runs ONCE per database via
+// runAuthzMigration("communication-feature-v1"): fresh DBs seed these roles
+// through FEATURE_ELIGIBILITY_DEFAULTS; existing DBs converge here. After
+// that, the Permissions UI owns eligibility.
+
+const COMMUNICATION_ELIGIBLE_ROLES = [
+  "super_admin",
+  "staff",
+  "program_manager",
+  "teacher",
+  "developer",
+];
+
+export async function ensureCommunicationFeatureBackfill() {
+  await ensurePermissionsSchema();
+  for (const role of COMMUNICATION_ELIGIBLE_ROLES) {
+    await db.execute({
+      sql: `INSERT INTO feature_eligibility
+              (feature_key, identity_type, identity_value, eligible)
+            VALUES ('communication', 'role', ?, 1)
+            ON CONFLICT (feature_key, identity_type, identity_value)
+            DO NOTHING`,
+      args: [role],
+    });
+  }
 }

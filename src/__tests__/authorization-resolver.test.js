@@ -369,31 +369,43 @@ describe("contacts module (Phase 4)", () => {
   });
 });
 
-// ─── internal_comms module (Phase 5 migration) ──────────────────────────────
+// ─── communication feature (Messages + Announcements modules) ───────────────
 
-describe("internal_comms module (Phase 5)", () => {
-  test("MODULE_TO_FEATURE maps internal_comms → internal_comms", () => {
+// Both the messaging module (Messages) and the internal_comms module
+// (Announcements) are consolidated under the single `communication` feature —
+// mirroring how contacts lives under `crm`.
+
+describe("communication feature (Messages + Announcements)", () => {
+  test("MODULE_TO_FEATURE maps messaging + internal_comms → communication", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.internal_comms).toBe("internal_comms");
+    expect(MODULE_TO_FEATURE.messaging).toBe("communication");
+    expect(MODULE_TO_FEATURE.internal_comms).toBe("communication");
   });
 
-  test("internal_comms eligibility defaults no longer include admin (policy #3)", () => {
+  test("communication eligibility defaults cover the CRM-like allowlist (PO decision, no admin)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toEqual(
-      expect.arrayContaining(["super_admin", "staff", "program_manager", "teacher", "developer"]),
-    );
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
+      "super_admin",
+      "staff",
+      "program_manager",
+      "teacher",
+      "developer",
+    ]);
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
+    // The legacy messaging/internal_comms feature keys are gone.
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.messaging).toBeUndefined();
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).toBeUndefined();
   });
 
-  test("staff with create_announcements can post; teacher without it cannot", () => {
+  test("staff with announcement caps can post; teacher without caps cannot", () => {
     const staff = staffCtx({
-      eligibility: { internal_comms: true },
+      eligibility: { communication: true },
       effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
     });
     const teacher = staffCtx({
       role: "teacher",
       isSuperAdmin: false,
-      eligibility: { internal_comms: true },
+      eligibility: { communication: true },
       effective: { internal_comms: { view: 1 } }, // eligible but no announcement caps
     });
     expect(authorize(staff, "internal_comms", "create_announcements")).toBe(true);
@@ -668,30 +680,31 @@ describe("investor module (Phase 11)", () => {
   });
 });
 
-// ─── messaging module (MVP: internal-only policy) ───────────────────────────
+// ─── messaging module (consolidated under the communication feature) ────────
 
-describe("messaging module (MVP internal-only)", () => {
-  test("messaging eligibility defaults are internal staff only", () => {
+describe("messaging module (communication feature)", () => {
+  test("messaging eligibility now rides the communication feature (teacher eligible per PO)", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.messaging).toEqual([
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).toEqual([
       "super_admin",
       "staff",
       "program_manager",
+      "teacher",
       "developer",
     ]);
   });
 
-  test("participant/teacher are denied messaging even with profile caps (not eligible)", () => {
+  test("participant/teacher are denied messaging when not eligible despite profile caps", () => {
     const participant = staffCtx({
       role: "participant",
       isSuperAdmin: false,
-      eligibility: { messaging: false },
+      eligibility: { communication: false },
       effective: { messaging: { view: 1, send: 2 } }, // profile caps but ineligible
     });
     const teacher = staffCtx({
       role: "teacher",
       isSuperAdmin: false,
-      eligibility: { messaging: false },
+      eligibility: { communication: false },
       effective: { messaging: { view: 1, send: 2 } },
     });
     expect(authorize(participant, "messaging", "view")).toBe(false);
@@ -700,7 +713,7 @@ describe("messaging module (MVP internal-only)", () => {
 
   test("internal staff with messaging caps are allowed", () => {
     const staff = staffCtx({
-      eligibility: { messaging: true },
+      eligibility: { communication: true },
       effective: { messaging: { view: 1, send: 2 } },
     });
     expect(authorize(staff, "messaging", "view")).toBe(true);
@@ -822,9 +835,9 @@ describe("lms module", () => {
 // backfill (ensureFinalPolicyBackfill) and the updated seeds enforce.
 
 describe("final eligibility policy (#3)", () => {
-  test("admin is NOT eligible for internal_comms or reporting", () => {
+  test("admin is NOT eligible for communication (internal_comms legacy) or reporting", () => {
     const { FEATURE_ELIGIBILITY_DEFAULTS } = require("@/lib/authorization/eligibility");
-    expect(FEATURE_ELIGIBILITY_DEFAULTS.internal_comms).not.toContain("admin");
+    expect(FEATURE_ELIGIBILITY_DEFAULTS.communication).not.toContain("admin");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.reporting).not.toContain("admin");
   });
 
@@ -838,7 +851,7 @@ describe("final eligibility policy (#3)", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { internal_comms: false, reporting: false },
+      eligibility: { communication: false, reporting: false },
       effective: { internal_comms: { view: 1, create_announcements: 2, moderate: 3 } },
     });
     expect(authorize(admin, "internal_comms", "create_announcements")).toBe(false);
@@ -850,7 +863,7 @@ describe("final eligibility policy (#3)", () => {
     const admin = staffCtx({
       role: "admin",
       isSuperAdmin: false,
-      eligibility: { internal_comms: false, reporting: false },
+      eligibility: { communication: false, reporting: false },
       effective: { reports: { view: 1, create: 2, export: 3 } },
     });
     expect(authorize(admin, "reports", "create")).toBe(false);
@@ -1010,14 +1023,14 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     const r = validateEligibilityChanges([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
-      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+      { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
     ]);
     expect(r.valid).toBe(true);
     expect(r.errors).toEqual([]);
     expect(r.normalized).toEqual([
       { feature_key: "finance", identity_type: "role", identity_value: "staff", eligible: 1 },
       { feature_key: "crm", identity_type: "group", identity_value: "Future Studio", eligible: 0 },
-      { feature_key: "messaging", identity_type: "role", identity_value: "member", eligible: null },
+      { feature_key: "communication", identity_type: "role", identity_value: "member", eligible: null },
     ]);
   });
 
@@ -1047,11 +1060,10 @@ describe("validateEligibilityChanges (eligibility API)", () => {
     expect(FEATURE_KEYS).toEqual(
       expect.arrayContaining([
         "crm",
+        "communication",
         "finance",
         "program_management",
         "reporting",
-        "messaging",
-        "internal_comms",
         "user_management",
         "system_settings",
       ]),

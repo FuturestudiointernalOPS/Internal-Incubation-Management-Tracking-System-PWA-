@@ -81,6 +81,23 @@ const MODULE_CATEGORIES = [
   },
 ];
 
+// Feature display names for the Access Profiles editor. Features are the
+// top-level grants a role receives (crm, communication, …); each feature
+// groups its capability modules (e.g. communication → Messages +
+// Announcements, crm → Contacts).
+const FEATURE_LABELS = {
+  crm: "CRM",
+  communication: "Communication",
+};
+const featureTitle = (featureKey) =>
+  FEATURE_LABELS[featureKey] ||
+  (featureKey === "__general__"
+    ? "General"
+    : String(featureKey || "")
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()));
+const FEATURE_SECTION_ORDER = ["crm", "communication"];
+
 export default function PermissionManager() {
   const { t, lang } = useI18n();
   const [activeTab, setActiveTab] = useState("search");
@@ -1450,6 +1467,7 @@ function AccessProfilesView() {
   const [profileCaps, setProfileCaps] = useState([]);
   const [actionMsg, setActionMsg] = useState("");
   const [actionError, setActionError] = useState("");
+  const [capError, setCapError] = useState(""); // dependency-validation message
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newProfile, setNewProfile] = useState({ name: "", description: "" });
   const [safetyAck, setSafetyAck] = useState(false); // confirmed role-bound profile edits
@@ -1527,6 +1545,7 @@ function AccessProfilesView() {
     setRenameMode(false);
     setActionMsg("");
     setActionError("");
+    setCapError("");
     try {
       const res = await fetch(`/api/access-profiles?id=${profile.id}`);
       const data = await res.json();
@@ -1646,12 +1665,29 @@ function AccessProfilesView() {
   const isChanged = (mod, cap) =>
     (draftCaps[mod]?.[cap] ?? 0) !== (savedCaps[mod]?.[cap] ?? 0);
 
+  // Dependency rules: view is the base capability of every module that has
+  // one. Granting edit/create/delete/… without view auto-grants view; turning
+  // view off while another capability is still granted is blocked.
   const setDraftLevel = (mod, cap, level) => {
-    setDraftCaps((prev) => {
-      const next = { ...prev, [mod]: { ...(prev[mod] || {}) } };
-      next[mod][cap] = level;
-      return next;
-    });
+    const cur = { ...(draftCaps[mod] || {}) };
+    const othersActive = Object.keys(cur).some(
+      (c) => c !== "view" && Number(cur[c] || 0) > 0,
+    );
+    if (cap === "view" && level === 0 && othersActive) {
+      setCapError(t("engineering.permissions.viewRequiredMsg"));
+      return;
+    }
+    if (cap !== "view" && level > 0 && !(Number(cur.view || 0) > 0)) {
+      cur.view = 1; // auto-grant base view
+    }
+    cur[cap] = level;
+    setDraftCaps((prev) => ({ ...prev, [mod]: cur }));
+    setCapError("");
+  };
+
+  const discardChanges = () => {
+    setDraftCaps(JSON.parse(JSON.stringify(savedCaps)));
+    setCapError("");
   };
 
   const persistCaps = async () => {
@@ -1699,10 +1735,6 @@ function AccessProfilesView() {
     setSafetyAck(true);
     setPendingSaveConfirm(null);
     persistCaps();
-  };
-
-  const discardChanges = () => {
-    setDraftCaps(JSON.parse(JSON.stringify(savedCaps)));
   };
 
   // Lazy: availableModules is defined later in the component body.
@@ -1765,9 +1797,9 @@ function AccessProfilesView() {
       name: "Reports",
       capabilities: ["view", "create", "export", "delete"],
     },
-    messaging: { name: "Messaging", capabilities: ["view", "send", "delete"] },
+    messaging: { name: "Messages", capabilities: ["view", "send", "delete"] },
     internal_comms: {
-      name: "Internal Communication",
+      name: "Announcements",
       capabilities: ["view", "create_announcements", "moderate"],
     },
     contacts: {
@@ -1863,6 +1895,22 @@ function AccessProfilesView() {
       );
     },
   );
+
+  // Group the visible modules under their feature (crm → Contacts,
+  // communication → Messages + Announcements, …) so the editor reads as
+  // feature subsections instead of a flat capability list.
+  const featureModules = {};
+  for (const entry of visibleModules) {
+    const feature = moduleToFeature[entry[0]] || "__general__";
+    (featureModules[feature] ||= []).push(entry);
+  }
+  const orderedFeatures = [];
+  for (const f of FEATURE_SECTION_ORDER) {
+    if (featureModules[f]) orderedFeatures.push(f);
+  }
+  for (const f of Object.keys(featureModules).sort()) {
+    if (!orderedFeatures.includes(f)) orderedFeatures.push(f);
+  }
 
   return (
     <div className="space-y-6">
@@ -2132,6 +2180,14 @@ function AccessProfilesView() {
                 </div>
               )}
 
+              {capError && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <p className="text-[10px] font-bold text-amber-400">
+                    {capError}
+                  </p>
+                </div>
+              )}
+
               {visibleModules.length === 0 && (
                 <div className="py-10 text-center opacity-60">
                   <p className="text-xs font-black text-[var(--text-primary)] uppercase">
@@ -2140,84 +2196,99 @@ function AccessProfilesView() {
                 </div>
               )}
 
-              <div className="space-y-4">
-                {visibleModules.map(([modKey, mod]) => {
-                  const moduleChanged = mod.capabilities.some((cap) =>
-                    isChanged(modKey, cap),
-                  );
-                  return (
-                    <div
-                      key={modKey}
-                      className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden"
-                    >
-                      <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
-                          {mod.name}
-                        </h4>
-                        {moduleChanged && (
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                            {t("engineering.permissions.changedBadge")}
-                          </span>
-                        )}
-                      </div>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left min-w-[480px]">
-                          <thead>
-                            <tr className="border-b border-[var(--border-primary)]">
-                              <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
-                                {t("engineering.permissions.capability")}
-                              </th>
-                              {LEVELS_ORDER.map((l) => (
-                                <th
-                                  key={l}
-                                  className="px-1 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"
-                                >
-                                  {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {mod.capabilities.map((cap) => {
-                              const level = getDraftLevel(modKey, cap);
-                              const changed = isChanged(modKey, cap);
-                              return (
-                                <tr
-                                  key={cap}
-                                  className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
-                                >
-                                  <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
-                                    {capabilityLabel(modKey, cap)}
-                                    {changed && (
-                                      <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
-                                        {t("engineering.permissions.changedBadge")}
-                                      </span>
-                                    )}
-                                  </td>
+              <div className="space-y-6">
+                {orderedFeatures.map((feature) => (
+                  <div key={feature} className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                      <span className="w-1 h-3 rounded-full bg-[var(--brand-orange)]" />
+                      <h4 className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.2em]">
+                        {featureTitle(feature)}
+                      </h4>
+                    </div>
+                    {featureModules[feature].map(([modKey, mod]) => {
+                      const moduleChanged = mod.capabilities.some((cap) =>
+                        isChanged(modKey, cap),
+                      );
+                      return (
+                        <div
+                          key={modKey}
+                          className="ios-card !p-0 border border-[var(--border-primary)] overflow-hidden"
+                        >
+                          <div className="px-5 py-3 bg-tertiary/30 border-b border-[var(--border-primary)] flex items-center justify-between">
+                            <h4 className="text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider">
+                              {mod.name}
+                            </h4>
+                            {moduleChanged && (
+                              <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                {t("engineering.permissions.changedBadge")}
+                              </span>
+                            )}
+                          </div>
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left min-w-[480px]">
+                              <thead>
+                                <tr className="border-b border-[var(--border-primary)]">
+                                  <th className="px-4 py-2.5 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                                    {t("engineering.permissions.capability")}
+                                  </th>
                                   {LEVELS_ORDER.map((l) => (
-                                    <td key={l} className="px-1 py-1.5 text-center">
-                                      <button
-                                        onClick={() => setDraftLevel(modKey, cap, l)}
-                                        title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
-                                        className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all ${
-                                          level === l
-                                            ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
-                                            : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
-                                        } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
-                                      >
-                                        {ACCESS_SHORT[l]}
-                                      </button>
-                                    </td>
+                                    <th
+                                      key={l}
+                                      className="px-1 py-2.5 text-center text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest"
+                                    >
+                                      {l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}
+                                    </th>
                                   ))}
                                 </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
+                              </thead>
+                              <tbody>
+                                {mod.capabilities.map((cap) => {
+                                  const level = getDraftLevel(modKey, cap);
+                                  const changed = isChanged(modKey, cap);
+                                  return (
+                                    <tr
+                                      key={cap}
+                                      className={`border-b border-[var(--border-primary)]/50 last:border-b-0 ${changed ? "bg-amber-500/5" : ""}`}
+                                    >
+                                      <td className="px-4 py-2 text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">
+                                        {capabilityLabel(modKey, cap)}
+                                        {changed && (
+                                          <span className="ml-2 text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                            {t("engineering.permissions.changedBadge")}
+                                          </span>
+                                        )}
+                                      </td>
+                                      {LEVELS_ORDER.map((l) => (
+                                        <td key={l} className="px-1 py-1.5 text-center">
+                                          <button
+                                            onClick={() => setDraftLevel(modKey, cap, l)}
+                                            title={`${capabilityLabel(modKey, cap)} → ${l === 0 ? "—" : t(ACCESS_LEVEL_KEYS[l])}`}
+                                            className={`w-8 h-8 rounded-lg border text-[10px] font-bold transition-all ${
+                                              level === l
+                                                ? "bg-[var(--brand-orange)] text-black border-[var(--brand-orange)]"
+                                                : "bg-secondary border-[var(--border-primary)] text-slate-500 hover:border-[var(--brand-orange)]/40 hover:text-[var(--text-primary)]"
+                                            } ${changed && level === l ? "ring-1 ring-amber-400/70" : ""}`}
+                                          >
+                                            {ACCESS_SHORT[l]}
+                                          </button>
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                          {mod.capabilities.includes("view") && (
+                            <p className="px-5 py-2 border-t border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-secondary)]">
+                              {t("engineering.permissions.viewBaseHint")}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </>
           ) : (

@@ -175,6 +175,8 @@
       "profileEligibilityFilterHint": "Showing only features that the role(s) using this profile are eligible for: {roles}",
       "profileNoRolesHint": "This profile is not the default profile of any role — all features are shown.",
       "profileNoEligibleFeatures": "None of this profile's roles are eligible for any feature — nothing to show.",
+      "viewBaseHint": "View is the base capability: granting edit/create/delete auto-grants View, and View can't be removed while other capabilities are enabled.",
+      "viewRequiredMsg": "View is required — disable the other capabilities before removing it.",
       "duplicateProfileTitle": "Duplicate profile",
       "disableProfile": "Disable profile",
       "enableProfile": "Enable profile",

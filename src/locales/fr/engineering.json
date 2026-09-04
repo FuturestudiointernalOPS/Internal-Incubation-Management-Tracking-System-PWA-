@@ -175,6 +175,8 @@
       "profileEligibilityFilterHint": "Affichage uniquement des fonctionnalités pour lesquelles le(s) rôle(s) utilisant ce profil sont éligibles : {roles}",
       "profileNoRolesHint": "Ce profil n'est le profil par défaut d'aucun rôle — toutes les fonctionnalités sont affichées.",
       "profileNoEligibleFeatures": "Aucun rôle de ce profil n'est éligible à une fonctionnalité — rien à afficher.",
+      "viewBaseHint": "La consultation (View) est la capacité de base : accorder modifier/créer/supprimer active automatiquement View, et View ne peut pas être retiré tant que d'autres capacités sont actives.",
+      "viewRequiredMsg": "La consultation est requise — désactivez d'abord les autres capacités avant de la retirer.",
       "duplicateProfileTitle": "Dupliquer le profil",
       "disableProfile": "Désactiver le profil",
       "enableProfile": "Activer le profil",
