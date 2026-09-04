@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { hasVentureCapability, hasAnyVentureAssignment } from "@/lib/venturePermissions";
 
 async function resolveDbId(db, ventureId) {
   try {
@@ -49,27 +50,30 @@ async function isVentureFounder(db, ventureId, cid) {
   return r.rows?.length > 0;
 }
 
-// View access: any active member (founder or team_member) can see the roster.
+// View access (Phase 2 — assignment-aware): GLOBAL roles see the roster;
+// otherwise an active member OR an active staff assignment is required.
 async function checkAccess(db, ventureId, userRole, userCid) {
-  if (["staff", "super_admin", "program_manager", "developer"].includes(userRole)) {
+  if (["super_admin", "developer", "admin"].includes(userRole)) {
     return true;
   }
-  if (userCid) {
-    return await isVentureMember(db, ventureId, userCid);
-  }
-  return false;
+  if (!userCid) return false;
+  if (await isVentureMember(db, ventureId, userCid)) return true;
+  const code = await resolveVentureCode(db, ventureId);
+  return hasAnyVentureAssignment(db, { ventureId: code, contactId: userCid });
 }
 
-// Mutation access (add/remove/edit members): founders manage the roster, not
-// any team_member — mirrors business rule 10 (founders update venture info).
+// Mutation access (add/remove/edit members): founders manage the roster.
+// Staff mutate only when their assignment grants founders:manage — evaluated
+// at runtime from the configurable permission matrix (Lead Manager default:
+// manage = yes; Coach/Facilitator default: no).
 async function checkMutateAccess(db, ventureId, userRole, userCid) {
-  if (["staff", "super_admin", "program_manager", "developer"].includes(userRole)) {
+  if (["super_admin", "developer", "admin"].includes(userRole)) {
     return true;
   }
-  if (userCid) {
-    return await isVentureFounder(db, ventureId, userCid);
-  }
-  return false;
+  if (!userCid) return false;
+  if (await isVentureFounder(db, ventureId, userCid)) return true;
+  const code = await resolveVentureCode(db, ventureId);
+  return hasVentureCapability(db, { ventureId: code, contactId: userCid, area: "founders", action: "manage" });
 }
 
 export async function GET(req, { params }) {

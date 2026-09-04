@@ -27,13 +27,24 @@ export const GET = createHandler(
 
     const contactId = searchParams.get("contact_id");
 
-    // Phase 5 hardening: non-privileged roles (participant/founder/teacher)
-    // can only list their OWN ventures — never the whole directory.
+    // Access scoping (Phase 2 — assignment-aware):
+    //  - GLOBAL roles (super_admin/developer/admin) may list every Venture.
+    //  - Delegated staff/program_manager see Ventures they are ASSIGNED to
+    //    or MEMBERS of — never the whole directory.
+    //  - Other roles (participant/founder/teacher/member) see only their own
+    //    ventures via membership.
     let effectiveContactId = contactId;
     try {
       const session = await getSession();
-      if (session && !["super_admin", "staff", "program_manager", "developer"].includes(session.role)) {
-        effectiveContactId = session.cid;
+      if (session && !["super_admin", "developer", "admin"].includes(session.role)) {
+        if (["staff", "program_manager"].includes(session.role)) {
+          sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active')";
+          args.push(session.cid);
+          sql += " OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+          args.push(session.cid, session.cid);
+        } else {
+          effectiveContactId = session.cid;
+        }
       }
     } catch (_) {}
 

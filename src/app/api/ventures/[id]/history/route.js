@@ -25,6 +25,21 @@ export async function GET(req, { params }) {
     const venture = ventureRes.rows[0];
     const dbId = venture.id;
 
+    // Delegated staff (Phase 2): history is Venture-scoped — staff and
+    // program_manager need an explicit assignment; unassigned teacher reads
+    // are no longer implicit.
+    if (["staff", "program_manager", "teacher"].includes(session.role) && !["super_admin", "developer", "admin"].includes(session.role)) {
+      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+      const assigned = await hasActiveVentureAssignment(id, session.cid, db);
+      const member = await db.execute({
+        sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
+        args: [id, session.cid || "", session.cid || ""],
+      });
+      if (!assigned && !member.rows?.length) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
+    }
+
     if (session.role === "participant" && venture.visibility !== "public") {
       // venture_members stores venture_id as the VNT code (TEXT)
       const memberCheck = await db.execute({

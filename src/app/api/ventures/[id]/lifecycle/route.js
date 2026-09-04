@@ -31,11 +31,21 @@ export async function POST(req, { params }) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
     }
-    if (!["super_admin", "staff", "program_manager", "developer", "admin"].includes(session.role)) {
-      return NextResponse.json(
-        { success: false, error: "Unauthorized. Only Future Studio staff can change a Venture's lifecycle." },
-        { status: 403 },
-      );
+    if (!["super_admin", "developer", "admin"].includes(session.role)) {
+      // Delegated staff (Phase 2): lifecycle changes require an explicit
+      // Venture assignment — never the staff role alone.
+      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+      let lcCode = id;
+      if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
+        const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [id] });
+        if (byId.rows?.[0]) lcCode = byId.rows[0].venture_id;
+      }
+      if (!(await hasActiveVentureAssignment(lcCode, session.cid, db))) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized. Only assigned Venture staff can change a Venture's lifecycle." },
+          { status: 403 },
+        );
+      }
     }
 
     const { id } = await params;
