@@ -343,27 +343,6 @@ const SidebarContent = ({
     clearTimeout(flyoutTimer.current);
     flyoutTimer.current = setTimeout(() => setFlyout(null), 200);
   };
-  // Hover intent for the expanded sidebar: open after a short delay (prevents
-  // flicker when crossing adjacent items), close after the same 200ms delay
-  // used by the collapsed-rail flyout — consistent hover timing everywhere.
-  const scheduleHoverOpen = (id) => {
-    clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => setHoverMenu(id), 150);
-  };
-  const scheduleHoverClose = (id) => {
-    clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => {
-      setHoverMenu((prev) => (prev === id ? null : prev));
-    }, 200);
-  };
-  // A section stays expanded while the hover target is itself or any of its
-  // descendants — hovering a nested parent keeps its ancestors open.
-  const isHoverTarget = (item, id) => {
-    if (!id) return false;
-    if (item.id === id) return true;
-    const kids = item.children || item.subItems;
-    return !!kids && kids.some((k) => isHoverTarget(k, id));
-  };
 
   // Recursive nav renderer: a node with children renders as an expandable
   // group; a node without children renders as a link (leaf). showLabels forces
@@ -376,24 +355,14 @@ const SidebarContent = ({
     const show = !collapsed || showLabels;
 
     if (hasKids) {
-      const isOpen = openMenus[item.id] || false;
-      const expanded = isOpen || isHoverTarget(item, hoverMenu);
+      // Sub-sections open only on click (accordion), never on hover.
+      const expanded = openMenus[item.id] || false;
       return (
-        <div
-          key={item.id}
-          className="space-y-1"
-          onMouseLeave={
-            collapsed ? undefined : () => scheduleHoverClose(item.id)
-          }
-        >
+        <div key={item.id} className="space-y-1">
           <button
             onClick={() => toggleMenu(item.id)}
             onMouseEnter={
-              collapsed && !showLabels
-                ? (e) => openFlyout(e, item.id)
-                : collapsed
-                  ? undefined
-                  : () => scheduleHoverOpen(item.id)
+              collapsed && !showLabels ? (e) => openFlyout(e, item.id) : undefined
             }
             onMouseLeave={
               collapsed && !showLabels ? scheduleFlyoutClose : undefined
