@@ -4,7 +4,11 @@
  * of invalid inputs (ticket §14 — YouTube URL handling).
  */
 
-const { extractYouTubeVideoId, isValidYouTubeVideoId } = require("@/lib/lms/youtube");
+const {
+  extractYouTubeVideoId,
+  isValidYouTubeVideoId,
+  buildYouTubeEmbedUrl,
+} = require("@/lib/lms/youtube");
 
 describe("extractYouTubeVideoId", () => {
   test("accepts a bare 11-char video ID", () => {
@@ -81,5 +85,25 @@ describe("isValidYouTubeVideoId", () => {
     expect(isValidYouTubeVideoId("")).toBe(false);
     expect(isValidYouTubeVideoId("short")).toBe(false);
     expect(isValidYouTubeVideoId("https://youtu.be/dQw4w9WgXcQ")).toBe(false);
+  });
+});
+
+describe("buildYouTubeEmbedUrl", () => {
+  test("builds a cookie-free embed URL with the default player params", () => {
+    expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ")).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white",
+    );
+  });
+
+  test("adds autoplay only when requested", () => {
+    expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { autoplay: true })).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&autoplay=1",
+    );
+  });
+
+  test("returns null for invalid IDs", () => {
+    expect(buildYouTubeEmbedUrl("")).toBeNull();
+    expect(buildYouTubeEmbedUrl("short")).toBeNull();
+    expect(buildYouTubeEmbedUrl("https://youtu.be/dQw4w9WgXcQ")).toBeNull();
   });
 });

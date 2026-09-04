@@ -17,7 +17,7 @@ import LessonStateIcon from "./LessonStateIcon";
 import LearnerProgressBar from "./LearnerProgressBar";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
 
 /**
  * COURSE PLAYER (learner).
@@ -168,7 +168,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             {videoId ? (
               <iframe
                 className="absolute inset-0 w-full h-full"
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&color=white`}
+                src={buildYouTubeEmbedUrl(videoId)}
                 title={lesson.title}
                 frameBorder="0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
