@@ -11,6 +11,7 @@ import {
   HelpCircle,
   CheckCircle2,
   ListVideo,
+  GripVertical,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -58,6 +59,46 @@ export default function SectionsManager({ course, onChange }) {
     }
   };
 
+  // ── Collapse + drag & drop reorder (sections) ────────────────────────────
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set());
+  const [draggingId, setDraggingId] = useState(null);
+  const [dragOverId, setDragOverId] = useState(null);
+
+  const toggleCollapsed = (sectionId) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      const key = String(sectionId);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const isCollapsed = (sectionId) => collapsedIds.has(String(sectionId));
+
+  const clearDrag = () => {
+    setDraggingId(null);
+    setDragOverId(null);
+  };
+
+  /** Drop dragged section onto `targetId`'s slot, then persist the full order. */
+  const handleSectionDrop = (targetId) => {
+    const fromId = draggingId;
+    const from = course.sections.findIndex((s) => String(s.id) === String(fromId));
+    const to = course.sections.findIndex((s) => String(s.id) === String(targetId));
+    clearDrag();
+    if (from < 0 || to < 0 || from === to || !fromId) return;
+    const ids = course.sections.map((s) => String(s.id));
+    const [moved] = ids.splice(from, 1);
+    ids.splice(to, 0, moved);
+    mutate(
+      `/api/lms/courses/${course.id}/sections/reorder`,
+      "POST",
+      { sectionIds: ids },
+      "lms.courses.saved",
+    );
+  };
+
   // ── Sections ─────────────────────────────────────────────────────────────
   const saveSection = async () => {
     if (!sectionModal.title?.trim()) {
@@ -79,9 +120,6 @@ export default function SectionsManager({ course, onChange }) {
     if (!window.confirm(`${t("lms.confirm.deleteSection")}\n${t("lms.confirm.deleteSectionHint")}`)) return;
     mutate(`/api/lms/sections/${section.id}`, "DELETE", null, "lms.courses.saved", section.id);
   };
-
-  const moveSection = (section, direction) =>
-    mutate(`/api/lms/sections/${section.id}`, "PUT", { action: "move", direction }, "lms.courses.saved", section.id);
 
   // ── Lessons ──────────────────────────────────────────────────────────────
   const deleteLesson = (lesson) => {
@@ -132,39 +170,86 @@ export default function SectionsManager({ course, onChange }) {
         </div>
       ) : (
         course.sections.map((section, index) => (
-          <div key={section.id} className="rounded-xl border overflow-hidden" style={{ borderColor: "var(--border-primary)" }}>
+          <div
+            key={section.id}
+            className={`rounded-xl border overflow-hidden transition-opacity ${
+              draggingId === String(section.id) ? "opacity-60" : ""
+            }`}
+            style={{
+              borderColor:
+                dragOverId === String(section.id)
+                  ? "var(--brand-orange)"
+                  : "var(--border-primary)",
+            }}
+            draggable
+            onDragStart={(e) => {
+              // Only the dedicated handle starts a section drag.
+              if (!e.target.closest("[data-section-drag-handle]")) {
+                e.preventDefault();
+                return;
+              }
+              e.dataTransfer.effectAllowed = "move";
+              e.dataTransfer.setData("text/plain", String(section.id));
+              setDraggingId(String(section.id));
+            }}
+            onDragOver={(e) => {
+              if (!draggingId || draggingId === String(section.id)) return;
+              e.preventDefault();
+              setDragOverId(String(section.id));
+            }}
+            onDragLeave={(e) => {
+              if (e.currentTarget.contains(e.relatedTarget)) return;
+              setDragOverId((cur) => (cur === String(section.id) ? null : cur));
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (draggingId && draggingId !== String(section.id)) {
+                handleSectionDrop(section.id);
+              } else {
+                clearDrag();
+              }
+            }}
+            onDragEnd={clearDrag}
+          >
             {/* Section header */}
             <div
-              className="flex items-center gap-3 px-4 py-3 flex-wrap"
+              className="flex items-center gap-2 px-4 py-3 flex-wrap"
               style={{ background: "var(--surface-2)" }}
             >
-              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+              <button
+                type="button"
+                data-section-drag-handle
+                title={t("lms.sections.dragToReorder")}
+                className="p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+              >
+                <GripVertical className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => toggleCollapsed(section.id)}
+                title={isCollapsed(section.id) ? t("lms.sections.expand") : t("lms.sections.collapse")}
+                className="p-1.5 rounded-lg transition-colors"
+                style={{ color: "var(--text-tertiary)" }}
+              >
+                {isCollapsed(section.id) ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronUp className="w-4 h-4" />
+                )}
+              </button>
+              <p className="text-[9px] font-black uppercase tracking-widest shrink-0" style={{ color: "var(--text-tertiary)" }}>
                 {index + 1}
               </p>
               <p className="text-xs font-black uppercase tracking-wider flex-1 min-w-0 truncate" style={{ color: "var(--text-primary)" }}>
                 {section.title}
               </p>
+              {section.lessons.length > 0 && (
+                <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
+                  {section.lessons.length} {t("lms.preview.lessons")}
+                </span>
+              )}
               <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => moveSection(section, "up")}
-                  disabled={index === 0 || savingId === section.id}
-                  className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
-                  style={{ color: "var(--text-tertiary)" }}
-                  title={t("lms.sections.moveUp")}
-                >
-                  <ChevronUp className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveSection(section, "down")}
-                  disabled={index === course.sections.length - 1 || savingId === section.id}
-                  className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
-                  style={{ color: "var(--text-tertiary)" }}
-                  title={t("lms.sections.moveDown")}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </button>
                 <button
                   type="button"
                   onClick={() => setSectionModal({ mode: "edit", section, title: section.title, description: section.description })}
@@ -187,6 +272,7 @@ export default function SectionsManager({ course, onChange }) {
             </div>
 
             {/* Lessons */}
+            {!isCollapsed(section.id) && (
             <div className="p-4 space-y-2">
               {section.lessons.length === 0 ? (
                 <p className="text-[10px] font-bold uppercase tracking-wider py-3 text-center" style={{ color: "var(--text-tertiary)" }}>
@@ -335,6 +421,7 @@ export default function SectionsManager({ course, onChange }) {
                 </div>
               )}
             </div>
+            )}
           </div>
         ))
       )}
