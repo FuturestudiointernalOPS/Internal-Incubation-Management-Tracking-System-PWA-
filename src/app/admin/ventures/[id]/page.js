@@ -265,6 +265,12 @@ export default function VentureDetailPage({ params }) {
               >
                 <Shield className="w-3 h-3" /> Permissions
               </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <FileText className="w-3 h-3" /> Notes
+              </button>
             </div>
           </div>
 

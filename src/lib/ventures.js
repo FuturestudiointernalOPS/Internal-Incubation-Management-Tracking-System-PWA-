@@ -248,6 +248,9 @@ export async function ensureVentureSchema() {
     "CREATE INDEX IF NOT EXISTS idx_vsa_venture ON venture_staff_assignments(venture_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_vsa_staff ON venture_staff_assignments(staff_contact_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_vpo_venture ON venture_permission_overrides(venture_id)",
+    // ─── Phase P4 — Internal Venture Notes (staff-only; founders never) ───
+    "CREATE TABLE IF NOT EXISTS venture_notes (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, author_cid TEXT, author_name TEXT, title TEXT NOT NULL, body TEXT NOT NULL, scope_ref_type TEXT, scope_ref_id TEXT, is_archived BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS idx_venture_notes_venture ON venture_notes(venture_id, is_archived)",
   ];
 
   for (const sql of migrations) {
