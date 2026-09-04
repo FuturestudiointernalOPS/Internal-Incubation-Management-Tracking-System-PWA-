@@ -29,7 +29,6 @@ import {
   Trash2,
   Send,
   Library,
-  Globe,
   BarChart3,
   UploadCloud,
   ListTodo,
@@ -311,20 +310,14 @@ const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
-  const { switchLang } = useI18n();
   const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "teacher" ? "teacher" : role === "facilitator" ? "facilitator" : role === "developer" || role === "intern" ? "developer" : role === "investor" ? "investor" : "participant"}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
-  // Hover-expand state (expanded sidebar): a SINGLE hover target at a time —
-  // hovering the next section collapses the previous one (accordion).
-  const [hoverMenu, setHoverMenu] = useState(null);
-  const hoverTimer = useRef(null);
 
-  // Clear pending hover/flyout timers on unmount.
+  // Clear pending flyout timers on unmount.
   useEffect(
     () => () => {
-      clearTimeout(hoverTimer.current);
       clearTimeout(flyoutTimer.current);
     },
     [],
@@ -501,11 +494,6 @@ const SidebarContent = ({
       })()}
 
       <div className="mt-auto pt-8 border-t border-[var(--border-secondary)] space-y-3">
-        {!collapsed && (
-          <p className="px-3 mb-2 text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
-            {t("navigation.userProtocol")}
-          </p>
-        )}
         <div className="space-y-1">
           <button
             onClick={() => toggleMenu("profile")}
@@ -538,17 +526,6 @@ const SidebarContent = ({
             </div>
           )}
         </div>
-        <button
-          onClick={() => {
-            if (typeof window === "undefined") return;
-            const current = localStorage.getItem("impactos_lang") || "en";
-            switchLang(current === "en" ? "fr" : "en");
-          }}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-bold uppercase tracking-wide text-[11px]"
-        >
-          <Globe className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>FR/EN</span>}
-        </button>
         <button
           onClick={handleLogout}
           className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-rose-500 hover:bg-rose-500/10 transition-all font-bold uppercase tracking-wide text-[11px]"
