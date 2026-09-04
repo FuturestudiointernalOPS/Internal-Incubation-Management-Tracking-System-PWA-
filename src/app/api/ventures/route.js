@@ -27,9 +27,19 @@ export const GET = createHandler(
 
     const contactId = searchParams.get("contact_id");
 
-    if (contactId) {
+    // Phase 5 hardening: non-privileged roles (participant/founder/teacher)
+    // can only list their OWN ventures — never the whole directory.
+    let effectiveContactId = contactId;
+    try {
+      const session = await getSession();
+      if (session && !["super_admin", "staff", "program_manager", "developer"].includes(session.role)) {
+        effectiveContactId = session.cid;
+      }
+    } catch (_) {}
+
+    if (effectiveContactId) {
       sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
-      args.push(contactId, contactId);
+      args.push(effectiveContactId, effectiveContactId);
     }
 
     if (status) {
@@ -59,8 +69,31 @@ export const GET = createHandler(
  * Create a new venture.
  */
 export const POST = createHandler(async (req) => {
+  // RETIRED (Phase 1): Venture creation only flows through the Forms/Runs
+  // intake pipeline (Form → Run → Submission → Review → Approval → Venture).
+  // Even Super Admin cannot create Ventures directly anymore.
+  return NextResponse.json(
+    {
+      success: false,
+      code: "LEGACY_FLOW_RETIRED",
+      error:
+        "Direct Venture creation is retired. Ventures are created only through the Venture Application form approval pipeline.",
+    },
+    { status: 410 },
+  );
+  // Dead code below kept only to preserve route structure.
   const capError = await requireAuthorization("ventures", "create");
   if (capError) return capError;
+  // Phase 2 pipeline rule: Ventures are created via the Venture Application
+  // Form/Run approval process. Direct API creation is super admin only
+  // (internal fallback for the approval rule).
+  const session = await getSession();
+  if (!session || session.role !== "super_admin") {
+    return NextResponse.json(
+      { success: false, error: "Venture creation is only available through the Venture Application process." },
+      { status: 403 },
+    );
+  }
   const { name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id } = await req.json();
     if (!name) {
       return NextResponse.json({ success: false, error: "name is required" }, { status: 400 });

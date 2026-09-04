@@ -81,135 +81,18 @@ describe("Venture API Integration Tests", () => {
   });
 
   describe("POST /api/ventures/register", () => {
-    it("should successfully register a startup with valid data", async () => {
-      // Mock all DB queries to succeed
-      db.execute
-        // Duplicate checks (no duplicates)
-        .mockResolvedValueOnce({ rows: [] }) // company name check
-        .mockResolvedValueOnce({ rows: [] }) // registration number check (will be skipped if empty)
-        .mockResolvedValueOnce({ rows: [] }) // founder email check
-        // createVenture
-        .mockResolvedValueOnce({ rows: [{ venture_id: "VNT-MOCKUUID" }] })
-        // createFounder
-        .mockResolvedValueOnce({ rows: [] })
-        // addVentureHistory (PROFILE_WIZARD_INIT)
-        .mockResolvedValueOnce({ rows: [] })
-        // addVentureHistory (VENTURE_REGISTERED)
-        .mockResolvedValueOnce({ rows: [] })
-        // logVentureActivity (VENTURE_CREATED)
-        .mockResolvedValueOnce({ rows: [] })
-        // logVentureActivity (FOUNDER_INVITED)
-        .mockResolvedValueOnce({ rows: [] })
-        // createVentureNotification (Startup Created)
-        .mockResolvedValueOnce({ rows: [] })
-        // createVentureNotification (Founder Invitation Sent)
-        .mockResolvedValueOnce({ rows: [] });
-
+    it("is retired — Venture creation only flows through the Forms/Runs intake pipeline", async () => {
       const { POST } = await import("@/app/api/ventures/register/route");
-
       const req = new Request("http://localhost:3000/api/ventures/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_name: "TechFlow Inc.",
-          registration_number: "RC-2024-001",
-          industry: "fintech",
-          business_stage: "early_traction",
-          description: "A fintech startup building payment solutions",
-          website: "https://techflow.io",
-          founder_email: "john@techflow.io",
-          founder_name: "John Doe",
-          founder_phone: "+22900000000",
-          founder_title: "CEO",
-        }),
+        body: JSON.stringify({ company_name: "TechFlow Inc." }),
       });
-
       const response = await POST(req);
       const data = await response.json();
-
-      expect(response.status).toBe(200);
-      expect(data.success).toBe(true);
-      expect(data.venture).toBeDefined();
-      expect(data.venture.venture_id).toMatch(/^VNT-/);
-      expect(data.venture.company_name).toBe("TechFlow Inc.");
-      expect(data.founder).toBeDefined();
-      expect(data.founder.email).toBe("john@techflow.io");
-      expect(data.founder.status).toBe("pending");
-      expect(data.invitation).toBeDefined();
-      expect(data.redirect).toBe(`/admin/ventures/${data.venture.venture_id}`);
-    });
-
-    it("should reject registration with missing required fields", async () => {
-      const { POST } = await import("@/app/api/ventures/register/route");
-
-      const req = new Request("http://localhost:3000/api/ventures/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_name: "",
-          industry: "",
-          business_stage: "",
-          founder_email: "",
-          founder_name: "",
-        }),
-      });
-
-      const response = await POST(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(410);
       expect(data.success).toBe(false);
-      expect(data.errors).toBeDefined();
-      expect(data.errors.length).toBeGreaterThan(0);
-    });
-
-    it("should reject duplicate company name", async () => {
-      db.execute
-        .mockResolvedValueOnce({ rows: [{ id: 1 }] }); // duplicate company name
-
-      const { POST } = await import("@/app/api/ventures/register/route");
-
-      const req = new Request("http://localhost:3000/api/ventures/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_name: "Existing Corp",
-          industry: "fintech",
-          business_stage: "early_traction",
-          founder_email: "john@example.com",
-          founder_name: "John Doe",
-        }),
-      });
-
-      const response = await POST(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(409);
-      expect(data.success).toBe(false);
-      expect(data.conflicts).toContain("A company with this name already exists");
-    });
-
-    it("should reject invalid email format", async () => {
-      const { POST } = await import("@/app/api/ventures/register/route");
-
-      const req = new Request("http://localhost:3000/api/ventures/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          company_name: "Valid Corp",
-          industry: "fintech",
-          business_stage: "early_traction",
-          founder_email: "invalid-email",
-          founder_name: "John Doe",
-        }),
-      });
-
-      const response = await POST(req);
-      const data = await response.json();
-
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.errors).toContain("Invalid founder email format");
+      expect(data.code).toBe("LEGACY_FLOW_RETIRED");
     });
   });
 

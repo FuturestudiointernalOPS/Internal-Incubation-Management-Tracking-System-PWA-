@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS contacts (
     gender TEXT,
     mother_name TEXT,
     group_name TEXT NOT NULL DEFAULT '',
-    role TEXT NOT NULL DEFAULT 'participant',
+    role TEXT NOT NULL DEFAULT 'member',
     password TEXT NOT NULL,
     program_id TEXT,
     program_name TEXT,

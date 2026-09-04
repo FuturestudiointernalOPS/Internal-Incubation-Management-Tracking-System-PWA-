@@ -135,6 +135,7 @@ export default function PlatformForms() {
   const [showWorkflow, setShowWorkflow] = useState(false);
   const [workflowConfig, setWorkflowConfig] = useState(null);
   const [automationConfig, setAutomationConfig] = useState(null);
+  const [isVentureForm, setIsVentureForm] = useState(false);
 
   // Templates panel
   const [showTemplates, setShowTemplates] = useState(false);
@@ -225,6 +226,9 @@ export default function PlatformForms() {
 
     // Load automation config from form settings
     setAutomationConfig(formSettings.automation || { ...DEFAULT_AUTOMATION });
+
+    // Venture Application flag (approval creates a Venture)
+    setIsVentureForm(!!formSettings.venture_application);
 
     // Load template config from form settings
     setTemplateConfig(formSettings.automation?.templates || null);
@@ -1242,7 +1246,7 @@ export default function PlatformForms() {
                     await fetch("/api/platform/forms", {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), workflow: workflowConfig, automation: automationConfig || DEFAULT_AUTOMATION } }),
+                      body: JSON.stringify({ id: editingForm.id, settings: { ...(editingForm.settings || {}), venture_application: isVentureForm, workflow: workflowConfig, automation: automationConfig || DEFAULT_AUTOMATION } }),
                     });
                     notify(t("platformMisc.forms.notifyWorkflowSaved"));
                   } catch (_) {}
@@ -1321,6 +1325,40 @@ export default function PlatformForms() {
 
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] pt-4">{t("platformMisc.forms.workflowAutomationActions")}</h4>
                 <p className="text-[10px] font-medium text-[var(--text-secondary)] mb-3">{t("platformMisc.forms.workflowAutomationHint")}</p>
+
+                {/* Venture Application flag — approval of this form's submissions creates a Venture */}
+                {(() => {
+                  const ventureOwner = forms.find(
+                    (f) =>
+                      f.id !== editingForm?.id &&
+                      (f.settings?.venture_application === true || f.settings?.venture_application === "true")
+                  );
+                  const locked = !!ventureOwner && !isVentureForm;
+                  return (
+                    <div className="mb-3">
+                      <label className={`flex items-start gap-3 p-3 rounded-xl bg-tertiary border border-[var(--brand-orange)]/30 ${locked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}`}>
+                        <input
+                          type="checkbox"
+                          checked={isVentureForm}
+                          disabled={locked}
+                          onChange={(e) => setIsVentureForm(e.target.checked)}
+                          className="mt-0.5 w-4 h-4 accent-[var(--brand-orange)]"
+                        />
+                        <span>
+                          <span className="block text-[10px] font-black uppercase tracking-wider text-[var(--brand-orange)]">{t("platformMisc.forms.ventureFormLabel")}</span>
+                          <span className="block text-[9px] text-[var(--text-secondary)]">{t("platformMisc.forms.ventureFormDesc")}</span>
+                        </span>
+                      </label>
+                      {locked && (
+                        <p className="text-[9px] text-[var(--text-secondary)] px-1 -mt-1">
+                          {t("platformMisc.forms.ventureFormLockedPrefix")}{" "}
+                          <b className="text-[var(--brand-orange)]">{ventureOwner.name}</b>.{" "}
+                          {t("platformMisc.forms.ventureFormLockedSuffix")}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {(() => {
                   const autoCfg = automationConfig || DEFAULT_AUTOMATION;

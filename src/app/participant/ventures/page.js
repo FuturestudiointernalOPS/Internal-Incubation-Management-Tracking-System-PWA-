@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Briefcase, Loader2, X } from "lucide-react";
+import { Briefcase, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -10,14 +10,6 @@ export default function ParticipantVentures() {
   const [user, setUser] = useState({});
   const [ventures, setVentures] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    industry: "",
-    business_stage: "idea",
-  });
   const { t } = useI18n();
   const router = useRouter();
 
@@ -58,39 +50,30 @@ export default function ParticipantVentures() {
     }
   }
 
-  async function handleCreate(e) {
-    e.preventDefault();
-    if (!form.name.trim()) return;
-    setCreating(true);
+  // Phase 2 pipeline: Venture creation goes through the Venture Application
+  // Form/Run. This button opens the configured Venture Run.
+  async function openVentureApplication() {
     try {
-      const res = await fetch("/api/ventures", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: form.name,
-          description: form.description,
-          industry: form.industry,
-          business_stage: form.business_stage,
-          created_by: user.cid,
-        }),
-      });
+      const res = await fetch("/api/platform/venture-run");
       const data = await res.json();
-      if (data.success) {
-        setShowModal(false);
-        setForm({ name: "", description: "", industry: "", business_stage: "idea" });
-        await loadVentures(true);
+      if (data.success && data.url) {
+        window.location.href = data.url;
       } else {
-        window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t((data.error || t("venture.createError")) || "") || (data.error || t("venture.createError")), duration: 4000 } }));
+        window.dispatchEvent(
+          new CustomEvent("impactos:notify", {
+            detail: { type: "error", message: t("venture.loadError"), duration: 4000 },
+          })
+        );
       }
     } catch (e) {
-      console.error("Create venture error", e);
-      window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type: "error", message: t("venture.createError"), duration: 4000 } }));
-    } finally {
-      setCreating(false);
+      console.error("Failed to resolve Venture Run", e);
+      window.dispatchEvent(
+        new CustomEvent("impactos:notify", {
+          detail: { type: "error", message: t("venture.loadError"), duration: 4000 },
+        })
+      );
     }
   }
-
-  const stageOptions = ["idea", "validation", "mvp", "growth", "scale"];
 
   return (
     <>
@@ -101,12 +84,12 @@ export default function ParticipantVentures() {
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.title")}</p>
           </div>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={openVentureApplication}
             className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-white"
             style={{ backgroundColor: "var(--brand-orange)" }}
           >
-            <Plus size={18} />
-            {t("venture.createVenture")}
+            <Briefcase size={18} />
+            {t("venture.applyAsVenture")}
           </button>
         </div>
 
@@ -124,7 +107,7 @@ export default function ParticipantVentures() {
             {ventures.map((v) => (
               <div
                 key={v.id}
-                onClick={() => router.push(`/participant/ventures/${v.id}`)}
+                onClick={() => router.push(`/participant/ventures/${v.venture_id || v.id}`)}
                 className="rounded-xl p-5 transition-all cursor-pointer border"
                 style={{
                   backgroundColor: "rgb(255 255 255 / 0.05)",
@@ -164,107 +147,6 @@ export default function ParticipantVentures() {
           </div>
         )}
       </div>
-
-      {/* Create Modal */}
-      {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setShowModal(false)}>
-          <div className="rounded-2xl p-6 w-full max-w-lg mx-4 shadow-xl border" style={{ backgroundColor: "#0f172a", borderColor: "rgb(255 255 255 / 0.1)", color: "var(--text-primary)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">{t("venture.createVenture")}</h2>
-              <button onClick={() => setShowModal(false)} style={{ color: "var(--text-secondary)" }}>
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-                  {t("venture.namePlaceholder")} *
-                </label>
-                <input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border"
-                  style={{
-                    backgroundColor: "rgb(15 23 42)",
-                    borderColor: "rgb(255 255 255 / 0.15)",
-                    color: "var(--text-primary)"
-                  }}
-                  placeholder={t("venture.namePlaceholder")}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-                  {t("venture.description")}
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border"
-                  style={{
-                    backgroundColor: "rgb(15 23 42)",
-                    borderColor: "rgb(255 255 255 / 0.15)",
-                    color: "var(--text-primary)"
-                  }}
-                  rows={3}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-                  {t("venture.industry")}
-                </label>
-                <input
-                  value={form.industry}
-                  onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border"
-                  style={{
-                    backgroundColor: "rgb(15 23 42)",
-                    borderColor: "rgb(255 255 255 / 0.15)",
-                    color: "var(--text-primary)"
-                  }}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-primary)" }}>
-                  {t("venture.businessStage")}
-                </label>
-                <select
-                  value={form.business_stage}
-                  onChange={(e) => setForm({ ...form, business_stage: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg outline-none border"
-                  style={{
-                    backgroundColor: "rgb(15 23 42)",
-                    borderColor: "rgb(255 255 255 / 0.15)",
-                    color: "var(--text-primary)"
-                  }}
-                >
-                  {stageOptions.map((s) => (
-                    <option key={s} value={s}>{t(`venture.stages.${s}`)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-lg"
-                  style={{ color: "var(--text-secondary)" }}
-                >
-                  {t("venture.cancel")}
-                </button>
-                <button
-                  type="submit"
-                  disabled={creating || !form.name.trim()}
-                  className="px-6 py-2 rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  style={{ backgroundColor: "var(--brand-orange)" }}
-                >
-                  {creating ? t("venture.creating") : t("venture.createVenture")}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </>
   );
 }

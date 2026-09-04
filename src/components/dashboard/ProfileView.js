@@ -124,6 +124,75 @@ export default function ProfileView() {
   const [editedAlternativePhone, setEditedAlternativePhone] = useState("");
   const [editedPhone, setEditedPhone] = useState("");
   const [editedLanguage, setEditedLanguage] = useState("en");
+
+  // Multiple alternative emails (identity matching) — /api/contact-emails
+  const [altEmails, setAltEmails] = useState([]);
+  const [newAltEmail, setNewAltEmail] = useState("");
+  const [altBusy, setAltBusy] = useState(false);
+  const [altNotice, setAltNotice] = useState("");
+
+  async function loadAltEmails() {
+    try {
+      const r = await fetch("/api/contact-emails");
+      const d = await r.json();
+      if (d.success) {
+        setAltEmails((d.emails || []).filter((e) => e.label !== "primary"));
+      }
+    } catch (_) {}
+  }
+
+  async function addAltEmail() {
+    const email = newAltEmail.trim();
+    if (!email || !email.includes("@")) {
+      setAltNotice(t("adminMisc.profile.altEmailsInvalid"));
+      return;
+    }
+    setAltBusy(true);
+    setAltNotice("");
+    try {
+      const r = await fetch("/api/contact-emails", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        setNewAltEmail("");
+        await loadAltEmails();
+        setAltNotice(t("adminMisc.profile.altEmailsAdded"));
+      } else {
+        setAltNotice(d.error || t("adminMisc.profile.altEmailsError"));
+      }
+    } catch (_) {
+      setAltNotice(t("adminMisc.profile.altEmailsError"));
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  async function removeAltEmail(id) {
+    setAltBusy(true);
+    setAltNotice("");
+    try {
+      const r = await fetch(`/api/contact-emails?id=${id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (d.success) {
+        setAltEmails((prev) => prev.filter((e) => e.id !== id));
+        setAltNotice(t("adminMisc.profile.altEmailsRemoved"));
+      } else {
+        setAltNotice(d.error || t("adminMisc.profile.altEmailsError"));
+      }
+    } catch (_) {
+      setAltNotice(t("adminMisc.profile.altEmailsError"));
+    } finally {
+      setAltBusy(false);
+    }
+  }
+
+  useEffect(() => {
+    loadAltEmails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [editedCountryCode, setEditedCountryCode] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoMessage, setPhotoMessage] = useState(null);
@@ -185,7 +254,6 @@ export default function ProfileView() {
         setEditedName(p.name || "");
         setEditedPhone(p.phone || "");
         setEditedLanguage(p.language || "en");
-        setEditedAlternativeEmail(p.alternative_email || "");
         setEditedAlternativePhone(p.alternative_phone || "");
         setEditedCountryCode(p.country_code || resolveCountryCode(p.country) || "");
       }
@@ -239,7 +307,7 @@ export default function ProfileView() {
           name: editedName || contact.name,
           phone: editedPhone || contact.phone,
           language: editedLanguage || contact.language,
-          alternative_email: editedAlternativeEmail,
+          alternative_email: contact.alternative_email,
           alternative_phone: editedAlternativePhone,
           country_code: editedCountryCode,
         }),
@@ -603,19 +671,71 @@ export default function ProfileView() {
                 value={formatDateTime(contact.last_login_at)}
               />
               <InfoRow
-                icon={Mail}
-                label={t("adminMisc.profile.alternativeEmail")}
-                value={contact.alternative_email}
-                editable
-                onChange={setEditedAlternativeEmail}
-              />
-              <InfoRow
                 icon={Phone}
                 label={t("adminMisc.profile.alternativePhone")}
                 value={contact.alternative_phone}
                 editable
                 onChange={setEditedAlternativePhone}
               />
+
+              {/* Alternative emails — identity matching (multiple) */}
+              <div className="space-y-2 pt-1">
+                <p className="flex items-center gap-2 text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-wider">
+                  <Mail className="w-3 h-3" /> {t("adminMisc.profile.alternativeEmailsTitle")}
+                </p>
+                <p className="text-[9px] text-[var(--text-secondary)]">
+                  {t("adminMisc.profile.alternativeEmailsHint")}
+                </p>
+                {altEmails.length === 0 ? (
+                  <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
+                    {t("adminMisc.profile.alternativeEmailsEmpty")}
+                  </p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {altEmails.map((e) => (
+                      <div
+                        key={e.id}
+                        className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)]"
+                      >
+                        <span className="text-[10px] font-bold text-[var(--text-primary)] break-all">
+                          {e.email}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={altBusy}
+                          onClick={() => removeAltEmail(e.id)}
+                          className="text-[9px] font-black uppercase tracking-wider text-red-400 hover:text-red-300 disabled:opacity-40 shrink-0"
+                        >
+                          {t("adminMisc.profile.altEmailRemove")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <input
+                    value={newAltEmail}
+                    disabled={altBusy}
+                    onChange={(e) => setNewAltEmail(e.target.value)}
+                    placeholder={t("adminMisc.profile.altEmailPlaceholder")}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addAltEmail(); } }}
+                    className="flex-1 min-w-0 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-[10px] font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
+                  />
+                  <button
+                    type="button"
+                    disabled={altBusy}
+                    onClick={addAltEmail}
+                    className="px-3 py-2 rounded-lg bg-[var(--brand-orange)] text-white text-[9px] font-black uppercase tracking-wider disabled:opacity-40"
+                  >
+                    {t("adminMisc.profile.altEmailAdd")}
+                  </button>
+                </div>
+                {altNotice && (
+                  <p className="text-[9px] font-bold text-[var(--text-secondary)]">
+                    {altNotice}
+                  </p>
+                )}
+              </div>
             </div>
           </SectionCard>
 

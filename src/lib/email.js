@@ -6,17 +6,11 @@
  */
 
 import { normalizeToHtml } from "@/lib/platform/ai/email-personalize";
+import { resolveAppUrl } from "@/lib/appUrl";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "noreply@impactos.futurestudio.bj";
-const rawAppUrl =
-  process.env.APP_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
-  (process.env.VERCEL_ENV === "production"
-    ? "https://impactos.futurestudio.bj"
-    : process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000");
+const rawAppUrl = resolveAppUrl();
 const APP_URL = (typeof rawAppUrl === "string" ? rawAppUrl : "http://localhost:3000").replace(/\/login.*$/i, "").replace(/\/$/, "");
 
 // ─── GMAIL WORKSPACE TRANSPORT (decision/approval emails) ─────────────
@@ -47,6 +41,19 @@ export const FUTURE_STUDIO_FOOTER = `
 const DECISION_EMAIL_DEFAULT =
   process.env.DECISION_EMAIL_PROVIDER ||
   (GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN ? "gmail" : "resend");
+
+// Gmail is the primary provider for ALL transactional email types whenever
+// the existing Gmail (Google Workspace) credentials are configured — the
+// same credentials already used for decision/approval emails. Resend remains
+// the automatic fallback inside sendEmail(). Environments without Gmail
+// credentials degrade to Resend automatically (never a broken default).
+// Set EMAIL_PRIMARY_PROVIDER=resend to force Resend-first globally.
+const EMAIL_PRIMARY_DEFAULT =
+  process.env.EMAIL_PRIMARY_PROVIDER === "resend"
+    ? "resend"
+    : GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN
+      ? "gmail"
+      : "resend";
 
 function gmailCredentialsAvailable() {
   return !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
@@ -283,7 +290,7 @@ export async function sendInviteEmail({ to, name, role, token, template, templat
     </html>
   `;
 
-  return sendEmail({ to, subject, html, provider: "resend" });
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -358,7 +365,7 @@ export async function sendLoginEmail({ to, name, role, template, templateVars, p
     </html>
   `;
 
-  return sendEmail({ to, subject, html, provider: "resend" });
+  return sendEmail({ to, subject, html });
 }
 
 /**
@@ -509,13 +516,13 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
               </h1>
               <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
 
-              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">Your venture has been approved! 🎉</h2>
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">You have been approved to be a Venture at Future Studio! 🎉</h2>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
                 Hi <strong style="color: #f8fafc;">${name}</strong>,
               </p>
               <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
-                Great news — your venture <strong style="color: #ff6600;">${ventureName}</strong> has been
-                <strong style="color: #f8fafc;">approved</strong> and is now active on Venture OS.
+                Great news — you have been approved to be a Venture at Future Studio. Your venture
+                <strong style="color: #ff6600;">${ventureName}</strong> is now active on Venture OS.
                 ${setupUrl ? "Set your password below to access your dashboard." : "You can log in and start building."}
               </p>
 
@@ -554,6 +561,70 @@ export async function sendVentureApprovalEmail({ to, name, ventureName, setupUrl
   `;
 
   return sendEmail({ to, subject: `Your venture ${ventureName} has been approved`, html });
+}
+
+/**
+ * Send a Venture Run invitation email (Invite ≠ create — the recipient
+ * completes the Venture Application form; only approval creates the Venture).
+ */
+export async function sendVentureInvitationEmail({ to, name, runUrl, runName }) {
+  const ctaUrl = runUrl || `${APP_URL}/login`;
+  const ctaLabel = runUrl ? "COMPLETE YOUR VENTURE APPLICATION" : "LOG IN";
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;">OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">You're invited to register a Venture 🚀</h2>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 8px;">
+                Hi ${name ? `<strong style="color: #f8fafc;">${name}</strong>` : "there"},
+              </p>
+              <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin: 0 0 24px;">
+                You have been invited to register a Venture${runName ? ` through <strong style="color: #f8fafc;">${runName}</strong>` : ""}.
+                Complete the application below to get started. Your application will be reviewed, and
+                your Venture is created only after approval.
+              </p>
+
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${ctaUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      ${ctaLabel}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="color: #64748b; font-size: 12px; line-height: 1.5; margin: 0 0 4px;">
+                If the button doesn't work, copy and paste this URL into your browser:
+              </p>
+              <p style="color: #ff6600; font-size: 11px; word-break: break-all; margin: 0 0 24px;">
+                ${ctaUrl}
+              </p>
+
+              <hr style="border: none; border-top: 1px solid #1e293b; margin: 24px 0;" />
+              <p style="color: #475569; font-size: 11px; line-height: 1.5; margin: 0;">
+                If you have any questions, please contact your administrator.
+              </p>
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({ to, subject: "You're invited to register a Venture", html });
 }
 
 /**
@@ -609,7 +680,7 @@ async function sendEmail({ to, subject, html, provider }) {
     return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
   }
 
-  const chosen = provider || "gmail";
+  const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
   const sendWith = (p) =>
     p === "gmail"

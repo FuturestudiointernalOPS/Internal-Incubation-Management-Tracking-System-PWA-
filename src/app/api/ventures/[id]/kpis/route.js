@@ -22,6 +22,10 @@ async function autoCalc(dbId, source) {
     const r = await db.execute({ sql: "SELECT AVG(progress) as avg_progress FROM venture_milestones WHERE venture_id = ?", args: [dbId] });
     return Math.round(parseFloat(r.rows?.[0]?.avg_progress || 0));
   }
+  if (source === "tasks") {
+    const r = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_tasks WHERE venture_id = ? AND status = 'done'", args: [dbId] });
+    return parseInt(r.rows?.[0]?.c || 0);
+  }
   return null;
 }
 

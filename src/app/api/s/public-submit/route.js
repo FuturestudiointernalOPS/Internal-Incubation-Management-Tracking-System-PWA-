@@ -3,6 +3,43 @@ import db, { initDb } from "@/lib/db";
 import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
 
+// The pipeline adds platform_form_submissions.invitation_id lazily via
+// ensureVentureSchema() (seed/approval paths). Public submit inserts that
+// column too, so this route self-heals its own schema — cached once per
+// process, idempotent, never destructive.
+let submitSchemaPromise = null;
+async function ensurePublicSubmitSchema() {
+  if (!submitSchemaPromise) {
+    submitSchemaPromise = (async () => {
+      try {
+        await db.execute({
+          sql: "ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER",
+          args: [],
+        });
+        await db.execute({
+          sql: "CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id)",
+          args: [],
+        });
+      } catch (e) {
+        console.warn("[Public Submit] schema ensure failed:", e.message);
+      }
+      try {
+        await db.execute({
+          sql: `CREATE TABLE IF NOT EXISTS platform_submissions_rate (
+            id SERIAL PRIMARY KEY,
+            run_id INTEGER NOT NULL REFERENCES platform_form_runs(id) ON DELETE CASCADE,
+            ip TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+          )`,
+          args: [],
+        });
+      } catch (_) {}
+      return true;
+    })();
+  }
+  return submitSchemaPromise;
+}
+
 /**
  * POST /api/s/public-submit
  * Public endpoint — accepts form submissions without auth.
@@ -17,6 +54,7 @@ import { onSubmission } from "@/lib/platform/automation";
 export async function POST(req) {
   try {
     await initDb();
+    await ensurePublicSubmitSchema();
     
     // Get client IP
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
@@ -28,7 +66,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { data, slug } = body;
+    const { data, slug, invitation_token } = body;
 
     if (!slug || !data || typeof data !== "object") {
       return NextResponse.json({ success: false, error: "slug and data required" }, { status: 400 });
@@ -64,6 +102,20 @@ export async function POST(req) {
     // Check deadline
     if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
       return NextResponse.json({ success: false, error: "Submission deadline has passed" }, { status: 400 });
+    }
+
+    // Optional Venture Run invitation: link the submission to the invitation
+    // so provenance (invitation → submission → Venture) is preserved.
+    let invitationId = null;
+    if (invitation_token) {
+      try {
+        const { getVentureInvitationByToken, markVentureInvitationStatus } = await import("@/lib/ventureInvitations");
+        const { invitation } = await getVentureInvitationByToken(invitation_token);
+        if (invitation && Number(invitation.run_id) === Number(run_id)) {
+          invitationId = invitation.id;
+          markVentureInvitationStatus(invitation.id, "submitted").catch(() => {});
+        }
+      } catch (_) {}
     }
 
     // IP-based rate limiting: max 5 submissions per IP per run per hour
@@ -171,8 +223,8 @@ export async function POST(req) {
       });
       if (draftCheck.rows.length > 0) {
         await db.execute({
-          sql: "UPDATE platform_form_submissions SET status = 'submitted', data = ?, submitted_at = NOW(), submitter_name = ? WHERE id = ?",
-          args: [JSON.stringify(data), submitterName, draftCheck.rows[0].id],
+          sql: "UPDATE platform_form_submissions SET status = 'submitted', data = ?, submitted_at = NOW(), submitter_name = ?, invitation_id = COALESCE(?, invitation_id) WHERE id = ?",
+          args: [JSON.stringify(data), submitterName, invitationId, draftCheck.rows[0].id],
         });
         submissionId = draftCheck.rows[0].id;
       }
@@ -180,9 +232,9 @@ export async function POST(req) {
 
     if (!submissionId) {
       const result = await db.execute({
-        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
-              VALUES (?, ?, ?, 'submitted', ?, NOW()) RETURNING id`,
-        args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data)],
+        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, invitation_id, submitted_at)
+              VALUES (?, ?, ?, 'submitted', ?, ?, NOW()) RETURNING id`,
+        args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data), invitationId],
       });
       submissionId = result.rows[0].id;
     }

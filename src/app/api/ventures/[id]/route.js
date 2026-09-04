@@ -35,6 +35,19 @@ export const GET = createHandler(
       );
     }
 
+    // Archived Ventures are historical: privileged staff may read; non-
+    // privileged members lose active access (Phase 3).
+    if (session) {
+      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session, mutate: false });
+      if (!gate.ok && gate.code === "archived") {
+        return NextResponse.json(
+          { success: false, code: "VENTURE_ARCHIVED", error: gate.reason, venture_id: id, status: "archived" },
+          { status: 403 },
+        );
+      }
+    }
+
     return NextResponse.json({
       success: true,
       venture,
@@ -61,6 +74,21 @@ export const PATCH = createHandler(async (req, { params }) => {
         { status: 404 },
       );
     }
+
+    // Archived Ventures are immutable historical records — no mutations for
+    // anyone (including staff) until the Venture is resumed (Phase 3).
+    try {
+      const { getSession } = await import("@/lib/auth");
+      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+      const session = await getSession();
+      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session, mutate: true });
+      if (!gate.ok && gate.code === "archived") {
+        return NextResponse.json(
+          { success: false, code: "VENTURE_ARCHIVED", error: gate.reason },
+          { status: 409 },
+        );
+      }
+    } catch (_) {}
 
     const body = await req.json();
 

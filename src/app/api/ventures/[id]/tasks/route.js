@@ -97,6 +97,28 @@ export const PATCH = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true, attachments });
   }
 
+  // Handle task reviews (Phase 5 — Future Studio staff accept/reject/revision)
+  if (action === "add_review") {
+    const reviewerRoles = ["staff", "program_manager", "super_admin", "developer", "teacher"];
+    if (!reviewerRoles.includes(session?.role)) {
+      return NextResponse.json({ success: false, error: "Only Future Studio staff can review tasks." }, { status: 403 });
+    }
+    const { decision, comments } = body;
+    if (!["accepted", "rejected", "revision_requested"].includes(decision)) {
+      return NextResponse.json({ success: false, error: "Decision must be accepted, rejected or revision_requested." }, { status: 400 });
+    }
+    if (!(await getTask(parseInt(taskId)))) {
+      return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
+    }
+    await db.execute({
+      sql: `INSERT INTO venture_task_reviews (task_id, reviewer_cid, reviewer_name, decision, comments, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())`,
+      args: [parseInt(taskId), session?.cid || null, session?.name || null, decision, comments || null],
+    });
+    await updateTask(parseInt(taskId), { status: decision });
+    return NextResponse.json({ success: true });
+  }
+
   // Default: update task fields
   if (!(await getTask(parseInt(taskId)))) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
   await updateTask(parseInt(taskId), body);

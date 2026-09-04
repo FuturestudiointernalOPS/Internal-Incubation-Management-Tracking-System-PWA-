@@ -87,13 +87,29 @@ import frLms from "@/locales/fr/lms.json";
 import frMembership from "@/locales/fr/membership.json";
 
 // ─── Deep merge: recursively merges objects ───
+// IMPORTANT: If the target already holds an object for a given key,
+// a primitive value in the source will NOT overwrite it. This prevents
+// flat locale label files (e.g. investor.json's "venture": "Venture")
+// from silently clobbering established namespace objects (venture.json's
+// "venture": { profile: "Profile", ... }).
 function deepMerge(target, source) {
   const result = { ...target };
   for (const [key, value] of Object.entries(source)) {
     if (value && typeof value === "object" && !Array.isArray(value)) {
       result[key] = deepMerge(result[key] || {}, value);
     } else {
-      result[key] = value;
+      // Guard: don't overwrite an object namespace with a primitive.
+      const existing = result[key];
+      if (
+        existing !== null &&
+        existing !== undefined &&
+        typeof existing === "object" &&
+        !Array.isArray(existing)
+      ) {
+        // Preserve the namespace object — skip the primitive overwrite.
+      } else {
+        result[key] = value;
+      }
     }
   }
   return result;

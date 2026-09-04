@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/lib/auth";
+import { requireVentureAccess } from "@/lib/ventureAuth";
+import db from "@/lib/db";
 import {
   getFounderById,
   updateFounderRole,

@@ -22,6 +22,13 @@ export const GET = createHandler(
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const start = Date.now();
 
+    // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
+    let dbId = id;
+    try {
+      const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+      if (vRes.rows[0]) dbId = vRes.rows[0].id;
+    } catch (_) {}
+
     // ── Profile Completion ──
     const profileCompletion = (async () => {
       try {
@@ -74,16 +81,29 @@ export const GET = createHandler(
       } catch { return null; }
     })();
 
-    // ── Notifications ──
+    // ── Notifications (recipients = the venture's members, not the VNT code) ──
     const notifications = (async () => {
       try {
-        const res = await db.execute({
-          sql: `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id = ? OR recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`,
+        const memberRes = await db.execute({
+          sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
           args: [id],
         });
+        const recipientIds = [...new Set((memberRes.rows || []).flatMap((r) => [r.contact_id, r.user_cid]).filter(Boolean))];
+        let sql, args;
+        if (recipientIds.length > 0) {
+          sql = `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")}) OR recipient_id = 'sa'
+                ORDER BY created_at DESC LIMIT 10`;
+          args = recipientIds;
+        } else {
+          sql = `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id = 'sa'
+                ORDER BY created_at DESC LIMIT 10`;
+          args = [];
+        }
+        const res = await db.execute({ sql, args });
         const notifs = res.rows || [];
         return {
           unread: notifs.filter((n) => !n.is_read).length,
@@ -129,27 +149,26 @@ export const GET = createHandler(
       } catch { return null; }
     })();
 
-    // ── Documents (from any venture module) ──
+    // ── Documents (the real data room) ──
     const documents = (async () => {
       try {
-        const [profileDocs, verifDocs] = await Promise.all([
-          db.execute({
-            sql: "SELECT id, document_type as category, file_name, file_type, file_size, uploaded_at FROM startup_profile_documents WHERE venture_id = ? ORDER BY uploaded_at DESC LIMIT 5",
+        let rows = [];
+        try {
+          const res = await db.execute({
+            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
             args: [id],
-          }).catch(() => ({ rows: [] })),
-          db.execute({
-            sql: `SELECT vvd.id, vvd.category, vvd.file_name, vvd.file_type, vvd.file_size, vvd.uploaded_at
-                  FROM venture_verification_documents vvd
-                  JOIN venture_verifications vv ON vvd.verification_id = vv.id
-                  WHERE vv.venture_id = ? ORDER BY vvd.uploaded_at DESC LIMIT 5`,
+          });
+          rows = res.rows || [];
+        } catch (_) {
+          const res = await db.execute({
+            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
             args: [id],
-          }).catch(() => ({ rows: [] })),
-        ]);
+          });
+          rows = res.rows || [];
+        }
         return {
-          total: (profileDocs.rows?.length || 0) + (verifDocs.rows?.length || 0),
-          recent: [...(profileDocs.rows || []), ...(verifDocs.rows || [])]
-            .sort((a, b) => new Date(b.uploaded_at) - new Date(a.uploaded_at))
-            .slice(0, 5),
+          total: rows.length,
+          recent: rows,
         };
       } catch { return null; }
     })();
@@ -170,42 +189,39 @@ export const GET = createHandler(
       } catch { return []; }
     })();
 
-    // ── KPI Summary (placeholder — integrates with KPIs module) ──
+    // ── KPI Summary (the venture KPI module, not the global kpis table) ──
     const kpiSummary = (async () => {
       try {
         const res = await db.execute({
-          sql: `SELECT id, title, category, current_value, target_value, unit, status
-                FROM kpis WHERE venture_id = ? ORDER BY updated_at DESC LIMIT 5`,
-          args: [id],
+          sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
+                FROM venture_kpi_assignments a
+                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
+                WHERE a.venture_id::text = ?
+                ORDER BY a.updated_at DESC LIMIT 5`,
+          args: [dbId],
         }).catch(() => ({ rows: [] }));
         return (res.rows || []).map((k) => ({
-          id: k.id, title: k.title, category: k.category,
+          id: k.id, title: k.name, category: k.auto_calc_source || "manual",
           current: k.current_value, target: k.target_value,
-          unit: k.unit, status: k.status,
+          unit: k.unit, status: k.auto_calc_source ? "auto" : "manual",
           progress: k.target_value > 0 ? Math.round((k.current_value / k.target_value) * 100) : 0,
         }));
       } catch { return []; }
     })();
 
-    // ── Coaching / Advisors (placeholder) ──
+    // ── Coaching / Advisors (real sources) ──
     const coaching = (async () => {
       try {
-        const res = await db.execute({
-          sql: `SELECT c.cid, c.name, c.email, vmf.role as assignment_role
-                FROM venture_members vm
-                JOIN contacts c ON vm.user_cid = c.cid
-                LEFT JOIN venture_member_functions vmf ON vm.id = vmf.member_id
-                WHERE vm.venture_id = ? AND vmf.function_type IN ('coach', 'advisor', 'mentor')
-                LIMIT 10`,
-          args: [id],
-        }).catch(() => ({ rows: [] }));
-        const members = res.rows || [];
-        return {
-          coaches: members.filter((m) => m.assignment_role !== "advisor"),
-          advisors: members.filter((m) => m.assignment_role === "advisor"),
-          total: members.length,
-        };
-      } catch { return { coaches: [], advisors: [], total: 0 }; }
+        const [advisorRes, sessionRes, assignmentRes] = await Promise.all([
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+        ]);
+        const coaches = Number(assignmentRes.rows?.[0]?.n || 0);
+        const advisors = Number(advisorRes.rows?.[0]?.n || 0);
+        const sessions = Number(sessionRes.rows?.[0]?.n || 0);
+        return { coaches, advisors, coaching_sessions: sessions, total: coaches + advisors };
+      } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
     })();
 
     // ── Investment Readiness (calculated from profile completeness + stage) ──

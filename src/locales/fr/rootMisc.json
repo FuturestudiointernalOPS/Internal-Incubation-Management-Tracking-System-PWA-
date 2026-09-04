@@ -99,6 +99,7 @@
       "createTitle": "🚀 Créez votre entreprise",
       "invitedDescription": "Vous avez été invité à enregistrer une nouvelle entreprise dans Venture OS.",
       "validating": "Validation de l'invitation...",
+      "retiredMessage": "L'enregistrement Venture a changé. Veuillez utiliser le lien officiel de candidature Venture reçu par email, ou contacter Future Studio.",
       "goToLogin": "Aller à la connexion",
       "publicFormNoteStart": "Ce formulaire est public — un lien d'invitation est requis pour créer réellement l'entreprise. Si vous en avez un, ajoutez",
       "publicFormNoteEnd": "à l'URL de cette page.",

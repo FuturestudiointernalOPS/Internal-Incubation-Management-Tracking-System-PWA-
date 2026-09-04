@@ -1,5 +1,65 @@
 import { getSession } from "@/lib/auth";
 
+/** Roles that may always access Venture records (incl. archived, historical). */
+export function roleIsPrivileged(role) {
+  return ["staff", "super_admin", "program_manager", "developer", "admin"].includes(role);
+}
+
+/** A Venture is archived when status='archived' OR is_archived=1. */
+export function lifecycleIsArchived(lifecycle) {
+  if (!lifecycle) return false;
+  return (
+    String(lifecycle.status || "").toLowerCase() === "archived" ||
+    Number(lifecycle.is_archived) === 1 ||
+    String(lifecycle.is_archived) === "true"
+  );
+}
+
+/**
+ * Resolve the lifecycle state of a Venture (status + is_archived). Accepts
+ * the VNT code or the internal UUID. Never throws.
+ */
+export async function resolveVentureLifecycle(ventureId, db) {
+  try {
+    if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
+      const byId = await db.execute({
+        sql: "SELECT status, is_archived FROM ventures WHERE id::text = ?",
+        args: [ventureId],
+      });
+      if (byId.rows?.[0]) return byId.rows[0];
+    }
+    const r = await db.execute({
+      sql: "SELECT status, is_archived FROM ventures WHERE venture_id = ?",
+      args: [ventureId],
+    });
+    return r.rows?.[0] || null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Operational access gate (Phase 3):
+ *  - archived Venture: privileged roles may still READ (historical);
+ *    mutations are blocked for EVERYONE (archive → resume first);
+ *    non-privileged members lose active access entirely.
+ *  - active/paused Venture: normal membership rules apply elsewhere.
+ */
+export async function requireOperationalVentureAccess({ ventureId, db, session, mutate = false }) {
+  const lifecycle = await resolveVentureLifecycle(ventureId, db);
+  if (!lifecycle) return { ok: false, code: "not_found" };
+  const archived = lifecycleIsArchived(lifecycle);
+  if (archived) {
+    if (mutate) {
+      return { ok: false, code: "archived", reason: "Archived Ventures are historical records. Resume the Venture before making changes." };
+    }
+    if (!roleIsPrivileged(session?.role)) {
+      return { ok: false, code: "archived", reason: "This Venture is archived. Active Venture access has ended." };
+    }
+  }
+  return { ok: true, lifecycle };
+}
+
 /**
  * Shared venture access check — import this instead of re-implementing
  * the membership check in every route. Returns the session or null.

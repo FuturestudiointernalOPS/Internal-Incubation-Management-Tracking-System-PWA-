@@ -1,7 +1,16 @@
 {
   "venture": {
+    "label": "Venture",
+    "statusActive": "Actif",
+    "statusPaused": "En pause",
+    "statusArchived": "Archivée",
     "title": "Entreprises",
     "createVenture": "Créer une entreprise",
+    "applyAsVenture": "Postuler en tant que Venture",
+    "country": "Pays",
+    "registrationStatus": "Statut d'immatriculation",
+    "northStar": "North Star",
+    "registrationOptions": { "notRegistered": "Non immatriculée", "registered": "Immatriculée", "pendingRegistration": "Immatriculation en cours" },
     "namePlaceholder": "Nom de l'entreprise",
     "description": "Description",
     "mission": "Mission",

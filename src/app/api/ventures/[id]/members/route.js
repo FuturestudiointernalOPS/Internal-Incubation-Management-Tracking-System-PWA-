@@ -90,6 +90,18 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
+    // Archived Ventures: privileged staff may read the roster (historical);
+    // non-privileged members lose active access (Phase 3).
+    try {
+      const { requireOperationalVentureAccess, roleIsPrivileged } = await import("@/lib/ventureAuth");
+      if (!roleIsPrivileged(userRole)) {
+        const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: false });
+        if (!gate.ok && gate.code === "archived") {
+          return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 403 });
+        }
+      }
+    } catch (_) {}
+
     const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
     const code = await resolveVentureCode(db, id);
 
@@ -121,7 +133,7 @@ export async function POST(req, { params }) {
 
     const { id } = await params;
     const body = await req.json();
-    const { contact_id, member_type, role, permissions } = body;
+    const { contact_id, member_type, role, permissions, email, name, phone } = body;
 
     const session = await getSession();
     const userCid = session?.cid || "";
@@ -139,9 +151,18 @@ export async function POST(req, { params }) {
       );
     }
 
-    if (!contact_id || !member_type) {
+    // Archived Ventures are immutable (Phase 3) — no member mutations.
+    try {
+      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: true });
+      if (!gate.ok && gate.code === "archived") {
+        return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
+      }
+    } catch (_) {}
+
+    if (!member_type) {
       return NextResponse.json(
-        { success: false, error: "contact_id and member_type are required" },
+        { success: false, error: "member_type is required" },
         { status: 400 },
       );
     }
@@ -153,11 +174,58 @@ export async function POST(req, { params }) {
       );
     }
 
+    // ── Identity resolution (Phase 2): add by existing contact_id OR by
+    //    email/phone. Primary email → alternative email → phone → create
+    //    pending contact. Conflicts go to CRM manual reconciliation — never
+    //    a silent duplicate.
+    let targetCid = contact_id;
+    if (!targetCid) {
+      if (!email || !email.includes("@")) {
+        return NextResponse.json(
+          { success: false, error: "contact_id or a valid email is required" },
+          { status: 400 },
+        );
+      }
+      const { resolvePersonIdentity, resolveOrCreateContactIdentity } = await import("@/lib/contactIdentity");
+      const identity = await resolvePersonIdentity({ email, phone: phone || null });
+      if (identity.status === "matched") {
+        targetCid = identity.contact_cid;
+      } else if (identity.status === "conflict") {
+        return NextResponse.json(
+          { success: false, error: "This person's identity is ambiguous (email/phone matched multiple contacts). Resolve the duplicate in CRM before adding them." },
+          { status: 409 },
+        );
+      } else {
+        targetCid = await resolveOrCreateContactIdentity({
+          email,
+          name,
+          role: member_type === "founder" ? "founder" : "member",
+        });
+      }
+      if (!targetCid) {
+        return NextResponse.json(
+          { success: false, error: "Could not resolve or create the member contact." },
+          { status: 400 },
+        );
+      }
+    } else {
+      const existingContact = await db.execute({
+        sql: "SELECT cid FROM contacts WHERE cid = ?",
+        args: [targetCid],
+      });
+      if (existingContact.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "Contact not found." },
+          { status: 404 },
+        );
+      }
+    }
+
     try {
       await db.execute({
         sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions, invited_by)
               VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [id, contact_id, member_type, role || null, permissions || "edit", userCid || null],
+        args: [id, targetCid, member_type, role || null, permissions || "edit", userCid || null],
       });
     } catch (err) {
       if (err.message?.includes("UNIQUE") || err.message?.includes("unique") || err.message?.includes("duplicate")) {
@@ -168,6 +236,19 @@ export async function POST(req, { params }) {
       }
       throw err;
     }
+
+    // Append-only membership history (contact_roles mirror)
+    try {
+      const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+      await syncVentureRoleHistory({
+        contactCid: targetCid,
+        ventureId: id,
+        role: role || (member_type === "founder" ? "founder" : "member"),
+        active: true,
+        actorCid: userCid || null,
+        notes: "member added",
+      });
+    } catch (_) {}
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -204,13 +285,22 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    // Archived Ventures are immutable (Phase 3) — no member mutations.
+    try {
+      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+      const gate = await requireOperationalVentureAccess({ ventureId: id, db, session: { role: userRole }, mutate: true });
+      if (!gate.ok && gate.code === "archived") {
+        return NextResponse.json({ success: false, code: "VENTURE_ARCHIVED", error: gate.reason }, { status: 409 });
+      }
+    } catch (_) {}
+
     if (!member_id) {
       return NextResponse.json({ success: false, error: "member_id is required" }, { status: 400 });
     }
 
     if (action === "remove") {
       const member = await db.execute({
-        sql: "SELECT member_type FROM venture_members WHERE id = ? AND venture_id = ?",
+        sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
         args: [member_id, id],
       });
 
@@ -232,7 +322,31 @@ export async function PATCH(req, { params }) {
         sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
         args: [member_id, id],
       });
+
+      // Close the append-only membership history row (account/contact intact).
+      try {
+        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+        const removedRole = member.rows[0].member_type === "founder" ? "founder" : member.rows[0].role || "member";
+        if (member.rows[0].contact_id) {
+          await syncVentureRoleHistory({
+            contactCid: member.rows[0].contact_id,
+            ventureId: id,
+            role: removedRole,
+            active: false,
+            actorCid: userCid || null,
+            notes: "member removed — account and CRM contact remain intact",
+          });
+        }
+      } catch (_) {}
     } else {
+      let memberContactId = null;
+      try {
+        const m = await db.execute({
+          sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
+          args: [member_id, id],
+        });
+        memberContactId = m.rows?.[0]?.contact_id || null;
+      } catch (_) {}
       const updates = [];
       const upArgs = [];
       if (role !== undefined) { updates.push("role = ?"); upArgs.push(role); }
@@ -245,6 +359,19 @@ export async function PATCH(req, { params }) {
         sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
         args: upArgs,
       });
+      try {
+        const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
+        if (memberContactId && role !== undefined) {
+          await syncVentureRoleHistory({
+            contactCid: memberContactId,
+            ventureId: id,
+            role: role || "member",
+            active: true,
+            actorCid: userCid || null,
+            notes: "member role updated",
+          });
+        }
+      } catch (_) {}
     }
 
     return NextResponse.json({ success: true });
