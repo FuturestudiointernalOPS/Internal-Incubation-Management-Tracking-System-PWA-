@@ -87,3 +87,65 @@ export async function allowsPlanAction(db, access, action) {
   }
   return false;
 }
+
+// ── Reusable templates (Phase 5) ───────────────────────────────────────────
+
+export async function listPlanTemplates(db, { activeOnly = true } = {}) {
+  const r = await db.execute({
+    sql: `SELECT t.*,
+      (SELECT COUNT(*) FROM venture_plan_template_sections s WHERE s.template_id = t.id) AS section_count
+      FROM venture_plan_templates t
+      WHERE (? = 0 OR t.is_active = TRUE)
+      ORDER BY t.name`,
+    args: [activeOnly ? 1 : 0],
+  });
+  return r.rows || [];
+}
+
+/** Save a live plan (structure only) as a reusable template. */
+export async function createTemplateFromPlan(db, { planId, name, description, actorCid = null }) {
+  const planRes = await db.execute({ sql: "SELECT * FROM venture_operating_plans WHERE id = ?", args: [planId] });
+  const plan = planRes.rows?.[0];
+  if (!plan) return { error: "Plan not found." };
+
+  const tRes = await db.execute({
+    sql: "INSERT INTO venture_plan_templates (name, description, created_by) VALUES (?,?,?) RETURNING id",
+    args: [name || plan.name, description || plan.objective || null, actorCid],
+  });
+  const templateId = tRes.rows?.[0]?.id;
+  const secRes = await db.execute({
+    sql: "SELECT title, objective, instructions, sort_order FROM venture_plan_sections WHERE plan_id = ? ORDER BY sort_order, id",
+    args: [planId],
+  });
+  for (const s of secRes.rows || []) {
+    await db.execute({
+      sql: "INSERT INTO venture_plan_template_sections (template_id, title, objective, instructions, sort_order) VALUES (?,?,?,?,?)",
+      args: [templateId, s.title, s.objective, s.instructions, s.sort_order || 0],
+    });
+  }
+  return { success: true, id: templateId };
+}
+
+/** Apply a template to a Venture — copies structure ONLY (never data). */
+export async function applyTemplateToVenture(db, { templateId, ventureCode, name = null, actorCid = null }) {
+  const tRes = await db.execute({ sql: "SELECT * FROM venture_plan_templates WHERE id = ? AND is_active = TRUE", args: [templateId] });
+  const template = tRes.rows?.[0];
+  if (!template) return { error: "Template not found or inactive." };
+
+  const pRes = await db.execute({
+    sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, status, created_by) VALUES (?,?,?,?,?) RETURNING id",
+    args: [ventureCode, name || template.name, template.description || null, "draft", actorCid],
+  });
+  const planId = pRes.rows?.[0]?.id;
+  const secRes = await db.execute({
+    sql: "SELECT title, objective, instructions, sort_order FROM venture_plan_template_sections WHERE template_id = ? ORDER BY sort_order, id",
+    args: [templateId],
+  });
+  for (const s of secRes.rows || []) {
+    await db.execute({
+      sql: "INSERT INTO venture_plan_sections (plan_id, title, objective, instructions, sort_order) VALUES (?,?,?,?,?)",
+      args: [planId, s.title, s.objective, s.instructions, s.sort_order || 0],
+    });
+  }
+  return { success: true, id: planId };
+}

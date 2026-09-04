@@ -53,6 +53,11 @@ export const POST = createHandler(
       sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, created_by) VALUES (?,?,?,?) RETURNING id",
       args: [access.code, name, body.objective || null, session.cid || null],
     });
-    return NextResponse.json({ success: true, id: res.rows?.[0]?.id ?? null });
+    const planId = res.rows?.[0]?.id ?? null;
+    try {
+      const { addVentureHistory } = await import("@/lib/ventures");
+      await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_CREATED", description: `Operating plan "${name}" created` });
+    } catch (_) {}
+    return NextResponse.json({ success: true, id: planId });
   },
 );

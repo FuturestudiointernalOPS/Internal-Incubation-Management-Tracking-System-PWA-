@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Target, Plus, X, Loader2, ChevronDown, ChevronRight, Trash2, Save, Link2, CheckCircle2 } from "lucide-react";
+import { Target, Plus, X, Loader2, ChevronDown, ChevronRight, Trash2, Save, Link2, CheckCircle2, Copy } from "lucide-react";
 
 /**
  * OperatingPlanPanel — Lead Manager operating plans for a Venture.
@@ -21,6 +21,10 @@ export default function OperatingPlanPanel({ ventureId }) {
   const [savingPlan, setSavingPlan] = useState(false);
   const [sectionForm, setSectionForm] = useState({ title: "", objective: "", instructions: "" });
   const [toast, setToast] = useState(null);
+  const [applyOpen, setApplyOpen] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [tplSel, setTplSel] = useState("");
+  const [savingTpl, setSavingTpl] = useState(false);
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
@@ -56,6 +60,61 @@ export default function OperatingPlanPanel({ ventureId }) {
     setOpenPlanId(planId === openPlanId ? null : planId);
     if (planId !== openPlanId) await loadPlan(planId);
     else setOpenPlan(null);
+  };
+
+  const loadTemplates = async () => {
+    try {
+      const res = await fetch(`/api/venture-plan-templates`);
+      const d = await res.json();
+      if (d.success) setTemplates(d.templates || []);
+    } catch (e) {
+      console.error("Failed to load plan templates:", e);
+    }
+  };
+
+  const toggleApply = async () => {
+    const next = !applyOpen;
+    setApplyOpen(next);
+    if (next) await loadTemplates();
+  };
+
+  const applyTemplate = async () => {
+    if (!tplSel) return;
+    setSavingTpl(true);
+    try {
+      const res = await fetch(`/api/venture-plan-templates/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ template_id: tplSel, venture: ventureId }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify("Template applied — structure copied (no Venture data).");
+        setApplyOpen(false);
+        setTplSel("");
+        await loadPlans();
+      } else {
+        notify(d.error || "Apply failed.", "error");
+      }
+    } catch (err) {
+      notify("Apply failed.", "error");
+    } finally {
+      setSavingTpl(false);
+    }
+  };
+
+  const saveAsTemplate = async (planId) => {
+    const res = await fetch(`/api/venture-plan-templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan_id: planId }),
+    });
+    const d = await res.json();
+    if (d.success) {
+      notify("Saved as reusable template.");
+    } else {
+      notify(d.error || "Save failed.", "error");
+    }
   };
 
   const createPlan = async (e) => {
@@ -228,15 +287,40 @@ export default function OperatingPlanPanel({ ventureId }) {
           <Target className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Operating Plans ({plans.length})
         </h3>
         {access.create && (
-          <button
-            onClick={() => setNewPlanOpen(!newPlanOpen)}
-            className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
-          >
-            {newPlanOpen ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
-            {newPlanOpen ? "Cancel" : "New Plan"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleApply}
+              className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)] flex items-center gap-1.5"
+            >
+              <Copy className="w-3 h-3" />
+              {applyOpen ? "Cancel" : "From Template"}
+            </button>
+            <button
+              onClick={() => setNewPlanOpen(!newPlanOpen)}
+              className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
+            >
+              {newPlanOpen ? <X className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              {newPlanOpen ? "Cancel" : "New Plan"}
+            </button>
+          </div>
         )}
       </div>
+      {applyOpen && (
+        <div className="mb-4 p-3 rounded-xl border border-[var(--border-primary)] bg-tertiary flex flex-wrap items-end gap-3">
+          <div className="flex-1 min-w-[200px]">
+            <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Apply reusable template</label>
+            <select value={tplSel} onChange={(e) => setTplSel(e.target.value)} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
+              <option value="">Select template…</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name} ({t.section_count || 0} sections)</option>
+              ))}
+            </select>
+          </div>
+          <button onClick={applyTemplate} disabled={savingTpl || !tplSel} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
+            {savingTpl ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />} Apply
+          </button>
+        </div>
+      )}
       <p className="text-[10px] text-slate-400 mb-3 -mt-1">Lead Manager-defined operating structure: sections with objectives, tasks, documents, sessions and notes.</p>
 
       {newPlanOpen && (
@@ -300,6 +384,7 @@ export default function OperatingPlanPanel({ ventureId }) {
                   {openPlan.status === "active" && access.manage && (
                     <div className="flex gap-2">
                       <button onClick={() => changePlanStatus(p.id, "completed")} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded bg-blue-500/15 text-blue-400 hover:bg-blue-500/25">Mark Completed</button>
+                      <button onClick={() => saveAsTemplate(p.id)} className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">Save as Template</button>
                     </div>
                   )}
 

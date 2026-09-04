@@ -164,6 +164,10 @@ export const POST = createHandler(
       sql: "INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id) VALUES (?,?,?,?,?,?,?) RETURNING id",
       args: [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId],
     });
+    try {
+      const { addVentureHistory } = await import("@/lib/ventures");
+      await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_CREATED", description: `Internal note "${title}" created` });
+    } catch (_) {}
     return NextResponse.json({ success: true, id: res.rows?.[0]?.id ?? null });
   },
 );
@@ -197,6 +201,10 @@ export const DELETE = createHandler(
     }
 
     await db.execute({ sql: "UPDATE venture_notes SET is_archived = TRUE, updated_at = NOW() WHERE id = ?", args: [noteId] });
+    try {
+      const { addVentureHistory } = await import("@/lib/ventures");
+      await addVentureHistory({ venture_id: code, event_type: "INTERNAL_NOTE_ARCHIVED", description: `Internal note archived` });
+    } catch (_) {}
     return NextResponse.json({ success: true });
   },
 );

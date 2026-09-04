@@ -68,6 +68,12 @@ export const PATCH = createHandler(
       if (!exists.rows?.length) return NextResponse.json({ success: false, error: "Plan not found." }, { status: 404 });
     }
     const plan = await loadPlan(db, access, params.planId);
+    if (body.status) {
+      try {
+        const { addVentureHistory } = await import("@/lib/ventures");
+        await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_STATUS", description: `Operating plan status → ${body.status}` });
+      } catch (_) {}
+    }
     return NextResponse.json({ success: true, plan });
   },
 );
@@ -82,6 +88,10 @@ export const DELETE = createHandler(
       return NextResponse.json({ success: false, error: "Not allowed to archive this plan." }, { status: 403 });
     }
     await db.execute({ sql: "UPDATE venture_operating_plans SET status = 'archived', updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [params.planId, access.code] });
+    try {
+      const { addVentureHistory } = await import("@/lib/ventures");
+      await addVentureHistory({ venture_id: access.code, event_type: "OPERATING_PLAN_ARCHIVED", description: `Operating plan archived` });
+    } catch (_) {}
     return NextResponse.json({ success: true });
   },
 );
