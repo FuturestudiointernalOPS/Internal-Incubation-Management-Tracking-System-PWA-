@@ -79,14 +79,14 @@ export default function CourseImageUpload({ value = "", onChange }) {
 
       {value ? (
         <div
-          className="rounded-xl border overflow-hidden"
+          className="rounded-xl border overflow-hidden w-full max-w-sm"
           style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={value}
-            alt=""
-            aria-hidden="true"
+            alt={t("lms.fields.thumbnail")}
+            referrerPolicy="no-referrer"
             className="aspect-video w-full object-cover"
             loading="lazy"
           />
