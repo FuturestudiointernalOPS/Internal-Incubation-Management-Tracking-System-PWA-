@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Plus,
   Pencil,
@@ -60,9 +60,27 @@ export default function SectionsManager({ course, onChange }) {
   };
 
   // ── Collapse + drag & drop reorder (sections) ────────────────────────────
-  const [collapsedIds, setCollapsedIds] = useState(() => new Set());
+  // Sections start collapsed. Initial ids are seeded synchronously (no expand
+  // flash on first paint); ids first seen on later refetches (new sections)
+  // are collapsed by the effect below. Ids the user deliberately expanded stay
+  // expanded across refetches because they are already in `seenSectionIds`.
+  const initialSectionIds = (course.sections || []).map((s) => String(s.id));
+  const seenSectionIds = useRef(new Set(initialSectionIds));
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set(initialSectionIds));
   const [draggingId, setDraggingId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+
+  useEffect(() => {
+    const ids = (course.sections || []).map((s) => String(s.id));
+    const fresh = ids.filter((id) => !seenSectionIds.current.has(id));
+    if (fresh.length === 0) return;
+    fresh.forEach((id) => seenSectionIds.current.add(id));
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      fresh.forEach((id) => next.add(id));
+      return next;
+    });
+  }, [course.sections]);
 
   const toggleCollapsed = (sectionId) => {
     setCollapsedIds((prev) => {
