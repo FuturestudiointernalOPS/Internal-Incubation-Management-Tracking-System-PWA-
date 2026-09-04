@@ -101,6 +101,18 @@ describe("buildYouTubeEmbedUrl", () => {
     );
   });
 
+  test("adds loop with the playlist id when requested", () => {
+    expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { loop: true })).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&loop=1&playlist=dQw4w9WgXcQ",
+    );
+  });
+
+  test("combines autoplay and loop", () => {
+    expect(buildYouTubeEmbedUrl("dQw4w9WgXcQ", { autoplay: true, loop: true })).toBe(
+      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&modestbranding=1&playsinline=1&color=white&autoplay=1&loop=1&playlist=dQw4w9WgXcQ",
+    );
+  });
+
   test("returns null for invalid IDs", () => {
     expect(buildYouTubeEmbedUrl("")).toBeNull();
     expect(buildYouTubeEmbedUrl("short")).toBeNull();

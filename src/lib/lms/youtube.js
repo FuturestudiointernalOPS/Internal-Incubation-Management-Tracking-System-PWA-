@@ -30,14 +30,19 @@ const EMBED_PARAMS = ["rel=0", "modestbranding=1", "playsinline=1", "color=white
 
 /**
  * Build the cookie-free embed URL for a validated video ID.
- * `autoplay` is opt-in so it is only ever added after a real user gesture
- * (browser autoplay policies) — never on initial page load.
+ * - `autoplay` is opt-in so it is only ever added after a real user gesture
+ *   (browser autoplay policies) — never on initial page load.
+ * - `loop` restarts the video at its end (`loop=1` + the same id in
+ *   `playlist`), so the player never reaches YouTube's end screen with its
+ *   suggested-videos and copy-link UI.
  * Returns null when the ID is not a valid 11-char YouTube video ID.
  */
-export function buildYouTubeEmbedUrl(videoId, { autoplay = false } = {}) {
+export function buildYouTubeEmbedUrl(videoId, { autoplay = false, loop = false } = {}) {
   const id = isValidYouTubeVideoId(videoId) ? String(videoId).trim() : null;
   if (!id) return null;
-  const params = autoplay ? [...EMBED_PARAMS, "autoplay=1"] : EMBED_PARAMS;
+  const params = [...EMBED_PARAMS];
+  if (autoplay) params.push("autoplay=1");
+  if (loop) params.push("loop=1", `playlist=${id}`);
   return `https://www.youtube-nocookie.com/embed/${id}?${params.join("&")}`;
 }
 
