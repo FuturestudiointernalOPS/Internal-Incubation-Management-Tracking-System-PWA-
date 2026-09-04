@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, AlertCircle, Film } from "lucide-react";
+import { CheckCircle2, AlertCircle, Film, PlayCircle, X } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
-import { extractYouTubeVideoId } from "@/lib/lms/youtube";
+import { extractYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
 import { notify } from "./notify";
 
 /**
  * Lesson authoring modal (create + edit).
- * Stores only the normalized YouTube video ID — never the URL, never the file.
+ *
+ * The YouTube field accepts a full YouTube URL or a bare video ID; the ID is
+ * derived from the URL on the fly, shown as a live preview below the field
+ * (poster → click to play the same embed the course view uses), and only the
+ * normalized 11-char video ID is sent to the API — never the URL, never the
+ * file. The server re-normalizes as a safety net.
  */
 export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId, lesson }) {
   const { t } = useI18n();
@@ -44,7 +49,9 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
       const payload = {
         title,
         description,
-        youtubeVideoId: trimmedVideo || null,
+        // Persist the derived ID (extracted from the URL/ID the user pasted),
+        // not the raw input. `videoInvalid` was already rejected above.
+        youtubeVideoId: extracted || null,
         durationMinutes: duration || null,
         isRequired,
       };
@@ -128,6 +135,14 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
               </span>
             )}
           </div>
+
+          {/* Live preview of the video that will be shown — keyed on the ID so
+              the player resets to its poster whenever the pasted URL changes. */}
+          {extracted && (
+            <div className="mt-3">
+              <VideoPreview key={extracted} videoId={extracted} playLabel={t("lms.lessons.playPreview")} />
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -165,5 +180,67 @@ export default function LessonModal({ isOpen, onClose, onSaved, mode, sectionId,
         </div>
       </div>
     </AppModal>
+  );
+}
+
+/**
+ * Live preview of the YouTube video referenced by the lesson. Shows the video
+ * poster with a play button; clicking embeds the player right there (autoplay,
+ * same cookie-free embed as the course view). A close control returns to the
+ * poster. Mounted with `key={videoId}`, so it always starts on the poster for
+ * the current ID.
+ */
+function VideoPreview({ videoId, playLabel }) {
+  const { t } = useI18n();
+  const [playing, setPlaying] = useState(false);
+
+  return (
+    <div
+      className="relative w-full overflow-hidden rounded-xl border"
+      style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
+    >
+      {playing ? (
+        <>
+          <iframe
+            className="absolute inset-0 w-full h-full"
+            src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
+            title={playLabel}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+          <button
+            type="button"
+            onClick={() => setPlaying(false)}
+            title={t("common.close")}
+            className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
+            style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPlaying(true)}
+          title={playLabel}
+          className="absolute inset-0 w-full h-full flex items-center justify-center group"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+          />
+          <span
+            className="relative z-10 flex items-center justify-center w-14 h-14 rounded-full transition-transform group-hover:scale-110"
+            style={{ background: "rgba(0,0,0,0.55)" }}
+          >
+            <PlayCircle className="w-8 h-8" style={{ color: "rgba(255,255,255,0.95)" }} />
+          </span>
+        </button>
+      )}
+    </div>
   );
 }

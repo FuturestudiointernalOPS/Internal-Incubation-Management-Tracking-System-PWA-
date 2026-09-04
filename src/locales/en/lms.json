@@ -231,6 +231,7 @@
       "videoId": "Video ID",
       "videoInvalid": "That does not look like a valid YouTube video.",
       "videoEmpty": "No video attached yet (draft).",
+      "playPreview": "Play video preview",
       "duration": "Duration (minutes)",
       "empty": "No lessons yet",
       "emptyHint": "Add a lesson to this section",

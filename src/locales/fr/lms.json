@@ -231,6 +231,7 @@
       "videoId": "Identifiant de la vidéo",
       "videoInvalid": "Cela ne ressemble pas à une vidéo YouTube valide.",
       "videoEmpty": "Aucune vidéo attachée (brouillon).",
+      "playPreview": "Lire l'aperçu de la vidéo",
       "duration": "Durée (minutes)",
       "empty": "Aucune leçon pour l'instant",
       "emptyHint": "Ajoutez une leçon à cette section",
