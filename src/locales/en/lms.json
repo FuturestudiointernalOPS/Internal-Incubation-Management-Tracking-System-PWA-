@@ -25,7 +25,8 @@
       "deleted": "Course deleted",
       "noDescription": "No description yet",
       "videoPlay": "Play the first lesson video",
-      "videoEmpty": "No video in this course yet"
+      "videoEmpty": "No video in this course yet",
+      "videoLessonEmpty": "No video attached to this lesson yet"
     },
     "learning": {
       "title": "My Learning",

@@ -25,7 +25,8 @@
       "deleted": "Cours supprimé",
       "noDescription": "Aucune description pour l'instant",
       "videoPlay": "Lire la vidéo de la première leçon",
-      "videoEmpty": "Aucune vidéo dans ce cours pour l'instant"
+      "videoEmpty": "Aucune vidéo dans ce cours pour l'instant",
+      "videoLessonEmpty": "Aucune vidéo n'est encore attachée à cette leçon"
     },
     "learning": {
       "title": "Mon apprentissage",

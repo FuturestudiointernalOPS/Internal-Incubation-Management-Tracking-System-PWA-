@@ -4,17 +4,18 @@ import { useState } from "react";
 import { BookOpen, Film, HelpCircle, PlayCircle, X } from "lucide-react";
 import CourseStatusBadge from "./CourseStatusBadge";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
 import { formatDate } from "@/lib/constants";
 
 /**
  * READ-ONLY COURSE PRESENTATION — the surface you land on when opening a
  * course from the admin list.
  *
- * Layout: the first lesson video plays in a box on the LEFT (click to launch
- * it, inline embed), and on its right sit the course name, its description and
- * the whole curriculum (sections → lessons → assessments). No editing controls
- * here — CourseEditor swaps this for the authoring form when "Edit" is pressed.
+ * Layout: the very first lesson drives the box on the LEFT (its video plays
+ * inline when the lesson has one — click to launch), and on its right sit the
+ * course name, its description and the whole curriculum (sections → lessons →
+ * assessments). No editing controls here — CourseEditor swaps this for the
+ * authoring form when "Edit" is pressed.
  */
 export default function CourseView({ course }) {
   const { t } = useI18n();
@@ -25,13 +26,13 @@ export default function CourseView({ course }) {
   const lessonCount = lessons.length;
   const assessmentCount =
     sections.filter((s) => s.assessment).length + courseAssessments.length;
-  const firstVideoLesson = lessons.find((l) => isValidYouTubeVideoId(l.youtube_video_id)) || null;
+  const firstLesson = lessons[0] || null;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] gap-6 items-start">
       {/* LEFT — first lesson video */}
       <div className="space-y-3 min-w-0">
-        <VideoPlayer lesson={firstVideoLesson} />
+        <VideoPlayer lesson={firstLesson} />
 
         <div
           className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[9px] font-black uppercase tracking-wider"
@@ -176,10 +177,11 @@ export default function CourseView({ course }) {
 }
 
 /**
- * Inline first-video player. Shows the lesson's YouTube poster with a play
- * button; clicking embeds the player right there (autoplay). A close control
- * returns to the poster. Falls back to an empty state when no lesson video
- * exists yet (draft course).
+ * Inline video box for the first lesson of the course. When that lesson has a
+ * YouTube video, its poster is shown with a play button; clicking embeds the
+ * player right there (autoplay). A close control returns to the poster. When
+ * the first lesson has no video yet (or the course is empty), an empty state
+ * shows the lesson title instead.
  */
 function VideoPlayer({ lesson }) {
   const { t } = useI18n();
@@ -195,7 +197,7 @@ function VideoPlayer({ lesson }) {
         <>
           <iframe
             className="absolute inset-0 w-full h-full"
-            src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&color=white&autoplay=1`}
+            src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
             title={lesson.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
@@ -234,12 +236,20 @@ function VideoPlayer({ lesson }) {
         </button>
       ) : (
         <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-4"
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-4"
           style={{ background: "var(--surface-3)" }}
         >
           <Film className="w-8 h-8" style={{ color: "var(--text-tertiary)" }} />
+          {lesson?.title && (
+            <p
+              className="text-xs font-black uppercase tracking-tight text-center truncate max-w-full"
+              style={{ color: "var(--text-primary)" }}
+            >
+              {lesson.title}
+            </p>
+          )}
           <p className="text-[10px] font-bold uppercase tracking-wider text-center" style={{ color: "var(--text-tertiary)" }}>
-            {t("lms.courses.videoEmpty")}
+            {lesson ? t("lms.courses.videoLessonEmpty") : t("lms.courses.videoEmpty")}
           </p>
         </div>
       )}
