@@ -140,7 +140,24 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const { course, progress } = data;
   const videoId = isValidYouTubeVideoId(lesson.youtube_video_id) ? lesson.youtube_video_id : null;
 
-
+  // The assessment that follows this lesson, when there is one: the current
+  // section's assessment after its last lesson, else the first course-level
+  // assessment after the very last lesson. Surfaced as its own CTA so the
+  // learner does not have to find it in the sidebar.
+  const currentSection = data.sections.find((s) =>
+    (s.lessons || []).some((l) => String(l.id) === String(lessonId)),
+  );
+  const isSectionLast =
+    !!currentSection &&
+    currentSection.lessons.length > 0 &&
+    String(currentSection.lessons[currentSection.lessons.length - 1].id) === String(lessonId);
+  const isCourseLast = currentIndex >= 0 && currentIndex === lessons.length - 1;
+  const upcomingAssessment =
+    isSectionLast && currentSection?.assessment
+      ? currentSection.assessment
+      : isCourseLast && (data.courseAssessments || []).length > 0
+        ? data.courseAssessments[0]
+        : null;
 
   return (
     <div className="relative max-w-6xl mx-auto space-y-4">
@@ -249,6 +266,41 @@ export default function LearnerPlayer({ courseId, lessonId }) {
               </AppButton>
             </div>
           </div>
+
+          {/* Up-next assessment CTA (last lesson of a section / of the course) */}
+          {upcomingAssessment && (
+            <div
+              className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border px-4 py-3"
+              style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <HelpCircle className="w-5 h-5 shrink-0" style={{ color: "var(--brand-blue)" }} />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                    {t("lms.player.upNext")}
+                  </p>
+                  <p className="text-xs font-black truncate" style={{ color: "var(--text-primary)" }}>
+                    {upcomingAssessment.title}
+                  </p>
+                </div>
+              </div>
+              {upcomingAssessment.passed ? (
+                <AppButton variant="success" icon={CheckCircle2} disabled>
+                  {t("lms.assessment.passed")}
+                </AppButton>
+              ) : (
+                <AppButton
+                  variant="primary"
+                  icon={HelpCircle}
+                  onClick={() => openAssessment(upcomingAssessment.id)}
+                >
+                  {upcomingAssessment.attempted
+                    ? t("lms.assessment.tryAgain")
+                    : t("lms.player.startAssessment")}
+                </AppButton>
+              )}
+            </div>
+          )}
 
           {/* Mobile content toggle */}
           <button
