@@ -44,8 +44,15 @@ const {
 const { POST: lessonsPOST } = require("@/app/api/lms/sections/[id]/lessons/route");
 const { PUT: lessonPUT, DELETE: lessonDELETE } = require("@/app/api/lms/lessons/[id]/route");
 const { POST: assessmentsPOST } = require("@/app/api/lms/courses/[id]/assessments/route");
-const { PUT: assessmentPUT } = require("@/app/api/lms/assessments/[id]/route");
+const {
+  PUT: assessmentPUT,
+  DELETE: assessmentDELETE,
+} = require("@/app/api/lms/assessments/[id]/route");
 const { POST: questionsPOST } = require("@/app/api/lms/assessments/[id]/questions/route");
+const {
+  PUT: questionPUT,
+  DELETE: questionDELETE,
+} = require("@/app/api/lms/questions/[id]/route");
 
 const jsonReq = (body) =>
   new Request("http://localhost/api/lms/test", {
@@ -316,6 +323,58 @@ describe("Lessons & YouTube", () => {
     const res = await lessonDELETE(jsonReq({}), { params: { id: "L-1" } });
     expect(res.status).toBe(409);
   });
+
+  test("DELETE removes a lesson without learner progress (200)", async () => {
+    mockFake.seed("lms_lessons", [{ id: "L-1", section_id: "S-1", title: "L", content_type: "video", position: 0 }]);
+    const res = await lessonDELETE(jsonReq({}), { params: { id: "L-1" } });
+    expect(res.status).toBe(200);
+    expect(mockFake.state.lms_lessons.find((l) => l.id === "L-1")).toBeUndefined();
+  });
+
+  test("PUT action move swaps a lesson with its neighbour (transaction swap)", async () => {
+    mockFake.seed("lms_lessons", [
+      { id: "L-1", section_id: "S-1", title: "One", content_type: "video", position: 0 },
+      { id: "L-2", section_id: "S-1", title: "Two", content_type: "video", position: 1 },
+    ]);
+    const res = await lessonPUT(
+      jsonReq({ action: "move", direction: "down" }),
+      { params: { id: "L-1" } },
+    );
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data.moved).toBe(true);
+    const l1 = mockFake.state.lms_lessons.find((l) => l.id === "L-1");
+    const l2 = mockFake.state.lms_lessons.find((l) => l.id === "L-2");
+    expect(l1.position).toBe(1);
+    expect(l2.position).toBe(0);
+  });
+
+  test("PUT action move without a neighbour is a no-op (moved: false)", async () => {
+    mockFake.seed("lms_lessons", [
+      { id: "L-1", section_id: "S-1", title: "One", content_type: "video", position: 0 },
+    ]);
+    const res = await lessonPUT(
+      jsonReq({ action: "move", direction: "up" }),
+      { params: { id: "L-1" } },
+    );
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data.moved).toBe(false);
+    expect(mockFake.state.lms_lessons[0].position).toBe(0);
+  });
+
+  test("PUT action move with an invalid direction returns 400", async () => {
+    mockFake.seed("lms_lessons", [
+      { id: "L-1", section_id: "S-1", title: "One", content_type: "video", position: 0 },
+    ]);
+    const res = await lessonPUT(
+      jsonReq({ action: "move", direction: "sideways" }),
+      { params: { id: "L-1" } },
+    );
+    expect(res.status).toBe(400);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.invalidDirection");
+  });
 });
 
 describe("Assessments & questions", () => {
@@ -418,6 +477,225 @@ describe("Assessments & questions", () => {
     expect(res.status).toBe(400);
     const assessment = mockFake.state.lms_assessments.find((a) => a.id === "A-1");
     expect(assessment.question_type).toBe("multiple_choice");
+  });
+
+  test("DELETE removes an assessment and its questions (200)", async () => {
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
+    mockFake.seed("lms_assessment_questions", [{ id: "Q-1", assessment_id: "A-1", question: "Q?", question_type: "multiple_choice", position: 0 }]);
+    const res = await assessmentDELETE(jsonReq({}), { params: { id: "A-1" } });
+    expect(res.status).toBe(200);
+    expect(mockFake.state.lms_assessments.find((a) => a.id === "A-1")).toBeUndefined();
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1")).toBeUndefined();
+  });
+
+  test("DELETE refuses an assessment with learner attempts (409)", async () => {
+    mockFake.seed("lms_assessments", [{ id: "A-1", course_id: "C-1", section_id: null, title: "Quiz", question_type: "multiple_choice", position: 0 }]);
+    mockFake.seed("lms_assessment_attempts", [
+      { id: "AT-1", assessment_id: "A-1", user_cid: "U-LEARNER", attempt_number: 1, score: 2, total_points: 2, passed: true },
+    ]);
+    const res = await assessmentDELETE(jsonReq({}), { params: { id: "A-1" } });
+    expect(res.status).toBe(409);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.cannotDeleteWithAttempts");
+    expect(mockFake.state.lms_assessments).toHaveLength(1);
+  });
+
+  test("DELETE an unknown assessment returns 404", async () => {
+    const res = await assessmentDELETE(jsonReq({}), { params: { id: "NOPE" } });
+    expect(res.status).toBe(404);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.assessmentNotFound");
+  });
+
+  test("PUT updates a question's text, options, answer and points", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      {
+        id: "Q-1",
+        assessment_id: "A-1",
+        question: "Old?",
+        question_type: "multiple_choice",
+        options: [
+          { key: "A", text: "One" },
+          { key: "B", text: "Two" },
+        ],
+        correct_answer: ["A"],
+        points: 1,
+        position: 0,
+      },
+    ]);
+    const res = await questionPUT(
+      jsonReq({
+        question: "New?",
+        options: [
+          { key: "A", text: "Alpha" },
+          { key: "B", text: "Beta" },
+          { key: "C", text: "Gamma" },
+        ],
+        correctAnswer: ["C"],
+        points: 3,
+      }),
+      { params: { id: "Q-1" } },
+    );
+    expect(res.status).toBe(200);
+    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
+    expect(q.question).toBe("New?");
+    expect(q.points).toBe(3);
+    expect(JSON.parse(q.options)).toEqual([
+      { key: "A", text: "Alpha" },
+      { key: "B", text: "Beta" },
+      { key: "C", text: "Gamma" },
+    ]);
+    expect(JSON.parse(q.correct_answer)).toEqual(["C"]);
+  });
+
+  test("PUT rejects blank question text (400)", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      {
+        id: "Q-1",
+        assessment_id: "A-1",
+        question: "Old?",
+        question_type: "multiple_choice",
+        options: [
+          { key: "A", text: "One" },
+          { key: "B", text: "Two" },
+        ],
+        correct_answer: ["A"],
+        points: 1,
+        position: 0,
+      },
+    ]);
+    const res = await questionPUT(jsonReq({ question: "   " }), { params: { id: "Q-1" } });
+    expect(res.status).toBe(400);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.questionTextRequired");
+    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
+    expect(q.question).toBe("Old?");
+  });
+
+  test("PUT rejects multiple-choice options with fewer than two choices (400)", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      {
+        id: "Q-1",
+        assessment_id: "A-1",
+        question: "Old?",
+        question_type: "multiple_choice",
+        options: [
+          { key: "A", text: "One" },
+          { key: "B", text: "Two" },
+        ],
+        correct_answer: ["A"],
+        points: 1,
+        position: 0,
+      },
+    ]);
+    const res = await questionPUT(
+      jsonReq({ options: [{ key: "A", text: "Only" }], correctAnswer: ["A"] }),
+      { params: { id: "Q-1" } },
+    );
+    expect(res.status).toBe(400);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.mcOptionsRequired");
+    const q = mockFake.state.lms_assessment_questions.find((x) => x.id === "Q-1");
+    expect(q.correct_answer).toEqual(["A"]); // untouched — the row is never mutated on a validation failure
+  });
+
+  test("PUT action move swaps a question with its up neighbour", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+      { id: "Q-2", assessment_id: "A-1", question: "Two", question_type: "multiple_choice", position: 1 },
+      { id: "Q-3", assessment_id: "A-1", question: "Three", question_type: "multiple_choice", position: 2 },
+    ]);
+    const res = await questionPUT(
+      jsonReq({ action: "move", direction: "up" }),
+      { params: { id: "Q-2" } },
+    );
+    expect(res.status).toBe(200);
+    expect((await readJson(res)).moved).toBe(true);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(1);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-2").position).toBe(0);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-3").position).toBe(2);
+  });
+
+  test("PUT action move swaps a question with its down neighbour", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+      { id: "Q-2", assessment_id: "A-1", question: "Two", question_type: "multiple_choice", position: 1 },
+      { id: "Q-3", assessment_id: "A-1", question: "Three", question_type: "multiple_choice", position: 2 },
+    ]);
+    const res = await questionPUT(
+      jsonReq({ action: "move", direction: "down" }),
+      { params: { id: "Q-2" } },
+    );
+    expect(res.status).toBe(200);
+    expect((await readJson(res)).moved).toBe(true);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(0);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-2").position).toBe(2);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-3").position).toBe(1);
+  });
+
+  test("PUT action move with no neighbour reports moved: false", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+      { id: "Q-2", assessment_id: "A-1", question: "Two", question_type: "multiple_choice", position: 1 },
+    ]);
+    const res = await questionPUT(
+      jsonReq({ action: "move", direction: "up" }),
+      { params: { id: "Q-1" } },
+    );
+    expect(res.status).toBe(200);
+    const data = await readJson(res);
+    expect(data.moved).toBe(false);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1").position).toBe(0);
+  });
+
+  test("PUT action move with an invalid direction returns 400", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+    ]);
+    const res = await questionPUT(
+      jsonReq({ action: "move", direction: "sideways" }),
+      { params: { id: "Q-1" } },
+    );
+    expect(res.status).toBe(400);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.invalidDirection");
+  });
+
+  test("PUT an unknown question returns 404", async () => {
+    const res = await questionPUT(jsonReq({ question: "New?" }), { params: { id: "NOPE" } });
+    expect(res.status).toBe(404);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.questionNotFound");
+  });
+
+  test("DELETE removes a question (200)", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+    ]);
+    const res = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
+    expect(res.status).toBe(200);
+    expect(mockFake.state.lms_assessment_questions.find((q) => q.id === "Q-1")).toBeUndefined();
+  });
+
+  test("DELETE an unknown question returns 404", async () => {
+    const res = await questionDELETE(jsonReq({}), { params: { id: "NOPE" } });
+    expect(res.status).toBe(404);
+    const data = await readJson(res);
+    expect(data.error).toBe("lms.errors.questionNotFound");
+  });
+
+  test("question PUT/DELETE require lms.edit (403, no mutation)", async () => {
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "One", question_type: "multiple_choice", position: 0 },
+    ]);
+    requireAuthorization.mockResolvedValueOnce({ status: 403 });
+    const put = await questionPUT(jsonReq({ question: "New?" }), { params: { id: "Q-1" } });
+    expect(put.status).toBe(403);
+
+    requireAuthorization.mockResolvedValueOnce({ status: 403 });
+    const del = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
+    expect(del.status).toBe(403);
+    expect(mockFake.executed.length).toBe(0);
   });
 });
 
