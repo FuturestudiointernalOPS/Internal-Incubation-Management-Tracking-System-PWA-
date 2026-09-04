@@ -37,6 +37,7 @@ const {
 const { POST: publishPOST } = require("@/app/api/lms/courses/[id]/publish/route");
 const { POST: archivePOST } = require("@/app/api/lms/courses/[id]/archive/route");
 const { POST: sectionsPOST } = require("@/app/api/lms/courses/[id]/sections/route");
+const { POST: sectionsReorderPOST } = require("@/app/api/lms/courses/[id]/sections/reorder/route");
 const {
   PUT: sectionPUT,
   DELETE: sectionDELETE,
@@ -696,6 +697,79 @@ describe("Assessments & questions", () => {
     const del = await questionDELETE(jsonReq({}), { params: { id: "Q-1" } });
     expect(del.status).toBe(403);
     expect(mockFake.executed.length).toBe(0);
+  });
+});
+
+describe("Sections — drag & drop reorder", () => {
+  const seedCourseWithSections = () => {
+    mockFake.seed("lms_courses", [{ id: "C-1", title: "A", status: "draft", is_free: true, visibility: "public" }]);
+    mockFake.seed("lms_course_sections", [
+      { id: "S-1", course_id: "C-1", title: "A", position: 0 },
+      { id: "S-2", course_id: "C-1", title: "B", position: 1 },
+      { id: "S-3", course_id: "C-1", title: "C", position: 2 },
+    ]);
+  };
+
+  const positions = () =>
+    mockFake.state.lms_course_sections
+      .slice()
+      .sort((a, b) => a.position - b.position)
+      .map((s) => s.id);
+
+  test("POST persists an arbitrary drag-and-drop section order", async () => {
+    seedCourseWithSections();
+    const res = await sectionsReorderPOST(
+      jsonReq({ sectionIds: ["S-3", "S-1", "S-2"] }),
+      { params: { id: "C-1" } },
+    );
+    expect(res.status).toBe(200);
+    expect((await readJson(res)).moved).toBe(true);
+    expect(positions()).toEqual(["S-3", "S-1", "S-2"]);
+    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-1").position).toBe(1);
+    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-2").position).toBe(2);
+    expect(mockFake.state.lms_course_sections.find((s) => s.id === "S-3").position).toBe(0);
+  });
+
+  test("POST reports moved: false when the order is unchanged", async () => {
+    seedCourseWithSections();
+    const res = await sectionsReorderPOST(
+      jsonReq({ sectionIds: ["S-1", "S-2", "S-3"] }),
+      { params: { id: "C-1" } },
+    );
+    expect(res.status).toBe(200);
+    expect((await readJson(res)).moved).toBe(false);
+    expect(positions()).toEqual(["S-1", "S-2", "S-3"]);
+  });
+
+  test("POST rejects a list that does not match the course sections (400, no mutation)", async () => {
+    seedCourseWithSections();
+    const res = await sectionsReorderPOST(
+      jsonReq({ sectionIds: ["S-1", "S-2"] }),
+      { params: { id: "C-1" } },
+    );
+    expect(res.status).toBe(400);
+    expect(positions()).toEqual(["S-1", "S-2", "S-3"]);
+  });
+
+  test("POST rejects ids from another course (400)", async () => {
+    mockFake.seed("lms_courses", [{ id: "C-1", title: "A", status: "draft", is_free: true, visibility: "public" }]);
+    mockFake.seed("lms_course_sections", [
+      { id: "S-1", course_id: "C-1", title: "A", position: 0 },
+      { id: "S-X", course_id: "OTHER", title: "B", position: 1 },
+    ]);
+    const res = await sectionsReorderPOST(
+      jsonReq({ sectionIds: ["S-X", "S-1"] }),
+      { params: { id: "C-1" } },
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("POST on an unknown course returns 404", async () => {
+    const res = await sectionsReorderPOST(
+      jsonReq({ sectionIds: ["S-1"] }),
+      { params: { id: "NOPE" } },
+    );
+    expect(res.status).toBe(404);
   });
 });
 

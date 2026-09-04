@@ -80,6 +80,55 @@ export async function moveSection(sectionId, direction) {
   return { success: true, moved: true };
 }
 
+/**
+ * Persist an arbitrary section order (drag & drop) for one course.
+ * `orderedIds` must contain every section of the course exactly once;
+ * positions are rewritten 0..n-1 inside a transaction (two passes with
+ * negative staging values to respect the UNIQUE(course_id, position) constraint).
+ */
+export async function reorderSections(courseId, orderedIds) {
+  const course = await getCourse(courseId);
+  if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    throw new LmsError("lms.errors.reorderInvalid", 400);
+  }
+
+  const res = await db.execute({
+    sql: "SELECT id, position, title FROM lms_course_sections WHERE course_id = ?",
+    args: [courseId],
+  });
+  const current = res.rows;
+  const requested = orderedIds.map((id) => String(id));
+  if (current.length !== requested.length || new Set(requested).size !== requested.length) {
+    throw new LmsError("lms.errors.reorderInvalid", 400);
+  }
+  const currentIds = new Set(current.map((r) => String(r.id)));
+  if (!requested.every((id) => currentIds.has(id))) {
+    throw new LmsError("lms.errors.reorderInvalid", 400);
+  }
+
+  const sorted = [...current].sort((a, b) => a.position - b.position);
+  const unchanged = sorted.every((r, i) => String(r.id) === requested[i]);
+  if (unchanged) return { success: true, moved: false };
+
+  await db.transaction(async (query) => {
+    // Stage every row on a negative position so no transient duplicate occurs.
+    for (let i = 0; i < requested.length; i++) {
+      await query("UPDATE lms_course_sections SET position = ? WHERE id = ?", [
+        -1 - i,
+        requested[i],
+      ]);
+    }
+    for (let i = 0; i < requested.length; i++) {
+      await query("UPDATE lms_course_sections SET position = ? WHERE id = ?", [
+        i,
+        requested[i],
+      ]);
+    }
+  });
+  return { success: true, moved: true };
+}
+
 export async function deleteSection(sectionId) {
   const section = await getSection(sectionId);
   if (!section) throw new LmsError("lms.errors.sectionNotFound", 404);
