@@ -158,6 +158,20 @@ export const PUT = createHandler(async (req) => {
     if (!id) {
       return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
     }
+    // Lifecycle guardrail: only global roles or delegated staff with an active
+    // assignment may change a Venture's status (founder/member edits keep all
+    // other profile fields; status is silently preserved as-is).
+    if (updates.status) {
+      try {
+        const session = await getSession();
+        const globalRoles = ["super_admin", "developer", "admin"];
+        if (!session || !globalRoles.includes(session.role)) {
+          const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid, db) : false;
+          if (!assigned) delete updates.status;
+        }
+      } catch (_) {}
+    }
     // Convert social_media/branding objects to JSON strings for SQLite
     if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);
     if (updates.branding) updates.branding = JSON.stringify(updates.branding);

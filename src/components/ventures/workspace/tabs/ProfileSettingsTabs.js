@@ -3,7 +3,7 @@
 import { Save, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
-import { STAGES, INDUSTRY_FALLBACK, STATUSES, VISIBILITIES } from "../ventureMeta";
+import { STAGES, INDUSTRY_FALLBACK, VISIBILITIES } from "../ventureMeta";
 
 /* Profile Tab */
 export function ProfileTab() {
@@ -116,10 +116,10 @@ export function SettingsTab() {
       <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
         <div>
           <label className="block text-sm font-medium mb-1">{t("venture.status")}</label>
-          <select value={form.status} onChange={e => setForm({...form, status: e.target.value})}
-            className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-            {STATUSES.map(s => <option key={s} value={s}>{t(`venture.statuses.${s}`)}</option>)}
-          </select>
+          <p className="text-xs mb-2" style={{ color: "var(--text-secondary)" }}>{t("venture.statusManagedByStaff") || "Status is managed by Future Studio staff."}</p>
+          <span className="inline-block text-xs px-2.5 py-1 rounded-full font-medium" style={{ backgroundColor: "rgb(255 255 255 / 0.06)", border: "1px solid rgb(255 255 255 / 0.12)" }}>
+            {t(`venture.statuses.${form.status}`) || form.status}
+          </span>
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">{t("venture.businessStage")}</label>
