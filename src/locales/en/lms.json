@@ -22,7 +22,10 @@
       "updated": "Course updated",
       "published": "Course published",
       "archived": "Course archived",
-      "deleted": "Course deleted"
+      "deleted": "Course deleted",
+      "noDescription": "No description yet",
+      "videoPlay": "Play the first lesson video",
+      "videoEmpty": "No video in this course yet"
     },
     "learning": {
       "title": "My Learning",
