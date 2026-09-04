@@ -51,7 +51,7 @@ export const MASTER_NAVIGATION = [
     ],
   },
 
-  // Communication — messaging, announcements, forms + outreach suite.
+  // Communication — messaging, announcements, forms.
   // Deliberately separate from CRM (people data only) above.
   {
     id: "communication",
@@ -60,10 +60,7 @@ export const MASTER_NAVIGATION = [
     children: [
       { id: "messages", name: "MESSAGES", icon: "send", href: "/admin/internal-comms" },
       { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
-      { id: "campaigns", name: "CAMPAIGNS", href: "/admin/communications/campaigns" },
-      { id: "segments", name: "SEGMENTS", href: "/admin/communications/segments" },
       { id: "forms", name: "FORMS", icon: "fileText", href: "/platform" },
-      { id: "responses", name: "RESPONSES", href: "/admin/communications/responses" },
       { id: "groups", name: "GROUPS", href: "/pm/communications/contacts" },
     ],
   },
@@ -222,7 +219,7 @@ export const ROLE_ACCESS = {
     ],
     children: {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
-      communication: ["messages", "announcements", "campaigns", "segments", "forms", "responses"],
+      communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
       ventures: ["all_ventures", "register_venture"],
       investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_overview", "investors_campaigns", "investors_relationships"],

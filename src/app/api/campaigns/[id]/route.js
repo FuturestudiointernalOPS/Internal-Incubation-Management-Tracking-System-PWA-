@@ -2,7 +2,17 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
+// ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
+// Campaigns are hidden from the sidebar and their API is disabled (403).
+// The code below is intentionally kept — set RETIRED = false to re-enable.
+const RETIRED = true;
+const RETIRED_RESPONSE = NextResponse.json(
+  { success: false, error: "Campaigns are retired and no longer accessible." },
+  { status: 403 },
+);
+
 export async function GET(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     await initDb();
@@ -65,6 +75,7 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     const data = await req.json();
@@ -137,6 +148,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     await initDb();

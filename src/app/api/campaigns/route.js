@@ -2,7 +2,17 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 
+// ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
+// Campaigns are hidden from the sidebar and their API is disabled (403).
+// The code below is intentionally kept — set RETIRED = false to re-enable.
+const RETIRED = true;
+const RETIRED_RESPONSE = NextResponse.json(
+  { success: false, error: "Campaigns are retired and no longer accessible." },
+  { status: 403 },
+);
+
 export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () => {
+  if (RETIRED) return RETIRED_RESPONSE;
   const result = await db.execute(`
     SELECT c.*,
            COUNT(cc.id) as total_contacts,
@@ -17,6 +27,7 @@ export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () =
 });
 
 export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  if (RETIRED) return RETIRED_RESPONSE;
   const data = await req.json();
   const { name, form_id, cids, steps } = data;
 

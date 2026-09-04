@@ -2,9 +2,19 @@ import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 
+// ── RESPONSES RETIRED ──────────────────────────────────────────────────────
+// Responses are hidden from the sidebar and their API is disabled (403).
+// The code below is intentionally kept — set RETIRED = false to re-enable.
+const RETIRED = true;
+const RETIRED_RESPONSE = NextResponse.json(
+  { success: false, error: "Responses are retired and no longer accessible." },
+  { status: 403 },
+);
+
 export const POST = createHandler(
   { roles: ["super_admin", "staff", "teacher"] },
   async (req) => {
+    if (RETIRED) return RETIRED_RESPONSE;
     const { response_id, cid } = await req.json();
     if (!response_id || !cid)
       return NextResponse.json(

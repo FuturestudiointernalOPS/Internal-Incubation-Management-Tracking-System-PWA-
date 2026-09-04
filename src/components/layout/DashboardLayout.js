@@ -96,9 +96,6 @@ const NAV_KEY_MAP = {
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
   communication: "navigation.communication",
-  campaigns: "navigation.campaigns",
-  segments: "navigation.segments",
-  responses: "navigation.responses",
   administration: "navigation.administration",
 
   forms: "navigation.forms",
@@ -558,15 +555,12 @@ const NAV_RESPONSIBILITY_MAP = {
   crm_duplicates: "crm",
   all_contacts: "crm",
 
-  // Communication — messaging, announcements, forms + outreach suite.
+  // Communication — messaging, announcements, forms.
   // These belong to the COMMUNICATION feature, never to CRM.
   communication: "communication",
   messages: "communication",
   announcements: "communication",
   forms: "communication",
-  campaigns: "communication",
-  segments: "communication",
-  responses: "communication",
   groups: "communication",
 
   // Administration (user tools moved out of CRM — kept under user_management)

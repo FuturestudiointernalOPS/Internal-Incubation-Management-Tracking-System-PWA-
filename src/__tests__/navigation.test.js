@@ -39,10 +39,7 @@ const FIXTURE = {
       subItems: [
         { id: "messages", href: "/admin/internal-comms", subItems: null },
         { id: "announcements", href: "/admin/announcements", subItems: null },
-        { id: "campaigns", href: "/admin/communications/campaigns", subItems: null },
-        { id: "segments", href: "/admin/communications/segments", subItems: null },
         { id: "forms", href: "/platform", subItems: null },
-        { id: "responses", href: "/admin/communications/responses", subItems: null },
       ],
     },
     {
