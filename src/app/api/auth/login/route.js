@@ -168,25 +168,39 @@ export async function POST(req) {
       userLanguage = user.language;
     }
 
-    // A participant with no group and no program is effectively an unassigned
-    // neutral member. Downgrade instead of rejecting so they reach the empty
-    // workspace hub rather than a broken participant dashboard.
+    // A participant with no real relationship (program, LMS course or venture
+    // membership) is effectively an unassigned neutral member. Downgrade
+    // instead of rejecting so they reach the empty workspace hub rather than
+    // a broken participant dashboard. A plain group alone is NOT a
+    // relationship — it cannot keep the participant designation.
     if (finalRole === "participant" && !isFamilyLogin) {
       const hasDirectProgram =
         user.program_id && String(user.program_id).trim();
       let hasParticipantPrograms = false;
+      let hasLms = false;
+      let hasVenture = false;
       if (!hasDirectProgram && user.cid) {
         try {
-          const ppRes = await db.execute({
-            sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
-            args: [user.cid],
-          });
+          const [ppRes, lmsRes, ventureRes] = await Promise.all([
+            db.execute({
+              sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
+              args: [user.cid],
+            }),
+            db.execute({
+              sql: "SELECT 1 FROM lms_enrollments WHERE user_cid = ? LIMIT 1",
+              args: [user.cid],
+            }),
+            db.execute({
+              sql: "SELECT 1 FROM venture_members WHERE user_cid = ? LIMIT 1",
+              args: [user.cid],
+            }),
+          ]);
           hasParticipantPrograms = ppRes.rows.length > 0;
+          hasLms = lmsRes.rows.length > 0;
+          hasVenture = ventureRes.rows.length > 0;
         } catch (_) {}
       }
-      const groupName = String(user.group_name || "").trim().toLowerCase();
-      const hasGroup = !!groupName && groupName !== "unassigned";
-      if (!hasGroup && !hasDirectProgram && !hasParticipantPrograms) {
+      if (!hasDirectProgram && !hasParticipantPrograms && !hasLms && !hasVenture) {
         finalRole = "member";
       }
     }

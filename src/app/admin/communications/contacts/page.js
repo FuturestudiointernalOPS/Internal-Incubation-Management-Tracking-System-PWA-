@@ -108,7 +108,7 @@ function ContactsPageContent() {
 
   // Group invite
   const [showInviteModal, setShowInviteModal] = useState(null); // { name }
-  const [inviteForm, setInviteForm] = useState({ name: "", email: "", phone: "", role: "participant" });
+  const [inviteForm, setInviteForm] = useState({ name: "", email: "", phone: "", role: "member" });
 
   // Feedback
   const [notification, setNotification] = useState(null);
@@ -244,7 +244,7 @@ function ContactsPageContent() {
         body: JSON.stringify({
           email: c.email,
           name: c.name,
-          role: c.role || "participant",
+          role: c.role || "member",
         }),
       });
       const data = await res.json();
@@ -330,7 +330,7 @@ function ContactsPageContent() {
       if (data.success) {
         setNotification({ type: "success", message: t("crm.contacts.inviteSent") });
         setShowInviteModal(null);
-        setInviteForm({ name: "", email: "", phone: "", role: "participant" });
+        setInviteForm({ name: "", email: "", phone: "", role: "member" });
         fetchData(true);
       } else {
         setNotification({ type: "error", message: data.error || t("crm.contacts.inviteFailed") });
@@ -679,7 +679,7 @@ function ContactsPageContent() {
                         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => {
-                              setInviteForm({ name: "", email: "", phone: "", role: "participant" });
+                              setInviteForm({ name: "", email: "", phone: "", role: "member" });
                               setShowInviteModal({ name });
                             }}
                             title={t("crm.contacts.invite")}

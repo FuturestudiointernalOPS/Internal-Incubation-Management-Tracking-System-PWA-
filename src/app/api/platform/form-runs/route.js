@@ -1155,9 +1155,25 @@ export async function POST(req) {
           }
         } else {
           submitterId = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
+          // Approved respondents default to Member. If the run carries a
+          // group/program assignment, the respondent is placed in that group
+          // (its designation applies then); otherwise they stay neutral —
+          // never an assumed participant.
+          let assignedGroup = null;
+          try {
+            const assignRes = await db.execute({
+              sql: `SELECT target_type, target_id FROM platform_form_run_assignments
+                    WHERE run_id = ? AND target_type IN ('group','program','organization','cohort')
+                    LIMIT 1`,
+              args: [run.rows[0].id],
+            });
+            if (assignRes.rows[0]) {
+              assignedGroup = String(assignRes.rows[0].target_id || "").trim().toUpperCase() || null;
+            }
+          } catch (_) {}
           await db.execute({
-            sql: "INSERT INTO contacts (cid, name, email, role, status) VALUES (?, ?, ?, 'participant', 'approved')",
-            args: [submitterId, cleanName || cleanEmail, cleanEmail],
+            sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, 'member', 'approved', ?)",
+            args: [submitterId, cleanName || cleanEmail, cleanEmail, assignedGroup],
           });
         }
       } else {

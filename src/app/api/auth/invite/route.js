@@ -126,7 +126,7 @@ export async function POST(req) {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
       await db.execute({
         sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)",
-        args: [contactCid, displayName, cleanEmail, role || "participant", normGroup],
+        args: [contactCid, displayName, cleanEmail, role || "member", normGroup],
       });
     }
 
