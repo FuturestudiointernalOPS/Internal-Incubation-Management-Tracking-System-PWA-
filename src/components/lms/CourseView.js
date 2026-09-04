@@ -197,7 +197,7 @@ function VideoPlayer({ lesson }) {
         <>
           <iframe
             className="absolute inset-0 w-full h-full"
-            src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
+            src={buildYouTubeEmbedUrl(videoId, { autoplay: true, loop: true })}
             title={lesson.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen

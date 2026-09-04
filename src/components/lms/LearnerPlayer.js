@@ -213,7 +213,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
                 <>
                   <iframe
                     className="absolute inset-0 w-full h-full"
-                    src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
+                    src={buildYouTubeEmbedUrl(videoId, { autoplay: true, loop: true })}
                     title={lesson.title}
                     frameBorder="0"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
