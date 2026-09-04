@@ -264,7 +264,12 @@
       "saveFirstHint": "Enregistrez d'abord l'évaluation, puis ajoutez des questions",
       "questionType": "Type de questions",
       "typeLockedHint": "Le type de questions ne peut plus être modifié après l'ajout de questions.",
-      "courseLevel": "Niveau cours"
+      "courseLevel": "Niveau cours",
+      "passNoQuestions": "Ajoutez d'abord des questions — la note de passage ne peut pas être atteinte sans questions.",
+      "passPerfectOnly": "Réussir à {mark}% exige un sans-faute ({allCorrect} sur {count}). Envisagez de baisser la note de passage ou d'ajouter des questions.",
+      "passNeedsCorrect": "Les apprenants doivent répondre correctement à {correct} des {count} questions ({percent}%) pour atteindre la note de passage de {mark}%.",
+      "feasibilityMeta": "{count} questions · {points} points au total · note de passage {mark}%",
+      "passMarkDefaultHint": "Note de passage vide — {mark}% par défaut."
     },
     "questions": {
       "title": "Question",

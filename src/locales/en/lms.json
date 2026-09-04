@@ -264,7 +264,12 @@
       "saveFirstHint": "Save the assessment first, then add questions",
       "questionType": "Question type",
       "typeLockedHint": "The question type cannot be changed after questions are added.",
-      "courseLevel": "Course-level"
+      "courseLevel": "Course-level",
+      "passNoQuestions": "Add questions first — the pass mark cannot be reached without questions.",
+      "passPerfectOnly": "Passing at {mark}% requires a perfect score ({allCorrect} of {count}). Consider lowering the pass mark or adding more questions.",
+      "passNeedsCorrect": "Learners need {correct} of {count} questions correct ({percent}%) to reach the {mark}% pass mark.",
+      "feasibilityMeta": "{count} questions · {points} total points · pass mark {mark}%",
+      "passMarkDefaultHint": "Pass mark left empty — defaults to {mark}%."
     },
     "questions": {
       "title": "Question",

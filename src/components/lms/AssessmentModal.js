@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import QuestionModal from "./QuestionModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
+import { analyzePassMark } from "@/lib/lms/scoring";
 
 /**
  * Assessment authoring modal (create + edit) with question management.
@@ -37,6 +38,15 @@ export default function AssessmentModal({
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [questionModal, setQuestionModal] = useState(null);
+
+  // Pass-mark feasibility (live): the modal shows whether the current question
+  // set (count + points) can actually reach the configured pass mark — and
+  // warns when passing would require a perfect score.
+  const pmTrim = passMark.trim();
+  const pmNum = pmTrim === "" ? null : Number(pmTrim);
+  const pmValid = pmNum == null || (Number.isFinite(pmNum) && pmNum >= 0 && pmNum <= 100);
+  const analysis = analyzePassMark(pmNum, questions);
+  const showFeasibility = pmValid && (analysis.count > 0 || pmTrim !== "");
 
   const refreshQuestions = async () => {
     try {
@@ -85,6 +95,10 @@ export default function AssessmentModal({
   const save = async () => {
     if (!title.trim()) {
       setErrors({ title: "lms.errors.assessmentTitleRequired" });
+      return;
+    }
+    if (!pmValid) {
+      setErrors({ passMark: "lms.errors.invalidPassMark" });
       return;
     }
     setErrors({});
@@ -165,7 +179,57 @@ export default function AssessmentModal({
             value={passMark}
             onChange={(e) => setPassMark(e.target.value)}
             placeholder={t("lms.assessments.passMarkPlaceholder")}
+            error={
+              errors.passMark || (pmTrim !== "" && !pmValid)
+                ? t("lms.errors.invalidPassMark")
+                : undefined
+            }
           />
+          {showFeasibility && (
+            <div
+              className="sm:col-span-2 rounded-lg border px-3 py-2.5 space-y-1"
+              style={{ background: "var(--surface-2)", borderColor: "var(--border-primary)" }}
+            >
+              {analysis.count === 0 ? (
+                <p className="text-[10px] font-bold uppercase tracking-wider text-rose-500">
+                  {t("lms.assessments.passNoQuestions")}
+                </p>
+              ) : analysis.reachable ? (
+                <>
+                  <p
+                    className={`text-[10px] font-bold uppercase tracking-wider ${
+                      analysis.perfectScoreRequired ? "text-amber-500" : "text-emerald-500"
+                    }`}
+                  >
+                    {analysis.perfectScoreRequired
+                      ? t("lms.assessments.passPerfectOnly", {
+                          mark: analysis.threshold,
+                          count: analysis.count,
+                          allCorrect: analysis.count,
+                        })
+                      : t("lms.assessments.passNeedsCorrect", {
+                          correct: analysis.minCorrect,
+                          count: analysis.count,
+                          percent: analysis.percentAtMinCorrect,
+                          mark: analysis.threshold,
+                        })}
+                  </p>
+                  <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                    {t("lms.assessments.feasibilityMeta", {
+                      count: analysis.count,
+                      points: analysis.totalPoints,
+                      mark: analysis.threshold,
+                    })}
+                  </p>
+                  {analysis.usesDefault && (
+                    <p className="text-[9px] font-bold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                      {t("lms.assessments.passMarkDefaultHint", { mark: analysis.threshold })}
+                    </p>
+                  )}
+                </>
+              ) : null}
+            </div>
+          )}
           <label
             className="flex items-center gap-3 self-end pb-3 cursor-pointer"
             style={{ color: "var(--text-secondary)" }}
