@@ -259,6 +259,12 @@ export default function VentureDetailPage({ params }) {
               >
                 <Edit3 className="w-3 h-3" /> Edit
               </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <Shield className="w-3 h-3" /> Permissions
+              </button>
             </div>
           </div>
 
