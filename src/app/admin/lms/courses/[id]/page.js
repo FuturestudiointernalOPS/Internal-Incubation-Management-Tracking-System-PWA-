@@ -4,9 +4,11 @@ import { useParams } from "next/navigation";
 import CourseEditor from "@/components/lms/CourseEditor";
 
 /**
- * ADMIN — COURSE EDITOR
- * Full authoring workspace for one course (details + sections + lessons +
- * videos + assessments), save draft / preview / publish / archive.
+ * ADMIN — COURSE (view + edit)
+ * Opens as a read-only presentation: first-lesson video (click to launch) on
+ * the left, course name/description/curriculum on the right. Pressing Edit
+ * switches to the authoring workspace (details + sections + lessons + videos +
+ * assessments), then Save/Cancel returns to the presentation.
  */
 export default function LmsCourseEditorPage() {
   const params = useParams();

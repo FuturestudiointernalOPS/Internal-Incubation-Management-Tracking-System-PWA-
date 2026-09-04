@@ -2,21 +2,26 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Rocket, Archive, Eye, Trash2, Save, AlertCircle, Users } from "lucide-react";
+import { ArrowLeft, Rocket, Archive, Trash2, Save, AlertCircle, Users, Pencil } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppCard from "@/components/ui/AppCard";
 import CourseStatusBadge from "./CourseStatusBadge";
 import CourseFormFields from "./CourseFormFields";
 import SectionsManager from "./SectionsManager";
-import CoursePreviewModal from "./CoursePreviewModal";
+import CourseView from "./CourseView";
 import EnrollModal from "./EnrollModal";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 
 /**
- * Course authoring workspace: metadata editor + sections/lessons/assessments,
- * save draft / preview / publish / archive. Publishing is a deliberate action
- * with server-side validation (422 lists field-level errors inline).
+ * Course workspace. Opening a course shows a READ-ONLY presentation: the first
+ * lesson video (click to launch) on the left, and on its right the course name,
+ * description and full curriculum (sections → lessons → assessments). Pressing
+ * "Edit" switches to the authoring surface (metadata form + sections/lessons/
+ * assessments); Save or Cancel returns to the presentation. Publishing,
+ * archiving, deleting and enrolling stay in the top bar (Edit / Learners /
+ * status actions). Server-side authorization is enforced by every API call
+ * (lms.view / edit / publish / delete / enroll).
  */
 export default function CourseEditor({ courseId }) {
   const { t } = useI18n();
@@ -26,7 +31,7 @@ export default function CourseEditor({ courseId }) {
   const [loadError, setLoadError] = useState(null);
   const [details, setDetails] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [enrollOpen, setEnrollOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
 
@@ -57,6 +62,18 @@ export default function CourseEditor({ courseId }) {
     fetchCourse();
   }, [fetchCourse]);
 
+  const startEdit = () => {
+    setValidationErrors([]);
+    setEditing(true);
+  };
+
+  const cancelEdit = async () => {
+    setEditing(false);
+    setValidationErrors([]);
+    // Reload so unsaved edits to the metadata form are discarded.
+    await fetchCourse();
+  };
+
   const saveDetails = async () => {
     setSaving(true);
     setValidationErrors([]);
@@ -69,7 +86,8 @@ export default function CourseEditor({ courseId }) {
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
       notify("success", "lms.courses.saved");
-      fetchCourse();
+      setEditing(false);
+      await fetchCourse();
     } catch (e) {
       notify("error", e.message || "lms.errors.saveFailed");
     } finally {
@@ -161,40 +179,41 @@ export default function CourseEditor({ courseId }) {
           {t("lms.courses.backToCourses")}
         </button>
 
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-xl font-black uppercase tracking-tight truncate" style={{ color: "var(--text-primary)" }}>
-              {course.title || "—"}
-            </h1>
-            <CourseStatusBadge status={course.status} />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <AppButton variant="secondary" icon={Save} loading={saving} onClick={saveDetails}>
-              {t("lms.courses.save")}
-            </AppButton>
-            <AppButton variant="ghost" icon={Eye} onClick={() => setPreviewOpen(true)}>
-              {t("lms.courses.preview")}
-            </AppButton>
-            <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
-              {t("lms.enroll.title")}
-            </AppButton>
-            {course.status === "draft" && (
-              <AppButton variant="primary" icon={Rocket} onClick={publish}>
-                {t("lms.courses.publish")}
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {editing ? (
+            <>
+              <AppButton variant="primary" icon={Save} loading={saving} onClick={saveDetails}>
+                {t("lms.courses.save")}
               </AppButton>
-            )}
-            {course.status === "published" && (
-              <AppButton variant="secondary" icon={Archive} onClick={archive}>
-                {t("lms.courses.archive")}
+              <AppButton variant="ghost" onClick={cancelEdit}>
+                {t("common.cancel")}
               </AppButton>
-            )}
-            {course.status === "draft" && (
-              <AppButton variant="danger" icon={Trash2} onClick={remove}>
-                {t("lms.courses.delete")}
+            </>
+          ) : (
+            <>
+              <AppButton variant="primary" icon={Pencil} onClick={startEdit}>
+                {t("common.edit")}
               </AppButton>
-            )}
-          </div>
+              <AppButton variant="ghost" icon={Users} onClick={() => setEnrollOpen(true)}>
+                {t("lms.enroll.title")}
+              </AppButton>
+              {course.status === "draft" && (
+                <AppButton variant="success" icon={Rocket} onClick={publish}>
+                  {t("lms.courses.publish")}
+                </AppButton>
+              )}
+              {course.status === "published" && (
+                <AppButton variant="secondary" icon={Archive} onClick={archive}>
+                  {t("lms.courses.archive")}
+                </AppButton>
+              )}
+              {course.status === "draft" && (
+                <AppButton variant="danger" icon={Trash2} onClick={remove}>
+                  {t("lms.courses.delete")}
+                </AppButton>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -217,23 +236,34 @@ export default function CourseEditor({ courseId }) {
         </div>
       )}
 
-      {/* Course details */}
-      <AppCard padding="lg">
-        <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
-          {t("lms.preview.courseDetails")}
-        </p>
-        <CourseFormFields value={details} onChange={setDetails} />
-      </AppCard>
+      {/* Presentation or authoring surface */}
+      {editing ? (
+        <>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-black uppercase tracking-tight truncate" style={{ color: "var(--text-primary)" }}>
+              {course.title || "—"}
+            </h1>
+            <CourseStatusBadge status={course.status} />
+          </div>
 
-      {/* Sections & content */}
-      <AppCard padding="lg">
-        <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
-          {t("lms.preview.content")}
-        </p>
-        <SectionsManager course={course} onChange={fetchCourse} />
-      </AppCard>
+          <AppCard padding="lg">
+            <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
+              {t("lms.preview.courseDetails")}
+            </p>
+            <CourseFormFields value={details} onChange={setDetails} />
+          </AppCard>
 
-      <CoursePreviewModal isOpen={previewOpen} onClose={() => setPreviewOpen(false)} course={course} />
+          <AppCard padding="lg">
+            <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
+              {t("lms.preview.content")}
+            </p>
+            <SectionsManager course={course} onChange={fetchCourse} />
+          </AppCard>
+        </>
+      ) : (
+        <CourseView course={course} />
+      )}
+
       <EnrollModal isOpen={enrollOpen} onClose={() => setEnrollOpen(false)} courseId={course.id} />
     </div>
   );
