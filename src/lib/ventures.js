@@ -251,6 +251,14 @@ export async function ensureVentureSchema() {
     // ─── Phase P4 — Internal Venture Notes (staff-only; founders never) ───
     "CREATE TABLE IF NOT EXISTS venture_notes (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, author_cid TEXT, author_name TEXT, title TEXT NOT NULL, body TEXT NOT NULL, scope_ref_type TEXT, scope_ref_id TEXT, is_archived BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_venture_notes_venture ON venture_notes(venture_id, is_archived)",
+    // ─── Phase P4b — Venture Operating Plans (Lead Manager instrument) ───
+    "CREATE TABLE IF NOT EXISTS venture_operating_plans (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, name TEXT NOT NULL, objective TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS idx_vop_venture ON venture_operating_plans(venture_id)",
+    "CREATE TABLE IF NOT EXISTS venture_plan_sections (id SERIAL PRIMARY KEY, plan_id INTEGER NOT NULL REFERENCES venture_operating_plans(id) ON DELETE CASCADE, title TEXT NOT NULL, objective TEXT, instructions TEXT, sort_order INTEGER DEFAULT 0, status TEXT NOT NULL DEFAULT 'not_started', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
+    "CREATE INDEX IF NOT EXISTS idx_vps_plan ON venture_plan_sections(plan_id)",
+    // Links a plan section to existing Venture objects (milestone/task/document/session/note).
+    "CREATE TABLE IF NOT EXISTS venture_plan_links (id SERIAL PRIMARY KEY, section_id INTEGER NOT NULL REFERENCES venture_plan_sections(id) ON DELETE CASCADE, ref_type TEXT NOT NULL, ref_id TEXT NOT NULL, label TEXT, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(section_id, ref_type, ref_id))",
+    "CREATE INDEX IF NOT EXISTS idx_vpl_section ON venture_plan_links(section_id)",
   ];
 
   for (const sql of migrations) {

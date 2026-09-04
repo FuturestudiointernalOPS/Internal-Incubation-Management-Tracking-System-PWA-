@@ -271,6 +271,12 @@ export default function VentureDetailPage({ params }) {
               >
                 <FileText className="w-3 h-3" /> Notes
               </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/operating-plan`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <Target className="w-3 h-3" /> Operating Plan
+              </button>
             </div>
           </div>
 
