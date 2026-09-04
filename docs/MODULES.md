@@ -83,7 +83,7 @@
 | File | Exports | Purpose |
 |---|---|---|
 | `src/lib/lms/constants.js` | LMS_COURSE_STATUSES, LMS_COURSE_VISIBILITY, LMS_ENROLLMENT_SOURCES, LMS_ENROLLMENT_STATUSES, LMS_PROGRESS_STATUSES, LMS_LESSON_CONTENT_TYPES, LMS_QUESTION_TYPES | LMS domain vocabulary — mirrors the CHECK-constraint values in `supabase/migrations/20260827_lms_foundation.sql`; the schema test (`src/__tests__/lms-foundation.test.js`) guards against drift. |
-| `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID; the only video data the LMS stores. |
+| `src/lib/lms/youtube.js` | extractYouTubeVideoId, isValidYouTubeVideoId, buildYouTubeEmbedUrl | Normalizes YouTube URLs / bare IDs into the canonical 11-char video ID (the only video data the LMS stores) + builds the cookie-free embed URL (`youtube-nocookie`, `rel=0`, `modestbranding`, opt-in `autoplay`) shared by every player. |
 | `src/lib/lms/validation.js` | validateCourseForPublish | Pure publish-validation rules (sections, lessons, video refs, MC/TF questions, pass mark). |
 | `src/lib/lms/errors.js` | LmsError, lmsErrorResponse | Domain error with i18n key + HTTP status; standard route error responses (never leak raw DB errors). |
 | `src/lib/lms/helpers.js` | nextPosition, groupBy | Ordering helper (max+1 position) and row grouping. |
@@ -104,7 +104,7 @@
 | `src/components/lms/CourseStatusBadge.js` | CourseStatusBadge | Draft/published/archived pill for authoring UI. |
 | `src/components/lms/CourseFormFields.js` | CourseFormFields | Shared course metadata form (title, description, thumbnail, visibility, free/paid + price). |
 | `src/components/lms/CourseList.js` | CourseList | Admin course list: search, status filter, open/publish/archive. |
-| `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: first-lesson video (click to launch) left, name/description/curriculum right. |
+| `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: first-lesson video box (plays when the first lesson has one) left, name/description/curriculum right. |
 | `src/components/lms/CourseEditor.js` | CourseEditor | Admin course workspace: read-only presentation by default; Edit toggles the authoring form (details + sections + lessons + assessments + publish). |
 | `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals. |
 | `src/components/lms/LessonModal.js` | LessonModal | Lesson create/edit with live YouTube validation. |
