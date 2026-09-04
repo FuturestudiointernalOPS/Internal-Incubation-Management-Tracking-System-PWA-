@@ -88,7 +88,7 @@
 | `src/lib/lms/errors.js` | LmsError, lmsErrorResponse | Domain error with i18n key + HTTP status; standard route error responses (never leak raw DB errors). |
 | `src/lib/lms/helpers.js` | nextPosition, groupBy | Ordering helper (max+1 position) and row grouping. |
 | `src/lib/lms/courses.js` | listCourses, getCourse, getCourseStructure, createCourse, updateCourse, deleteCourse, publishCourse, archiveCourse | Course lifecycle + authoring structure assembly (admin). |
-| `src/lib/lms/sections.js` | getSection, createSection, updateSection, moveSection, deleteSection | Section authoring + ordering (admin). |
+| `src/lib/lms/sections.js` | getSection, createSection, updateSection, moveSection, reorderSections, deleteSection | Section authoring + ordering (admin). `reorderSections` persists a full drag-and-drop order for a course. |
 | `src/lib/lms/lessons.js` | getLesson, createLesson, updateLesson, moveLesson, deleteLesson | Lesson authoring + ordering + YouTube normalization (admin). |
 | `src/lib/lms/assessments.js` | getAssessment, getQuestion, createAssessment, updateAssessment, deleteAssessment, createQuestion, updateQuestion, moveQuestion, deleteQuestion | Assessment/question authoring (admin). |
 | `src/lib/lms/scoring.js` | scoreAssessment | **Phase 4** — pure server-side scoring: validates submitted answers against configured questions, computes correct count + `round(correct/total×100)`. Never trusts client scores. |
@@ -106,7 +106,7 @@
 | `src/components/lms/CourseList.js` | CourseList | Admin course list: search, status filter, open/publish/archive. |
 | `src/components/lms/CourseView.js` | CourseView | Read-only course presentation shown when opening a course: first-lesson video box (plays when the first lesson has one) left, name/description/curriculum right. |
 | `src/components/lms/CourseEditor.js` | CourseEditor | Admin course workspace: read-only presentation by default; Edit toggles the authoring form (details + sections + lessons + assessments + publish). |
-| `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals. |
+| `src/components/lms/SectionsManager.js` | SectionsManager | Section/lesson/assessment authoring area with modals; sections collapse/expand + drag-to-reorder handle, lessons keep arrow reorder. |
 | `src/components/lms/LessonModal.js` | LessonModal | Lesson create/edit with live YouTube validation. |
 | `src/components/lms/AssessmentModal.js` | AssessmentModal | Assessment create/edit with question management. |
 | `src/components/lms/QuestionModal.js` | QuestionModal | MC / True-False question authoring. |
