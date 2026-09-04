@@ -29,8 +29,16 @@
 export const RESPONSIBILITY_FEATURE_ROLES = {
   // Financial operations — budgets, transactions, reports
   finance: ["super_admin", "staff"],
-  // CRM — people, contacts, timeline, forms, communications
+  // CRM — people, contacts, timeline, membership, duplicates
   crm: [
+    "super_admin",
+    "staff",
+    "program_manager",
+    "teacher",
+    "developer",
+  ],
+  // Communication — messaging, announcements, forms (distinct from CRM)
+  communication: [
     "super_admin",
     "staff",
     "program_manager",

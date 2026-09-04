@@ -39,7 +39,10 @@ const FIXTURE = {
       subItems: [
         { id: "messages", href: "/admin/internal-comms", subItems: null },
         { id: "announcements", href: "/admin/announcements", subItems: null },
+        { id: "campaigns", href: "/admin/communications/campaigns", subItems: null },
+        { id: "segments", href: "/admin/communications/segments", subItems: null },
         { id: "forms", href: "/platform", subItems: null },
+        { id: "responses", href: "/admin/communications/responses", subItems: null },
       ],
     },
     {
@@ -162,7 +165,11 @@ const FIXTURE = {
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/pm/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
-    { id: "messages", href: "/staff/messages", subItems: null },
+    {
+      id: "communication",
+      href: null,
+      subItems: [{ id: "messages", href: "/staff/messages", subItems: null }],
+    },
   ],
 
   teacher: [
@@ -200,7 +207,11 @@ const FIXTURE = {
     },
     { id: "projects", href: "/staff/projects", subItems: null },
     { id: "notifications", href: "/developer/notifications", subItems: null },
-    { id: "messages", href: "/staff/messages", subItems: null },
+    {
+      id: "communication",
+      href: null,
+      subItems: [{ id: "messages", href: "/staff/messages", subItems: null }],
+    },
   ],
 
   member: [{ id: "dashboard", href: "/workspaces", subItems: null }],
@@ -239,7 +250,11 @@ const FIXTURE = {
 
   crm: [
     { id: "crm_dashboard", href: "/crm", subItems: null },
-    { id: "forms", href: "/platform", subItems: null },
+    {
+      id: "communication",
+      href: null,
+      subItems: [{ id: "forms", href: "/platform", subItems: null }],
+    },
   ],
 };
 
@@ -320,9 +335,9 @@ describe("Master navigation — role projections", () => {
     expect(ids.get("security").count).toBe(2);
 
     // Same master node consumed by multiple roles (no per-role copies):
-    // "messages" is a communication child for super_admin/pm and top-level
-    // for staff/developer; "programs" is a section for super_admin and a
-    // leaf for staff/participant/founder; "forms" is shared too.
+    // "messages" is always a COMMUNICATION child (super_admin/pm/staff/developer);
+    // "programs" is a section for super_admin and a leaf for
+    // staff/participant/founder; "forms" is shared too.
     const findIn = (items, id) => {
       for (const item of items || []) {
         if (item.id === id) return item;

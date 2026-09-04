@@ -97,6 +97,9 @@ const NAV_KEY_MAP = {
   internal_ops_board: "navigation.internalOpsBoard",
   messages: "navigation.messages",
   communication: "navigation.communication",
+  campaigns: "navigation.campaigns",
+  segments: "navigation.segments",
+  responses: "navigation.responses",
   administration: "navigation.administration",
 
   forms: "navigation.forms",
@@ -194,10 +197,11 @@ const CRUMB_PATH_MAP = {
   announcements: "navigation.announcements",
   programs: "navigation.programs",
   progress: "navigation.progress",
-  responses: "navigation.reportResponses",
+  responses: "navigation.responses",
   ventures: "navigation.ventures",
   investors: "navigation.investors",
-  campaigns: "navigation.investorsCampaigns",
+  campaigns: "navigation.campaigns",
+  segments: "navigation.segments",
   relationships: "navigation.investorsRelationships",
   review: "navigation.investorsReview",
   overview: "navigation.investorsOverview",
@@ -238,7 +242,7 @@ const CRUMB_PATH_MAP = {
   runs: "navigation.forms",
   collections: "navigation.collections",
   modules: "navigation.modules",
-  responses: "navigation.forms",
+  responses: "navigation.responses",
   groups: "navigation.groups",
   submissions: "navigation.submissions",
 };
@@ -600,15 +604,24 @@ const SidebarContent = ({
 // =============================================================================
 
 const NAV_RESPONSIBILITY_MAP = {
-  // CRM
+  // CRM — people data only (dashboard, people, membership, timeline, duplicates)
   crm: "crm",
   crm_dashboard: "crm",
   crm_membership: "crm",
   crm_timeline: "crm",
+  crm_duplicates: "crm",
   all_contacts: "crm",
-  forms: "crm",
-  messages: "crm",
-  announcements: "crm",
+
+  // Communication — messaging, announcements, forms + outreach suite.
+  // These belong to the COMMUNICATION feature, never to CRM.
+  communication: "communication",
+  messages: "communication",
+  announcements: "communication",
+  forms: "communication",
+  campaigns: "communication",
+  segments: "communication",
+  responses: "communication",
+  groups: "communication",
 
   // Administration (user tools moved out of CRM — kept under user_management)
   pending_users: "user_management",
@@ -662,8 +675,6 @@ const NAV_RESPONSIBILITY_MAP = {
   projects: null,
   personnel: "user_management",
   logs: "user_management",
-  groups: "crm",
-  communication: "crm",
   my_tasks: "operations",
   assigned_tasks: "operations",
   rituals: "operations",
@@ -1439,10 +1450,17 @@ export default function DashboardLayout({ children, role = "admin", modals, full
           href: "/staff/projects",
         },
         {
-          id: "messages",
-          name: "MESSAGING",
-          icon: Send,
-          href: "/staff/messages",
+          id: "communication",
+          name: "COMMUNICATION",
+          icon: MessageSquare,
+          subItems: [
+            {
+              id: "messages",
+              name: "MESSAGING",
+              icon: Send,
+              href: "/staff/messages",
+            },
+          ],
         },
       ];
     }

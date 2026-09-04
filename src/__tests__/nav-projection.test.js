@@ -28,15 +28,29 @@ const STAFF_EFFECTIVE = {
 };
 
 describe("projectNavForCapabilities (staff)", () => {
-  test("plain staff (new default): programs hidden, weekly ops/projects/messages stay", () => {
+  test("plain staff (new default): programs hidden, weekly ops/projects stay, messages live under COMMUNICATION", () => {
     const projected = projectNavForCapabilities(staffNav, STAFF_EFFECTIVE, "staff");
     const out = ids(projected);
     expect(out).toContain("dashboard");
     expect(out).toContain("weekly_ops"); // reports.create present
     expect(out).toContain("my_projects"); // projects.view present
-    expect(out).toContain("messages"); // messaging.view present
+    // Messaging is no longer a standalone top-level item — it is a child of
+    // the COMMUNICATION section.
+    const comm = projected.find((i) => i.id === "communication");
+    expect(comm).toBeDefined(); // messaging.view present → section shows
+    expect(ids(comm.subItems || [])).toContain("messages");
+    expect(out).not.toContain("messages");
     expect(out).not.toContain("programs"); // no programs.view → hidden
     expect(out).not.toContain("crm"); // no CRM yet
+  });
+
+  test("staff without messaging.view: no standalone messages and no Communication section", () => {
+    const noMessaging = { ...STAFF_EFFECTIVE };
+    delete noMessaging.messaging;
+    const projected = projectNavForCapabilities(staffNav, noMessaging, "staff");
+    const out = ids(projected);
+    expect(out).not.toContain("communication");
+    expect(out).not.toContain("messages");
   });
 
   test("staff-PM (programs.view present): programs stays visible", () => {

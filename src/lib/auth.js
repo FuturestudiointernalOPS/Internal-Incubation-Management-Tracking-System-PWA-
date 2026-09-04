@@ -1642,8 +1642,14 @@ export async function seedDefaultResponsibilities() {
       {
         name: "CRM",
         key: "crm",
-        description: "People, contacts, timeline, forms, communications",
+        description: "People, contacts, timeline, membership, duplicates",
         icon: "Users",
+      },
+      {
+        name: "Communication",
+        key: "communication",
+        description: "Messaging, announcements, forms — outreach suite",
+        icon: "Send",
       },
       {
         name: "Finance",
