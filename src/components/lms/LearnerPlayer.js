@@ -11,6 +11,7 @@ import {
   AlertCircle,
   ListVideo,
   Film,
+  X,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import LessonStateIcon from "./LessonStateIcon";
@@ -38,11 +39,16 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const [completing, setCompleting] = useState(false);
   const [justCompleted, setJustCompleted] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const completeTimer = useRef(null);
 
   useEffect(() => () => clearTimeout(completeTimer.current), []);
 
-
+  // The video starts on a clean poster (no YouTube chrome); it is only
+  // embedded once the learner clicks play. Switching lessons resets it.
+  useEffect(() => {
+    setPlaying(false);
+  }, [lessonId]);
 
   const fetchCourse = useCallback(async () => {
     setLoading(true);
@@ -203,14 +209,49 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
           >
             {videoId ? (
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src={buildYouTubeEmbedUrl(videoId)}
-                title={lesson.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              playing ? (
+                <>
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={buildYouTubeEmbedUrl(videoId, { autoplay: true })}
+                    title={lesson.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPlaying(false)}
+                    title={t("common.close")}
+                    className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
+                    style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPlaying(true)}
+                  title={t("lms.player.playVideo")}
+                  className="absolute inset-0 w-full h-full flex items-center justify-center group"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <span
+                    className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110"
+                    style={{ background: "rgba(0,0,0,0.55)" }}
+                  >
+                    <PlayCircle className="w-9 h-9" style={{ color: "rgba(255,255,255,0.95)" }} />
+                  </span>
+                </button>
+              )
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <Film className="w-10 h-10" style={{ color: "var(--text-tertiary)" }} />
