@@ -1,9 +1,6 @@
 /**
- * LMS DOMAIN ENTRY POINT
- *
- * Canonical import for LMS domain modules. Service modules are server-only;
- * `constants.js` and `youtube.js` are pure and safe for client imports.
+ * Facade — kept during the MVC migration so existing importers of
+ * "@/lib/lms" (the LMS barrel) keep resolving unchanged.
+ * New code should import from "@/models/lms".
  */
-export * from "./constants";
-export * from "./youtube";
-export * from "./validation";
+export * from "@/models/lms";
