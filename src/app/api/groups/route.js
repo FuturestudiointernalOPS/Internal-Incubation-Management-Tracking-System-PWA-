@@ -1,7 +1,21 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getGroups,
+  createGroup,
+  createGroupAfterColumnSelfHeal,
+  updateGroup,
+  updateGroupAfterColumnSelfHeal,
+  addFamilyDescriptionColumn,
+  addFamilyDefaultRoleColumn,
+  addFamilyIsArchivedColumn,
+  addFamilyDescriptionColumnOnUpdate,
+  addFamilyDefaultRoleColumnOnUpdate,
+  addFamilyIsArchivedColumnOnUpdate,
+  deleteGroup,
+} from "@/models/groups";
 export const dynamic = "force-dynamic";
 
 /**
@@ -19,26 +33,7 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
     const search = searchParams.get("search");
 
-    let sql = "SELECT * FROM families";
-    let args = [];
-    let conditions = [];
-
-    if (program_id) {
-      conditions.push("program_id = ?");
-      args.push(program_id);
-    }
-    if (search) {
-      conditions.push("LOWER(name) LIKE LOWER(?)");
-      args.push(`%${search}%`);
-    }
-
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const { rows } = await db.execute({ sql, args });
+    const { rows } = await getGroups(program_id, search);
     return NextResponse.json({ success: true, groups: rows });
   } catch (error) {
     return NextResponse.json(
@@ -70,21 +65,19 @@ export async function POST(req) {
       Math.random().toString(36).slice(2, 6).toUpperCase() +
       Math.floor(Math.random() * 1000);
 
-    const INSERT_SQL = `INSERT INTO families (program_id, name, type, description, default_role, registration_id)
-             VALUES (?, ?, ?, ?, ?, ?) RETURNING id, registration_id`;
     const INSERT_ARGS = [program_id || null, name, type || "individual", description || null, body.default_role || null, registration_id];
 
     let result;
     try {
       // Fast path: no extra queries when schema is healthy
-      result = await db.execute({ sql: INSERT_SQL, args: INSERT_ARGS });
+      result = await createGroup(INSERT_ARGS);
     } catch (insertErr) {
       // Self-heal only on failure: add missing columns once, then retry once
       if (!/does not exist/i.test(insertErr.message || "")) throw insertErr;
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
-      result = await db.execute({ sql: INSERT_SQL, args: INSERT_ARGS });
+      await addFamilyDescriptionColumn();
+      await addFamilyDefaultRoleColumn();
+      await addFamilyIsArchivedColumn();
+      result = await createGroupAfterColumnSelfHeal(INSERT_ARGS);
     }
 
     const row = result.rows?.[0];
@@ -135,18 +128,17 @@ export async function PUT(req) {
     }
 
     args.push(id);
-    const UPDATE_SQL = `UPDATE families SET ${updates.join(", ")} WHERE id = ?`;
 
     try {
       // Fast path: no extra queries when schema is healthy
-      await db.execute({ sql: UPDATE_SQL, args });
+      await updateGroup(updates, args);
     } catch (updateErr) {
       // Self-heal only on failure: add missing columns once, then retry once
       if (!/does not exist/i.test(updateErr.message || "")) throw updateErr;
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
-      await db.execute({ sql: UPDATE_SQL, args });
+      await addFamilyDescriptionColumnOnUpdate();
+      await addFamilyDefaultRoleColumnOnUpdate();
+      await addFamilyIsArchivedColumnOnUpdate();
+      await updateGroupAfterColumnSelfHeal(updates, args);
     }
 
     return NextResponse.json({ success: true });
@@ -173,10 +165,7 @@ export async function DELETE(req) {
       );
     }
 
-    await db.execute({
-      sql: "DELETE FROM families WHERE id = ?",
-      args: [id],
-    });
+    await deleteGroup(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

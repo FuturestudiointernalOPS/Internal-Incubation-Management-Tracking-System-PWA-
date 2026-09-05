@@ -1,6 +1,6 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { listSegments, createSegment } from "@/models/groups";
 
 // ── SEGMENTS RETIRED ───────────────────────────────────────────────────────
 // Segments are hidden from the sidebar and their API is disabled (403).
@@ -15,9 +15,7 @@ export const GET = createHandler(
   { roles: ["staff", "super_admin"] },
   async () => {
     if (RETIRED) return RETIRED_RESPONSE;
-    const result = await db.execute(
-      "SELECT * FROM segments ORDER BY created_at DESC",
-    );
+    const result = await listSegments();
     return NextResponse.json({
       success: true,
       segments: result.rows.map((r) => ({
@@ -38,10 +36,7 @@ export const POST = createHandler(
         { success: false, error: "Missing fields" },
         { status: 400 },
       );
-    const result = await db.execute({
-      sql: "INSERT INTO segments (name, criteria) VALUES (?, ?) RETURNING id",
-            args: [name, JSON.stringify(filters)],
-    });
+    const result = await createSegment(name, JSON.stringify(filters));
     return NextResponse.json({ success: true, segment_id: result.rows[0].id });
   },
 );

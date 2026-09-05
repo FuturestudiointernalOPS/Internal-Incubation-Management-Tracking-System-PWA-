@@ -1,8 +1,19 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import {
+  resolveInviteToken,
+  backfillInviteTokenHashOnValidate,
+  getPasswordSetupToken,
+  backfillInviteTokenHashOnAccept,
+  getContactProfileByCid,
+  findContactByEmail,
+  activateContactWithPassword,
+  createContactFromInvite,
+  markInviteTokenUsed,
+  addActiveProgramEnrollment,
+} from "@/models/groups";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +23,7 @@ export async function GET(req, { params }) {
     await ensureTokenHashColumns();
     const { token } = await params;
     const tokenHash = hashToken(token);
-    const result = await db.execute({
-      sql: "SELECT id, token, token_hash, contact_cid, expires_at FROM password_setup_tokens WHERE used = 0 AND (token_hash = ? OR token = ?)",
-      args: [tokenHash, token],
-    });
+    const result = await resolveInviteToken(tokenHash, token);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Invalid or expired invite link." }, { status: 404 });
@@ -25,10 +33,7 @@ export async function GET(req, { params }) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!row.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, row.id],
-      }).catch(() => {});
+      await backfillInviteTokenHashOnValidate(tokenHash, row.id).catch(() => {});
     }
 
     const now = new Date();
@@ -63,10 +68,7 @@ export async function POST(req, { params }) {
 
     // Validate token
     const tokenHash = hashToken(token);
-    const tokenResult = await db.execute({
-      sql: "SELECT id, token_hash, contact_cid, used FROM password_setup_tokens WHERE (token_hash = ? OR token = ?)",
-      args: [tokenHash, token],
-    });
+    const tokenResult = await getPasswordSetupToken(tokenHash, token);
 
     if (tokenResult.rows.length === 0 || tokenResult.rows[0].used) {
       return NextResponse.json({ error: "Invalid or already used invite link." }, { status: 400 });
@@ -77,17 +79,11 @@ export async function POST(req, { params }) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!row.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, row.id],
-      }).catch(() => {});
+      await backfillInviteTokenHashOnAccept(tokenHash, row.id).catch(() => {});
     }
 
     // Look up contact details from contacts table
-    const contactRes = await db.execute({
-      sql: "SELECT name, email, role, group_name, program_id FROM contacts WHERE cid = ?",
-      args: [contactCid],
-    });
+    const contactRes = await getContactProfileByCid(contactCid);
     const contact = contactRes.rows[0] || {};
     const contactEmail = (email || contact.email || "").trim().toLowerCase();
     const contactName = (name || contact.name || "").trim();
@@ -97,31 +93,25 @@ export async function POST(req, { params }) {
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Check if contact already exists
-    const existCheck = await db.execute({
-      sql: "SELECT cid FROM contacts WHERE email = ? AND deleted = 0",
-      args: [contactEmail],
-    });
+    const existCheck = await findContactByEmail(contactEmail);
 
     if (existCheck.rows.length > 0) {
       // Update existing contact with password + program_id
-      await db.execute({
-        sql: "UPDATE contacts SET password = ?, name = COALESCE(NULLIF(?, ''), name), status = 'active' WHERE email = ?",
-        args: [hashedPassword, contactName, contactEmail],
-      });
+      await activateContactWithPassword(hashedPassword, contactName, contactEmail);
     } else {
       // Create new contact
-      await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, status, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, 'active', NOW())`,
-        args: [contactCid, contactName, contactEmail, phone || null, hashedPassword, contactRole],
-      });
+      await createContactFromInvite(
+        contactCid,
+        contactName,
+        contactEmail,
+        phone,
+        hashedPassword,
+        contactRole,
+      );
     }
 
     // Mark token as used
-    await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1 WHERE id = ?",
-      args: [row.id],
-    });
+    await markInviteTokenUsed(row.id);
 
     // Add participant to the program via participant_programs (authoritative
     // membership). The legacy v2_participants write was removed (Phase 3).
@@ -135,12 +125,7 @@ export async function POST(req, { params }) {
           contactEmail,
         );
         if (conflictError) return conflictError;
-        await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at)
-                VALUES (?, ?, 'active', NOW())
-                ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [contactCid, contact.program_id],
-        });
+        await addActiveProgramEnrollment(contactCid, contact.program_id);
       } catch (e) {
         console.warn("Failed to add participant to program:", e.message);
       }

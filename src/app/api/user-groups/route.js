@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
@@ -8,6 +8,16 @@ import {
   getMembership,
   applyMembershipAction,
 } from "@/lib/authorization/membership";
+import {
+  getUserGroups,
+  getContactLegacyGroup,
+  assignUserToGroup,
+  createGroupMembership,
+  createGroupMembershipEvent,
+  unassignUserFromGroup,
+  endGroupMembership,
+  createGroupMembershipEndEvent,
+} from "@/models/groups";
 
 /**
  * GET /api/user-groups?user_cid=X
@@ -36,10 +46,7 @@ export async function GET(req) {
     // First try user_groups table (may not exist yet — migration pending)
     let groups = [];
     try {
-      const result = await db.execute({
-        sql: "SELECT group_name, role_in_group FROM user_groups WHERE user_cid = ? ORDER BY group_name",
-        args: [userCid],
-      });
+      const result = await getUserGroups(userCid);
       groups = result.rows.map((r) => r.group_name);
     } catch (e) {
       // user_groups table may not exist yet — fall through to legacy group_name
@@ -49,10 +56,7 @@ export async function GET(req) {
     // Fallback to legacy group_name on contacts
     if (groups.length === 0) {
       try {
-        const userRes = await db.execute({
-          sql: "SELECT group_name FROM contacts WHERE cid = ?",
-          args: [userCid],
-        });
+        const userRes = await getContactLegacyGroup(userCid);
         if (userRes.rows.length > 0 && userRes.rows[0].group_name) {
           groups = [userRes.rows[0].group_name];
         }
@@ -99,12 +103,7 @@ export async function POST(req) {
     }
 
     const normalized = normalizeGroupName(group_name);
-    await db.execute({
-      sql: `INSERT INTO user_groups (user_cid, group_name, assigned_by)
-            VALUES (?, ?, 'admin')
-            ON CONFLICT (user_cid, group_name) DO NOTHING`,
-      args: [user_cid, normalized],
-    });
+    await assignUserToGroup(user_cid, normalized);
     // Keep the membership layer in sync so the new edge is effective
     // immediately (active, no expiry) and has history.
     const existing = await getMembership(user_cid, normalized);
@@ -115,18 +114,21 @@ export async function POST(req) {
         { actor: "admin" },
       );
       const session = await getSession();
-      await db.execute({
-        sql: `INSERT INTO group_memberships
-                (user_cid, group_name, started_at, expires_at, status, created_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [user_cid, normalized, row.started_at, row.expires_at, row.status, session?.cid || "admin"],
-      });
-      await db.execute({
-        sql: `INSERT INTO group_membership_events
-                (user_cid, group_name, action, actor_cid, note)
-              VALUES (?, ?, ?, ?, ?)`,
-        args: [user_cid, normalized, event.action, event.actor_cid, "legacy group API"],
-      });
+      await createGroupMembership(
+        user_cid,
+        normalized,
+        row.started_at,
+        row.expires_at,
+        row.status,
+        session?.cid || "admin",
+      );
+      await createGroupMembershipEvent(
+        user_cid,
+        normalized,
+        event.action,
+        event.actor_cid,
+        "legacy group API",
+      );
     }
 
     return NextResponse.json({
@@ -172,27 +174,18 @@ export async function DELETE(req) {
     }
 
     const normalized = normalizeGroupName(group_name);
-    await db.execute({
-      sql: "DELETE FROM user_groups WHERE user_cid = ? AND group_name = ?",
-      args: [user_cid, normalized],
-    });
+    await unassignUserFromGroup(user_cid, normalized);
     // End (never delete) the membership record — the person, account, CRM
     // record and history stay; only active authorization stops.
     const existing = await getMembership(user_cid, normalized);
     if (existing) {
       const session = await getSession();
-      await db.execute({
-        sql: `UPDATE group_memberships
-              SET status = 'ended', updated_by = ?, updated_at = NOW()
-              WHERE user_cid = ? AND group_name = ?`,
-        args: [session?.cid || "admin", user_cid, normalized],
-      });
-      await db.execute({
-        sql: `INSERT INTO group_membership_events
-                (user_cid, group_name, action, actor_cid, note)
-              VALUES (?, ?, 'ended', ?, 'legacy group API')`,
-        args: [user_cid, normalized, session?.cid || "admin"],
-      });
+      await endGroupMembership(session?.cid || "admin", user_cid, normalized);
+      await createGroupMembershipEndEvent(
+        user_cid,
+        normalized,
+        session?.cid || "admin",
+      );
     }
 
     return NextResponse.json({
