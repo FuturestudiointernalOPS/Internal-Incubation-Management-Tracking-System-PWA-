@@ -14,13 +14,21 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import {
   resolveVentureRun,
   ventureRunUrl,
   createVentureInvitation,
 } from "@/lib/ventureInvitations";
+import {
+  getRunById,
+  getProgramAssignedPmId,
+  getContactByCid,
+  getParticipantProgramByContactId,
+  getTeamById,
+  getLeadContactByCid,
+} from "@/models/publicFormRuns";
 
 export async function POST(req) {
   await initDb();
@@ -43,7 +51,7 @@ export async function POST(req) {
 
     // ── Resolve the Venture Run ──
     const run = run_id
-      ? (await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [run_id] })).rows[0]
+      ? (await getRunById(run_id)).rows[0]
       : await resolveVentureRun();
     if (!run || !run.public_slug) {
       return NextResponse.json(
@@ -55,7 +63,7 @@ export async function POST(req) {
     // ── PM scope: must be assigned to the program (unless super_admin) ──
     if (session.role === "program_manager" && program_id) {
       const prog = (
-        await db.execute({ sql: "SELECT assigned_pm_id FROM v2_programs WHERE id::text = ?", args: [program_id] })
+        await getProgramAssignedPmId(program_id)
       ).rows[0];
       if (!prog) {
         return NextResponse.json({ success: false, error: "Program not found." }, { status: 404 });
@@ -79,7 +87,7 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "contact_id is required for participant invitations." }, { status: 400 });
       }
       const contact = (
-        await db.execute({ sql: "SELECT cid, name, email FROM contacts WHERE cid = ?", args: [contact_id] })
+        await getContactByCid(contact_id)
       ).rows[0];
       if (!contact) return NextResponse.json({ success: false, error: "Contact not found." }, { status: 404 });
       if (!contact.email) {
@@ -89,10 +97,7 @@ export async function POST(req) {
       inviteContactCid = contact.cid;
       if (!inviteProgram) {
         const pp = (
-          await db.execute({
-            sql: "SELECT program_id FROM participant_programs WHERE participant_id = ? ORDER BY assigned_at DESC LIMIT 1",
-            args: [contact_id],
-          })
+          await getParticipantProgramByContactId(contact_id)
         ).rows[0];
         if (pp) inviteProgram = pp.program_id ? String(pp.program_id) : null;
       }
@@ -103,7 +108,7 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "team_id is required for team invitations." }, { status: 400 });
       }
       const team = (
-        await db.execute({ sql: "SELECT * FROM v2_teams WHERE id::text = ?", args: [team_id] })
+        await getTeamById(team_id)
       ).rows[0];
       if (!team) return NextResponse.json({ success: false, error: "Team not found." }, { status: 404 });
       const leadCid = lead_id || team.leader_id || team.handler_id;
@@ -114,7 +119,7 @@ export async function POST(req) {
         );
       }
       const lead = (
-        await db.execute({ sql: "SELECT cid, name, email FROM contacts WHERE cid = ?", args: [leadCid] })
+        await getLeadContactByCid(leadCid)
       ).rows[0];
       if (!lead) return NextResponse.json({ success: false, error: "Team lead contact not found." }, { status: 404 });
       if (!lead.email) {

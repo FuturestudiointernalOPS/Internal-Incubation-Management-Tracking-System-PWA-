@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
+import {
+  getDraftRunIdByPublicSlug,
+  getDraftBySubmitter,
+  updateDraftData,
+  insertDraftSubmission,
+  getRunIdByPublicSlug,
+  getLatestDraftData,
+} from "@/models/publicFormRuns";
 
 /**
  * POST /api/s/public-draft
@@ -24,10 +32,7 @@ export async function POST(req) {
     // Resolve slug to run_id
     let run_id = null;
     try {
-      const runRes = await db.execute({
-        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
-        args: [slug],
-      });
+      const runRes = await getDraftRunIdByPublicSlug(slug);
       if (runRes.rows.length > 0) run_id = runRes.rows[0].id;
     } catch (_) {}
 
@@ -38,24 +43,14 @@ export async function POST(req) {
     const submitterId = email || `public-${slug}`;
 
     // Upsert draft — update existing or insert new
-    const existing = await db.execute({
-      sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'draft'",
-      args: [parseInt(run_id), submitterId],
-    });
+    const existing = await getDraftBySubmitter(run_id, submitterId);
 
     if (existing.rows.length > 0) {
-      await db.execute({
-        sql: "UPDATE platform_form_submissions SET data = ?, updated_at = NOW() WHERE id = ?",
-        args: [JSON.stringify(data), existing.rows[0].id],
-      });
+      await updateDraftData(data, existing.rows[0].id);
       return NextResponse.json({ success: true, id: existing.rows[0].id, action: "updated" });
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at, updated_at)
-            VALUES (?, ?, 'Draft', 'draft', ?, NULL, NOW()) RETURNING id`,
-      args: [parseInt(run_id), submitterId, JSON.stringify(data)],
-    });
+    const result = await insertDraftSubmission(run_id, submitterId, data);
 
     return NextResponse.json({ success: true, id: result.rows[0].id, action: "created" });
   } catch (error) {
@@ -77,10 +72,7 @@ export async function GET(req) {
 
     let run_id = null;
     try {
-      const runRes = await db.execute({
-        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ?",
-        args: [slug],
-      });
+      const runRes = await getRunIdByPublicSlug(slug);
       if (runRes.rows.length > 0) run_id = runRes.rows[0].id;
     } catch (_) {}
 
@@ -88,10 +80,7 @@ export async function GET(req) {
       return NextResponse.json({ success: false, draft: null });
     }
 
-    const draft = await db.execute({
-      sql: "SELECT data FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'draft' ORDER BY updated_at DESC LIMIT 1",
-      args: [parseInt(run_id), email],
-    });
+    const draft = await getLatestDraftData(run_id, email);
 
     if (draft.rows.length === 0) {
       return NextResponse.json({ success: true, draft: null });

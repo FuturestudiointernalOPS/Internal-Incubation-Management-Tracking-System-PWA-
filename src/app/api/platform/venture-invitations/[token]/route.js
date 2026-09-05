@@ -6,7 +6,8 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
+import { getVentureInvitationRunById } from "@/models/publicFormRuns";
 import {
   getVentureInvitationByToken,
   markVentureInvitationStatus,
@@ -30,7 +31,7 @@ export async function GET(req, { params }) {
     }
 
     const run = (
-      await db.execute({ sql: "SELECT id, name, public_slug FROM platform_form_runs WHERE id = ?", args: [invitation.run_id] })
+      await getVentureInvitationRunById(invitation.run_id)
     ).rows[0];
     if (!run || !run.public_slug) {
       return NextResponse.json({ success: false, error: "Venture Run not found" }, { status: 404 });
