@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import {
+  deleteEvaluationFrameworkByFormId,
+  getEvaluationFrameworkByFormId,
+  upsertFormEvaluationFramework,
+} from "@/models/platformAi";
 
 /**
  * PUT /api/platform/ai/evaluation-config
@@ -21,10 +26,7 @@ export async function GET(req) {
     const formId = searchParams.get("form_id");
     if (!formId) return NextResponse.json({ success: false, error: "form_id required" }, { status: 400 });
 
-    const result = await db.execute({
-      sql: "SELECT * FROM platform_evaluation_frameworks WHERE form_id = ?",
-      args: [parseInt(formId)],
-    });
+    const result = await getEvaluationFrameworkByFormId(formId);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: true, framework: null });
@@ -47,15 +49,7 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, error: "form_id and framework required" }, { status: 400 });
     }
 
-    await db.execute({
-      sql: `INSERT INTO platform_evaluation_frameworks (form_id, framework, source_document, created_by, updated_at)
-            VALUES (?, ?, ?, 'system', NOW())
-            ON CONFLICT (form_id) DO UPDATE SET
-              framework = EXCLUDED.framework,
-              source_document = EXCLUDED.source_document,
-              updated_at = NOW()`,
-      args: [parseInt(form_id), JSON.stringify(framework), source_document || null],
-    });
+    await upsertFormEvaluationFramework(form_id, framework, source_document);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -73,10 +67,7 @@ export async function DELETE(req) {
     const formId = searchParams.get("form_id");
     if (!formId) return NextResponse.json({ success: false, error: "form_id required" }, { status: 400 });
 
-    await db.execute({
-      sql: "DELETE FROM platform_evaluation_frameworks WHERE form_id = ?",
-      args: [parseInt(formId)],
-    });
+    await deleteEvaluationFrameworkByFormId(formId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

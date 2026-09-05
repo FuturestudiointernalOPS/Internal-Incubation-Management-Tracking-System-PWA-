@@ -1,7 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { resolvePersonName, resolveSubmissionEmail } from "@/lib/email";
+import {
+  countEvaluatedSubmissionsForScores,
+  countQualifyingEvaluationsForScores,
+  getAverageQualifyingScoreForScores,
+  getContactEmailsByCids,
+  getFormFieldsForScores,
+  getRunInfoForScores,
+  listScoreRespondents,
+} from "@/models/platformAi";
 
 /**
  * GET /api/platform/ai/evaluation-scores
@@ -81,10 +90,7 @@ export async function GET(req) {
     const args = [];
 
     if (runIdParam) {
-      const runRes = await db.execute({
-        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
-        args: [parseInt(runIdParam)],
-      });
+      const runRes = await getRunInfoForScores(runIdParam);
       if (runRes.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       }
@@ -105,10 +111,7 @@ export async function GET(req) {
     args.push(effectiveFormId);
 
     // ── The form's actual fields — the dynamic filter source ──
-    const fieldsRes = await db.execute({
-      sql: "SELECT id, label, field_type, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
-      args: [String(effectiveFormId)],
-    });
+    const fieldsRes = await getFormFieldsForScores(effectiveFormId);
     const labelById = {};
     const filterableFields = [];
     for (const f of fieldsRes.rows) {
@@ -133,67 +136,27 @@ export async function GET(req) {
     const whereQualifying = qualifyingConditions.join(" AND ");
 
     // Total evaluated in scope
-    const totalRes = await db.execute({
-      sql: `SELECT COUNT(*)::int AS cnt
-            FROM platform_submission_evaluations e
-            JOIN platform_form_submissions s ON e.submission_id = s.id
-            JOIN platform_form_runs r ON s.run_id = r.id
-            WHERE ${whereAll}`,
-      args,
-    });
+    const totalRes = await countEvaluatedSubmissionsForScores(whereAll, args);
     const totalEvaluated = totalRes.rows[0]?.cnt || 0;
 
     // Qualifying count
-    const qualifyingRes = await db.execute({
-      sql: `SELECT COUNT(*)::int AS cnt
-            FROM platform_submission_evaluations e
-            JOIN platform_form_submissions s ON e.submission_id = s.id
-            JOIN platform_form_runs r ON s.run_id = r.id
-            WHERE ${whereQualifying}`,
-      args: qualifyingArgs,
-    });
+    const qualifyingRes = await countQualifyingEvaluationsForScores(whereQualifying, qualifyingArgs);
     const qualifyingCount = qualifyingRes.rows[0]?.cnt || 0;
 
     // Average score of qualifying
-    const avgRes = await db.execute({
-      sql: `SELECT COALESCE(AVG(e.overall_score), 0)::float AS avg
-            FROM platform_submission_evaluations e
-            JOIN platform_form_submissions s ON e.submission_id = s.id
-            JOIN platform_form_runs r ON s.run_id = r.id
-            WHERE ${whereQualifying}`,
-      args: qualifyingArgs,
-    });
+    const avgRes = await getAverageQualifyingScoreForScores(whereQualifying, qualifyingArgs);
     const averageScore = Math.round((avgRes.rows[0]?.avg || 0) * 10) / 10;
 
     // Respondents (include submission data for dynamic answers + search)
     const sortDir = sort === "asc" ? "ASC" : "DESC";
-    const respondentsRes = await db.execute({
-      sql: `SELECT
-              s.submitter_name AS name,
-              s.submitter_id,
-              s.status AS submission_status,
-              s.data AS submission_data,
-              e.overall_score AS score,
-              e.ranking,
-              e.recommendation,
-              e.submission_id
-            FROM platform_submission_evaluations e
-            JOIN platform_form_submissions s ON e.submission_id = s.id
-            JOIN platform_form_runs r ON s.run_id = r.id
-            WHERE ${whereQualifying}
-            ORDER BY e.overall_score ${sortDir}`,
-      args: qualifyingArgs,
-    });
+    const respondentsRes = await listScoreRespondents(whereQualifying, qualifyingArgs, sortDir);
 
     // Batch-load contact emails (single query instead of one per respondent)
     const cids = [...new Set(respondentsRes.rows.map((r) => r.submitter_id).filter(Boolean))];
     const emailMap = new Map();
     if (cids.length > 0) {
       try {
-        const cres = await db.execute({
-          sql: "SELECT cid, email FROM contacts WHERE cid = ANY(?)",
-          args: [cids],
-        });
+        const cres = await getContactEmailsByCids(cids);
         for (const row of cres.rows) emailMap.set(row.cid, row.email || "");
       } catch (_) {}
     }

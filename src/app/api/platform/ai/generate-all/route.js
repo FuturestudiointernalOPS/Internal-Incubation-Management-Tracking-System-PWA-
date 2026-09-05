@@ -1,7 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { deepseekIntelligence } from "@/lib/deepseek";
+import {
+  createAiGeneratedForm,
+  deleteFormById,
+  insertAiGeneratedField,
+  insertAiGeneratedSection,
+  upsertAiEvaluationFramework,
+} from "@/models/platformAi";
 
 /**
  * POST /api/platform/ai/generate-all
@@ -98,11 +105,7 @@ ${text.substring(0, 12000)}`;
 
     // ── Step 1: Create the form ───────────────────────────────────────────────
     console.log("[AI GenerateAll] Creating form...");
-    const formRes = await db.execute({
-      sql: `INSERT INTO platform_forms (name, description, collection_id, status, visibility, version, tags, owner_id, owner_name, settings, created_by)
-            VALUES (?, ?, ?, 'draft', 'internal', 1, ARRAY['ai-generated'], 'system', 'AI', '{}', 'system') RETURNING *`,
-      args: [parsed.title, parsed.description || null, collection_id ? parseInt(collection_id) : null],
-    });
+    const formRes = await createAiGeneratedForm(parsed.title, parsed.description, collection_id);
     formId = formRes.rows[0].id;
     const formRecord = formRes.rows[0];
     console.log(`[AI GenerateAll] ✓ Form created — id=${formId}`);
@@ -112,32 +115,14 @@ ${text.substring(0, 12000)}`;
     let fieldCount = 0;
     for (let si = 0; si < parsed.sections.length; si++) {
       const sec = parsed.sections[si];
-      const secRes = await db.execute({
-        sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, ?, ?, ?) RETURNING id",
-        args: [formId, sec.title, sec.description || null, si],
-      });
+      const secRes = await insertAiGeneratedSection(formId, sec.title, sec.description, si);
       const sectionId = secRes.rows[0].id;
       sectionCount++;
       console.log(`[AI GenerateAll] ✓ Section "${sec.title}" (id=${sectionId})`);
 
       for (let fi = 0; fi < sec.fields.length; fi++) {
         const f = sec.fields[fi];
-        await db.execute({
-          sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, sort_order)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          args: [
-            formId,
-            sectionId,
-            f.field_type,
-            f.label,
-            f.placeholder || null,
-            f.help_text || null,
-            f.required,
-            f.options ? JSON.stringify(f.options) : null,
-            f.validation ? JSON.stringify(f.validation) : null,
-            fi,
-          ],
-        });
+        await insertAiGeneratedField(formId, sectionId, f, fi);
         fieldCount++;
       }
       console.log(`[AI GenerateAll] ✓ ${sec.fields.length} fields for "${sec.title}"`);
@@ -146,12 +131,7 @@ ${text.substring(0, 12000)}`;
     // ── Step 3: Save evaluation framework if generated ────────────────────────
     let evalCount = 0;
     if (parsed.evaluation) {
-      await db.execute({
-        sql: `INSERT INTO platform_evaluation_frameworks (form_id, framework, source_document, created_by, updated_at)
-              VALUES (?, ?, ?, 'ai', NOW())
-              ON CONFLICT (form_id) DO UPDATE SET framework = EXCLUDED.framework, updated_at = NOW()`,
-        args: [formId, JSON.stringify(parsed.evaluation), text.substring(0, 500)],
-      });
+      await upsertAiEvaluationFramework(formId, parsed.evaluation, text);
       evalCount = parsed.evaluation?.dimensions?.length || 0;
       console.log(`[AI GenerateAll] ✓ Evaluation framework saved — ${evalCount} dimensions`);
     }
@@ -173,7 +153,7 @@ ${text.substring(0, 12000)}`;
     // Clean up orphaned form record if it was created before the error
     if (formId) {
       try {
-        await db.execute({ sql: "DELETE FROM platform_forms WHERE id = ?", args: [formId] });
+        await deleteFormById(formId);
         console.warn(`[AI GenerateAll] Cleaned up orphaned form ${formId}`);
       } catch (_) {}
     }
