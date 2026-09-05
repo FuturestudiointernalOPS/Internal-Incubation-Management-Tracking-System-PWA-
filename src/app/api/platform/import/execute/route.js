@@ -4,6 +4,19 @@ import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import crypto from "crypto";
 import { resolveSubmissionEmail } from "@/lib/email";
+import {
+  getFormRunByIdForImport,
+  getFormFieldLabels,
+  ensureImportBatchesTable,
+  ensureImportReviewFlagsTable,
+  findPreviousImportBatch,
+  createImportBatch,
+  upsertImportedContact,
+  findSubmissionByRunAndSubmitter,
+  createPlatformFormSubmission,
+  createImportReviewFlag,
+  accumulateImportBatchCounts,
+} from "@/models/platformImport";
 
 /**
  * POST /api/platform/import/execute
@@ -164,10 +177,7 @@ export async function POST(req) {
     // cause data to be imported against the wrong form.
     let effectiveFormId = form_id != null ? parseInt(form_id) : null;
     if (run_id) {
-      const runRes = await db.execute({
-        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
-        args: [parseInt(run_id)],
-      });
+      const runRes = await getFormRunByIdForImport(run_id);
       if (runRes.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       }
@@ -185,42 +195,14 @@ export async function POST(req) {
     // CSV/XLSX column was mapped to _email or to the form's email question.
     let fieldLabels = {};
     try {
-      const labelsRes = await db.execute({
-        sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
-        args: [effectiveFormId],
-      });
+      const labelsRes = await getFormFieldLabels(effectiveFormId);
       for (const f of labelsRes.rows) fieldLabels[String(f.id)] = f.label;
     } catch (_) {}
 
     // Self-heal: ensure import batch + review flag tables exist (additive, idempotent)
     try {
-      await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_batches (
-        id SERIAL PRIMARY KEY,
-        form_id INTEGER NOT NULL,
-        run_id INTEGER NOT NULL,
-        file_hash TEXT NOT NULL,
-        total_rows INTEGER DEFAULT 0,
-        imported INTEGER DEFAULT 0,
-        skipped INTEGER DEFAULT 0,
-        needs_review INTEGER DEFAULT 0,
-        created_by TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      )`);
-      await db.execute(`CREATE TABLE IF NOT EXISTS platform_import_review_flags (
-        id SERIAL PRIMARY KEY,
-        batch_id INTEGER,
-        form_id INTEGER NOT NULL,
-        run_id INTEGER NOT NULL,
-        row_number INTEGER,
-        applicant_name TEXT,
-        applicant_email TEXT,
-        matched_cid TEXT,
-        matched_name TEXT,
-        method TEXT,
-        reason TEXT,
-        status TEXT DEFAULT 'pending',
-        created_at TIMESTAMP DEFAULT NOW()
-      )`);
+      await ensureImportBatchesTable();
+      await ensureImportReviewFlagsTable();
     } catch (e) {
       console.warn("[Import] Could not ensure batch tables:", e.message);
     }
@@ -236,10 +218,7 @@ export async function POST(req) {
     // Detect previous import of the same file (only when starting a fresh batch)
     if (!activeBatchId) {
       try {
-        const prev = await db.execute({
-          sql: "SELECT id, created_at, imported, needs_review FROM platform_import_batches WHERE run_id = ? AND file_hash = ? ORDER BY id DESC LIMIT 1",
-          args: [parseInt(run_id), hash],
-        });
+        const prev = await findPreviousImportBatch(run_id, hash);
         if (prev.rows.length > 0) {
           duplicateBatch = true;
           previousBatch = prev.rows[0];
@@ -250,11 +229,7 @@ export async function POST(req) {
     // Create the batch row upfront so review flags can reference it
     if (!activeBatchId) {
       try {
-        const batchRes = await db.execute({
-          sql: `INSERT INTO platform_import_batches (form_id, run_id, file_hash, total_rows, imported, skipped, needs_review, created_by)
-                VALUES (?, ?, ?, 0, 0, 0, 0, ?) RETURNING id`,
-          args: [effectiveFormId, parseInt(run_id), hash, "system"],
-        });
+        const batchRes = await createImportBatch(effectiveFormId, run_id, hash);
         activeBatchId = batchRes.rows[0]?.id || null;
       } catch (e) {
         console.warn("[Import] Batch row creation failed:", e.message);
@@ -317,15 +292,7 @@ export async function POST(req) {
 
           const contactEmail = email || `import-${cid.toLowerCase()}@placeholder.impactos.local`;
 
-          const insertRes = await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, phone, role, status, password, deleted)
-                  VALUES (?, ?, ?, ?, 'participant', 'pending', '', 0)
-                  ON CONFLICT (email) DO UPDATE SET
-                    name = EXCLUDED.name,
-                    phone = COALESCE(EXCLUDED.phone, contacts.phone)
-                  RETURNING *`,
-            args: [cid, name, contactEmail, phone || null],
-          });
+          const insertRes = await upsertImportedContact(cid, name, contactEmail, phone);
           if (insertRes.rows.length > 0) contact = insertRes.rows[0];
         }
 
@@ -335,10 +302,7 @@ export async function POST(req) {
           continue;
         }
 
-        const existingSub = await db.execute({
-          sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? LIMIT 1",
-          args: [parseInt(run_id), contact.cid],
-        });
+        const existingSub = await findSubmissionByRunAndSubmitter(run_id, contact.cid);
         if (existingSub.rows.length > 0) {
           skipped++;
           continue;
@@ -352,11 +316,7 @@ export async function POST(req) {
           }
         }
 
-        await db.execute({
-          sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, data, status, submitted_at)
-                VALUES (?, ?, ?, ?, 'submitted', NOW())`,
-          args: [parseInt(run_id), contact.cid, contact.name, JSON.stringify(submissionData)],
-        });
+        await createPlatformFormSubmission(run_id, contact.cid, contact.name, submissionData);
 
         if (uncertain) {
           needsReview++;
@@ -374,22 +334,18 @@ export async function POST(req) {
           });
           // Persist flag for the review screen (non-blocking)
           try {
-            await db.execute({
-              sql: `INSERT INTO platform_import_review_flags (batch_id, form_id, run_id, row_number, applicant_name, applicant_email, matched_cid, matched_name, method, reason)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-              args: [
-                activeBatchId,
-                effectiveFormId,
-                parseInt(run_id),
-                i + 1,
-                name,
-                email || null,
-                contact.cid,
-                contact.name,
-                matchMethod,
-                reason,
-              ],
-            });
+            await createImportReviewFlag(
+              activeBatchId,
+              effectiveFormId,
+              run_id,
+              i + 1,
+              name,
+              email,
+              contact.cid,
+              contact.name,
+              matchMethod,
+              reason,
+            );
           } catch (_) {}
         }
 
@@ -403,15 +359,7 @@ export async function POST(req) {
     // Accumulate counts into the batch row
     let batchId = activeBatchId;
     try {
-      await db.execute({
-        sql: `UPDATE platform_import_batches
-              SET total_rows = total_rows + ?,
-                  imported = imported + ?,
-                  skipped = skipped + ?,
-                  needs_review = needs_review + ?
-              WHERE id = ?`,
-        args: [csv_rows.length, imported, skipped, needsReview, batchId],
-      });
+      await accumulateImportBatchCounts(csv_rows.length, imported, skipped, needsReview, batchId);
     } catch (e) {
       console.warn("[Import] Batch record failed:", e.message);
     }

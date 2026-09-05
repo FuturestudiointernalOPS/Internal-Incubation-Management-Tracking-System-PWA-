@@ -1,6 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  listImportReviewFlags,
+  updateImportReviewFlagStatus,
+} from "@/models/platformImport";
 
 /**
  * IMPORT REVIEW FLAGS API
@@ -26,24 +30,7 @@ export async function GET(req) {
     const runId = searchParams.get("run_id");
     const formId = searchParams.get("form_id");
 
-    let sql = "SELECT * FROM platform_import_review_flags WHERE 1=1";
-    const args = [];
-
-    if (status !== "all") {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-    if (runId) {
-      sql += " AND run_id = ?";
-      args.push(parseInt(runId));
-    }
-    if (formId) {
-      sql += " AND form_id = ?";
-      args.push(parseInt(formId));
-    }
-    sql += " ORDER BY id DESC LIMIT 500";
-
-    const result = await db.execute({ sql, args });
+    const result = await listImportReviewFlags(status, runId, formId);
     return NextResponse.json({ success: true, flags: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -66,10 +53,7 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, error: "Invalid status" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: "UPDATE platform_import_review_flags SET status = ? WHERE id = ? RETURNING *",
-      args: [status || "resolved", parseInt(id)],
-    });
+    const result = await updateImportReviewFlagStatus(status, id);
 
     return NextResponse.json({ success: true, flag: result.rows[0] || null });
   } catch (error) {

@@ -1,7 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { parseCSVRows } from "@/lib/csv";
+import {
+  getFormRunByIdForPreview,
+  getPlatformFormById,
+  getFormFieldsForPreview,
+} from "@/models/platformImport";
 
 /**
  * POST /api/platform/import/preview
@@ -133,10 +138,7 @@ export async function POST(req) {
     let formInfo = null;
 
     if (run_id) {
-      const runRes = await db.execute({
-        sql: "SELECT id, name, form_id FROM platform_form_runs WHERE id = ?",
-        args: [parseInt(run_id)],
-      });
+      const runRes = await getFormRunByIdForPreview(run_id);
       if (runRes.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Selected run not found" },
@@ -154,10 +156,7 @@ export async function POST(req) {
       );
     }
 
-    const formRes = await db.execute({
-      sql: "SELECT id, name FROM platform_forms WHERE id = ?",
-      args: [parseInt(effectiveFormId)],
-    });
+    const formRes = await getPlatformFormById(effectiveFormId);
     if (formRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Form not found for the selected run" },
@@ -167,10 +166,7 @@ export async function POST(req) {
     formInfo = formRes.rows[0];
 
     // ── Fetch THIS form's questions AND their configured answer options ──
-    const fieldsResult = await db.execute({
-      sql: "SELECT id, label, field_type, options, required FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
-      args: [effectiveFormId],
-    });
+    const fieldsResult = await getFormFieldsForPreview(effectiveFormId);
 
     const formFields = fieldsResult.rows.map((f) => {
       let options = null;
