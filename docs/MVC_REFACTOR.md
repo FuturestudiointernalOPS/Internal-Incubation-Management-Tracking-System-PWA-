@@ -237,7 +237,7 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       moved to Wave 6 (lib-domain splits).
 - **Gate ✅:** full suite 39/39 suites · 623/623 tests · `npm run build` green.
 
-### Wave 5 — Remaining API routes → models (route-extraction wave)
+### Wave 5 — Remaining API routes → models ✅ (complete — no inline SQL left)
 - [x] **Venture cluster** ✅ (2026-09-02): `api/ventures/**` 32 routes /
       194 queries → `src/models/ventureWorkspace.js` (78), `ventureJourney.js`
       (68), `ventureAssets.js` (48).
@@ -247,9 +247,14 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
 - [x] **Investor + communications clusters** ✅ (2026-09-02): 30 routes /
       219 queries → `src/models/investor.js` (80), `investorRelations.js`
       (78), `communications.js` (60), `finance.js` (1, seed).
-- [ ] `api/crm/**`, `api/admin/op-reports` + `api/reports` + standups
-      aggregates, `api/security/**`, `api/calendar`, `api/teacher/**`,
-      `api/messaging`, `api/participant/**`-rest, `api/v2/**`, long tail…
+- [x] **Final clusters** ✅ (2026-09-02): 78 routes / 341 queries →
+      `participantPortal.js` (72), `adminOps.js` (54), `teacher.js` (25),
+      `engineering.js` (22), `facilitation.js` (41), `workspace.js` (52),
+      `platformConfig.js` (49), + appends to `tasks.js`/`authFlows.js`/
+      `groups.js` (26).
+- [x] **Wave 5 gate ✅: 0 `db.execute` left in `src/app/api`** (audited),
+      0 pages import the db layer, 42 model files / 2,227 queries,
+      full suite 39/39 · 623/623, `npm run build` green.
 
 ### Wave 5b — Reporting & Op-reports
 - [ ] `src/models/op-reports.js`, `src/models/reports.js` from
