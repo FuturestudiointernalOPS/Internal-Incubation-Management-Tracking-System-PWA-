@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { logVentureActivity, addVentureHistory } from "@/lib/ventures";
+import {
+  getLifecycleVentureByUuid,
+  getLifecycleVentureId,
+  updateVentureLifecycleStatus,
+} from "@/models/ventureJourney";
 
 /**
  * POST /api/ventures/[id]/lifecycle — Venture lifecycle transitions (Phase 3)
@@ -51,22 +56,17 @@ export async function POST(req, { params }) {
     // Resolve the VNT code (ventures store the code as their business key).
     let ventureId = id;
     if (typeof id === "string" && id.includes("-") && !id.startsWith("VNT-")) {
-      const byId = await db.execute({ sql: "SELECT id, venture_id FROM ventures WHERE id::text = ?", args: [id] });
+      const byId = await getLifecycleVentureByUuid(id);
       if (byId.rows?.[0]) ventureId = byId.rows[0].venture_id;
     }
-    const exists = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+    const exists = await getLifecycleVentureId(ventureId);
     if (exists.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Venture not found." }, { status: 404 });
     }
 
     const status = STATUS_BY_ACTION[action];
     const isArchived = action === "archive" ? 1 : action === "resume" ? 0 : null;
-    await db.execute({
-      sql: `UPDATE ventures
-            SET status = ?, is_archived = COALESCE(?, is_archived), updated_at = NOW()
-            WHERE venture_id = ?`,
-      args: [status, isArchived, ventureId],
-    });
+    await updateVentureLifecycleStatus(status, isArchived, ventureId);
 
     // Audit trail
     const note = `Venture ${action} by ${session.name || session.cid || "staff"}`;

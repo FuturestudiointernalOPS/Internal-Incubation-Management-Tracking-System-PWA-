@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
 import { sendVentureApprovalEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { logVentureActivity, createVentureNotification } from "@/lib/ventures";
+import {
+  activateVenture,
+  createApprovalPasswordSetupToken,
+  getContactCidByLowerEmail,
+  getFoundersForVentureApproval,
+  getVentureForApproval,
+} from "@/models/ventureJourney";
 
 /**
  * POST /api/ventures/[id]/approve
@@ -20,10 +27,7 @@ export async function POST(req, { params }) {
 
     const { id } = await params;
 
-    const vRes = await db.execute({
-      sql: "SELECT * FROM ventures WHERE venture_id = ?",
-      args: [id],
-    });
+    const vRes = await getVentureForApproval(id);
     const venture = vRes.rows?.[0];
     if (!venture) {
       return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -32,10 +36,7 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "Venture is already active" }, { status: 400 });
     }
 
-    await db.execute({
-      sql: "UPDATE ventures SET status = 'active', updated_at = NOW() WHERE venture_id = ?",
-      args: [id],
-    });
+    await activateVenture(id);
 
     // Log the approval
     try {
@@ -52,22 +53,7 @@ export async function POST(req, { params }) {
     let emailed = 0;
     const emailErrors = [];
     try {
-      const founders = await db.execute({
-        sql: `SELECT f.email, f.name
-              FROM venture_founders f
-              WHERE f.venture_id = ? AND f.email IS NOT NULL
-              UNION
-              SELECT c.email, c.name
-              FROM venture_members vm
-              JOIN contacts c ON vm.contact_id = c.cid
-              WHERE vm.venture_id = ? AND vm.member_type = 'founder' AND vm.removed_at IS NULL
-              UNION
-              SELECT c.email, c.name
-              FROM ventures v
-              JOIN contacts c ON v.created_by = c.cid
-              WHERE v.venture_id = ?`,
-        args: [id, id, id],
-      });
+      const founders = await getFoundersForVentureApproval(id);
       const appBase =
         process.env.NEXT_PUBLIC_APP_URL ||
         (() => {
@@ -84,18 +70,11 @@ export async function POST(req, { params }) {
           // and access their dashboard (reuses the /activate flow).
           let setupUrl = null;
           try {
-            const contact = await db.execute({
-              sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0",
-              args: [f.email],
-            });
+            const contact = await getContactCidByLowerEmail(f.email);
             if (contact.rows?.[0]?.cid) {
               const token = uuidv4();
               const tokenHash = hashToken(token);
-              await db.execute({
-                sql: `INSERT INTO password_setup_tokens (token, token_hash, contact_cid, user_email, role, token_type, expires_at)
-                      VALUES (?, ?, ?, ?, 'founder', 'venture_approval', NOW() + INTERVAL '48 hours')`,
-                args: [token, tokenHash, contact.rows[0].cid, f.email],
-              });
+              await createApprovalPasswordSetupToken(token, tokenHash, contact.rows[0].cid, f.email);
               setupUrl = `${appBase}/activate?token=${token}`;
             }
           } catch (e) {

@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { ensureVentureSchema, resolveTeamMembersForPromotion } from "@/lib/ventures";
@@ -7,6 +7,16 @@ import {
   ventureRunUrl,
   createVentureInvitation,
 } from "@/lib/ventureInvitations";
+import {
+  createPromotionSubmission,
+  findVentureByCompanyName,
+  getFirstTeamByProgram,
+  getFormFieldsByFormId,
+  getLeadContactById,
+  getProgramByTextId,
+  getTeamByTextId,
+  getVentureReadyTeamByProgram,
+} from "@/models/ventureJourney";
 
 /**
  * POST /api/ventures/promote
@@ -68,10 +78,7 @@ export async function POST(req) {
     // ─── 2. Fetch the team ───
     let team;
     if (team_id) {
-      const teamRes = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE id::text = ?",
-        args: [team_id],
-      });
+      const teamRes = await getTeamByTextId(team_id);
       if (teamRes.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Team not found." },
@@ -81,16 +88,10 @@ export async function POST(req) {
       team = teamRes.rows[0];
     } else if (program_id) {
       // Find the first venture-ready team in this program
-      const teamRes = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE program_id::text = ? AND is_venture_ready = 1 LIMIT 1",
-        args: [program_id],
-      });
+      const teamRes = await getVentureReadyTeamByProgram(program_id);
       if (teamRes.rows.length === 0) {
         // Fallback: any team in the program
-        const fallbackRes = await db.execute({
-          sql: "SELECT * FROM v2_teams WHERE program_id::text = ? LIMIT 1",
-          args: [program_id],
-        });
+        const fallbackRes = await getFirstTeamByProgram(program_id);
         if (fallbackRes.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "No teams found in this program. Create a team first." },
@@ -120,10 +121,7 @@ export async function POST(req) {
     }
 
     // ─── 5. Verify program exists ───
-    const progRes = await db.execute({
-      sql: "SELECT * FROM v2_programs WHERE id::text = ?",
-      args: [team.program_id],
-    });
+    const progRes = await getProgramByTextId(team.program_id);
     if (progRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Program not found." },
@@ -164,10 +162,7 @@ export async function POST(req) {
         { status: 400 },
       );
     }
-    const leadRes = await db.execute({
-      sql: "SELECT cid, name, email FROM contacts WHERE cid = ?",
-      args: [String(leadCid)],
-    });
+    const leadRes = await getLeadContactById(String(leadCid));
     const lead = leadRes.rows[0];
     if (!lead) {
       return NextResponse.json(
@@ -189,10 +184,7 @@ export async function POST(req) {
     const finalDescription = description?.trim() || `Promoted from program: ${program.name}`;
     const finalWebsite = website?.trim() || null;
 
-    const dupCheck = await db.execute({
-      sql: "SELECT venture_id FROM ventures WHERE LOWER(company_name) = LOWER(?)",
-      args: [finalCompanyName],
-    });
+    const dupCheck = await findVentureByCompanyName(finalCompanyName);
     if (dupCheck.rows.length > 0) {
       return NextResponse.json(
         { success: false, error: "A company with this name already exists in Venture OS." },
@@ -216,10 +208,7 @@ export async function POST(req) {
     };
     const payload = { ...literalData };
     try {
-      const fieldRes = await db.execute({
-        sql: "SELECT id, settings FROM platform_form_fields WHERE form_id = ?",
-        args: [run.form_id],
-      });
+      const fieldRes = await getFormFieldsByFormId(run.form_id);
       const fieldByKey = {};
       for (const f of fieldRes.rows || []) {
         if (f.settings?.key) fieldByKey[f.settings.key] = String(f.id);
@@ -245,19 +234,13 @@ export async function POST(req) {
     });
 
     // ─── 11. Create the intake submission (submitted — awaiting review) ───
-    const subRes = await db.execute({
-      sql: `INSERT INTO platform_form_submissions
-              (run_id, submitter_id, submitter_name, status, data, invitation_id, submitted_at, updated_at)
-            VALUES (?, ?, ?, 'submitted', ?::jsonb, ?, NOW(), NOW())
-            RETURNING id`,
-      args: [
-        run.id,
-        lead.cid,
-        lead.name || team.name,
-        JSON.stringify(payload),
-        invitation.id,
-      ],
-    });
+    const subRes = await createPromotionSubmission(
+      run.id,
+      lead.cid,
+      lead.name || team.name,
+      JSON.stringify(payload),
+      invitation.id,
+    );
     const submissionId = subRes.rows[0]?.id;
     if (!submissionId) {
       return NextResponse.json(

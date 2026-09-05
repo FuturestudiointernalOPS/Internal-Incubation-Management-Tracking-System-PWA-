@@ -3,6 +3,21 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/lib/ventures";
+import {
+  activateJourneyStage,
+  completeJourneyStage,
+  countJourneyStages,
+  ensureJourneyStagesTable,
+  getJourneyMaxStageOrder,
+  getJourneyStageById,
+  getJourneyStages,
+  getJourneyStagesAfterUpdate,
+  getJourneyVentureId,
+  insertJourneyStage,
+  insertMissingJourneyStage,
+  lockJourneyStagesFrom,
+  unlockJourneyStage,
+} from "@/models/ventureJourney";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
@@ -37,7 +52,7 @@ const STANDARD_STAGES = [
 ];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getJourneyVentureId(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -54,46 +69,26 @@ export async function GET(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     // Ensure table exists
-    await db.execute({ sql: `CREATE TABLE IF NOT EXISTS venture_journey_stages (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      description TEXT,
-      stage_order INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'locked',
-      completed_at TIMESTAMPTZ,
-      approved_by TEXT REFERENCES contacts(cid),
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(venture_id, stage_order)
-    )` });
+    await ensureJourneyStagesTable();
 
     // Seed stages for this venture if they don't exist
-    const existing = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_journey_stages WHERE venture_id = ?", args: [dbId] });
+    const existing = await countJourneyStages(dbId);
     if (parseInt(existing.rows?.[0]?.c || 0) === 0) {
       for (const stage of STANDARD_STAGES) {
-        await db.execute({
-          sql: "INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status) VALUES (?, ?, ?, ?, ?)",
-          args: [dbId, stage.name, stage.description, stage.order, stage.order === 1 ? "active" : "locked"],
-        });
+        await insertJourneyStage(dbId, stage.name, stage.description, stage.order, stage.order === 1 ? "active" : "locked");
       }
     } else {
       // Add any missing growth stages for existing ventures
-      const maxOrder = await db.execute({ sql: "SELECT MAX(stage_order) as max_order FROM venture_journey_stages WHERE venture_id = ?", args: [dbId] });
+      const maxOrder = await getJourneyMaxStageOrder(dbId);
       const currentMax = parseInt(maxOrder.rows?.[0]?.max_order || 15);
       for (const stage of STANDARD_STAGES) {
         if (stage.order > currentMax) {
-          await db.execute({
-            sql: "INSERT INTO venture_journey_stages (venture_id, name, description, stage_order, status) VALUES (?, ?, ?, ?, 'locked') ON CONFLICT (venture_id, stage_order) DO NOTHING",
-            args: [dbId, stage.name, stage.description, stage.order],
-          });
+          await insertMissingJourneyStage(dbId, stage.name, stage.description, stage.order);
         }
       }
     }
 
-    const stages = await db.execute({
-      sql: "SELECT * FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
-      args: [dbId],
-    });
+    const stages = await getJourneyStages(dbId);
 
     return NextResponse.json({ success: true, stages: stages.rows || [] });
   } catch (e) {
@@ -121,22 +116,19 @@ export async function PATCH(req, { params }) {
     const { stage_id, action } = await req.json();
     if (!stage_id || !action) return NextResponse.json({ success: false, error: "stage_id and action required" }, { status: 400 });
 
-    const stage = (await db.execute({ sql: "SELECT * FROM venture_journey_stages WHERE id = ? AND venture_id = ?", args: [stage_id, dbId] })).rows?.[0];
+    const stage = (await getJourneyStageById(stage_id, dbId)).rows?.[0];
     if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
 
     if (action === "complete") {
-      await db.execute({ sql: "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ?", args: [session.cid, stage_id] });
-      await db.execute({ sql: "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ? AND status = 'locked'", args: [dbId, stage.stage_order + 1] });
+      await completeJourneyStage(session.cid, stage_id);
+      await unlockJourneyStage(dbId, stage.stage_order + 1);
       notifyVentureFounders(dbId, 'Stage Completed', `"${stage.name}" has been marked as completed.`);
     } else if (action === "reset") {
-      await db.execute({ sql: "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE venture_id = ? AND stage_order >= ?", args: [dbId, stage.stage_order] });
-      await db.execute({ sql: "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ?", args: [dbId, stage.stage_order] });
+      await lockJourneyStagesFrom(dbId, stage.stage_order);
+      await activateJourneyStage(dbId, stage.stage_order);
     }
 
-    const stages = await db.execute({
-      sql: "SELECT * FROM venture_journey_stages WHERE venture_id = ? ORDER BY stage_order ASC",
-      args: [dbId],
-    });
+    const stages = await getJourneyStagesAfterUpdate(dbId);
 
     return NextResponse.json({ success: true, stages: stages.rows || [] });
   } catch (e) {

@@ -2,6 +2,13 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  countPlaybookEntries,
+  ensurePlaybookTable,
+  getPlaybookEntries,
+  getPlaybookVentureId,
+  insertPlaybookStage,
+} from "@/models/ventureJourney";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
@@ -129,7 +136,7 @@ const PLAYBOOK_STAGES = [
 ];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getPlaybookVentureId(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -146,37 +153,17 @@ export async function GET(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     // Ensure table exists
-    await db.execute({ sql: `CREATE TABLE IF NOT EXISTS venture_facilitator_playbook (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
-      stage_order INTEGER NOT NULL,
-      stage_name TEXT NOT NULL,
-      objective TEXT,
-      expected_outcome TEXT,
-      questions TEXT,
-      evidence TEXT,
-      documents TEXT,
-      mistakes TEXT,
-      approval_criteria TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(venture_id, stage_order)
-    )` });
+    await ensurePlaybookTable();
 
     // Seed if empty
-    const existing = await db.execute({ sql: "SELECT COUNT(*) as c FROM venture_facilitator_playbook WHERE venture_id = ?", args: [dbId] });
+    const existing = await countPlaybookEntries(dbId);
     if (parseInt(existing.rows?.[0]?.c || 0) === 0) {
       for (const s of PLAYBOOK_STAGES) {
-        await db.execute({
-          sql: "INSERT INTO venture_facilitator_playbook (venture_id, stage_order, stage_name, objective, expected_outcome, questions, evidence, documents, mistakes, approval_criteria) VALUES (?,?,?,?,?,?,?,?,?,?)",
-          args: [dbId, s.stage_order, s.stage_name, s.objective, s.expected_outcome, s.questions, s.evidence, s.documents, s.mistakes, s.approval_criteria],
-        });
+        await insertPlaybookStage(dbId, s);
       }
     }
 
-    const entries = await db.execute({
-      sql: "SELECT * FROM venture_facilitator_playbook WHERE venture_id = ? ORDER BY stage_order ASC",
-      args: [dbId],
-    });
+    const entries = await getPlaybookEntries(dbId);
 
     return NextResponse.json({ success: true, playbook: entries.rows || [] });
   } catch (e) {

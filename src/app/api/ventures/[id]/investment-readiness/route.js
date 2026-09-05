@@ -2,6 +2,10 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  getInvestmentReadinessVentureId,
+  getVentureInvestmentDocuments,
+} from "@/models/ventureJourney";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
@@ -28,7 +32,7 @@ const DOC_CATEGORY_MAP = {
 };
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getInvestmentReadinessVentureId(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -44,10 +48,7 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Fetch all approved/shared documents for this venture
-    const docs = await db.execute({
-      sql: "SELECT name, category, approval_status FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY approval_status, name",
-      args: [dbId],
-    });
+    const docs = await getVentureInvestmentDocuments(dbId);
 
     const allDocs = docs.rows || [];
 
