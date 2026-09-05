@@ -238,12 +238,18 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
 - **Gate ✅:** full suite 39/39 suites · 623/623 tests · `npm run build` green.
 
 ### Wave 5 — Remaining API routes → models (route-extraction wave)
-- [ ] `api/ventures/**` inline SQL (~35 files / ~200 queries) → models
-      (ventures domain; lib/ventures.js already relocated in Wave 4).
-- [ ] `api/platform/**` (forms, form-runs 113, submissions, collections, ai,
-      seed, import), `api/investor/**` (diligence 26, pipeline 19, …),
-      `api/finance/**`, `api/crm/**`, `api/communications/**` (internal-comms 29),
-      `api/admin/op-reports` + `api/reports`, `api/security/**`, `api/events`…
+- [x] **Venture cluster** ✅ (2026-09-02): `api/ventures/**` 32 routes /
+      194 queries → `src/models/ventureWorkspace.js` (78), `ventureJourney.js`
+      (68), `ventureAssets.js` (48).
+- [x] **Platform cluster** ✅ (2026-09-02): 27 routes / 332 queries →
+      `src/models/formRuns.js` (113), `publicFormRuns.js` (32), `forms.js`
+      (79), `platformAi.js` (75), `intents.js` (17), `platformImport.js` (16).
+- [ ] `api/investor/**` (diligence 26, pipeline 19, …), `api/finance/**`,
+      `api/crm/**`, `api/communications/**` (internal-comms 29, campaigns,
+      segments, followups, announcements, contacts-adjacent),
+      `api/admin/op-reports` + `api/reports` + `api/standups`-aggregates,
+      `api/security/**`, `api/events`, `api/calendar`, `api/teacher/**`,
+      `api/messaging`, `api/participant/**`-rest, `api/v2/**`, long tail…
 
 ### Wave 5b — Reporting & Op-reports
 - [ ] `src/models/op-reports.js`, `src/models/reports.js` from
