@@ -1,6 +1,6 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ + Wave 2 ✅ + Wave 3 ✅ (SQL extraction) delivered.
+> Status: **in progress** — Waves 0–4 ✅ (SQL extraction + venture lib relocated, repo 100 % green).
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -70,6 +70,7 @@ src/
 │   ├── authFlows.js             ✅ auth flows (wave 3)
 │   ├── groups.js                ✅ groups/participants/segments/invites (wave 3)
 │   ├── authorization.js         ✅ access control (wave 3)
+│   ├── ventures.js              ✅ venture business logic relocated (wave 4)
 │   ├── users.js                 ← long tail (lib/authorization helpers)
 │   ├── ventures/                ← split out of lib/ventures.js (5.6k LOC)
 │   │   ├── index.js             ← facade re-exporting lib/ventures.js during migration
@@ -216,14 +217,35 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
   governance-audit (8) and permissions-admin (11) suites stay green; full suite
   36 pass / 3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
-### Wave 4 — Venture OS
-- [ ] Split `src/lib/ventures.js` (5,619 LOC, 277 exports) into
-      `src/models/ventures/*` behind a facade (53 importers → zero breakage).
-      Fix the 3 failing `ventures/*` test suites during the move.
-- [ ] Same for `src/lib/finance*`, `src/lib/platform/*`, `src/lib/email.js`
-      (1,391 — split template building from transport).
+### Wave 4 — Venture OS ✅ (2026-09-02 — lib relocated, suites green)
+- [x] `src/lib/ventures.js` (5,619 LOC / 277 exports) moved **byte-identical** to
+      `src/models/ventures.js`; `src/lib/ventures.js` is now a facade
+      (`export * from "@/models/ventures"`) → 53 importers untouched.
+- [x] **All 3 failing `ventures/*` suites fixed → repo 100 % green**
+      (39/39 suites, 623/623 tests). Root causes: 1 real code bug
+      (`calculateCompletion` granted half-credit to empty optional steps —
+      now measured over required-content steps only: empty = 0 %, full = 100 %)
+      + 9 test-harness issues (`jest.clearAllMocks` vs queued once-values,
+      repo-wide constant `uuid` stub, stale mocks after the ventureAuth gate
+      was added to `/api/ventures/[id]`).
+- [ ] Deeper split of `src/models/ventures.js` into a folder (core/founders/
+      promotion/startup-profile…) — deferred to long tail (facade already in
+      place, so it is safe to do later).
+- [ ] `api/ventures/**` inline SQL (~35 files / ~200 queries) → models —
+      moved to Wave 5 (route-extraction wave).
+- [ ] `src/lib/finance*`, `src/lib/platform/*`, `src/lib/email.js` splits —
+      moved to Wave 6 (lib-domain splits).
+- **Gate ✅:** full suite 39/39 suites · 623/623 tests · `npm run build` green.
 
-### Wave 5 — Reporting & Op-reports
+### Wave 5 — Remaining API routes → models (route-extraction wave)
+- [ ] `api/ventures/**` inline SQL (~35 files / ~200 queries) → models
+      (ventures domain; lib/ventures.js already relocated in Wave 4).
+- [ ] `api/platform/**` (forms, form-runs 113, submissions, collections, ai,
+      seed, import), `api/investor/**` (diligence 26, pipeline 19, …),
+      `api/finance/**`, `api/crm/**`, `api/communications/**` (internal-comms 29),
+      `api/admin/op-reports` + `api/reports`, `api/security/**`, `api/events`…
+
+### Wave 5b — Reporting & Op-reports
 - [ ] `src/models/op-reports.js`, `src/models/reports.js` from
       `api/op-reports` (318), `api/reports`, `api/standups`, and the two giant
       pages `staff/op-report/page.js` (4,059) and `admin/op-reports/page.js`
