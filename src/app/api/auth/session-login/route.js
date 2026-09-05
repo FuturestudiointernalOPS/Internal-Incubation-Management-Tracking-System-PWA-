@@ -164,8 +164,6 @@ export async function POST(req) {
         finalRole = "facilitator";
       } else if (user.role === "teacher") {
         finalRole = "teacher";
-      } else if (user.role === "investor") {
-        finalRole = "investor";
       } else if (user.role === "member") {
         // Neutral "member" means a person exists on the platform but has no
         // global role yet. Preserve it — never collapse it into participant.

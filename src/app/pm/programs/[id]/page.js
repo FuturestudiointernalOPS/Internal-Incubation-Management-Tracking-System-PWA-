@@ -141,7 +141,7 @@ function ProgramWorkspace() {
         setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || "Form" } : null);
       })
       .catch(() => setRegForm(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [id, families]);
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
@@ -2988,7 +2988,7 @@ function ProgramWorkspace() {
                                   : t("pmMisc.workspace.programDocument");
                             const name = rawName
                               .replace(/\.[^.]+$/, "") // strip extension (.pdf, .docx…)
-                              .replace(/[_\-]+/g, " ") // underscores/hyphens → spaces
+                              .replace(/[_-]+/g, " ") // underscores/hyphens → spaces
                               .replace(/\s+/g, " ") // collapse extra spaces
                               .trim()
                               .toLowerCase()
@@ -5421,7 +5421,7 @@ function ProgramWorkspace() {
                         body: JSON.stringify(records),
                       });
                       const data = await res.json();
-                      if (!data.success) throw new Error(t((data.error || "Unknown error") || "") || (data.error || "Unknown error"));
+                      if (!data.success) throw new Error(t(data.error || "Unknown error") || data.error || "Unknown error");
                       notify(t("pmMisc.workspace.attendanceRecorded", { count: data.upserted }));
                       setShowAttendanceModal(false);
                       setAttendanceRecords({});

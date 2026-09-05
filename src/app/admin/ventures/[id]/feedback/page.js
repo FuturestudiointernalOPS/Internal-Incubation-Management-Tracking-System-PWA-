@@ -6,10 +6,12 @@ import {
   ArrowLeft, Loader2, CheckCircle2, AlertCircle, Star, MessageCircle, TrendingUp, Users, Calendar,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 export default function VentureFeedbackPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [feedback, setFeedback] = useState([]);
   const [coachAnalytics, setCoachAnalytics] = useState([]);
@@ -260,7 +262,7 @@ export default function VentureFeedbackPage() {
                     {f.rating_availability && <span className="text-[7px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">Avail: {f.rating_availability}/5</span>}
                     {f.rating_helpfulness && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400">Help: {f.rating_helpfulness}/5</span>}
                   </div>
-                  {f.comments && <p className="text-sm text-[var(--text-secondary)]">"{f.comments}"</p>}
+                  {f.comments && <p className="text-sm text-[var(--text-secondary)]">&quot;{f.comments}&quot;</p>}
                   <div className="flex items-center gap-2 mt-2 text-[10px] text-[var(--text-secondary)]">
                     <span>{f.coach_name || "Unknown coach"}</span>
                     <span>· {new Date(f.created_at).toLocaleDateString()}</span>

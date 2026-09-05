@@ -34,8 +34,7 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, is_primary } = await req.json();
     if (!advisor_contact_id) return NextResponse.json({ success: false, error: "advisor_contact_id required" }, { status: 400 });
-    try { await upsertVentureAdvisor({ venture_id: dbId, advisor_contact_id, is_primary, assigned_by: session.cid });
-    } catch(e) { throw e; }
+    await upsertVentureAdvisor({ venture_id: dbId, advisor_contact_id, is_primary, assigned_by: session.cid });
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

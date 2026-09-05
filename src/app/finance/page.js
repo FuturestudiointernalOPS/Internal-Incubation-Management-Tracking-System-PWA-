@@ -78,7 +78,7 @@ export default function FinanceEntryPage() {
         setLineSearch("");
         setTimeout(() => setSuccess(false), 4000);
       } else {
-        setError(t((data.error || "Submission failed.") || "") || (data.error || "Submission failed."));
+        setError(t(data.error || "Submission failed.") || data.error || "Submission failed.");
       }
     } catch (e) {
       setError("Network error.");

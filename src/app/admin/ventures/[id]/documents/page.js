@@ -283,7 +283,7 @@ export default function VentureDataRoomPage() {
 
               {/* Actions */}
               <div className="flex gap-2">
-                <a href={selectedDoc.file_url} target="_blank" className="flex-1 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5"><Eye className="w-3 h-3" /> View</a>
+                <a href={selectedDoc.file_url} target="_blank" className="flex-1 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5" rel="noreferrer"><Eye className="w-3 h-3" /> View</a>
                 <button onClick={() => { setShowShareModal(true); }} className="flex-1 py-2.5 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5"><Share2 className="w-3 h-3" /> Share</button>
                 <button onClick={() => handleDelete(selectedDoc.id)} className="flex-1 py-2.5 bg-rose-500/10 text-rose-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 flex items-center justify-center gap-1.5"><Trash2 className="w-3 h-3" /> Delete</button>
               </div>

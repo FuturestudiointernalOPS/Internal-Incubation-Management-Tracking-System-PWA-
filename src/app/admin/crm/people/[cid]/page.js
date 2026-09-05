@@ -612,7 +612,7 @@ export default function CrmDetailPage({ params }) {
                     </p>
                   </div>
                   {ev.metadata?.file_url && (
-                    <a href={ev.metadata.file_url} target="_blank" className="text-[10px] font-bold text-[var(--brand-orange)] uppercase">
+                    <a href={ev.metadata.file_url} target="_blank" className="text-[10px] font-bold text-[var(--brand-orange)] uppercase" rel="noreferrer">
                       {t("crm.people.download")}
                     </a>
                   )}

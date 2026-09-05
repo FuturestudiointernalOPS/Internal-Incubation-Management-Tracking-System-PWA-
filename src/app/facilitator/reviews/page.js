@@ -72,7 +72,7 @@ export default function FacilitatorReviews() {
 
   useEffect(() => {
     loadReviews();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   return (

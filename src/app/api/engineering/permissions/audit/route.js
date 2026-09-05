@@ -40,7 +40,7 @@ export async function GET(req) {
     const actor = searchParams.get("actor")?.trim();
     const target = searchParams.get("target")?.trim();
     const action = searchParams.get("action")?.trim();
-    const module = searchParams.get("module")?.trim();
+    const moduleName = searchParams.get("module")?.trim();
     const capability = searchParams.get("capability")?.trim();
     const targetCid = searchParams.get("target_cid")?.trim();
     const from = searchParams.get("from")?.trim();
@@ -70,9 +70,9 @@ export async function GET(req) {
       where.push("action = ?");
       args.push(action);
     }
-    if (module) {
+    if (moduleName) {
       where.push("module = ?");
-      args.push(module);
+      args.push(moduleName);
     }
     if (capability) {
       where.push("capability ILIKE ?");

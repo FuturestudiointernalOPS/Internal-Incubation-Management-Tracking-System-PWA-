@@ -170,7 +170,7 @@ export default function VentureInvestorsPage() {
         {activeView === "matches" && (
           <div className="space-y-3">
             {filteredMatches.length === 0 ? (
-              <div className="text-center py-16"><Target className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No matches yet. Click "Generate Matches" to find investors.</p></div>
+              <div className="text-center py-16"><Target className="w-12 h-12 text-slate-600 mx-auto mb-3" /><p className="text-sm text-[var(--text-secondary)]">No matches yet. Click &quot;Generate Matches&quot; to find investors.</p></div>
             ) : (
               filteredMatches.map((m) => (
                 <div key={m.id} className="p-5 rounded-2xl bg-tertiary border border-[var(--border-primary)]">
@@ -240,8 +240,8 @@ export default function VentureInvestorsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    {inv.website_url && <a href={inv.website_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]"><Globe className="w-3.5 h-3.5" /></a>}
-                    {inv.linkedin_url && <a href={inv.linkedin_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]"><Linkedin className="w-3.5 h-3.5" /></a>}
+                    {inv.website_url && <a href={inv.website_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Globe className="w-3.5 h-3.5" /></a>}
+                    {inv.linkedin_url && <a href={inv.linkedin_url} target="_blank" className="p-1.5 text-slate-500 hover:text-[var(--brand-orange)]" rel="noreferrer"><Linkedin className="w-3.5 h-3.5" /></a>}
                   </div>
                 </div>
               ))

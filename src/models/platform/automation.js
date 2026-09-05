@@ -65,7 +65,7 @@ async function syncCrmContact(submission) {
     if (!email) return null;
     const vals = Object.values(subData);
     const name = vals.find(v => typeof v === "string" && v.length > 1 && !v.includes("@") && !v.startsWith("{"));
-    const phone = vals.find(v => typeof v === "string" && /^[\d\s\+\-\(\)]{7,}$/.test(v));
+    const phone = vals.find(v => typeof v === "string" && /^[\d\s+\-()]{7,}$/.test(v));
     const cid = submission.submitter_id || "USR_" + Math.random().toString(36).substring(2, 10).toUpperCase();
     await db.execute({
       sql: `INSERT INTO contacts (cid, name, email, phone, role, status)

@@ -191,7 +191,7 @@ export default function ProfileView() {
 
   useEffect(() => {
     loadAltEmails();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
   const [editedCountryCode, setEditedCountryCode] = useState("");
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -820,7 +820,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.url}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--brand-orange)] hover:brightness-110 transition-all" rel="noreferrer"
                     >
                       <Globe className="w-3 h-3" /> {t("adminMisc.profile.website")}
                     </a>
@@ -829,7 +829,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.demo_link}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:brightness-110 transition-all" rel="noreferrer"
                     >
                       <ExternalLink className="w-3 h-3" /> {t("adminMisc.profile.demo")}
                     </a>
@@ -838,7 +838,7 @@ export default function ProfileView() {
                     <a
                       href={groupInfo.pitch_deck_url}
                       target="_blank"
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-purple-400 hover:brightness-110 transition-all"
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-purple-400 hover:brightness-110 transition-all" rel="noreferrer"
                     >
                       <ExternalLink className="w-3 h-3" /> {t("adminMisc.profile.pitchDeck")}
                     </a>
@@ -950,7 +950,7 @@ export default function ProfileView() {
                         <a
                           href={sub.file_url}
                           target="_blank"
-                          className="text-[var(--brand-orange)] hover:underline"
+                          className="text-[var(--brand-orange)] hover:underline" rel="noreferrer"
                         >
                           <ExternalLink className="w-3 h-3" />
                         </a>

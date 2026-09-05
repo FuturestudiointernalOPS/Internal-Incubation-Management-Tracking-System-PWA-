@@ -34,6 +34,7 @@ import {
   Send,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 // ─── Widget Components ────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ function SkeletonCard() {
 export default function VentureDashboardPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [venture, setVenture] = useState(null);
   const [dashboard, setDashboard] = useState(null);
@@ -141,7 +143,7 @@ export default function VentureDashboardPage() {
     const url = `/api/ventures/${id}/dashboard`;
     const apply = (data) => {
       if (!data.success) {
-        setError(t((data.error || "Failed to load dashboard") || "") || (data.error || "Failed to load dashboard"));
+        setError(t(data.error || "Failed to load dashboard") || data.error || "Failed to load dashboard");
         return;
       }
       setDashboard(data.dashboard);

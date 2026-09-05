@@ -213,7 +213,7 @@ export function getDefaultTemplate(templateKey) {
 function resolveGreetingName(name) {
   const n = typeof name === "string" ? name.replace(/\s+/g, " ").trim() : "";
   if (!n || n.includes("@")) return "";
-  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i.test(n)) return "";
+  if (/^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i.test(n)) return "";
   return n;
 }
 
@@ -983,7 +983,7 @@ export function resolveRecipientEmail({ contactEmail, submissionData, fieldLabel
   return resolveSubmissionEmail({ submissionData, fieldLabels, contactEmail });
 }
 
-const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
+const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i;
 
 /** True when a value is a placeholder rather than a real person name. */
 export function isGenericName(v) {

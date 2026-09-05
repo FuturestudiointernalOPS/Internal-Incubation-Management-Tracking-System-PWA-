@@ -1100,7 +1100,7 @@ export default function AdminProjects() {
                 <a
                   href={editProject.conceptNoteUrl}
                   target="_blank"
-                  className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block"
+                  className="text-[10px] text-[var(--brand-orange)] font-bold underline truncate block" rel="noreferrer"
                 >
                   {t("adminMisc.projectsList.viewCurrentConceptNote")}
                 </a>
@@ -1444,7 +1444,7 @@ export default function AdminProjects() {
                   <a
                     href={newProject.conceptNoteUrl}
                     target="_blank"
-                    className="text-[9px] text-[var(--brand-orange)] font-bold underline mt-1 inline-block"
+                    className="text-[9px] text-[var(--brand-orange)] font-bold underline mt-1 inline-block" rel="noreferrer"
                   >
                     {t("adminMisc.projectsList.viewUploadedConceptNote")}
                   </a>

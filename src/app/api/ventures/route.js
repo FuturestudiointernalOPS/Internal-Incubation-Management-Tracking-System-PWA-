@@ -1,15 +1,10 @@
 import { NextResponse } from "next/server";
-import { initDb } from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
-import { v4 as uuidv4 } from "uuid";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
 import { updateVenture } from "@/lib/ventures";
 import {
-  addCreatorAsVentureFounder,
-  insertVenture,
   listVenturesWithCounts,
-  recordVentureCreatedTimeline,
   recordVentureUpdatedTimeline,
 } from "@/models/ventureWorkspace";
 
@@ -49,7 +44,7 @@ export const GET = createHandler(
  * POST /api/ventures
  * Create a new venture.
  */
-export const POST = createHandler(async (req) => {
+export const POST = createHandler(async () => {
   // RETIRED (Phase 1): Venture creation only flows through the Forms/Runs
   // intake pipeline (Form → Run → Submission → Review → Approval → Venture).
   // Even Super Admin cannot create Ventures directly anymore.
@@ -62,47 +57,6 @@ export const POST = createHandler(async (req) => {
     },
     { status: 410 },
   );
-  // Dead code below kept only to preserve route structure.
-  const capError = await requireAuthorization("ventures", "create");
-  if (capError) return capError;
-  // Phase 2 pipeline rule: Ventures are created via the Venture Application
-  // Form/Run approval process. Direct API creation is super admin only
-  // (internal fallback for the approval rule).
-  const session = await getSession();
-  if (!session || session.role !== "super_admin") {
-    return NextResponse.json(
-      { success: false, error: "Venture creation is only available through the Venture Application process." },
-      { status: 403 },
-    );
-  }
-  const { name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id } = await req.json();
-    if (!name) {
-      return NextResponse.json({ success: false, error: "name is required" }, { status: 400 });
-    }
-    const venture_id = `VNT-${uuidv4().replace(/-/g, "").substring(0, 8).toUpperCase()}`;
-    const result = await insertVenture({ venture_id, name, description, industry, business_stage, website, mission, vision, sector, program_id, origin_team_id });
-    const id = result.rows[0]?.id;
-    // Add creator as founder
-    try {
-      const { getSession } = await import("@/lib/auth");
-      const session = await getSession();
-      if (id && session?.cid) {
-        await addCreatorAsVentureFounder({ venture_id, cid: session.cid });
-      }
-    } catch(e) {
-      console.warn("Failed to add venture member:", e.message);
-    }
-
-    // Timeline event
-    try {
-      const { getSession } = await import("@/lib/auth");
-      const session = await getSession();
-      if (session?.cid) {
-        await recordVentureCreatedTimeline({ contact_cid: session.cid, name, industry, venture_id });
-      }
-    } catch (_) {}
-
-    return NextResponse.json({ success: true, id, venture_id });
 });
 
 /**

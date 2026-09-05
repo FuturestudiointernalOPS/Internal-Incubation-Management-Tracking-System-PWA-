@@ -259,7 +259,7 @@ export default function ReportResponses() {
 
                     <div className="mt-6 pt-6 border-t border-[var(--border-secondary)]">
                       <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">
-                        "{report.progress_notes}"
+                        &quot;{report.progress_notes}&quot;
                       </p>
                     </div>
                   </div>

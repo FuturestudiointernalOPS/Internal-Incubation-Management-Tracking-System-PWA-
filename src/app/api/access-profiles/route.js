@@ -262,6 +262,7 @@ export async function PUT(req) {
         { status: 404 },
       );
     }
+    const profileName = name !== undefined ? name.trim() : existing.rows[0]?.name || "Unknown";
 
     // Update profile fields
     if (name !== undefined) {

@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "test": "jest --runInBand",
     "i18n:parity": "node scripts/i18n-parity.mjs",
     "sync-finance": "node scripts/sync-finance.js --syncAll"

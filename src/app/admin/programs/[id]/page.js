@@ -64,7 +64,7 @@ export default function SuperAdminExecutiveView({ params }) {
         setRegForm(run ? { link: `${window.location.origin}/s/${run.public_slug}`, name: run.form_name || run.name || 'Form' } : null);
       })
       .catch(() => setRegForm(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [program?.id, program?.assigned_segments]);
 
   useEffect(() => {

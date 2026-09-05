@@ -282,7 +282,7 @@ export async function POST(req) {
 
       // Auto-create the system-defined Facilitators group for this program
       try {
-        await createSystemFacilitatorsGroup(programId);
+        await createSystemFacilitatorsGroup(id);
       } catch (_) {}
     // Handle Segment/Team Assignments for new program
     if (Array.isArray(assigned_segments) && assigned_segments.length > 0) {

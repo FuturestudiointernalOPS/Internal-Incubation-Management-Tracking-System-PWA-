@@ -39,6 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 const STAGE_CONFIG = {
   idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -116,6 +117,7 @@ const ACTIVITY_COLORS = {
 export default function VentureDetailPage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -129,7 +131,7 @@ export default function VentureDetailPage({ params }) {
     const url = `/api/ventures/${id}`;
     const apply = (data) => {
       if (!data.success) {
-        setError(t((data.error || "Venture not found") || "") || (data.error || "Venture not found"));
+        setError(t(data.error || "Venture not found") || data.error || "Venture not found");
         return;
       }
       setVenture(data.venture);

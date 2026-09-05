@@ -238,7 +238,6 @@ const CRUMB_PATH_MAP = {
   runs: "navigation.forms",
   collections: "navigation.collections",
   modules: "navigation.modules",
-  responses: "navigation.responses",
   groups: "navigation.groups",
   submissions: "navigation.submissions",
 };
@@ -2077,7 +2076,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                       Project Invitation
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been invited to join{" "}
+                      You&apos;ve been invited to join{" "}
                       <span className="font-bold text-[var(--text-primary)]">
                         {pendingInvites[0].project_name || "a project"}
                       </span>
@@ -2136,7 +2135,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
                       Task Assignment
                     </p>
                     <p className="text-[10px] text-[var(--text-secondary)]">
-                      You've been assigned:{" "}
+                      You&apos;ve been assigned:{" "}
                       <span className="font-bold text-[var(--text-primary)]">
                         {pendingAssignments[0].task_title || "a task"}
                       </span>

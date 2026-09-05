@@ -33,6 +33,7 @@ const STAGE_COLORS = {
 
 export default function InvestmentHistoryPage() {
   const goBack = useSafeBack("/investor");
+  const { t } = useI18n();
   const [decisions, setDecisions] = useState([]);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({});

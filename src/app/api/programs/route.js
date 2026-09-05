@@ -44,7 +44,7 @@ export async function POST(req) {
       );
     }
 
-    const programId = `P-2026-${uuid4().slice(0, 8).toUpperCase()}`;
+    const programId = `P-2026-${uuidv4().slice(0, 8).toUpperCase()}`;
 
     await createV2Program({
       programId,

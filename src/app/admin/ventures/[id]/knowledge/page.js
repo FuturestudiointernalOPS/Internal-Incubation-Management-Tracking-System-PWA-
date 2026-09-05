@@ -373,7 +373,7 @@ export default function VentureKnowledgePage() {
             {selectedResource.content && <div className="p-4 bg-primary rounded-xl text-xs text-[var(--text-secondary)] whitespace-pre-wrap max-h-48 overflow-y-auto">{selectedResource.content}</div>}
 
             {selectedResource.url && (
-              <a href={selectedResource.url} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 w-fit">
+              <a href={selectedResource.url} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
                 <ExternalLink className="w-3.5 h-3.5" /> {t("vadmin.knowledge.openResource")}
               </a>
             )}

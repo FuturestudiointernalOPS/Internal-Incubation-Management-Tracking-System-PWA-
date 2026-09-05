@@ -55,6 +55,7 @@ async function ensurePublicSubmitSchema() {
  * - IP-based rate limiting: max 5 submissions per IP per run per hour
  */
 export async function POST(req) {
+  let body = null;
   try {
     await initDb();
     await ensurePublicSubmitSchema();
@@ -68,7 +69,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Payload too large" }, { status: 413 });
     }
 
-    const body = await req.json();
+    body = await req.json();
     const { data, slug, invitation_token } = body;
 
     if (!slug || !data || typeof data !== "object") {
