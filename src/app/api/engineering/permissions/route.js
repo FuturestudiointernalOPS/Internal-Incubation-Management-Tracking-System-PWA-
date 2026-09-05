@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   getSession,
@@ -21,6 +21,30 @@ import {
   MODULE_TO_FEATURE,
 } from "@/lib/authorization";
 import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
+import {
+  runSafeQuery,
+  listPermissionTableContacts,
+  listAccessProfileDefinitions,
+  getRoleDefaultProfileMappings,
+  getContactForEffectivePermissions,
+  getCurrentSupervisor,
+  getContactNameAndRole,
+  promoteContactToSuperAdmin,
+  demoteContactFromSuperAdmin,
+  grantUserCapability,
+  revokeUserCapability,
+  restrictUserCapability,
+  unrestrictUserCapability,
+  setRoleDefaultCapability,
+  setGroupDefaultCapability,
+  setUserAccessProfile,
+  setUserRole,
+  contactExistsById,
+  endCurrentSupervision,
+  insertSupervisionAssignment,
+  endSupervisionRelationship,
+  setUserStatus,
+} from "@/models/authorization";
 
 /**
  * GET /api/engineering/permissions
@@ -34,11 +58,7 @@ import { CAPABILITY_CATALOG } from "@/lib/authorization/capability-catalog";
 // Resilient query helper: a missing table (migration not yet applied) must
 // never 500 the whole permissions page — it degrades to an empty list.
 async function safeQuery(sql, args = []) {
-  try {
-    return await db.execute({ sql, args });
-  } catch (_) {
-    return { rows: [] };
-  }
+  return runSafeQuery(sql, args);
 }
 
 export async function GET(req) {
@@ -59,9 +79,7 @@ export async function GET(req) {
     // Return enriched user list for the table view
     if (users === "true") {
       // Fetch all contacts with their enriched data
-      const contactsRes = await db.execute({
-        sql: "SELECT cid, name, email, role, status, access_profile_id, group_name, created_at FROM contacts ORDER BY name ASC",
-      });
+      const contactsRes = await listPermissionTableContacts();
 
       // Fetch all user_groups
       const groupsRes = await safeQuery("SELECT user_cid, group_name FROM user_groups");
@@ -142,16 +160,10 @@ export async function GET(req) {
       let accessProfiles = [];
       let accessProfileDefaults = {};
       try {
-        const profiles = await db.execute({
-          sql: "SELECT id, name, description, is_active FROM access_profiles ORDER BY name",
-        });
+        const profiles = await listAccessProfileDefinitions();
         accessProfiles = profiles.rows;
 
-        const roleDefaults = await db.execute({
-          sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name
-                FROM role_access_profile_defaults rpd
-                JOIN access_profiles ap ON ap.id = rpd.access_profile_id`,
-        });
+        const roleDefaults = await getRoleDefaultProfileMappings();
         for (const row of roleDefaults.rows) {
           accessProfileDefaults[row.role_name] = {
             profileId: row.profile_id,
@@ -174,10 +186,7 @@ export async function GET(req) {
 
     // Get effective permissions for a specific user
     if (userCid) {
-      const userRes = await db.execute({
-        sql: "SELECT cid, name, email, role, status FROM contacts WHERE cid = ?",
-        args: [userCid],
-      });
+      const userRes = await getContactForEffectivePermissions(userCid);
       if (userRes.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "User not found" },
@@ -221,12 +230,7 @@ export async function GET(req) {
       // context_type='supervision'). Null when none exists.
       let supervisorCid = null;
       try {
-        const supRes = await db.execute({
-          sql: `SELECT context_id AS supervisor_cid FROM contact_roles
-                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true
-                ORDER BY started_at DESC LIMIT 1`,
-          args: [userCid],
-        });
+        const supRes = await getCurrentSupervisor(userCid);
         supervisorCid = supRes.rows[0]?.supervisor_cid || null;
       } catch (_) {}
 
@@ -315,19 +319,13 @@ export async function PUT(req) {
     await ensurePermissionsSchema();
 
     // Get target user info
-    const targetRes = await db.execute({
-      sql: "SELECT name, role FROM contacts WHERE cid = ?",
-      args: [user_cid],
-    });
+    const targetRes = await getContactNameAndRole(user_cid);
     const targetName = targetRes.rows[0]?.name || "Unknown";
     const targetRole = targetRes.rows[0]?.role || null;
 
     // Handle promote/remove super admin specially
     if (action === "promote_super_admin") {
-      await db.execute({
-        sql: "UPDATE contacts SET role = 'super_admin' WHERE cid = ?",
-        args: [user_cid],
-      });
+      await promoteContactToSuperAdmin(user_cid);
       await logPermissionAudit({
         actorCid: actor.cid,
         actorName: actor.name,
@@ -344,10 +342,7 @@ export async function PUT(req) {
     }
 
     if (action === "remove_super_admin") {
-      await db.execute({
-        sql: "UPDATE contacts SET role = 'staff' WHERE cid = ?",
-        args: [user_cid],
-      });
+      await demoteContactFromSuperAdmin(user_cid);
       await logPermissionAudit({
         actorCid: actor.cid,
         actorName: actor.name,
@@ -398,22 +393,14 @@ export async function PUT(req) {
 
     switch (action) {
       case "grant":
-        await db.execute({
-          sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (user_cid, module, capability) DO UPDATE SET access_level = ?, granted_by = ?, expires_at = ?`,
-          args: [
-            user_cid,
-            module,
-            capability,
-            access_level || 1,
-            actor.cid,
-            expires_at || null,
-            access_level || 1,
-            actor.cid,
-            expires_at || null,
-          ],
-        });
+        await grantUserCapability(
+          user_cid,
+          module,
+          capability,
+          access_level || 1,
+          actor.cid,
+          expires_at || null,
+        );
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -427,10 +414,7 @@ export async function PUT(req) {
         break;
 
       case "revoke":
-        await db.execute({
-          sql: "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ?",
-          args: [user_cid, module, capability],
-        });
+        await revokeUserCapability(user_cid, module, capability);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -443,20 +427,13 @@ export async function PUT(req) {
         break;
 
       case "restrict":
-        await db.execute({
-          sql: `INSERT INTO user_capability_restrictions (user_cid, module, capability, restricted_by, expires_at)
-                VALUES (?, ?, ?, ?, ?)
-                ON CONFLICT (user_cid, module, capability) DO UPDATE SET restricted_by = ?, expires_at = ?`,
-          args: [
-            user_cid,
-            module,
-            capability,
-            actor.cid,
-            expires_at || null,
-            actor.cid,
-            expires_at || null,
-          ],
-        });
+        await restrictUserCapability(
+          user_cid,
+          module,
+          capability,
+          actor.cid,
+          expires_at || null,
+        );
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -469,10 +446,7 @@ export async function PUT(req) {
         break;
 
       case "unrestrict":
-        await db.execute({
-          sql: "DELETE FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ?",
-          args: [user_cid, module, capability],
-        });
+        await unrestrictUserCapability(user_cid, module, capability);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -485,18 +459,7 @@ export async function PUT(req) {
         break;
 
       case "set_role_default":
-        await db.execute({
-          sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (role, module, capability) DO UPDATE SET access_level = ?`,
-          args: [
-            body.role,
-            module,
-            capability,
-            access_level || 0,
-            access_level || 0,
-          ],
-        });
+        await setRoleDefaultCapability(body.role, module, capability, access_level || 0);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -510,25 +473,11 @@ export async function PUT(req) {
         break;
 
       case "set_group_default":
-        await db.execute({
-          sql: `INSERT INTO group_capabilities (group_name, module, capability, access_level)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (group_name, module, capability) DO UPDATE SET access_level = ?`,
-          args: [
-            body.group_name,
-            module,
-            capability,
-            access_level || 0,
-            access_level || 0,
-          ],
-        });
+        await setGroupDefaultCapability(body.group_name, module, capability, access_level || 0);
         break;
 
       case "set_access_profile":
-        await db.execute({
-          sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
-          args: [body.access_profile_id || null, user_cid],
-        });
+        await setUserAccessProfile(body.access_profile_id || null, user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -546,10 +495,7 @@ export async function PUT(req) {
             { status: 400 },
           );
         }
-        await db.execute({
-          sql: "UPDATE contacts SET role = ? WHERE cid = ?",
-          args: [body.role, user_cid],
-        });
+        await setUserRole(body.role, user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -569,10 +515,7 @@ export async function PUT(req) {
           );
         }
         // Validate the supervisor is a real contact.
-        const supCheck = await db.execute({
-          sql: "SELECT 1 FROM contacts WHERE cid = ? LIMIT 1",
-          args: [supervisorCid],
-        });
+        const supCheck = await contactExistsById(supervisorCid);
         if (supCheck.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "Supervisor contact not found" },
@@ -582,18 +525,12 @@ export async function PUT(req) {
         // Persist the supervision relationship in the generalized assignment
         // table (context_type='supervision', context_id = supervisor cid).
         // Additive, idempotent: any current supervision row is ended first.
-        await db.execute({
-          sql: `UPDATE contact_roles
-                SET is_current = false, ended_at = NOW(), status = 'removed'
-                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true`,
-          args: [user_cid],
-        });
-        await db.execute({
-          sql: `INSERT INTO contact_roles
-                  (contact_cid, role, context_type, context_id, is_current, title, scope, status, assigned_by)
-                VALUES (?, 'intern', 'supervision', ?, true, 'supervised_by', '{}'::jsonb, 'active', ?)`,
-          args: [user_cid, supervisorCid, actor.cid || "system"],
-        });
+        await endCurrentSupervision(user_cid);
+        await insertSupervisionAssignment(
+          user_cid,
+          supervisorCid,
+          actor.cid || "system",
+        );
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -607,12 +544,7 @@ export async function PUT(req) {
 
       case "remove_supervisor": {
         // End any current supervision relationship (additive, idempotent).
-        await db.execute({
-          sql: `UPDATE contact_roles
-                SET is_current = false, ended_at = NOW(), status = 'removed'
-                WHERE contact_cid = ? AND context_type = 'supervision' AND is_current = true`,
-          args: [user_cid],
-        });
+        await endSupervisionRelationship(user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,
@@ -631,10 +563,7 @@ export async function PUT(req) {
             { status: 400 },
           );
         }
-        await db.execute({
-          sql: "UPDATE contacts SET status = ? WHERE cid = ?",
-          args: [body.status, user_cid],
-        });
+        await setUserStatus(body.status, user_cid);
         await logPermissionAudit({
           actorCid: actor.cid,
           actorName: actor.name,

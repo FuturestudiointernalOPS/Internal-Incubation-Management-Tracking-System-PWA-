@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   getSession,
@@ -12,6 +12,27 @@ import {
   evaluateEligibility,
   validateCapabilitiesWithinEligibility,
 } from "@/lib/authorization";
+import {
+  getRoleDefaultRoles,
+  getRoleEligibilityRows,
+  getAccessProfileById,
+  getProfileCapabilities,
+  listAccessProfiles,
+  listRoleAccessProfileDefaults,
+  createAccessProfile,
+  insertProfileCapability,
+  getAccessProfileMeta,
+  updateAccessProfileName,
+  updateAccessProfileDescription,
+  getRoleDefaultRefs,
+  updateAccessProfileActiveState,
+  clearProfileCapabilities,
+  replaceProfileCapability,
+  getRoleDefaultsForProfile,
+  countProfileUsers,
+  getAccessProfileName,
+  deleteAccessProfile,
+} from "@/models/authorization";
 
 /**
  * Dependency normalization for profile capabilities.
@@ -43,20 +64,13 @@ function normalizeCapabilities(caps) {
 
 /** Roles that use this profile as their default access template. */
 async function profileDefaultRoles(profileId) {
-  const res = await db.execute({
-    sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
-    args: [profileId],
-  });
+  const res = await getRoleDefaultRoles(profileId);
   return res.rows.map((r) => r.role_name);
 }
 
 /** Per-feature eligibility map for a role (fail closed on missing rows). */
 async function eligibilityForRole(role) {
-  const res = await db.execute({
-    sql: `SELECT feature_key, eligible FROM feature_eligibility
-          WHERE identity_type = 'role' AND identity_value = ?`,
-    args: [role],
-  });
+  const res = await getRoleEligibilityRows(role);
   const map = {};
   for (const feature of Object.values(MODULE_TO_FEATURE)) {
     map[feature] = evaluateEligibility(res.rows, feature);
@@ -104,10 +118,7 @@ export async function GET(req) {
 
     // Single profile with capabilities
     if (profileId) {
-      const profile = await db.execute({
-        sql: "SELECT id, name, description, is_active FROM access_profiles WHERE id = ?",
-        args: [profileId],
-      });
+      const profile = await getAccessProfileById(profileId);
       if (profile.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Profile not found" },
@@ -115,10 +126,7 @@ export async function GET(req) {
         );
       }
 
-      const capabilities = await db.execute({
-        sql: "SELECT module, capability, access_level FROM access_profile_capabilities WHERE profile_id = ? ORDER BY module, capability",
-        args: [profileId],
-      });
+      const capabilities = await getProfileCapabilities(profileId);
 
       return NextResponse.json({
         success: true,
@@ -129,19 +137,10 @@ export async function GET(req) {
     }
 
     // List all profiles with role mappings
-    const profiles = await db.execute({
-      sql: `SELECT ap.*,
-            (SELECT COUNT(*) FROM access_profile_capabilities apc WHERE apc.profile_id = ap.id) as capability_count
-            FROM access_profiles ap ORDER BY ap.name`,
-    });
+    const profiles = await listAccessProfiles();
 
     // Get role mappings for each profile
-    const roleDefaults = await db.execute({
-      sql: `SELECT rpd.role_name, rpd.access_profile_id, ap.name as profile_name
-            FROM role_access_profile_defaults rpd
-            JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-            ORDER BY rpd.role_name`,
-    });
+    const roleDefaults = await listRoleAccessProfileDefaults();
 
     // Build role→profile map
     const roleProfileMap = {};
@@ -192,11 +191,7 @@ export async function POST(req) {
     await initDb();
 
     // Create profile
-    const result = await db.execute({
-      sql: `INSERT INTO access_profiles (name, description, is_active)
-            VALUES (?, ?, 1) RETURNING id`,
-      args: [name.trim(), description || ""],
-    });
+    const result = await createAccessProfile(name.trim(), description || "");
 
     const profileId = Number(result.rows[0]?.id ?? result.lastInsertRowid);
 
@@ -205,11 +200,7 @@ export async function POST(req) {
       const normalized = normalizeCapabilities(capabilities);
       for (const [module, caps] of Object.entries(normalized)) {
         for (const [capability, level] of Object.entries(caps)) {
-          await db.execute({
-            sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-                  VALUES (?, ?, ?, ?)`,
-            args: [profileId, module, capability, level],
-          });
+          await insertProfileCapability(profileId, module, capability, level);
         }
       }
     }
@@ -264,10 +255,7 @@ export async function PUT(req) {
     await initDb();
 
     // Check profile exists
-    const existing = await db.execute({
-      sql: "SELECT id, name FROM access_profiles WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getAccessProfileMeta(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Profile not found" },
@@ -277,16 +265,10 @@ export async function PUT(req) {
 
     // Update profile fields
     if (name !== undefined) {
-      await db.execute({
-        sql: "UPDATE access_profiles SET name = ?, updated_at = NOW() WHERE id = ?",
-        args: [name.trim(), id],
-      });
+      await updateAccessProfileName(name.trim(), id);
     }
     if (description !== undefined) {
-      await db.execute({
-        sql: "UPDATE access_profiles SET description = ?, updated_at = NOW() WHERE id = ?",
-        args: [description, id],
-      });
+      await updateAccessProfileDescription(description, id);
     }
     if (is_active !== undefined) {
       // Phase 7 governance: a profile that is a role default must never be
@@ -294,10 +276,7 @@ export async function PUT(req) {
       // default access (resolver falls back to legacy role_capabilities).
       // Change the role default first.
       if (!is_active) {
-        const refs = await db.execute({
-          sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
-          args: [id],
-        });
+        const refs = await getRoleDefaultRefs(id);
         if (refs.rows.length > 0) {
           const roles = refs.rows.map((r) => r.role_name).join(", ");
           return NextResponse.json(
@@ -309,10 +288,7 @@ export async function PUT(req) {
           );
         }
       }
-      await db.execute({
-        sql: "UPDATE access_profiles SET is_active = ?, updated_at = NOW() WHERE id = ?",
-        args: [is_active ? 1 : 0, id],
-      });
+      await updateAccessProfileActiveState(is_active ? 1 : 0, id);
     }
 
     // Replace capabilities if provided
@@ -339,19 +315,12 @@ export async function PUT(req) {
       }
 
       // Clear existing
-      await db.execute({
-        sql: "DELETE FROM access_profile_capabilities WHERE profile_id = ?",
-        args: [id],
-      });
+      await clearProfileCapabilities(id);
 
       // Insert new
       for (const [module, caps] of Object.entries(normalized)) {
         for (const [capability, level] of Object.entries(caps)) {
-          await db.execute({
-            sql: `INSERT INTO access_profile_capabilities (profile_id, module, capability, access_level)
-                  VALUES (?, ?, ?, ?)`,
-            args: [id, module, capability, level],
-          });
+          await replaceProfileCapability(id, module, capability, level);
         }
       }
     }
@@ -403,10 +372,7 @@ export async function DELETE(req) {
     await initDb();
 
     // Check if any role defaults reference this profile
-    const roleRefs = await db.execute({
-      sql: "SELECT role_name FROM role_access_profile_defaults WHERE access_profile_id = ?",
-      args: [id],
-    });
+    const roleRefs = await getRoleDefaultsForProfile(id);
 
     if (roleRefs.rows.length > 0) {
       const roles = roleRefs.rows.map((r) => r.role_name).join(", ");
@@ -417,22 +383,13 @@ export async function DELETE(req) {
     }
 
     // Check if any users reference this profile
-    const userRefs = await db.execute({
-      sql: "SELECT COUNT(*) as cnt FROM contacts WHERE access_profile_id = ?",
-      args: [id],
-    });
+    const userRefs = await countProfileUsers(id);
 
     // Get profile name for audit
-    const profile = await db.execute({
-      sql: "SELECT name FROM access_profiles WHERE id = ?",
-      args: [id],
-    });
+    const profile = await getAccessProfileName(id);
 
     // Delete (cascade will remove capabilities)
-    await db.execute({
-      sql: "DELETE FROM access_profiles WHERE id = ?",
-      args: [id],
-    });
+    await deleteAccessProfile(id);
 
     await logPermissionAudit({
       actorCid: session?.cid,
