@@ -1,6 +1,6 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ + Wave 2 ✅ (SQL extraction) delivered.
+> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ + Wave 2 ✅ + Wave 3 ✅ (SQL extraction) delivered.
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -66,8 +66,11 @@ src/
 │   ├── curriculum.js            ✅ pm curriculum (wave 2)
 │   ├── teams.js                 ✅ pm teams (wave 2)
 │   ├── responsibilities.js      ✅ responsibilities (wave 2)
-│   ├── users.js                 ← Wave 3
-│   ├── users.js                 ← contacts / sessions / people
+│   ├── contacts.js              ✅ contacts/people/families (wave 3)
+│   ├── authFlows.js             ✅ auth flows (wave 3)
+│   ├── groups.js                ✅ groups/participants/segments/invites (wave 3)
+│   ├── authorization.js         ✅ access control (wave 3)
+│   ├── users.js                 ← long tail (lib/authorization helpers)
 │   ├── ventures/                ← split out of lib/ventures.js (5.6k LOC)
 │   │   ├── index.js             ← facade re-exporting lib/ventures.js during migration
 │   │   ├── venture.core.js
@@ -196,13 +199,22 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
   GET/PUT/DELETE behavior incl. executed SQL fragments), full suite 17 pass /
   3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
-### Wave 3 — People & Auth model
-- [ ] `src/models/users.js`: sessions/contacts queries duplicated across
-      `api/auth`, `api/me`, `api/contacts` (133 inline `FROM contacts`),
-      `api/admin`, invitations, families, groups, org-membership.
-- [ ] `src/models/authorization.js`: from `src/lib/authorization/*` + auth
-      capability checks (leave `lib/auth.js` session mechanics in place — it is
-      infrastructure).
+### Wave 3 — People & Auth model ✅ (SQL extraction done 2026-09-02)
+- [x] `src/models/contacts.js` (70 fns: contacts CRUD/search/merge/duplicates/
+      timeline/full-state + me/relationships + families), `src/models/authFlows.js`
+      (69 fns: login/session-login/impersonate/activate/invite/password flows +
+      revoke + language), `src/models/groups.js` (52 fns: groups, user-groups,
+      participants, segments, invites, org teams), `src/models/authorization.js`
+      (67 fns: org-membership, access-profiles*, engineering/permissions*) —
+      **39 route files / 258 queries** → 0 `db.execute` left (grep-audited).
+- [ ] `src/lib/authorization/*` (resolver/membership/backfill still hold SQL)
+      + capability checks in `lib/auth.js` — deferred: these are shared helpers
+      with few importers; migrate them during the long-tail wave (facade pattern).
+      `lib/auth.js` session mechanics remain infrastructure by design.
+- **Gate ✅:** new `relationships-api.test.js` **3/3** (written first — pins the
+  sidebar's personal-relationships endpoint), existing org-membership (12),
+  governance-audit (8) and permissions-admin (11) suites stay green; full suite
+  36 pass / 3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
 ### Wave 4 — Venture OS
 - [ ] Split `src/lib/ventures.js` (5,619 LOC, 277 exports) into
