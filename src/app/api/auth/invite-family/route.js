@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, assertNoParticipantFacilitatorConflict, getSession, isAssignedPmForProgram } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
@@ -6,6 +6,12 @@ import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { parseEmailList } from "@/lib/email-utils";
+import {
+  getProgramById,
+  createFamilyMemberContact,
+  linkContactToParticipantProgram,
+  createFamilyInviteSetupToken,
+} from "@/models/authFlows";
 
 export const dynamic = "force-dynamic";
 
@@ -73,10 +79,7 @@ export async function POST(req) {
 
     // Verify the program exists if programId is provided
     if (programId) {
-      const progCheck = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE id = ?",
-        args: [programId],
-      });
+      const progCheck = await getProgramById(programId);
       if (progCheck.rows.length === 0) {
         return NextResponse.json(
           {
@@ -97,16 +100,13 @@ export async function POST(req) {
         // Create contact for this member
         const cid = `USER_${uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12)}`;
 
-        await db.execute({
-          sql: "INSERT INTO contacts (cid, name, email, role, status, group_name, program_id) VALUES (?, ?, ?, 'participant', 'pending', ?, ?)",
-          args: [
-            cid,
-            memberName,
-            memberEmail,
-            groupName ? String(groupName || familyName || "").trim().toUpperCase() : null,
-            programId || null,
-          ],
-        });
+        await createFamilyMemberContact(
+          cid,
+          memberName,
+          memberEmail,
+          groupName ? String(groupName || familyName || "").trim().toUpperCase() : null,
+          programId || null,
+        );
 
         // Sync participant_programs junction table if programId is provided
         if (programId) {
@@ -118,12 +118,7 @@ export async function POST(req) {
               memberEmail,
             );
             if (conflictError) return conflictError;
-            await db.execute({
-              sql: `INSERT INTO participant_programs (participant_id, program_id)
-                    VALUES (?, ?)
-                    ON CONFLICT (participant_id, program_id) DO NOTHING`,
-              args: [cid, programId],
-            });
+            await linkContactToParticipantProgram(cid, programId);
           } catch (_) {
             // participant_programs table may not exist
           }
@@ -132,10 +127,7 @@ export async function POST(req) {
         // Generate invite token
         const token = uuidv4();
         const tokenHash = hashToken(token);
-        await db.execute({
-          sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')",
-          args: [token, tokenHash, cid],
-        });
+        await createFamilyInviteSetupToken(token, tokenHash, cid);
 
         // Send email
         sendInviteEmail({

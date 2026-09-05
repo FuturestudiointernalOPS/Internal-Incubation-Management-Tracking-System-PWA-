@@ -1,8 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  getValidPasswordSetupToken,
+  backfillPasswordSetupTokenHash,
+  setContactPasswordAndStatusActive,
+  markPasswordSetupTokenUsed,
+  logPasswordSetupAudit,
+} from "@/models/authFlows";
 
 /**
  * SET PASSWORD VIA SETUP TOKEN
@@ -46,12 +53,7 @@ export async function POST(req) {
 
     // 1. Validate token (hashed at rest, raw fallback for legacy rows)
     const tokenHash = hashToken(token);
-    const tokenResult = await db.execute({
-      sql: `SELECT * FROM password_setup_tokens
-            WHERE used = 0 AND expires_at > NOW()
-              AND (token_hash = ? OR token = ?)`,
-      args: [tokenHash, token],
-    });
+    const tokenResult = await getValidPasswordSetupToken(tokenHash, token);
 
     if (tokenResult.rows.length === 0) {
       return NextResponse.json(
@@ -64,34 +66,23 @@ export async function POST(req) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!setupRecord.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, setupRecord.id],
-      }).catch(() => {});
+      await backfillPasswordSetupTokenHash(tokenHash, setupRecord.id).catch(
+        () => {},
+      );
     }
 
     // 2. Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 3. Update user - set password and status to active
-    await db.execute({
-      sql: "UPDATE contacts SET password = ?, status = 'active' WHERE cid = ?",
-      args: [hashedPassword, setupRecord.contact_cid],
-    });
+    await setContactPasswordAndStatusActive(hashedPassword, setupRecord.contact_cid);
 
     // 4. Mark token as used
-    await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1 WHERE id = ?",
-      args: [setupRecord.id],
-    });
+    await markPasswordSetupTokenUsed(setupRecord.id);
 
     // 5. Audit log
     try {
-      await db.execute({
-        sql: `INSERT INTO audit_log (entity_type, entity_id, user_id, user_name, action, details)
-              VALUES ('user', 0, ?, ?, 'password_setup', 'Password set via secure setup link')`,
-        args: [setupRecord.contact_cid, setupRecord.contact_cid],
-      });
+      await logPasswordSetupAudit(setupRecord.contact_cid);
     } catch (e) {
       // Audit logging is non-critical
       console.error("Audit log error (non-critical):", e.message);

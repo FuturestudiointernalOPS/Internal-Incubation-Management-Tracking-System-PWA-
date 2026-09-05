@@ -1,9 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendPasswordResetEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  getActiveContactByEmail,
+  expireUnusedPasswordSetupTokensForReset,
+  createPasswordResetToken,
+} from "@/models/authFlows";
 
 /**
  * FORGOT PASSWORD
@@ -45,10 +50,7 @@ export async function POST(req) {
     if (emailLimited) return emailLimited;
 
     // Find user (don't reveal if they exist)
-    const userResult = await db.execute({
-      sql: "SELECT cid, name, email FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL AND status = 'active' LIMIT 1",
-      args: [cleanEmail],
-    });
+    const userResult = await getActiveContactByEmail(cleanEmail);
 
     if (userResult.rows.length > 0) {
       const user = userResult.rows[0];
@@ -59,23 +61,16 @@ export async function POST(req) {
       expiresAt.setHours(expiresAt.getHours() + 1);
 
       // Invalidate old tokens
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ? AND used = 0",
-        args: [user.cid],
-      });
+      await expireUnusedPasswordSetupTokensForReset(user.cid);
 
       // Create new token
       const tokenHash = hashToken(token);
-      await db.execute({
-        sql: `INSERT INTO password_setup_tokens (contact_cid, token, token_hash, expires_at, used)
-              VALUES (?, ?, ?, ?, 0)`,
-        args: [
-          user.cid,
-          token,
-          tokenHash,
-          expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-        ],
-      });
+      await createPasswordResetToken(
+        user.cid,
+        token,
+        tokenHash,
+        expiresAt.toISOString().replace("T", " ").replace("Z", ""),
+      );
 
       // Send email (Gmail primary, Resend fallback via @/lib/email)
       const protocol = req.headers.get("x-forwarded-proto") || "https";

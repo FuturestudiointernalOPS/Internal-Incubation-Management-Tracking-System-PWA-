@@ -1,6 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import {
+  getPasswordSetupTokenWithUser,
+  backfillPasswordSetupTokenHashOnValidate,
+} from "@/models/authFlows";
 
 /**
  * VALIDATE PASSWORD SETUP TOKEN
@@ -23,14 +27,7 @@ export async function GET(req) {
     }
 
     const tokenHash = hashToken(token);
-    const result = await db.execute({
-      sql: `SELECT pst.*, c.name as user_name, c.email as user_email
-            FROM password_setup_tokens pst
-            LEFT JOIN contacts c ON pst.contact_cid = c.cid
-            WHERE pst.used = 0 AND pst.expires_at > NOW()
-              AND (pst.token_hash = ? OR pst.token = ?)`,
-      args: [tokenHash, token],
-    });
+    const result = await getPasswordSetupTokenWithUser(tokenHash, token);
 
     if (result.rows.length === 0) {
       return NextResponse.json({
@@ -43,10 +40,9 @@ export async function GET(req) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!record.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, record.id],
-      }).catch(() => {});
+      await backfillPasswordSetupTokenHashOnValidate(tokenHash, record.id).catch(
+        () => {},
+      );
     }
     return NextResponse.json({
       valid: true,

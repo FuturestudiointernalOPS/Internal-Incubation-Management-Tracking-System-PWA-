@@ -1,9 +1,20 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { sendWelcomeEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  getActivationInviteByTokenHash,
+  getActivationTokenExpiry,
+  backfillActivationTokenHashOnOpen,
+  logInvitationOpened,
+  getActivationInviteForPasswordSetup,
+  backfillActivationTokenHashOnActivate,
+  activateContactWithPassword,
+  markActivationTokenUsed,
+  logInvitationActivated,
+} from "@/models/authFlows";
 
 export const dynamic = "force-dynamic";
 
@@ -24,21 +35,11 @@ export async function GET(req) {
     }
 
     const tokenHash = hashToken(token);
-    const tokenRes = await db.execute({
-      sql: `SELECT pt.*, c.name, c.email, c.role, c.language
-            FROM password_setup_tokens pt
-            JOIN contacts c ON pt.contact_cid = c.cid
-            WHERE pt.used = 0 AND pt.expires_at > NOW()
-              AND (pt.token_hash = ? OR pt.token = ?)`,
-      args: [tokenHash, token],
-    });
+    const tokenRes = await getActivationInviteByTokenHash(tokenHash, token);
 
     if (tokenRes.rows.length === 0) {
       // Check if token exists but expired
-      const expiredRes = await db.execute({
-        sql: "SELECT expires_at FROM password_setup_tokens WHERE token_hash = ? OR token = ?",
-        args: [tokenHash, token],
-      });
+      const expiredRes = await getActivationTokenExpiry(tokenHash, token);
 
       if (expiredRes.rows.length > 0) {
         return NextResponse.json(
@@ -54,19 +55,14 @@ export async function GET(req) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!record.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, record.id],
-      }).catch(() => {});
+      await backfillActivationTokenHashOnOpen(tokenHash, record.id).catch(
+        () => {},
+      );
     }
 
     // Audit: invitation opened
     try {
-      await db.execute({
-        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
-              VALUES (?, 'invitation_opened', 'Invitation opened', 'contacts', ?, '{}'::jsonb)`,
-        args: [record.contact_cid, record.contact_cid],
-      });
+      await logInvitationOpened(record.contact_cid);
     } catch (_) {}
 
     return NextResponse.json({
@@ -113,14 +109,7 @@ export async function POST(req) {
 
     // Validate token
     const tokenHash = hashToken(token);
-    const tokenRes = await db.execute({
-      sql: `SELECT pt.*, c.email, c.name, c.role, c.language
-            FROM password_setup_tokens pt
-            JOIN contacts c ON pt.contact_cid = c.cid
-            WHERE pt.used = 0 AND pt.expires_at > NOW()
-              AND (pt.token_hash = ? OR pt.token = ?)`,
-      args: [tokenHash, token],
-    });
+    const tokenRes = await getActivationInviteForPasswordSetup(tokenHash, token);
 
     if (tokenRes.rows.length === 0) {
       return NextResponse.json(
@@ -133,33 +122,22 @@ export async function POST(req) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!record.token_hash) {
-      await db.execute({
-        sql: "UPDATE password_setup_tokens SET token_hash = ? WHERE id = ?",
-        args: [tokenHash, record.id],
-      }).catch(() => {});
+      await backfillActivationTokenHashOnActivate(tokenHash, record.id).catch(
+        () => {},
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Update contact: set password, mark as active and verified
-    await db.execute({
-      sql: "UPDATE contacts SET password = ?, status = 'active', activated_at = NOW() WHERE cid = ?",
-      args: [hashedPassword, record.contact_cid],
-    });
+    await activateContactWithPassword(hashedPassword, record.contact_cid);
 
     // Mark token as used
-    await db.execute({
-      sql: "UPDATE password_setup_tokens SET used = 1 WHERE id = ?",
-      args: [record.id],
-    });
+    await markActivationTokenUsed(record.id);
 
     // Audit: invitation activated
     try {
-      await db.execute({
-        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
-              VALUES (?, 'invitation_activated', 'Account activated', 'contacts', ?, '{}'::jsonb)`,
-        args: [record.contact_cid, record.contact_cid],
-      });
+      await logInvitationActivated(record.contact_cid);
     } catch (_) {}
 
     // Send welcome email (non-blocking)

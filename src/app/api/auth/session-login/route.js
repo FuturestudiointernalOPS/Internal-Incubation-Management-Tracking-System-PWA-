@@ -1,7 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import {
+  getContactByEmailOrCid,
+  getTeamByUsernameForSessionLogin,
+  getFamilyBySharedEmailForSessionLogin,
+  getParticipantProgramRecordForSessionLogin,
+  getLmsEnrollmentRecordForSessionLogin,
+  getVentureMembershipRecordForSessionLogin,
+  ensureContactsLastLoginColumn,
+  ensureContactsLoginCountColumn,
+  recordContactLoginActivity,
+} from "@/models/authFlows";
 
 export async function POST(req) {
   try {
@@ -24,10 +35,7 @@ export async function POST(req) {
     let isFamilyLogin = false;
     let permission = "edit";
 
-    const contactResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR cid = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [cleanEmail, cleanEmail],
-    });
+    const contactResult = await getContactByEmailOrCid(cleanEmail);
 
     if (contactResult.rows.length > 0) {
       user = contactResult.rows[0];
@@ -35,10 +43,7 @@ export async function POST(req) {
 
     // --- 2. TEAM LOGIN (if not found in contacts) ---
     if (!user) {
-      const teamResult = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE team_username = ? LIMIT 1",
-        args: [cleanEmail],
-      });
+      const teamResult = await getTeamByUsernameForSessionLogin(cleanEmail);
       if (teamResult.rows.length > 0) {
         user = teamResult.rows[0];
         isTeamLogin = true;
@@ -47,10 +52,7 @@ export async function POST(req) {
 
     // --- 3. FAMILY LOGIN (if not found in contacts or teams) ---
     if (!user) {
-      const familyResult = await db.execute({
-        sql: "SELECT * FROM families WHERE shared_email = ? LIMIT 1",
-        args: [cleanEmail],
-      });
+      const familyResult = await getFamilyBySharedEmailForSessionLogin(cleanEmail);
       if (familyResult.rows.length > 0) {
         const family = familyResult.rows[0];
         if (cleanPassword === family.shared_password_edit) {
@@ -187,18 +189,9 @@ export async function POST(req) {
       if (!hasDirectProgram && user.cid) {
         try {
           const [ppRes, lmsRes, ventureRes] = await Promise.all([
-            db.execute({
-              sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
-              args: [user.cid],
-            }),
-            db.execute({
-              sql: "SELECT 1 FROM lms_enrollments WHERE user_cid = ? LIMIT 1",
-              args: [user.cid],
-            }),
-            db.execute({
-              sql: "SELECT 1 FROM venture_members WHERE user_cid = ? LIMIT 1",
-              args: [user.cid],
-            }),
+            getParticipantProgramRecordForSessionLogin(user.cid),
+            getLmsEnrollmentRecordForSessionLogin(user.cid),
+            getVentureMembershipRecordForSessionLogin(user.cid),
           ]);
           hasParticipantPrograms = ppRes.rows.length > 0;
           hasLms = lmsRes.rows.length > 0;
@@ -250,12 +243,9 @@ export async function POST(req) {
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---
     if (!isTeamLogin && !isFamilyLogin && user.cid) {
       try {
-        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ");
-        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0");
-        await db.execute({
-          sql: "UPDATE contacts SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE cid = ?",
-          args: [user.cid],
-        });
+        await ensureContactsLastLoginColumn();
+        await ensureContactsLoginCountColumn();
+        await recordContactLoginActivity(user.cid);
       } catch (_) {}
     }
 
