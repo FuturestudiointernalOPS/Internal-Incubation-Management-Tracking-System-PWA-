@@ -38,7 +38,11 @@ import {
 
 describe("Startup Profile Wizard — Business Logic", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    // resetAllMocks (not clearAllMocks): clearAllMocks only clears call
+    // history, so a mockResolvedValueOnce that a test queues but never
+    // consumes (e.g. canEditStartupProfile short-circuits after the founder
+    // check) leaks into the next test and shifts its db.execute queue.
+    jest.resetAllMocks();
   });
 
   // ─── Constants ─────────────────────────────────────────────────
