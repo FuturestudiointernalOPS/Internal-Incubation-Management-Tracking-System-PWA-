@@ -1,7 +1,35 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  completeDiligenceWorkspace,
+  getDdRequestFollowUpQuestionsByRequestId,
+  getDdRequestFollowUpQuestionsForRespond,
+  getDdRequestInfoByRequestId,
+  getDdRequestInfoForTimeline,
+  getDdRequestVersionHistoryByRequestId,
+  getDiligenceWorkspaceByPipelineId,
+  getDiligenceWorkspaceIdByPipelineId,
+  getInvestorProfileIdByUserIdForNotes,
+  getInvestorProfileUserIdByProfileId,
+  getPipelineInvestorIdByPipelineId,
+  getPipelineWithVentureById,
+  getRelationshipWorkspaceAssigneesByPipelineId,
+  getRelationshipWorkspaceIdByPipelineId,
+  getRelationshipWorkspaceIdForStatusTimeline,
+  insertDdInformationRequest,
+  insertDdRequestAddedTimeline,
+  insertDdStatusChangedTimeline,
+  insertInvestorNote,
+  listDdInformationRequestsByWorkspaceId,
+  listInvestorNotesByPipelineId,
+  updateDdRequestFollowUpQuestions,
+  updateDdRequestFollowUpQuestionsForRespond,
+  updateDdRequestResponse,
+  updatePipelineStageToDueDiligence,
+  upsertDiligenceWorkspace,
+} from "@/models/investor";
 
 /** GET /api/investor/diligence?pipeline_id=X */
 export async function GET(req) {
@@ -19,37 +47,21 @@ export async function GET(req) {
 
     // Workspace
     let workspace = null;
-    const wsRes = await db.execute({
-      sql: "SELECT * FROM due_diligence_workspaces WHERE pipeline_id = ?",
-      args: [pipelineId],
-    });
+    const wsRes = await getDiligenceWorkspaceByPipelineId(pipelineId);
     if (wsRes.rows.length > 0) workspace = wsRes.rows[0];
 
     // Information requests
     let requests = [];
     if (workspace) {
-      const reqRes = await db.execute({
-        sql: "SELECT * FROM dd_information_requests WHERE workspace_id = ? ORDER BY created_at DESC",
-        args: [workspace.id],
-      });
+      const reqRes = await listDdInformationRequestsByWorkspaceId(workspace.id);
       requests = reqRes.rows;
     }
 
     // Notes
-    const notesRes = await db.execute({
-      sql: "SELECT * FROM investor_notes WHERE pipeline_id = ? ORDER BY created_at DESC",
-      args: [pipelineId],
-    });
+    const notesRes = await listInvestorNotesByPipelineId(pipelineId);
 
     // Pipeline info
-    const pipeRes = await db.execute({
-      sql: `SELECT ip.*, p.name as venture_name, p.description as venture_description,
-                   p.industry, p.country, p.business_stage
-            FROM investment_pipeline ip
-            LEFT JOIN v2_programs p ON ip.venture_id = p.id
-            WHERE ip.id = ?`,
-      args: [pipelineId],
-    });
+    const pipeRes = await getPipelineWithVentureById(pipelineId);
 
     return NextResponse.json({
       success: true,
@@ -78,19 +90,10 @@ export async function POST(req) {
 
     if (action === "create_workspace") {
       // Create workspace
-      const res = await db.execute({
-        sql: `INSERT INTO due_diligence_workspaces (pipeline_id, status)
-              VALUES (?, 'active')
-              ON CONFLICT (pipeline_id) DO UPDATE SET status = 'active', updated_at = NOW()
-              RETURNING *`,
-        args: [pipeline_id],
-      });
+      const res = await upsertDiligenceWorkspace(pipeline_id);
 
       // Update pipeline stage
-      await db.execute({
-        sql: "UPDATE investment_pipeline SET stage = 'due_diligence', stage_changed_at = NOW(), updated_at = NOW() WHERE id = ?",
-        args: [pipeline_id],
-      });
+      await updatePipelineStageToDueDiligence(pipeline_id);
 
       return NextResponse.json({ success: true, workspace: res.rows[0] });
     }
@@ -100,32 +103,18 @@ export async function POST(req) {
       if (!title) return NextResponse.json({ success: false, error: "title required" }, { status: 400 });
 
       // Get workspace
-      const ws = await db.execute({
-        sql: "SELECT id FROM due_diligence_workspaces WHERE pipeline_id = ?",
-        args: [pipeline_id],
-      });
+      const ws = await getDiligenceWorkspaceIdByPipelineId(pipeline_id);
       if (ws.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Workspace not found. Create it first." }, { status: 404 });
       }
 
-      const res = await db.execute({
-        sql: `INSERT INTO dd_information_requests (workspace_id, title, description, category, priority, due_date, owner_id, status)
-              VALUES (?, ?, ?, ?, ?, ?, ?, 'pending') RETURNING *`,
-        args: [ws.rows[0].id, title, description || null, category || "general", priority || "medium", due_date || null, owner_id || null],
-      });
+      const res = await insertDdInformationRequest({ workspace_id: ws.rows[0].id, title, description, category, priority, due_date, owner_id });
 
       // Timeline entry in relationship workspace
       try {
-        const relWs = await db.execute({
-          sql: "SELECT id FROM relationship_workspaces WHERE pipeline_id = ?",
-          args: [pipeline_id],
-        });
+        const relWs = await getRelationshipWorkspaceIdByPipelineId(pipeline_id);
         if (relWs.rows.length > 0) {
-          await db.execute({
-            sql: `INSERT INTO relationship_timeline (workspace_id, event_type, description)
-                  VALUES (?, 'dd_request_added', ?)`,
-            args: [relWs.rows[0].id, `DD request: ${title} (${category})`],
-          });
+          await insertDdRequestAddedTimeline({ workspace_id: relWs.rows[0].id, title, category });
         }
       } catch (_) {}
 
@@ -139,13 +128,7 @@ export async function POST(req) {
       const userRole = session?.role;
 
       // Get the pipeline_id and relationship workspace assignments for this request
-      const reqInfo = await db.execute({
-        sql: `SELECT r.workspace_id, r.title, dw.pipeline_id
-              FROM dd_information_requests r
-              JOIN due_diligence_workspaces dw ON r.workspace_id = dw.id
-              WHERE r.id = ?`,
-        args: [request_id],
-      });
+      const reqInfo = await getDdRequestInfoByRequestId(request_id);
       if (reqInfo.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Request not found" }, { status: 404 });
       }
@@ -153,25 +136,16 @@ export async function POST(req) {
       const pipelineId = reqInfo.rows[0].pipeline_id;
 
       // Get relationship workspace assignments (RM, IM)
-      const relWs = await db.execute({
-        sql: "SELECT relationship_manager_id, investment_manager_id FROM relationship_workspaces WHERE pipeline_id = ?",
-        args: [pipelineId],
-      });
+      const relWs = await getRelationshipWorkspaceAssigneesByPipelineId(pipelineId);
       const rw = relWs.rows[0] || {};
       const isRM = rw.relationship_manager_id === userCid;
       const isIM = rw.investment_manager_id === userCid;
       const isAdmin = userRole === "super_admin";
 
       // Get investor profile to exclude from founder actions
-      const pipelineInfo = await db.execute({
-        sql: "SELECT investor_id FROM investment_pipeline WHERE id = ?",
-        args: [pipelineId],
-      });
+      const pipelineInfo = await getPipelineInvestorIdByPipelineId(pipelineId);
       const investorProfileId = pipelineInfo.rows[0]?.investor_id;
-      const investorUser = await db.execute({
-        sql: "SELECT user_id FROM investor_profiles WHERE id = ?",
-        args: [investorProfileId],
-      });
+      const investorUser = await getInvestorProfileUserIdByProfileId(investorProfileId);
       const isInvestor = investorUser.rows[0]?.user_id === userCid;
 
       // Role-based access control for each transition
@@ -192,10 +166,7 @@ export async function POST(req) {
       }
 
       // Get current version history
-      const current = await db.execute({
-        sql: "SELECT version_history, status FROM dd_information_requests WHERE id = ?",
-        args: [request_id],
-      });
+      const current = await getDdRequestVersionHistoryByRequestId(request_id);
 
       // Append to version history
       let newHistory = current.rows[0]?.version_history || [];
@@ -209,33 +180,15 @@ export async function POST(req) {
         notes: response_text || null,
       });
 
-      await db.execute({
-        sql: `UPDATE dd_information_requests
-              SET status = ?, response_text = ?, response_file_url = ?, version_history = ?, updated_at = NOW()
-              WHERE id = ?`,
-        args: [status, response_text || null, response_file_url || null, JSON.stringify(newHistory), request_id],
-      });
+      await updateDdRequestResponse({ status, response_text, response_file_url, version_history: JSON.stringify(newHistory), request_id });
 
       // Timeline entry in relationship workspace
       try {
-        const reqInfo = await db.execute({
-          sql: `SELECT r.workspace_id, r.title, dw.pipeline_id
-                FROM dd_information_requests r
-                JOIN due_diligence_workspaces dw ON r.workspace_id = dw.id
-                WHERE r.id = ?`,
-          args: [request_id],
-        });
+        const reqInfo = await getDdRequestInfoForTimeline(request_id);
         if (reqInfo.rows.length > 0) {
-          const relWs = await db.execute({
-            sql: "SELECT id FROM relationship_workspaces WHERE pipeline_id = ?",
-            args: [reqInfo.rows[0].pipeline_id],
-          });
+          const relWs = await getRelationshipWorkspaceIdForStatusTimeline(reqInfo.rows[0].pipeline_id);
           if (relWs.rows.length > 0) {
-            await db.execute({
-              sql: `INSERT INTO relationship_timeline (workspace_id, event_type, description)
-                    VALUES (?, 'dd_status_changed', ?)`,
-              args: [relWs.rows[0].id, `DD request "${reqInfo.rows[0].title}" status: ${status}`],
-            });
+            await insertDdStatusChangedTimeline({ workspace_id: relWs.rows[0].id, title: reqInfo.rows[0].title, status });
           }
         }
       } catch (_) {}
@@ -249,25 +202,15 @@ export async function POST(req) {
 
       const session = await getSession();
       // Get investor profile
-      const prof = await db.execute({
-        sql: "SELECT id FROM investor_profiles WHERE user_id = ?",
-        args: [session.cid || session.id],
-      });
+      const prof = await getInvestorProfileIdByUserIdForNotes(session.cid || session.id);
 
-      const res = await db.execute({
-        sql: `INSERT INTO investor_notes (investor_id, pipeline_id, note_type, content)
-              VALUES (?, ?, ?, ?) RETURNING *`,
-        args: [prof.rows[0]?.id, pipeline_id, note_type || "private", content],
-      });
+      const res = await insertInvestorNote({ investor_id: prof.rows[0]?.id, pipeline_id, note_type, content });
 
       return NextResponse.json({ success: true, note: res.rows[0] });
     }
 
     if (action === "complete") {
-      await db.execute({
-        sql: "UPDATE due_diligence_workspaces SET status = 'completed', updated_at = NOW() WHERE pipeline_id = ?",
-        args: [pipeline_id],
-      });
+      await completeDiligenceWorkspace(pipeline_id);
       return NextResponse.json({ success: true });
     }
 
@@ -276,10 +219,7 @@ export async function POST(req) {
       if (!question) return NextResponse.json({ success: false, error: "question required" }, { status: 400 });
 
       const session = await getSession();
-      const current = await db.execute({
-        sql: "SELECT follow_up_questions FROM dd_information_requests WHERE id = ?",
-        args: [request_id],
-      });
+      const current = await getDdRequestFollowUpQuestionsByRequestId(request_id);
 
       let questions = current.rows[0]?.follow_up_questions || [];
       if (typeof questions === "string") questions = JSON.parse(questions);
@@ -291,20 +231,14 @@ export async function POST(req) {
         response: null,
       });
 
-      await db.execute({
-        sql: "UPDATE dd_information_requests SET follow_up_questions = ?, updated_at = NOW() WHERE id = ?",
-        args: [JSON.stringify(questions), request_id],
-      });
+      await updateDdRequestFollowUpQuestions({ questions, request_id });
 
       return NextResponse.json({ success: true, follow_up_questions: questions });
     }
 
     if (action === "respond_followup") {
       const { request_id, question_index, response } = data;
-      const current = await db.execute({
-        sql: "SELECT follow_up_questions FROM dd_information_requests WHERE id = ?",
-        args: [request_id],
-      });
+      const current = await getDdRequestFollowUpQuestionsForRespond(request_id);
 
       let questions = current.rows[0]?.follow_up_questions || [];
       if (typeof questions === "string") questions = JSON.parse(questions);
@@ -314,10 +248,7 @@ export async function POST(req) {
         questions[question_index].responded_at = new Date().toISOString();
       }
 
-      await db.execute({
-        sql: "UPDATE dd_information_requests SET follow_up_questions = ?, updated_at = NOW() WHERE id = ?",
-        args: [JSON.stringify(questions), request_id],
-      });
+      await updateDdRequestFollowUpQuestionsForRespond({ questions, request_id });
 
       return NextResponse.json({ success: true, follow_up_questions: questions });
     }

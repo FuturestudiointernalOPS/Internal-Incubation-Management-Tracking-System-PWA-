@@ -1,6 +1,7 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { runExecutiveDashboardQuery } from "@/models/investor";
 
 export async function GET() {
   try {
@@ -8,7 +9,7 @@ export async function GET() {
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
 
-    const q = async (sql) => (await db.execute({ sql, args: [] })).rows;
+    const q = async (sql) => await runExecutiveDashboardQuery(sql);
 
     const [investors, ventures, fundraising, relationships, pipeline, topInvestors, sectorDemand, campaignPerf] = await Promise.all([
       q(`SELECT (SELECT COUNT(*) FROM investor_profiles WHERE approval_status='approved')::int as total_verified, (SELECT COUNT(*) FROM investor_profiles WHERE approval_status='pending_review')::int as total_pending, (SELECT COUNT(*) FROM investor_profiles)::int as total_registered`),

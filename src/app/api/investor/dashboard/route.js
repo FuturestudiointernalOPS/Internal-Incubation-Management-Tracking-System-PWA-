@@ -1,7 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  countInvestorWatchlist,
+  getInvestorDashboardProfile,
+  getInvestorPipelineStats,
+  listActiveFundraisingCampaigns,
+  listActiveInvestorRelationshipWorkspaces,
+  listActiveVenturesForRecommendations,
+  listInvestorPipelineEntries,
+  listInvestorWatchlist,
+  listUpcomingRelationshipMeetings,
+} from "@/models/investor";
 
 /** GET /api/investor/dashboard — investor's personalized dashboard data */
 export async function GET(req) {
@@ -14,13 +25,7 @@ export async function GET(req) {
     const user = session;
 
     // 1. Get investor profile
-    const profileRes = await db.execute({
-      sql: `SELECT ip.*, ipr.industries, ipr.countries, ipr.startup_stages
-            FROM investor_profiles ip
-            LEFT JOIN investor_preferences ipr ON ipr.investor_id = ip.id
-            WHERE ip.user_id = ?`,
-      args: [user.cid || user.id],
-    });
+    const profileRes = await getInvestorDashboardProfile(user.cid || user.id);
 
     const profile = profileRes.rows[0];
     if (!profile) {
@@ -28,31 +33,10 @@ export async function GET(req) {
     }
 
     // 2. Investment pipeline
-    const pipelineRes = await db.execute({
-      sql: `SELECT ip.*, p.name as venture_name, p.status as venture_status
-            FROM investment_pipeline ip
-            LEFT JOIN v2_programs p ON ip.venture_id = p.id
-            WHERE ip.investor_id = ?
-            ORDER BY ip.stage_changed_at DESC`,
-      args: [profile.id],
-    });
+    const pipelineRes = await listInvestorPipelineEntries(profile.id);
 
     // 3. Watchlist — enriched with venture details, campaign, KPIs
-    const watchlistRes = await db.execute({
-      sql: `SELECT iw.*, p.name as venture_name, p.status as venture_status,
-                    p.industry, p.country, p.business_stage, p.completion_index,
-                    p.funding_requirement, p.description,
-                    fc.id as campaign_id, fc.name as campaign_name, fc.status as campaign_status,
-                    fc.target_raise, fc.current_raised, fc.min_investment,
-                    fc.opening_date, fc.closing_date,
-                    (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = iw.venture_id AND stage NOT IN ('declined'))::int as investor_count
-             FROM investor_watchlist iw
-             LEFT JOIN v2_programs p ON iw.venture_id = p.id
-             LEFT JOIN fundraising_campaigns fc ON fc.venture_id = iw.venture_id AND fc.status = 'active'
-             WHERE iw.investor_id = ?
-             ORDER BY iw.created_at DESC`,
-      args: [profile.id],
-    });
+    const watchlistRes = await listInvestorWatchlist(profile.id);
 
     // 4. Intelligent Recommendations with match scoring
     let recommendations = [];
@@ -64,16 +48,7 @@ export async function GET(req) {
       const ticketMax = profile.ticket_size_max;
 
       // Fetch all active ventures
-      const allRes = await db.execute({
-        sql: `SELECT p.id, p.name, p.description, p.status, p.industry,
-                     p.country, p.completion_index, p.business_stage,
-                     p.funding_requirement, p.created_at,
-                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = p.id) as investor_interest_count
-              FROM v2_programs p
-              WHERE p.status = 'active' AND p.is_archived = 0
-              ORDER BY p.created_at DESC LIMIT 50`,
-        args: [],
-      });
+      const allRes = await listActiveVenturesForRecommendations();
 
       // Score each venture
       recommendations = allRes.rows.map(v => {
@@ -133,61 +108,25 @@ export async function GET(req) {
     } catch (_) {}
 
     // 5. Stats
-    const statsRes = await db.execute({
-      sql: `SELECT
-              COUNT(*) FILTER (WHERE stage = 'invested') as invested_count,
-              COUNT(*) FILTER (WHERE stage IN ('due_diligence','negotiation')) as active_evaluations,
-              COUNT(*) as total_pipeline
-            FROM investment_pipeline WHERE investor_id = ?`,
-      args: [profile.id],
-    });
+    const statsRes = await getInvestorPipelineStats(profile.id);
 
-    const watchlistCount = await db.execute({
-      sql: "SELECT COUNT(*) as count FROM investor_watchlist WHERE investor_id = ?",
-      args: [profile.id],
-    });
+    const watchlistCount = await countInvestorWatchlist(profile.id);
 
     // 6. Active fundraising campaigns
     let campaigns = [];
     try {
-      const campaignsRes = await db.execute({
-        sql: `SELECT fc.*, p.name as venture_name, p.industry, p.country, p.business_stage,
-                     p.funding_requirement, p.completion_index,
-                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = fc.venture_id AND stage NOT IN ('declined'))::int as investor_count,
-                     (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = fc.venture_id AND stage IN ('due_diligence','negotiation'))::int as active_dd_count
-              FROM fundraising_campaigns fc
-              LEFT JOIN v2_programs p ON fc.venture_id = p.id
-              WHERE fc.status = 'active' AND (fc.visibility = 'public' OR fc.visibility = 'invite_only')
-              ORDER BY fc.created_at DESC LIMIT 20`,
-        args: [],
-      });
+      const campaignsRes = await listActiveFundraisingCampaigns();
       campaigns = campaignsRes.rows;
     } catch (_) {}
 
     // 7. Relationship workspaces & meetings
     let relationships = [];
     try {
-      const relRes = await db.execute({
-        sql: `SELECT rw.*, p.name as venture_name, p.industry,
-                     rm.name as relationship_manager_name,
-                     (SELECT COUNT(*) FROM relationship_meetings WHERE workspace_id = rw.id AND status = 'scheduled')::int as upcoming_meetings
-              FROM relationship_workspaces rw
-              LEFT JOIN v2_programs p ON rw.venture_id = p.id
-              LEFT JOIN contacts rm ON rw.relationship_manager_id = rm.cid
-              WHERE rw.investor_id = ? AND rw.status = 'active'
-              ORDER BY rw.updated_at DESC`,
-        args: [profile.id],
-      });
+      const relRes = await listActiveInvestorRelationshipWorkspaces(profile.id);
 
       // Fetch upcoming meetings for each workspace
       for (const rel of relRes.rows) {
-        const mtgs = await db.execute({
-          sql: `SELECT id, meeting_type, scheduled_date, scheduled_time, status, location
-                FROM relationship_meetings
-                WHERE workspace_id = ? AND status = 'scheduled'
-                ORDER BY scheduled_date ASC LIMIT 3`,
-          args: [rel.id],
-        });
+        const mtgs = await listUpcomingRelationshipMeetings(rel.id);
         rel.next_meetings = mtgs.rows;
       }
       relationships = relRes.rows;
