@@ -1,6 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createKnowledgeNote,
+  createKnowledgeAttachment,
+  listKnowledgeNotes,
+  listKnowledgeAttachments,
+  archiveKnowledgeNote,
+  updateKnowledgeNote,
+  insertKnowledgeAttachment,
+  deleteKnowledgeNote,
+} from "@/models/forms";
 export const dynamic = "force-dynamic";
 
 // Body parser size limit for file uploads
@@ -25,11 +35,10 @@ export async function POST(req) {
     });
 
     // 1. Insert Metadata
-    const sql =
-      "INSERT INTO v2_knowledge_bank (title, description, url) VALUES (?, ?, ?) RETURNING id";
-    const res = await db.execute({
-      sql,
-      args: [title, description, "[]"],
+    const res = await createKnowledgeNote({
+      title,
+      description,
+      url: "[]",
     });
 
     // Extract ID safely for BigInt compatibility
@@ -42,10 +51,7 @@ export async function POST(req) {
     // 2. Insert File Associations
     if (files && Array.isArray(files) && files.length > 0) {
       for (const file of files) {
-        await db.execute({
-          sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-          args: [noteId, file.name, file.url],
-        });
+        await createKnowledgeAttachment(noteId, file.name, file.url);
         console.log("Attached File:", file.name);
       }
     }
@@ -70,10 +76,8 @@ export async function GET() {
     const capError = await requireAuthorization("knowledge", "view");
     if (capError) return capError;
     // Use BigInt safe query
-    const notesRes = await db.execute(
-      "SELECT * FROM v2_knowledge_bank ORDER BY created_at DESC"
-    );
-    const filesRes = await db.execute("SELECT * FROM v2_knowledge_attachments");
+    const notesRes = await listKnowledgeNotes();
+    const filesRes = await listKnowledgeAttachments();
 
     const notes = notesRes.rows;
     const files = filesRes.rows;
@@ -110,27 +114,18 @@ export async function PATCH(req) {
 
     if (action === "archive") {
       const { is_archived } = body;
-      await db.execute({
-        sql: "UPDATE v2_knowledge_bank SET is_archived = ? WHERE id = ?",
-        args: [is_archived ? 1 : 0, id],
-      });
+      await archiveKnowledgeNote(id, is_archived);
       return NextResponse.json({ success: true });
     }
 
     if (action === "edit") {
       const { title, description, files } = body;
-      await db.execute({
-        sql: "UPDATE v2_knowledge_bank SET title = ?, description = ? WHERE id = ?",
-        args: [title, description, id],
-      });
+      await updateKnowledgeNote(id, title, description);
 
       // Insert new File Associations if present
       if (files && Array.isArray(files) && files.length > 0) {
         for (const file of files) {
-          await db.execute({
-            sql: "INSERT INTO v2_knowledge_attachments (note_id, name, url) VALUES (?, ?, ?)",
-            args: [id, file.name, file.url],
-          });
+          await insertKnowledgeAttachment(id, file.name, file.url);
         }
       }
 
@@ -156,10 +151,7 @@ export async function DELETE(req) {
     const capError = await requireAuthorization("knowledge", "delete");
     if (capError) return capError;
     const { id } = await req.json();
-    await db.execute({
-      sql: "DELETE FROM v2_knowledge_bank WHERE id = ?",
-      args: [id],
-    });
+    await deleteKnowledgeNote(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Knowledge DELETE Error:", error);

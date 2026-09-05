@@ -1,6 +1,10 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  resolveFormResponseMatch,
+  getFormResponseById,
+  updateCampaignContactMatchStatus,
+} from "@/models/forms";
 
 // ── RESPONSES RETIRED ──────────────────────────────────────────────────────
 // Responses are hidden from the sidebar and their API is disabled (403).
@@ -23,20 +27,14 @@ export const POST = createHandler(
       );
 
     try {
-      await db.execute({
-        sql: "UPDATE form_responses SET cid = ?, match_status = 'resolved' WHERE id = ?",
-        args: [cid, response_id],
-      });
+      await resolveFormResponseMatch({ responseId: response_id, cid });
     } catch (e) {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
     }
 
     let responseData;
     try {
-      responseData = await db.execute({
-        sql: "SELECT answers, form_id FROM form_responses WHERE id = ?",
-        args: [response_id],
-      });
+      responseData = await getFormResponseById(response_id);
     } catch (e) {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
       responseData = { rows: [] };
@@ -53,10 +51,7 @@ export const POST = createHandler(
       let status = "responded";
       if (hasYes) status = "yes";
       else if (hasNo) status = "no";
-      await db.execute({
-        sql: `UPDATE campaign_contacts SET status = ? WHERE contact_cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
-        args: [status, cid, form_id],
-      });
+      await updateCampaignContactMatchStatus({ status, cid, formId: form_id });
     }
 
     return NextResponse.json({

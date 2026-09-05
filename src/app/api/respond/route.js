@@ -1,5 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import {
+  getLegacyFormGroupName,
+  findContactCidByEmail,
+  findContactCidByPhone,
+  findContactCidByName,
+  createPublicResponseContact,
+  createFormResponse,
+  updateCampaignContactResponseStatus,
+} from "@/models/forms";
 
 export async function POST(req) {
   try {
@@ -17,10 +26,7 @@ export async function POST(req) {
 
     if (!resolvedGroupName) {
       try {
-        const formRes = await db.execute({
-          sql: "SELECT group_name FROM forms WHERE form_id = ?",
-          args: [form_id]
-        });
+        const formRes = await getLegacyFormGroupName(form_id);
         if (formRes.rows.length > 0) {
           resolvedGroupName = formRes.rows[0].group_name;
         }
@@ -31,19 +37,13 @@ export async function POST(req) {
     }
 
     if (!resolvedCid && publicData) {
-      const emailMatch = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?)",
-        args: [publicData.email || '']
-      });
+      const emailMatch = await findContactCidByEmail(publicData.email || '');
       if (emailMatch.rows.length > 0) {
         resolvedCid = emailMatch.rows[0].cid;
         confidence_score = 100;
       }
       else if (publicData.phone) {
-        const phoneMatch = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE phone = ?",
-          args: [publicData.phone]
-        });
+        const phoneMatch = await findContactCidByPhone(publicData.phone);
         if (phoneMatch.rows.length > 0) {
           resolvedCid = phoneMatch.rows[0].cid;
           confidence_score = 95;
@@ -51,10 +51,7 @@ export async function POST(req) {
       }
 
       if (!resolvedCid && publicData.name) {
-        const nameMatch = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE LOWER(name) LIKE LOWER(?)",
-          args: [`%${publicData.name}%`]
-        });
+        const nameMatch = await findContactCidByName(publicData.name);
         if (nameMatch.rows.length > 0) {
           resolvedCid = nameMatch.rows[0].cid;
           confidence_score = 70;
@@ -63,9 +60,12 @@ export async function POST(req) {
 
       if (!resolvedCid && publicData.email) {
          resolvedCid = "USER_" + Math.random().toString(36).substring(2, 8).toUpperCase();
-         await db.execute({
-           sql: "INSERT INTO contacts (cid, name, email, phone, group_name) VALUES (?, ?, ?, ?, ?)",
-           args: [resolvedCid, publicData.name || 'Anonymous', publicData.email, publicData.phone || null, resolvedGroupName || null]
+         await createPublicResponseContact({
+           cid: resolvedCid,
+           name: publicData.name || 'Anonymous',
+           email: publicData.email,
+           phone: publicData.phone || null,
+           groupName: resolvedGroupName || null,
          });
          confidence_score = 100;
       }
@@ -74,9 +74,14 @@ export async function POST(req) {
     if (confidence_score < 90) match_status = 'flagged';
 
     try {
-      await db.execute({
-        sql: "INSERT INTO form_responses (form_id, cid, answers, confidence_score, match_status, group_name) VALUES (?, ?, ?, ?, ?, ?)",
-        args: [form_id, resolvedCid || null, JSON.stringify({...answers, ...publicData}), confidence_score, match_status, resolvedGroupName || null]
+      await createFormResponse({
+        formId: form_id,
+        cid: resolvedCid || null,
+        answers,
+        publicData,
+        confidenceScore: confidence_score,
+        matchStatus: match_status,
+        groupName: resolvedGroupName || null,
       });
     } catch (e) {
       // form_responses schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 13
@@ -91,11 +96,10 @@ export async function POST(req) {
       if (hasYes) status = 'yes';
       else if (hasNo) status = 'no';
 
-      await db.execute({
-        sql: `UPDATE campaign_contacts
-              SET status = ?
-              WHERE contact_cid = ? AND campaign_id IN (SELECT id FROM campaigns WHERE form_id = ?)`,
-        args: [status, resolvedCid, form_id]
+      await updateCampaignContactResponseStatus({
+        status,
+        cid: resolvedCid,
+        formId: form_id,
       });
     }
 

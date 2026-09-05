@@ -1,6 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  getPlatformCollectionById,
+  listPlatformCollections,
+  getPlatformCollectionParentById,
+  createPlatformCollection,
+  getPlatformCollectionForUpdate,
+  updatePlatformCollection,
+  archivePlatformCollection,
+  createPlatformCollectionAuditLog,
+} from "@/models/forms";
 
 /**
  * PLATFORM COLLECTIONS API — CRUD operations
@@ -24,10 +34,12 @@ function slugify(text) {
 }
 
 function logAudit(collectionId, action, actorId, actorName, details = {}) {
-  db.execute({
-    sql: `INSERT INTO platform_collection_audit (collection_id, action, actor_id, actor_name, details)
-          VALUES (?, ?, ?, ?, ?)`,
-    args: [collectionId, action, actorId || null, actorName || null, JSON.stringify(details)],
+  createPlatformCollectionAuditLog({
+    collection_id: collectionId,
+    action,
+    actor_id: actorId,
+    actor_name: actorName,
+    details,
   }).catch(() => {}); // fire-and-forget
 }
 
@@ -46,10 +58,7 @@ export async function GET(req) {
 
     // Single collection
     if (id) {
-      const result = await db.execute({
-        sql: "SELECT * FROM platform_collections WHERE id = ?",
-        args: [parseInt(id)],
-      });
+      const result = await getPlatformCollectionById(id);
       if (result.rows.length === 0) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
@@ -57,28 +66,7 @@ export async function GET(req) {
     }
 
     // List with filters
-    let sql = "SELECT * FROM platform_collections WHERE 1=1";
-    const args = [];
-
-    if (parentId) {
-      sql += " AND parent_id = ?";
-      args.push(parseInt(parentId));
-    }
-    if (status && status !== "all") {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-    if (ownerId) {
-      sql += " AND owner_id = ?";
-      args.push(ownerId);
-    }
-    if (search) {
-      sql += " AND (name ILIKE ? OR description ILIKE ?)";
-      args.push(`%${search}%`, `%${search}%`);
-    }
-    sql += " ORDER BY name ASC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listPlatformCollections({ parentId, status, ownerId, search });
 
     // Build tree: recursively nest children at any depth
     const all = result.rows;
@@ -118,33 +106,24 @@ export async function POST(req) {
 
     // Validate parent exists and prevent circular references
     if (parent_id) {
-      const parent = await db.execute({
-        sql: "SELECT id, parent_id FROM platform_collections WHERE id = ?",
-        args: [parseInt(parent_id)],
-      });
+      const parent = await getPlatformCollectionParentById(parent_id);
       if (parent.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Parent collection not found" }, { status: 400 });
       }
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO platform_collections
-            (name, slug, description, parent_id, owner_id, owner_name, visibility, tags, category, color, created_by, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
-            RETURNING *`,
-      args: [
-        name.trim(),
-        slug,
-        description || null,
-        parent_id ? parseInt(parent_id) : null,
-        owner_id || null,
-        owner_name || null,
-        visibility || "internal",
-        tags || [],
-        category || null,
-        color || "#FF6600",
-        session.cid || null,
-      ],
+    const result = await createPlatformCollection({
+      name,
+      slug,
+      description,
+      parent_id,
+      owner_id,
+      owner_name,
+      visibility,
+      tags,
+      category,
+      color,
+      created_by: session.cid,
     });
 
     logAudit(result.rows[0].id, "created", session.cid, owner_name || session.cid);
@@ -172,38 +151,37 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, error: "ID is required" }, { status: 400 });
     }
 
-    const existing = await db.execute({
-      sql: "SELECT * FROM platform_collections WHERE id = ?",
-      args: [parseInt(id)],
-    });
+    const existing = await getPlatformCollectionForUpdate(id);
     if (existing.rows.length === 0) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
-    // Build update fields
-    const fields = [];
-    const args = [];
-    const updatable = { name, description, parent_id, owner_id, owner_name, visibility, tags, category, status, color };
-
-    for (const [key, value] of Object.entries(updatable)) {
-      if (value !== undefined) {
-        fields.push(`${key} = ?`);
-        if (key === "parent_id") {
-          args.push(value ? parseInt(value) : null);
-        } else {
-          args.push(value);
-        }
-      }
-    }
-    fields.push("updated_at = NOW()");
-    args.push(parseInt(id));
-
-    const result = await db.execute({
-      sql: `UPDATE platform_collections SET ${fields.join(", ")} WHERE id = ? RETURNING *`,
-      args,
+    const result = await updatePlatformCollection({
+      id,
+      name,
+      description,
+      parent_id,
+      owner_id,
+      owner_name,
+      visibility,
+      tags,
+      category,
+      status,
+      color,
     });
 
-    logAudit(id, "updated", session.cid, owner_name || session.cid, { ...updatable });
+    logAudit(id, "updated", session.cid, owner_name || session.cid, {
+      name,
+      description,
+      parent_id,
+      owner_id,
+      owner_name,
+      visibility,
+      tags,
+      category,
+      status,
+      color,
+    });
 
     return NextResponse.json({ success: true, collection: result.rows[0] });
   } catch (error) {
@@ -229,10 +207,7 @@ export async function DELETE(req) {
     }
 
     // Soft delete: archive
-    const result = await db.execute({
-      sql: `UPDATE platform_collections SET status = 'archived', updated_at = NOW() WHERE id = ? RETURNING *`,
-      args: [parseInt(id)],
-    });
+    const result = await archivePlatformCollection(id);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
