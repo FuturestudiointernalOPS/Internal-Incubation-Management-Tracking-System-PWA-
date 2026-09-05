@@ -1,6 +1,13 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getProgramEvaluationConfig,
+  getProgramEvaluationConfigForValidation,
+  getSubmissionEvaluation,
+  updateProgramEvaluationConfig,
+  updateProgramGradingMode,
+  updateSubmissionEvaluation,
+} from "@/models/facilitation";
 
 /**
  * EVALUATION API — TRACK 3 CONFIGURABLE EVALUATION
@@ -22,10 +29,7 @@ export const GET = createHandler(
 
     // Return program evaluation config
     if (programId) {
-      const progRes = await db.execute({
-        sql: "SELECT grading_mode, evaluation_config FROM v2_programs WHERE id = ?",
-        args: [programId],
-      });
+      const progRes = await getProgramEvaluationConfig(programId);
 
       if (progRes.rows.length === 0) {
         return NextResponse.json(
@@ -54,10 +58,7 @@ export const GET = createHandler(
 
     // Return evaluation for a specific submission
     if (submissionId) {
-      const subRes = await db.execute({
-        sql: "SELECT s.evaluation_score, s.evaluation_data, d.title as deliverable_title FROM v2_submissions s LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id WHERE s.id = ?",
-        args: [submissionId],
-      });
+      const subRes = await getSubmissionEvaluation(submissionId);
 
       if (subRes.rows.length === 0) {
         return NextResponse.json(
@@ -108,10 +109,7 @@ export const PUT = createHandler(
     }
 
     // Fetch program's grading mode for validation
-    const progRes = await db.execute({
-      sql: "SELECT grading_mode, evaluation_config FROM v2_programs WHERE id = ?",
-      args: [program_id],
-    });
+    const progRes = await getProgramEvaluationConfigForValidation(program_id);
 
     if (progRes.rows.length === 0) {
       return NextResponse.json(
@@ -167,18 +165,7 @@ export const PUT = createHandler(
     }
 
     // Update submission with evaluation
-    await db.execute({
-      sql: `UPDATE v2_submissions SET
-              evaluation_score = ?,
-              evaluation_data = ?::jsonb,
-              updated_at = NOW()
-            WHERE id = ?`,
-      args: [
-        score !== undefined ? score : null,
-        evaluation_data ? JSON.stringify(evaluation_data) : "{}",
-        submission_id,
-      ],
-    });
+    await updateSubmissionEvaluation({ score, evaluation_data, submission_id });
 
     return NextResponse.json({ success: true });
   },
@@ -211,17 +198,11 @@ export const POST = createHandler(
     }
 
     if (grading_mode) {
-      await db.execute({
-        sql: "UPDATE v2_programs SET grading_mode = ?, updated_at = NOW() WHERE id = ?",
-        args: [grading_mode, program_id],
-      });
+      await updateProgramGradingMode(program_id, grading_mode);
     }
 
     if (evaluation_config) {
-      await db.execute({
-        sql: "UPDATE v2_programs SET evaluation_config = ?::jsonb, updated_at = NOW() WHERE id = ?",
-        args: [JSON.stringify(evaluation_config), program_id],
-      });
+      await updateProgramEvaluationConfig(program_id, evaluation_config);
     }
 
     return NextResponse.json({ success: true });

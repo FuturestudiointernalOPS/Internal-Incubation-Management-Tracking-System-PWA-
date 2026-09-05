@@ -1,6 +1,6 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { runPhase5MigrationStatement } from "@/models/platformConfig";
 import fs from "fs";
 import path from "path";
 
@@ -36,7 +36,7 @@ export async function POST(req) {
 
     for (const stmt of statements) {
       try {
-        const result = await db.execute({ sql: stmt, args: [] });
+        const result = await runPhase5MigrationStatement(stmt);
         const inserted = result.rowsAffected || 0;
         migratedCount += inserted;
 

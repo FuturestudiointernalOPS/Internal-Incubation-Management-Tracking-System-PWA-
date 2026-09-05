@@ -6,8 +6,13 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import {
+  getV2FulfillmentParticipantsByProgram,
+  getV2FulfillmentRequirementsByProgramWeek,
+  getV2SubmissionsByDocumentIds,
+} from "@/models/teacher";
 
 export async function GET(req) {
   try {
@@ -26,27 +31,20 @@ export async function GET(req) {
     }
 
     // Fetch all participants for this program
-    const participants = await db.execute({
-      sql: "SELECT id, name, cid, email, phone FROM v2_participants WHERE program_id = ?",
-      args: [program_id],
-    });
+    const participants = await getV2FulfillmentParticipantsByProgram(program_id);
 
     // Fetch all requirements for this week
-    const requirements = await db.execute({
-      sql: "SELECT id, title FROM v2_document_requirements WHERE program_id = ? AND week_number = ?",
-      args: [program_id, week_number],
-    });
+    const requirements = await getV2FulfillmentRequirementsByProgramWeek(
+      program_id,
+      week_number,
+    );
 
     const reqIds = requirements.rows.map((r) => r.id);
 
     // Fetch submissions for these requirements
     let submissions = [];
     if (reqIds.length > 0) {
-      const placeholders = reqIds.map(() => "?").join(",");
-      const subRes = await db.execute({
-        sql: `SELECT * FROM v2_submissions WHERE document_id IN (${placeholders})`,
-        args: reqIds.map(String),
-      });
+      const subRes = await getV2SubmissionsByDocumentIds(reqIds);
       submissions = subRes.rows;
     }
 

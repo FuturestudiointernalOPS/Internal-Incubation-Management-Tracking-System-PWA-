@@ -1,7 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import bcrypt from "bcryptjs";
+import {
+  getContactProfileFields,
+  getContactSecondaryFields,
+  getContactLoginActivity,
+  updateContactCoreFields,
+  updateContactSecondaryFields,
+} from "@/models/workspace";
 
 /**
  * PROFILE COMPLETION API
@@ -21,10 +28,7 @@ export async function GET() {
     }
 
     await initDb();
-    const res = await db.execute({
-      sql: "SELECT name, email, phone, address, language, role, group_name, image, status, created_at FROM contacts WHERE cid = ?",
-      args: [session.cid],
-    });
+    const res = await getContactProfileFields(session.cid);
 
     if (res.rows.length === 0) {
       return NextResponse.json(
@@ -44,10 +48,7 @@ export async function GET() {
     // last_login_at / login_count.
     let extras = {};
     try {
-      const ext = await db.execute({
-        sql: "SELECT alternative_email, alternative_phone, country, country_code FROM contacts WHERE cid = ?",
-        args: [session.cid],
-      });
+      const ext = await getContactSecondaryFields(session.cid);
       extras = ext.rows[0] || {};
     } catch (_) {
       extras = {};
@@ -55,10 +56,7 @@ export async function GET() {
 
     let loginActivity = {};
     try {
-      const ext = await db.execute({
-        sql: "SELECT last_login_at, login_count FROM contacts WHERE cid = ?",
-        args: [session.cid],
-      });
+      const ext = await getContactLoginActivity(session.cid);
       loginActivity = ext.rows[0] || {};
     } catch (_) {
       loginActivity = {};
@@ -204,20 +202,12 @@ export async function PUT(req) {
     }
 
     if (updates.length > 0) {
-      args.push(session.cid);
-      await db.execute({
-        sql: `UPDATE contacts SET ${updates.join(", ")} WHERE cid = ?`,
-        args,
-      });
+      await updateContactCoreFields(session.cid, updates, args);
     }
 
     if (extUpdates.length > 0) {
       try {
-        extArgs.push(session.cid);
-        await db.execute({
-          sql: `UPDATE contacts SET ${extUpdates.join(", ")} WHERE cid = ?`,
-          args: extArgs,
-        });
+        await updateContactSecondaryFields(session.cid, extUpdates, extArgs);
       } catch (_) {
         // Column may not exist yet in this environment. The core fields above
         // have already been persisted, so this is non-fatal.

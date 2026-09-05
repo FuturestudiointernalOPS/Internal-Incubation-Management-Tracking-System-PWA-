@@ -1,7 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
+import {
+  getParticipantProgramAssignments,
+  getProgramById,
+  getContactEmailByCid,
+  checkFacilitatorConflict,
+  insertParticipantProgram,
+  insertAssignmentAudit,
+  insertEnrollmentTimeline,
+  deleteParticipantProgram,
+  insertRemovalAudit,
+  insertWithdrawalTimeline,
+} from "@/models/participantPortal";
 export const dynamic = "force-dynamic";
 
 /**
@@ -28,27 +40,7 @@ export async function GET(req) {
     const participantId = searchParams.get("participant_id");
     const programId = searchParams.get("program_id");
 
-    let sql = `
-      SELECT pp.*, p.name AS program_name, p.status AS program_status
-      FROM participant_programs pp
-      LEFT JOIN v2_programs p ON pp.program_id = p.id
-      WHERE 1=1
-    `;
-    const args = [];
-
-    if (participantId) {
-      sql += " AND pp.participant_id = ?";
-      args.push(participantId);
-    }
-
-    if (programId) {
-      sql += " AND pp.program_id = ?";
-      args.push(programId);
-    }
-
-    sql += " ORDER BY pp.assigned_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await getParticipantProgramAssignments(participantId, programId);
     return NextResponse.json({ success: true, assignments: result.rows });
   } catch (error) {
     console.error("GET participant-programs error:", error);
@@ -90,10 +82,7 @@ export async function POST(req) {
 
     // Verify all programs exist before assigning
     for (const pid of program_ids) {
-      const check = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE id = ?",
-        args: [pid],
-      });
+      const check = await getProgramById(pid);
       if (check.rows.length === 0) {
         return NextResponse.json(
           {
@@ -110,52 +99,30 @@ export async function POST(req) {
 
     let participantEmail = "";
     try {
-      const pc = await db.execute({ sql: "SELECT email FROM contacts WHERE cid = ? LIMIT 1", args: [participant_id] });
+      const pc = await getContactEmailByCid(participant_id);
       participantEmail = pc.rows[0]?.email || "";
     } catch (_) {}
 
     for (const program_id of program_ids) {
       try {
-        const facConflict = await db.execute({
-          sql: `SELECT 1 FROM v2_program_staff
-                WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator'
-                  AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?)))
-                LIMIT 1`,
-          args: [String(program_id), participant_id, participantEmail],
-        });
+        const facConflict = await checkFacilitatorConflict(
+          program_id,
+          participant_id,
+          participantEmail,
+        );
         if (facConflict.rows.length > 0) {
           errors.push({ program_id, error: "errors.roleConflictFacilitatorParticipant" });
           continue;
         }
 
-        await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id)
-                VALUES (?, ?)
-                ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [
-            participant_id,
-            program_id,
-          ],
-        });
+        await insertParticipantProgram(participant_id, program_id);
 
         // Audit log
-        await db.execute({
-          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-                VALUES (?, ?, 'assigned', ?)`,
-          args: [
-            participant_id,
-            program_id,
-            assigned_by || null,
-          ],
-        });
+        await insertAssignmentAudit(participant_id, program_id, assigned_by || null);
 
         // Timeline event
         try {
-          await db.execute({
-            sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-                  VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, 'system', '{}'::jsonb)`,
-            args: [participant_id, program_id],
-          });
+          await insertEnrollmentTimeline(participant_id, program_id);
         } catch (_) {}
 
         results.push(program_id);
@@ -217,25 +184,14 @@ export async function DELETE(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: "DELETE FROM participant_programs WHERE participant_id = ? AND program_id = ?",
-      args: [participant_id, program_id],
-    });
+    const result = await deleteParticipantProgram(participant_id, program_id);
 
     // Audit log
-    await db.execute({
-      sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-            VALUES (?, ?, 'removed', ?)`,
-      args: [participant_id, program_id, body.assigned_by || null],
-    });
+    await insertRemovalAudit(participant_id, program_id, body.assigned_by || null);
 
     // Timeline event
     try {
-      await db.execute({
-        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-              VALUES (?, 'participant_withdrawn', 'Withdrawn from program', 'programs', ?, 'system', '{}'::jsonb)`,
-        args: [participant_id, program_id],
-      });
+      await insertWithdrawalTimeline(participant_id, program_id);
     } catch (_) {}
 
     return NextResponse.json({

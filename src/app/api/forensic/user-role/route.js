@@ -1,6 +1,6 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { getContactForRoleResolution } from "@/models/platformConfig";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
   const { searchParams } = new URL(req.url);
@@ -11,10 +11,7 @@ export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
       { status: 400 },
     );
 
-  const contact = await db.execute({
-    sql: "SELECT cid, name, email, role, group_name, status FROM contacts WHERE email = ? LIMIT 1",
-    args: [email.toLowerCase().trim()],
-  });
+  const contact = await getContactForRoleResolution(email);
 
   const resolveRole = (user) => {
     if (user.role === "super_admin" || user.id === "sa") return "super_admin";

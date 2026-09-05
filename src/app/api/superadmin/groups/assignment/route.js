@@ -1,7 +1,13 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import {
+  getV2ProgramById,
+  updateContactsProgramAssignment,
+  getAssignmentContactsByGroupName,
+  upsertV2ParticipantActiveWithFallback,
+  insertParticipantProgramMembership,
+} from "@/models/groups";
 
 export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   const { group_name, program_id, program_name } = await req.json();
@@ -14,10 +20,7 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
   }
 
   // Verify the program exists in v2_programs before assigning
-  const progCheck = await db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
-    args: [program_id],
-  });
+  const progCheck = await getV2ProgramById(program_id);
   if (progCheck.rows.length === 0) {
     return NextResponse.json(
       {
@@ -30,32 +33,18 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
 
   // Update all contacts in the group with the program_id (case-insensitive:
   // group names are normalized to UPPERCASE in contacts).
-  await db.execute({
-    sql: "UPDATE contacts SET program_id = ?, program_name = ? WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
-    args: [program_id, program_name || null, group_name],
-  });
+  await updateContactsProgramAssignment(program_id, program_name, group_name);
 
   // Also update v2_participants if they exist for these contacts
-  const contactsRes = await db.execute({
-    sql: "SELECT cid, email, name, phone FROM contacts WHERE UPPER(TRIM(group_name)) = UPPER(TRIM(?))",
-    args: [group_name],
-  });
+  const contactsRes = await getAssignmentContactsByGroupName(group_name);
 
   for (const contact of contactsRes.rows) {
-    await db
-      .execute({
-        sql: `INSERT INTO v2_participants (program_id, name, email, phone, status)
-            VALUES (?, ?, ?, ?, 'Active')
-            ON CONFLICT(email, program_id) DO UPDATE SET status = 'Active'`,
-        args: [program_id, contact.name, contact.email, contact.phone],
-      })
-      .catch(() => {
-        // Fallback if unique constraint (email, program_id) is not there
-        db.execute({
-          sql: "UPDATE v2_participants SET status = 'Active' WHERE email = ? AND program_id = ?",
-          args: [contact.email, program_id],
-        });
-      });
+    await upsertV2ParticipantActiveWithFallback(
+      program_id,
+      contact.name,
+      contact.email,
+      contact.phone,
+    );
 
     // Sync participant_programs junction table
     if (contact.cid) {
@@ -67,12 +56,7 @@ export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
           contact.email || null,
         );
         if (conflictError) continue;
-        await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id)
-                VALUES (?, ?)
-                ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [contact.cid, program_id],
-        });
+        await insertParticipantProgramMembership(contact.cid, program_id);
       } catch (_) {
         // participant_programs table may not exist
       }

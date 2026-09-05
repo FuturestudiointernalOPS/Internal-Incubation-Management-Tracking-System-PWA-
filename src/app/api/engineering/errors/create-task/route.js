@@ -1,7 +1,11 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createDevelopmentTaskFromErrorLog,
+  getErrorLogById,
+  linkErrorLogToTask,
+} from "@/models/engineering";
 
 /**
  * POST /api/engineering/errors/create-task
@@ -27,10 +31,7 @@ export async function POST(request) {
     await initDb();
 
     // Verify the error log exists
-    const errorCheck = await db.execute({
-      sql: "SELECT * FROM error_logs WHERE id = ?",
-      args: [error_id],
-    });
+    const errorCheck = await getErrorLogById(error_id);
 
     if (errorCheck.rows.length === 0) {
       return NextResponse.json(
@@ -45,32 +46,23 @@ export async function POST(request) {
     const weekNumber = getWeekNumber(new Date());
     const year = new Date().getFullYear();
 
-    const result = await db.execute({
-      sql: `INSERT INTO tasks (user_id, user_name, title, description, status, category, priority, assigned_to, end_date, created_week, created_year, project_id)
-            VALUES (?, ?, ?, ?, ?, 'development', ?, ?, ?, ?, ?, ?)`,
-      args: [
-        errorLog.user_id || "system",
-        "Engineering Ops",
-        title,
-        description ||
-          `Auto-created from Error Log #${error_id}: ${errorLog.message}`,
-        "pending",
-        priority || "medium",
-        assignee || null,
-        due_date || null,
-        weekNumber,
-        year,
-        null,
-      ],
+    const result = await createDevelopmentTaskFromErrorLog({
+      errorLogUserId: errorLog.user_id,
+      errorLogMessage: errorLog.message,
+      error_id,
+      title,
+      description,
+      priority,
+      assignee,
+      due_date,
+      weekNumber,
+      year,
     });
 
     const taskId = result.rows[0]?.id ?? result.lastInsertRowid;
 
     // Link the task back to the error log
-    await db.execute({
-      sql: "UPDATE error_logs SET task_id = ? WHERE id = ?",
-      args: [taskId, error_id],
-    });
+    await linkErrorLogToTask(taskId, error_id);
 
     return NextResponse.json({
       success: true,

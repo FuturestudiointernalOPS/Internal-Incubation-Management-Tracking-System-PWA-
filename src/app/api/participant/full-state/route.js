@@ -1,6 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  getFullStateContactCidByEmail,
+  getFullStateProgramByName,
+  getFullStateSubmissionsByParticipant,
+  getFullStateSessionsByProgram,
+  getFullStateNotificationsByRecipient,
+  getFullStateKpisByProgram,
+  getFullStateDocumentsByProgram,
+  getFullStateFollowupsByProgram,
+  getFullStateTeamByGroupName,
+  getFullStateFamilyByName,
+} from "@/models/participantPortal";
 
 export async function GET(req) {
   try {
@@ -34,10 +46,7 @@ export async function GET(req) {
       });
 
     // 1. Get Participant CID
-    const userRes = await db.execute({
-      sql: "SELECT cid FROM contacts WHERE email = ?",
-      args: [email],
-    });
+    const userRes = await getFullStateContactCidByEmail(email);
     const cid = userRes.rows.length > 0 ? userRes.rows[0].cid : email;
 
     // Parallel Cluster Fetch
@@ -52,42 +61,15 @@ export async function GET(req) {
       teamRes,
       familyRes,
     ] = await Promise.all([
-      db.execute({
-        sql: "SELECT * FROM v2_programs WHERE name = ?",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ?",
-        args: [cid],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_sessions WHERE program_id = ?",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? ORDER BY created_at DESC",
-        args: [email],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_document_requirements WHERE program_id = ?",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT * FROM v2_followups WHERE program_id = ? ORDER BY created_at DESC LIMIT 3",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT t.* FROM v2_teams t JOIN contacts c ON c.cid = t.handler_id WHERE UPPER(TRIM(c.group_name)) = UPPER(TRIM(?)) LIMIT 1",
-        args: [groupName],
-      }),
-      db.execute({
-        sql: "SELECT * FROM families WHERE name = ?",
-        args: [groupName],
-      }).catch(() => ({ rows: [] })),
+      getFullStateProgramByName(groupName),
+      getFullStateSubmissionsByParticipant(cid),
+      getFullStateSessionsByProgram(groupName),
+      getFullStateNotificationsByRecipient(email),
+      getFullStateKpisByProgram(groupName),
+      getFullStateDocumentsByProgram(groupName),
+      getFullStateFollowupsByProgram(groupName),
+      getFullStateTeamByGroupName(groupName),
+      getFullStateFamilyByName(groupName).catch(() => ({ rows: [] })),
     ]);
 
     // Aggregate Grading

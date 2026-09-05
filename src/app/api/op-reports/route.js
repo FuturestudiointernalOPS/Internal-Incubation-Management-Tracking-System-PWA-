@@ -1,7 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getOpReportId,
+  insertOpReport,
+  listOpReports,
+  updateOpReport,
+} from "@/models/adminOps";
 
 /**
  * OPERATIONAL REPORTS API
@@ -37,9 +43,6 @@ export async function GET(req) {
     const context_type = searchParams.get("context_type");
     const context_id = searchParams.get("context_id");
 
-    let sql = "SELECT * FROM v2_op_reports WHERE 1=1";
-    const args = [];
-
     // SECURITY (Phase 0): Non-SA users can only view their own reports.
     // SA can view all reports with optional filters.
     if (session.role !== "super_admin") {
@@ -49,52 +52,19 @@ export async function GET(req) {
           { status: 403 },
         );
       }
-      sql += " AND user_id = ?";
-      args.push(String(session.cid));
-    } else {
-      // Super admin overview defaults to main workspace unless specified
-      if (!user_id && !workspace) {
-        sql += " AND workspace = 'main'";
-      } else if (workspace) {
-        sql += " AND workspace = ?";
-        args.push(workspace);
-      }
-
-      // SA can filter by specific user
-      if (user_id) {
-        sql += " AND user_id = ?";
-        args.push(user_id);
-      }
     }
 
-    if (report_type) {
-      sql += " AND report_type = ?";
-      args.push(report_type);
-    }
-
-    if (week_number) {
-      sql += " AND week_number = ?";
-      args.push(parseInt(week_number));
-    }
-
-    if (year) {
-      sql += " AND year = ?";
-      args.push(parseInt(year));
-    }
-
-    if (context_type) {
-      sql += " AND context_type = ?";
-      args.push(context_type);
-    }
-
-    if (context_id) {
-      sql += " AND context_id = ?";
-      args.push(context_id);
-    }
-
-    sql += " ORDER BY year DESC, week_number DESC, created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listOpReports({
+      isSuperAdmin: session.role === "super_admin",
+      sessionCid: session.cid,
+      user_id,
+      workspace,
+      report_type,
+      week_number,
+      year,
+      context_type,
+      context_id,
+    });
     return NextResponse.json({ success: true, reports: result.rows });
   } catch (error) {
     console.error("GET op-reports error:", error);
@@ -157,10 +127,7 @@ export async function POST(req) {
     }
 
     // Check if report already exists (upsert)
-    const existing = await db.execute({
-      sql: "SELECT id FROM v2_op_reports WHERE user_id = ? AND week_number = ? AND year = ? AND report_type = ?",
-      args: [user_id, week_number, year, report_type],
-    });
+    const existing = await getOpReportId(user_id, week_number, year, report_type);
 
     if (existing.rows.length > 0) {
       const reportId = existing.rows[0].id;
@@ -238,10 +205,7 @@ export async function POST(req) {
       updateArgs.push(reportId);
 
       if (updateFields.length > 1) {
-        await db.execute({
-          sql: `UPDATE v2_op_reports SET ${updateFields.join(", ")} WHERE id = ?`,
-          args: updateArgs,
-        });
+        await updateOpReport(updateFields, updateArgs);
       }
 
       return NextResponse.json({
@@ -254,53 +218,40 @@ export async function POST(req) {
     // Insert new report
     // Determine workspace based on user role
     const workspace = user_role === "intern" ? "interns" : "main";
-    const result = await db.execute({
-      sql: `INSERT INTO v2_op_reports
-        (user_id, user_name, user_role, workspace, report_type, week_number, year, status,
-         weekly_priorities, key_deliverables, risks_blockers, additional_notes,
-         top_priorities, expected_deliverables, projects_tasks,
-         has_dependencies, dependency_note, has_blockers, blocker_description,
-         needs_support, support_note,
-         completed_work, unfinished_tasks, challenges, wins, carryover_items, retro_notes,
-         context_type, context_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?,
-         ?, ?, ?, ?,
-         ?, ?, ?,
-         ?, ?, ?, ?,
-         ?, ?,
-         ?, ?, ?, ?, ?, ?,
-         ?, ?) RETURNING id`,
-      args: [
-        user_id,
-        user_name || "",
-        user_role || "staff",
-        workspace,
-        report_type,
-        week_number,
-        year,
-        status || "draft",
-        weekly_priorities || null,
-        key_deliverables || null,
-        risks_blockers || null,
-        additional_notes || null,
-        top_priorities || null,
-        expected_deliverables || null,
-        projects_tasks || null,
-        has_dependencies != null ? (has_dependencies ? 1 : 0) : null,
-        dependency_note || null,
-        has_blockers != null ? (has_blockers ? 1 : 0) : null,
-        blocker_description || null,
-        needs_support != null ? (needs_support ? 1 : 0) : null,
-        support_note || null,
-        completed_work || null,
-        unfinished_tasks || null,
-        challenges || null,
-        wins || null,
-        carryover_items || null,
-        retro_notes || null,
-        context_type || "staff",
-        context_id || null,
-      ],
+    const result = await insertOpReport({
+      user_id,
+      user_name,
+      user_role,
+      workspace,
+      report_type,
+      week_number,
+      year,
+      status,
+      // Stand-up fields
+      weekly_priorities,
+      key_deliverables,
+      risks_blockers,
+      additional_notes,
+      // New structured stand-up fields
+      top_priorities,
+      expected_deliverables,
+      projects_tasks,
+      has_dependencies,
+      dependency_note,
+      has_blockers,
+      blocker_description,
+      needs_support,
+      support_note,
+      // Retro fields
+      completed_work,
+      unfinished_tasks,
+      challenges,
+      wins,
+      carryover_items,
+      retro_notes,
+      // Context fields
+      context_type,
+      context_id,
     });
 
     return NextResponse.json({

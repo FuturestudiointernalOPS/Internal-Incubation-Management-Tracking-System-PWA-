@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getUserForRejection,
+  insertRejectionAuditLog,
+  markRejectionUserNotificationsRead,
+  rejectContact,
+} from "@/models/adminOps";
 
 /**
  * REJECT USER ENDPOINT
@@ -25,10 +31,7 @@ export async function POST(req) {
       );
     }
 
-    const userResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [user_cid],
-    });
+    const userResult = await getUserForRejection(user_cid);
 
     if (userResult.rows.length === 0) {
       return NextResponse.json(
@@ -39,21 +42,15 @@ export async function POST(req) {
 
     const user = userResult.rows[0];
 
-    await db.execute({
-      sql: "UPDATE contacts SET status = 'rejected' WHERE cid = ?",
-      args: [user_cid],
-    });
+    await rejectContact(user_cid);
 
     // Log to audit_log
     try {
-      await db.execute({
-        sql: `INSERT INTO audit_log (entity_type, entity_id, user_id, user_name, action, details)
-              VALUES ('user', 0, ?, ?, 'rejected', ?)`,
-        args: [
-          admin_name || "super_admin",
-          user_cid,
-          `User '${user.name}' (${user.email}) was rejected.`,
-        ],
+      await insertRejectionAuditLog({
+        adminName: admin_name,
+        userCid: user_cid,
+        userName: user.name,
+        userEmail: user.email,
       });
     } catch (e) {
       console.error("Audit log error (non-critical):", e.message);
@@ -61,14 +58,7 @@ export async function POST(req) {
 
     // Clear notifications
     try {
-      await db.execute({
-        sql: `UPDATE v2_notifications
-              SET is_read = 1
-              WHERE recipient_id = 'sa'
-              AND message ILIKE ?
-              AND is_read = 0`,
-        args: [`%${user.name}%`],
-      });
+      await markRejectionUserNotificationsRead(user.name);
     } catch (e) {
       console.error("Notification clear error:", e.message);
     }

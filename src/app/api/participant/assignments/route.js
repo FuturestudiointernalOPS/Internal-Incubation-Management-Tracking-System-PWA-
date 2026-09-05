@@ -1,7 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
+import {
+  ensureSubmissionParticipantProgramIndex,
+  ensureSubmissionDeliverableIndex,
+  getAssignmentsContactByCid,
+  getAssignmentsProgramById,
+  getAssignmentsDeliverablesByProgramId,
+  getAssignmentsSubmissionsByProgram,
+  getExistingSubmission,
+  archiveSubmissionVersion,
+  updateSubmissionVersion,
+  insertSubmission,
+} from "@/models/participantPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +27,8 @@ export async function GET(req) {
   try {
     await initDb();
     // Ensure index exists for performance
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_participant_program ON v2_submissions(participant_id, program_id)"); } catch (_) {}
-    try { await db.execute("CREATE INDEX IF NOT EXISTS idx_v2_submissions_deliverable ON v2_submissions(deliverable_id)"); } catch (_) {}
+    try { await ensureSubmissionParticipantProgramIndex(); } catch (_) {}
+    try { await ensureSubmissionDeliverableIndex(); } catch (_) {}
     const authError = await requireAuth();
     if (authError) return authError;
 
@@ -30,10 +42,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const filterProgramId = searchParams.get("program_id");
 
-    const contactRes = await db.execute({
-      sql: "SELECT cid, email, program_id, group_name, v2_team_id, team_id FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const contactRes = await getAssignmentsContactByCid(cid);
     if (contactRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
@@ -51,18 +60,9 @@ export async function GET(req) {
       if (filterProgramId && pid !== filterProgramId) continue;
 
       const [progRes, delRes, subRes] = await Promise.all([
-        db.execute({
-          sql: "SELECT id, name FROM v2_programs WHERE id = ?",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id = ? ORDER BY created_at ASC",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
+        getAssignmentsProgramById(pid),
+        getAssignmentsDeliverablesByProgramId(pid),
+        getAssignmentsSubmissionsByProgram(cid, pid),
       ]);
 
         const program = progRes.rows[0];
@@ -164,28 +164,22 @@ export async function POST(req) {
     }
 
     // Check for existing submission (for version history)
-    const existing = await db.execute({
-      sql: "SELECT id, file_url, version FROM v2_submissions WHERE participant_id = ? AND deliverable_id = ?",
-      args: [cid, deliverable_id],
-    });
+    const existing = await getExistingSubmission(cid, deliverable_id);
 
     if (existing.rows.length > 0) {
       const prev = existing.rows[0];
       // Archive previous version
-      await db.execute({
-        sql: "INSERT INTO v2_submission_versions (submission_id, participant_id, deliverable_id, file_url, version) VALUES (?, ?, ?, ?, ?)",
-        args: [prev.id, cid, deliverable_id, prev.file_url, prev.version || 1],
-      });
+      await archiveSubmissionVersion(
+        prev.id,
+        cid,
+        deliverable_id,
+        prev.file_url,
+        prev.version || 1,
+      );
       // Update with new version
-      await db.execute({
-        sql: "UPDATE v2_submissions SET file_url = ?, status = 'pending', version = COALESCE(version, 1) + 1, updated_at = NOW() WHERE id = ?",
-        args: [file_url || null, prev.id],
-      });
+      await updateSubmissionVersion(file_url || null, prev.id);
     } else {
-      await db.execute({
-        sql: "INSERT INTO v2_submissions (participant_id, program_id, deliverable_id, file_url, status, version) VALUES (?, ?, ?, ?, 'pending', 1)",
-        args: [cid, program_id, deliverable_id, file_url || null],
-      });
+      await insertSubmission(cid, program_id, deliverable_id, file_url || null);
     }
 
     return NextResponse.json({ success: true });

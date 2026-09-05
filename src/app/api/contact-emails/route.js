@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
+import { findContactByCid } from "@/models/workspace";
 
 /**
  * /api/contact-emails — Alternative email management (Phase 2)
@@ -62,7 +63,7 @@ export async function POST(req) {
     if (!email) return NextResponse.json({ success: false, error: "email is required." }, { status: 400 });
 
     // Target contact must exist.
-    const contact = await db.execute({ sql: "SELECT cid FROM contacts WHERE cid = ?", args: [targetCid] });
+    const contact = await findContactByCid(targetCid);
     if (contact.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Contact not found." }, { status: 404 });
     }

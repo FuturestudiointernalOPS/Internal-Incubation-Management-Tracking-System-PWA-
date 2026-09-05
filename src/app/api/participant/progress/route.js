@@ -1,7 +1,21 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
+import {
+  getProgressContactByCid,
+  getProgressProgramById,
+  getProgressSessionsByProgramId,
+  getProgressDeliverablesByProgramId,
+  getProgressSubmissionsByProgram,
+  getProgressAttendanceByProgram,
+  getProgressKpisByProgramId,
+  getProgressStandupsByUser,
+  getProgressCheckinsByParticipantProgram,
+  getProgressRetrosByUser,
+  getProgressReflectionsByUser,
+  countProgressAttendanceByProgramId,
+} from "@/models/participantPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +36,7 @@ export async function GET(req) {
     const cid = session.cid;
     const email = session.email;
 
-    const contactRes = await db.execute({
-      sql: "SELECT cid, name, email, program_id, group_name FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const contactRes = await getProgressContactByCid(cid);
     if (contactRes.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Participant not found" },
@@ -65,46 +76,16 @@ export async function GET(req) {
         retroRes,
         reflectRes,
       ] = await Promise.all([
-        db.execute({
-          sql: "SELECT * FROM v2_programs WHERE id::text = ?",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
-          args: [pid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
-        db.execute({
-          sql: "SELECT a.* FROM v2_attendance a WHERE a.program_id::text = ? AND a.participant_id::text = ?",
-          args: [pid, cid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
-          args: [pid],
-        }),
-        db.execute({
-          				sql: "SELECT * FROM v2_standups WHERE user_id = ? ORDER BY created_at DESC",
-          				args: [cid],
-        }),
-        db.execute({
-          sql: "SELECT * FROM v2_checkins WHERE participant_id = ? AND program_id = ? ORDER BY created_at DESC",
-          args: [cid, pid],
-        }),
-        db.execute({
-          				sql: "SELECT * FROM v2_retros WHERE user_id = ? ORDER BY created_at DESC",
-          				args: [cid],
-        }),
-        db.execute({
-          				sql: "SELECT * FROM v2_reflections WHERE user_id = ? ORDER BY created_at DESC",
-          				args: [cid],
-        }),
+        getProgressProgramById(pid),
+        getProgressSessionsByProgramId(pid),
+        getProgressDeliverablesByProgramId(pid),
+        getProgressSubmissionsByProgram(cid, pid),
+        getProgressAttendanceByProgram(pid, cid),
+        getProgressKpisByProgramId(pid),
+        getProgressStandupsByUser(cid),
+        getProgressCheckinsByParticipantProgram(cid, pid),
+        getProgressRetrosByUser(cid),
+        getProgressReflectionsByUser(cid),
       ]);
 
       const program = progRes.rows[0];
@@ -200,10 +181,7 @@ export async function GET(req) {
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalSessions = unlockedSessions.length || 1;
       // A program "tracks" attendance only when attendance records actually exist.
-      const attMetaRes = await db.execute({
-        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
-        args: [pid],
-      });
+      const attMetaRes = await countProgressAttendanceByProgramId(pid);
       const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       const attendanceRate = Math.round(
         (attendedSessions / totalSessions) * 100,

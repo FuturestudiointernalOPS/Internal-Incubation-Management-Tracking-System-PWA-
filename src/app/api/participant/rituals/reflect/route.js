@@ -1,4 +1,4 @@
-import db from "@/lib/db";
+import { getReflectionsByUserAndWeek, createReflection } from "@/models/participantPortal";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 
@@ -17,15 +17,7 @@ export const GET = createHandler(async (req) => {
   	const { searchParams } = new URL(req.url);
   	const weekNum = searchParams.get("week_number");
 
-  	let sql = "SELECT * FROM v2_reflections WHERE user_id = ?";
-  	const args = [cid];
-  	if (weekNum) {
-  		sql += " AND week_number = ?";
-  		args.push(parseInt(weekNum));
-  	}
-  	sql += " ORDER BY created_at DESC";
-
-  	const res = await db.execute({ sql, args });
+  	const res = await getReflectionsByUserAndWeek(cid, weekNum);
   	return NextResponse.json({ success: true, reflections: res.rows });
 });
 
@@ -51,9 +43,6 @@ export const POST = createHandler(async (req) => {
   		.filter(Boolean)
   		.join("\n");
 
-  	await db.execute({
-  		sql: "INSERT INTO v2_reflections (user_id, user_name, content, week_number, year) VALUES (?, ?, ?, ?, ?)",
-  		args: [cid, userName, content || "", week_number || 1, currentYear],
-  	});
+  	await createReflection(cid, userName, content || "", week_number || 1, currentYear);
   	return NextResponse.json({ success: true });
 });

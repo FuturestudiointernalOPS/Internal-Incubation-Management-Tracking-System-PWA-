@@ -1,6 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  getBlockerAggregatesForUsers,
+  getTaskAggregatesForUsers,
+  getTaskProjectUserOptions,
+  getUserIndependentTaskCounts,
+  getUserProjectCounts,
+  getUserReportCompliance,
+} from "@/models/adminOps";
 
 export async function GET(req) {
   try {
@@ -10,11 +18,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const filterUserId = searchParams.get("user_id");
 
-    const usersRes = await db.execute({
-      sql: `SELECT DISTINCT u.user_id AS id, COALESCE(c.name, u.user_name) AS name
-            FROM (SELECT user_id, user_name FROM tasks UNION SELECT owner_id, name FROM v2_projects WHERE owner_id IS NOT NULL) u
-            LEFT JOIN contacts c ON u.user_id = c.cid OR u.user_id = c.id ORDER BY name`,
-    });
+    const usersRes = await getTaskProjectUserOptions();
 
     let userRows = usersRes.rows;
     if (filterUserId) userRows = userRows.filter((u) => u.id === filterUserId);
@@ -29,56 +33,12 @@ export async function GET(req) {
     const reportMap = {};
 
     if (ids.length > 0) {
-      const idsPh = ids.map(() => "?").join(",");
-
       const [tasksRes, blockersRes, projRes, indepRes, reportsRes] = await Promise.all([
-        db.execute({
-          sql: `SELECT user_id::text AS uid,
-                COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
-                COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
-                COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
-                COUNT(*) FILTER (WHERE status = 'carried_over')::int AS carried_over,
-                COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
-                FROM tasks WHERE user_id::text IN (${idsPh})
-                GROUP BY user_id::text`,
-          args: ids,
-        }),
-        db.execute({
-          sql: `SELECT user_id::text AS uid,
-                COUNT(*)::int AS total,
-                COUNT(*) FILTER (WHERE status = 'active')::int AS active
-                FROM blockers WHERE user_id::text IN (${idsPh})
-                GROUP BY user_id::text`,
-          args: ids,
-        }),
-        db.execute({
-          sql: `SELECT u.uid, COUNT(DISTINCT u.pid)::int AS count
-                FROM (
-                  SELECT user_id::text AS uid, NULL::text AS pid FROM tasks
-                    WHERE user_id::text IN (${idsPh}) AND project_id IS NOT NULL
-                  UNION ALL
-                  SELECT id::text AS uid, id::text AS pid FROM v2_projects
-                    WHERE owner_id::text IN (${idsPh})
-                ) u
-                GROUP BY u.uid`,
-          args: [...ids, ...ids],
-        }),
-        db.execute({
-          sql: `SELECT user_id::text AS uid, COUNT(*)::int AS count
-                FROM tasks WHERE user_id::text IN (${idsPh}) AND project_id IS NULL
-                GROUP BY user_id::text`,
-          args: ids,
-        }),
-        db.execute({
-          sql: `SELECT user_id::text AS uid,
-                COUNT(*) FILTER (WHERE report_type = 'standup')::int AS standups,
-                COUNT(*) FILTER (WHERE report_type = 'retro')::int AS retros
-                FROM v2_op_reports WHERE user_id::text IN (${idsPh})
-                  AND week_number >= ? AND year = ? AND status = 'submitted'
-                GROUP BY user_id::text`,
-          args: [...ids, wk - 4, yr],
-        }),
+        getTaskAggregatesForUsers(ids),
+        getBlockerAggregatesForUsers(ids),
+        getUserProjectCounts(ids),
+        getUserIndependentTaskCounts(ids),
+        getUserReportCompliance(ids, wk - 4, yr),
       ]);
 
       for (const r of tasksRes.rows || []) taskMap[r.uid] = r;

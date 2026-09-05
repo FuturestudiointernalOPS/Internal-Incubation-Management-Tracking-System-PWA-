@@ -586,3 +586,123 @@ export async function deleteUserSessions(cid) {
     args: [cid],
   });
 }
+
+// ── POST/GET /api/v2/invites + /api/v2/invites/[token] (legacy V2 invite flows) ─
+
+/** Create a v2 invitation row with the raw token (hash columns are lazily backfilled). */
+export async function createV2Invitation(token, programId, groupName, teamId, role, expiresAt) {
+  return db.execute({
+    sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?)`,
+    args: [
+      token,
+      programId,
+      groupName || null,
+      teamId || null,
+      role,
+      expiresAt.toISOString().replace("T", " ").replace("Z", ""),
+    ],
+  });
+}
+
+/** Non-expired v2 invitations, optionally narrowed to one program. */
+export async function listV2Invitations(programId) {
+  let query =
+    "SELECT * FROM v2_invitations WHERE expires_at > NOW()";
+  let args = [];
+
+  if (programId) {
+    query += " AND program_id = ?";
+    args.push(programId);
+  }
+
+  return db.execute({ sql: query, args });
+}
+
+/** Validate a v2 invite token — invite row with program name, hash OR raw token (GET). */
+export async function getV2InviteWithProgramNameByHashOrToken(tokenHash, token) {
+  return db.execute({
+    sql: `SELECT i.*, p.name as program_name
+            FROM v2_invitations i
+            LEFT JOIN v2_programs p ON i.program_id = p.id::text
+            WHERE i.expires_at > NOW()
+              AND (i.token_hash = ? OR i.token = ?)`,
+    args: [tokenHash, token],
+  });
+}
+
+/** Lazily backfill the token hash after a legacy GET validate (no row hash). */
+export async function backfillV2InviteTokenHashOnValidate(tokenHash, token) {
+  return db.execute({
+    sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
+    args: [tokenHash, token],
+  });
+}
+
+/** Validate a v2 invite token — full invite row, hash OR raw token (POST accept). */
+export async function getV2InviteByHashOrToken(tokenHash, token) {
+  return db.execute({
+    sql: "SELECT * FROM v2_invitations WHERE expires_at > NOW() AND (token_hash = ? OR token = ?)",
+    args: [tokenHash, token],
+  });
+}
+
+/** Lazily backfill the token hash after a legacy POST accept (no row hash). */
+export async function backfillV2InviteTokenHashOnAccept(tokenHash, token) {
+  return db.execute({
+    sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
+    args: [tokenHash, token],
+  });
+}
+
+/** Contact lookup by email while accepting a v2 invite. */
+export async function getContactByEmailForV2InviteAccept(email) {
+  return db.execute({
+    sql: "SELECT * FROM contacts WHERE email = ?",
+    args: [email],
+  });
+}
+
+/** Overwrite an existing contact's profile with the v2 invite credentials + group. */
+export async function updateContactByEmailForV2InviteAccept(name, phone, password, role, groupName, teamId, email) {
+  return db.execute({
+    sql: `UPDATE contacts
+              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, v2_team_id = ?
+              WHERE email = ?`,
+    args: [name, phone || null, password, role, groupName, teamId || null, email],
+  });
+}
+
+/** Create a new contact from an accepted v2 invite. */
+export async function insertContactForV2InviteAccept(cid, name, email, phone, password, role, groupName, teamId) {
+  return db.execute({
+    sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, v2_team_id)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [cid, name, email, phone || null, password, role, groupName, teamId || null],
+  });
+}
+
+/** Existing v2 participant record for an accepted invite (email + program). */
+export async function getV2ParticipantByEmailAndProgram(email, programId) {
+  return db.execute({
+    sql: "SELECT id FROM v2_participants WHERE email = ? AND program_id = ?",
+    args: [email, programId],
+  });
+}
+
+/** Re-joining participant: attach the v2 invite team. */
+export async function updateV2ParticipantTeamByEmailAndProgram(teamId, email, programId) {
+  return db.execute({
+    sql: "UPDATE v2_participants SET team_id = ? WHERE email = ? AND program_id = ?",
+    args: [teamId || null, email, programId],
+  });
+}
+
+/** New v2 participant row for an accepted invite. */
+export async function insertV2ParticipantForInviteAccept(programId, name, email, phone, teamId) {
+  return db.execute({
+    sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, team_id)
+              VALUES (?, ?, ?, ?, 'Active', ?)`,
+    args: [programId, name, email, phone || null, teamId || null],
+  });
+}

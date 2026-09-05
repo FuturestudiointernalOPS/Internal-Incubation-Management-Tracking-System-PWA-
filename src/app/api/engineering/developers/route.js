@@ -1,7 +1,11 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  countActiveTasksForDeveloperCids,
+  listDevelopersAndInterns,
+  updateDeveloperFields,
+} from "@/models/engineering";
 
 /**
  * GET /api/engineering/developers
@@ -19,17 +23,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role"); // 'developer' or 'intern'
 
-    let sql = "SELECT * FROM contacts WHERE role IN ('developer', 'intern')";
-    const args = [];
-
-    if (role) {
-      sql += " AND role = ?";
-      args.push(role);
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listDevelopersAndInterns(role);
 
     // Batch the per-developer active-task count into ONE grouped query instead
     // of one COUNT per developer. `assigned_to` may be a cid OR numeric id, so
@@ -37,15 +31,7 @@ export async function GET(request) {
     const devIds = result.rows.map((d) => d.cid);
     let activeByCid = {};
     if (devIds.length > 0) {
-      const idsPh = devIds.map(() => "?").join(",");
-      const taskRes = await db.execute({
-        sql: `SELECT assigned_to::text AS who, COUNT(*) AS cnt
-              FROM tasks
-              WHERE assigned_to::text IN (${idsPh})
-                AND status NOT IN ('completed', 'archived')
-              GROUP BY assigned_to::text`,
-        args: devIds,
-      });
+      const taskRes = await countActiveTasksForDeveloperCids(devIds);
       for (const r of taskRes.rows || []) {
         activeByCid[r.who] = parseInt(r.cnt, 10) || 0;
       }
@@ -110,10 +96,7 @@ export async function PATCH(request) {
 
     args.push(cid);
 
-    await db.execute({
-      sql: `UPDATE contacts SET ${updates.join(", ")} WHERE cid = ?`,
-      args,
-    });
+    await updateDeveloperFields(updates, args);
 
     return NextResponse.json({ success: true });
   } catch (err) {

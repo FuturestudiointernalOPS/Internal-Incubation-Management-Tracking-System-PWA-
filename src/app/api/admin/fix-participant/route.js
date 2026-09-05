@@ -1,6 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  addParticipantProgramMembership,
+  clearContactProgramId,
+  findExistingParticipantSync,
+  getContactByCid,
+  getLatestProgram,
+  insertV2Participant,
+} from "@/models/adminOps";
 
 /**
  * Temporary diagnostic/fix endpoint.
@@ -18,10 +26,7 @@ export async function POST() {
     const results = [];
 
     // 1. Find the first program
-    const progRes = await db.execute({
-      sql: "SELECT id, name FROM v2_programs ORDER BY created_at DESC LIMIT 1",
-      args: [],
-    });
+    const progRes = await getLatestProgram();
 
     if (progRes.rows.length === 0) {
       return NextResponse.json(
@@ -34,10 +39,7 @@ export async function POST() {
     results.push(`Found program: ${program.name} (${program.id})`);
 
     // 2. Find the participant
-    const contactRes = await db.execute({
-      sql: "SELECT cid, name, email, program_id, group_name FROM contacts WHERE cid = ?",
-      args: [TARGET_CID],
-    });
+    const contactRes = await getContactByCid(TARGET_CID);
 
     if (contactRes.rows.length === 0) {
       return NextResponse.json(
@@ -53,35 +55,25 @@ export async function POST() {
 
     // 3. Insert into participant_programs
     try {
-      await db.execute({
-        sql: `INSERT INTO participant_programs (participant_id, program_id)
-              VALUES (?, ?)
-              ON CONFLICT (participant_id, program_id) DO NOTHING`,
-        args: [contact.cid, program.id],
-      });
+      await addParticipantProgramMembership(contact.cid, program.id);
       results.push(`Inserted into participant_programs`);
     } catch (e) {
       results.push(`participant_programs: ${e.message}`);
     }
 
     // 4. Clear invalid contacts.program_id
-    await db.execute({
-      sql: "UPDATE contacts SET program_id = NULL, program_name = ? WHERE cid = ?",
-      args: [program.name, contact.cid],
-    });
+    await clearContactProgramId({ programName: program.name, contactCid: contact.cid });
     results.push(`Cleared contacts.program_id, set program_name`);
 
     // 5. Sync v2_participants
     try {
-      const existing = await db.execute({
-        sql: "SELECT id FROM v2_participants WHERE email = ? AND program_id = ?",
-        args: [contact.email, program.id],
-      });
+      const existing = await findExistingParticipantSync(contact.email, program.id);
       if (existing.rows.length === 0) {
-        await db.execute({
-          sql: `INSERT INTO v2_participants (program_id, user_id, name, email, screening_status)
-                VALUES (?, ?, ?, ?, 'active')`,
-          args: [program.id, contact.cid, contact.name, contact.email],
+        await insertV2Participant({
+          programId: program.id,
+          userCid: contact.cid,
+          name: contact.name,
+          email: contact.email,
         });
         results.push(`Synced v2_participants`);
       } else {

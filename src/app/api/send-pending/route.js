@@ -1,7 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
 import { requireAuth } from "@/lib/auth";
+import {
+  getPendingCampaignContacts,
+  completeCampaignContact,
+} from "@/models/workspace";
 
 export async function GET() {
   try {
@@ -10,18 +14,7 @@ export async function GET() {
     if (authError) return authError;
 
     // Find pending contacts for first step only
-    const result = await db.execute(`
-      SELECT cc.id as cc_id, cc.contact_cid, cc.campaign_id,
-             c.email, c.name, cam.name as campaign_name, cam.form_id,
-             cs.subject as step_subject, cs.body as step_body
-      FROM campaign_contacts cc
-      JOIN contacts c ON cc.contact_cid = c.cid
-      JOIN campaigns cam ON cc.campaign_id = cam.id
-      JOIN campaign_steps cs ON cc.campaign_id = cs.campaign_id AND cs.step_order = 0
-      WHERE cc.status = 'pending'
-      AND cam.status != 'paused'
-      LIMIT 10
-    `);
+    const result = await getPendingCampaignContacts();
 
     console.log(
       `[AUTOMATION] Found ${result.rows.length} pending contacts for dispatch.`,
@@ -85,10 +78,7 @@ export async function GET() {
         });
 
         // Single-send: mark contact as completed after sending
-        await db.execute({
-          sql: `UPDATE campaign_contacts SET status = 'completed', sent_at = NOW() WHERE id = ?`,
-          args: [row.cc_id],
-        });
+        await completeCampaignContact(row.cc_id);
         sentCount++;
       } catch (err) {
         console.error("Failed to send email to", row.email, err);

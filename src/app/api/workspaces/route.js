@@ -1,8 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { roleHomeHref } from "@/lib/platform/roles";
 import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
+import {
+  getStaffAssignmentsForUser,
+  getActiveParticipantEnrollments,
+  getProgramAssignmentsFromContactRoles,
+  getParticipantProgramMemberships,
+  getUserGroupMembershipsByNames,
+  getInactiveGroupMembershipHistory,
+  getActiveResponsibilitiesForUser,
+  getActiveVentureMembershipsForContact,
+} from "@/models/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -30,25 +40,14 @@ export async function GET(req) {
     const session = await getSession();
 
     // 1. Program staff assignments (facilitator / staff / teacher / ...)
-    const staffRes = await db.execute({
-      sql: `SELECT ps.role, CAST(ps.program_id AS TEXT) AS program_id, p.name AS program_name
-            FROM v2_program_staff ps
-            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
-            WHERE (ps.staff_id = ? OR LOWER(ps.staff_id) = LOWER(?))
-            ORDER BY p.name ASC`,
-      args: [session.cid, session.email || session.cid],
-    });
+    const staffRes = await getStaffAssignmentsForUser(
+      session.cid,
+      session.email || session.cid,
+    );
 
     // 2. Participant enrollments (excluded when already a staff member there)
     const staffProgramIds = new Set(staffRes.rows.map((r) => r.program_id));
-    const partRes = await db.execute({
-      sql: `SELECT CAST(pp.program_id AS TEXT) AS program_id, p.name AS program_name
-            FROM participant_programs pp
-            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(pp.program_id AS TEXT)
-            WHERE pp.participant_id = ? AND (pp.status IS NULL OR pp.status = 'active')
-            ORDER BY p.name ASC`,
-      args: [session.cid],
-    });
+    const partRes = await getActiveParticipantEnrollments(session.cid);
 
     const workspaces = [];
 
@@ -90,16 +89,7 @@ export async function GET(req) {
     // 1. Generalized program assignments (contact_roles) + legacy rows that
     //    have no current contact_roles mirror (deduplicated, no duplication).
     try {
-      const crRes = await db.execute({
-        sql: `SELECT cr.contact_cid, cr.role, cr.title, cr.context_id AS program_id,
-                     cr.is_current, cr.status, cr.scope, cr.started_at, cr.ended_at,
-                     p.name AS program_name
-              FROM contact_roles cr
-              LEFT JOIN v2_programs p ON p.id::text = cr.context_id::text
-              WHERE cr.contact_cid = ? AND cr.context_type = 'program'
-              ORDER BY cr.is_current DESC, cr.started_at DESC`,
-        args: [session.cid],
-      });
+      const crRes = await getProgramAssignmentsFromContactRoles(session.cid);
       contexts.program_assignments = crRes.rows.map((r) => {
         const roleKey = String(r.role || "staff").toLowerCase();
         return {
@@ -146,16 +136,7 @@ export async function GET(req) {
 
     // 2. All participant memberships with lifecycle status (incl. completed).
     try {
-      const ppRes = await db.execute({
-        sql: `SELECT pp.participant_id, pp.program_id, pp.status, pp.screening_status,
-                     pp.accepted_at, pp.completed_at, pp.outcome, pp.certificate_issued,
-                     p.name AS program_name, p.status AS program_status
-              FROM participant_programs pp
-              LEFT JOIN v2_programs p ON p.id::text = pp.program_id::text
-              WHERE pp.participant_id = ?
-              ORDER BY pp.assigned_at DESC`,
-        args: [session.cid],
-      });
+      const ppRes = await getParticipantProgramMemberships(session.cid);
       contexts.program_participations = ppRes.rows.map((r) => {
         const completed =
           String(r.status || "").toLowerCase() === "completed" ||
@@ -177,13 +158,7 @@ export async function GET(req) {
       const activeGroups = await getEffectiveGroupsForUser(session.cid);
       let orgRows = [];
       if (activeGroups.length > 0) {
-        const ph = activeGroups.map(() => "?").join(",");
-        const ugRes = await db.execute({
-          sql: `SELECT group_name, role_in_group FROM user_groups
-                WHERE user_cid = ? AND group_name IN (${ph})
-                ORDER BY group_name`,
-          args: [session.cid, ...activeGroups],
-        });
+        const ugRes = await getUserGroupMembershipsByNames(session.cid, activeGroups);
         orgRows = ugRes.rows;
       }
       contexts.org_memberships = orgRows.map((g) => {
@@ -193,26 +168,13 @@ export async function GET(req) {
           href: isIntern ? "/developer" : roleHomeHref(session.role) || "/workspaces",
         };
       });
-      const pastRes = await db.execute({
-        sql: `SELECT group_name, status, started_at, expires_at
-              FROM group_memberships
-              WHERE user_cid = ? AND status != 'active'
-              ORDER BY started_at DESC`,
-        args: [session.cid],
-      });
+      const pastRes = await getInactiveGroupMembershipHistory(session.cid);
       contexts.org_history = pastRes.rows;
     } catch (_) {}
 
     // 4. Responsibilities.
     try {
-      const respRes = await db.execute({
-        sql: `SELECT r.id, r.name, r.key, r.description, r.icon
-              FROM user_responsibilities ur
-              JOIN responsibilities r ON r.id = ur.responsibility_id
-              WHERE ur.user_cid = ? AND r.is_active = 1
-              ORDER BY r.name`,
-        args: [session.cid],
-      });
+      const respRes = await getActiveResponsibilitiesForUser(session.cid);
       contexts.responsibilities = respRes.rows.map((r) => ({
         ...r,
         href: String(r.key || "").toLowerCase().includes("finance")
@@ -227,14 +189,7 @@ export async function GET(req) {
 
     // 5. Venture memberships.
     try {
-      const vmRes = await db.execute({
-        sql: `SELECT vm.*, COALESCE(v.company_name, v.name) AS venture_name, v.status AS venture_status
-              FROM venture_members vm
-              LEFT JOIN ventures v ON v.venture_id = vm.venture_id
-              WHERE vm.contact_id = ? AND vm.removed_at IS NULL
-              ORDER BY vm.joined_at DESC`,
-        args: [session.cid],
-      });
+      const vmRes = await getActiveVentureMembershipsForContact(session.cid);
       contexts.venture_memberships = vmRes.rows.map((r) => ({
         ...r,
         href: `/participant/ventures/${r.venture_id}`,

@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getTeamTasks,
+  createTeamTask,
+  updateTeamTaskFields,
+  deleteTeamTask,
+} from "@/models/workspace";
 
 /**
  * Team Tasks API — lightweight task board for teams
@@ -26,22 +32,7 @@ export async function GET(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `SELECT tt.*, c.name AS assigned_name
-            FROM team_tasks tt
-            LEFT JOIN contacts c ON tt.assigned_to = c.cid
-            WHERE tt.team_id = ?
-            ORDER BY
-              CASE tt.priority
-                WHEN 'critical' THEN 1
-                WHEN 'high' THEN 2
-                WHEN 'medium' THEN 3
-                WHEN 'low' THEN 4
-                ELSE 5
-              END,
-              tt.created_at DESC`,
-      args: [teamId],
-    });
+    const result = await getTeamTasks(teamId);
 
     return NextResponse.json({ success: true, tasks: result.rows });
   } catch (error) {
@@ -67,19 +58,15 @@ export async function POST(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO team_tasks (team_id, title, description, status, priority, assigned_to, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [
-        team_id,
-        title,
-        description || null,
-        status || "todo",
-        priority || "medium",
-        assigned_to || null,
-        created_by || null,
-      ],
-    });
+    const result = await createTeamTask(
+      team_id,
+      title,
+      description || null,
+      status || "todo",
+      priority || "medium",
+      assigned_to || null,
+      created_by || null,
+    );
 
     return NextResponse.json({ success: true, task: result.rows[0] });
   } catch (error) {
@@ -121,11 +108,7 @@ export async function PUT(req) {
       );
     }
 
-    args.push(id);
-    const result = await db.execute({
-      sql: `UPDATE team_tasks SET ${sets.join(", ")} WHERE id = ? RETURNING *`,
-      args,
-    });
+    const result = await updateTeamTaskFields(id, sets, args);
 
     return NextResponse.json({ success: true, task: result.rows[0] });
   } catch (error) {
@@ -150,10 +133,7 @@ export async function DELETE(req) {
       );
     }
 
-    await db.execute({
-      sql: "DELETE FROM team_tasks WHERE id = ?",
-      args: [id],
-    });
+    await deleteTeamTask(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

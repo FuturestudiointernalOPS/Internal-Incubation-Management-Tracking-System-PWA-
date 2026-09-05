@@ -1,7 +1,8 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import { deleteKpi, insertKpi, updateKpi } from "@/models/platformConfig";
 export const dynamic = "force-dynamic";
 
 /**
@@ -24,10 +25,7 @@ export async function POST(req) {
       );
     }
 
-    await db.execute({
-      sql: "INSERT INTO v2_kpis (program_id, title, target_value) VALUES (?, ?, ?)",
-      args: [program_id, title, target_value || 80],
-    });
+    await insertKpi(program_id, title, target_value);
 
     const session = await getSession();
     await logAuditEvent({
@@ -64,10 +62,7 @@ export async function PUT(req) {
       );
     }
 
-    await db.execute({
-      sql: "UPDATE v2_kpis SET title = ?, target_value = ? WHERE id = ?",
-      args: [title, target_value || 80, id],
-    });
+    await updateKpi(id, title, target_value);
 
     const session = await getSession();
     await logAuditEvent({
@@ -104,10 +99,7 @@ export async function DELETE(req) {
       );
     }
 
-    await db.execute({
-      sql: "DELETE FROM v2_kpis WHERE id = ?",
-      args: [id],
-    });
+    await deleteKpi(id);
 
     const session = await getSession();
     await logAuditEvent({

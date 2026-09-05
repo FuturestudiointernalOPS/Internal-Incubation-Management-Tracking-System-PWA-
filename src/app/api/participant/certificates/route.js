@@ -1,6 +1,7 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { getParticipantCertificates } from "@/models/participantPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -24,18 +25,7 @@ export async function GET() {
       );
     }
 
-    const res = await db.execute({
-      sql: `SELECT CAST(pp.program_id AS TEXT) AS program_id,
-                   p.name AS program_name,
-                   pp.certificate_issued,
-                   pp.completed_at,
-                   pp.accepted_at
-            FROM participant_programs pp
-            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(pp.program_id AS TEXT)
-            WHERE pp.participant_id = ? AND pp.certificate_issued = true
-            ORDER BY p.name ASC`,
-      args: [session.cid],
-    });
+    const res = await getParticipantCertificates(session.cid);
 
     return NextResponse.json({ success: true, certificates: res.rows });
   } catch (error) {

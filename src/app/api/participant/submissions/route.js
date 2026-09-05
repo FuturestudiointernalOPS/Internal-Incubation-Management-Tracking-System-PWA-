@@ -1,6 +1,10 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getSubmissionsByParticipantOrTeam,
+  getSubmissionProgramCompletionStatus,
+  insertParticipantSubmission,
+} from "@/models/participantPortal";
 
 export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
@@ -32,24 +36,7 @@ export const GET = createHandler(async (req) => {
     if (!participantId && !teamId) participantId = session.cid;
   }
 
-  let query =
-    "SELECT *, document_id AS requirement_id FROM v2_submissions WHERE ";
-  let args = [];
-
-  if (teamId) {
-    query += "team_id = ?";
-    args.push(teamId);
-  } else {
-    query += "participant_id = ?";
-    args.push(participantId);
-  }
-
-  if (programId) {
-    query += " AND program_id = ?";
-    args.push(programId);
-  }
-
-  const res = await db.execute({ sql: query, args });
+  const res = await getSubmissionsByParticipantOrTeam(teamId, participantId, programId);
   return NextResponse.json({ success: true, submissions: res.rows });
 });
 
@@ -86,15 +73,7 @@ export const POST = createHandler(async (req) => {
   // teacher / super_admin manage regardless of program status.
   if (program_id && !privileged.includes(session.role)) {
     try {
-      const pCheck = await db.execute({
-        sql: `SELECT COALESCE(pp.status, p.status) AS status
-              FROM v2_programs p
-              LEFT JOIN participant_programs pp
-                ON pp.program_id::text = p.id::text AND pp.participant_id = ?
-              WHERE p.id::text = ?
-              LIMIT 1`,
-        args: [String(session.cid), String(program_id)],
-      });
+      const pCheck = await getSubmissionProgramCompletionStatus(session.cid, program_id);
       const st = String(pCheck.rows[0]?.status || "").toLowerCase();
       if (st === "completed") {
         return NextResponse.json(
@@ -105,16 +84,13 @@ export const POST = createHandler(async (req) => {
     } catch (_) {}
   }
 
-  await db.execute({
-    sql: "INSERT INTO v2_submissions (participant_id, team_id, program_id, deliverable_id, file_url, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-    args: [
-      participant_id || null,
-      team_id || null,
-      program_id,
-      requirement_id,
-      file_url || null,
-    ],
-  });
+  await insertParticipantSubmission(
+    participant_id,
+    team_id,
+    program_id,
+    requirement_id,
+    file_url,
+  );
 
   return NextResponse.json({ success: true });
 });

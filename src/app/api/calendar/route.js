@@ -1,6 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  getFacilitatorProgramScopePids,
+  getParticipantProgramScopePids,
+  getCalendarTasksWithDates,
+  getCalendarPrograms,
+  getCalendarSessions,
+  getCalendarDeliverables,
+  ensureFollowupsCreatedByColumn,
+  getCalendarFollowups,
+} from "@/models/workspace";
 
 /**
  * UNIFIED CALENDAR API
@@ -30,18 +40,10 @@ export async function GET(req) {
     // participants see their enrolled programs, others see everything.
     let scopedProgramIds = null; // null = no restriction
     if (session?.role === "facilitator" && cid) {
-      const teams = await db.execute({
-        sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_teams WHERE handler_id = ?
-              UNION
-              SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_program_staff WHERE role = 'facilitator' AND staff_id = ?`,
-        args: [cid, cid],
-      });
+      const teams = await getFacilitatorProgramScopePids(cid);
       scopedProgramIds = teams.rows.map((r) => r.pid);
     } else if (session?.role === "participant" && cid) {
-      const pp = await db.execute({
-        sql: "SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM participant_programs WHERE participant_id = ?",
-        args: [cid],
-      });
+      const pp = await getParticipantProgramScopePids(cid);
       scopedProgramIds = pp.rows.map((r) => r.pid);
     }
 
@@ -76,16 +78,8 @@ export async function GET(req) {
 
     // 1. Tasks with dates
     try {
-      let taskSql = `SELECT id, title, start_date, end_date, status, project_id, user_id, assigned_to FROM tasks WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)`;
-      const taskArgs = [];
-
       // Filter by user if provided
-      if (user_id) {
-        taskSql += ` AND (user_id = ? OR assigned_to = ?)`;
-        taskArgs.push(user_id, user_id);
-      }
-
-      const tasks = await db.execute({ sql: taskSql, args: taskArgs });
+      const tasks = await getCalendarTasksWithDates(user_id);
       for (const t of tasks.rows) {
         if (t.start_date) {
           events.push({
@@ -122,10 +116,10 @@ export async function GET(req) {
 
     // 2. Programs (v2_programs)
     try {
-      const programs = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL) AND (is_archived IS NULL OR is_archived = 0)${programTableScopeSql}`,
-        args: [...programScopeArgs],
-      });
+      const programs = await getCalendarPrograms(
+        programTableScopeSql,
+        programScopeArgs,
+      );
       for (const p of programs.rows) {
         if (p.start_date) {
           events.push({
@@ -162,13 +156,10 @@ export async function GET(req) {
 
     // 3. Sessions (v2_sessions)
     try {
-      const sessions = await db.execute({
-        sql: `SELECT s.id, s.title, s.start_at, s.type, s.teacher_id, s.program_id, p.name AS program_name
-              FROM v2_sessions s
-              LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
-              WHERE s.start_at IS NOT NULL${programScopeSql}`,
-        args: [...programScopeArgs],
-      });
+      const sessions = await getCalendarSessions(
+        programScopeSql,
+        programScopeArgs,
+      );
       for (const s of sessions.rows) {
         events.push({
           id: `session-${s.id}`,
@@ -191,13 +182,10 @@ export async function GET(req) {
 
     // 4. Deliverables (v2_deliverables)
     try {
-      const deliverables = await db.execute({
-        sql: `SELECT d.id, d.title, d.due_date, d.week_number, d.program_id, p.name AS program_name
-              FROM v2_deliverables d
-              LEFT JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
-              WHERE d.due_date IS NOT NULL${programScopeSql}`,
-        args: [...programScopeArgs],
-      });
+      const deliverables = await getCalendarDeliverables(
+        programScopeSql,
+        programScopeArgs,
+      );
       for (const d of deliverables.rows) {
         events.push({
           id: `deliverable-${d.id}`,
@@ -218,28 +206,25 @@ export async function GET(req) {
 
     // 5. Follow-ups (v2_followups with scheduled_at)
     try {
-      await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS created_by TEXT");
-      let followupSql = `SELECT f.id, f.comment, f.scheduled_at, f.followup_type, f.team_id, f.program_id, t.name AS team_name, p.name AS program_name
-              FROM v2_followups f
-              LEFT JOIN v2_teams t ON f.team_id = t.id
-              LEFT JOIN v2_programs p ON f.program_id = p.id
-              WHERE f.scheduled_at IS NOT NULL${programScopeSql}`;
-      const followupArgs = [...programScopeArgs];
-
+      await ensureFollowupsCreatedByColumn();
       // Follow-up visibility: super_admin sees all; participants see their own;
       // everyone else sees follow-ups they assigned (legacy NULL rows remain visible).
+      let followupVisibilitySql = "";
+      const followupVisibilityArgs = [];
       if (session?.role === "participant" && cid) {
-        followupSql += " AND f.participant_id = ?";
-        followupArgs.push(cid);
+        followupVisibilitySql = " AND f.participant_id = ?";
+        followupVisibilityArgs.push(cid);
       } else if (session?.role !== "super_admin" && cid) {
-        followupSql += " AND (f.created_by IS NULL OR f.created_by = ?)";
-        followupArgs.push(cid);
+        followupVisibilitySql = " AND (f.created_by IS NULL OR f.created_by = ?)";
+        followupVisibilityArgs.push(cid);
       }
 
-      const followups = await db.execute({
-        sql: followupSql,
-        args: followupArgs,
-      });
+      const followups = await getCalendarFollowups(
+        programScopeSql,
+        programScopeArgs,
+        followupVisibilitySql,
+        followupVisibilityArgs,
+      );
       for (const f of followups.rows) {
         events.push({
           id: `followup-${f.id}`,

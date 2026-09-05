@@ -1,5 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import {
+  getTasksDueInNext24Hours,
+  findRecentDueReminder,
+  createDueReminderNotification,
+} from "@/models/workspace";
 
 /**
  * POST /api/notifications/due-reminders?key=SECRET_KEY
@@ -39,13 +44,7 @@ export async function POST(req) {
     await initDb();
 
     // 1. Find tasks due within the next 24 hours
-    const dueTasks = await db.execute({
-      sql: `SELECT id, user_id, title, end_date
-            FROM tasks
-            WHERE end_date BETWEEN NOW() AND NOW() + INTERVAL '24 hours'
-              AND status NOT IN ('completed', 'archived', 'carried_over')`,
-      args: [],
-    });
+    const dueTasks = await getTasksDueInNext24Hours();
 
     const tasks = dueTasks.rows || [];
     let remindersCreated = 0;
@@ -53,15 +52,10 @@ export async function POST(req) {
     for (const task of tasks) {
       // 2. Deduplicate — skip if a due_reminder notification already exists
       //    for this task within the last 6 hours
-      const existing = await db.execute({
-        sql: `SELECT id FROM v2_notifications
-              WHERE recipient_id = ?
-                AND type = 'due_reminder'
-                AND message ILIKE ?
-                AND created_at >= NOW() - INTERVAL '6 hours'
-              LIMIT 1`,
-        args: [task.user_id, `%${task.title}%`],
-      });
+      const existing = await findRecentDueReminder(
+        task.user_id,
+        `%${task.title}%`,
+      );
 
       if (existing.rows && existing.rows.length > 0) {
         continue; // Already notified recently
@@ -72,15 +66,11 @@ export async function POST(req) {
         ? new Date(task.end_date).toISOString().split("T")[0]
         : "tomorrow";
 
-      await db.execute({
-        sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-              VALUES (?, ?, ?, 'due_reminder', 0, NOW())`,
-        args: [
-          task.user_id,
-          "Due Date Reminder",
-          `Task "${task.title}" is due tomorrow (${endDateStr}).`,
-        ],
-      });
+      await createDueReminderNotification(
+        task.user_id,
+        "Due Date Reminder",
+        `Task "${task.title}" is due tomorrow (${endDateStr}).`,
+      );
 
       remindersCreated++;
     }
