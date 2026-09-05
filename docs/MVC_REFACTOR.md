@@ -244,11 +244,11 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
 - [x] **Platform cluster** ✅ (2026-09-02): 27 routes / 332 queries →
       `src/models/formRuns.js` (113), `publicFormRuns.js` (32), `forms.js`
       (79), `platformAi.js` (75), `intents.js` (17), `platformImport.js` (16).
-- [ ] `api/investor/**` (diligence 26, pipeline 19, …), `api/finance/**`,
-      `api/crm/**`, `api/communications/**` (internal-comms 29, campaigns,
-      segments, followups, announcements, contacts-adjacent),
-      `api/admin/op-reports` + `api/reports` + `api/standups`-aggregates,
-      `api/security/**`, `api/events`, `api/calendar`, `api/teacher/**`,
+- [x] **Investor + communications clusters** ✅ (2026-09-02): 30 routes /
+      219 queries → `src/models/investor.js` (80), `investorRelations.js`
+      (78), `communications.js` (60), `finance.js` (1, seed).
+- [ ] `api/crm/**`, `api/admin/op-reports` + `api/reports` + standups
+      aggregates, `api/security/**`, `api/calendar`, `api/teacher/**`,
       `api/messaging`, `api/participant/**`-rest, `api/v2/**`, long tail…
 
 ### Wave 5b — Reporting & Op-reports
