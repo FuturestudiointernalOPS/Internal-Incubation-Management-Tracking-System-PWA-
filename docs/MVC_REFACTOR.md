@@ -1,6 +1,7 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Waves 0–4 ✅ (SQL extraction + venture lib relocated, repo 100 % green).
+> Status: **in progress** — Waves 0–6 ✅ (no inline SQL in API layer, libs
+> relocated behind facades; repo 100 % green: 39/39 suites · 623/623 tests).
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -256,23 +257,37 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       0 pages import the db layer, 42 model files / 2,227 queries,
       full suite 39/39 · 623/623, `npm run build` green.
 
-### Wave 5b — Reporting & Op-reports
-- [ ] `src/models/op-reports.js`, `src/models/reports.js` from
-      `api/op-reports` (318), `api/reports`, `api/standups`, and the two giant
-      pages `staff/op-report/page.js` (4,059) and `admin/op-reports/page.js`
-      (2,375): keep table/filter/export views, move aggregation SQL to models.
+### Wave 6 — Lib-domain splits ✅ (2026-09-02 — 41 modules relocated behind facades)
+- [x] 15 top-level domain modules moved byte-identical to `src/models/` with
+      facades at their lib paths (contactIdentity, contact-group-sync,
+      contact-groups, contactGroups, invitations, kpi-progress,
+      participant-membership, program-history, standupUpsert, taskAudit,
+      taskCarryover, ventureIntake, ventureInvitations, venturePipeline,
+      ventureTemplates).
+- [x] 4 domain folders mirrored under `src/models/` (26 files):
+      `authorization/` (9), `finance/` (2), `platform/` (9 incl. ai/*),
+      `integrations/` (6). Every original path is now a facade. Folders
+      coexist with the pre-existing `src/models/authorization.js` /
+      `finance.js` files.
+- [ ] `src/lib/lms/*` (14 files, interlinked, covered by 12 jest suites) —
+      deferred slice (same facade pattern).
+- [ ] `src/lib/email.js` (1,462), `auth.js`, `audit.js`, `token-hashing.js`,
+      `ventureAuth.js` stay in `lib/` by design (infrastructure).
+- **Gate ✅:** 8 focused suites green (171 tests) + full suite 39/39 ·
+  623/623 · `npm run build` green.
 
-### Wave 6 — Remaining domains + long tail
-- communications (contacts/groups/campaigns/segments/families),
-  platform forms & runs (`api/platform/*`), participant, investor (incl.
-  `lib/finance` pipeline), messaging, crm, intelligence.
-- Long tail: thin the remaining 19 route files > 400 LOC and all 27 files > 1,000 LOC.
-
-### Wave 7 — Delete facades & final polish
-- [ ] Remove facade re-exports once importers migrated (grep count = 0).
-- [ ] Full `npm run lint`, `npm test`, `npm run build`; update `AGENTS.md`,
-      `.ai/*`, `docs/ARCHITECTURE.md` + this doc's status; delete legacy
-      SQLite binaries (`src/lib/*.db`) after confirmation.
+### Wave 7 — Remaining (views, lms lib, facades, polish)
+- [ ] View decomposition: the giant client pages (`pm/programs/[id]` 6,873;
+      `staff/op-report` 4,059; `admin/op-reports` 2,375; `admin/programs`
+      2,059; `admin/projects/*`, `TaskManager` 2,511, `DashboardLayout` 2,196…)
+      are layering-compliant (API-driven) — splitting them is pure file-size
+      debt; do it feature-by-feature with no behavior change.
+- [ ] Relocate `src/lib/lms/*` → `src/models/lms/` behind per-file facades.
+- [ ] Remove facade re-exports once importers are migrated (grep count = 0),
+      incl. `src/lib/ventures.js` + `src/lib/db/queries/tasks.js`.
+- [ ] Final polish: full `npm run lint` (fix repo eslint config), `npm test`,
+      `npm run build`; update `AGENTS.md`, `.ai/*`, `docs/ARCHITECTURE.md`;
+      delete legacy SQLite binaries (`src/lib/*.db`) after confirmation.
 
 ---
 
