@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/lib/authorization";
 import { syncDataSource } from "@/lib/finance/ingest";
+import { getDataSourceLastSyncAt } from "@/models/finance";
 
 export const POST = createHandler(async (req) => {
   const capError = await requireAuthorization("finance", "create");
@@ -14,10 +14,7 @@ export const POST = createHandler(async (req) => {
       { success: false, error: "Query param required: dataSourceId" },
       { status: 400 },
     );
-  const ds = await db.execute({
-    sql: "SELECT last_sync_at FROM data_sources WHERE id = ?",
-    args: [dataSourceId],
-  });
+  const ds = await getDataSourceLastSyncAt(dataSourceId);
   if (ds.rows.length === 0)
     return NextResponse.json(
       { success: false, error: "Data source not found" },

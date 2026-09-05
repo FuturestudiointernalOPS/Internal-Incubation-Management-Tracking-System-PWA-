@@ -1,11 +1,21 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import {
+  ensureFollowupsCreatedByColumn,
+  getFollowupById,
+  insertFollowup,
+  insertFollowupCalendarEvent,
+  isContactInFacilitatorTeams,
+  isContactInFacilitatorTeamsForUpdate,
+  listFollowups,
+  markSubmissionPendingFollowup,
+  updateFollowup,
+} from "@/models/communications";
 
 async function ensureFollowupSchema() {
   try {
-    await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS created_by TEXT");
+    await ensureFollowupsCreatedByColumn();
   } catch (_) {}
 }
 
@@ -53,47 +63,15 @@ export const GET = createHandler(
     const submissionId = searchParams.get("submission_id");
     const status = searchParams.get("status");
 
-    let sql = `
-      SELECT f.*, c.name as participant_name, d.title as deliverable_title
-      FROM v2_followups f
-      LEFT JOIN contacts c ON f.participant_id::text = c.cid
-      LEFT JOIN v2_submissions s ON f.submission_id = s.id
-      LEFT JOIN v2_deliverables d ON s.deliverable_id = d.id
-      WHERE 1=1
-    `;
-    const args = [];
-
-    if (programId) {
-      sql += " AND f.program_id = ?";
-      args.push(programId);
-    }
-    if (participantId) {
-      sql += " AND f.participant_id = ?";
-      args.push(participantId);
-    }
-    if (submissionId) {
-      sql += " AND f.submission_id = ?";
-      args.push(submissionId);
-    }
-    if (status) {
-      sql += " AND f.status = ?";
-      args.push(status);
-    }
-
-    // Visibility: super_admin sees all; participants see their own; everyone
-    // else sees follow-ups they assigned. Legacy rows (created_by NULL) remain
-    // visible to non-participant staff so historical data is not lost.
-    if (session?.role === "participant") {
-      sql += " AND f.participant_id = ?";
-      args.push(session.cid);
-    } else if (session?.role !== "super_admin") {
-      sql += " AND (f.created_by IS NULL OR f.created_by = ?)";
-      args.push(session.cid);
-    }
-
-    sql += " ORDER BY f.scheduled_at DESC";
-
-    const result = await db.execute({ sql, args });
+    // Follow-up SQL (filters + visibility scoping) assembled in
+    // src/models/communications.js (listFollowups)
+    const result = await listFollowups({
+      programId,
+      participantId,
+      submissionId,
+      status,
+      session,
+    });
     return NextResponse.json({ success: true, followups: result.rows });
   },
 );
@@ -133,10 +111,10 @@ export const POST = createHandler(
           { status: 403 },
         );
       }
-      const inScope = await db.execute({
-        sql: "SELECT 1 FROM contacts c WHERE c.cid = ? AND c.v2_team_id IN (" + scopeGuard.scope.teamIds.map(() => "?").join(",") + ")",
-        args: [String(participant_id), ...scopeGuard.scope.teamIds],
-      });
+      const inScope = await isContactInFacilitatorTeams(
+        participant_id,
+        scopeGuard.scope.teamIds,
+      );
       if (inScope.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "errors.insufficientPermissions" },
@@ -146,23 +124,17 @@ export const POST = createHandler(
     }
 
     // Create follow-up record
-    const result = await db.execute({
-      sql: `INSERT INTO v2_followups (
-          program_id, participant_id, submission_id, week_number,
-          comment, scheduled_at, duration_minutes, meeting_link, notes, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'scheduled', ?) RETURNING *`,
-      args: [
-        program_id,
-        participant_id || null,
-        submission_id || null,
-        week_number || null,
-        comment || null,
-        scheduled_at,
-        duration_minutes || 30,
-        meeting_link || null,
-        notes || null,
-        session.cid || null,
-      ],
+    const result = await insertFollowup({
+      programId: program_id,
+      participantId: participant_id,
+      submissionId: submission_id,
+      weekNumber: week_number,
+      comment,
+      scheduledAt: scheduled_at,
+      durationMinutes: duration_minutes,
+      meetingLink: meeting_link,
+      notes,
+      createdBy: session.cid,
     });
 
     // Create calendar event in v2_events
@@ -170,18 +142,14 @@ export const POST = createHandler(
       const scheduledDate = new Date(scheduled_at);
       const endDate = new Date(scheduledDate.getTime() + (duration_minutes || 30) * 60000);
 
-      await db.execute({
-        sql: `INSERT INTO v2_events (program_id, title, description, event_type, start_time, end_time, participant_id, created_by)
-              VALUES (?, ?, ?, 'followup', ?, ?, ?, ?)`,
-        args: [
-          program_id,
-          comment ? `Follow-up: ${comment.substring(0, 50)}` : "Follow-up Meeting",
-          notes || comment || null,
-          scheduledDate.toISOString(),
-          endDate.toISOString(),
-          participant_id || null,
-          session.cid || "staff",
-        ],
+      await insertFollowupCalendarEvent({
+        programId: program_id,
+        title: comment ? `Follow-up: ${comment.substring(0, 50)}` : "Follow-up Meeting",
+        description: notes || comment || null,
+        startTime: scheduledDate.toISOString(),
+        endTime: endDate.toISOString(),
+        participantId: participant_id,
+        createdBy: session.cid,
       });
     } catch (_) {
       // Calendar event creation is non-blocking
@@ -190,10 +158,7 @@ export const POST = createHandler(
     // If linked to a submission, update submission status to pending_followup
     if (submission_id) {
       try {
-        await db.execute({
-          sql: "UPDATE v2_submissions SET status = 'pending_followup', updated_at = NOW() WHERE id = ?",
-          args: [submission_id],
-        });
+        await markSubmissionPendingFollowup(submission_id);
       } catch (_) {}
     }
 
@@ -214,10 +179,7 @@ export const PATCH = createHandler(
     }
 
     // Facilitators may only update follow-ups for participants in their teams.
-    const followupRes = await db.execute({
-      sql: "SELECT program_id, participant_id FROM v2_followups WHERE id = ?",
-      args: [id],
-    });
+    const followupRes = await getFollowupById(id);
     const followup = followupRes.rows[0];
     if (followup) {
       const scopeGuard = await getFacilitatorScopeGuard(req, followup.program_id);
@@ -229,10 +191,10 @@ export const PATCH = createHandler(
             { status: 403 },
           );
         }
-        const inScope = await db.execute({
-          sql: "SELECT 1 FROM contacts c WHERE c.cid = ? AND c.v2_team_id IN (" + scopeGuard.scope.teamIds.map(() => "?").join(",") + ")",
-          args: [String(followup.participant_id), ...scopeGuard.scope.teamIds],
-        });
+        const inScope = await isContactInFacilitatorTeamsForUpdate(
+          followup.participant_id,
+          scopeGuard.scope.teamIds,
+        );
         if (inScope.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
@@ -242,20 +204,12 @@ export const PATCH = createHandler(
       }
     }
 
-    await db.execute({
-      sql: `UPDATE v2_followups SET
-              status = COALESCE(?, status),
-              notes = COALESCE(?, notes),
-              meeting_link = COALESCE(?, meeting_link),
-              scheduled_at = COALESCE(?, scheduled_at)
-            WHERE id = ?`,
-      args: [
-        status || null,
-        notes || null,
-        meeting_link || null,
-        scheduled_at || null,
-        id,
-      ],
+    await updateFollowup({
+      id,
+      status,
+      notes,
+      meetingLink: meeting_link,
+      scheduledAt: scheduled_at,
     });
 
     return NextResponse.json({ success: true });
