@@ -269,8 +269,9 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       `integrations/` (6). Every original path is now a facade. Folders
       coexist with the pre-existing `src/models/authorization.js` /
       `finance.js` files.
-- [ ] `src/lib/lms/*` (14 files, interlinked, covered by 12 jest suites) —
-      deferred slice (same facade pattern).
+- [x] `src/lib/lms/*` (17 files, interlinked, covered by 12 jest suites)
+      relocated byte-identical to `src/models/lms/` behind per-file facades
+      (2026-09-02; 11 lms suites green, 254 tests).
 - [ ] `src/lib/email.js` (1,462), `auth.js`, `audit.js`, `token-hashing.js`,
       `ventureAuth.js` stay in `lib/` by design (infrastructure).
 - **Gate ✅:** 8 focused suites green (171 tests) + full suite 39/39 ·
