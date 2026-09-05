@@ -1,6 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
+import {
+  clearSetupTokenAndSetPassword,
+  findContactBySetupToken,
+} from "@/models/investorRelations";
 
 export async function POST(req) {
   try {
@@ -16,11 +20,7 @@ export async function POST(req) {
     }
 
     // Find contact with valid setup token
-    const result = await db.execute({
-      sql: `SELECT cid, setup_token_expires FROM contacts
-            WHERE setup_token = ? AND deleted_at IS NULL`,
-      args: [token],
-    });
+    const result = await findContactBySetupToken(token);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Invalid or expired setup link." }, { status: 404 });
@@ -35,10 +35,7 @@ export async function POST(req) {
 
     // Hash password and update
     const hashedPassword = await bcrypt.hash(password, 10);
-    await db.execute({
-      sql: `UPDATE contacts SET password = ?, setup_token = NULL, setup_token_expires = NULL WHERE cid = ?`,
-      args: [hashedPassword, contact.cid],
-    });
+    await clearSetupTokenAndSetPassword(hashedPassword, contact.cid);
 
     return NextResponse.json({ success: true, message: "Password set successfully." });
   } catch (error) {

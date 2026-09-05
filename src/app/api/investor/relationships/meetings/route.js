@@ -1,7 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getVentureIdByWorkspaceId,
+  getVentureNameForCompletedMeeting,
+  getVentureNameForScheduledMeeting,
+  getWorkspaceForMeetingCompletion,
+  insertMeetingCompletedTimeline,
+  insertMeetingScheduledTimeline,
+  insertRelationshipMeeting,
+  listMeetingsForWorkspace,
+  setWorkspaceNextAction,
+  updateRelationshipMeeting,
+} from "@/models/investorRelations";
 
 /**
  * GET /api/investor/relationships/meetings
@@ -20,10 +32,7 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "workspace_id required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: "SELECT * FROM relationship_meetings WHERE workspace_id = ? ORDER BY scheduled_date ASC, scheduled_time ASC",
-      args: [workspaceId],
-    });
+    const result = await listMeetingsForWorkspace(workspaceId);
 
     return NextResponse.json({ success: true, meetings: result.rows });
   } catch (error) {
@@ -49,38 +58,24 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "workspace_id required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO relationship_meetings (workspace_id, meeting_type, scheduled_date, scheduled_time, duration_minutes, location, notes, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'scheduled') RETURNING *`,
-      args: [
-        workspace_id,
-        meeting_type || "introductory",
-        scheduled_date || null,
-        scheduled_time || null,
-        duration_minutes || 60,
-        location || null,
-        notes || null,
-      ],
-    });
+    const result = await insertRelationshipMeeting(
+      workspace_id,
+      meeting_type || "introductory",
+      scheduled_date || null,
+      scheduled_time || null,
+      duration_minutes || 60,
+      location || null,
+      notes || null,
+    );
 
     const meeting = result.rows[0];
 
     // Get workspace info for timeline
-    const ws = await db.execute({
-      sql: "SELECT venture_id FROM relationship_workspaces WHERE id = ?",
-      args: [workspace_id],
-    });
-    const ventureName = (await db.execute({
-      sql: "SELECT name FROM v2_programs WHERE id = ?",
-      args: [ws.rows[0]?.venture_id],
-    })).rows[0]?.name || "Venture";
+    const ws = await getVentureIdByWorkspaceId(workspace_id);
+    const ventureName = (await getVentureNameForScheduledMeeting(ws.rows[0]?.venture_id)).rows[0]?.name || "Venture";
 
     // Timeline entry
-    await db.execute({
-      sql: `INSERT INTO relationship_timeline (workspace_id, event_type, description, actor_id)
-            VALUES (?, 'meeting_scheduled', ?, ?)`,
-      args: [workspace_id, `${meeting_type.replace(/_/g, " ")} meeting scheduled${scheduled_date ? " for " + scheduled_date : ""}`, session.cid || session.id],
-    });
+    await insertMeetingScheduledTimeline(workspace_id, `${meeting_type.replace(/_/g, " ")} meeting scheduled${scheduled_date ? " for " + scheduled_date : ""}`, session.cid || session.id);
 
     return NextResponse.json({ success: true, meeting });
   } catch (error) {
@@ -104,27 +99,18 @@ export async function PUT(req) {
 
     if (!id) return NextResponse.json({ success: false, error: "meeting id required" }, { status: 400 });
 
-    const sets = [];
-    const args = [];
-
-    if (status) { sets.push("status = ?"); args.push(status); }
-    if (notes !== undefined) { sets.push("notes = ?"); args.push(notes); }
-    if (outcome !== undefined) { sets.push("outcome = ?"); args.push(outcome); }
-    if (action_items !== undefined) { sets.push("action_items = ?"); args.push(typeof action_items === "string" ? action_items : JSON.stringify(action_items)); }
-    if (scheduled_date) { sets.push("scheduled_date = ?"); args.push(scheduled_date); }
-    if (scheduled_time !== undefined) { sets.push("scheduled_time = ?"); args.push(scheduled_time); }
-    if (location !== undefined) { sets.push("location = ?"); args.push(location); }
-    if (meeting_type) { sets.push("meeting_type = ?"); args.push(meeting_type); }
-
-    if (sets.length === 0) return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
-
-    sets.push("updated_at = NOW()");
-    args.push(id);
-
-    const result = await db.execute({
-      sql: `UPDATE relationship_meetings SET ${sets.join(", ")} WHERE id = ? RETURNING *`,
-      args,
+    const result = await updateRelationshipMeeting(id, {
+      status,
+      notes,
+      outcome,
+      action_items,
+      scheduled_date,
+      scheduled_time,
+      location,
+      meeting_type,
     });
+
+    if (result.updated === false) return NextResponse.json({ success: false, error: "Nothing to update" }, { status: 400 });
 
     if (result.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Meeting not found" }, { status: 404 });
@@ -135,30 +121,17 @@ export async function PUT(req) {
     // Timeline entry
     if (status === "completed") {
       // Get workspace id for timeline
-      const ws = await db.execute({
-        sql: "SELECT id, venture_id FROM relationship_workspaces WHERE id = (SELECT workspace_id FROM relationship_meetings WHERE id = ?)",
-        args: [id],
-      });
+      const ws = await getWorkspaceForMeetingCompletion(id);
       if (ws.rows.length > 0) {
-        const vName = (await db.execute({
-          sql: "SELECT name FROM v2_programs WHERE id = ?",
-          args: [ws.rows[0].venture_id],
-        })).rows[0]?.name || "Venture";
+        const vName = (await getVentureNameForCompletedMeeting(ws.rows[0].venture_id)).rows[0]?.name || "Venture";
 
-        await db.execute({
-          sql: `INSERT INTO relationship_timeline (workspace_id, event_type, description, actor_id)
-                VALUES (?, 'meeting_completed', ?, ?)`,
-          args: [ws.rows[0].id, `Meeting completed${outcome ? ": " + outcome : ""} for ${vName}`, session.cid || session.id],
-        });
+        await insertMeetingCompletedTimeline(ws.rows[0].id, `Meeting completed${outcome ? ": " + outcome : ""} for ${vName}`, session.cid || session.id);
 
         // Update workspace next_action if action_items provided
         if (action_items) {
           const items = typeof action_items === "string" ? JSON.parse(action_items) : action_items;
           if (Array.isArray(items) && items.length > 0) {
-            await db.execute({
-              sql: "UPDATE relationship_workspaces SET next_action = ?, updated_at = NOW() WHERE id = ?",
-              args: [items[0], ws.rows[0].id],
-            });
+            await setWorkspaceNextAction(items[0], ws.rows[0].id);
           }
         }
       }
