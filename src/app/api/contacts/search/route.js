@@ -1,6 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  isParticipantInProgram,
+  isVentureFounderInProgram,
+  searchContactsInProgram,
+  searchContactsByNameOrEmail,
+} from "@/models/contacts";
 
 /**
  * GET /api/contacts/search?q=...&program_id=X
@@ -63,23 +69,11 @@ export async function GET(req) {
       }
 
       const isParticipant = (
-        await db.execute({
-          sql: `SELECT 1 FROM participant_programs
-                WHERE participant_id = ? AND CAST(program_id AS TEXT) = ?
-                LIMIT 1`,
-          args: [session.cid, programId],
-        })
+        await isParticipantInProgram(session.cid, programId)
       ).rows.length > 0;
 
       const isFounder = (
-        await db.execute({
-          sql: `SELECT 1 FROM venture_members vm
-                JOIN ventures v ON v.venture_id = vm.venture_id
-                WHERE (vm.user_cid = ? OR vm.contact_id = ?)
-                  AND CAST(v.program_id AS TEXT) = ?
-                LIMIT 1`,
-          args: [session.cid, session.cid, programId],
-        })
+        await isVentureFounderInProgram(session.cid, programId)
       ).rows.length > 0;
 
       if (!isParticipant && !isFounder) {
@@ -91,37 +85,13 @@ export async function GET(req) {
 
       // Scoped pool: program participants, program staff, assigned program
       // manager. Name/email only — minimal identity, no full contact record.
-      const result = await db.execute({
-        sql: `SELECT cid, name, email FROM contacts
-              WHERE (name ILIKE ? OR email ILIKE ?)
-                AND (
-                  cid IN (
-                    SELECT participant_id FROM participant_programs
-                    WHERE CAST(program_id AS TEXT) = ?
-                  )
-                  OR cid IN (
-                    SELECT staff_id FROM v2_program_staff
-                    WHERE CAST(program_id AS TEXT) = ?
-                  )
-                  OR cid IN (
-                    SELECT assigned_pm_id FROM v2_programs
-                    WHERE id::text = ? AND assigned_pm_id IS NOT NULL
-                  )
-                )
-              ORDER BY name ASC LIMIT 20`,
-        args: [like, like, programId, programId, programId],
-      });
+      const result = await searchContactsInProgram(like, programId);
 
       return NextResponse.json({ success: true, contacts: result.rows || [] });
     }
 
     // Internal CRM roles: general directory search (unchanged).
-    const result = await db.execute({
-      sql: `SELECT cid, name, email FROM contacts
-            WHERE (name ILIKE ? OR email ILIKE ?)
-            ORDER BY name ASC LIMIT 20`,
-      args: [like, like],
-    });
+    const result = await searchContactsByNameOrEmail(like);
 
     return NextResponse.json({ success: true, contacts: result.rows || [] });
   } catch (error) {

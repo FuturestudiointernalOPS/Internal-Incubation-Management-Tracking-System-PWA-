@@ -1,7 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  countMergeParticipantPrograms,
+  countMergeVentureMemberships,
+  countMergeTimelineEvents,
+} from "@/models/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +25,9 @@ export async function GET(req) {
 
     // Count what will be reassigned
     const [ppCount, vmCount, tlCount] = await Promise.all([
-      db.execute({ sql: "SELECT COUNT(*)::int AS c FROM participant_programs WHERE participant_id = ?", args: [b] }),
-      db.execute({ sql: "SELECT COUNT(*)::int AS c FROM venture_members WHERE contact_id = ? AND removed_at IS NULL", args: [b] }),
-      db.execute({ sql: "SELECT COUNT(*)::int AS c FROM contact_timeline WHERE contact_cid = ?", args: [b] }),
+      countMergeParticipantPrograms(b),
+      countMergeVentureMemberships(b),
+      countMergeTimelineEvents(b),
     ]);
 
     return NextResponse.json({

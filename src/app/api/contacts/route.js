@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
@@ -7,6 +7,33 @@ import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { attachInvitationStatus } from "@/lib/invitations";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import {
+  createPasswordSetupToken,
+  markContactInvited,
+  upsertContact,
+  createAccessRequestNotification,
+  assignContactToProgram,
+  createParticipantProgramAudit,
+  findContactCidByPhone,
+  createDuplicatePhoneFlag,
+  updateContactFields,
+  deleteContactPrograms,
+  getProgramById,
+  removeContactProgramsExcept,
+  clearContactPrograms,
+  addContactProgramMembership,
+  recordParticipantProgramAudit,
+  ensureContactProgramMembership,
+  getContactIdentityByCid,
+  markAdminNotificationsRead,
+  getContactByCid,
+  getArchivedContacts,
+  getContactsForSuperAdmin,
+  getContactsForStaff,
+  getParticipantProgramCids,
+  getContactRoleAssignmentCids,
+  softDeleteContact,
+} from "@/models/contacts";
 export const dynamic = "force-dynamic";
 
 /**
@@ -18,16 +45,9 @@ async function fireInvite(cid, name, email, role, groupId) {
     const token = uuidv4();
     const tokenHash = hashToken(token);
 
-    await db.execute({
-      sql: `INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at)
-            VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')`,
-      args: [token, tokenHash, cid],
-    });
+    await createPasswordSetupToken(token, tokenHash, cid);
 
-    await db.execute({
-      sql: "UPDATE contacts SET invited_at = NOW() WHERE cid = ?",
-      args: [cid],
-    }).catch(() => {}); // Column may not exist yet — non-critical
+    await markContactInvited(cid).catch(() => {}); // Column may not exist yet — non-critical
     // Send email synchronously so Vercel doesn't kill the worker
     const { sendInviteEmail } = await import("@/lib/email");
     await sendInviteEmail({ to: email, name, role, token });
@@ -134,54 +154,11 @@ export async function POST(req) {
       try {
         console.log(`Saving contact: ${vc.email} as ${vc.status}`);
 
-        await db.execute({
-          sql: `INSERT INTO contacts (
-                  cid, name, email, phone, address, dob, group_name,
-                  role, password, program_id, program_name, image, status, deleted, gender, mother_name
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(email) DO UPDATE SET
-                  name = EXCLUDED.name,
-                  phone = EXCLUDED.phone,
-                  address = EXCLUDED.address,
-                  status = EXCLUDED.status,
-                  role = EXCLUDED.role,
-                  group_name = EXCLUDED.group_name,
-                  deleted = 0,
-                  deleted_at = NULL,
-                  deleted_by = NULL,
-                  archived_at = NULL,
-                  archived_by = NULL`,
-          args: [
-            vc.cid,
-            vc.name,
-            vc.email,
-            vc.phone,
-            vc.address,
-            vc.dob,
-            vc.group_name,
-            vc.role,
-            vc.password,
-            vc.program_id,
-            vc.program_name,
-            vc.image,
-            vc.status,
-            vc.deleted,
-            vc.gender,
-            vc.mother_name,
-          ],
-        });
+        await upsertContact(vc);
 
         if (vc.status === "pending") {
           console.log("Triggering Admin Notification for:", vc.name);
-          await db.execute({
-            sql: `INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)`,
-            args: [
-              "sa",
-              "NEW ACCESS REQUEST",
-              `${vc.name} has applied to join the FUTURE STUDIO group. Verification required.`,
-              "verification",
-            ],
-          });
+          await createAccessRequestNotification(vc.name);
         }
 
         // Fire invite for ALL new contacts so they receive activation email
@@ -210,18 +187,9 @@ export async function POST(req) {
               errors.push({ email: vc.email, program_id: pid, error: "errors.roleConflictParticipantFacilitator" });
               continue;
             }
-            await db.execute({
-              sql: `INSERT INTO participant_programs (participant_id, program_id)
-                    VALUES (?, ?)
-                    ON CONFLICT (participant_id, program_id) DO NOTHING`,
-              args: [vc.cid, pid],
-            });
+            await assignContactToProgram(vc.cid, pid);
 
-            await db.execute({
-              sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-                    VALUES (?, ?, 'assigned', ?)`,
-              args: [vc.cid, pid, "system"],
-            });
+            await createParticipantProgramAudit(vc.cid, pid, "system");
           } catch (e) {
             console.error(
               `Failed to assign ${vc.cid} to program ${pid}:`,
@@ -251,17 +219,9 @@ export async function POST(req) {
         for (const vc of validContacts) {
           if (!vc.phone) continue;
           try {
-            const existing = await db.execute({
-              sql: `SELECT cid FROM contacts WHERE phone = ? AND cid != ? AND email != ? AND deleted_at IS NULL LIMIT 1`,
-              args: [vc.phone, vc.cid, vc.email],
-            });
+            const existing = await findContactCidByPhone(vc.phone, vc.cid, vc.email);
             if (existing.rows.length > 0) {
-              await db.execute({
-                sql: `INSERT INTO contact_duplicate_flags (contact_cid_a, contact_cid_b, match_reason, confidence)
-                      VALUES (?, ?, 'same_phone', 0.85)
-                      ON CONFLICT ((LEAST(contact_cid_a, contact_cid_b)), (GREATEST(contact_cid_a, contact_cid_b))) DO NOTHING`,
-                args: [vc.cid, existing.rows[0].cid],
-              });
+              await createDuplicatePhoneFlag(vc.cid, existing.rows[0].cid);
             }
           } catch (_) {}
         }
@@ -355,10 +315,7 @@ export async function PUT(req) {
 
     args.push(data.cid);
 
-    const match = await db.execute({
-      sql: `UPDATE contacts SET ${fieldsToUpdate.join(", ")} WHERE cid = ?`,
-      args: args,
-    });
+    const match = await updateContactFields(fieldsToUpdate, args);
 
     // Sync participant_programs if program_ids array is provided
     const NON_PARTICIPANT_ROLES = ["facilitator", "teacher", "staff", "admin", "developer", "super_admin", "investor", "founder", "program_manager"];
@@ -368,17 +325,11 @@ export async function PUT(req) {
       // Role is being changed to a non-participant role.
       // Automatically remove from participant_programs — they are no longer a participant.
       // Skip the conflict guard entirely since we're intentionally changing their role.
-      await db.execute({
-        sql: "DELETE FROM participant_programs WHERE participant_id = ?",
-        args: [data.cid],
-      });
+      await deleteContactPrograms(data.cid);
     } else if (Array.isArray(data.program_ids)) {
       // Verify all programs exist before assigning
       for (const pid of data.program_ids) {
-        const check = await db.execute({
-          sql: "SELECT id FROM v2_programs WHERE id = ?",
-          args: [pid],
-        });
+        const check = await getProgramById(pid);
         if (check.rows.length === 0) {
           return NextResponse.json(
             {
@@ -403,33 +354,17 @@ export async function PUT(req) {
 
       // Remove existing assignments not in the new list
       if (data.program_ids.length > 0) {
-        const placeholders = data.program_ids.map(() => "?").join(",");
-        await db.execute({
-          sql: `DELETE FROM participant_programs WHERE participant_id = ? AND program_id NOT IN (${placeholders})`,
-          args: [data.cid, ...data.program_ids],
-        });
+        await removeContactProgramsExcept(data.cid, data.program_ids);
       } else {
-        await db.execute({
-          sql: "DELETE FROM participant_programs WHERE participant_id = ?",
-          args: [data.cid],
-        });
+        await clearContactPrograms(data.cid);
       }
 
       // Add new assignments
       for (const pid of data.program_ids) {
         try {
-          await db.execute({
-            sql: `INSERT INTO participant_programs (participant_id, program_id)
-                  VALUES (?, ?)
-                  ON CONFLICT (participant_id, program_id) DO NOTHING`,
-            args: [data.cid, pid],
-          });
+          await addContactProgramMembership(data.cid, pid);
 
-          await db.execute({
-            sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-                  VALUES (?, ?, 'assigned', ?)`,
-            args: [data.cid, pid, data.assigned_by || "system"],
-          });
+          await recordParticipantProgramAudit(data.cid, pid, data.assigned_by || "system");
         } catch (e) {
           console.error(
             `PUT program sync error for ${data.cid}, program ${pid}:`,
@@ -447,12 +382,7 @@ export async function PUT(req) {
           data.email || null,
         );
         if (conflictError) return conflictError;
-        await db.execute({
-          sql: `INSERT INTO participant_programs (participant_id, program_id)
-                VALUES (?, ?)
-                ON CONFLICT (participant_id, program_id) DO NOTHING`,
-          args: [data.cid, data.program_id],
-        });
+        await ensureContactProgramMembership(data.cid, data.program_id);
       } catch (e) {
         console.error(`PUT program sync error for ${data.cid}:`, e.message);
       }
@@ -461,10 +391,7 @@ export async function PUT(req) {
     // If status changed to active/approved, fire invite and clear notifications
     if (data.status === "active" || data.status === "approved") {
       try {
-        const userRes = await db.execute({
-          sql: "SELECT name, email, role FROM contacts WHERE cid = ?",
-          args: [data.cid],
-        });
+        const userRes = await getContactIdentityByCid(data.cid);
         if (userRes.rows.length > 0) {
           const u = userRes.rows[0];
 
@@ -475,14 +402,7 @@ export async function PUT(req) {
           // }
 
           // Clear notifications
-          await db.execute({
-            sql: `UPDATE v2_notifications
-                      SET is_read = 1
-                      WHERE recipient_id = 'sa'
-                      AND message ILIKE ?
-                      AND is_read = 0`,
-            args: [`%${u.name}%`],
-          });
+          await markAdminNotificationsRead(u.name);
         }
       } catch (e) {
         console.error("Auto-Purge Failure:", e);
@@ -535,54 +455,18 @@ export async function GET(req) {
 
     let result;
     if (cidFilter) {
-      result = await db.execute({
-        sql: "SELECT * FROM contacts WHERE cid = ?",
-        args: [cidFilter],
-      });
+      result = await getContactByCid(cidFilter);
     } else if (session.role === "participant" || session.role === "founder") {
-      result = await db.execute({
-        sql: "SELECT * FROM contacts WHERE cid = ?",
-        args: [session.cid],
-      });
+      result = await getContactByCid(session.cid);
     } else if (statusFilter === "archived" && session.role === "super_admin") {
       // Archived contacts (archived but not soft-deleted)
-      result = await db.execute(
-        "SELECT * FROM contacts WHERE archived_at IS NOT NULL AND deleted_at IS NULL ORDER BY name ASC",
-      );
+      result = await getArchivedContacts();
     } else if (session.role === "super_admin") {
-      let sql = "SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL";
-      const args = [];
-      if (roleFilter) {
-        const roles = roleFilter.split(",");
-        sql += " AND (" + roles.map(() => "role = ?").join(" OR ") + ")";
-        args.push(...roles);
-      }
-      if (statusFilter && statusFilter !== "all") {
-        sql += " AND status = ?";
-        args.push(statusFilter);
-      }
-      if (groupFilter) {
-        sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";
-        args.push(groupFilter);
-      }
-      sql += " ORDER BY name ASC";
-      result = await db.execute({ sql, args });
+      result = await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter);
     } else {
       // Staff/Teacher: active only. Program managers also see pending contacts
       // so they can find unapproved people and assign them as facilitators.
-      const statusClause =
-        session.role === "program_manager"
-          ? "status IN ('active', 'pending')"
-          : "status = 'active'";
-      let sql =
-        `SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND ${statusClause}`;
-      const args = [];
-      if (groupFilter) {
-        sql += " AND UPPER(TRIM(group_name)) = UPPER(TRIM(?))";
-        args.push(groupFilter);
-      }
-      sql += " ORDER BY name ASC";
-      result = await db.execute({ sql, args });
+      result = await getContactsForStaff(session.role, groupFilter);
     }
     const rows = result.rows || [];
     const cids = rows.map((r) => r.cid).filter(Boolean);
@@ -591,19 +475,11 @@ export async function GET(req) {
     if (cids.length > 0) {
       // Best-effort: these tables may not exist in older schemas.
       try {
-        const ph = cids.map(() => "?").join(",");
-        const ppRes = await db.execute({
-          sql: `SELECT DISTINCT participant_id FROM participant_programs WHERE participant_id IN (${ph})`,
-          args: cids,
-        });
+        const ppRes = await getParticipantProgramCids(cids);
         participantCids = new Set(ppRes.rows.map((r) => r.participant_id));
       } catch (_) {}
       try {
-        const ph = cids.map(() => "?").join(",");
-        const crRes = await db.execute({
-          sql: `SELECT DISTINCT contact_cid FROM contact_roles WHERE contact_cid IN (${ph}) AND is_current = true`,
-          args: cids,
-        });
+        const crRes = await getContactRoleAssignmentCids(cids);
         assignmentCids = new Set(crRes.rows.map((r) => r.contact_cid));
       } catch (_) {}
     }
@@ -655,13 +531,7 @@ export async function DELETE(req) {
     // '__deleted_' || cid || '__' || email is unique because cid is the
     // primary key, so it can never collide with another row (or with a real
     // address), and the original email stays visible inside the placeholder.
-    const result = await db.execute({
-      sql: `UPDATE contacts
-            SET deleted_at = NOW(), deleted_by = ?, deleted = 1,
-                email = '__deleted_' || cid || '__' || email
-            WHERE cid = ? AND deleted_at IS NULL`,
-      args: [deletedBy, cid],
-    });
+    const result = await softDeleteContact(deletedBy, cid);
 
     if (result.rowsAffected === 0) {
       return NextResponse.json(

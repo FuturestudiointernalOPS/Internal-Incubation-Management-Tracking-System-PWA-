@@ -1,7 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getProgramIdsForPm,
+  getContactTimelineEvents,
+  getTimelineContactIdentity,
+  createContactTimelineEvent,
+} from "@/models/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -25,29 +31,22 @@ export async function GET(req, { params }) {
       }
     }
 
-    let sql = "SELECT * FROM contact_timeline WHERE contact_cid = ?";
-    const args = [cid];
-
-    if (moduleFilter) { sql += " AND context_module = ?"; args.push(moduleFilter); }
-    if (typeFilter) { sql += " AND event_type = ?"; args.push(typeFilter); }
-
+    // Program managers: scope events to non-program modules + their programs.
+    let pmProgramIds;
     if (session.role === "program_manager") {
-      const progRes = await db.execute({ sql: "SELECT id FROM v2_programs WHERE assigned_pm_id = ?", args: [session.cid] });
-      const pmProgramIds = progRes.rows.map(r => r.id);
-      if (pmProgramIds.length > 0) {
-        const ph = pmProgramIds.map(() => "?").join(",");
-        sql += ` AND (context_module != 'programs' OR context_id IN (${ph}))`;
-        args.push(...pmProgramIds);
-      } else {
-        sql += " AND context_module != 'programs'";
-      }
+      const progRes = await getProgramIdsForPm(session.cid);
+      pmProgramIds = progRes.rows.map(r => r.id);
     }
 
-    sql += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
-    args.push(limit, offset);
-
-    const result = await db.execute({ sql, args });
-    const contactRes = await db.execute({ sql: "SELECT cid, name, email, role FROM contacts WHERE cid = ?", args: [cid] });
+    const result = await getContactTimelineEvents(
+      cid,
+      moduleFilter,
+      typeFilter,
+      pmProgramIds,
+      limit,
+      offset,
+    );
+    const contactRes = await getTimelineContactIdentity(cid);
 
     return NextResponse.json({ success: true, contact: contactRes.rows[0] || null, events: result.rows, total: result.rows.length });
   } catch (error) {
@@ -69,11 +68,13 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "event_type and description required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
-            VALUES (?, ?, ?, 'crm', ?, ?::jsonb) RETURNING id, created_at`,
-      args: [cid, event_type, description, session.cid, JSON.stringify(metadata || {})],
-    });
+    const result = await createContactTimelineEvent(
+      cid,
+      event_type,
+      description,
+      session.cid,
+      metadata,
+    );
 
     return NextResponse.json({ success: true, event: result.rows[0] });
   } catch (error) {
