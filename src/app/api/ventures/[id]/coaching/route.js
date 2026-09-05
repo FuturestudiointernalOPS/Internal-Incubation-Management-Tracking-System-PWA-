@@ -2,13 +2,19 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  getVentureIdByCodeForCoaching, listCoachingSessions,
+  addCoachingFollowUpDateColumn, addCoachingStartTimeColumn,
+  addCoachingLocationColumn, addCoachingMeetingLinkColumn,
+  insertCoachingSession, addCoachingStatusColumn, updateCoachingSessionFields,
+} from "@/models/ventureAssets";
 import { notifyVentureFounders } from "@/lib/ventures";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureIdByCodeForCoaching(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -18,7 +24,7 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const r = await db.execute({ sql: "SELECT vcs.*, c.name as advisor_name FROM venture_coaching_sessions vcs LEFT JOIN contacts c ON vcs.advisor_contact_id = c.cid WHERE vcs.venture_id = ? ORDER BY vcs.session_date DESC", args: [dbId] });
+    const r = await listCoachingSessions(dbId);
     return NextResponse.json({ success: true, sessions: r.rows || [] });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
@@ -31,11 +37,11 @@ export async function POST(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date } = await req.json();
     // Ensure columns exist (dev migration)
-    try { await db.execute({ sql: "ALTER TABLE venture_coaching_sessions ADD COLUMN IF NOT EXISTS follow_up_date DATE" }); } catch(e){}
-    try { await db.execute({ sql: "ALTER TABLE venture_coaching_sessions ADD COLUMN IF NOT EXISTS start_time VARCHAR" }); } catch(e){}
-    try { await db.execute({ sql: "ALTER TABLE venture_coaching_sessions ADD COLUMN IF NOT EXISTS location VARCHAR" }); } catch(e){}
-    try { await db.execute({ sql: "ALTER TABLE venture_coaching_sessions ADD COLUMN IF NOT EXISTS meeting_link TEXT" }); } catch(e){}
-    await db.execute({ sql: "INSERT INTO venture_coaching_sessions (venture_id, advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date) VALUES (?,?,?,?,?,?,?,?,?,?)", args: [dbId, advisor_contact_id||null, session_date||null, start_time||null, location||null, meeting_link||null, notes||null, observations||null, recommendations||null, follow_up_date||null] });
+    try { await addCoachingFollowUpDateColumn(); } catch(e){}
+    try { await addCoachingStartTimeColumn(); } catch(e){}
+    try { await addCoachingLocationColumn(); } catch(e){}
+    try { await addCoachingMeetingLinkColumn(); } catch(e){}
+    await insertCoachingSession({ venture_id: dbId, advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date });
     notifyVentureFounders(dbId, 'Coaching Session Scheduled', `A coaching session has been scheduled${session_date ? ' for '+session_date : ''}.`);
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
@@ -66,7 +72,7 @@ export async function PATCH(req, { params }) {
       }
       updates.push("status = ?"); args.push(status);
       // Ensure column exists
-      try { await db.execute({ sql: "ALTER TABLE venture_coaching_sessions ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'completed'" }); } catch(e){}
+      try { await addCoachingStatusColumn(); } catch(e){}
       if (status === "approved") {
         notifyVentureFounders(dbId, 'Coaching Session Approved', 'Your coaching session has been approved by the mentor.');
       } else if (status === "revision_requested") {
@@ -75,7 +81,7 @@ export async function PATCH(req, { params }) {
     }
     if (!updates.length) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
     args.push(coachingId);
-    await db.execute({ sql: `UPDATE venture_coaching_sessions SET ${updates.join(", ")} WHERE id = ?`, args });
+    await updateCoachingSessionFields(updates, args);
     return NextResponse.json({ success: true });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }

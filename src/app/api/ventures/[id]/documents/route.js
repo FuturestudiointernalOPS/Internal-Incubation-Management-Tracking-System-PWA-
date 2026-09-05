@@ -7,13 +7,17 @@ import {
   createShareLink, revokeShare, getAccessLogs, getDocumentShares,
   notifyVentureFounders,
 } from "@/lib/ventures";
+import {
+  getVentureIdByCode, getVentureCodeById, isFounderForDocumentVisibility,
+  isFounderForDocumentStatusTransition, updateDocumentApprovalStatus,
+} from "@/models/ventureAssets";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin","teacher"];
 const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureIdByCode(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -21,7 +25,7 @@ async function resolveVentureDbId(ventureId) {
 async function resolveVentureCode(idOrCode) {
   if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
     try {
-      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      const r = await getVentureCodeById(idOrCode);
       return r.rows?.[0]?.venture_id || idOrCode;
     } catch { return idOrCode; }
   }
@@ -35,7 +39,7 @@ async function getVisibilityStatuses(dbId, session) {
   // Founders see everything
   if (session.cid) {
     const code = await resolveVentureCode(dbId);
-    const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [code, session.cid] });
+    const founder = await isFounderForDocumentVisibility(code, session.cid);
     if (founder.rows?.length) return null;
   }
   // Investors only see shared documents
@@ -107,14 +111,14 @@ export async function POST(req, { params }) {
       // Check: only founders/privileged can transition
       if (!PRIVILEGED.includes(session.role)) {
         const code = await resolveVentureCode(dbId);
-        const founder = await db.execute({ sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1", args: [code, session.cid] });
+        const founder = await isFounderForDocumentStatusTransition(code, session.cid);
         if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
       }
       const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];
       if (!STATUSES.includes(body.approval_status)) {
         return NextResponse.json({ success: false, error: `approval_status must be one of ${STATUSES.join(", ")}` }, { status: 400 });
       }
-      await db.execute({ sql: "UPDATE venture_documents SET approval_status = ?, updated_at = NOW() WHERE id = ? AND venture_id = ?", args: [body.approval_status, body.document_id, dbId] });
+      await updateDocumentApprovalStatus(body.approval_status, body.document_id, dbId);
       const labels = { approved: 'approved', shared_with_investor: 'shared with investors', pending_review: 'sent for review', private: 'marked private' };
       notifyVentureFounders(dbId, 'Document Status Updated', `A document has been ${labels[body.approval_status] || body.approval_status}.`);
       return NextResponse.json({ success: true });
