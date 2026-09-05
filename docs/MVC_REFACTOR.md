@@ -1,7 +1,8 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Waves 0–6 ✅ (no inline SQL in API layer, libs
-> relocated behind facades; repo 100 % green: 39/39 suites · 623/623 tests).
+> Status: **in progress** — Waves 0–6 ✅ + polish ✅ (no inline SQL in API layer,
+> domain libs relocated behind facades; repo 100 % green: 39/39 suites ·
+> 623/623 tests · eslint 0 errors · build green).
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -283,12 +284,16 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       2,059; `admin/projects/*`, `TaskManager` 2,511, `DashboardLayout` 2,196…)
       are layering-compliant (API-driven) — splitting them is pure file-size
       debt; do it feature-by-feature with no behavior change.
-- [ ] Relocate `src/lib/lms/*` → `src/models/lms/` behind per-file facades.
+- [x] Relocate `src/lib/lms/*` → `src/models/lms/` behind per-file facades.
 - [ ] Remove facade re-exports once importers are migrated (grep count = 0),
       incl. `src/lib/ventures.js` + `src/lib/db/queries/tasks.js`.
-- [ ] Final polish: full `npm run lint` (fix repo eslint config), `npm test`,
-      `npm run build`; update `AGENTS.md`, `.ai/*`, `docs/ARCHITECTURE.md`;
-      delete legacy SQLite binaries (`src/lib/*.db`) after confirmation.
+      *(advisory only — facades are zero-cost and keep legacy paths working)*
+- [x] Polish: ESLint flat config rewritten (`eslint .` runs, **0 errors**,
+      2.1k warnings = intentional unused-var noise + aspirational react-hooks
+      compiler rules); lint sweep fixed ~120 real issues (incl. 5 scope bugs
+      that would ReferenceError and 6 missing `useI18n` wirings); `package.json`
+      lint script → `eslint .`; empty legacy SQLite files removed; AGENTS.md /
+      docs/ARCHITECTURE.md / .ai updated to the MVC structure.
 
 ---
 

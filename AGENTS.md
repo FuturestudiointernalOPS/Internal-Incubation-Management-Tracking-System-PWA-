@@ -168,12 +168,20 @@ src/
 │   ├── pm/               ← Program Manager routes
 │   ├── teacher/          ← Teacher routes
 │   ├── participant/      ← Participant routes
-│   └── api/              ← API routes (~60+ handlers)
+│   └── api/              ← API routes (thin controllers, ~300 handlers)
 ├── components/
 │   ├── layout/
 │   │   └── DashboardLayout.js  ← Sidebar + header wrapper
 │   └── ui/               ← Reusable components
-├── lib/
+├── models/               ← MODEL layer — all SQL + domain logic (MVC)
+│   ├── tasks.js          ← one file per domain (blocks, projects,
+│   │                        programs, contacts, authFlows, groups,
+│   │                        authorization, ventures, investor…)
+│   └── lms/              ← domain folders (lms, authorization,
+│                           finance, platform, integrations)
+├── lib/                  ← INFRASTRUCTURE ONLY (db, auth sessions, i18n,
+│   │                        email transport, storage, hooks) + facades
+│   │                        re-exporting relocated domain modules
 │   ├── hooks/
 │   │   └── useApi.js     ← Data fetching hooks
 │   ├── i18n.js           ← Translation engine
@@ -183,6 +191,17 @@ src/
 │   └── ...
 └── locales/              ← Translation files (en + fr)
 ```
+
+### MVC layering (see `docs/MVC_REFACTOR.md` for the full guide)
+
+- **M — `src/models/`**: every `db.execute` lives here as a named function.
+  API routes, pages and components must **never** run SQL or import `@/lib/db`.
+- **C — `src/app/api/**/route.js`**: thin controllers — auth, validation,
+  model orchestration, response shaping.
+- **V — pages + `src/components/`**: rendering only; fetch via controllers.
+- Legacy domain modules were relocated to `src/models/` behind facades: some
+  `src/lib/*` files (e.g. `ventures.js`, `taskAudit.js`) now only re-export
+  from `@/models/*`. New code imports from `@/models/*` directly.
 
 ### DashboardLayout — rendered by section layouts, NOT by pages
 
@@ -219,5 +238,6 @@ edge-to-edge content, that behavior is pathname-based inside DashboardLayout.
 - [ ] If creating a new page inside `/admin/*`: no action needed (layout already has force-dynamic)
 - [ ] If creating a new page outside `/admin/*`: add `export const dynamic = "force-dynamic"` if using client hooks
 - [ ] If adding a new component: put it in `src/components/ui/` and update `DESIGN_SYSTEM.md`
-- [ ] When adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
-- [ ] Run `npm run build` to verify zero errors
+- [ ] If adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
+- [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
+- [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
