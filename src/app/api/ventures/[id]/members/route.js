@@ -1,10 +1,25 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  countActiveFoundersByVentureCode,
+  findActiveVentureFounder,
+  findActiveVentureMember,
+  getContactByCid,
+  getVentureCodeByInternalId,
+  getVentureInternalIdByCode,
+  getVentureInternalIdByVentureCode,
+  getVentureMemberContactId,
+  getVentureMemberForMutation,
+  insertVentureMember,
+  listVentureMembersWithContactInfo,
+  removeVentureMember,
+  updateVentureMemberFields,
+} from "@/models/ventureWorkspace";
 
 async function resolveDbId(db, ventureId) {
   try {
-    const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+    const r = await getVentureInternalIdByCode(ventureId);
     return r.rows?.[0]?.id || ventureId;
   } catch { return ventureId; }
 }
@@ -15,7 +30,7 @@ async function resolveVentureCode(db, idOrCode) {
   if (!idOrCode) return idOrCode;
   if (typeof idOrCode === "string" && idOrCode.includes("-") && !idOrCode.startsWith("VNT-")) {
     try {
-      const r = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [idOrCode] });
+      const r = await getVentureCodeByInternalId(idOrCode);
       return r.rows?.[0]?.venture_id || idOrCode;
     } catch { return idOrCode; }
   }
@@ -24,28 +39,19 @@ async function resolveVentureCode(db, idOrCode) {
 
 async function getVentureFounderCount(db, ventureId) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT COUNT(*) as cnt FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [code],
-  });
+  const r = await countActiveFoundersByVentureCode(code);
   return parseInt(r.rows?.[0]?.cnt || 0);
 }
 
 async function isVentureMember(db, ventureId, cid) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
-  });
+  const r = await findActiveVentureMember(code, cid);
   return r.rows?.length > 0;
 }
 
 async function isVentureFounder(db, ventureId, cid) {
   const code = await resolveVentureCode(db, ventureId);
-  const r = await db.execute({
-    sql: "SELECT id FROM venture_members WHERE venture_id = ? AND contact_id = ? AND member_type = 'founder' AND removed_at IS NULL LIMIT 1",
-    args: [code, cid],
-  });
+  const r = await findActiveVentureFounder(code, cid);
   return r.rows?.length > 0;
 }
 
@@ -102,19 +108,10 @@ export async function GET(req, { params }) {
       }
     } catch (_) {}
 
-    const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    const vRes = await getVentureInternalIdByVentureCode(id);
     const code = await resolveVentureCode(db, id);
 
-    const result = await db.execute({
-      sql: `
-        SELECT vm.*, c.name as contact_name, c.email as contact_email
-        FROM venture_members vm
-        LEFT JOIN contacts c ON vm.contact_id = c.cid
-        WHERE vm.venture_id = ? AND vm.removed_at IS NULL
-        ORDER BY vm.member_type, vm.joined_at DESC
-      `,
-      args: [code],
-    });
+    const result = await listVentureMembersWithContactInfo(code);
 
     return NextResponse.json({ success: true, members: result.rows });
   } catch (error) {
@@ -209,10 +206,7 @@ export async function POST(req, { params }) {
         );
       }
     } else {
-      const existingContact = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE cid = ?",
-        args: [targetCid],
-      });
+      const existingContact = await getContactByCid(targetCid);
       if (existingContact.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Contact not found." },
@@ -222,11 +216,7 @@ export async function POST(req, { params }) {
     }
 
     try {
-      await db.execute({
-        sql: `INSERT INTO venture_members (venture_id, contact_id, member_type, role, permissions, invited_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [id, targetCid, member_type, role || null, permissions || "edit", userCid || null],
-      });
+      await insertVentureMember({ venture_id: id, contact_id: targetCid, member_type, role, permissions, invited_by: userCid });
     } catch (err) {
       if (err.message?.includes("UNIQUE") || err.message?.includes("unique") || err.message?.includes("duplicate")) {
         return NextResponse.json(
@@ -299,10 +289,7 @@ export async function PATCH(req, { params }) {
     }
 
     if (action === "remove") {
-      const member = await db.execute({
-        sql: "SELECT member_type, contact_id, role FROM venture_members WHERE id = ? AND venture_id = ?",
-        args: [member_id, id],
-      });
+      const member = await getVentureMemberForMutation(member_id, id);
 
       if (!member.rows?.[0]) {
         return NextResponse.json({ success: false, error: "Member not found" }, { status: 404 });
@@ -318,10 +305,7 @@ export async function PATCH(req, { params }) {
         }
       }
 
-      await db.execute({
-        sql: "UPDATE venture_members SET removed_at = NOW() WHERE id = ? AND venture_id = ?",
-        args: [member_id, id],
-      });
+      await removeVentureMember(member_id, id);
 
       // Close the append-only membership history row (account/contact intact).
       try {
@@ -341,10 +325,7 @@ export async function PATCH(req, { params }) {
     } else {
       let memberContactId = null;
       try {
-        const m = await db.execute({
-          sql: "SELECT contact_id FROM venture_members WHERE id = ? AND venture_id = ?",
-          args: [member_id, id],
-        });
+        const m = await getVentureMemberContactId(member_id, id);
         memberContactId = m.rows?.[0]?.contact_id || null;
       } catch (_) {}
       const updates = [];
@@ -355,10 +336,7 @@ export async function PATCH(req, { params }) {
         return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
       }
       upArgs.push(member_id, id);
-      await db.execute({
-        sql: `UPDATE venture_members SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-        args: upArgs,
-      });
+      await updateVentureMemberFields(updates, upArgs);
       try {
         const { syncVentureRoleHistory } = await import("@/lib/contactIdentity");
         if (memberContactId && role !== undefined) {

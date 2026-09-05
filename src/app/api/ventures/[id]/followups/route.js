@@ -2,6 +2,10 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  getVentureDbIdForFollowups,
+  listVentureFollowups,
+} from "@/models/ventureWorkspace";
 
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
 
@@ -15,10 +19,10 @@ export async function GET(req, { params }) {
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+    const vRes = await getVentureDbIdForFollowups(id);
     const dbId = vRes.rows?.[0]?.id || id;
 
-    const r = await db.execute({ sql: "SELECT * FROM v2_followups WHERE venture_id = ? ORDER BY created_at DESC", args: [dbId] });
+    const r = await listVentureFollowups(dbId);
     return NextResponse.json({ success: true, followups: r.rows || [] });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

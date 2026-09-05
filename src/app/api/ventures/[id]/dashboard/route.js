@@ -8,6 +8,20 @@ import {
   getOrCreateVerification,
   listFounders,
 } from "@/lib/ventures";
+import {
+  countActiveVentureCoachAssignments,
+  countVentureAdvisors,
+  countVentureCoachingSessions,
+  getRecentNotificationsForMembers,
+  getVentureDbIdByVentureCode,
+  getVentureInfoForDashboard,
+  getVentureKpiSummary,
+  listRecentVentureActivity,
+  listRecentVentureDocuments,
+  listRecentVentureDocumentsUnfiltered,
+  listUpcomingVentureMeetings,
+  listVentureMemberNotificationRecipients,
+} from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/dashboard
@@ -25,7 +39,7 @@ export const GET = createHandler(
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
     let dbId = id;
     try {
-      const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+      const vRes = await getVentureDbIdByVentureCode(id);
       if (vRes.rows[0]) dbId = vRes.rows[0].id;
     } catch (_) {}
 
@@ -53,10 +67,7 @@ export const GET = createHandler(
     // ── Venture Info ──
     const ventureInfo = (async () => {
       try {
-        const res = await db.execute({
-          sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
-          args: [id],
-        });
+        const res = await getVentureInfoForDashboard(id);
         return res.rows[0] || null;
       } catch { return null; }
     })();
@@ -84,26 +95,9 @@ export const GET = createHandler(
     // ── Notifications (recipients = the venture's members, not the VNT code) ──
     const notifications = (async () => {
       try {
-        const memberRes = await db.execute({
-          sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
-          args: [id],
-        });
+        const memberRes = await listVentureMemberNotificationRecipients(id);
         const recipientIds = [...new Set((memberRes.rows || []).flatMap((r) => [r.contact_id, r.user_cid]).filter(Boolean))];
-        let sql, args;
-        if (recipientIds.length > 0) {
-          sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")}) OR recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`;
-          args = recipientIds;
-        } else {
-          sql = `SELECT id, title, message, type, is_read, created_at
-                FROM v2_notifications
-                WHERE recipient_id = 'sa'
-                ORDER BY created_at DESC LIMIT 10`;
-          args = [];
-        }
-        const res = await db.execute({ sql, args });
+        const res = await getRecentNotificationsForMembers(recipientIds);
         const notifs = res.rows || [];
         return {
           unread: notifs.filter((n) => !n.is_read).length,
@@ -118,12 +112,7 @@ export const GET = createHandler(
     // ── Recent Activity ──
     const recentActivity = (async () => {
       try {
-        const res = await db.execute({
-          sql: `SELECT id, action, actor_name, details, created_at
-                FROM venture_activity_log WHERE venture_id = ?
-                ORDER BY created_at DESC LIMIT 10`,
-          args: [id],
-        });
+        const res = await listRecentVentureActivity(id);
         return (res.rows || []).map((a) => ({
           id: a.id, action: a.action, actor: a.actor_name || "System",
           details: a.details, created_at: a.created_at,
@@ -154,16 +143,10 @@ export const GET = createHandler(
       try {
         let rows = [];
         try {
-          const res = await db.execute({
-            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
-            args: [id],
-          });
+          const res = await listRecentVentureDocuments(id);
           rows = res.rows || [];
         } catch (_) {
-          const res = await db.execute({
-            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
-            args: [id],
-          });
+          const res = await listRecentVentureDocumentsUnfiltered(id);
           rows = res.rows || [];
         }
         return {
@@ -176,12 +159,7 @@ export const GET = createHandler(
     // ── Meetings (placeholder — integrates with calendar/events module) ──
     const meetings = (async () => {
       try {
-        const res = await db.execute({
-          sql: `SELECT id, title, description, event_date, event_time, status, type
-                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
-                ORDER BY event_date ASC LIMIT 5`,
-          args: [id],
-        }).catch(() => ({ rows: [] }));
+        const res = await listUpcomingVentureMeetings(id).catch(() => ({ rows: [] }));
         return (res.rows || []).map((m) => ({
           id: m.id, title: m.title, description: m.description,
           date: m.event_date, time: m.event_time, status: m.status, type: m.type || "meeting",
@@ -192,14 +170,7 @@ export const GET = createHandler(
     // ── KPI Summary (the venture KPI module, not the global kpis table) ──
     const kpiSummary = (async () => {
       try {
-        const res = await db.execute({
-          sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
-                FROM venture_kpi_assignments a
-                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
-                WHERE a.venture_id::text = ?
-                ORDER BY a.updated_at DESC LIMIT 5`,
-          args: [dbId],
-        }).catch(() => ({ rows: [] }));
+        const res = await getVentureKpiSummary(dbId).catch(() => ({ rows: [] }));
         return (res.rows || []).map((k) => ({
           id: k.id, title: k.name, category: k.auto_calc_source || "manual",
           current: k.current_value, target: k.target_value,
@@ -213,9 +184,9 @@ export const GET = createHandler(
     const coaching = (async () => {
       try {
         const [advisorRes, sessionRes, assignmentRes] = await Promise.all([
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
-          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          countVentureAdvisors(dbId).catch(() => ({ rows: [{ n: 0 }] })),
+          countVentureCoachingSessions(dbId).catch(() => ({ rows: [{ n: 0 }] })),
+          countActiveVentureCoachAssignments(dbId).catch(() => ({ rows: [{ n: 0 }] })),
         ]);
         const coaches = Number(assignmentRes.rows?.[0]?.n || 0);
         const advisors = Number(advisorRes.rows?.[0]?.n || 0);

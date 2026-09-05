@@ -8,9 +8,13 @@ import {
   listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
 } from "@/lib/ventures";
 import db from "@/lib/db";
+import {
+  getVentureDbIdForTasks,
+  insertVentureTaskReview,
+} from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureDbIdForTasks(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -110,11 +114,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (!(await getTask(parseInt(taskId)))) {
       return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
     }
-    await db.execute({
-      sql: `INSERT INTO venture_task_reviews (task_id, reviewer_cid, reviewer_name, decision, comments, created_at)
-            VALUES (?, ?, ?, ?, ?, NOW())`,
-      args: [parseInt(taskId), session?.cid || null, session?.name || null, decision, comments || null],
-    });
+    await insertVentureTaskReview({ task_id: taskId, reviewer_cid: session?.cid, reviewer_name: session?.name, decision, comments });
     await updateTask(parseInt(taskId), { status: decision });
     return NextResponse.json({ success: true });
   }

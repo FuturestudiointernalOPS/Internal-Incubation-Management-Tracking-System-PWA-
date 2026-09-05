@@ -2,12 +2,18 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  getVentureDbIdForActionPlans,
+  insertVentureActionPlan,
+  listVentureActionPlans,
+  updateVentureActionPlanFields,
+} from "@/models/ventureWorkspace";
 
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const ALLOWED = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureDbIdForActionPlans(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -26,15 +32,7 @@ export async function GET(req, { params }) {
     const { searchParams } = new URL(req.url);
     const milestoneId = searchParams.get("milestone_id");
 
-    let sql, args;
-    if (milestoneId) {
-      sql = `SELECT ap.*, c.name as owner_name FROM venture_action_plans ap LEFT JOIN contacts c ON ap.owner_contact_id = c.cid WHERE ap.venture_id = ? AND ap.milestone_id = ? ORDER BY ap.created_at DESC`;
-      args = [dbId, milestoneId];
-    } else {
-      sql = `SELECT ap.*, c.name as owner_name FROM venture_action_plans ap LEFT JOIN contacts c ON ap.owner_contact_id = c.cid WHERE ap.venture_id = ? ORDER BY ap.created_at DESC`;
-      args = [dbId];
-    }
-    const r = await db.execute({ sql, args });
+    const r = await listVentureActionPlans(dbId, milestoneId);
     return NextResponse.json({ success: true, action_plans: r.rows || [] });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -56,11 +54,7 @@ export async function POST(req, { params }) {
     const { milestone_id, title, priority, deadline, owner_contact_id } = await req.json();
     if (!title) return NextResponse.json({ success: false, error: "title is required" }, { status: 400 });
 
-    await db.execute({
-      sql: `INSERT INTO venture_action_plans (venture_id, milestone_id, title, priority, deadline, owner_contact_id, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      args: [dbId, milestone_id || null, title, priority || "medium", deadline || null, owner_contact_id || null, session.cid],
-    });
+    await insertVentureActionPlan({ venture_id: dbId, milestone_id, title, priority, deadline, owner_contact_id, created_by: session.cid });
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -93,10 +87,7 @@ export async function PATCH(req, { params }) {
     if (!updates.length) return NextResponse.json({ success: false, error: "No fields" }, { status: 400 });
 
     args.push(plan_id, dbId);
-    await db.execute({
-      sql: `UPDATE venture_action_plans SET ${updates.join(", ")} WHERE id = ? AND venture_id = ?`,
-      args: args,
-    });
+    await updateVentureActionPlanFields(updates, args);
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
