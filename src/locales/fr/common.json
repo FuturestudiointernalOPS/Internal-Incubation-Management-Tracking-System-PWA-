@@ -87,7 +87,8 @@
       "roleVentureMember": "Membre de venture",
       "roleFinance": "Finance",
       "roleIntern": "Stagiaire",
-      "roleOther": "Membre"
+      "roleOther": "Membre",
+      "roleVenture": "Venture"
     }
   },
   "dashboard": {
