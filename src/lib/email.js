@@ -1491,41 +1491,27 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
   return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
 }
 
-/** ASCII filename from a form/run name (attachments need plain filenames). */
-function slugifyFilename(value) {
-  const s = String(value || "result")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60);
-  return s || "result";
-}
-
 /**
  * Send a participant-facing submission result email with a PDF document
  * (their responses, the evaluation and their final score).
+ *
+ * The copy is intentionally neutral: it never names the form or the run
+ * (subject, body and file name stay generic) and never mentions how the
+ * evaluation was produced — the recipient only sees a personal result.
  *
  * Delivery:
  *  - Gmail transport attaches the PDF natively when Google Workspace
  *    credentials are configured.
  *  - Otherwise the PDF is hosted in Supabase storage and delivered as a
  *    download link through Resend (never silently dropped).
- *
- * Copy deliberately never mentions how the evaluation was produced — the
- * recipient must not be able to tell an automated evaluation was involved.
  */
-export async function sendResultEmail({ to, applicantName, formName, runName, pdfBuffer, lang = "en", runId, submissionId }) {
+export async function sendResultEmail({ to, applicantName, pdfBuffer, lang = "en", runId, submissionId }) {
   const isFr = (lang || "en").toLowerCase().startsWith("fr");
-  const subject = isFr
-    ? `Résultat de votre soumission — ${formName || "le formulaire"}`
-    : `Your submission result — ${formName || "form"}`;
+  const subject = isFr ? "Résultat de votre soumission" : "Your submission result";
   const greetingName = resolveGreetingName(applicantName);
   const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
   const frGreeting = greetingName ? `Bonjour ${greetingName},` : "Bonjour,";
-  const scope = [formName, runName].filter(Boolean).join(" — ") || "the program";
-  const filename = `${slugifyFilename(formName || runName || "submission")}-result.pdf`;
+  const filename = "submission-result.pdf";
   const pdf = pdfBuffer ? Buffer.from(pdfBuffer) : null;
 
   if (isPlaceholderEmail(to)) {
@@ -1555,23 +1541,19 @@ export async function sendResultEmail({ to, applicantName, formName, runName, pd
     </body></html>`;
 
   const attachedBody = isFr
-    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Veuillez trouver ci-joint le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong>.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
-    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Please find attached the result of your submission to <strong style="color:#f8fafc;">${scope}</strong>.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
+    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${frGreeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Veuillez trouver ci-joint le résultat de votre soumission. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
+    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${greeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Please find attached the result of your submission. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
 
   const hostedBody = (url) => isFr
-    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong> est prêt.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>
+    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${frGreeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Le résultat de votre soumission est prêt. Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>
        <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">TÉLÉCHARGER MON RÉSULTAT (PDF)</a></td></tr></table>
        <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
        <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`
-    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">The result of your submission to <strong style="color:#f8fafc;">${scope}</strong> is ready.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>
+    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 10px;">${greeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">The result of your submission is ready. The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>
        <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">DOWNLOAD YOUR RESULT (PDF)</a></td></tr></table>
        <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">If the button doesn't work, copy and paste this link into your browser:</p>
        <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`;
@@ -1602,7 +1584,7 @@ export async function sendResultEmail({ to, applicantName, formName, runName, pd
     );
     const rand = Math.random().toString(36).slice(2, 10);
     const folder = runId ? `run-${runId}` : "general";
-    const objectPath = `submission-results/${folder}/${submissionId ? `submission-${submissionId}-` : ""}${Date.now()}-${rand}-${filename}`;
+    const objectPath = `submission-results/${folder}/${submissionId ? `submission-${submissionId}-` : ""}${Date.now()}-${rand}.pdf`;
     const upload = () =>
       supabase.storage.from("submissions").upload(objectPath, pdf, {
         contentType: "application/pdf",

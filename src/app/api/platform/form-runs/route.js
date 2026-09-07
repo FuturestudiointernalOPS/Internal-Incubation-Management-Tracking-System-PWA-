@@ -958,8 +958,6 @@ async function sendResultEmailForSubmission({ submission_id }) {
     // Workflow language from the form's question labels (FR forms get a
     // French document + email, EN forms an English one).
     const lang = detectLanguage(labels);
-    const formName = ctx?.form_name || "";
-    const runName = ctx?.run_name || "";
 
     // ── Answers: rebuild the form Q&A in section order ──
     let sectionsRows = [];
@@ -1050,8 +1048,6 @@ async function sendResultEmailForSubmission({ submission_id }) {
     const { buildSubmissionResultPdf } = await import("@/models/platform/resultPdf");
     const pdfBytes = buildSubmissionResultPdf({
       lang,
-      formName,
-      runName,
       applicantName: applicantName || "",
       submittedAt: row.submitted_at || row.updated_at || null,
       finalScore: finalScore != null ? Number(finalScore) : 0,
@@ -1072,8 +1068,6 @@ async function sendResultEmailForSubmission({ submission_id }) {
         sendResultEmail({
           to: applicantEmail,
           applicantName,
-          formName,
-          runName,
           pdfBuffer: pdfBytes,
           lang,
           runId: row.run_id,
