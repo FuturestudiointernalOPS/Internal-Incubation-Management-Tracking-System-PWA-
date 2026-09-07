@@ -5,6 +5,31 @@ export function roleIsPrivileged(role) {
   return ["staff", "super_admin", "program_manager", "developer", "admin"].includes(role);
 }
 
+/**
+ * Staff actor on a Venture = global Venture authority OR a delegated staff
+ * member with an ACTIVE assignment on this Venture. Mere Venture membership
+ * (founders/team) is NOT staff. Used to gate staff-instrument operations
+ * (investment engine, fundraising/investor pipelines, analytics/reports)
+ * that were previously reachable by any member through requireVentureAccess.
+ */
+export async function isStaffActorForVenture(db, ventureId, session) {
+  if (!session) return false;
+  if (["super_admin", "developer", "admin"].includes(session.role)) return true;
+  if (!session.cid) return false;
+  try {
+    // venture_staff_assignments stores the VNT code (TEXT). Convert an internal
+    // UUID (if passed) back to the code so the assignment check matches.
+    let code = ventureId;
+    if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
+      const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [ventureId] });
+      if (v.rows?.[0]?.venture_id) code = v.rows[0].venture_id;
+    }
+    return hasActiveVentureAssignment(code, session.cid, db);
+  } catch (_) {
+    return false;
+  }
+}
+
 /** A Venture is archived when status='archived' OR is_archived=1. */
 export function lifecycleIsArchived(lifecycle) {
   if (!lifecycle) return false;

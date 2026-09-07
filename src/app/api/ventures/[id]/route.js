@@ -48,6 +48,19 @@ export const GET = createHandler(
       }
     }
 
+    // Privacy split (Phase 2): the raw internal audit stream (venture_activity_log
+    // with actor identities + full venture_history) is staff-only. Venture members
+    // receive the Venture-facing record WITHOUT the internal feed — hiding it in
+    // the client is not acceptable. Staff surfaces (admin hub) keep full payloads.
+    {
+      const { isStaffActorForVenture } = await import("@/lib/ventureAuth");
+      const staffView = await isStaffActorForVenture(db, id, session);
+      if (!staffView) {
+        venture.activity = [];
+        venture.history = [];
+      }
+    }
+
     return NextResponse.json({
       success: true,
       venture,

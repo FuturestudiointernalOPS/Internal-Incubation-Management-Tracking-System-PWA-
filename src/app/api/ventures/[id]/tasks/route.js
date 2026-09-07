@@ -119,8 +119,20 @@ export const PATCH = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true });
   }
 
-  // Default: update task fields
-  if (!(await getTask(parseInt(taskId)))) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
+  // Default: update task fields — completion authority (D5). When a task is
+  // configured with review_required, founders cannot complete it without an
+  // approved submission; only the review flow marks it complete.
+  const existingTask = await getTask(parseInt(taskId));
+  if (!existingTask) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
+  if (body.status && ["done", "completed", "accepted"].includes(body.status) && existingTask.review_required) {
+    const subRes = await db.execute({
+      sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
+      args: [parseInt(taskId)],
+    }).catch(() => ({ rows: [] }));
+    if (!(subRes.rows || []).length) {
+      return NextResponse.json({ success: false, error: "This task requires an approved submission before it can be completed." }, { status: 403 });
+    }
+  }
   await updateTask(parseInt(taskId), body);
   const task = await getTask(parseInt(taskId));
   return NextResponse.json({ success: true, task });

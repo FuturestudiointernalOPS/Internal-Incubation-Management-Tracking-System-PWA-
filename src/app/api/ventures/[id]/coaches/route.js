@@ -17,6 +17,15 @@ export const GET = createHandler(async (req, { params }) => {
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const s = new URL(req.url).searchParams;
   const type = s.get("type");
+
+  // No type (or "assigned") = the Venture's ACTIVE assignments (page default
+  // tab). Fixes the wiring bug where the global coach catalog was shown as the
+  // Venture's assigned coaches and removals targeted the wrong rows.
+  if (!type || type === "assigned") {
+    const assignments = await getVentureAssignments(id);
+    return NextResponse.json({ success: true, coaches: assignments });
+  }
+
   const coaches = await listCoaches(type);
   return NextResponse.json({ success: true, coaches });
 });

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
 import {
   listOpportunities, getOpportunity, createOpportunity, updateOpportunity, deleteOpportunity,
   addOpportunityNote, addOpportunityActivity, getPipelineAnalytics,
@@ -12,6 +12,9 @@ export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const { session } = await requireVentureAccess(id, db);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  if (!(await isStaffActorForVenture(db, id, session))) {
+    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+  }
   const s = new URL(req.url).searchParams;
   const type = s.get("type") || "pipeline";
 
@@ -38,6 +41,9 @@ export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
   const { session } = await requireVentureAccess(id, db);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  if (!(await isStaffActorForVenture(db, id, session))) {
+    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+  }
   const body = await req.json();
 
   if (body.action === "create") {

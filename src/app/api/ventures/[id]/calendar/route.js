@@ -31,12 +31,21 @@ export async function GET(req, { params }) {
     // Follow-up dates as separate events
     const followups = await db.execute({ sql: "SELECT vcs.id, CONCAT('Follow-up: ', c.name) as title, vcs.follow_up_date as date, c.name as advisor_name FROM venture_coaching_sessions vcs LEFT JOIN contacts c ON vcs.advisor_contact_id = c.cid WHERE vcs.venture_id = ? AND vcs.follow_up_date IS NOT NULL ORDER BY vcs.follow_up_date", args: [dbId] });
 
+    // Canonical sessions (venture_sessions) — ONLY rows staff explicitly marked
+    // Venture-facing. Internal sessions never surface on the founder calendar.
+    // venture_sessions keys on the VNT code; match both id forms defensively.
+    const sessions = await db.execute({ sql: `SELECT id, title, session_type, coach_name, location, meeting_link, status,
+        to_char(start_time, 'YYYY-MM-DD') as date, to_char(start_time, 'HH24:MI') as start_time
+        FROM venture_sessions WHERE venture_facing = TRUE AND start_time IS NOT NULL AND (venture_id = ? OR venture_id = ?)
+        ORDER BY start_time`, args: [id, dbId] }).catch(() => ({ rows: [] }));
+
     const events = [
       ...(tasks.rows||[]).map(t => ({ type: "task", id: t.id, title: t.title, date: t.date, status: t.status, priority: t.priority })),
       ...(milestones.rows||[]).map(m => ({ type: "milestone", id: m.id, title: m.title, date: m.date, status: m.status })),
       ...(actions.rows||[]).map(a => ({ type: "action", id: a.id, title: a.title, date: a.date, status: a.status, priority: a.priority })),
       ...(coachings.rows||[]).map(c => ({ type: "coaching", id: c.id, title: c.title, date: c.date, status: "scheduled", advisor: c.advisor_name, location: c.location, meeting_link: c.meeting_link, start_time: c.start_time })),
       ...(followups.rows||[]).map(f => ({ type: "followup", id: f.id, title: f.title, date: f.date, status: "scheduled" })),
+      ...(sessions.rows||[]).map(x => ({ type: "session", id: x.id, title: x.title, date: x.date, status: x.status || "scheduled", start_time: x.start_time, advisor: x.coach_name, location: x.location, meeting_link: x.meeting_link })),
     ];
 
     return NextResponse.json({ success: true, events });
