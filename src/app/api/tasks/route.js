@@ -955,6 +955,19 @@ export async function PUT(req) {
       }
     }
 
+    // Carry-over safety (Phase 1): a completed task must never be flipped back
+    // to 'carried_over' — that is what made finished tasks reappear as
+    // carry-overs in the weekly stand-up/retro flow.
+    if (status === "carried_over" && task.status === "completed") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Completed tasks cannot be marked as carried over.",
+        },
+        { status: 409 },
+      );
+    }
+
     let auditAction = "updated";
     let auditDetails = "";
     let needsRescheduleInc = false;
@@ -986,6 +999,11 @@ export async function PUT(req) {
         auditDetails = `Task "${task.title}" archived`;
       } else {
         auditDetails = `Task "${task.title}" status changed from ${task.status} to ${status}`;
+      }
+      // Reopening a completed task drops its completion timestamp, so a later
+      // status change can never resurrect a "completed but carried over" state.
+      if (task.status === "completed" && status !== "completed") {
+        updateFields.push("completed_at = NULL");
       }
       changes.push(`status changed to ${status}`);
     }
