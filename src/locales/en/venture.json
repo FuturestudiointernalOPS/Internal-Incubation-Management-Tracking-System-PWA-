@@ -265,6 +265,12 @@
     "done": "Done",
     "blocked": "Blocked",
     "cancelled": "Cancelled",
-    "statusManagedByStaff": "Status is managed by Future Studio staff."
+    "statusManagedByStaff": "Status is managed by Future Studio staff.",
+    "facebook": "Facebook",
+    "socialPasteUrl": "Paste the full link to your page — no @username needed.",
+    "memberRoleInVenture": "Role in Venture",
+    "addAsFounder": "Founder",
+    "founderRoleHint": "Founders are clearly identified in the Team and carry founder permissions.",
+    "memberRoleHint": "Team members support the Venture with their assigned role."
   }
 }

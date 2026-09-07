@@ -167,6 +167,7 @@ export async function ensureVentureSchema() {
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS graduation_notes TEXT",
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS north_star TEXT",
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS country TEXT",
+    "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS country_code TEXT",
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS registration_status TEXT",
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS visibility TEXT DEFAULT 'private'",
     "ALTER TABLE ventures ADD COLUMN IF NOT EXISTS social_media JSONB",
@@ -720,6 +721,7 @@ export async function updateVenture(ventureId, updates) {
     "language",
     "branding",
     "country",
+    "country_code",
     "registration_status",
     "north_star",
   ];

@@ -8,7 +8,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
-import { FoundersTab, TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
+import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab, ProgressTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
@@ -18,7 +18,7 @@ import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs
 import { AdvisorsTab, CoachingTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
 const TABS = [
-  "profile", "settings", "founders", "team", "dashboard",
+  "profile", "settings", "team", "dashboard",
   // "history", // Program history — staff/admin view only (not founder-facing)
   "journey",
   // "playbook", // Facilitator review guide — staff only
@@ -180,10 +180,12 @@ export default function VentureDetail() {
         twitter: v.social_media?.twitter || "",
         linkedin: v.social_media?.linkedin || "",
         instagram: v.social_media?.instagram || "",
+        facebook: v.social_media?.facebook || "",
         status: v.status || "active",
         visibility: v.visibility || "private",
         language: v.language || "en",
         brandColor: v.branding?.color || "#f60",
+        country_code: v.country_code || "",
       });
     };
     try {
@@ -211,7 +213,7 @@ export default function VentureDetail() {
   // Load members, dashboard, history for their tabs
   useEffect(() => {
     if (!params.id || !venture) return;
-    if (activeTab === "founders" || activeTab === "team") loadMembers();
+    if (activeTab === "team") loadMembers();
     if (activeTab === "dashboard") { loadDashboard(); fetchProgress(); }
     if (activeTab === "history") loadHistory();
     if (activeTab === "businessModel") fetchBm();
@@ -505,9 +507,9 @@ export default function VentureDetail() {
         mission: form.mission || null, vision: form.vision || null,
         industry: form.industry || null, sector: form.sector || null,
         business_stage: form.business_stage, website: form.website || null,
-        country: form.country || null, registration_status: form.registration_status || null,
+        country: form.country || null, country_code: form.country_code || null, registration_status: form.registration_status || null,
         north_star: form.north_star || null,
-        social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "" },
+        social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "", facebook: form.facebook || "" },
         status: form.status, visibility: form.visibility, language: form.language,
         branding: { color: form.brandColor || "#f60" },
       };
@@ -697,7 +699,6 @@ export default function VentureDetail() {
         {/* Tab content — Phase 2: extracted into components/ventures/workspace/tabs */}
         {activeTab === "profile" && <ProfileTab />}
         {activeTab === "settings" && <SettingsTab />}
-        {activeTab === "founders" && <FoundersTab />}
         {activeTab === "team" && <TeamTab />}
         {activeTab === "dashboard" && <DashboardTab />}
         {/* "history" removed — program history is staff/admin-only */}

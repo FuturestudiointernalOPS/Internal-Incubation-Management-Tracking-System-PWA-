@@ -265,6 +265,12 @@
     "done": "Terminé",
     "blocked": "Bloqué",
     "cancelled": "Annulé",
-    "statusManagedByStaff": "Le statut est géré par le personnel de Future Studio."
+    "statusManagedByStaff": "Le statut est géré par le personnel de Future Studio.",
+    "facebook": "Facebook",
+    "socialPasteUrl": "Collez le lien complet vers votre page — pas besoin de @username.",
+    "memberRoleInVenture": "Rôle dans la Venture",
+    "addAsFounder": "Fondateur",
+    "founderRoleHint": "Les fondateurs sont clairement identifiés dans l’équipe et disposent des permissions fondateur.",
+    "memberRoleHint": "Les membres de l’équipe soutiennent la Venture avec leur rôle attribué."
   }
 }

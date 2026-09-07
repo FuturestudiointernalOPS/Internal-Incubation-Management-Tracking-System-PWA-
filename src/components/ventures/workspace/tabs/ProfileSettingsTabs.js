@@ -4,6 +4,8 @@ import { Save, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import { STAGES, INDUSTRY_FALLBACK, VISIBILITIES } from "../ventureMeta";
+import CountrySelect from "@/components/ventures/CountrySelect";
+import { countryName } from "@/lib/countries";
 
 /* Profile Tab */
 export function ProfileTab() {
@@ -64,8 +66,16 @@ export function ProfileTab() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">{t("venture.country")}</label>
-            <input value={form.country} onChange={e => setForm({...form, country: e.target.value})}
-              className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} />
+            <CountrySelect
+              value={form.country_code || form.country}
+              inputStyle={inputStyle}
+              onSelect={(code, name) => setForm({ ...form, country_code: code, country: name })}
+            />
+            {!form.country_code && form.country && (
+              <p className="text-[9px] mt-1" style={{ color: "var(--text-tertiary)" }}>
+                Saved as “{countryName(form.country)}” — re-select to store a stable country code.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">{t("venture.registrationStatus")}</label>
@@ -81,12 +91,27 @@ export function ProfileTab() {
         <div>
           <label className="block text-sm font-medium mb-1">{t("venture.socialMedia")}</label>
           <div className="space-y-2">
-            <input value={form.twitter} onChange={e => setForm({...form, twitter: e.target.value})}
-              className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("venture.twitter")} />
-            <input value={form.linkedin} onChange={e => setForm({...form, linkedin: e.target.value})}
-              className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("venture.linkedin")} />
-            <input value={form.instagram} onChange={e => setForm({...form, instagram: e.target.value})}
-              className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} placeholder={t("venture.instagram")} />
+            {[
+              { key: "linkedin", label: "LinkedIn", ph: "https://www.linkedin.com/company/example" },
+              { key: "instagram", label: "Instagram", ph: "https://www.instagram.com/example" },
+              { key: "twitter", label: "X", ph: "https://x.com/example" },
+              { key: "facebook", label: "Facebook", ph: "https://www.facebook.com/example" },
+            ].map((s) => (
+              <div key={s.key} className="flex items-center gap-2">
+                <span className="w-24 shrink-0 text-xs" style={{ color: "var(--text-secondary)" }}>{s.label}</span>
+                <input
+                  type="url"
+                  value={form[s.key] || ""}
+                  onChange={e => setForm({ ...form, [s.key]: e.target.value })}
+                  className="flex-1 px-3 py-2 rounded-lg outline-none border text-sm"
+                  style={inputStyle}
+                  placeholder={s.ph}
+                />
+              </div>
+            ))}
+            <p className="text-[9px]" style={{ color: "var(--text-tertiary)" }}>
+              {t("venture.socialPasteUrl") || "Paste the full link to your page — no @username needed."}
+            </p>
           </div>
         </div>
       </div>
@@ -117,13 +142,6 @@ export function SettingsTab() {
           </span>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">{t("venture.businessStage")}</label>
-          <select value={form.business_stage} onChange={e => setForm({...form, business_stage: e.target.value})}
-            className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
-            {(optionLists.business_stage && optionLists.business_stage.length ? optionLists.business_stage : STAGES).map(s => <option key={s} value={s}>{t(`venture.stages.${s}`) || s}</option>)}
-          </select>
-        </div>
-        <div>
           <label className="block text-sm font-medium mb-1">{t("venture.visibility")}</label>
           <select value={form.visibility} onChange={e => setForm({...form, visibility: e.target.value})}
             className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
@@ -136,15 +154,6 @@ export function SettingsTab() {
             className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle}>
             <option value="en">English</option><option value="fr">Français</option>
           </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">{t("venture.branding")}</label>
-          <div className="flex items-center gap-3">
-            <input type="color" value={form.brandColor} onChange={e => setForm({...form, brandColor: e.target.value})}
-              className="w-12 h-10 rounded border cursor-pointer" style={{ borderColor: "rgb(255 255 255 / 0.15)", backgroundColor: "transparent" }} />
-            <input value={form.brandColor} onChange={e => setForm({...form, brandColor: e.target.value})}
-              className="flex-1 px-3 py-2 rounded-lg outline-none border font-mono text-sm" style={inputStyle} />
-          </div>
         </div>
       </div>
       <div className="flex justify-end pt-4 border-t" style={{ borderColor: "rgb(255 255 255 / 0.1)" }}>
