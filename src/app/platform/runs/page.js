@@ -373,6 +373,8 @@ export default function FormRunsPage() {
   const [reviewing, setReviewing] = useState(null);
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [reviewTimeline, setReviewTimeline] = useState([]);
+  // Per-row state for the Send Result (PDF) action
+  const [resultSendingId, setResultSendingId] = useState(null);
   const [evaluation, setEvaluation] = useState(null);  // AI evaluation loaded separately
 
   // Assignment modal
@@ -922,6 +924,34 @@ export default function FormRunsPage() {
         notify(t((data.error || t("platformMisc.runs.deleteFailed")) || "") || (data.error || t("platformMisc.runs.deleteFailed")));
       }
     } catch (_) {}
+  };
+
+  // Send the participant a result email (PDF: their answers, the evaluation
+  // feedback and the final score). Tracked once per submission — re-clicking
+  // after a failed attempt retries the send.
+  const handleSendResult = async (submission) => {
+    if (resultSendingId) return;
+    setResultSendingId(submission.id);
+    try {
+      const res = await fetch("/api/platform/form-runs?action=send_result_email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: submission.id }),
+      });
+      const data = await res.json();
+      if (data.success && data.status === "sent") {
+        notify(t("platformMisc.runs.sendResultSent", { email: data.to || "" }));
+      } else if (data.success && data.status === "already_sent") {
+        notify(t("platformMisc.runs.sendResultAlready", { email: data.to || "" }));
+      } else {
+        notify((data.error && String(data.error) !== "" ? data.error : "") || t("platformMisc.runs.sendResultFailed"));
+      }
+      // Refresh the run (email log/statuses) so sent or failed attempts show up.
+      if (selectedRun) openRun(selectedRun, { keepTab: true });
+    } catch (_) {
+      notify(t("platformMisc.runs.sendResultFailed"));
+    }
+    setResultSendingId(null);
   };
 
   const handleSaveSettings = async () => {
@@ -2680,6 +2710,16 @@ export default function FormRunsPage() {
                                 <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
                                 </a>
+                                {s.status !== "draft" && (
+                                  <button
+                                    onClick={() => handleSendResult(s)}
+                                    disabled={resultSendingId === s.id || !evalRow}
+                                    title={!evalRow ? t("platformMisc.runs.sendResultNoEval") : t("platformMisc.runs.sendResultTitle")}
+                                    className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
+                                  >
+                                    {resultSendingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} {t("platformMisc.runs.sendResult")}
+                                  </button>
+                                )}
                                 {s.status === "submitted" && (
                                   <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
