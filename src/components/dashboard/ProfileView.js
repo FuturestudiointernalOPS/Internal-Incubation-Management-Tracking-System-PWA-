@@ -683,9 +683,6 @@ export default function ProfileView() {
                 <p className="flex items-center gap-2 text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-wider">
                   <Mail className="w-3 h-3" /> {t("adminMisc.profile.alternativeEmailsTitle")}
                 </p>
-                <p className="text-[9px] text-[var(--text-secondary)]">
-                  {t("adminMisc.profile.alternativeEmailsHint")}
-                </p>
                 {altEmails.length === 0 ? (
                   <p className="text-[10px] font-bold text-[var(--text-tertiary)]">
                     {t("adminMisc.profile.alternativeEmailsEmpty")}
