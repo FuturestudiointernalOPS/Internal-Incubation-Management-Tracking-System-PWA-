@@ -6,9 +6,9 @@ import { jsPDF } from "jspdf";
  * Renders a participant-facing result document server-side from the
  * authoritative records only: the form answers stored on the submission,
  * the latest evaluation (dimensions + overall score) and the last review
- * decision/comment. The document intentionally NEVER mentions how the
- * evaluation was produced — the participant sees only their responses,
- * the evaluation feedback and their final score.
+ * decision/comment. The document NEVER mentions the form or run names and
+ * never mentions how the evaluation was produced — the participant sees
+ * only their responses, the evaluation feedback and their final score.
  *
  * Internationalization: the header/footer copy is provided in English and
  * French (the two workflow languages detected from the form). Answers and
@@ -29,8 +29,6 @@ const BORDER = [203, 213, 225]; // slate-300
 const LABELS = {
   en: {
     title: "Submission Result",
-    form: "Form",
-    run: "Run",
     applicant: "Applicant",
     submitted: "Submitted",
     finalScore: "Final Score",
@@ -47,8 +45,6 @@ const LABELS = {
   },
   fr: {
     title: "Résultat de votre soumission",
-    form: "Formulaire",
-    run: "Exécution",
     applicant: "Candidat(e)",
     submitted: "Soumis le",
     finalScore: "Score final",
@@ -64,6 +60,10 @@ const LABELS = {
     thankYou: "Merci pour votre participation.",
   },
 };
+
+// Vertical rhythm (pt) — generous line stepping so paragraphs breathe.
+const M = 46; // page margin
+const BODY_STEP = 16; // line step for ~9.5-10pt body text
 
 /** Keep only characters the built-in PDF fonts can render (Latin-1). */
 function sanitize(value) {
@@ -94,8 +94,6 @@ function decisionColor(decision) {
  *
  * @param {object} data
  * @param {string} data.lang                     "en" | "fr"
- * @param {string} data.formName                 form title
- * @param {string} [data.runName]
  * @param {string} [data.applicantName]
  * @param {string} [data.submittedAt]            ISO date
  * @param {number} data.finalScore               overall score, 0-100
@@ -110,36 +108,25 @@ export function buildSubmissionResultPdf(data) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const M = 44;
   const W = pageW - M * 2;
   let y = M;
 
   const ensure = (needed) => {
     if (y + needed > pageH - M) {
       doc.addPage();
-      y = M;
+      y = M + 8;
     }
   };
 
   const text = (value) => sanitize(value);
 
-  // ─── Header ────────────────────────────────────────────────────────────────
+  // ─── Header (person + date only — no form/run names) ───────────────────────
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(20);
+  doc.setFontSize(22);
   doc.setTextColor(...INK);
-  doc.text(text(L.title), M, y);
-  y += 14;
+  doc.text(text(L.title), M, y + 6);
+  y += 30;
 
-  const metaParts = [];
-  if (data.formName) metaParts.push(`${L.form}: ${text(data.formName)}`);
-  if (data.runName) metaParts.push(`${L.run}: ${text(data.runName)}`);
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
-  doc.setTextColor(...MUTED);
-  if (metaParts.length > 0) {
-    doc.text(metaParts.join("   ·   "), M, y);
-    y += 14;
-  }
   const idParts = [];
   if (data.applicantName) idParts.push(`${L.applicant}: ${text(data.applicantName)}`);
   if (data.submittedAt) {
@@ -152,32 +139,36 @@ export function buildSubmissionResultPdf(data) {
     }
   }
   if (idParts.length > 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...MUTED);
     doc.text(idParts.join("   ·   "), M, y);
-    y += 10;
+    y += 22;
+  } else {
+    y += 14;
   }
-  y += 12;
 
   // ─── Final score card ──────────────────────────────────────────────────────
   const scoreColor = scoreColor100(Number(data.finalScore) || 0);
-  const cardH = 62;
-  ensure(cardH + 12);
+  const cardH = 78;
+  ensure(cardH + 14);
   doc.setFillColor(...LIGHT_BG);
   doc.setDrawColor(...BORDER);
-  doc.roundedRect(M, y, W, cardH, 10, 10, "FD");
+  doc.roundedRect(M, y, W, cardH, 12, 12, "FD");
   doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
+  doc.setFontSize(10);
   doc.setTextColor(...MUTED);
-  doc.text(text(L.finalScore).toUpperCase(), M + 18, y + 24);
-  doc.setFontSize(26);
+  doc.text(text(L.finalScore).toUpperCase(), M + 22, y + 30);
+  doc.setFontSize(30);
   doc.setTextColor(...scoreColor);
-  doc.text(`${Math.round(Number(data.finalScore) || 0)}%`, M + 18, y + 50);
+  doc.text(`${Math.round(Number(data.finalScore) || 0)}%`, M + 22, y + 62);
   if (data.ranking) {
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(12);
+    doc.setFontSize(14);
     doc.setTextColor(...INK);
-    doc.text(text(data.ranking), pageW - M - 18, y + 38, { align: "right" });
+    doc.text(text(data.ranking), pageW - M - 22, y + 50, { align: "right" });
   }
-  y += cardH + 16;
+  y += cardH + 26;
 
   // ─── Outcome (last review decision) ────────────────────────────────────────
   if (data.outcome && data.outcome.decision) {
@@ -187,144 +178,144 @@ export function buildSubmissionResultPdf(data) {
       : decision === "rejected" ? L.decisionRejected
       : decision === "revision_requested" ? L.decisionRevision
       : text(decision);
+    ensure(64);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
+    doc.setFontSize(9.5);
     doc.setTextColor(...MUTED);
     doc.text(text(L.outcome).toUpperCase(), M, y);
-    y += 13;
-    doc.setFontSize(14);
+    y += 16;
+    doc.setFontSize(16);
     doc.setTextColor(...decisionColor(decision));
     doc.text(text(label), M, y);
-    y += 6;
+    y += 14;
     if (data.outcome.comment) {
-      const lines = doc.splitTextToSize(text(data.outcome.comment), W - 16);
+      const lines = doc.splitTextToSize(text(data.outcome.comment), W - 18);
+      ensure(lines.length * BODY_STEP + 10);
       doc.setFont("helvetica", "italic");
-      doc.setFontSize(10);
+      doc.setFontSize(10.5);
       doc.setTextColor(...MUTED);
-      ensure(lines.length * 13 + 10);
-      doc.text(lines, M + 12, y + 6);
-      y += lines.length * 13 + 16;
+      doc.text(lines, M + 16, y);
+      y += lines.length * BODY_STEP + 8;
     }
-    y += 8;
+    y += 22;
   }
+
+  // ─── Section header (orange rule + title) ──────────────────────────────────
+  const sectionTitle = (title) => {
+    ensure(40);
+    y += 10;
+    doc.setDrawColor(...BRAND_ORANGE);
+    doc.setLineWidth(2);
+    doc.line(M, y, M + 38, y);
+    y += 14;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.setTextColor(...INK);
+    doc.text(text(title), M, y);
+    y += 24;
+  };
 
   // ─── Evaluation & feedback ─────────────────────────────────────────────────
   if (Array.isArray(data.dimensions) && data.dimensions.length > 0) {
-    ensure(30);
-    doc.setDrawColor(...BRAND_ORANGE);
-    doc.setLineWidth(2);
-    doc.line(M, y, M + 34, y);
-    y += 12;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...INK);
-    doc.text(text(L.evaluationTitle), M, y);
-    y += 8;
+    sectionTitle(L.evaluationTitle);
 
     for (const dim of data.dimensions) {
       const score = dim.score == null ? null : Number(dim.score);
-      const blockHead = 18;
-      ensure(blockHead);
+      ensure(30);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
+      doc.setFontSize(11.5);
       doc.setTextColor(...INK);
-      doc.text(text(dim.name || "Untitled"), M, y + 12);
+      doc.text(text(dim.name || "Untitled"), M, y + 4);
       if (score != null) {
         const c = scoreColor10(score);
-        doc.setFontSize(10);
+        doc.setFontSize(11);
         doc.setTextColor(...c);
-        doc.text(`${score}/10`, pageW - M, y + 12, { align: "right" });
+        doc.text(`${score}/10`, pageW - M, y + 4, { align: "right" });
       }
-      y += blockHead;
+      y += 24;
 
       if (dim.feedback) {
         const lines = doc.splitTextToSize(text(dim.feedback), W);
-        ensure(lines.length * 12.5 + 4);
+        ensure(lines.length * BODY_STEP + 6);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
+        doc.setFontSize(10);
         doc.setTextColor(...MUTED);
         doc.text(lines, M, y);
-        y += lines.length * 12.5 + 4;
+        y += lines.length * BODY_STEP + 10;
       }
 
       const renderBullets = (title, items, color) => {
         if (!items || items.length === 0) return;
-        ensure(18);
+        ensure(30);
+        y += 8;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8.5);
+        doc.setFontSize(9);
         doc.setTextColor(...color);
-        doc.text(text(title).toUpperCase(), M, y + 8);
-        y += 14;
+        doc.text(text(title).toUpperCase(), M, y);
+        y += 18;
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
+        doc.setFontSize(10);
         doc.setTextColor(...MUTED);
         for (const item of items) {
-          const wrapped = doc.splitTextToSize(text(item), W - 16);
-          ensure(wrapped.length * 12.5 + 4);
-          doc.text("•", M, y + 8);
-          doc.text(wrapped, M + 12, y);
-          y += wrapped.length * 12.5 + 4;
+          const wrapped = doc.splitTextToSize(text(item), W - 20);
+          ensure(wrapped.length * BODY_STEP + 4);
+          doc.text("•", M, y);
+          doc.text(wrapped, M + 14, y);
+          y += wrapped.length * BODY_STEP + 7;
         }
+        y += 4;
       };
 
       renderBullets(L.strengths, dim.strengths, GREEN);
       renderBullets(L.improvements, dim.improvements, ROSE);
-      y += 6;
+      y += 14;
     }
-    y += 6;
+    y += 12;
   }
 
   // ─── Responses (answers) ───────────────────────────────────────────────────
   if (Array.isArray(data.sections) && data.sections.length > 0) {
-    ensure(30);
-    doc.setDrawColor(...BRAND_ORANGE);
-    doc.setLineWidth(2);
-    doc.line(M, y, M + 34, y);
-    y += 12;
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.setTextColor(...INK);
-    doc.text(text(L.responsesTitle), M, y);
-    y += 10;
+    sectionTitle(L.responsesTitle);
 
     for (const sec of data.sections) {
       if (!sec.items || sec.items.length === 0) continue;
       if (sec.title) {
-        ensure(22);
+        ensure(26);
+        y += 6;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(8);
+        doc.setFontSize(9);
         doc.setTextColor(...BRAND_ORANGE);
-        doc.text(text(sec.title).toUpperCase(), M, y + 6);
-        y += 14;
+        doc.text(text(sec.title).toUpperCase(), M, y);
+        y += 18;
       }
 
       for (const item of sec.items) {
-        ensure(16);
+        ensure(26);
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(9.5);
+        doc.setFontSize(10.5);
         doc.setTextColor(...INK);
-        doc.text(text(item.label), M, y + 7);
-        y += 14;
+        doc.text(text(item.label), M, y + 2);
+        y += 18;
         const lines = doc.splitTextToSize(text(item.value), W);
-        ensure(lines.length * 12 + 6);
+        ensure(lines.length * BODY_STEP + 6);
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9.5);
+        doc.setFontSize(10);
         doc.setTextColor(...MUTED);
         doc.text(lines, M, y);
-        y += lines.length * 12 + 6;
+        y += lines.length * BODY_STEP + 12;
       }
-      y += 4;
+      y += 12;
     }
-    y += 10;
+    y += 16;
   }
 
   // ─── Footer ────────────────────────────────────────────────────────────────
-  if (y + 40 < pageH - M) {
+  if (y + 60 < pageH - M) {
     doc.setDrawColor(...BORDER);
     doc.setLineWidth(0.5);
-    doc.line(M, pageH - 44, pageW - M, pageH - 44);
+    doc.line(M, pageH - 46, pageW - M, pageH - 46);
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(...FAINT);
     doc.text(text(L.thankYou), M, pageH - 32);
     doc.setFont("helvetica", "bold");
