@@ -1761,26 +1761,41 @@ export async function POST(req) {
       return NextResponse.json({ success: true, assignments: [] });
     }
 
-    // ─── SEND RESULT EMAIL ACTION (per submission → PDF response) ───
-    // Emails the applicant a PDF with their answers, the evaluation feedback
-    // and their final score. Tracked once per submission; the per-row button
-    // also re-attempts failed sends. The PDF/copy never mention AI.
-    if (action === "send_result_email") {
+    // ─── SEND RESULT EMAILS ACTION (Actions menu → response PDF per submission) ───
+    // Emails each selected applicant a PDF with their answers, the evaluation
+    // feedback and their final score. Runs through the same per-submission
+    // helper as retries (tracked once per submission, draft/no-evaluation
+    // submissions are reported as skipped/failed). The PDF/copy never mention
+    // AI or the form/run names.
+    if (action === "send_result_emails") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
       const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
       if (authError) return authError;
 
-      const { submission_id } = body;
-      if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
+      const { run_id, submission_ids } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 500) {
+        return NextResponse.json({ success: false, error: "Result emails can be sent to at most 500 submissions at once" }, { status: 400 });
+      }
 
-      const r = await sendResultEmailForSubmission({ submission_id });
-      if (r.status === "sent") {
-        return NextResponse.json({ success: true, status: "sent", message: "Result email sent", to: r.to });
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const valRes = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      const results = [];
+      for (const id of idList) {
+        const sub = validMap.get(id);
+        if (!sub) {
+          results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
+          continue;
+        }
+        const r = await sendResultEmailForSubmission({ submission_id: id });
+        results.push({ submission_id: id, name: sub.submitter_name || "", status: r.status || "failed", error: r.error, to: r.to });
       }
-      if (r.status === "already_sent") {
-        return NextResponse.json({ success: true, status: "already_sent", message: "Result email already sent", to: r.to });
-      }
-      return NextResponse.json({ success: false, status: r.status || "failed", error: r.error || "Could not send the result email", to: r.to || null }, { status: r.status === "not_found" ? 404 : 200 });
+
+      return NextResponse.json({ success: true, results });
     }
 
     // ─── DELETE SUBMISSION ACTION (super admin only) ───
