@@ -3,13 +3,14 @@
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 
-/* Journey Tab */
+/* Journey Tab — the staff-defined stage path (default Journey view).
+   Rendered inside the Journey section whose chip bar labels the sub-view,
+   so this view carries no duplicate page heading. */
 export function JourneyTab() {
   const { t } = useI18n();
   const { journeyStages, cardStyle } = useVenture();
   return (
     <div className="space-y-4">
-      <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.journey') || 'Journey'}</h2>
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.journeyDesc') || 'Your journey is defined by the team supporting your Venture.'}</p>
       {journeyStages.length === 0 ? (
         <div className="rounded-xl p-8 border text-center" style={cardStyle}>
