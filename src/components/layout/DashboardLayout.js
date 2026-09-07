@@ -49,7 +49,7 @@ import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
-import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities } from "@/lib/masterNavigation";
+import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities, NAV_CAPABILITY_REQUIREMENTS, hasCapability } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -694,110 +694,65 @@ function contextRoleFromPathname(pathname) {
 }
 
 /**
- * Build nav items from responsibilities across ALL role matrices.
- * Collects items from every role's matrix where the required responsibility
- * matches the user's assigned responsibilities. Items with no responsibility
- * requirement are always included (dashboard, profile, logout).
+ * Additive responsibilities: pages from OTHER role matrices that the held
+ * responsibilities grant. Unmapped items from other roles never leak in, and
+ * every added node is capability-gated so no dead links appear. Admin-only
+ * destinations are re-homed via NON_ADMIN_HREF_FALLBACKS (or dropped) for
+ * roles that cannot open /admin/* pages.
  */
-function buildNavFromResponsibilities(userRespKeys, activeRole) {
-  const ownItems = buildRoleNav(activeRole);
-  const otherItems = NAV_ROLE_KEYS.filter((r) => r !== activeRole).map((r) =>
-    buildRoleNav(r),
-  );
-  const allItems = [];
-  const seenIds = new Set();
+function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiveCaps) {
+  const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
+  if (respKeys.size === 0) return [];
   // Only Super Admin and developer can open /admin/* pages.
   const canOpenAdmin = activeRole === "super_admin" || activeRole === "developer";
+  const req = NAV_CAPABILITY_REQUIREMENTS;
 
-  // Items granted from OTHER matrices may point at admin-only pages the user
-  // cannot open. Remap them to a role-appropriate page, or drop them entirely.
+  const hasCap = (node) =>
+    !req[node.id] ||
+    hasCapability(effectiveCaps, req[node.id].module, req[node.id].capability);
+
   const resolveHref = (itemId, href) => {
     if (canOpenAdmin || !href) return href;
     const fallback = NON_ADMIN_HREF_FALLBACKS[itemId];
     if (fallback) return fallback;
-    return href.startsWith("/admin/") ? null : href;
+    return String(href).startsWith("/admin/") ? null : href;
   };
 
-  const collect = (matrix, fromOwnMatrix) => {
-    for (const item of matrix) {
-      if (seenIds.has(item.id)) continue;
-      const required = NAV_RESPONSIBILITY_MAP[item.id];
-      // The user's own role matrix is the baseline (always shown). Items from
-      // other role matrices appear ONLY when a responsibility explicitly
-      // grants them — unmapped items from other roles must never leak in.
-      const includeItem =
-        fromOwnMatrix || (required && userRespKeys.has(required));
-      if (!includeItem) continue;
-      seenIds.add(item.id);
-      if (item.subItems) {
-        const filteredSubs = item.subItems
-          .filter((sub) => {
-            const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-            return fromOwnMatrix
-              ? true
-              : subRequired && userRespKeys.has(subRequired);
-          })
-          .map((sub) =>
-            fromOwnMatrix
-              ? sub
-              : { ...sub, href: resolveHref(sub.id, sub.href) },
-          )
-          .filter((sub) => sub.href !== null);
-        if (filteredSubs.length > 0) {
-          allItems.push({ ...item, subItems: filteredSubs });
+  const additions = [];
+  const seenIds = new Set();
+  for (const role of NAV_ROLE_KEYS) {
+    if (role === activeRole) continue;
+    const visit = (items) => {
+      for (const item of items || []) {
+        if (seenIds.has(item.id)) continue;
+        const required = NAV_RESPONSIBILITY_MAP[item.id];
+        if (!(required && respKeys.has(required))) continue;
+        seenIds.add(item.id);
+        if (item.subItems && item.subItems.length > 0) {
+          const subItems = item.subItems
+            .filter((sub) => {
+              const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+              return subRequired && respKeys.has(subRequired) && hasCap(sub);
+            })
+            .map((sub) => {
+              const href = resolveHref(sub.id, sub.href);
+              return href === null ? null : { ...sub, href };
+            })
+            .filter(Boolean);
+          if (subItems.length > 0 && hasCap(item)) {
+            additions.push({ ...item, subItems });
+          }
+        } else {
+          if (!hasCap(item)) continue;
+          const href = resolveHref(item.id, item.href);
+          if (href === null) continue;
+          additions.push({ ...item, href });
         }
-      } else {
-        const href = fromOwnMatrix ? item.href : resolveHref(item.id, item.href);
-        if (href === null) continue;
-        allItems.push({ ...item, href });
       }
-    }
-  };
-
-  collect(ownItems, true);
-  for (const items of otherItems) collect(items, false);
-  return allItems;
-}
-
-/**
- * Filter nav items based on a user's responsibilities.
- * Recursively handles subItems.
- */
-function filterNavByResponsibilities(items, userResponsibilities, bypass) {
-  if (bypass) return items;
-
-  // If no responsibilities assigned yet, don't filter — backward compatible.
-  // Users who haven't been seeded with responsibilities see full role-based nav.
-  if (!userResponsibilities || userResponsibilities.length === 0) return items;
-
-  const respKeys = new Set(userResponsibilities.map((r) => r.key));
-
-  return items.reduce((acc, item) => {
-    // Check if this item has a responsibility requirement
-    const required = NAV_RESPONSIBILITY_MAP[item.id];
-
-    // If it has a required responsibility and user doesn't have it, skip
-    if (required && !respKeys.has(required)) {
-      return acc;
-    }
-
-    // If no requirement, always include it
-    // Process subItems if any
-    if (item.subItems) {
-      const filteredSubItems = item.subItems.filter((sub) => {
-        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-        return !subRequired || respKeys.has(subRequired);
-      });
-      if (filteredSubItems.length > 0) {
-        acc.push({ ...item, subItems: filteredSubItems });
-      }
-      // If no subItems remain, don't include the parent
-      return acc;
-    }
-
-    acc.push(item);
-    return acc;
-  }, []);
+    };
+    visit(buildRoleNav(role));
+  }
+  return additions;
 }
 
 export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
@@ -1458,14 +1413,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       return items;
     }
 
-    // If user has responsibilities assigned, build nav from responsibilities
-    // across ALL role views instead of just the user's role view
-    if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
-      const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      return gateMyLearning(attachIcons(buildNavFromResponsibilities(respKeys, activeRole)));
-    }
-
-    // Fallback: role view (backward compatible)
+    // Role nav + capability projection is the single base for every user —
+    // responsibilities never REPLACE the sidebar, they only ADD pages below.
     const items = attachIcons(matrix);
 
     if (
@@ -1505,11 +1454,25 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
-    const base = filterNavByResponsibilities(items, userResponsibilities, bypass);
     // Capability projection (visibility only — the server remains authoritative).
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
-    const projected = projectNavForCapabilities(base, effectiveCaps, activeRole);
+    const projected = projectNavForCapabilities(items, effectiveCaps, activeRole);
     const itemsFinal = attachIcons(projected);
+
+    // Additive responsibilities: pages from OTHER role matrices granted by the
+    // held responsibilities — capability-gated and re-homed away from /admin
+    // for roles that cannot open those pages.
+    if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
+      const additions = attachIcons(
+        buildResponsibilityAdditions(userResponsibilities, activeRole, effectiveCaps),
+      );
+      const seenIds = new Set(itemsFinal.map((i) => i.id));
+      for (const add of additions) {
+        if (seenIds.has(add.id)) continue;
+        itemsFinal.push(add);
+        seenIds.add(add.id);
+      }
+    }
     // Staff Venture console (Phase 3): appears only when the staff member has
     // at least one active Venture assignment — delegated access, never global.
     if (

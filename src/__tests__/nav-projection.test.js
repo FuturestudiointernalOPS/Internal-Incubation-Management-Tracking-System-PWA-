@@ -5,7 +5,10 @@
  * navigation.test.js still governs it). projectNavForCapabilities adds a
  * visibility filter on top for roles with projection rules (staff today):
  *  - `hide` nodes disappear when the capability is missing
- *  - `show` sections appear as leaf links when the capability is present
+ * No section is ever ADDED by capability: the global-management sections are
+ * /admin-only (unreachable outside super_admin/developer), so adding them for
+ * staff would create dead links. Cross-area navigation is additive via
+ * assigned responsibilities (DashboardLayout).
  * This is VISIBILITY ONLY — the server remains authoritative.
  */
 const {
@@ -59,13 +62,11 @@ describe("projectNavForCapabilities (staff)", () => {
     expect(ids(projected)).toContain("programs");
   });
 
-  test("staff granted CRM (contacts.view): CRM section appears as a leaf link", () => {
+  test("staff granted CRM (contacts.view): no /admin leaf link is added", () => {
     const granted = { ...STAFF_EFFECTIVE, contacts: { view: 1 } };
     const projected = projectNavForCapabilities(staffNav, granted, "staff");
-    const crm = projected.find((i) => i.id === "crm");
-    expect(crm).toBeDefined();
-    expect(crm.href).toBe("/admin/crm");
-    expect(crm.subItems).toBeUndefined(); // leaf, never the admin child list
+    // CRM lives under /admin — a dead link for staff, so it must not appear.
+    expect(ids(projected)).not.toContain("crm");
   });
 
   test("staff without contacts: no CRM section", () => {
@@ -73,7 +74,7 @@ describe("projectNavForCapabilities (staff)", () => {
     expect(ids(projected)).not.toContain("crm");
   });
 
-  test("staff granted finance: finance appears; security/knowledge/reports/ventures/investors follow the same rule", () => {
+  test("granting global-section capabilities never appends /admin-only sections", () => {
     const granted = {
       ...STAFF_EFFECTIVE,
       finance: { view: 1 },
@@ -85,8 +86,8 @@ describe("projectNavForCapabilities (staff)", () => {
     };
     const projected = projectNavForCapabilities(staffNav, granted, "staff");
     const out = ids(projected);
-    for (const id of ["finance", "security", "knowledge", "reports", "ventures", "investors"]) {
-      expect(out).toContain(id);
+    for (const id of ["finance", "security", "knowledge", "ventures", "investors"]) {
+      expect(out).not.toContain(id);
     }
   });
 

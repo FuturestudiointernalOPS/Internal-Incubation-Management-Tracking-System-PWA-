@@ -386,26 +386,15 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
 
 // Per-role projection rules. Only Staff (incl. PM-as-staff, which resolves to
 // the staff session role) is projected today: nodes in `hide` disappear when
-// the capability is missing, sections in `show` appear when the capability is
-// present (e.g. CRM for a Staff member granted contacts.view). Other roles
-// keep their role masks exactly as before.
+// the capability is missing. No section is ever ADDED by capability — the
+// global-management sections live under /admin/*, which is unreachable outside
+// super_admin/developer, so advertising them to staff would create dead links.
+// Cross-area navigation comes from assigned responsibilities instead
+// (DashboardLayout builds those additively).
 export const ROLE_NAV_PROJECTION = {
   staff: {
     hide: ["programs", "weekly_ops", "my_projects", "messages"],
-    show: ["crm", "finance", "security", "knowledge", "reports", "ventures", "investors"],
   },
-};
-
-// Primary landing URL for sections added by the projection (rendered as leaf
-// links — never the full admin child list, which may be admin-only).
-export const EXTRA_SECTION_HREFS = {
-  crm: "/admin/crm",
-  finance: "/admin/finance",
-  security: "/admin/security",
-  knowledge: "/admin/knowledge",
-  reports: "/admin/reports/responses",
-  ventures: "/admin/ventures",
-  investors: "/admin/investors",
 };
 
 /** Pure capability check against an effective matrix. */
@@ -417,7 +406,8 @@ export function hasCapability(effective, module, capability, minLevel = 1) {
  * Project a role's navigation against the user's effective capabilities.
  * Returns the same items when: no projection rules exist for the role, no
  * effective matrix is available (fail-open on visibility — the server remains
- * authoritative), or the node has no capability requirement.
+ * authoritative), or the node has no capability requirement. The projection
+ * only ever REMOVES nodes whose capability is missing — it never adds sections.
  */
 export function projectNavForCapabilities(navItems, effective, role) {
   if (!effective) return navItems;
@@ -440,26 +430,7 @@ export function projectNavForCapabilities(navItems, effective, role) {
     return node;
   };
 
-  const filtered = (navItems || []).map(filterNode).filter(Boolean);
-
-  // Add sections the user now has the capability for, as leaf links to the
-  // section's primary page (e.g. CRM for a Staff member granted contacts.view).
-  const extras = (rules.show || [])
-    .filter((id) => req[id] && hasCapability(effective, req[id].module, req[id].capability))
-    .map((id) => {
-      const node = NAV_NODE_INDEX[id];
-      if (!node) return null;
-      return {
-        id: node.id,
-        name: node.name,
-        icon: node.icon,
-        href: EXTRA_SECTION_HREFS[id] || node.href,
-      };
-    })
-    .filter(Boolean)
-    .filter((n) => !filtered.some((f) => f.id === n.id));
-
-  return [...filtered, ...extras];
+  return (navItems || []).map(filterNode).filter(Boolean);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
