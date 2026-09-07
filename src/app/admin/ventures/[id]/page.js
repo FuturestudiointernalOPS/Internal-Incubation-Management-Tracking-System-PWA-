@@ -120,7 +120,7 @@ export default function VentureDetailPage({ params }) {
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState("dashboard");
 
   useEffect(() => {
     if (id) fetchVenture();
@@ -199,21 +199,36 @@ export default function VentureDetailPage({ params }) {
 
   const TABS = [
     { id: "dashboard", label: "Dashboard", icon: Rocket },
-    { id: "investment", label: "Investment", icon: TrendingUp },
+    { id: "journey", label: "Journey", icon: Route },
+    { id: "investment", label: "Investment Readiness", icon: TrendingUp },
     { id: "timeline", label: "Timeline", icon: BarChart3 },
     { id: "reports", label: "Reports", icon: TrendingUp },
-    { id: "feedback", label: "Feedback", icon: Star },
-    { id: "sessions", label: "Sessions", icon: Calendar },
-    { id: "coaches", label: "Coaches", icon: BookOpen },
-    { id: "knowledge", label: "Knowledge", icon: BookOpen },
-    { id: "milestones", label: "Milestones", icon: Flag },
-    { id: "tasks", label: "Tasks", icon: CheckCircle2 },
-    { id: "overview", label: "Overview", icon: Building2 },
-    { id: "founders", label: "Founders", icon: User },
     { id: "verification", label: "Verification", icon: Shield },
     { id: "activity", label: "Activity", icon: Activity },
-    { id: "wizard", label: "Profile Wizard", icon: Layers },
-    { id: "management", label: "Team Management", icon: Shield },
+    { id: "profile", label: "Profile", icon: Building2 },
+    { id: "team", label: "Team", icon: Users },
+  ];
+
+  // Operational sections live on their own pages; the hub tab opens them.
+  const HUB_NAV_ROUTES = {
+    journey: `/admin/ventures/${id}/journey`,
+    investment: `/admin/ventures/${id}/investment`,
+    timeline: `/admin/ventures/${id}/timeline`,
+    reports: `/admin/ventures/${id}/reports`,
+    verification: `/admin/ventures/${id}/verification`,
+  };
+
+  // Full sub-page catalog stays one click away (dashboard module shortcuts).
+  const HUB_MODULES = [
+    { id: "milestones", label: "Milestones" },
+    { id: "tasks", label: "Tasks" },
+    { id: "sessions", label: "Sessions" },
+    { id: "coaches", label: "Coaches" },
+    { id: "knowledge", label: "Knowledge" },
+    { id: "feedback", label: "Feedback" },
+    { id: "fundraising", label: "Fundraising", route: "/fundraising" },
+    { id: "investors", label: "Investors", route: "/investors" },
+    { id: "analytics", label: "Analytics", route: "/analytics" },
   ];
 
   return (
@@ -303,7 +318,11 @@ export default function VentureDetailPage({ params }) {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
+                  onClick={() => {
+                    const target = HUB_NAV_ROUTES[tab.id];
+                    if (target) router.push(target);
+                    else setActiveTab(tab.id);
+                  }}
                   className={`px-5 py-3 text-[9px] font-black uppercase tracking-widest flex items-center gap-2 transition-all border-b-2 whitespace-nowrap ${
                     isActive
                       ? "border-[var(--brand-orange)] text-[var(--brand-orange)]"
@@ -358,6 +377,21 @@ export default function VentureDetailPage({ params }) {
               <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
                 <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Activity</p>
                 <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.activity || []).length}</p>
+              </div>
+            </div>
+            {/* Module shortcuts — every sub-page stays one click away */}
+            <div className="mt-6 pt-5 border-t border-[var(--border-primary)]">
+              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">Venture modules</p>
+              <div className="flex flex-wrap gap-2">
+                {HUB_MODULES.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => (m.route ? router.push(`/admin/ventures/${id}${m.route}`) : setActiveTab(m.id))}
+                    className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all text-slate-500 hover:text-[var(--text-primary)]"
+                  >
+                    {m.label}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -615,7 +649,7 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
 
-        {activeTab === "overview" && (
+        {(activeTab === "profile" || activeTab === "overview") && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
@@ -777,7 +811,7 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
 
-        {activeTab === "founders" && (
+        {(activeTab === "founders" || activeTab === "team") && (
           <div className="card">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
@@ -1031,7 +1065,7 @@ export default function VentureDetailPage({ params }) {
           </div>
         )}
 
-        {activeTab === "management" && (
+        {(activeTab === "management" || activeTab === "team") && (
           <div className="card">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
