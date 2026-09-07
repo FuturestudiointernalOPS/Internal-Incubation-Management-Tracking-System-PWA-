@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { collapseChains } from "@/utils/taskChains";
 
 function getCurrentWeek() {
   const now = new Date();
@@ -252,7 +253,9 @@ export default function StandupRetroView({ user, context, contextLabel }) {
     const apply = (data) => {
       if (!data.success) return;
       setReport(data.report);
-      setTasks(data.tasks || []);
+      // Carry-over chains are displayed as ONE row (the newest copy); older
+      // weekly copies stay in the database for history/reports.
+      setTasks(collapseChains(data.tasks || []));
       if (data.report?.report_type === "standup") {
         try { const p = JSON.parse(data.report.top_priorities || "[]"); setStandupForm({ priorities: Array.isArray(p) ? p.join("\n") : (data.report.top_priorities || ""), deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); } catch { setStandupForm({ priorities: data.report.top_priorities || "", deliverables: data.report.expected_deliverables || "", notes: data.report.additional_notes || "" }); }
       }
