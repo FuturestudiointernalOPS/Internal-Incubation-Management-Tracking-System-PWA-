@@ -609,6 +609,9 @@ const NAV_RESPONSIBILITY_MAP = {
   permissions: "user_management",
   engineering_dashboard: "engineering",
   engineering: "engineering",
+  // LMS — course management (admin authoring area)
+  lms: "lms",
+  lms_courses: "lms",
   // Legacy / always visible
   dashboard: null,
   projects: null,

@@ -17,6 +17,9 @@
  */
 
 import db from "@/lib/db";
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
+
+export { FEATURE_ELIGIBILITY_DEFAULTS };
 
 // Capability module → feature key. The resolver authorizes against capability
 // modules (PERMISSION_MODULES); eligibility is expressed per feature
@@ -41,57 +44,8 @@ export const MODULE_TO_FEATURE = {
   lms: "lms",
 };
 
-/**
- * Initial seeds = the CURRENT route allowlists (from the per-route
- * authorization inventory). These only fill rows that have never been
- * configured (ON CONFLICT DO NOTHING) — admin edits are never overwritten.
- */
-export const FEATURE_ELIGIBILITY_DEFAULTS = {
-  crm: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  communication: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  finance: ["super_admin", "staff"],
-  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  operations: ["super_admin", "staff", "program_manager", "teacher", "developer"],
-  reporting: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  knowledge_base: ["super_admin", "staff"],
-  intelligence: ["super_admin", "developer"],
-  engineering: ["super_admin", "developer"],
-  user_management: ["super_admin", "staff"],
-  system_settings: ["super_admin", "staff"],
-  tasks: ["super_admin", "staff", "program_manager", "team"],
-  ventures: ["super_admin", "staff", "program_manager", "investor"],
-  investor: ["super_admin", "staff", "investor"],
-  // LMS: capability-gated authoring feature (view/create/edit/delete only).
-  // Program Manager is the only non-SA default holder of lms capabilities
-  // (previously lms.view + lms.assign), so it stays eligible; publish/enroll/
-  // assign were retired from the module (see backfill.js).
-  lms: ["super_admin", "program_manager"],
-};
+// FEATURE_ELIGIBILITY_DEFAULTS lives in ./eligibility-defaults (pure module,
+// single source of truth shared with the responsibility defaults).
 
 let eligibilitySchemaPromise = null;
 

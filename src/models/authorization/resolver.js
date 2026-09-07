@@ -48,8 +48,10 @@ function ensureEligibilitySeeded() {
         );
         // Databases that bootstrapped before the LMS feature existed get the
         // new feature's default rows exactly once (never overwrites edits).
+        // v2 re-runs the seed after developer was added to the LMS allowlist
+        // (ON CONFLICT DO NOTHING — idempotent, never touches admin edits).
         await runAuthzMigration(
-          "eligibility-lms-bootstrap",
+          "eligibility-lms-bootstrap-v2",
           seedLmsFeatureEligibility,
         );
         eligibilitySeeded = true;

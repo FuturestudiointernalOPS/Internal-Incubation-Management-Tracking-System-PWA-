@@ -1687,6 +1687,12 @@ export async function seedDefaultResponsibilities() {
         description: "System configuration",
         icon: "Settings",
       },
+      {
+        name: "LMS",
+        key: "lms",
+        description: "Course management — create and maintain courses",
+        icon: "GraduationCap",
+      },
     ];
 
     for (const resp of defaults) {
