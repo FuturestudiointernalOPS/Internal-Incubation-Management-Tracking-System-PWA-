@@ -35,6 +35,8 @@ export const POST = createHandler(async (req, { params }) => {
         founderCid: body.founder_cid, founderName: body.founder_name,
         startTime: body.start_time, endTime: body.end_time, timezone: body.timezone,
         location: body.location, meetingLink: body.meeting_link, agenda: body.agenda,
+        ventureFacing: body.venture_facing === true,
+        preparationNotes: body.preparation_notes || null,
         createdBy: req.session?.cid,
       });
       return NextResponse.json({ success: true, session_id: r.id });

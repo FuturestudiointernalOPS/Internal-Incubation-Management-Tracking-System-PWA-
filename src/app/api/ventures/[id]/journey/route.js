@@ -59,6 +59,31 @@ export async function GET(req, { params }) {
 
     const stages = await listJourneyStages(db, dbId);
 
+    // Phase 2 spine: attach the milestones bound to each stage so the Journey
+    // timeline can show stage -> milestone progress. Venture-facing data only
+    // (milestones are visible to members through their own tools). Defensive:
+    // if the additive columns are missing the stage list still renders.
+    const milestoneRes = await db.execute({
+      sql: `SELECT id, title, status, progress, target_date, journey_stage_id
+            FROM venture_milestones
+            WHERE venture_id = ? AND journey_stage_id IS NOT NULL
+            ORDER BY COALESCE(display_order, 0), created_at ASC`,
+      args: [dbId],
+    }).catch(() => ({ rows: [] }));
+    const milestonesByStage = {};
+    for (const m of milestoneRes.rows || []) {
+      const key = String(m.journey_stage_id);
+      (milestonesByStage[key] = milestonesByStage[key] || []).push(m);
+    }
+    for (const stage of stages) {
+      const list = milestonesByStage[stage.id] || [];
+      stage.milestones = list;
+      stage.milestone_counts = {
+        total: list.length,
+        completed: list.filter((m) => m.status === "completed").length,
+      };
+    }
+
     // Author flags for staff surfaces only (members never receive them).
     let access = null;
     const viewer = await getViewerSession();

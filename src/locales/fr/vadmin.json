@@ -974,6 +974,8 @@
       "description": "Description",
       "cancel": "Annuler",
       "schedule": "Planifier",
+      "ventureFacing": "Visible par la Venture",
+      "ventureFacingHint": "Afficher cette session dans le calendrier de la Venture.",
       "date": "Date",
       "duration": "Durée",
       "minutesShort": "min",

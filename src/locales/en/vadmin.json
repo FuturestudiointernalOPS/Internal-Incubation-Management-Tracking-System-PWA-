@@ -974,6 +974,8 @@
       "description": "Description",
       "cancel": "Cancel",
       "schedule": "Schedule",
+      "ventureFacing": "Visible to Venture",
+      "ventureFacingHint": "Show this session on the Venture dashboard calendar.",
       "date": "Date",
       "duration": "Duration",
       "minutesShort": "min",

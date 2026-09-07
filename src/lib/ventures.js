@@ -3275,15 +3275,15 @@ export async function checkDoubleBooking({ ventureId, coachId, startTime, endTim
   return { conflict: false };
 }
 
-export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy }) {
+export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null }) {
   if (new Date(startTime) >= new Date(endTime)) throw new Error("End time must be after start time.");
   if (new Date(endTime) < new Date()) throw new Error("Cannot schedule sessions in the past.");
   const conflict = await checkDoubleBooking({ ventureId, coachId, startTime, endTime });
   if (conflict.conflict) throw new Error(conflict.message);
   const res = await db.execute({
-    sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system"],
+    sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null],
   });
   const id = res.rows[0]?.id || res.lastInsertRowid;
   await db.execute({

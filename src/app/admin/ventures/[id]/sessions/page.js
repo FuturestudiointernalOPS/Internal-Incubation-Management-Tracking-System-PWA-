@@ -43,7 +43,7 @@ export default function VentureSessionsPage() {
   const [filter, setFilter] = useState("upcoming");
 
   // Form
-  const [sForm, setSForm] = useState({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" });
+  const [sForm, setSForm] = useState({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false });
 
   // Notes
   const [noteText, setNoteText] = useState("");
@@ -103,7 +103,7 @@ export default function VentureSessionsPage() {
         body: JSON.stringify({ action: "create_session", ...sForm, coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "" }); fetchAll(true); }
+      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false }); fetchAll(true); }
       else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
@@ -265,6 +265,13 @@ export default function VentureSessionsPage() {
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.description")}</label>
                 <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
               </div>
+              <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-[var(--border-primary)] bg-primary px-4 py-3">
+                <input type="checkbox" checked={!!sForm.venture_facing} onChange={(e)=>setSForm((p)=>({...p,venture_facing:e.target.checked}))} className="mt-0.5" />
+                <span>
+                  <span className="block text-[9px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.sessions.ventureFacing")}</span>
+                  <span className="block text-[9px] text-slate-500 mt-0.5">{t("vadmin.sessions.ventureFacingHint")}</span>
+                </span>
+              </label>
             </div>
             <div className="flex gap-3">
               <button onClick={()=>setShowCreateModal(false)} className="flex-1 py-3 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary">{t("vadmin.sessions.cancel")}</button>
