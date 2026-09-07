@@ -8,20 +8,6 @@ import {
   getOrCreateVerification,
   listFounders,
 } from "@/lib/ventures";
-import {
-  countActiveVentureCoachAssignments,
-  countVentureAdvisors,
-  countVentureCoachingSessions,
-  getRecentNotificationsForMembers,
-  getVentureDbIdByVentureCode,
-  getVentureInfoForDashboard,
-  getVentureKpiSummary,
-  listRecentVentureActivity,
-  listRecentVentureDocuments,
-  listRecentVentureDocumentsUnfiltered,
-  listUpcomingVentureMeetings,
-  listVentureMemberNotificationRecipients,
-} from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/dashboard
@@ -34,12 +20,18 @@ export const GET = createHandler(
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
+    // Internal viewers = global Venture authority (super_admin/developer/admin).
+    // They see the INTERNAL audit stream + internal 'sa' notification feed.
+    // Everyone else (Venture members, scoped staff) only ever receives
+    // Venture-facing events — never the internal staff feed.
+    const isInternalViewer = ["super_admin", "developer", "admin"].includes(session?.role);
     const start = Date.now();
 
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
     let dbId = id;
     try {
-      const vRes = await getVentureDbIdByVentureCode(id);
+      const vRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
       if (vRes.rows[0]) dbId = vRes.rows[0].id;
     } catch (_) {}
 
@@ -67,7 +59,10 @@ export const GET = createHandler(
     // ── Venture Info ──
     const ventureInfo = (async () => {
       try {
-        const res = await getVentureInfoForDashboard(id);
+        const res = await db.execute({
+          sql: "SELECT company_name, venture_id, industry, business_stage, status, created_at, description, website, logo_url, registration_number FROM ventures WHERE venture_id = ?",
+          args: [id],
+        });
         return res.rows[0] || null;
       } catch { return null; }
     })();
@@ -92,12 +87,35 @@ export const GET = createHandler(
       } catch { return null; }
     })();
 
-    // ── Notifications (recipients = the venture's members, not the VNT code) ──
+    // ── Notifications ──
+    // Venture members see events addressed to the Venture's members ONLY.
+    // Internal viewers additionally see the internal 'sa' staff stream
+    // (that feed is NEVER exposed to Venture members).
     const notifications = (async () => {
       try {
-        const memberRes = await listVentureMemberNotificationRecipients(id);
+        const memberRes = await db.execute({
+          sql: "SELECT contact_id, user_cid FROM venture_members WHERE venture_id = ? AND removed_at IS NULL",
+          args: [id],
+        });
         const recipientIds = [...new Set((memberRes.rows || []).flatMap((r) => [r.contact_id, r.user_cid]).filter(Boolean))];
-        const res = await getRecentNotificationsForMembers(recipientIds);
+        const orInternal = isInternalViewer ? " OR recipient_id = 'sa'" : "";
+        let sql, args;
+        if (recipientIds.length > 0) {
+          sql = `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")})${orInternal}
+                ORDER BY created_at DESC LIMIT 10`;
+          args = recipientIds;
+        } else if (isInternalViewer) {
+          sql = `SELECT id, title, message, type, is_read, created_at
+                FROM v2_notifications
+                WHERE recipient_id = 'sa'
+                ORDER BY created_at DESC LIMIT 10`;
+          args = [];
+        } else {
+          return { unread: 0, recent: [] };
+        }
+        const res = await db.execute({ sql, args });
         const notifs = res.rows || [];
         return {
           unread: notifs.filter((n) => !n.is_read).length,
@@ -110,13 +128,44 @@ export const GET = createHandler(
     })();
 
     // ── Recent Activity ──
+    // The raw venture_activity_log is an INTERNAL audit stream (staff actors,
+    // internal reviews, assignments).
+    //   • Internal viewers (global Venture authority) keep the full audit rows.
+    //   • Venture members get a strict allowlist of Venture-facing events as an
+    //     event `action` code (no actor identity) which the UI translates.
+    // Everything else stays internal (admin/audit surfaces).
+    const VENTURE_FACING_CODES = [
+      "VENTURE_CREATED",
+      "VENTURE_APPROVED",
+      "VENTURE_REGISTERED",
+      "VENTURE_UPDATED",
+      "PROFILE_SUBMITTED",
+      "MILESTONE_COMPLETED",
+      "DELIVERABLE_SUBMITTED",
+      "OPERATING_PLAN_TEMPLATE_APPLIED",
+      "SESSION_SCHEDULED",
+      "COACHING_SCHEDULED",
+      "COACHING_APPROVED",
+    ];
     const recentActivity = (async () => {
       try {
-        const res = await listRecentVentureActivity(id);
-        return (res.rows || []).map((a) => ({
-          id: a.id, action: a.action, actor: a.actor_name || "System",
-          details: a.details, created_at: a.created_at,
-        }));
+        const res = await db.execute({
+          sql: `SELECT id, action, actor_name, details, created_at
+                FROM venture_activity_log WHERE venture_id = ?
+                ORDER BY created_at DESC LIMIT 40`,
+          args: [id],
+        });
+        const rows = res.rows || [];
+        if (isInternalViewer) {
+          return rows.slice(0, 10).map((a) => ({
+            id: a.id, action: a.action, actor: a.actor_name || "System",
+            details: a.details, created_at: a.created_at,
+          }));
+        }
+        return rows
+          .filter((a) => VENTURE_FACING_CODES.includes(a.action))
+          .slice(0, 10)
+          .map((a) => ({ id: a.id, action: a.action, created_at: a.created_at }));
       } catch { return null; }
     })();
 
@@ -143,10 +192,16 @@ export const GET = createHandler(
       try {
         let rows = [];
         try {
-          const res = await listRecentVentureDocuments(id);
+          const res = await db.execute({
+            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? AND is_deleted = false ORDER BY created_at DESC LIMIT 5",
+            args: [id],
+          });
           rows = res.rows || [];
         } catch (_) {
-          const res = await listRecentVentureDocumentsUnfiltered(id);
+          const res = await db.execute({
+            sql: "SELECT id, title, category, file_name, file_type, file_size, uploaded_by, created_at FROM venture_documents WHERE venture_id = ? ORDER BY created_at DESC LIMIT 5",
+            args: [id],
+          });
           rows = res.rows || [];
         }
         return {
@@ -159,7 +214,12 @@ export const GET = createHandler(
     // ── Meetings (placeholder — integrates with calendar/events module) ──
     const meetings = (async () => {
       try {
-        const res = await listUpcomingVentureMeetings(id).catch(() => ({ rows: [] }));
+        const res = await db.execute({
+          sql: `SELECT id, title, description, event_date, event_time, status, type
+                FROM calendar_events WHERE venture_id = ? AND event_date >= CURRENT_DATE
+                ORDER BY event_date ASC LIMIT 5`,
+          args: [id],
+        }).catch(() => ({ rows: [] }));
         return (res.rows || []).map((m) => ({
           id: m.id, title: m.title, description: m.description,
           date: m.event_date, time: m.event_time, status: m.status, type: m.type || "meeting",
@@ -170,7 +230,14 @@ export const GET = createHandler(
     // ── KPI Summary (the venture KPI module, not the global kpis table) ──
     const kpiSummary = (async () => {
       try {
-        const res = await getVentureKpiSummary(dbId).catch(() => ({ rows: [] }));
+        const res = await db.execute({
+          sql: `SELECT d.name, d.unit, d.auto_calc_source, a.target_value, a.current_value, a.updated_at
+                FROM venture_kpi_assignments a
+                JOIN venture_kpi_definitions d ON d.id = a.kpi_definition_id
+                WHERE a.venture_id::text = ?
+                ORDER BY a.updated_at DESC LIMIT 5`,
+          args: [dbId],
+        }).catch(() => ({ rows: [] }));
         return (res.rows || []).map((k) => ({
           id: k.id, title: k.name, category: k.auto_calc_source || "manual",
           current: k.current_value, target: k.target_value,
@@ -184,9 +251,9 @@ export const GET = createHandler(
     const coaching = (async () => {
       try {
         const [advisorRes, sessionRes, assignmentRes] = await Promise.all([
-          countVentureAdvisors(dbId).catch(() => ({ rows: [{ n: 0 }] })),
-          countVentureCoachingSessions(dbId).catch(() => ({ rows: [{ n: 0 }] })),
-          countActiveVentureCoachAssignments(dbId).catch(() => ({ rows: [{ n: 0 }] })),
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_advisors WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coaching_sessions WHERE venture_id::text = ?", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
+          db.execute({ sql: "SELECT COUNT(*) AS n FROM venture_coach_assignments WHERE venture_id::text = ? AND status = 'active'", args: [dbId] }).catch(() => ({ rows: [{ n: 0 }] })),
         ]);
         const coaches = Number(assignmentRes.rows?.[0]?.n || 0);
         const advisors = Number(advisorRes.rows?.[0]?.n || 0);

@@ -1,96 +1,123 @@
-import db, { initDb } from "@/lib/db";
+import db from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
-import { notifyVentureFounders } from "@/lib/ventures";
+import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import {
-  activateJourneyStage,
-  completeJourneyStage,
-  countJourneyStages,
-  ensureJourneyStagesTable,
-  getJourneyMaxStageOrder,
-  getJourneyStageById,
-  getJourneyStages,
-  getJourneyStagesAfterUpdate,
-  getJourneyVentureId,
-  insertJourneyStage,
-  insertMissingJourneyStage,
-  lockJourneyStagesFrom,
-  unlockJourneyStage,
-} from "@/models/ventureJourney";
+  ensureJourneyTable,
+  resolveVentureInternalId,
+  listJourneyStages,
+  getJourneyStage,
+  nextJourneyStageOrder,
+  moveJourneyStage,
+  deleteJourneyStage,
+} from "@/lib/ventureJourneys";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
-const PRIVILEGED = ["staff","program_manager","super_admin","developer"];
+export const dynamic = "force-dynamic";
 
-const STANDARD_STAGES = [
-  { name: "Complete Venture Profile", order: 1, description: "Fill in all venture information, upload logo, add founders" },
-  { name: "Define the Problem", order: 2, description: "Clearly articulate the problem you are solving" },
-  { name: "Validate the Idea", order: 3, description: "Confirm the problem exists and people care" },
-  { name: "Identify Target Customers", order: 4, description: "Define who your first customers will be" },
-  { name: "Develop Business Model Canvas", order: 5, description: "Map out your business model" },
-  { name: "Define Value Proposition", order: 6, description: "Articulate your unique value" },
-  { name: "Conduct Market Research", order: 7, description: "Research competitors and market size" },
-  { name: "Build Brand Identity", order: 8, description: "Create brand name, logo, visual identity" },
-  { name: "Prepare Pitch Deck", order: 9, description: "Create investor-ready pitch deck" },
-  { name: "Develop Go-to-Market Strategy", order: 10, description: "Plan your launch and customer acquisition" },
-  { name: "Build MVP", order: 11, description: "Create minimum viable product" },
-  { name: "Acquire First Customers", order: 12, description: "Get your first paying customers" },
-  { name: "Validate Product-Market Fit", order: 13, description: "Confirm strong market pull" },
-  { name: "Prepare Investment Readiness", order: 14, description: "Organize all required documents" },
-  { name: "Become Investment Ready", order: 15, description: "All checks passed, ready for investors" },
-  { name: "Investor Introductions", order: 16, description: "Get introduced to potential investors" },
-  { name: "Fundraising Preparation", order: 17, description: "Prepare fundraising materials and strategy" },
-  { name: "Seed Funding", order: 18, description: "Secure seed funding round" },
-  { name: "Customer Growth", order: 19, description: "Scale customer acquisition and retention" },
-  { name: "Revenue Growth", order: 20, description: "Achieve revenue milestones" },
-  { name: "Product Expansion", order: 21, description: "Expand product features and offerings" },
-  { name: "Series A Readiness", order: 22, description: "Prepare for Series A fundraising" },
-  { name: "Series A", order: 23, description: "Close Series A funding round" },
-  { name: "Regional Expansion", order: 24, description: "Expand into new geographic markets" },
-  { name: "Series B Readiness", order: 25, description: "Prepare for Series B fundraising" },
-  { name: "Scale Operations", order: 26, description: "Scale team, infrastructure, and operations" },
-];
+/**
+ * Venture Journey API.
+ *
+ * The Journey is Venture-facing but staff-defined: it is NOT a hardcoded
+ * curriculum. Authorized staff (holding `operating_plan` capabilities on a
+ * venture-wide assignment — or a global role) define the stages for the
+ * specific Venture. Venture members read the published stages.
+ *
+ *   GET    — published stages (anyone with Venture access) + author flags
+ *            (only returned to authorized staff)
+ *   POST   — add a stage { name, description?, objective?, target_date? }
+ *   PATCH  — stage management { action, stage_id, ... }:
+ *            update | activate | lock | complete | reset | delete | move
+ */
 
-async function resolveVentureDbId(ventureId) {
-  const r = await getJourneyVentureId(ventureId);
-  return r.rows?.[0]?.id || null;
+async function getViewerSession() {
+  return getSession();
+}
+
+/** Shared write-gate: staff instrument only (operating_plan area). */
+async function requireStaffJourneyAccess(id) {
+  const session = await getViewerSession();
+  if (!session) return { session: null, access: null };
+  const access = await resolvePlanAccess(db, id, session);
+  if (!access.ok) return { session, access: null };
+  return { session, access };
+}
+
+async function resolveDbId(id) {
+  await ensureJourneyTable(db);
+  return resolveVentureInternalId(db, id);
 }
 
 export async function GET(req, { params }) {
   try {
-    await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const dbId = await resolveVentureDbId(id);
+    const dbId = await resolveDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    // Ensure table exists
-    await ensureJourneyStagesTable();
+    const stages = await listJourneyStages(db, dbId);
 
-    // Seed stages for this venture if they don't exist
-    const existing = await countJourneyStages(dbId);
-    if (parseInt(existing.rows?.[0]?.c || 0) === 0) {
-      for (const stage of STANDARD_STAGES) {
-        await insertJourneyStage(dbId, stage.name, stage.description, stage.order, stage.order === 1 ? "active" : "locked");
-      }
-    } else {
-      // Add any missing growth stages for existing ventures
-      const maxOrder = await getJourneyMaxStageOrder(dbId);
-      const currentMax = parseInt(maxOrder.rows?.[0]?.max_order || 15);
-      for (const stage of STANDARD_STAGES) {
-        if (stage.order > currentMax) {
-          await insertMissingJourneyStage(dbId, stage.name, stage.description, stage.order);
-        }
+    // Author flags for staff surfaces only (members never receive them).
+    let access = null;
+    const viewer = await getViewerSession();
+    if (viewer) {
+      const planAccess = await resolvePlanAccess(db, id, viewer);
+      if (planAccess.ok) {
+        const [canCreate, canEdit, canManage] = await Promise.all([
+          allowsPlanAction(db, planAccess, "create"),
+          allowsPlanAction(db, planAccess, "edit"),
+          allowsPlanAction(db, planAccess, "manage"),
+        ]);
+        access = { create: canCreate, edit: canEdit, manage: canManage };
       }
     }
 
-    const stages = await getJourneyStages(dbId);
+    return NextResponse.json({ success: true, stages, access });
+  } catch (e) {
+    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+  }
+}
 
-    return NextResponse.json({ success: true, stages: stages.rows || [] });
+export async function POST(req, { params }) {
+  try {
+    const { id } = await params;
+    const { session, access } = await requireStaffJourneyAccess(id);
+    if (!session || !access) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    if (!(await allowsPlanAction(db, access, "create"))) {
+      return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
+    }
+
+    const dbId = await resolveDbId(id);
+    if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+
+    const body = await req.json();
+    const name = String(body.name || "").trim();
+    if (!name) return NextResponse.json({ success: false, error: "name is required." }, { status: 400 });
+
+    const existing = await db.execute({
+      sql: "SELECT COUNT(*) AS n FROM venture_journey_stages WHERE venture_id = ?",
+      args: [dbId],
+    });
+    const count = Number(existing.rows?.[0]?.n || 0);
+    const stageOrder = await nextJourneyStageOrder(db, dbId);
+    const status = count === 0 ? "active" : "locked";
+    const targetDate = body.target_date ? String(body.target_date).slice(0, 10) : null;
+
+    const ins = await db.execute({
+      sql: `INSERT INTO venture_journey_stages (venture_id, name, description, objective, target_date, stage_order, status)
+            VALUES (?,?,?,?,?,?,?) RETURNING id`,
+      args: [dbId, name, body.description || null, body.objective || null, targetDate, stageOrder, status],
+    });
+
+    try {
+      const { addVentureHistory } = await import("@/lib/ventures");
+      await addVentureHistory({ venture_id: id, event_type: "JOURNEY_STAGE_ADDED", description: `Journey stage "${name}" added` });
+    } catch (_) {}
+
+    const stages = await listJourneyStages(db, dbId);
+    return NextResponse.json({ success: true, stage: stages.find((s) => s.id === ins.rows?.[0]?.id) || null, stages });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }
@@ -98,39 +125,120 @@ export async function GET(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try {
-    await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
     const { id } = await params;
-    const { session } = await requireVentureAccess(id, db);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, access } = await requireStaffJourneyAccess(id);
+    if (!session || !access) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-    const dbId = await resolveVentureDbId(id);
+    const dbId = await resolveDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    // Only privileged users (mentors) can unlock next stage
-    if (!PRIVILEGED.includes(session.role)) {
-      return NextResponse.json({ success: false, error: "Only mentors can approve stages" }, { status: 403 });
+    const body = await req.json();
+    const action = String(body.action || "");
+    const stageId = body.stage_id ? String(body.stage_id) : null;
+
+    // ── Field edits ──
+    if (action === "update") {
+      if (!(await allowsPlanAction(db, access, "edit"))) {
+        return NextResponse.json({ success: false, error: "Your assignment does not allow editing this Venture's journey." }, { status: 403 });
+      }
+      if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
+      const stage = await getJourneyStage(db, dbId, stageId);
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+
+      const name = body.name !== undefined ? String(body.name).trim() : null;
+      if (name === "") return NextResponse.json({ success: false, error: "name cannot be empty." }, { status: 400 });
+      const targetDate = body.target_date !== undefined ? (body.target_date ? String(body.target_date).slice(0, 10) : null) : undefined;
+
+      await db.execute({
+        sql: `UPDATE venture_journey_stages SET
+                name = COALESCE(?, name),
+                description = CASE WHEN ? = 1 THEN ? ELSE description END,
+                objective = CASE WHEN ? = 1 THEN ? ELSE objective END,
+                target_date = CASE WHEN ? = 1 THEN ?::date ELSE target_date END
+              WHERE id = ? AND venture_id = ?`,
+        args: [
+          name, body.description !== undefined ? 1 : 0, body.description !== undefined ? body.description : null,
+          body.objective !== undefined ? 1 : 0, body.objective !== undefined ? body.objective : null,
+          targetDate !== undefined ? 1 : 0, targetDate !== undefined ? targetDate : null,
+          stageId, dbId,
+        ],
+      });
+      const stages = await listJourneyStages(db, dbId);
+      return NextResponse.json({ success: true, stages });
     }
 
-    const { stage_id, action } = await req.json();
-    if (!stage_id || !action) return NextResponse.json({ success: false, error: "stage_id and action required" }, { status: 400 });
+    // ── Management actions (status transitions, delete, move, template) ──
+    const manageActions = ["activate", "lock", "complete", "reset", "delete", "move"];
+    if (manageActions.includes(action)) {
+      if (!(await allowsPlanAction(db, access, "manage"))) {
+        return NextResponse.json({ success: false, error: "Your assignment does not allow managing this Venture's journey." }, { status: 403 });
+      }
+    } else {
+      return NextResponse.json({ success: false, error: "Unknown action." }, { status: 400 });
+    }
 
-    const stage = (await getJourneyStageById(stage_id, dbId)).rows?.[0];
-    if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+    const stage = stageId ? await getJourneyStage(db, dbId, stageId) : null;
 
-    if (action === "complete") {
-      await completeJourneyStage(session.cid, stage_id);
-      await unlockJourneyStage(dbId, stage.stage_order + 1);
-      notifyVentureFounders(dbId, 'Stage Completed', `"${stage.name}" has been marked as completed.`);
+    if (action === "activate") {
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      if (stage.status === "completed") {
+        return NextResponse.json({ success: false, error: "Completed stages are not reactivated directly — reset the stage first." }, { status: 400 });
+      }
+      await db.transaction(async (query) => {
+        await query("UPDATE venture_journey_stages SET status = 'locked' WHERE venture_id = ? AND status = 'active'", [dbId]);
+        await query("UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?", [stageId, dbId]);
+      });
+    } else if (action === "lock") {
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      if (stage.status === "completed") {
+        return NextResponse.json({ success: false, error: "Completed stages cannot be locked — reset the stage first." }, { status: 400 });
+      }
+      await db.execute({
+        sql: "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE id = ? AND venture_id = ?",
+        args: [stageId, dbId],
+      });
+    } else if (action === "complete") {
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      if (stage.status === "completed") return NextResponse.json({ success: false, error: "Stage is already completed." }, { status: 400 });
+      await db.transaction(async (query) => {
+        await query(
+          "UPDATE venture_journey_stages SET status = 'completed', completed_at = NOW(), approved_by = ? WHERE id = ? AND venture_id = ?",
+          [session.cid || null, stageId, dbId],
+        );
+        // Unlock the next scheduled stage so the Venture always has a current one.
+        await query(
+          "UPDATE venture_journey_stages SET status = 'active' WHERE venture_id = ? AND stage_order = ? AND status = 'locked'",
+          [dbId, stage.stage_order + 1],
+        );
+      });
+      try {
+        const { notifyVentureFounders } = await import("@/lib/ventures");
+        await notifyVentureFounders(dbId, "Stage Completed", `"${stage.name}" has been marked as completed.`);
+      } catch (_) {}
     } else if (action === "reset") {
-      await lockJourneyStagesFrom(dbId, stage.stage_order);
-      await activateJourneyStage(dbId, stage.stage_order);
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      await db.transaction(async (query) => {
+        await query(
+          "UPDATE venture_journey_stages SET status = 'locked', completed_at = NULL, approved_by = NULL WHERE venture_id = ? AND stage_order >= ?",
+          [dbId, stage.stage_order],
+        );
+        await query("UPDATE venture_journey_stages SET status = 'active' WHERE id = ? AND venture_id = ?", [stageId, dbId]);
+      });
+    } else if (action === "delete") {
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      await deleteJourneyStage(db, { dbId, stageId });
+    } else if (action === "move") {
+      if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });
+      const direction = String(body.direction || "");
+      if (!["up", "down"].includes(direction)) {
+        return NextResponse.json({ success: false, error: "direction (up|down) is required." }, { status: 400 });
+      }
+      const moved = await moveJourneyStage(db, { dbId, stageId, direction });
+      if (moved.error) return NextResponse.json({ success: false, error: moved.error }, { status: 400 });
     }
 
-    const stages = await getJourneyStagesAfterUpdate(dbId);
-
-    return NextResponse.json({ success: true, stages: stages.rows || [] });
+    const stages = await listJourneyStages(db, dbId);
+    return NextResponse.json({ success: true, stages });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
   }

@@ -50,7 +50,19 @@ export async function POST(req, { params }) {
     }
 
     // ── Authorization: privileged roles OR the current lead founder ──
-    const privileged = ["super_admin", "staff", "program_manager", "developer"];
+    const privileged = ["super_admin", "developer", "admin"];
+
+    // Delegated staff (Phase 2): changing the Venture lead requires an
+    // explicit assignment — never the staff role alone.
+    if (["staff", "program_manager"].includes(session.role)) {
+      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+      if (!(await hasActiveVentureAssignment(ventureId, session.cid, db))) {
+        return NextResponse.json(
+          { success: false, error: "Unauthorized. Only assigned Venture staff or the current lead founder can change the lead." },
+          { status: 403 },
+        );
+      }
+    }
 
     // Archived Ventures are immutable historical records (Phase 3).
     try {

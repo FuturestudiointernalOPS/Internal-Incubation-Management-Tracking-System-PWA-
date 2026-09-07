@@ -68,18 +68,38 @@ export async function requireOperationalVentureAccess({ ventureId, db, session, 
  *   const { ventureId, session } = await requireVentureAccess(params.id);
  *   if (!session) return NextResponse.json({...}, {status: 404});
  *
- * Rules:
- *   - staff / super_admin / program_manager / developer → bypass membership (org-wide)
- *   - participant / teacher → must be active venture_member
- *   - Non-member → 404 (don't leak existence)
+ * Rules (Phase 2 — assignment-aware delegation):
+ *   - GLOBAL roles (super_admin / developer / admin) bypass membership
+ *     (org-wide Venture authority).
+ *   - Everyone else must hold EITHER:
+ *       a) an ACTIVE venture_members row (founder/member access), OR
+ *       b) an ACTIVE staff assignment (venture_staff_assignments) —
+ *          delegated staff access derived from the assignment, never from
+ *          the global role alone.
+ *   - Plain `staff`/`program_manager` WITHOUT an assignment no longer
+ *     bypass: access is per-Venture via assignment or membership.
+ *   - Non-member / non-assigned → 404 (don't leak existence).
  */
+export async function hasActiveVentureAssignment(ventureCode, sessionCid, db) {
+  if (!ventureCode || !sessionCid) return false;
+  try {
+    const r = await db.execute({
+      sql: "SELECT 1 FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' LIMIT 1",
+      args: [ventureCode, sessionCid],
+    });
+    return (r.rows || []).length > 0;
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function requireVentureAccess(ventureId, db) {
   const session = await getSession();
   if (!session) return { ventureId, session: null };
 
-  const privilegedRoles = ["staff", "super_admin", "program_manager", "developer"];
-
-  if (privilegedRoles.includes(session.role)) {
+  // Global Venture authority (Phase 2: narrowed from all staff/PM roles).
+  const globalRoles = ["super_admin", "developer", "admin"];
+  if (globalRoles.includes(session.role)) {
     return { ventureId, session };
   }
 
@@ -98,6 +118,10 @@ export async function requireVentureAccess(ventureId, db) {
       args: [code, session.cid],
     });
     if (r.rows?.length > 0) {
+      return { ventureId, session };
+    }
+    // Delegated staff: explicit Venture assignment grants access (Phase 2).
+    if (await hasActiveVentureAssignment(code, session.cid, db)) {
       return { ventureId, session };
     }
   }

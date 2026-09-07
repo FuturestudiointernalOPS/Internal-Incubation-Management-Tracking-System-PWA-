@@ -566,10 +566,6 @@ export default function ProfileView() {
                 <Mail className="w-3 h-3 shrink-0" />
                 <span className="truncate">{contact.email}</span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
-                <Calendar className="w-3 h-3 shrink-0" />
-                <span>CID: {contact.cid?.substring(0, 16)}...</span>
-              </div>
             </div>
           </div>
 
@@ -682,9 +678,6 @@ export default function ProfileView() {
               <div className="space-y-2 pt-1">
                 <p className="flex items-center gap-2 text-[8px] font-black text-[var(--text-tertiary)] uppercase tracking-wider">
                   <Mail className="w-3 h-3" /> {t("adminMisc.profile.alternativeEmailsTitle")}
-                </p>
-                <p className="text-[9px] text-[var(--text-secondary)]">
-                  {t("adminMisc.profile.alternativeEmailsHint")}
                 </p>
                 {altEmails.length === 0 ? (
                   <p className="text-[10px] font-bold text-[var(--text-tertiary)]">

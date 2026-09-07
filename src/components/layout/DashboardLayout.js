@@ -1333,6 +1333,24 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     };
   }, [user.cid]);
 
+  // Staff Venture console visibility (Phase 3): delegated staff see the
+  // Ventures entry ONLY when they hold at least one active Venture assignment.
+  const [ventureAssignCount, setVentureAssignCount] = useState(null);
+  useEffect(() => {
+    if (!user.cid) return;
+    if (!["staff", "program_manager"].includes(user.role)) return;
+    let alive = true;
+    fetch("/api/ventures/assigned")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive) setVentureAssignCount((d.assignments || []).length);
+      })
+      .catch(() => setVentureAssignCount(0));
+    return () => {
+      alive = false;
+    };
+  }, [user.cid, user.role]);
+
   const navItems = useMemo(() => {
     // Priority: page context > user.role (from session) > role (from prop) > fallback 'admin'.
     // The sidebar follows the page context so a user acting under another role
@@ -1488,8 +1506,25 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // Capability projection (visibility only — the server remains authoritative).
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
     const projected = projectNavForCapabilities(base, effectiveCaps, activeRole);
+    const itemsFinal = attachIcons(projected);
+    // Staff Venture console (Phase 3): appears only when the staff member has
+    // at least one active Venture assignment — delegated access, never global.
+    if (
+      ["staff", "program_manager"].includes(activeRole) &&
+      typeof ventureAssignCount === "number" &&
+      ventureAssignCount > 0
+    ) {
+      const dashIndex = itemsFinal.findIndex((i) => i.id === "dashboard");
+      const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
+      itemsFinal.splice(insertAt, 0, {
+        id: "ventures",
+        name: "MY VENTURES",
+        icon: Rocket,
+        href: "/staff/ventures",
+      });
+    }
     // "My Learning" is hidden for participants who have no course enrollment.
-    return gateMyLearning(attachIcons(projected));
+    return gateMyLearning(itemsFinal);
   }, [
     user.role,
     user.groups,
@@ -1499,6 +1534,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     pathname,
     hasLmsEnrollments,
     effectiveCaps,
+    ventureAssignCount,
   ]);
 
   // Active navigation path — the current page plus every ancestor node id.

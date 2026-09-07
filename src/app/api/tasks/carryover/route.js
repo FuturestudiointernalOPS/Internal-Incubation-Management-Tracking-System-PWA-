@@ -83,6 +83,8 @@ export const POST = createHandler(async (req) => {
 
   // 2. Follow chain forward to find the LATEST clone (not the original)
   // This prevents repeatedly cloning the same original task each week.
+  // Completed/archived copies are never carried again — a finished task must
+  // stay finished (Phase 1 carry-over fix, enforced in getLatestCarriedOverClone).
   let taskToClone = orig;
   while (true) {
     const nextRes = await getLatestCarriedOverClone(taskToClone.id);
@@ -90,6 +92,35 @@ export const POST = createHandler(async (req) => {
     taskToClone = nextRes.rows[0];
   }
   const sourceTask = taskToClone;
+
+  // 2b. Safety: never clone or flip a completed/archived task.
+  if (
+    sourceTask.status === "completed" ||
+    sourceTask.status === "archived"
+  ) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "Completed tasks cannot be carried over.",
+        status: 409,
+      },
+      { status: 409 },
+    );
+  }
+
+  // 2c. Idempotency guard: the newest open copy already lives in the target
+  // week — it was carried over already, so do not clone it a second time.
+  if (
+    Number(sourceTask.created_week) === Number(target_week) &&
+    Number(sourceTask.created_year) === Number(target_year)
+  ) {
+    return NextResponse.json({
+      success: true,
+      id: sourceTask.id,
+      oldId,
+      action: "already_carried_over",
+    });
+  }
 
   const sourceId = sourceTask.id;
 
@@ -124,7 +155,9 @@ export const POST = createHandler(async (req) => {
   // 7. Re-parent subtasks from the LATEST task
   await reparentSubtasksToTask(newId, sourceId);
 
-  // 8. Mark the LATEST task as carried_over (not the original)
+  // 8. Mark the LATEST task as carried_over (not the original).
+  // Guarded in markTaskCarriedOver: never flip a completed/archived task, and
+  // never leave a stale completion timestamp on a carried-over task.
   await markTaskCarriedOver(sourceId);
 
   return NextResponse.json({

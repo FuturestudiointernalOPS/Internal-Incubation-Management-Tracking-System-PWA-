@@ -8,8 +8,8 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { ProfileTab, SettingsTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
-import { FoundersTab, TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
-import { DashboardTab, ProgressTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
+import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
+import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
 import { MilestonesTab, ActionPlansTab, TasksTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
@@ -18,14 +18,15 @@ import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs
 import { AdvisorsTab, CoachingTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
 const TABS = [
-  "profile", "settings", "founders", "team", "dashboard",
-  // "history", // Program history — staff/admin view only (not founder-facing)
-  "journey",
-  // "playbook", // Facilitator review guide — staff only
-  "businessModel", "discovery", "validation", "pmf", "milestones", "actionPlans", "tasks",
-  "calendar", "progress", "documents", "advisors", "coaching",
-  // "standups", "retros", "blockers", // Weekly review reports — staff/facilitator only
-  "kpis", "investment",
+  "dashboard", "journey", "work", "calendar", "coaching", "kpis", "investment",
+  "profile", "team", "settings",
+];
+
+// Journey is the container for the Venture's business-development work.
+// The first entry is the staff-defined stage path; the rest are the Venture's
+// journey modules (existing functionality, moved under Journey).
+const JOURNEY_TABS = [
+  "stagePath", "businessModel", "discovery", "validation", "pmf", "milestones", "documents",
 ];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
@@ -37,7 +38,9 @@ export default function VentureDetail() {
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState("dashboard");
+  // Journey sub-navigation (which journey module is open inside Journey).
+  const [journeySub, setJourneySub] = useState("stagePath");
   const [form, setForm] = useState({});
 
   // Members state
@@ -180,10 +183,12 @@ export default function VentureDetail() {
         twitter: v.social_media?.twitter || "",
         linkedin: v.social_media?.linkedin || "",
         instagram: v.social_media?.instagram || "",
+        facebook: v.social_media?.facebook || "",
         status: v.status || "active",
         visibility: v.visibility || "private",
         language: v.language || "en",
         brandColor: v.branding?.color || "#f60",
+        country_code: v.country_code || "",
       });
     };
     try {
@@ -208,32 +213,35 @@ export default function VentureDetail() {
     }
   }
 
-  // Load members, dashboard, history for their tabs
+  // Navigate top-level sections. Re-entering a section resets its sub-view
+  // to the default so the primary tab always behaves predictably.
+  function openSection(sec) {
+    if (sec === activeTab && sec !== "journey") return;
+    setActiveTab(sec);
+    if (sec === "journey") setJourneySub("stagePath");
+  }
+
+  // Load data for the active section. Journey loads its modules lazily — only
+  // the currently open journey module is fetched (stage path loads once).
   useEffect(() => {
     if (!params.id || !venture) return;
-    if (activeTab === "founders" || activeTab === "team") loadMembers();
-    if (activeTab === "dashboard") { loadDashboard(); fetchProgress(); }
-    if (activeTab === "history") loadHistory();
-    if (activeTab === "businessModel") fetchBm();
-    if (activeTab === "discovery") fetchInterviews();
-    if (activeTab === "validation") fetchValidations();
-    if (activeTab === "pmf") fetchPmf();
-    if (activeTab === "milestones") fetchMilestones();
-    if (activeTab === "actionPlans") fetchActionPlans();
-    if (activeTab === "tasks") fetchTasks();
-    if (activeTab === "standups") { fetchStandups(); fetchTasks(); }
-    if (activeTab === "retros") fetchRetros();
-    if (activeTab === "blockers") { fetchBlockers(); fetchRetros(); fetchTasks(); }
+    if (activeTab === "team") loadMembers();
+    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); }
     if (activeTab === "calendar") fetchCalendar();
-    if (activeTab === "progress") fetchProgress();
-    if (activeTab === "documents") fetchDocuments();
-    if (activeTab === "advisors") fetchAdvisors();
+    if (activeTab === "work") { fetchTasks(); fetchActionPlans(); fetchMilestones(); }
     if (activeTab === "coaching") { fetchCoaching(); fetchAdvisors(); }
     if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
-    if (activeTab === "journey") fetchJourney();
-    if (activeTab === "playbook") fetchPlaybook();
     if (activeTab === "investment") fetchInvestmentReadiness();
-  }, [activeTab, venture, params.id]);
+    if (activeTab === "journey") {
+      fetchJourney();
+      if (journeySub === "businessModel") fetchBm();
+      if (journeySub === "discovery") fetchInterviews();
+      if (journeySub === "validation") fetchValidations();
+      if (journeySub === "pmf") fetchPmf();
+      if (journeySub === "milestones") fetchMilestones();
+      if (journeySub === "documents") fetchDocuments();
+    }
+  }, [activeTab, journeySub, venture, params.id]);
 
   async function loadMembers(bypassCache = false) {
     const url = `/api/ventures/${params.id}/members`;
@@ -486,10 +494,6 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch(e){}
   }
-  async function handleCompleteStage(stageId) {
-    await fetch(`/api/ventures/${params.id}/journey`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ stage_id: stageId, action: 'complete' }) });
-    fetchJourney(true);
-  }
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
     fetchKpis(true);
@@ -505,9 +509,9 @@ export default function VentureDetail() {
         mission: form.mission || null, vision: form.vision || null,
         industry: form.industry || null, sector: form.sector || null,
         business_stage: form.business_stage, website: form.website || null,
-        country: form.country || null, registration_status: form.registration_status || null,
+        country: form.country || null, country_code: form.country_code || null, registration_status: form.registration_status || null,
         north_star: form.north_star || null,
-        social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "" },
+        social_media: { twitter: form.twitter || "", linkedin: form.linkedin || "", instagram: form.instagram || "", facebook: form.facebook || "" },
         status: form.status, visibility: form.visibility, language: form.language,
         branding: { color: form.brandColor || "#f60" },
       };
@@ -638,7 +642,7 @@ export default function VentureDetail() {
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
     handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
     handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
-    handleCompleteStage, handleUpdateKpi,
+    handleUpdateKpi,
     fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
     fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
     fetchDocuments, fetchAdvisors, fetchCoaching, fetchKpis, fetchKpiDefinitions,
@@ -686,7 +690,7 @@ export default function VentureDetail() {
         {/* Tabs — admin-style: scrollable, uppercase, orange active underline */}
         <div className="flex items-center gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
           {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
+            <button key={tab} onClick={() => openSection(tab)}
               className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
               style={{ borderColor: activeTab === tab ? "var(--brand-orange)" : "transparent" }}
             >{t(`venture.${tab}`)}</button>
@@ -694,31 +698,49 @@ export default function VentureDetail() {
         </div>
 
 
-        {/* Tab content — Phase 2: extracted into components/ventures/workspace/tabs */}
-        {activeTab === "profile" && <ProfileTab />}
-        {activeTab === "settings" && <SettingsTab />}
-        {activeTab === "founders" && <FoundersTab />}
-        {activeTab === "team" && <TeamTab />}
+        {/* Tab content — Venture workspace: Journey is the container for the
+            Venture's business-development journeys. */}
         {activeTab === "dashboard" && <DashboardTab />}
-        {/* "history" removed — program history is staff/admin-only */}
-        {activeTab === "journey" && <JourneyTab />}
-        {/* "playbook" removed — facilitator guide is staff-only */}
-        {activeTab === "businessModel" && <BusinessModelTab />}
-        {activeTab === "discovery" && <DiscoveryTab />}
-        {activeTab === "validation" && <ValidationTab />}
-        {activeTab === "pmf" && <PmfTab />}
-        {activeTab === "milestones" && <MilestonesTab />}
-        {activeTab === "actionPlans" && <ActionPlansTab />}
-        {activeTab === "tasks" && <TasksTab />}
-        {/* "standups", "retros", "blockers" removed — weekly review reports are staff/facilitator-only */}
+        {activeTab === "journey" && (
+          <div className="space-y-4">
+            {/* Journey module navigation (stage path + Venture journey modules) */}
+            <div className="flex items-center gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
+              {JOURNEY_TABS.map(it => (
+                <button key={it} onClick={() => setJourneySub(it)}
+                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${journeySub === it ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  style={{ borderColor: journeySub === it ? "var(--brand-orange)" : "transparent" }}
+                >{t(`venture.${it}`)}</button>
+              ))}
+            </div>
+            {journeySub === "stagePath" && <JourneyTab />}
+            {journeySub === "businessModel" && <BusinessModelTab />}
+            {journeySub === "discovery" && <DiscoveryTab />}
+            {journeySub === "validation" && <ValidationTab />}
+            {journeySub === "pmf" && <PmfTab />}
+            {journeySub === "milestones" && <MilestonesTab />}
+            {journeySub === "documents" && <DocumentsTab />}
+          </div>
+        )}
+        {activeTab === "work" && (
+          /* Tasks and Action Plans share one workspace area (one nav entry). */
+          <div className="space-y-6">
+            <TasksTab />
+            <ActionPlansTab />
+          </div>
+        )}
         {activeTab === "calendar" && <CalendarTab />}
-        {activeTab === "progress" && <ProgressTab />}
-        {activeTab === "documents" && <DocumentsTab />}
-        {activeTab === "advisors" && <AdvisorsTab />}
-        {/* Coaching (founder view) — scheduling only; facilitator notes are not rendered */}
-        {activeTab === "coaching" && <CoachingTab />}
+        {activeTab === "coaching" && (
+          /* Coaching sessions + Advisors are one Coaching area. */
+          <div className="space-y-6">
+            <CoachingTab />
+            <AdvisorsTab />
+          </div>
+        )}
         {activeTab === "kpis" && <KpisTab />}
         {activeTab === "investment" && <InvestmentTab />}
+        {activeTab === "profile" && <ProfileTab />}
+        {activeTab === "team" && <TeamTab />}
+        {activeTab === "settings" && <SettingsTab />}
 
       </div>
     </VentureWorkspace.Provider>

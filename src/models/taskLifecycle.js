@@ -125,10 +125,10 @@ export async function getTaskRowById(task_id) {
   });
 }
 
-/** Newest non-archived clone in a carry-over chain, by origin task id. */
+/** Newest OPEN (non-completed, non-archived) clone in a carry-over chain. */
 export async function getLatestCarriedOverClone(task_id) {
   return db.execute({
-    sql: "SELECT * FROM tasks WHERE carried_over_from_task_id = ? AND status != 'archived' ORDER BY created_week DESC, id DESC LIMIT 1",
+    sql: "SELECT * FROM tasks WHERE carried_over_from_task_id = ? AND status NOT IN ('completed', 'archived') ORDER BY created_week DESC, id DESC LIMIT 1",
     args: [task_id],
   });
 }
@@ -199,10 +199,16 @@ export async function reparentSubtasksToTask(newId, sourceId) {
   });
 }
 
-/** Mark the latest task in the chain as carried over. */
+/**
+ * Mark the latest task in the chain as carried over.
+ * Guarded: never flips a completed/archived task, and never leaves a stale
+ * completion timestamp on a carried-over task (Phase 1 carry-over fix).
+ */
 export async function markTaskCarriedOver(sourceId) {
   return db.execute({
-    sql: "UPDATE tasks SET status = 'carried_over', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+    sql: `UPDATE tasks SET status = 'carried_over', updated_at = CURRENT_TIMESTAMP
+          WHERE id = ? AND status NOT IN ('completed', 'archived')
+            AND completed_at IS NULL`,
     args: [sourceId],
   });
 }

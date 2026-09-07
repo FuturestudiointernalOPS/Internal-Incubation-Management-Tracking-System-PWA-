@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import db from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import {
   getOrCreateVerification,
@@ -22,6 +23,22 @@ export const GET = createHandler(
     const { id } = await params;
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+
+    // Phase 4 guard: only global roles, active members (founders) or
+    // delegated staff with an assignment may read verification state.
+    if (!["super_admin", "developer", "admin"].includes(session.role)) {
+      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+      const member = await db
+        .execute({
+          sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
+          args: [id, session.cid || "", session.cid || ""],
+        })
+        .catch(() => ({ rows: [] }));
+      const assigned = await hasActiveVentureAssignment(id, session.cid, db);
+      if (!member.rows?.length && !assigned) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
+    }
 
     const data = await getOrCreateVerification(id);
     return NextResponse.json({ success: true, ...data });

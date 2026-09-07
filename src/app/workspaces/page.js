@@ -126,10 +126,12 @@ export default function WorkspacesPage() {
             </span>
           )}
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
-          {role}
-        </p>
-      </div>
+        {role && (
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
+            {role}
+          </p>
+        )}
+        </div>
       <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
         {t("common.workspaces.open")}
         <ArrowRight className="w-3.5 h-3.5" />
@@ -276,14 +278,13 @@ export default function WorkspacesPage() {
                   </Group>
                 )}
 
-                {/* Ventures — existing memberships */}
+                {/* Ventures — existing memberships (labeled Venture, not Participant) */}
                 {contexts.venture_memberships.length > 0 && (
                   <Group icon={Rocket} label={t("common.workspaces.groupVentures")}>
                     {contexts.venture_memberships.map((v, i) => (
                       <ContextCard
                         key={`venture-${v.venture_id}-${i}`}
-                        title={v.venture_name || v.venture_id}
-                        role={roleLabel("participant")}
+                        title={t("common.workspaces.roleVenture")}
                         href={v.href}
                       />
                     ))}

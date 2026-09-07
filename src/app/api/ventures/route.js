@@ -21,13 +21,24 @@ export const GET = createHandler(
 
     const contactId = searchParams.get("contact_id");
 
-    // Phase 5 hardening: non-privileged roles (participant/founder/teacher)
-    // can only list their OWN ventures — never the whole directory.
+    // Access scoping (Phase 2 — assignment-aware):
+    //  - GLOBAL roles (super_admin/developer/admin) may list every Venture.
+    //  - Delegated staff/program_manager see Ventures they are ASSIGNED to
+    //    or MEMBERS of — never the whole directory.
+    //  - Other roles (participant/founder/teacher/member) see only their own
+    //    ventures via membership.
     let effectiveContactId = contactId;
     try {
       const session = await getSession();
-      if (session && !["super_admin", "staff", "program_manager", "developer"].includes(session.role)) {
-        effectiveContactId = session.cid;
+      if (session && !["super_admin", "developer", "admin"].includes(session.role)) {
+        if (["staff", "program_manager"].includes(session.role)) {
+          sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active')";
+          args.push(session.cid);
+          sql += " OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+          args.push(session.cid, session.cid);
+        } else {
+          effectiveContactId = session.cid;
+        }
       }
     } catch (_) {}
 
@@ -70,6 +81,20 @@ export const PUT = createHandler(async (req) => {
     const { id, ...updates } = body;
     if (!id) {
       return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
+    }
+    // Lifecycle guardrail: only global roles or delegated staff with an active
+    // assignment may change a Venture's status (founder/member edits keep all
+    // other profile fields; status is silently preserved as-is).
+    if (updates.status) {
+      try {
+        const session = await getSession();
+        const globalRoles = ["super_admin", "developer", "admin"];
+        if (!session || !globalRoles.includes(session.role)) {
+          const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid, db) : false;
+          if (!assigned) delete updates.status;
+        }
+      } catch (_) {}
     }
     // Convert social_media/branding objects to JSON strings for SQLite
     if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);

@@ -37,6 +37,7 @@ import {
   BookOpen,
   Star,
   X,
+  Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
@@ -260,6 +261,38 @@ export default function VentureDetailPage({ params }) {
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
                 <Edit3 className="w-3 h-3" /> Edit
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/permissions`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title="Global permission profiles (applies to all Ventures)"
+              >
+                <Shield className="w-3 h-3" /> Permissions
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title="Who manages/coaches this Venture and at what scope"
+              >
+                <Users className="w-3 h-3" /> Staff
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <FileText className="w-3 h-3" /> Notes
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/operating-plan`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <Target className="w-3 h-3" /> Operating Plan
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/journey`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <Route className="w-3 h-3" /> Journey
               </button>
             </div>
           </div>
