@@ -34,11 +34,6 @@ export function ProfileTab() {
               className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} />
           </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">{t("venture.northStar")}</label>
-          <textarea value={form.north_star} onChange={e => setForm({...form, north_star: e.target.value})}
-            className="w-full px-3 py-2 rounded-lg outline-none border" style={inputStyle} rows={2} />
-        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium mb-1">{t("venture.industry")}</label>
