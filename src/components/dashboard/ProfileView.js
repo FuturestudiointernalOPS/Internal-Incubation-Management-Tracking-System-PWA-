@@ -566,10 +566,6 @@ export default function ProfileView() {
                 <Mail className="w-3 h-3 shrink-0" />
                 <span className="truncate">{contact.email}</span>
               </div>
-              <div className="flex items-center gap-2 text-[10px] font-medium text-[var(--text-secondary)]">
-                <Calendar className="w-3 h-3 shrink-0" />
-                <span>CID: {contact.cid?.substring(0, 16)}...</span>
-              </div>
             </div>
           </div>
 
