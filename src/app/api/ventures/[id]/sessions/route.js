@@ -8,6 +8,24 @@ import {
   createActionItem, updateActionItem,
 } from "@/lib/ventures";
 
+// Venture-facing session changes notify founders (in-app + email). Sessions
+// created before the venture_facing flag existed (NULL) are treated as
+// internal and never email founders.
+async function emailVentureAboutSession(ventureParam, sess, { inAppTitle, inAppMsg, subject, lines }) {
+  try {
+    if (!sess || sess.venture_facing !== true) return;
+    const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+    const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureParam] });
+    const dbId = dbIdRes.rows?.[0]?.id;
+    if (!dbId) return;
+    await notifyAndEmailVentureFounders(db, { dbId, title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines });
+  } catch (_) {}
+}
+
+function fmtWhen(t) {
+  return t ? new Date(t).toLocaleString() : "";
+}
+
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const { session } = await requireVentureAccess(id, db);
@@ -68,20 +86,64 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (action === "update_session") {
     try {
+      const before = await getSession(parseInt(body.session_id));
       await updateSession(parseInt(body.session_id), body.updates);
       const sess = await getSession(parseInt(body.session_id));
+      if (before && sess) {
+        const changed = (["start_time", "end_time", "meeting_link", "location"]).some((k) => body.updates && body.updates[k] !== undefined && String(body.updates[k]) !== String(before[k]));
+        if (changed) {
+          await emailVentureAboutSession(id, sess, {
+            inAppTitle: "Session updated",
+            inAppMsg: `Session "${sess.title}" has been updated.`,
+            subject: "Your Venture session was updated",
+            lines: [
+              `Session "${sess.title}" has been updated.`,
+              sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
+              sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+              "Log in to ImpactOS to see the details.",
+            ].filter(Boolean),
+          });
+        }
+      }
       return NextResponse.json({ success: true, session: sess });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
   }
 
   if (action === "cancel_session") {
+    const sess = await getSession(parseInt(body.session_id));
     await cancelSession(parseInt(body.session_id));
+    if (sess) {
+      await emailVentureAboutSession(id, sess, {
+        inAppTitle: "Session cancelled",
+        inAppMsg: `Session "${sess.title}" has been cancelled.`,
+        subject: "Your Venture session was cancelled",
+        lines: [
+          `Session "${sess.title}" has been cancelled.`,
+          sess.start_time ? `Was scheduled for: ${fmtWhen(sess.start_time)}` : "",
+          "Log in to ImpactOS to see your updated calendar.",
+        ].filter(Boolean),
+      });
+    }
     return NextResponse.json({ success: true });
   }
 
   if (action === "reschedule_session") {
     try {
       await rescheduleSession(parseInt(body.session_id), body.start_time, body.end_time);
+      const sess = await getSession(parseInt(body.session_id));
+      if (sess) {
+        await emailVentureAboutSession(id, sess, {
+          inAppTitle: "Session rescheduled",
+          inAppMsg: `Session "${sess.title}" has been rescheduled${sess.start_time ? ` to ${fmtWhen(sess.start_time)}` : ""}.`,
+          subject: "Your Venture session was rescheduled",
+          lines: [
+            `Session "${sess.title}" has been rescheduled.`,
+            sess.start_time ? `New time: ${fmtWhen(sess.start_time)}` : "",
+            sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
+            "Log in to ImpactOS to see the details.",
+          ].filter(Boolean),
+        });
+      }
       return NextResponse.json({ success: true });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
   }

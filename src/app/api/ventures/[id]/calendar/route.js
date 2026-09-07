@@ -35,6 +35,7 @@ export async function GET(req, { params }) {
     // Venture-facing. Internal sessions never surface on the founder calendar.
     // venture_sessions keys on the VNT code; match both id forms defensively.
     const sessions = await db.execute({ sql: `SELECT id, title, session_type, coach_name, location, meeting_link, status,
+        preparation_notes, milestone_ref, journey_stage_id,
         to_char(start_time, 'YYYY-MM-DD') as date, to_char(start_time, 'HH24:MI') as start_time
         FROM venture_sessions WHERE venture_facing = TRUE AND start_time IS NOT NULL AND (venture_id = ? OR venture_id = ?)
         ORDER BY start_time`, args: [id, dbId] }).catch(() => ({ rows: [] }));
@@ -45,7 +46,7 @@ export async function GET(req, { params }) {
       ...(actions.rows||[]).map(a => ({ type: "action", id: a.id, title: a.title, date: a.date, status: a.status, priority: a.priority })),
       ...(coachings.rows||[]).map(c => ({ type: "coaching", id: c.id, title: c.title, date: c.date, status: "scheduled", advisor: c.advisor_name, location: c.location, meeting_link: c.meeting_link, start_time: c.start_time })),
       ...(followups.rows||[]).map(f => ({ type: "followup", id: f.id, title: f.title, date: f.date, status: "scheduled" })),
-      ...(sessions.rows||[]).map(x => ({ type: "session", id: x.id, title: x.title, date: x.date, status: x.status || "scheduled", start_time: x.start_time, advisor: x.coach_name, location: x.location, meeting_link: x.meeting_link })),
+      ...(sessions.rows||[]).map(x => ({ type: "session", id: x.id, title: x.title, date: x.date, status: x.status || "scheduled", start_time: x.start_time, advisor: x.coach_name, location: x.location, meeting_link: x.meeting_link, preparation: x.preparation_notes, milestone_ref: x.milestone_ref, journey_stage_id: x.journey_stage_id })),
     ];
 
     return NextResponse.json({ success: true, events });
