@@ -237,8 +237,17 @@ export async function PATCH(req, { params }) {
         );
       });
       try {
-        const { notifyVentureFounders } = await import("@/lib/ventures");
-        await notifyVentureFounders(dbId, "Stage Completed", `"${stage.name}" has been marked as completed.`);
+        const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+        await notifyAndEmailVentureFounders(db, {
+          dbId,
+          title: "Stage Completed",
+          message: `"${stage.name}" has been marked as completed.`,
+          emailSubject: "Your Journey milestone was completed",
+          emailLines: [
+            `Your Journey milestone "${stage.name}" has been marked as completed.`,
+            "Log in to ImpactOS to see what is next in your Journey.",
+          ],
+        });
       } catch (_) {}
     } else if (action === "reset") {
       if (!stage) return NextResponse.json({ success: false, error: "Stage not found" }, { status: 404 });

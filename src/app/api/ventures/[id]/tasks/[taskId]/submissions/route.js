@@ -129,6 +129,22 @@ export const POST = createHandler(async (req, { params }) => {
     // vocabulary used by the tasks route.
     const taskStatus = decision === "approved" ? "accepted" : "revision_requested";
     await db.execute({ sql: "UPDATE venture_tasks SET status = ? WHERE id = ?", args: [taskStatus, task.id] });
+    // Venture-facing notification + email (founders hear about review outcomes).
+    try {
+      const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+      const approved = decision === "approved";
+      await notifyAndEmailVentureFounders(db, {
+        dbId,
+        title: approved ? "Submission approved" : "Changes requested",
+        message: `Your submission for "${task.title}" was ${approved ? "approved" : "requested changes"}.`,
+        emailSubject: approved ? "Your submission was approved" : "Changes requested on your submission",
+        emailLines: [
+          `Your submission for the task "${task.title}" was ${approved ? "approved" : "reviewed with changes requested"}.`,
+          body.comment ? `Feedback: ${body.comment}` : "",
+          "Log in to ImpactOS to see the details.",
+        ].filter(Boolean),
+      });
+    } catch (_) {}
     const data = await listSubmissions(task.id);
     return NextResponse.json({ success: true, ...data });
   }

@@ -39,6 +39,29 @@ export const POST = createHandler(async (req, { params }) => {
         preparationNotes: body.preparation_notes || null,
         createdBy: req.session?.cid,
       });
+      // Venture-facing sessions notify founders (in-app + email).
+      if (body.venture_facing === true) {
+        try {
+          const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
+          const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+          const dbId = dbIdRes.rows?.[0]?.id;
+          if (dbId) {
+            const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
+            await notifyAndEmailVentureFounders(db, {
+              dbId,
+              title: "Session scheduled",
+              message: `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+              emailSubject: "A session has been scheduled for your Venture",
+              emailLines: [
+                `A session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+                body.coach_name ? `With: ${body.coach_name}` : "",
+                body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
+                "Log in to ImpactOS to see the details in your calendar.",
+              ].filter(Boolean),
+            });
+          }
+        } catch (_) {}
+      }
       return NextResponse.json({ success: true, session_id: r.id });
     } catch (e) { return NextResponse.json({ success: false, error: e.message }, { status: 400 }); }
   }
