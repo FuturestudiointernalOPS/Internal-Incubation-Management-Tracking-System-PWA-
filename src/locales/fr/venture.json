@@ -271,6 +271,19 @@
     "memberRoleInVenture": "Rôle dans la Venture",
     "addAsFounder": "Fondateur",
     "founderRoleHint": "Les fondateurs sont clairement identifiés dans l’équipe et disposent des permissions fondateur.",
-    "memberRoleHint": "Les membres de l’équipe soutiennent la Venture avec leur rôle attribué."
+    "memberRoleHint": "Les membres de l’équipe soutiennent la Venture avec leur rôle attribué.",
+    "activity": {
+      "VENTURE_CREATED": "Votre Venture a été créée.",
+      "VENTURE_APPROVED": "Votre candidature Venture a été approuvée.",
+      "VENTURE_REGISTERED": "Votre inscription de Venture a été confirmée.",
+      "VENTURE_UPDATED": "Les informations de la Venture ont été mises à jour.",
+      "PROFILE_SUBMITTED": "Le profil de votre Venture a été soumis.",
+      "MILESTONE_COMPLETED": "Une étape importante a été franchie.",
+      "DELIVERABLE_SUBMITTED": "Un livrable a été soumis.",
+      "OPERATING_PLAN_TEMPLATE_APPLIED": "Le plan d’exploitation de votre Venture a été mis à jour.",
+      "SESSION_SCHEDULED": "Une session a été planifiée.",
+      "COACHING_SCHEDULED": "Une session de coaching a été planifiée.",
+      "COACHING_APPROVED": "Votre session de coaching a été confirmée."
+    }
   }
 }

@@ -40,10 +40,9 @@ export function DashboardTab() {
         {dashboardData.recent_activity?.length === 0 ? (
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noRecentActivity")}</p>
         ) : dashboardData.recent_activity?.map((a, i) => (
-          <div key={i} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
-            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: "var(--brand-orange)" }} />
-            <span className="font-medium">{a.actor || "System"}</span>
-            <span style={{ color: "var(--text-secondary)" }}>{a.action}</span>
+          <div key={a.id || i} className="flex items-center gap-3 py-2 border-b last:border-0 text-sm" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: "var(--brand-orange)" }} />
+            <span className="font-medium">{t(`venture.activity.${a.action}`)}</span>
             <span style={{ color: "var(--text-secondary)" }}>• {new Date(a.created_at).toLocaleDateString()}</span>
           </div>
         ))}

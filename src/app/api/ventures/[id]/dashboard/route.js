@@ -20,6 +20,12 @@ export const GET = createHandler(
     const { id } = await params;
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
+    // Internal viewers = global Venture authority (super_admin/developer/admin).
+    // They see the INTERNAL audit stream + internal 'sa' notification feed.
+    // Everyone else (Venture members, scoped staff) only ever receives
+    // Venture-facing events — never the internal staff feed.
+    const isInternalViewer = ["super_admin", "developer", "admin"].includes(session?.role);
     const start = Date.now();
 
     // Resolve the internal id (UUID-lineage tables key on it, not the VNT code)
@@ -81,7 +87,10 @@ export const GET = createHandler(
       } catch { return null; }
     })();
 
-    // ── Notifications (recipients = the venture's members, not the VNT code) ──
+    // ── Notifications ──
+    // Venture members see events addressed to the Venture's members ONLY.
+    // Internal viewers additionally see the internal 'sa' staff stream
+    // (that feed is NEVER exposed to Venture members).
     const notifications = (async () => {
       try {
         const memberRes = await db.execute({
@@ -89,19 +98,22 @@ export const GET = createHandler(
           args: [id],
         });
         const recipientIds = [...new Set((memberRes.rows || []).flatMap((r) => [r.contact_id, r.user_cid]).filter(Boolean))];
+        const orInternal = isInternalViewer ? " OR recipient_id = 'sa'" : "";
         let sql, args;
         if (recipientIds.length > 0) {
           sql = `SELECT id, title, message, type, is_read, created_at
                 FROM v2_notifications
-                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")}) OR recipient_id = 'sa'
+                WHERE recipient_id IN (${recipientIds.map(() => "?").join(", ")})${orInternal}
                 ORDER BY created_at DESC LIMIT 10`;
           args = recipientIds;
-        } else {
+        } else if (isInternalViewer) {
           sql = `SELECT id, title, message, type, is_read, created_at
                 FROM v2_notifications
                 WHERE recipient_id = 'sa'
                 ORDER BY created_at DESC LIMIT 10`;
           args = [];
+        } else {
+          return { unread: 0, recent: [] };
         }
         const res = await db.execute({ sql, args });
         const notifs = res.rows || [];
@@ -116,18 +128,44 @@ export const GET = createHandler(
     })();
 
     // ── Recent Activity ──
+    // The raw venture_activity_log is an INTERNAL audit stream (staff actors,
+    // internal reviews, assignments).
+    //   • Internal viewers (global Venture authority) keep the full audit rows.
+    //   • Venture members get a strict allowlist of Venture-facing events as an
+    //     event `action` code (no actor identity) which the UI translates.
+    // Everything else stays internal (admin/audit surfaces).
+    const VENTURE_FACING_CODES = [
+      "VENTURE_CREATED",
+      "VENTURE_APPROVED",
+      "VENTURE_REGISTERED",
+      "VENTURE_UPDATED",
+      "PROFILE_SUBMITTED",
+      "MILESTONE_COMPLETED",
+      "DELIVERABLE_SUBMITTED",
+      "OPERATING_PLAN_TEMPLATE_APPLIED",
+      "SESSION_SCHEDULED",
+      "COACHING_SCHEDULED",
+      "COACHING_APPROVED",
+    ];
     const recentActivity = (async () => {
       try {
         const res = await db.execute({
           sql: `SELECT id, action, actor_name, details, created_at
                 FROM venture_activity_log WHERE venture_id = ?
-                ORDER BY created_at DESC LIMIT 10`,
+                ORDER BY created_at DESC LIMIT 40`,
           args: [id],
         });
-        return (res.rows || []).map((a) => ({
-          id: a.id, action: a.action, actor: a.actor_name || "System",
-          details: a.details, created_at: a.created_at,
-        }));
+        const rows = res.rows || [];
+        if (isInternalViewer) {
+          return rows.slice(0, 10).map((a) => ({
+            id: a.id, action: a.action, actor: a.actor_name || "System",
+            details: a.details, created_at: a.created_at,
+          }));
+        }
+        return rows
+          .filter((a) => VENTURE_FACING_CODES.includes(a.action))
+          .slice(0, 10)
+          .map((a) => ({ id: a.id, action: a.action, created_at: a.created_at }));
       } catch { return null; }
     })();
 

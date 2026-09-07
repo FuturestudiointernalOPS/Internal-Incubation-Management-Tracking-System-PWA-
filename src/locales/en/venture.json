@@ -271,6 +271,19 @@
     "memberRoleInVenture": "Role in Venture",
     "addAsFounder": "Founder",
     "founderRoleHint": "Founders are clearly identified in the Team and carry founder permissions.",
-    "memberRoleHint": "Team members support the Venture with their assigned role."
+    "memberRoleHint": "Team members support the Venture with their assigned role.",
+    "activity": {
+      "VENTURE_CREATED": "Your Venture was created.",
+      "VENTURE_APPROVED": "Your Venture application was approved.",
+      "VENTURE_REGISTERED": "Your Venture registration was confirmed.",
+      "VENTURE_UPDATED": "Venture information was updated.",
+      "PROFILE_SUBMITTED": "Your Venture profile was submitted.",
+      "MILESTONE_COMPLETED": "A milestone was completed.",
+      "DELIVERABLE_SUBMITTED": "A deliverable was submitted.",
+      "OPERATING_PLAN_TEMPLATE_APPLIED": "Your Venture operating plan has been updated.",
+      "SESSION_SCHEDULED": "A session has been scheduled.",
+      "COACHING_SCHEDULED": "A coaching session has been scheduled.",
+      "COACHING_APPROVED": "Your coaching session was confirmed."
+    }
   }
 }
