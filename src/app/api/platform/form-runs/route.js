@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
 import {
@@ -52,6 +52,8 @@ import {
   getRunTemplateSettingsForDecisionById,
   getGroupNameForDecisionEmailByRunId,
   getLatestScoreBySubmissionId,
+  getRunFormContextBySubmissionId,
+  getLatestEvaluationBySubmissionId,
   getSubmissionReviewStateById,
   getReviewerNameByCid,
   createSubmissionReview,
@@ -120,6 +122,8 @@ import {
   deleteEvaluationsByRunId,
   deleteFormRunById,
 } from "@/models/formRuns";
+
+import { getPlatformFormSections, getPlatformFormFields } from "@/models/forms";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -822,6 +826,271 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
   }
 }
 
+/** Render one submission answer value for the result PDF (phone JSON → text). */
+function formatResultAnswer(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (t.startsWith("{") && t.includes('"code"')) {
+      try {
+        const p = JSON.parse(t);
+        if (p.code && p.number) return `${p.code} ${p.number}`;
+      } catch (_) {}
+    }
+    return t;
+  }
+  if (Array.isArray(value)) return value.map(formatResultAnswer).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch (_) {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+/**
+ * Send the participant-facing RESULT email (PDF attachment) for a submission.
+ * The PDF contains the applicant's answers, the evaluation feedback and the
+ * final score. The copy and the document never reference how the evaluation
+ * was produced — the applicant must not learn an automated evaluation ran.
+ *
+ * Recipient/name resolution follows the SAME chain as the decision email so
+ * the UI and the sender can never disagree; the send is tracked exactly once
+ * per submission (email_type "result") and respects the per-run
+ * duplicate-recipient guard used by the other workflow emails.
+ *
+ * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
+ */
+async function sendResultEmailForSubmission({ submission_id }) {
+  const subRes = await getDecisionEmailSubmissionById(submission_id);
+  if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = subRes.rows[0];
+
+  if (String(row.status || "") === "draft") {
+    return { status: "failed", error: "Cannot send a result for a draft submission" };
+  }
+
+  let ctx = null;
+  try {
+    const ctxRes = await getRunFormContextBySubmissionId(submission_id);
+    ctx = ctxRes.rows[0] || null;
+  } catch (_) {}
+
+  // A result document requires an evaluation (dimensions + overall score).
+  const evalRes = await getLatestEvaluationBySubmissionId(submission_id);
+  if (evalRes.rows.length === 0) {
+    return { status: "failed", error: "This submission has not been evaluated yet — run the evaluation first" };
+  }
+  const evalRow = evalRes.rows[0];
+  let rawDims = Array.isArray(evalRow.dimensions) ? evalRow.dimensions : [];
+  if (!rawDims.length && typeof evalRow.dimensions === "string") {
+    try {
+      rawDims = JSON.parse(evalRow.dimensions) || [];
+    } catch (_) {}
+  }
+  if (evalRow.overall_score == null && rawDims.length === 0) {
+    return { status: "failed", error: "This submission has no evaluation results yet" };
+  }
+
+  try {
+    const subData = row.data || {};
+
+    // Fetch the form's real field labels + CRM contact once, then resolve
+    // BOTH the name and the real applicant email from the same sources so
+    // the UI and the sender can never disagree about the recipient.
+    let labels = {};
+    let crmName = "";
+    let crmEmail = "";
+    try {
+      const fieldRes = await getFieldLabelsByRunId(row.run_id);
+      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const cNameRes = await getContactNameEmailByCid(row.submitter_id);
+      if (cNameRes.rows[0]) {
+        crmName = cNameRes.rows[0].name || "";
+        crmEmail = cNameRes.rows[0].email || "";
+      }
+    } catch (_) {}
+
+    // Real applicant email — placeholders (import-…@placeholder…) never used.
+    const applicantEmail = resolveSubmissionEmail({
+      submissionData: subData,
+      fieldLabels: labels,
+      contactEmail: crmEmail,
+    });
+    if (!applicantEmail) return { status: "failed", error: "No real email address found in the submission data" };
+
+    // Already emailed for THIS submission → polite already_sent (re-click).
+    const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
+    if (existingLog && existingLog.status === "sent") {
+      return { status: "already_sent", to: existingLog.recipient || applicantEmail };
+    }
+
+    // Duplicate-recipient guard: when the same email address appears in
+    // multiple submissions of this run, only ONE result email is ever sent.
+    const alreadyEmailed = await hasSentEmailToRecipientInRun({
+      run_id: row.run_id,
+      email_type: "result",
+      recipient: applicantEmail,
+    });
+    if (alreadyEmailed) {
+      await recordEmailStatus({
+        submission_id: parseInt(submission_id),
+        contact_cid: row.submitter_id || null,
+        email_type: "result",
+        status: "skipped",
+        error: "Skipped — duplicate recipient: a result email was already sent to this address for this run",
+        to: applicantEmail,
+      });
+      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+    }
+
+    // Best real name — resolved deterministically with the form's actual
+    // question labels (submission data is keyed by field id).
+    const applicantName = resolvePersonName({
+      contactName: crmName,
+      submitterName: row.submitter_name || "",
+      submissionData: subData,
+      fieldLabels: labels,
+    });
+
+    // Workflow language from the form's question labels (FR forms get a
+    // French document + email, EN forms an English one).
+    const lang = detectLanguage(labels);
+    const formName = ctx?.form_name || "";
+    const runName = ctx?.run_name || "";
+
+    // ── Answers: rebuild the form Q&A in section order ──
+    let sectionsRows = [];
+    let fieldRows = [];
+    if (ctx?.form_id) {
+      try {
+        const secRes = await getPlatformFormSections(ctx.form_id);
+        sectionsRows = secRes.rows || [];
+        const fldRes = await getPlatformFormFields(ctx.form_id);
+        fieldRows = fldRes.rows || [];
+      } catch (_) {}
+    }
+    const isHidden = (f) => String(f.field_type || "") === "hidden";
+    const getVal = (f) => subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+
+    const sections = [];
+    const matchedKeys = new Set();
+    for (const sec of sectionsRows) {
+      const items = [];
+      for (const f of fieldRows) {
+        if (String(f.section_id) !== String(sec.id)) continue;
+        if (isHidden(f)) continue;
+        const value = formatResultAnswer(getVal(f));
+        if (value === "") continue;
+        matchedKeys.add(String(f.id));
+        if (f.label) matchedKeys.add(f.label);
+        items.push({ label: f.label || String(f.id), value });
+      }
+      if (items.length > 0) sections.push({ title: sec.title, items });
+    }
+
+    // Fields without any section (older forms) → one flat group.
+    const looseItems = [];
+    for (const f of fieldRows) {
+      if (sectionsRows.some((s) => String(s.id) === String(f.section_id))) continue;
+      if (isHidden(f)) continue;
+      const value = formatResultAnswer(getVal(f));
+      if (value === "") continue;
+      matchedKeys.add(String(f.id));
+      if (f.label) matchedKeys.add(f.label);
+      looseItems.push({ label: f.label || String(f.id), value });
+    }
+    if (looseItems.length > 0) sections.push({ title: null, items: looseItems });
+
+    // Unmatched data keys (imported submissions may store answers under keys
+    // that no longer map to a form field) — still part of the response.
+    const unmatchedItems = Object.entries(subData)
+      .filter(([k]) => !String(k).startsWith("_"))
+      .filter(([k, v]) => !matchedKeys.has(String(k)) && formatResultAnswer(v) !== "")
+      .map(([k, v]) => ({ label: k, value: formatResultAnswer(v) }));
+    if (unmatchedItems.length > 0) sections.push({ title: null, items: unmatchedItems });
+
+    // ── Evaluation: final dimension scores + feedback for the PDF ──
+    // Weighted recompute mirrors the review page: human overrides (final_score)
+    // are the source of truth when present.
+    const totalWeight = rawDims.reduce((s, d) => s + (d.weight ?? 1), 0);
+    const weighted = rawDims.reduce((s, d) => s + ((d.final_score ?? d.score ?? 0) * (d.weight ?? 1)), 0);
+    const finalScore = rawDims.length > 0 && totalWeight > 0
+      ? Math.round((weighted / totalWeight) * 10)
+      : evalRow.overall_score;
+    const dimensions = rawDims
+      .map((d) => {
+        const humanComment = typeof d.human_comment === "string" ? d.human_comment.trim() : "";
+        const reasoning = typeof d.reasoning === "string" ? d.reasoning.trim() : "";
+        return {
+          name: d.name,
+          score: d.final_score ?? d.score ?? null,
+          feedback: humanComment || reasoning,
+          strengths: Array.isArray(d.strengths) ? d.strengths.map((s) => String(s)) : [],
+          improvements: Array.isArray(d.weaknesses) ? d.weaknesses.map((s) => String(s)) : [],
+        };
+      })
+      .filter((d) => d.name);
+
+    // ── Outcome: only when a real decision exists (approved/rejected/revision) ──
+    let outcome = null;
+    if (["approved", "rejected", "revision_requested"].includes(row.status)) {
+      let comment = "";
+      try {
+        const revRes = await getSubmissionReviewsBySubmissionId(submission_id);
+        const latest = revRes.rows[0];
+        if (latest && typeof latest.comment === "string") comment = latest.comment;
+      } catch (_) {}
+      outcome = { decision: row.status, comment };
+    }
+
+    // ── Build the PDF + send it (tracked, once per submission) ──
+    const { buildSubmissionResultPdf } = await import("@/models/platform/resultPdf");
+    const pdfBytes = buildSubmissionResultPdf({
+      lang,
+      formName,
+      runName,
+      applicantName: applicantName || "",
+      submittedAt: row.submitted_at || row.updated_at || null,
+      finalScore: finalScore != null ? Number(finalScore) : 0,
+      ranking: evalRow.ranking || "",
+      outcome,
+      dimensions,
+      sections,
+    });
+
+    const { sendResultEmail, sendTrackedEmail } = await import("@/lib/email");
+    const tracked = await sendTrackedEmail({
+      submission_id: parseInt(submission_id),
+      contact_cid: row.submitter_id || null,
+      email_type: "result",
+      provider: "gmail",
+      to: applicantEmail,
+      sendFn: () =>
+        sendResultEmail({
+          to: applicantEmail,
+          applicantName,
+          formName,
+          runName,
+          pdfBuffer: pdfBytes,
+          lang,
+        }),
+    });
+    if (tracked.success) {
+      logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, email_type: "result" });
+      return { status: "sent", to: applicantEmail };
+    }
+    if (tracked.skipped) return { status: "already_sent", to: applicantEmail };
+    logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, email_type: "result" });
+    return { status: "failed", error: tracked.error || "Email send failed", to: applicantEmail };
+  } catch (e) {
+    console.error("[form-runs] Result email error:", e);
+    return { status: "failed", error: e?.message || "Email error" };
+  }
+}
+
 /**
  * Shared approval/rejection workflow — used by BOTH the single review action
  * and the bulk review action so bulk approval is a controlled extension of
@@ -1323,6 +1592,9 @@ export async function POST(req) {
             comment: "",
           });
           results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
+        } else if (type === "result") {
+          const r = await sendResultEmailForSubmission({ submission_id: id });
+          results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
         } else if (type === "activation") {
           try {
             const sub = await getSubmissionForActivationRetryById(id);
@@ -1491,6 +1763,28 @@ export async function POST(req) {
         return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
       }
       return NextResponse.json({ success: true, assignments: [] });
+    }
+
+    // ─── SEND RESULT EMAIL ACTION (per submission → PDF response) ───
+    // Emails the applicant a PDF with their answers, the evaluation feedback
+    // and their final score. Tracked once per submission; the per-row button
+    // also re-attempts failed sends. The PDF/copy never mention AI.
+    if (action === "send_result_email") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+      if (authError) return authError;
+
+      const { submission_id } = body;
+      if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
+
+      const r = await sendResultEmailForSubmission({ submission_id });
+      if (r.status === "sent") {
+        return NextResponse.json({ success: true, status: "sent", message: "Result email sent", to: r.to });
+      }
+      if (r.status === "already_sent") {
+        return NextResponse.json({ success: true, status: "already_sent", message: "Result email already sent", to: r.to });
+      }
+      return NextResponse.json({ success: false, status: r.status || "failed", error: r.error || "Could not send the result email", to: r.to || null }, { status: r.status === "not_found" ? 404 : 200 });
     }
 
     // ─── DELETE SUBMISSION ACTION (super admin only) ───
