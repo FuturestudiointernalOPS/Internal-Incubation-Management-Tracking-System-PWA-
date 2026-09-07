@@ -720,7 +720,15 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
 
   const additions = [];
   const seenIds = new Set();
-  for (const role of NAV_ROLE_KEYS) {
+  // super_admin's matrix carries the full section trees (every master
+  // section), so collect it FIRST: children are recorded under their section
+  // and later role-specific leaf duplicates (e.g. the crm role's CRM
+  // Dashboard) are skipped instead of leaking out as top-level items.
+  const orderedRoles = [
+    "super_admin",
+    ...NAV_ROLE_KEYS.filter((role) => role !== "super_admin"),
+  ];
+  for (const role of orderedRoles) {
     if (role === activeRole) continue;
     const visit = (items) => {
       for (const item of items || []) {
@@ -732,7 +740,12 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
           const subItems = item.subItems
             .filter((sub) => {
               const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-              return subRequired && respKeys.has(subRequired) && hasCap(sub);
+              return (
+                !seenIds.has(sub.id) &&
+                subRequired &&
+                respKeys.has(subRequired) &&
+                hasCap(sub)
+              );
             })
             .map((sub) => {
               const href = resolveHref(sub.id, sub.href);
@@ -740,6 +753,7 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
             })
             .filter(Boolean);
           if (subItems.length > 0 && hasCap(item)) {
+            for (const sub of subItems) seenIds.add(sub.id);
             additions.push({ ...item, subItems });
           }
         } else {
