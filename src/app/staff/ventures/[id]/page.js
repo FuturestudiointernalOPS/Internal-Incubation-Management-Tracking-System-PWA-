@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
@@ -25,8 +25,39 @@ export default function StaffVentureWorkspace() {
   const [milestones, setMilestones] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
+  const [reviewQueue, setReviewQueue] = useState([]);
+  const [queueLoading, setQueueLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+
+  // Attention: submissions awaiting this staff member's review (Coach view).
+  const loadReviewQueue = async () => {
+    try {
+      const res = await fetch(`/api/ventures/${id}/submissions/review-queue`);
+      const d = await res.json();
+      if (d.success) setReviewQueue(d.items || []);
+    } catch (_) {}
+    finally { setQueueLoading(false); }
+  };
+
+  const decideSubmission = async (item, decision) => {
+    const comment =
+      decision === "changes_requested"
+        ? window.prompt("Comment for the Venture (optional):") || ""
+        : "";
+    try {
+      const res = await fetch(`/api/ventures/${id}/tasks/${item.task_id}/submissions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "review", submission_id: item.submission_id, decision, comment: comment || null }),
+      });
+      const d = await res.json();
+      if (d.success) await loadReviewQueue();
+      else window.alert(d.error || "Review failed.");
+    } catch (_) {
+      window.alert("Review failed.");
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -52,6 +83,7 @@ export default function StaffVentureWorkspace() {
         setMilestones((ms.milestones || []).slice(0, 8));
         setTasks((tk.tasks || []).slice(0, 8));
         setSessions((s.sessions || s.coaching_sessions || []).slice(0, 8));
+        loadReviewQueue();
       } catch (e) {
         console.error("Failed to load staff venture workspace:", e);
         setNotFound(true);
@@ -123,6 +155,45 @@ export default function StaffVentureWorkspace() {
                 {r.responsibility_name || r.responsibility_code}
                 {r.scope_type !== "venture_wide" && ` · ${r.scope_type}${r.scope_ref_id ? `: ${r.scope_ref_id}` : ""}`}
               </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Attention — submissions awaiting review (Coach / Venture Support) */}
+      <div className="card">
+        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <Inbox className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> Needs your attention ({reviewQueue.length})
+        </h3>
+        {queueLoading ? (
+          <p className="text-xs text-slate-500">Loading...</p>
+        ) : reviewQueue.length === 0 ? (
+          <p className="text-xs text-slate-500">Nothing awaiting your review.</p>
+        ) : (
+          <div className="space-y-2">
+            {reviewQueue.map((q) => (
+              <div key={q.submission_id} className="rounded-lg border border-[var(--border-primary)] p-3 flex flex-col md:flex-row md:items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">{q.task_title}</p>
+                  <p className="text-[10px] text-slate-500">
+                    {q.milestone_title ? `${q.milestone_title} · ` : ""}v{q.version} by {q.submitted_by_name || "Venture"} · {new Date(q.created_at).toLocaleDateString()}
+                  </p>
+                  {q.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{q.notes}</p>}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {q.file_url && (
+                    <a href={q.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
+                      Open
+                    </a>
+                  )}
+                  <button onClick={() => decideSubmission(q, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
+                    Approve
+                  </button>
+                  <button onClick={() => decideSubmission(q, "changes_requested")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
+                    Request changes
+                  </button>
+                </div>
+              </div>
             ))}
           </div>
         )}
