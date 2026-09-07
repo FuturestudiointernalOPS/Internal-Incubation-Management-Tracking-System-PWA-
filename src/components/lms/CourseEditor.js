@@ -145,7 +145,7 @@ export default function CourseEditor({ courseId }) {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto flex justify-center py-24">
+      <div className="max-w-4xl mx-auto flex justify-center py-24">
         <div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -153,7 +153,7 @@ export default function CourseEditor({ courseId }) {
 
   if (loadError || !course) {
     return (
-      <div className="max-w-5xl mx-auto flex flex-col items-center gap-4 py-24">
+      <div className="max-w-4xl mx-auto flex flex-col items-center gap-4 py-24">
         <AlertCircle className="w-8 h-8 text-rose-500" />
         <p className="text-xs font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
           {t(loadError || "lms.errors.loadFailedCourse")}
@@ -166,7 +166,7 @@ export default function CourseEditor({ courseId }) {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4">
         <button
@@ -246,15 +246,15 @@ export default function CourseEditor({ courseId }) {
             <CourseStatusBadge status={course.status} />
           </div>
 
-          <AppCard padding="lg">
-            <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
+          <AppCard padding="md">
+            <p className="text-[10px] font-black uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
               {t("lms.preview.courseDetails")}
             </p>
             <CourseFormFields value={details} onChange={setDetails} />
           </AppCard>
 
-          <AppCard padding="lg">
-            <p className="text-[10px] font-black uppercase tracking-wider mb-4" style={{ color: "var(--text-secondary)" }}>
+          <AppCard padding="md">
+            <p className="text-[10px] font-black uppercase tracking-wider mb-3" style={{ color: "var(--text-secondary)" }}>
               {t("lms.preview.content")}
             </p>
             <SectionsManager course={course} onChange={fetchCourse} />

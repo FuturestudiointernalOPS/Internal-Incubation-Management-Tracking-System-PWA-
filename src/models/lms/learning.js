@@ -2,7 +2,7 @@ import db from "@/lib/db";
 import { LmsError } from "./errors";
 import { getCourse } from "./courses";
 import { getAssessment } from "./assessments";
-import { scoreAssessment } from "./scoring";
+import { scoreAssessment, DEFAULT_PASS_MARK } from "./scoring";
 import { ensureCertificateForEnrollment } from "./certificates";
 
 /**
@@ -557,7 +557,7 @@ export async function submitAssessment(assessmentId, userCid, submittedAnswers) 
   const result = scoreAssessment(questions, submittedAnswers);
   if (!result.valid) throw new LmsError(result.error, 400);
 
-  const passMark = assessment.pass_mark != null ? Number(assessment.pass_mark) : 70;
+  const passMark = assessment.pass_mark != null ? Number(assessment.pass_mark) : DEFAULT_PASS_MARK;
   const passed = result.percent >= passMark;
 
   // Attempt number + insert, inside a transaction. The Phase 1

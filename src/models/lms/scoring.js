@@ -14,6 +14,65 @@
 
 const TRUE_FALSE_ANSWERS = ["true", "false"];
 
+/** Pass mark used when an assessment stores NULL (course/global default). */
+export const DEFAULT_PASS_MARK = 70;
+
+/**
+ * Pass-mark feasibility for authoring surfaces (PURE).
+ *
+ * V1 scoring awards 1 point per question, so with `count` questions the only
+ * achievable percentages are `round(k / count × 100)` for `k` correct. This
+ * returns the minimum number of correct answers needed to reach the pass mark
+ * and flags when that forces a perfect score — e.g. 3 questions at 70% only
+ * pass with 3/3 — so the assessment authoring modal can warn up front. The
+ * sum of the question `points` is reported alongside (the `points` column is
+ * persisted for future weighted scoring but does not weight V1).
+ *
+ * @param {number|string|null} passMark  percentage 0–100; null/empty → default
+ * @param {Array<{points?: number}>} [questions]
+ * @returns {{
+ *   reachable: boolean,
+ *   threshold: number,
+ *   usesDefault: boolean,
+ *   count: number,
+ *   totalPoints: number,
+ *   minCorrect: number|null,
+ *   percentAtMinCorrect: number|null,
+ *   perfectScoreRequired: boolean,
+ * }}
+ */
+export function analyzePassMark(passMark, questions = []) {
+  const qs = Array.isArray(questions) ? questions : [];
+  const usesDefault = passMark == null || passMark === "";
+  const threshold = usesDefault ? DEFAULT_PASS_MARK : Number(passMark);
+  const count = qs.length;
+  const totalPoints = qs.reduce(
+    (sum, q) => sum + Math.max(1, Math.floor(Number(q?.points) || 1)),
+    0,
+  );
+
+  let minCorrect = null;
+  if (count > 0 && Number.isFinite(threshold)) {
+    for (let k = 0; k <= count; k++) {
+      if (Math.round((k / count) * 100) >= threshold) {
+        minCorrect = k;
+        break;
+      }
+    }
+  }
+  const reachable = minCorrect != null;
+  return {
+    reachable,
+    threshold,
+    usesDefault,
+    count,
+    totalPoints,
+    minCorrect: reachable ? minCorrect : null,
+    percentAtMinCorrect: reachable ? Math.round((minCorrect / count) * 100) : null,
+    perfectScoreRequired: reachable && minCorrect === count && count > 0,
+  };
+}
+
 /**
  * @param {Array<{id, question_type, options?: Array<{key}>, correct_answer?: Array}>} questions
  * @param {Array<{questionId, answer}>} submittedAnswers
