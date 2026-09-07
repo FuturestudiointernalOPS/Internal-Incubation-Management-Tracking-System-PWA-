@@ -48,16 +48,11 @@ async function scopeMatchesAssignment(assignment, note) {
   );
 }
 
-// Matrix check for internal_notes:view without an object reference — a
-// responsibility may grant/deny the whole area regardless of scope, then
-// note-level visibility is applied per assignment scope.
-async function responsibilityAllowsNoteView(ventureCode, responsibilityCode) {
+// Matrix check for internal_notes:view without an object reference — the
+// GLOBAL matrix decides whether the responsibility may view the area at all,
+// then note-level visibility is applied per assignment scope.
+async function responsibilityAllowsNoteView(responsibilityCode) {
   try {
-    const ov = await db.execute({
-      sql: "SELECT allowed FROM venture_permission_overrides WHERE venture_id = ? AND responsibility_code = ? AND area = 'internal_notes' AND action = 'view'",
-      args: [ventureCode, responsibilityCode],
-    });
-    if (ov.rows?.[0]) return !!ov.rows[0].allowed;
     const def = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'internal_notes' AND action = 'view'",
       args: [responsibilityCode],
@@ -95,11 +90,11 @@ export const GET = createHandler(
     const global = isGlobal(session);
 
     // Delegated staff must have internal_notes:view under at least one of
-    // their responsibilities (matrix + overrides; scope filter applies after).
+    // their responsibilities (GLOBAL matrix; scope filter applies after).
     if (!global) {
       let canView = false;
       for (const a of assignments) {
-        if (await responsibilityAllowsNoteView(code, a.responsibility_code)) { canView = true; break; }
+        if (await responsibilityAllowsNoteView(a.responsibility_code)) { canView = true; break; }
       }
       if (!canView) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }

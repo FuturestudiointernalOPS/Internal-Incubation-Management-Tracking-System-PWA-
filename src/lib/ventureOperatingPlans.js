@@ -53,14 +53,9 @@ export async function resolvePlanAccess(db, ventureId, session) {
   return { ok: true, code, session, global: false, assignments };
 }
 
-/** Cell-level check (platform default + per-venture override) per assignment. */
-async function cellAllows(db, ventureCode, responsibilityCode, action) {
+/** Cell-level check — GLOBAL matrix (single source of truth; no per-Venture overrides). */
+async function cellAllows(db, responsibilityCode, action) {
   try {
-    const ov = await db.execute({
-      sql: "SELECT allowed FROM venture_permission_overrides WHERE venture_id = ? AND responsibility_code = ? AND area = 'operating_plan' AND action = ?",
-      args: [ventureCode, responsibilityCode, action],
-    });
-    if (ov.rows?.[0]) return !!ov.rows[0].allowed;
     const def = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = 'operating_plan' AND action = ?",
       args: [responsibilityCode, action],
@@ -80,7 +75,7 @@ export async function allowsPlanAction(db, access, action) {
   if (access.global) return true;
   const writeActions = ["create", "edit", "manage", "delete"];
   for (const a of access.assignments) {
-    const cellOk = await cellAllows(db, access.code, a.responsibility_code, action);
+    const cellOk = await cellAllows(db, a.responsibility_code, action);
     if (!cellOk) continue;
     if (!writeActions.includes(action)) return true;
     if (String(a.scope_type || "") === "venture_wide") return true;

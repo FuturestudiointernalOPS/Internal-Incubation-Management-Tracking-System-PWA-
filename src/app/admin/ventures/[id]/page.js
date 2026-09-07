@@ -260,10 +260,18 @@ export default function VentureDetailPage({ params }) {
                 <Edit3 className="w-3 h-3" /> Edit
               </button>
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
+                onClick={() => router.push(`/admin/ventures/permissions`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title="Global permission profiles (applies to all Ventures)"
               >
                 <Shield className="w-3 h-3" /> Permissions
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/permissions`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title="Who manages/coaches this Venture and at what scope"
+              >
+                <Users className="w-3 h-3" /> Staff
               </button>
               <button
                 onClick={() => router.push(`/admin/ventures/${id}/notes`)}

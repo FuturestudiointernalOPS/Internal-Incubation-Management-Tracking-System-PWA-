@@ -173,73 +173,36 @@ export async function getResponsibility(db, code) {
 }
 
 /**
- * Merged matrix for a responsibility (optionally per-Venture): platform
- * defaults overlaid with any per-Venture override rows.
- * Returns rows keyed by area with the action map and override flags.
+ * Global matrix for a responsibility: rows keyed by area with the action map.
+ * There is deliberately NO per-Venture dimension — the matrix is global and
+ * applies to every Venture where that responsibility is assigned.
  */
-export async function getMergedMatrix(db, { responsibilityCode, ventureId = null }) {
+export async function getGlobalMatrix(db, { responsibilityCode }) {
   const defaults = await db.execute({
     sql: "SELECT area, action, allowed FROM venture_permission_matrix WHERE responsibility_code = ?",
     args: [responsibilityCode],
   });
-  const overrides = ventureId
-    ? await db.execute({
-        sql: "SELECT area, action, allowed FROM venture_permission_overrides WHERE venture_id = ? AND responsibility_code = ?",
-        args: [ventureId, responsibilityCode],
-      })
-    : { rows: [] };
 
   const byArea = {};
   for (const area of VENTURE_PERMISSION_AREAS) {
     byArea[area] = {};
     for (const action of VENTURE_PERMISSION_ACTIONS) {
-      byArea[area][action] = { allowed: false, overridden: false };
+      byArea[area][action] = false;
     }
   }
   for (const d of defaults.rows || []) {
-    if (byArea[d.area]?.[d.action]) byArea[d.area][d.action].allowed = !!d.allowed;
-  }
-  const ov = {};
-  for (const o of overrides.rows || []) {
-    ov[`${o.area}:${o.action}`] = !!o.allowed;
-  }
-  for (const area of VENTURE_PERMISSION_AREAS) {
-    for (const action of VENTURE_PERMISSION_ACTIONS) {
-      const key = `${area}:${action}`;
-      if (key in ov) {
-        byArea[area][action].allowed = ov[key];
-        byArea[area][action].overridden = true;
-      }
-    }
+    if (byArea[d.area]?.[d.action] !== undefined) byArea[d.area][d.action] = !!d.allowed;
   }
   return byArea;
 }
 
-export async function setMatrixCell(db, { responsibilityCode, area, action, allowed, actorCid = null, ventureId = null }) {
-  if (ventureId) {
-    await db.execute({
-      sql: `INSERT INTO venture_permission_overrides (venture_id, responsibility_code, area, action, allowed, updated_by)
-            VALUES (?,?,?,?,?,?)
-            ON CONFLICT (venture_id, responsibility_code, area, action)
-            DO UPDATE SET allowed = excluded.allowed, updated_by = excluded.updated_by, updated_at = NOW()`,
-      args: [ventureId, responsibilityCode, area, action, allowed ? 1 : 0, actorCid],
-    });
-  } else {
-    await db.execute({
-      sql: `INSERT INTO venture_permission_matrix (responsibility_code, area, action, allowed, updated_by)
-            VALUES (?,?,?,?,?)
-            ON CONFLICT (responsibility_code, area, action)
-            DO UPDATE SET allowed = excluded.allowed, updated_by = excluded.updated_by, updated_at = NOW()`,
-      args: [responsibilityCode, area, action, allowed ? 1 : 0, actorCid],
-    });
-  }
-  return { success: true };
-}
-
-export async function clearOverride(db, { ventureId, responsibilityCode, area, action }) {
+export async function setMatrixCell(db, { responsibilityCode, area, action, allowed, actorCid = null }) {
   await db.execute({
-    sql: "DELETE FROM venture_permission_overrides WHERE venture_id = ? AND responsibility_code = ? AND area = ? AND action = ?",
-    args: [ventureId, responsibilityCode, area, action],
+    sql: `INSERT INTO venture_permission_matrix (responsibility_code, area, action, allowed, updated_by)
+          VALUES (?,?,?,?,?)
+          ON CONFLICT (responsibility_code, area, action)
+          DO UPDATE SET allowed = excluded.allowed, updated_by = excluded.updated_by, updated_at = NOW()`,
+    args: [responsibilityCode, area, action, allowed ? 1 : 0, actorCid],
   });
   return { success: true };
 }
@@ -310,15 +273,7 @@ export async function hasVentureCapability(db, { ventureId, contactId, area, act
     }
     const respCode = asg.responsibility_code;
 
-    // Per-venture override wins when present; else platform default.
-    const override = await db.execute({
-      sql: "SELECT allowed FROM venture_permission_overrides WHERE venture_id = ? AND responsibility_code = ? AND area = ? AND action = ?",
-      args: [ventureId, respCode, area, action],
-    });
-    if (override.rows?.[0]) {
-      if (override.rows[0].allowed) return true;
-      continue;
-    }
+    // GLOBAL matrix (single source of truth — no per-Venture overrides).
     const def = await db.execute({
       sql: "SELECT allowed FROM venture_permission_matrix WHERE responsibility_code = ? AND area = ? AND action = ?",
       args: [respCode, area, action],

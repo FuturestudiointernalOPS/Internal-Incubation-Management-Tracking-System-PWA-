@@ -237,17 +237,20 @@ export async function ensureVentureSchema() {
     "CREATE TABLE IF NOT EXISTS venture_responsibilities (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "ALTER TABLE venture_responsibilities ADD COLUMN IF NOT EXISTS created_by TEXT",
     "CREATE TABLE IF NOT EXISTS venture_scope_types (id SERIAL PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, sort_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())",
-    // Platform default matrix (responsibility x area x action). Seed = agreed defaults.
+    // Platform GLOBAL matrix (responsibility x area x action). Seed = agreed defaults.
+    // Permission profiles belong to the RESPONSIBILITY, never to an individual
+    // Venture. Assignments + scope decide where a profile applies.
     "CREATE TABLE IF NOT EXISTS venture_permission_matrix (id SERIAL PRIMARY KEY, responsibility_code TEXT NOT NULL, area TEXT NOT NULL, action TEXT NOT NULL, allowed BOOLEAN DEFAULT FALSE, updated_by TEXT, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(responsibility_code, area, action))",
-    // Per-venture overrides: empty = inherit platform default for that responsibility.
-    "CREATE TABLE IF NOT EXISTS venture_permission_overrides (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, responsibility_code TEXT NOT NULL, area TEXT NOT NULL, action TEXT NOT NULL, allowed BOOLEAN NOT NULL, updated_by TEXT, updated_at TIMESTAMP DEFAULT NOW(), UNIQUE(venture_id, responsibility_code, area, action))",
+    // NOTE: per-Venture overrides are intentionally NOT part of the model — the
+    // global matrix is the single source of truth for every Venture.
+    // venture_staff_assignments is the ONLY per-Venture access data (who, which
+    // responsibility, which scope).
     // Staff assignments: assignment-ROW based. A person may hold several
     // responsibilities on the same Venture (no (venture,staff) uniqueness) and
     // different responsibilities across Ventures. Access is per assignment.
     "CREATE TABLE IF NOT EXISTS venture_staff_assignments (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, staff_contact_id TEXT NOT NULL, responsibility_code TEXT NOT NULL, scope_type TEXT NOT NULL DEFAULT 'venture_wide', scope_ref_type TEXT, scope_ref_id TEXT, assigned_by TEXT, notes TEXT, status TEXT NOT NULL DEFAULT 'active', created_at TIMESTAMP DEFAULT NOW(), removed_at TIMESTAMP)",
     "CREATE INDEX IF NOT EXISTS idx_vsa_venture ON venture_staff_assignments(venture_id, status)",
     "CREATE INDEX IF NOT EXISTS idx_vsa_staff ON venture_staff_assignments(staff_contact_id, status)",
-    "CREATE INDEX IF NOT EXISTS idx_vpo_venture ON venture_permission_overrides(venture_id)",
     // ─── Phase P4 — Internal Venture Notes (staff-only; founders never) ───
     "CREATE TABLE IF NOT EXISTS venture_notes (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, author_cid TEXT, author_name TEXT, title TEXT NOT NULL, body TEXT NOT NULL, scope_ref_type TEXT, scope_ref_id TEXT, is_archived BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_venture_notes_venture ON venture_notes(venture_id, is_archived)",
