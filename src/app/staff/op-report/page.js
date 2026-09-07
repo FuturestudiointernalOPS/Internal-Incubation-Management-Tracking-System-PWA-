@@ -1358,71 +1358,99 @@ function StaffOpReport() {
                               `/api/tasks?user_id=${userId}&sort=oldest`,
                             );
                             const data = await res.json();
-                            const prevWeekTasks = (data.tasks || []).filter(
-                              (t) =>
-                                !["archived", "completed"].includes(t.status) &&
-                                !t.parent_task_id &&
-                                (t.created_week !== curWeek ||
-                                  t.created_year !== curYear),
-                            );
+                            const allTasks = data.tasks || [];
+
+                            // ── Collapse carry-over chains to their LATEST open copy ──
+                            // Every week a carried task is cloned (clone -> source via
+                            // carried_over_from_task_id). Pre-filling every chain member
+                            // made one submit clone the same task several times and flip
+                            // earlier copies (even completed ones) to 'carried_over'.
+                            // Only the newest open copy may be carried, and only once.
+                            const cloneIndex = new Map(); // source id -> clones
+                            for (const t of allTasks) {
+                              if (!t.carried_over_from_task_id) continue;
+                              const list =
+                                cloneIndex.get(t.carried_over_from_task_id) ||
+                                [];
+                              list.push(t);
+                              cloneIndex.set(t.carried_over_from_task_id, list);
+                            }
+                            const latestOpenCopy = (task) => {
+                              let cur = task;
+                              const seen = new Set();
+                              while (!seen.has(cur.id)) {
+                                seen.add(cur.id);
+                                const next = (cloneIndex.get(cur.id) || [])
+                                  .filter(
+                                    (c) =>
+                                      !["archived", "completed"].includes(
+                                        c.status,
+                                      ),
+                                  )
+                                  .sort(
+                                    (a, b) =>
+                                      b.created_year - a.created_year ||
+                                      b.created_week - a.created_week ||
+                                      b.id - a.id,
+                                  )[0];
+                                if (!next) break;
+                                cur = next;
+                              }
+                              return cur;
+                            };
+
+                            const chainsToCarry = new Map(); // head id -> task
+                            for (const t of allTasks) {
+                              // Only open, top-level tasks from earlier weeks can start a carry.
+                              if (
+                                ["archived", "completed"].includes(t.status) ||
+                                t.parent_task_id ||
+                                (t.created_week === curWeek &&
+                                  t.created_year === curYear)
+                              )
+                                continue;
+                              const head = latestOpenCopy(t);
+                              // Already carried into the current week — nothing to do.
+                              if (
+                                head.created_week === curWeek &&
+                                head.created_year === curYear
+                              )
+                                continue;
+                              if (!chainsToCarry.has(head.id)) {
+                                chainsToCarry.set(head.id, head);
+                              }
+                            }
+                            const prevWeekTasks = [...chainsToCarry.values()];
 
                             if (prevWeekTasks.length > 0) {
-                              const allTaskRows = [];
-                              for (const t of prevWeekTasks) {
-                                allTaskRows.push({
-                                  id: t.id,
-                                  is_carryover: true,
-                                  carried_over_from_task_id: t.id,
-                                  name: t.title,
-                                  description: t.description || "",
-                                  project_id: t.project_id || null,
-                                  category: t.category || "",
-                                  start_date: t.start_date || "",
-                                  start_time: "",
-                                  due_date: t.end_date || "",
-                                  due_time: "",
-                                  blockers:
-                                    t.blockers?.map((b) => ({
-                                      id: b.id,
-                                      description: b.title,
-                                      severity: b.severity || "medium",
-                                      status: b.status || "Active",
-                                      created_at: b.created_at,
-                                    })) || [],
-                                  parent_task_id: null,
-                                  status: t.status,
-                                  collaborators: [],
-                                  uncompleted_reason: "",
-                                });
-                                if (t.subtasks?.length > 0) {
-                                  for (const st of t.subtasks) {
-                                    if (
-                                      ["archived", "completed"].includes(
-                                        st.status,
-                                      )
-                                    )
-                                      continue;
-                                    allTaskRows.push({
-                                      id: st.id,
-                                      is_carryover: true,
-                                      carried_over_from_task_id: st.id,
-                                      name: st.title,
-                                      description: "",
-                                      project_id: t.project_id || null,
-                                      category: t.category || "",
-                                      start_date: "",
-                                      start_time: "",
-                                      due_date: "",
-                                      due_time: "",
-                                      blockers: [],
-                                      parent_task_id: t.id,
-                                      status: st.status,
-                                      collaborators: [],
-                                      uncompleted_reason: "",
-                                    });
-                                  }
-                                }
-                              }
+                              // Subtasks are NOT pre-filled individually: they follow
+                              // their parent clone automatically (the carry-over API
+                              // re-parents them), which keeps the hierarchy intact.
+                              const allTaskRows = prevWeekTasks.map((t) => ({
+                                id: t.id,
+                                is_carryover: true,
+                                carried_over_from_task_id: t.id,
+                                name: t.title,
+                                description: t.description || "",
+                                project_id: t.project_id || null,
+                                category: t.category || "",
+                                start_date: t.start_date || "",
+                                start_time: "",
+                                due_date: t.end_date || "",
+                                due_time: "",
+                                blockers:
+                                  t.blockers?.map((b) => ({
+                                    id: b.id,
+                                    description: b.title,
+                                    severity: b.severity || "medium",
+                                    status: b.status || "Active",
+                                    created_at: b.created_at,
+                                  })) || [],
+                                parent_task_id: null,
+                                status: t.status,
+                                collaborators: [],
+                                uncompleted_reason: "",
+                              }));
                               setTaskRows(allTaskRows);
                               setShowTaskForm(false);
                               return;

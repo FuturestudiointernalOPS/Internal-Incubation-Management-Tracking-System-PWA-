@@ -435,3 +435,54 @@ describe("PUT /api/tasks — subtask ⇄ parent completion cascade", () => {
     expect(dbState.tasks.find((t) => t.id === 1).status).toBe("in_progress");
   });
 });
+
+describe("PUT /api/tasks — carry-over status safety (Phase 1)", () => {
+  beforeEach(() => {
+    dbState.tasks.push({
+      id: 1,
+      user_id: "staff-1",
+      user_name: "Staff One",
+      title: "Already completed",
+      status: "completed",
+      completed_at: "2026-08-20T07:50:00.000Z",
+      parent_task_id: null,
+      created_week: 33,
+      created_year: 2026,
+    });
+  });
+
+  test("refuses completed → carried_over (a finished task must stay finished)", async () => {
+    const res = await PUT(
+      jsonReq({ id: 1, status: "carried_over", user_id: "staff-1" }, "PUT"),
+    );
+    expect(res.status).toBe(409);
+    const data = await readJson(res);
+    expect(data.success).toBe(false);
+    expect(data.error.toLowerCase()).toContain("completed");
+    // State untouched
+    const task = dbState.tasks.find((t) => t.id === 1);
+    expect(task.status).toBe("completed");
+    expect(task.completed_at).toBe("2026-08-20T07:50:00.000Z");
+  });
+
+  test("reopening a completed task clears its completion timestamp", async () => {
+    const res = await PUT(
+      jsonReq({ id: 1, status: "in_progress", user_id: "staff-1" }, "PUT"),
+    );
+    expect(res.status).toBe(200);
+    const task = dbState.tasks.find((t) => t.id === 1);
+    expect(task.status).toBe("in_progress");
+    expect(task.completed_at).toBeNull();
+  });
+
+  test("still allows an open task to be marked carried_over", async () => {
+    const open = dbState.tasks[0];
+    open.status = "in_progress";
+    open.completed_at = null;
+    const res = await PUT(
+      jsonReq({ id: 1, status: "carried_over", user_id: "staff-1" }, "PUT"),
+    );
+    expect(res.status).toBe(200);
+    expect(dbState.tasks.find((t) => t.id === 1).status).toBe("carried_over");
+  });
+});
