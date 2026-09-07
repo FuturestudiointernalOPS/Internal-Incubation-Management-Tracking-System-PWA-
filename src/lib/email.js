@@ -80,8 +80,9 @@ function encodeMailHeader(value) {
   return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
 }
 
-/** Build a raw MIME message (multipart/alternative) for the Gmail API. */
-function buildGmailRawMessage({ to, subject, html }) {
+/** Build a raw MIME message for the Gmail API. Supports optional file
+ * attachments (multipart/mixed) — used for PDF result documents. */
+function buildGmailRawMessage({ to, subject, html, attachments }) {
   const plainText = (html || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
@@ -89,32 +90,61 @@ function buildGmailRawMessage({ to, subject, html }) {
     .replace(/\s+/g, " ")
     .trim()
     .substring(0, 4000);
-  const boundary = `futurestudio_mix_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
-  const message = [
+  const altBoundary = `futurestudio_alt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const outerHeaders = [
     `From: ${GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
     `Reply-To: ${GMAIL_SENDER_EMAIL}`,
     `To: ${to}`,
     `Subject: ${encodeMailHeader(subject)}`,
     "MIME-Version: 1.0",
-    `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    "",
-    `--${boundary}`,
+  ].join("\n");
+
+  // HTML + plain-text alternative body (its MIME headers are added where the
+  // part is embedded — top-level for plain emails, inside multipart/mixed
+  // when attachments are present).
+  const altBody = [
+    `--${altBoundary}`,
     'Content-Type: text/plain; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
     "",
     Buffer.from(plainText, "utf8").toString("base64"),
-    `--${boundary}`,
+    `--${altBoundary}`,
     'Content-Type: text/html; charset="UTF-8"',
     "Content-Transfer-Encoding: base64",
     "",
     Buffer.from(html || plainText, "utf8").toString("base64"),
-    `--${boundary}--`,
+    `--${altBoundary}--`,
   ].join("\n");
-  return Buffer.from(message, "utf8").toString("base64url");
+  const altHeader = `Content-Type: multipart/alternative; boundary="${altBoundary}"`;
+
+  const list = Array.isArray(attachments) ? attachments.filter((a) => a && a.content != null) : [];
+  if (list.length === 0) {
+    return Buffer.from([outerHeaders, altHeader, "", altBody].join("\n"), "utf8").toString("base64url");
+  }
+
+  // With attachments the message becomes multipart/mixed: the HTML/plain
+  // alternative part first, then one base64 part per attachment.
+  const mixedBoundary = `futurestudio_mix_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+  const mixedParts = [`--${mixedBoundary}`, altHeader, "", altBody];
+  for (const att of list) {
+    // RFC 2047 cannot be used inside Content-Disposition filename; keep names
+    // ASCII-safe (callers build them from slugified identifiers).
+    const name = String(att.filename || "attachment").replace(/[^\x20-\x7E]/g, "_");
+    mixedParts.push(
+      `--${mixedBoundary}`,
+      `Content-Type: ${att.contentType || "application/octet-stream"}; name="${name}"`,
+      "Content-Transfer-Encoding: base64",
+      `Content-Disposition: attachment; filename="${name}"`,
+      "",
+      Buffer.from(att.content).toString("base64")
+    );
+  }
+  mixedParts.push(`--${mixedBoundary}--`);
+  return Buffer.from([outerHeaders, `Content-Type: multipart/mixed; boundary="${mixedBoundary}"`, "", ...mixedParts].join("\n"), "utf8").toString("base64url");
 }
 
 /** Send one email through the Google Workspace (Gmail API) transport. */
-async function sendViaGmail({ to, subject, html }) {
+async function sendViaGmail({ to, subject, html, attachments }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
     return { success: false, provider: "gmail", note: "Gmail credentials not configured" };
@@ -130,7 +160,7 @@ async function sendViaGmail({ to, subject, html }) {
     auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
     const gmail = google.gmail({ version: "v1", auth });
-    const raw = buildGmailRawMessage({ to, subject, html });
+    const raw = buildGmailRawMessage({ to, subject, html, attachments });
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };
@@ -670,7 +700,7 @@ async function sendViaResend({ to, subject, html }) {
  * and fall back to Resend on transport failure so the applicant still
  * receives the notification — it remains a single tracked attempt.
  */
-async function sendEmail({ to, subject, html, provider }) {
+async function sendEmail({ to, subject, html, provider, attachments }) {
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
@@ -684,8 +714,8 @@ async function sendEmail({ to, subject, html, provider }) {
   const fallback = chosen === "gmail" ? "resend" : "gmail";
   const sendWith = (p) =>
     p === "gmail"
-      ? sendViaGmail({ to, subject, html })
-      : sendViaResend({ to, subject, html });
+      ? sendViaGmail({ to, subject, html, attachments })
+      : sendViaResend({ to, subject, html }); // Resend transport has no attachment support
 
   const primary = await sendWith(chosen);
   if (primary.success) return primary;
@@ -1459,4 +1489,80 @@ export async function sendDecisionEmail({ to, applicantName, formName, decision,
     </body></html>`;
 
   return sendEmail({ to, subject, html, provider: provider || DECISION_EMAIL_DEFAULT });
+}
+
+/** ASCII filename from a form/run name (attachments need plain filenames). */
+function slugifyFilename(value) {
+  const s = String(value || "result")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return s || "result";
+}
+
+/**
+ * Send a participant-facing submission result email with a PDF attachment
+ * (their responses, the evaluation and their final score).
+ *
+ * The document is sent through the Gmail transport (the only one that can
+ * attach files). Copy deliberately never mentions how the evaluation was
+ * produced — the recipient must not be able to tell an automated evaluation
+ * was involved.
+ */
+export async function sendResultEmail({ to, applicantName, formName, runName, pdfBuffer, lang = "en" }) {
+  const isFr = (lang || "en").toLowerCase().startsWith("fr");
+  const subject = isFr
+    ? `Résultat de votre soumission — ${formName || "le formulaire"}`
+    : `Your submission result — ${formName || "form"}`;
+  const greetingName = resolveGreetingName(applicantName);
+  const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
+  const frGreeting = greetingName ? `Bonjour ${greetingName},` : "Bonjour,";
+
+  const scope = [formName, runName].filter(Boolean).join(" — ") || "the program";
+  const bodyHtml = isFr
+    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Veuillez trouver ci-joint le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong>.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
+    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Please find attached the result of your submission to <strong style="color:#f8fafc;">${scope}</strong>.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px; font-size: 20px; font-weight: 800;">${subject}</h1>
+              ${bodyHtml}
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body></html>`;
+
+  const filename = `${slugifyFilename(formName || runName || "submission")}-result.pdf`;
+  // Attachment-critical: never fall back to the Resend transport (it cannot
+  // attach files) — a result email without its PDF would be silently
+  // incomplete. Fail explicitly so the run's Emails tab shows a retryable row.
+  if (isPlaceholderEmail(to)) {
+    console.warn("[Email] REFUSING to send to placeholder address:", to);
+    return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
+  }
+  if (!gmailCredentialsAvailable()) {
+    return { success: false, provider: "gmail", error: "Gmail credentials are not configured — PDF attachments cannot be sent" };
+  }
+  return sendViaGmail({
+    to,
+    subject,
+    html,
+    attachments: pdfBuffer ? [{ filename, content: Buffer.from(pdfBuffer), contentType: "application/pdf" }] : undefined,
+  });
 }
