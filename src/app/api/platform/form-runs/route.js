@@ -1076,6 +1076,8 @@ async function sendResultEmailForSubmission({ submission_id }) {
           runName,
           pdfBuffer: pdfBytes,
           lang,
+          runId: row.run_id,
+          submissionId: parseInt(submission_id),
         }),
     });
     if (tracked.success) {

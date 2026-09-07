@@ -1504,15 +1504,19 @@ function slugifyFilename(value) {
 }
 
 /**
- * Send a participant-facing submission result email with a PDF attachment
+ * Send a participant-facing submission result email with a PDF document
  * (their responses, the evaluation and their final score).
  *
- * The document is sent through the Gmail transport (the only one that can
- * attach files). Copy deliberately never mentions how the evaluation was
- * produced — the recipient must not be able to tell an automated evaluation
- * was involved.
+ * Delivery:
+ *  - Gmail transport attaches the PDF natively when Google Workspace
+ *    credentials are configured.
+ *  - Otherwise the PDF is hosted in Supabase storage and delivered as a
+ *    download link through Resend (never silently dropped).
+ *
+ * Copy deliberately never mentions how the evaluation was produced — the
+ * recipient must not be able to tell an automated evaluation was involved.
  */
-export async function sendResultEmail({ to, applicantName, formName, runName, pdfBuffer, lang = "en" }) {
+export async function sendResultEmail({ to, applicantName, formName, runName, pdfBuffer, lang = "en", runId, submissionId }) {
   const isFr = (lang || "en").toLowerCase().startsWith("fr");
   const subject = isFr
     ? `Résultat de votre soumission — ${formName || "le formulaire"}`
@@ -1520,17 +1524,19 @@ export async function sendResultEmail({ to, applicantName, formName, runName, pd
   const greetingName = resolveGreetingName(applicantName);
   const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
   const frGreeting = greetingName ? `Bonjour ${greetingName},` : "Bonjour,";
-
   const scope = [formName, runName].filter(Boolean).join(" — ") || "the program";
-  const bodyHtml = isFr
-    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Veuillez trouver ci-joint le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong>.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
-    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Please find attached the result of your submission to <strong style="color:#f8fafc;">${scope}</strong>.</p>
-       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
+  const filename = `${slugifyFilename(formName || runName || "submission")}-result.pdf`;
+  const pdf = pdfBuffer ? Buffer.from(pdfBuffer) : null;
 
-  const html = `
+  if (isPlaceholderEmail(to)) {
+    console.warn("[Email] REFUSING to send to placeholder address:", to);
+    return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
+  }
+  if (!pdf) {
+    return { success: false, provider: "email", error: "Result PDF is empty — nothing to send" };
+  }
+
+  const shell = (bodyHtml) => `
     <!DOCTYPE html>
     <html>
     <head><meta charset="utf-8"></head>
@@ -1548,21 +1554,75 @@ export async function sendResultEmail({ to, applicantName, formName, runName, pd
       </table>
     </body></html>`;
 
-  const filename = `${slugifyFilename(formName || runName || "submission")}-result.pdf`;
-  // Attachment-critical: never fall back to the Resend transport (it cannot
-  // attach files) — a result email without its PDF would be silently
-  // incomplete. Fail explicitly so the run's Emails tab shows a retryable row.
-  if (isPlaceholderEmail(to)) {
-    console.warn("[Email] REFUSING to send to placeholder address:", to);
-    return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
+  const attachedBody = isFr
+    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Veuillez trouver ci-joint le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong>.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>`
+    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Please find attached the result of your submission to <strong style="color:#f8fafc;">${scope}</strong>.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>`;
+
+  const hostedBody = (url) => isFr
+    ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${frGreeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">Le résultat de votre soumission à <strong style="color:#f8fafc;">${scope}</strong> est prêt.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">Le document contient vos réponses, l'évaluation de votre soumission et votre score final. Merci pour votre participation.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">TÉLÉCHARGER MON RÉSULTAT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :</p>
+       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`
+    : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">The result of your submission to <strong style="color:#f8fafc;">${scope}</strong> is ready.</p>
+       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">The document contains your responses, the evaluation of your submission and your final score. Thank you for participating.</p>
+       <table cellpadding="0" cellspacing="0" style="margin: 0 0 20px;"><tr><td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;"><a href="${url}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">DOWNLOAD YOUR RESULT (PDF)</a></td></tr></table>
+       <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">If the button doesn't work, copy and paste this link into your browser:</p>
+       <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0;">${url}</p>`;
+
+  // Preferred path: native PDF attachment through the Gmail API transport.
+  if (gmailCredentialsAvailable()) {
+    const res = await sendViaGmail({
+      to,
+      subject,
+      html: shell(attachedBody),
+      attachments: [{ filename, content: pdf, contentType: "application/pdf" }],
+    });
+    if (res.success) return res;
+    // Gmail failed → fall through to the hosted-link delivery below instead of
+    // failing: the participant still receives their result.
   }
-  if (!gmailCredentialsAvailable()) {
-    return { success: false, provider: "gmail", error: "Gmail credentials are not configured — PDF attachments cannot be sent" };
+
+  // Fallback path: host the PDF in Supabase storage (public bucket, same as
+  // the platform's uploads) and email a download link through Resend.
+  try {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      return { success: false, provider: "storage", error: "No attachment-capable email transport configured: set GMAIL_CLIENT_ID/GMAIL_CLIENT_SECRET/GMAIL_REFRESH_TOKEN or NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY" };
+    }
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+    const rand = Math.random().toString(36).slice(2, 10);
+    const folder = runId ? `run-${runId}` : "general";
+    const objectPath = `submission-results/${folder}/${submissionId ? `submission-${submissionId}-` : ""}${Date.now()}-${rand}-${filename}`;
+    const upload = () =>
+      supabase.storage.from("submissions").upload(objectPath, pdf, {
+        contentType: "application/pdf",
+        cacheControl: "3600",
+        upsert: true,
+      });
+    let res = await upload();
+    if (res.error && /bucket.*not found|does not exist/i.test(res.error.message || "")) {
+      await supabase.storage.createBucket("submissions", { public: true });
+      res = await upload();
+    }
+    if (res.error) throw res.error;
+    const url = supabase.storage.from("submissions").getPublicUrl(objectPath).data.publicUrl;
+    const mailRes = await sendViaResend({ to, subject, html: shell(hostedBody(url)) });
+    if (!mailRes.success) {
+      return { ...mailRes, error: mailRes.error || mailRes.note || "Email send failed" };
+    }
+    return mailRes;
+  } catch (e) {
+    console.error("[Email] Result delivery (hosted PDF) error:", e?.message || e);
+    return { success: false, provider: "storage", error: `Could not store the result PDF for delivery — ${e?.message || "storage error"}` };
   }
-  return sendViaGmail({
-    to,
-    subject,
-    html,
-    attachments: pdfBuffer ? [{ filename, content: Buffer.from(pdfBuffer), contentType: "application/pdf" }] : undefined,
-  });
 }
