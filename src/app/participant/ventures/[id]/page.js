@@ -12,21 +12,20 @@ import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
-import { MilestonesTab, ActionPlansTab, TasksTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
-import { CalendarTab } from "@/components/ventures/workspace/tabs/ScheduleTabs";
+import { MilestonesTab } from "@/components/ventures/workspace/tabs/MilestoneTabs";
 import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
-import { AdvisorsTab, CoachingTab, KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { KpisTab, InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 
 const TABS = [
-  "dashboard", "journey", "work", "calendar", "coaching", "kpis", "investment",
+  "dashboard", "journey", "kpis", "investment",
   "profile", "team", "settings",
 ];
 
-// Journey is the container for the Venture's business-development work.
-// The first entry is the staff-defined stage path; the rest are the Venture's
-// journey modules (existing functionality, moved under Journey).
-const JOURNEY_TABS = [
-  "stagePath", "businessModel", "discovery", "validation", "pmf", "milestones", "documents",
+// Secondary Venture tools that live inside Journey. They stay reachable from
+// the Journey page while milestone workspaces bind their content to the items;
+// they are NOT top-level workspace navigation.
+const JOURNEY_TOOLS = [
+  "businessModel", "discovery", "validation", "pmf", "milestones", "documents",
 ];
 const STAGES = ["idea", "validation", "mvp", "growth", "scale"];
 const INDUSTRY_FALLBACK = ["Fintech", "Healthtech", "Edtech", "Cleantech", "SaaS", "E-commerce", "Agritech", "Logistics", "AI / ML", "Blockchain", "Media & Entertainment", "Real Estate", "Other"];
@@ -39,8 +38,9 @@ export default function VentureDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Journey sub-navigation (which journey module is open inside Journey).
-  const [journeySub, setJourneySub] = useState("stagePath");
+  // Journey view: the milestone timeline by default, or one of the Venture
+  // work tools (JOURNEY_TOOLS) that live inside Journey.
+  const [journeySub, setJourneySub] = useState("timeline");
   const [form, setForm] = useState({});
 
   // Members state
@@ -213,23 +213,21 @@ export default function VentureDetail() {
     }
   }
 
-  // Navigate top-level sections. Re-entering a section resets its sub-view
-  // to the default so the primary tab always behaves predictably.
+  // Navigate top-level sections. Re-entering Journey resets to the milestone
+  // timeline so the primary tab always behaves predictably.
   function openSection(sec) {
     if (sec === activeTab && sec !== "journey") return;
     setActiveTab(sec);
-    if (sec === "journey") setJourneySub("stagePath");
+    if (sec === "journey") setJourneySub("timeline");
   }
 
-  // Load data for the active section. Journey loads its modules lazily — only
-  // the currently open journey module is fetched (stage path loads once).
+  // Load data for the active section. The Dashboard is the Venture overview
+  // (upcoming events + current Journey position); Journey loads its milestone
+  // timeline plus whichever Venture tool is open under it.
   useEffect(() => {
     if (!params.id || !venture) return;
     if (activeTab === "team") loadMembers();
-    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); }
-    if (activeTab === "calendar") fetchCalendar();
-    if (activeTab === "work") { fetchTasks(); fetchActionPlans(); fetchMilestones(); }
-    if (activeTab === "coaching") { fetchCoaching(); fetchAdvisors(); }
+    if (activeTab === "dashboard") { loadMembers(); loadDashboard(); fetchProgress(); fetchCalendar(); fetchJourney(); }
     if (activeTab === "kpis") { fetchKpis(); fetchKpiDefinitions(); }
     if (activeTab === "investment") fetchInvestmentReadiness();
     if (activeTab === "journey") {
@@ -698,42 +696,40 @@ export default function VentureDetail() {
         </div>
 
 
-        {/* Tab content — Venture workspace: Journey is the container for the
-            Venture's business-development journeys. */}
+        {/* Dashboard is the overview. Journey is the operating workspace. */}
         {activeTab === "dashboard" && <DashboardTab />}
         {activeTab === "journey" && (
           <div className="space-y-4">
-            {/* Journey module navigation (stage path + Venture journey modules) */}
-            <div className="flex items-center gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
-              {JOURNEY_TABS.map(it => (
-                <button key={it} onClick={() => setJourneySub(it)}
-                  className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${journeySub === it ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  style={{ borderColor: journeySub === it ? "var(--brand-orange)" : "transparent" }}
-                >{t(`venture.${it}`)}</button>
-              ))}
-            </div>
-            {journeySub === "stagePath" && <JourneyTab />}
-            {journeySub === "businessModel" && <BusinessModelTab />}
-            {journeySub === "discovery" && <DiscoveryTab />}
-            {journeySub === "validation" && <ValidationTab />}
-            {journeySub === "pmf" && <PmfTab />}
-            {journeySub === "milestones" && <MilestonesTab />}
-            {journeySub === "documents" && <DocumentsTab />}
-          </div>
-        )}
-        {activeTab === "work" && (
-          /* Tasks and Action Plans share one workspace area (one nav entry). */
-          <div className="space-y-6">
-            <TasksTab />
-            <ActionPlansTab />
-          </div>
-        )}
-        {activeTab === "calendar" && <CalendarTab />}
-        {activeTab === "coaching" && (
-          /* Coaching sessions + Advisors are one Coaching area. */
-          <div className="space-y-6">
-            <CoachingTab />
-            <AdvisorsTab />
+            {journeySub === "timeline" ? (
+              <>
+                <JourneyTab />
+                {/* Venture work tools stay inside Journey while milestone
+                    workspaces bind tasks, documents and sessions to items. */}
+                <div className="rounded-xl border p-4">
+                  <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: "var(--text-secondary)" }}>{t("venture.workMaterials")}</p>
+                  <div className="flex flex-wrap gap-2">
+                    {JOURNEY_TOOLS.map((tool) => (
+                      <button key={tool} onClick={() => setJourneySub(tool)}
+                        className="px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
+                        style={{ color: "var(--text-secondary)", borderColor: "var(--border-primary)" }}
+                      >{t(`venture.${tool}`)}</button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                <button onClick={() => setJourneySub("timeline")} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors" style={{ color: "var(--text-secondary)" }}>
+                  <ArrowLeft size={14} /> {t("venture.backToJourney")}
+                </button>
+                {journeySub === "businessModel" && <BusinessModelTab />}
+                {journeySub === "discovery" && <DiscoveryTab />}
+                {journeySub === "validation" && <ValidationTab />}
+                {journeySub === "pmf" && <PmfTab />}
+                {journeySub === "milestones" && <MilestonesTab />}
+                {journeySub === "documents" && <DocumentsTab />}
+              </div>
+            )}
           </div>
         )}
         {activeTab === "kpis" && <KpisTab />}

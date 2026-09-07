@@ -8,7 +8,21 @@ import { getFounderMembers, getTeamMembers } from "../ventureMeta";
 /* Dashboard (Overview) Tab */
 export function DashboardTab() {
   const { t } = useI18n();
-  const { dashboardData, members, progressData, cardStyle } = useVenture();
+  const { dashboardData, members, progressData, calendarEvents, journeyStages, cardStyle } = useVenture();
+
+  // Overview helpers: current/next Journey milestone + upcoming Venture events.
+  const journeyList = journeyStages || [];
+  const activeStage = journeyList.find((s) => s.status === "active") || journeyList.find((s) => s.status !== "completed");
+  const nextStage = journeyList.find((s) => s.status === "locked" && s.stage_order > (activeStage?.stage_order || 0));
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = (calendarEvents || [])
+    .filter((e) => e.date && String(e.date) >= todayISO)
+    .sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.start_time || "").localeCompare(String(b.start_time || "")))
+    .slice(0, 6);
+  const EVENT_TYPE_KEYS = {
+    milestone: "milestones", task: "tasks", action: "actionPlans",
+    coaching: "coaching", followup: "followUpDate", meeting: "calendar", session: "coaching",
+  };
   if (!dashboardData) return (
     <div className="space-y-4">
       <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{ color: "var(--text-secondary)" }} size={24} /></div>
@@ -29,6 +43,52 @@ export function DashboardTab() {
             <p className="text-xs" style={{ color: "var(--text-secondary)" }}>{stat.label}</p>
           </div>
         ))}
+      </div>
+
+      {/* Current Journey position + upcoming Venture events (overview) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="rounded-xl p-5 border" style={cardStyle}>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <BarChart3 size={16} style={{ color: "var(--brand-orange)" }} />
+            {t("venture.journey")}
+          </h3>
+          {activeStage ? (
+            <div className="space-y-1.5 text-sm">
+              <p><span style={{ color: "var(--text-secondary)" }}>{t("venture.current")}:</span> <span className="font-semibold">{activeStage.name}</span></p>
+              {nextStage && (
+                <p style={{ color: "var(--text-secondary)" }}>{t("venture.next")}: {nextStage.name}</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noJourneyYet")}</p>
+          )}
+        </div>
+        <div className="rounded-xl p-5 border" style={cardStyle}>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Clock size={16} style={{ color: "var(--brand-orange)" }} />
+            {t("venture.upcoming")}
+          </h3>
+          {upcomingEvents.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noEvents")}</p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingEvents.map((ev, i) => (
+                <div key={i} className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0" style={{ borderColor: "rgb(255 255 255 / 0.05)" }}>
+                  <div className="shrink-0 w-14 text-center">
+                    <p className="text-[10px] font-black leading-tight">{ev.date ? new Date(`${ev.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short" }) : ""}</p>
+                    <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>{ev.date ? new Date(`${ev.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : ""}</p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{ev.title}</p>
+                    <p className="text-[11px] capitalize" style={{ color: "var(--text-secondary)" }}>
+                      {ev.start_time ? `${ev.start_time} · ` : ""}{t(`venture.${EVENT_TYPE_KEYS[ev.type] || "calendar"}`)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Recent Activity */}
