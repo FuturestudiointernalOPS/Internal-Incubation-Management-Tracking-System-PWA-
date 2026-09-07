@@ -670,7 +670,7 @@ async function sendViaResend({ to, subject, html }) {
  * and fall back to Resend on transport failure so the applicant still
  * receives the notification — it remains a single tracked attempt.
  */
-async function sendEmail({ to, subject, html, provider }) {
+export async function sendEmail({ to, subject, html, provider }) {
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
