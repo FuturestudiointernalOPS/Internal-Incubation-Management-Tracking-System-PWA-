@@ -38,6 +38,7 @@ export const MODULE_TO_FEATURE = {
   engineering: "engineering",
   settings: "system_settings",
   facilitator: "program_management",
+  lms: "lms",
 };
 
 /**
@@ -85,6 +86,11 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   tasks: ["super_admin", "staff", "program_manager", "team"],
   ventures: ["super_admin", "staff", "program_manager", "investor"],
   investor: ["super_admin", "staff", "investor"],
+  // LMS: capability-gated authoring feature (view/create/edit/delete only).
+  // Program Manager is the only non-SA default holder of lms capabilities
+  // (previously lms.view + lms.assign), so it stays eligible; publish/enroll/
+  // assign were retired from the module (see backfill.js).
+  lms: ["super_admin", "program_manager"],
 };
 
 let eligibilitySchemaPromise = null;
@@ -121,30 +127,49 @@ export function ensureEligibilitySchema() {
 }
 
 /**
- * Seed eligibility from FEATURE_ELIGIBILITY_DEFAULTS. Idempotent: existing
- * rows (including admin edits and explicit empty lists) are never touched.
+ * Insert seed rows for one feature. Idempotent: existing rows (including
+ * admin edits and explicit empty lists) are never touched.
  */
-export async function seedDefaultEligibility() {
+async function seedFeatureRows(featureKey, roles) {
   try {
     await ensureEligibilitySchema();
-    for (const [featureKey, roles] of Object.entries(
-      FEATURE_ELIGIBILITY_DEFAULTS,
-    )) {
-      for (const role of roles) {
-        await db.execute({
-          sql: `INSERT INTO feature_eligibility
-                  (feature_key, identity_type, identity_value, eligible)
-                VALUES (?, 'role', ?, 1)
-                ON CONFLICT (feature_key, identity_type, identity_value)
-                DO NOTHING`,
-          args: [featureKey, role],
-        });
-      }
+    for (const role of roles || []) {
+      await db.execute({
+        sql: `INSERT INTO feature_eligibility
+                (feature_key, identity_type, identity_value, eligible)
+              VALUES (?, 'role', ?, 1)
+              ON CONFLICT (feature_key, identity_type, identity_value)
+              DO NOTHING`,
+        args: [featureKey, role],
+      });
     }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+/**
+ * Seed eligibility from FEATURE_ELIGIBILITY_DEFAULTS. Idempotent: existing
+ * rows (including admin edits and explicit empty lists) are never touched.
+ */
+export async function seedDefaultEligibility() {
+  for (const [featureKey, roles] of Object.entries(
+    FEATURE_ELIGIBILITY_DEFAULTS,
+  )) {
+    const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
+ * One-time seed for databases whose eligibility bootstrap already ran before
+ * the LMS feature existed (see resolver's "eligibility-lms-bootstrap").
+ * Fails closed on error; ON CONFLICT DO NOTHING keeps admin edits intact.
+ */
+export async function seedLmsFeatureEligibility() {
+  return seedFeatureRows("lms", FEATURE_ELIGIBILITY_DEFAULTS.lms || []);
 }
 
 /**

@@ -23,6 +23,7 @@ import {
   MODULE_TO_FEATURE,
   ensureEligibilitySchema,
   seedDefaultEligibility,
+  seedLmsFeatureEligibility,
   evaluateEligibility,
 } from "./eligibility";
 import { ensureCapabilityBackfills } from "./backfill";
@@ -44,6 +45,12 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-bootstrap-seed",
           seedDefaultEligibility,
+        );
+        // Databases that bootstrapped before the LMS feature existed get the
+        // new feature's default rows exactly once (never overwrites edits).
+        await runAuthzMigration(
+          "eligibility-lms-bootstrap",
+          seedLmsFeatureEligibility,
         );
         eligibilitySeeded = true;
       })().finally(() => {

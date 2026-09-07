@@ -135,6 +135,7 @@ const FEATURE_SUBSECTION_IDS = {
   project_ownership: ["all_projects", "create_project"],
   reporting: ["program_reports", "internal_reports", "metrics"],
   knowledge_base: ["knowledge_base", "intelligence"],
+  lms: ["lms_courses"],
   user_management: ["access_summary", "permissions"],
   system_settings: ["integrations", "engineering_dashboard", "system"],
   ventures: ["all_ventures", "register_venture"],

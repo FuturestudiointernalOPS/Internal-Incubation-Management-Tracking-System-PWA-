@@ -55,6 +55,7 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
           runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
           runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          runAuthzMigration("lms-capability-retirement-v1", ensureLmsCapabilityRetirement),
           // One-time policy migrations — run once per database, then the
           // Permissions UI owns eligibility configuration (see migrations.js).
           runAuthzMigration("messaging-mvp-internal-only", ensureMessagingPolicyBackfill),
@@ -789,6 +790,28 @@ async function ensureInvestorBackfill() {
 //   - navigation entries removed for external roles
 //   - direct URL access is blocked by server-side layout guards on the
 //     messages pages
+
+// Phase 12 — LMS retirement of publish/enroll/assign (product decision: LMS
+// is now a feature granted through view/create/edit/delete only). Remove every
+// persisted row for the retired capabilities so they can never be granted or
+// evaluated again. Super Admin keeps working through the bypass.
+async function ensureLmsCapabilityRetirement() {
+  const retired = ["publish", "enroll", "assign"];
+  const ph = retired.map(() => "?").join(",");
+  for (const table of [
+    "access_profile_capabilities",
+    "role_capabilities",
+    "group_capabilities",
+    "user_capabilities",
+    "user_capability_restrictions",
+  ]) {
+    await db.execute({
+      sql: `DELETE FROM ${table} WHERE module = ? AND capability IN (${ph})`,
+      args: ["lms", ...retired],
+    });
+  }
+  return { success: true };
+}
 
 const MESSAGING_INTERNAL_ROLES = [
   "super_admin",
