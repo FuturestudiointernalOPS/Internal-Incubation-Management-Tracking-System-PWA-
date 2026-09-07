@@ -373,8 +373,6 @@ export default function FormRunsPage() {
   const [reviewing, setReviewing] = useState(null);
   const [reviewData, setReviewData] = useState({ decision: "approved", comment: "", internal_note: "" });
   const [reviewTimeline, setReviewTimeline] = useState([]);
-  // Per-row state for the Send Result (PDF) action
-  const [resultSendingId, setResultSendingId] = useState(null);
   const [evaluation, setEvaluation] = useState(null);  // AI evaluation loaded separately
 
   // Assignment modal
@@ -926,34 +924,6 @@ export default function FormRunsPage() {
     } catch (_) {}
   };
 
-  // Send the participant a result email (PDF: their answers, the evaluation
-  // feedback and the final score). Tracked once per submission — re-clicking
-  // after a failed attempt retries the send.
-  const handleSendResult = async (submission) => {
-    if (resultSendingId) return;
-    setResultSendingId(submission.id);
-    try {
-      const res = await fetch("/api/platform/form-runs?action=send_result_email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: submission.id }),
-      });
-      const data = await res.json();
-      if (data.success && data.status === "sent") {
-        notify(t("platformMisc.runs.sendResultSent", { email: data.to || "" }));
-      } else if (data.success && data.status === "already_sent") {
-        notify(t("platformMisc.runs.sendResultAlready", { email: data.to || "" }));
-      } else {
-        notify((data.error && String(data.error) !== "" ? data.error : "") || t("platformMisc.runs.sendResultFailed"));
-      }
-      // Refresh the run (email log/statuses) so sent or failed attempts show up.
-      if (selectedRun) openRun(selectedRun, { keepTab: true });
-    } catch (_) {
-      notify(t("platformMisc.runs.sendResultFailed"));
-    }
-    setResultSendingId(null);
-  };
-
   const handleSaveSettings = async () => {
     if (!selectedRun) return;
     setSaving(true);
@@ -1017,6 +987,10 @@ export default function FormRunsPage() {
   const [activationForceResend, setActivationForceResend] = useState(false);
   const [activationProcessing, setActivationProcessing] = useState(false);
   const [activationProgress, setActivationProgress] = useState({ done: 0, total: 0 });
+  // Bulk Send Result (response PDF email) — Actions menu
+  const [resultConfirmOpen, setResultConfirmOpen] = useState(false);
+  const [resultProcessing, setResultProcessing] = useState(false);
+  const [resultProgress, setResultProgress] = useState({ done: 0, total: 0 });
 
   // Manual message composer (Room Overview → selected participants)
   const [showMessageComposer, setShowMessageComposer] = useState(false);
@@ -1924,6 +1898,73 @@ export default function FormRunsPage() {
     }
   };
 
+  // Send Result (response PDF): any non-draft selected submission that has an
+  // evaluation row. Failed/never-sent results are re-attempted server-side;
+  // already-sent ones are reported and skipped.
+  const eligibleSendResultIds = useMemo(() => {
+    const evalIds = new Set(evaluations.map((e) => e.submission_id));
+    return selectedIds.filter((id) => {
+      const s = submissions.find((x) => x.id === id);
+      if (!s || String(s.status || "") === "draft") return false;
+      return evalIds.has(id);
+    });
+  }, [selectedIds, submissions, evaluations]);
+
+  const openSendResultConfirm = () => {
+    setBulkMenuOpen(false);
+    if (eligibleSendResultIds.length === 0) {
+      notify(t("platformMisc.runs.noEligibleSendResult"));
+      return;
+    }
+    setResultConfirmOpen(true);
+  };
+
+  const runSendResultEmails = async () => {
+    if (!selectedRun || eligibleSendResultIds.length === 0 || resultProcessing) return;
+    setResultConfirmOpen(false);
+    setResultProcessing(true);
+    const CHUNK = 30;
+    const ids = [...eligibleSendResultIds];
+    const agg = { sent: 0, already_sent: 0, skipped: 0, failed: 0, total: ids.length };
+    setResultProgress({ done: 0, total: ids.length });
+    try {
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const res = await fetch("/api/platform/form-runs?action=send_result_emails", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ run_id: selectedRun.id, submission_ids: chunk }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          notify(data.error || t("platformMisc.runs.sendResultFailed"));
+          break;
+        }
+        for (const r of data.results || []) {
+          if (r.status === "sent") agg.sent++;
+          else if (r.status === "already_sent") agg.already_sent++;
+          else if (r.status === "failed" || r.status === "not_found") agg.failed++;
+          else agg.skipped++;
+        }
+        setResultProgress({ done: Math.min(i + CHUNK, ids.length), total: ids.length });
+      }
+      setMessageSummary({
+        title: t("platformMisc.runs.sendResponseComplete"),
+        sent: agg.sent,
+        already_sent: agg.already_sent,
+        skipped: agg.skipped,
+        failed: agg.failed,
+      });
+      setSelectedIds([]);
+      if (selectedRun) await openRun(selectedRun);
+    } catch (_) {
+      notify(t("platformMisc.runs.sendResultFailed"));
+    } finally {
+      setResultProcessing(false);
+      setResultProgress({ done: 0, total: 0 });
+    }
+  };
+
   const runRetryEmails = async () => {
     if (!selectedRun || retrySelected.length === 0 || retryProcessing) return;
     setRetryProcessing(true);
@@ -2487,6 +2528,13 @@ export default function FormRunsPage() {
                             </button>
                             <button
                               type="button"
+                              onClick={openSendResultConfirm}
+                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-sky-400 hover:bg-sky-500/10 flex items-center gap-1.5"
+                            >
+                              <Send className="w-3 h-3" /> {t("platformMisc.runs.sendResponse")}
+                            </button>
+                            <button
+                              type="button"
                               onClick={openMessageComposer}
                               className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
                             >
@@ -2710,16 +2758,6 @@ export default function FormRunsPage() {
                                 <a href={`/platform/runs/review/${s.id}`} className="px-2 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 flex items-center gap-1">
                                   <Eye className="w-3 h-3" /> {t("platformMisc.runs.full")}
                                 </a>
-                                {s.status !== "draft" && (
-                                  <button
-                                    onClick={() => handleSendResult(s)}
-                                    disabled={resultSendingId === s.id || !evalRow}
-                                    title={!evalRow ? t("platformMisc.runs.sendResultNoEval") : t("platformMisc.runs.sendResultTitle")}
-                                    className="px-2 py-1 rounded-lg bg-sky-500/10 text-sky-400 text-[10px] font-bold uppercase tracking-wide hover:bg-sky-500/20 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-                                  >
-                                    {resultSendingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />} {t("platformMisc.runs.sendResult")}
-                                  </button>
-                                )}
                                 {s.status === "submitted" && (
                                   <button onClick={() => openReview(s)} className="px-2 py-1 rounded-lg bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] text-[10px] font-bold uppercase tracking-wide hover:bg-[var(--brand-orange)]/20">{t("platformMisc.runs.review")}</button>
                                 )}
@@ -2830,6 +2868,43 @@ export default function FormRunsPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
                       {t("platformMisc.runs.messageSending")} {activationProgress.done}/{activationProgress.total}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── SEND RESULT CONFIRM (Actions menu → response PDF email) ─── */}
+              {resultConfirmOpen && (
+                <div className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-md w-full space-y-4">
+                    <h4 className="text-sm font-black uppercase text-[var(--text-primary)]">
+                      {t("platformMisc.runs.sendResponseConfirmTitle")}
+                    </h4>
+                    <p className="text-[10px] font-medium text-[var(--text-secondary)] leading-relaxed">
+                      {t("platformMisc.runs.sendResponseConfirmDesc", { count: eligibleSendResultIds.length })}
+                    </p>
+                    {selectedIds.length > eligibleSendResultIds.length && (
+                      <p className="text-[10px] font-bold text-amber-500">
+                        {t("platformMisc.runs.sendResponseIneligible", { count: selectedIds.length - eligibleSendResultIds.length })}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 justify-end">
+                      <button onClick={() => setResultConfirmOpen(false)} disabled={resultProcessing} className="px-4 py-2 rounded-lg bg-tertiary text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">{t("platformMisc.runs.cancel")}</button>
+                      <button onClick={runSendResultEmails} disabled={resultProcessing || eligibleSendResultIds.length === 0} className="px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide">
+                        {t("platformMisc.runs.sendResponseConfirm", { count: eligibleSendResultIds.length })}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ─── SEND RESULT PROGRESS ─── */}
+              {resultProcessing && (
+                <div className="fixed inset-0 z-[210] bg-black/60 flex items-center justify-center p-4">
+                  <div className="bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 max-w-sm w-full text-center space-y-3">
+                    <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)] mx-auto" />
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
+                      {t("platformMisc.runs.sendResponseSending", { done: resultProgress.done, total: resultProgress.total })}
                     </p>
                   </div>
                 </div>
