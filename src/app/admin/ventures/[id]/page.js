@@ -37,6 +37,7 @@ import {
   BookOpen,
   Star,
   X,
+  Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
@@ -284,6 +285,12 @@ export default function VentureDetailPage({ params }) {
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
               >
                 <Target className="w-3 h-3" /> Operating Plan
+              </button>
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/journey`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+              >
+                <Route className="w-3 h-3" /> Journey
               </button>
             </div>
           </div>

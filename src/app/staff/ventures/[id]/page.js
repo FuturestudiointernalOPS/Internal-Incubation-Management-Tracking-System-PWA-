@@ -6,6 +6,7 @@ import { ArrowLeft, Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users }
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
+import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -214,6 +215,8 @@ export default function StaffVentureWorkspace() {
       <VentureNotesPanel ventureId={id} />
 
       <OperatingPlanPanel ventureId={id} />
+
+      <JourneyManagerPanel ventureId={id} />
 
       <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
         <FileText className="w-3 h-3" /> Read panes shown according to your assignment. Full management tools are configured through Venture Permissions.

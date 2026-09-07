@@ -488,10 +488,6 @@ export default function VentureDetail() {
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);
     } catch(e){}
   }
-  async function handleCompleteStage(stageId) {
-    await fetch(`/api/ventures/${params.id}/journey`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ stage_id: stageId, action: 'complete' }) });
-    fetchJourney(true);
-  }
   async function handleUpdateKpi(assignmentId, current_value) {
     await fetch(`/api/ventures/${params.id}/kpis`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ id: assignmentId, current_value }) });
     fetchKpis(true);
@@ -640,7 +636,7 @@ export default function VentureDetail() {
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
     handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
     handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
-    handleCompleteStage, handleUpdateKpi,
+    handleUpdateKpi,
     fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
     fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
     fetchDocuments, fetchAdvisors, fetchCoaching, fetchKpis, fetchKpiDefinitions,
