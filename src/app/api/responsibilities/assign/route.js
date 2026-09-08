@@ -15,6 +15,7 @@ import {
   getContactByCid,
   getContactName,
   getResponsibilityName,
+  grantResponsibilityBaseAccess,
 } from "@/models/responsibilities";
 
 /**
@@ -58,18 +59,40 @@ export async function PUT(req) {
         );
       }
 
+      // Option 1 — align the responsibility with its feature's modules: grant
+      // the base `view` capability so the sidebar area actually loads. Never
+      // fails the assignment (best-effort; a failure only leaves the area
+      // without module access, like before).
+      const responsibilityKey = resp.rows[0]?.key || null;
+      let grantedModules = [];
+      if (responsibilityKey) {
+        try {
+          grantedModules = await grantResponsibilityBaseAccess({
+            userCid,
+            responsibilityKey,
+            grantedBy: session?.cid,
+          });
+        } catch (grantErr) {
+          console.error("[Responsibilities Assign] base access grant failed:", grantErr.message);
+        }
+      }
+
+      const baseAccessNote = grantedModules.length
+        ? `. Base access granted: ${grantedModules.join(", ")}`
+        : "";
+
       await logPermissionAudit({
         actorCid: session?.cid,
         actorName: session?.name,
         targetCid: user_cid,
         targetName,
         action: "responsibility_assigned",
-        details: `Assigned responsibility: ${respName}`,
+        details: `Assigned responsibility: ${respName}${baseAccessNote}`,
       });
 
       return NextResponse.json({
         success: true,
-        message: `Assigned "${respName}" to ${targetName}`,
+        message: `Assigned "${respName}" to ${targetName}${baseAccessNote}`,
       });
     }
 

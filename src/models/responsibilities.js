@@ -1,4 +1,6 @@
 import db from "@/lib/db";
+import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
+import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
 
 /**
  * Responsibilities model — data access for the responsibilities controllers
@@ -82,10 +84,10 @@ export async function deleteResponsibility(id) {
 
 // ── PUT /api/responsibilities/assign (audit lookups) ─────────────────────────
 
-/** A responsibility's name by id, for assign/remove audit messages. */
+/** A responsibility's name + key by id, for assign/remove audit + grants. */
 export async function getResponsibilityName(id) {
   return db.execute({
-    sql: "SELECT name FROM responsibilities WHERE id = ?",
+    sql: "SELECT name, key FROM responsibilities WHERE id = ?",
     args: [id],
   });
 }
@@ -118,6 +120,46 @@ export async function getContactByCid(cid) {
     sql: "SELECT cid, name, role FROM contacts WHERE cid = ?",
     args: [cid],
   });
+}
+
+// ── Responsibility ↔ capability alignment (Option 1) ─────────────────────────
+
+/**
+ * Grant the base `view` capability of every module owned by the
+ * responsibility's feature, so a responsibility is never a dead-end (sidebar
+ * shows the area AND its pages can actually load).
+ *
+ * Modules come from the reverse of MODULE_TO_FEATURE (single source: a module
+ * whose feature equals the responsibility key). Only modules exposing a
+ * `view` capability are touched. Grants are additive and idempotent
+ * (INSERT … ON CONFLICT DO NOTHING): an existing manual grant, restriction or
+ * higher level is never overwritten, and removing the responsibility never
+ * revokes them (they may be shared with an access profile).
+ *
+ * Responsibilities without a module mapping (operations, intelligence, …)
+ * grant nothing here — their pages rely on manual grants/profiles.
+ *
+ * @returns {Promise<string[]>} granted `<module>.view` entries (informational).
+ */
+export async function grantResponsibilityBaseAccess({ userCid, responsibilityKey, grantedBy = null }) {
+  const granted = [];
+  if (!userCid || !responsibilityKey) return granted;
+
+  const modules = Object.entries(MODULE_TO_FEATURE)
+    .filter(([, feature]) => feature === responsibilityKey)
+    .map(([module]) => module);
+
+  for (const module of modules) {
+    if (!CAPABILITY_CATALOG[module]?.capabilities?.view) continue;
+    await db.execute({
+      sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
+            VALUES (?, ?, 'view', 1, ?)
+            ON CONFLICT (user_cid, module, capability) DO NOTHING`,
+      args: [userCid, module, grantedBy],
+    });
+    granted.push(`${module}.view`);
+  }
+  return granted;
 }
 
 // ── PUT /api/responsibilities/access ─────────────────────────────────────────
