@@ -8,7 +8,7 @@ import { getFounderMembers, getTeamMembers } from "../ventureMeta";
 /* Dashboard (Overview) Tab */
 export function DashboardTab() {
   const { t } = useI18n();
-  const { dashboardData, members, progressData, calendarEvents, journeyStages, cardStyle } = useVenture();
+  const { dashboardData, members, calendarEvents, journeyStages, cardStyle } = useVenture();
 
   // Overview helpers: current/next Journey milestone + upcoming Venture events.
   const journeyList = journeyStages || [];
@@ -128,40 +128,7 @@ export function DashboardTab() {
         ))}
       </div>
 
-      {/* Progress Summary */}
-      <div className="rounded-xl p-6 border" style={cardStyle}>
-        <h3 className="font-semibold mb-4 flex items-center gap-2">
-          <Activity size={16} style={{ color: "var(--brand-orange)" }} />
-          {t("venture.progressSummary")}
-        </h3>
-        {progressData ? (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-lg p-3 border" style={cardStyle}>
-              <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.profileCompletion')||'Profile Completion'}</p>
-              <p className="text-xl font-bold mt-1" style={{color:'var(--brand-orange)'}}>{progressData.profile_completion||0}%</p>
-            </div>
-            <div className="rounded-lg p-3 border" style={cardStyle}>
-              <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.taskCompletion')}</p>
-              <p className="text-xl font-bold mt-1">{progressData.task_completion||0}%</p>
-            </div>
-            <div className="rounded-lg p-3 border" style={cardStyle}>
-              <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.avgMilestoneProgress')}</p>
-              <p className="text-xl font-bold mt-1">{progressData.avg_milestone_progress||0}%</p>
-            </div>
-            <div className="rounded-lg p-3 border" style={cardStyle}>
-              <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.standupsCount')}</p>
-              <p className="text-xl font-bold mt-1">{progressData.standups_count||0}</p>
-            </div>
-            <div className="rounded-lg p-3 border" style={cardStyle}>
-              <p className="text-xs" style={{color:'var(--text-secondary)'}}>{t('venture.retrosCount')}</p>
-              <p className="text-xl font-bold mt-1">{progressData.retros_count||0}</p>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.noProgressData")}</p>
-        )}
       </div>
-    </div>
   );
 }
 

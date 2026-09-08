@@ -29,7 +29,6 @@ import {
   Plus,
   Mail,
   Crown,
-  BarChart3,
   Ban,
   Send,
 } from "lucide-react";
@@ -468,36 +467,6 @@ export default function VentureDashboardPage() {
                 <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="w-full py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
                   Manage Team
                 </button>
-              </div>
-            </WidgetCard>
-
-            {/* 5. KPI Summary */}
-            <WidgetCard title="KPIs" icon={BarChart3} iconColor="bg-amber-500/10"
-              loading={ws("kpis").loading} error={ws("kpis").error}
-              empty={ws("kpis").empty} emptyMessage="No KPIs tracked yet"
-              onRefresh={() => refreshWidget("kpis")}
-            >
-              <div className="space-y-3">
-                {(d.kpis || []).length === 0 ? (
-                  <div className="flex flex-col items-center py-4">
-                    <BarChart3 className="w-8 h-8 text-slate-600 mb-2" />
-                    <p className="text-[10px] text-[var(--text-secondary)]">No KPIs configured</p>
-                  </div>
-                ) : (
-                  (d.kpis || []).slice(0, 4).map((kpi) => (
-                    <div key={kpi.id} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold text-[var(--text-primary)]">{kpi.title}</span>
-                        <span className="text-[10px] font-bold text-[var(--text-secondary)]">{kpi.current}{kpi.unit} / {kpi.target}{kpi.unit}</span>
-                      </div>
-                      <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
-                        <div className={`h-full rounded-full ${
-                          kpi.progress >= 80 ? "bg-emerald-500" : kpi.progress >= 50 ? "bg-amber-500" : "bg-[var(--brand-orange)]"
-                        }`} style={{ width: `${Math.min(kpi.progress, 100)}%` }} />
-                      </div>
-                    </div>
-                  ))
-                )}
               </div>
             </WidgetCard>
 

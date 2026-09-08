@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useI18n } from "@/lib/i18n";
 import {
   Route,
   Plus,
@@ -11,6 +12,7 @@ import {
   Trash2,
   Save,
   Copy,
+  CopyPlus,
   CheckCircle2,
   RotateCcw,
   Pencil,
@@ -33,6 +35,7 @@ import {
  * Members only ever see the published stages on their own Journey tab.
  */
 export default function JourneyManagerPanel({ ventureId }) {
+  const { t } = useI18n();
   const [stages, setStages] = useState([]);
   const [access, setAccess] = useState({ create: false, edit: false, manage: false });
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [templates, setTemplates] = useState([]);
   const [tplSel, setTplSel] = useState("");
   const [savingTpl, setSavingTpl] = useState(false);
+  const [dupBusy, setDupBusy] = useState(null);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -126,6 +130,31 @@ export default function JourneyManagerPanel({ ventureId }) {
     if (d.success) setStages(d.stages || []);
     else notify(d.error || "Action failed.", "error");
     return d.success;
+  };
+
+  // Duplicate a stage as an independent structure copy (milestones + tasks,
+  // never submissions/reviews/history — those stay with the source).
+  const duplicateStage = async (stage) => {
+    if (!window.confirm(t("venture.manager.duplicateStageConfirm", { name: stage.name }))) return;
+    setDupBusy(stage.id);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/journey/duplicate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage_id: stage.id }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.duplicateStageSuccess", { milestones: d.milestones_copied || 0, tasks: d.tasks_copied || 0 }));
+        setStages(d.stages || []);
+      } else {
+        notify(d.error || t("venture.manager.duplicateStageFailed"), "error");
+      }
+    } catch (e) {
+      notify(t("venture.manager.duplicateStageFailed"), "error");
+    } finally {
+      setDupBusy(null);
+    }
   };
 
   const saveEdit = async (e) => {
@@ -343,7 +372,16 @@ export default function JourneyManagerPanel({ ventureId }) {
                     <div className="flex items-center gap-3 mt-1 text-[10px] text-slate-400">
                       {stage.target_date && <span>Target: {new Date(`${stage.target_date}T00:00:00`).toLocaleDateString()}</span>}
                       {stage.completed_at && <span>Completed {new Date(stage.completed_at).toLocaleDateString()}</span>}
-                      {stage.status !== "completed" && <span>Members see this stage{stage.status === "locked" ? " as locked" : " as in progress"}.</span>}
+                      {stage.milestone_counts?.total > 0 && (
+                        <span className="text-sky-300/90">
+                          {t("venture.manager.milestoneProgress", { done: stage.milestone_counts.completed || 0, total: stage.milestone_counts.total })}
+                        </span>
+                      )}
+                      {stage.status !== "completed" && (
+                        <span className="text-sky-300/90">
+                          {stage.status === "locked" ? t("venture.manager.memberVisibilityLocked") : t("venture.manager.memberVisibilityActive")}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -382,6 +420,9 @@ export default function JourneyManagerPanel({ ventureId }) {
                               <RotateCcw className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          <button onClick={() => duplicateStage(stage)} disabled={dupBusy === stage.id} className="p-1 text-slate-400 hover:text-sky-300 disabled:opacity-40" title={t("venture.manager.duplicateStageTitle")}>
+                            {dupBusy === stage.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
+                          </button>
                           <button onClick={async () => { if (window.confirm(`Delete stage "${stage.name}"? This does not delete Venture data — only the journey stage.`)) { const ok = await patch({ action: "delete", stage_id: stage.id }); if (ok) notify("Stage deleted."); } }} className="p-1 text-slate-400 hover:text-rose-400" title="Delete stage">
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

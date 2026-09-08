@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
@@ -18,7 +19,13 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const tasksRes = await db.execute({ sql: "SELECT COUNT(*) as total, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?", args: [dbId] });
+    // Completion is defined once in lib/ventureStatuses (canonical terminal
+    // statuses: done | accepted | completed) — never hardcode here.
+    const completedSet = TASK_COMPLETED_STATUSES.map(() => "?").join(", ");
+    const tasksRes = await db.execute({
+      sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
+      args: [...TASK_COMPLETED_STATUSES, dbId],
+    });
     const total = parseInt(tasksRes.rows?.[0]?.total||0);
     const done = parseInt(tasksRes.rows?.[0]?.done||0);
 

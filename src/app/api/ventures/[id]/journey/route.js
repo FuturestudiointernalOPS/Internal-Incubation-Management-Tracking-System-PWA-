@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
+import { roleIsPrivileged } from "@/lib/ventureAuth";
 import {
   ensureJourneyTable,
   resolveVentureInternalId,
@@ -97,6 +98,20 @@ export async function GET(req, { params }) {
         ]);
         access = { create: canCreate, edit: canEdit, manage: canManage };
       }
+    }
+
+    // Guided experience (Vinance 3 — Phase 2): non-staff viewers (founders /
+    // team / participant) only ever see what the staff made available to them.
+    // Locked stages are the future roadmap — management strategy, not
+    // Venture-facing information. Staff and global roles always see the full
+    // roadmap through the authoring surfaces.
+    if (!access && viewer && !roleIsPrivileged(viewer.role)) {
+      return NextResponse.json({
+        success: true,
+        stages: stages.filter((s) => s.status !== "locked"),
+        access,
+        guided: true,
+      });
     }
 
     return NextResponse.json({ success: true, stages, access });

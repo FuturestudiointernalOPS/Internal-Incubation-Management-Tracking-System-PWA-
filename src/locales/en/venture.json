@@ -301,6 +301,27 @@
       "SESSION_SCHEDULED": "A session has been scheduled.",
       "COACHING_SCHEDULED": "A coaching session has been scheduled.",
       "COACHING_APPROVED": "Your coaching session was confirmed."
+    },
+    "manager": {
+      "duplicateStageConfirm": "Duplicate stage \"{name}\"? Milestones and tasks are copied into a new independent stage — submissions, reviews and history are not copied.",
+      "duplicateStageSuccess": "Stage duplicated ({milestones} milestones, {tasks} tasks). The copy starts locked — activate it when ready.",
+      "duplicateStageFailed": "Duplicate failed.",
+      "duplicateStageTitle": "Duplicate stage (milestones + tasks, structure only)",
+      "duplicateStageBusy": "Duplicating stage…",
+      "milestoneProgress": "{done} of {total} milestones complete",
+      "memberVisibilityLocked": "Hidden from members until activated",
+      "memberVisibilityActive": "Members see this as their current stage"
+    },
+    "history": {
+      "title": "Venture History",
+      "subtitle": "Institutional memory — everything recorded about this Venture, in one place.",
+      "events": "Events",
+      "reviews": "Deliverable & submission reviews",
+      "staffNotes": "Staff notes",
+      "sessionNotes": "Session records",
+      "empty": "Nothing recorded yet.",
+      "decisionApproved": "Approved",
+      "decisionChanges": "Changes requested"
     }
   }
 }

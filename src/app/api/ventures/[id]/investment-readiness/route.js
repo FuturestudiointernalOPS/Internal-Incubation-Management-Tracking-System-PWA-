@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { computeRoadmapReadiness } from "@/lib/ventureReadiness";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin","teacher","developer"];
 
@@ -80,6 +81,11 @@ export async function GET(req, { params }) {
     const missing = checklist.filter(d => d.status === "missing");
     const submitted = checklist.filter(d => d.status === "submitted");
 
+    // Roadmap-derived readiness (Vinance 3 — Phase 3): computed live over the
+    // whole defined Venture progression. Additive cutover — legacy keys above
+    // stay untouched so current consumers keep working unchanged.
+    const roadmap = await computeRoadmapReadiness(db, { dbId, code: id });
+
     return NextResponse.json({
       success: true,
       investment_readiness: {
@@ -91,6 +97,7 @@ export async function GET(req, { params }) {
         missing_documents: missing,
         submitted_documents: submitted,
       },
+      roadmap_readiness: roadmap,
     });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

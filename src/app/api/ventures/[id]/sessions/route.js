@@ -55,6 +55,11 @@ export const POST = createHandler(async (req, { params }) => {
         location: body.location, meetingLink: body.meeting_link, agenda: body.agenda,
         ventureFacing: body.venture_facing === true,
         preparationNotes: body.preparation_notes || null,
+        // Operational context: which Journey stage / milestone / task this
+        // session supports (soft refs; no FK constraints).
+        journeyStageId: body.journey_stage_id || null,
+        milestoneRef: body.milestone_ref ? String(body.milestone_ref) : null,
+        taskId: body.task_id ? parseInt(body.task_id) : null,
         createdBy: req.session?.cid,
       });
       // Venture-facing sessions notify founders (in-app + email).

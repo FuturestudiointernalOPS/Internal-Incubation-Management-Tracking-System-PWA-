@@ -7,6 +7,7 @@ import {
   listTaskComments, addTaskComment, deleteTaskComment,
   listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
 } from "@/lib/ventures";
+import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES } from "@/lib/ventureStatuses";
 import db from "@/lib/db";
 
 async function resolveVentureDbId(ventureId) {
@@ -29,9 +30,9 @@ export const GET = createHandler(async (req, { params }) => {
   const s = new URL(req.url).searchParams;
   const tasks = await listTasks(dbId, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
 
-  // Group by status for Kanban
+  // Group by status for Kanban (column vocabulary from lib/ventureStatuses)
   const byStatus = {};
-  for (const status of ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"]) {
+  for (const status of TASK_BOARD_COLUMNS) {
     byStatus[status] = tasks.filter((t) => t.status === status);
   }
 
@@ -124,7 +125,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   // approved submission; only the review flow marks it complete.
   const existingTask = await getTask(parseInt(taskId));
   if (!existingTask) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
-  if (body.status && ["done", "completed", "accepted"].includes(body.status) && existingTask.review_required) {
+  if (body.status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(body.status) && existingTask.review_required) {
     const subRes = await db.execute({
       sql: "SELECT 1 FROM venture_task_submissions WHERE task_id = ? AND review_decision = 'approved' ORDER BY version DESC LIMIT 1",
       args: [parseInt(taskId)],

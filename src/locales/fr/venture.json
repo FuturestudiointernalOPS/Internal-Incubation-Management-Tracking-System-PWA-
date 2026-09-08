@@ -301,6 +301,27 @@
       "SESSION_SCHEDULED": "Une session a été planifiée.",
       "COACHING_SCHEDULED": "Une session de coaching a été planifiée.",
       "COACHING_APPROVED": "Votre session de coaching a été confirmée."
+    },
+    "manager": {
+      "duplicateStageConfirm": "Dupliquer l’étape « {name} » ? Les jalons et les tâches seront copiés dans une nouvelle étape indépendante — soumissions, avis et historique ne sont pas copiés.",
+      "duplicateStageSuccess": "Étape dupliquée ({milestones} jalons, {tasks} tâches). La copie démarre verrouillée — activez-la quand vous le souhaitez.",
+      "duplicateStageFailed": "Échec de la duplication.",
+      "duplicateStageTitle": "Dupliquer l’étape (jalons + tâches, structure uniquement)",
+      "duplicateStageBusy": "Duplication en cours…",
+      "milestoneProgress": "{done} jalon(s) sur {total} terminé(s)",
+      "memberVisibilityLocked": "Masqué pour les membres tant qu'il n'est pas activé",
+      "memberVisibilityActive": "Les membres voient cette étape comme leur étape actuelle"
+    },
+    "history": {
+      "title": "Historique de la Venture",
+      "subtitle": "Mémoire institutionnelle — tout ce qui a été enregistré sur cette Venture, en un seul endroit.",
+      "events": "Événements",
+      "reviews": "Avis sur livrables et soumissions",
+      "staffNotes": "Notes internes",
+      "sessionNotes": "Comptes rendus de sessions",
+      "empty": "Rien d’enregistré pour le moment.",
+      "decisionApproved": "Approuvé",
+      "decisionChanges": "Modifications demandées"
     }
   }
 }
