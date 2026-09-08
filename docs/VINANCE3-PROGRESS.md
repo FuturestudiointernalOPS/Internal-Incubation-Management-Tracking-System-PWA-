@@ -196,6 +196,56 @@ missing.
 - Contract tests: `venture-readiness-report`.
 
 ## Deferred follow-ups (product/screen decisions needed)
+- **Follow-up (scope hardening, phase 2 slice):** the task-CRUD PATCH route
+  (`/api/ventures/[id]/tasks` action `add_review`) and the read surfaces
+  `journey-report` / `venture-history` still show Venture-wide data to any
+  staff actor. The `ventureScope.js` gate pattern (`isTaskInScope` +
+  `resolveTaskContext`) is ready to drop into `add_review` when desired;
+  read surfaces were deliberately left unrestricted (reporting layer).
+
+## Items 1–3 of the 1→3 batch — delivered (pending build + user approval)
+
+### 1. Coach-tinted Venture workspace (staff page)
+- `CoachSessionPanel` (new component) renders each session with a
+  "Coached by you" badge when the viewer is the session's coach contact
+  (fallback name match for legacy rows), the operational context line
+  (journey stage · milestone · task, resolved from the /journey and /tasks
+  payloads; unresolved refs degrade gracefully), and a "Session report"
+  expandable that loads the session detail (`get_session`), lists existing
+  session notes, and posts new ones (`add_note`, `note_type: coach_feedback`
+  — a new, non-enforced vocabulary that stores cleanly). Page otherwise
+  untouched; review-queue card left as-is.
+
+### 2. Assignment-scope enforcement (review actions)
+- NEW `src/lib/ventureScope.js`: scope resolution (active assignment rows →
+  normalized scopes; venture-wide/lead_manager reach; task/milestone/
+  journey_stage matching with stringified ids; UUID→VNT-code resolution).
+- Submission REVIEW is now scoped: delegated (non-global) reviewers may only
+  decide submissions whose task is inside an ACTIVE assignment scope — 403
+  outside scope, fail-CLOSED on resolution errors (never over-grant).
+- `review-queue` is scoped the same way (filter then LIMIT 20).
+- Global roles, actors with zero assignment rows (legacy) and venture-wide/
+  lead_manager assignments keep the previous full-Venture behavior
+  byte-identical. Contract tests: `venture-scope-gating.test.js` (27).
+
+### 3. Admin quick wins
+- Milestone and task admin screens: per-row "Duplicate" buttons (confirm →
+  existing `/milestones/duplicate` `/tasks/duplicate` endpoints → toast +
+  refresh); structure-only, history never copied.
+- Sessions admin form: optional Journey Context (stage → milestone → task)
+  selects persisted through the already-capable create_session body
+  (`journey_stage_id`, `milestone_ref`, `task_id`).
+- Reports page: new "Journey" tab rendering the journey-report
+  (overall progression, per-stage milestone progress, overdue/upcoming
+  sessions/support chips).
+- i18n: all new strings via `venture.coach.*`, `vadmin.milestones.*`,
+  `vadmin.tasks.*`, `vadmin.sessions.*`, `vadmin.journey.*`,
+  `vadmin.reports.*` (EN+FR) — parity 0 missing.
+- Regression: 53 suites / 681 tests green (incl. the 27 new scope tests;
+  excluding the 3 pre-existing broken suites). No build/commit/push yet —
+  awaiting manual approval.
+
+## Deferred follow-ups (product/screen decisions needed)
 - Milestone/task duplicate buttons on their admin screens (endpoints live).
 - Journey-context fields in the sessions admin form (API/lib live).
 - Reports page integration of `journey-report` (a "Journey progression"

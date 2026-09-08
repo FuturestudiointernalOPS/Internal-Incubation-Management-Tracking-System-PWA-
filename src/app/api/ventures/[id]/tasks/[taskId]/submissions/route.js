@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db, { initDb } from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  isGlobalRole,
+  resolveVentureCode,
+  getAssignmentScopes,
+  hasVentureWideReach,
+  isTaskInScope,
+  resolveTaskContext,
+} from "@/lib/ventureScope";
 
 /**
  * Task submissions (Phase 2, D5) — founder submits work, staff review it.
@@ -16,6 +24,13 @@ import { requireVentureAccess } from "@/lib/ventureAuth";
  *
  * Append-only: every submission is a new row (version increments). Reviews
  * write on the reviewed submission; history is never overwritten.
+ *
+ * Assignment-scope enforcement (Vinance 3): a delegated (non-global)
+ * reviewer may only review submissions whose task lies inside one of his
+ * ACTIVE assignment scopes for the Venture. Global roles always pass; an
+ * active lead_manager assignment is a Venture-wide pass; actors WITHOUT any
+ * assignment rows keep the legacy behavior. Scope-resolution errors fail
+ * CLOSED (403) so a bug can never over-grant review authority.
  */
 
 const REVIEWER_ROLES = ["staff", "program_manager", "super_admin", "developer", "teacher"];
@@ -105,6 +120,25 @@ export const POST = createHandler(async (req, { params }) => {
   if (body.action === "review") {
     if (!REVIEWER_ROLES.includes(session?.role)) {
       return NextResponse.json({ success: false, error: "Only Future Studio staff can review submissions." }, { status: 403 });
+    }
+    // Assignment-scope gate (Vinance 3): delegated reviewers are confined to
+    // the tasks inside their ACTIVE assignment scopes on this Venture.
+    if (session?.cid && !isGlobalRole(session.role)) {
+      const code = await resolveVentureCode(db, id);
+      const scopes = code ? await getAssignmentScopes(db, { code, cid: session.cid }) : null;
+      let inScope = false;
+      if (scopes === null) {
+        inScope = false; // resolution error → fail closed, never over-grant
+      } else if (scopes.length === 0) {
+        inScope = true; // no assignment rows → legacy behavior unchanged
+      } else if (hasVentureWideReach(scopes)) {
+        inScope = true; // venture_wide or lead_manager → Venture-wide pass
+      } else {
+        inScope = isTaskInScope(scopes, await resolveTaskContext(db, task));
+      }
+      if (!inScope) {
+        return NextResponse.json({ success: false, error: "This review is outside your assigned scope." }, { status: 403 });
+      }
     }
     const submissionId = parseInt(body.submission_id);
     const decision = body.decision;

@@ -43,7 +43,12 @@ export default function VentureSessionsPage() {
   const [filter, setFilter] = useState("upcoming");
 
   // Form
-  const [sForm, setSForm] = useState({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false });
+  const [sForm, setSForm] = useState({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false, journey_stage_id: "", milestone_ref: "", task_id: "" });
+
+  // Journey context reference data for the create form (stage -> milestone -> task)
+  const [journeyStages, setJourneyStages] = useState([]);
+  const [milestoneOptions, setMilestoneOptions] = useState([]);
+  const [taskOptions, setTaskOptions] = useState([]);
 
   // Notes
   const [noteText, setNoteText] = useState("");
@@ -94,16 +99,63 @@ export default function VentureSessionsPage() {
     } catch {}
   };
 
+  // Stage/milestone/task pickers load when the create modal opens so they
+  // reflect the latest journey structure (Super Admin sees all stages incl.
+  // locked ones — the staff authoring view).
+  const loadJourneyContext = async () => {
+    try {
+      const [jRes, mRes, tRes] = await Promise.all([
+        fetch(`/api/ventures/${id}/journey`),
+        fetch(`/api/ventures/${id}/milestones`),
+        fetch(`/api/ventures/${id}/tasks`),
+      ]);
+      const j = await jRes.json(); const m = await mRes.json(); const t = await tRes.json();
+      if (j.success) setJourneyStages(j.stages || []);
+      if (m.success) setMilestoneOptions(m.milestones || []);
+      if (t.success) setTaskOptions(t.tasks || []);
+    } catch {}
+  };
+
+  const stageStatusLabel = (status) =>
+    status === "completed" ? t("vadmin.journey.statusCompleted")
+    : status === "active" ? t("vadmin.journey.statusActive")
+    : t("vadmin.journey.statusLocked");
+
+  const openCreateModal = () => {
+    // Fresh journey context each time (options may have changed since last open).
+    setSForm((p) => ({ ...p, journey_stage_id: "", milestone_ref: "", task_id: "" }));
+    setShowCreateModal(true);
+    loadJourneyContext();
+  };
+
+  // Milestones bound to the selected Journey stage (unbound legacy rows are
+  // skipped), then tasks bound to the selected milestone (milestone_id may be
+  // TEXT — always compare stringified).
+  const stageMilestones = sForm.journey_stage_id
+    ? milestoneOptions.filter((m) => String(m.journey_stage_id) === String(sForm.journey_stage_id))
+    : [];
+  const milestoneTasks = sForm.milestone_ref
+    ? taskOptions.filter((tk) => String(tk.milestone_id) === String(sForm.milestone_ref))
+    : [];
+
+  const RESET_SFORM = { title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false, journey_stage_id: "", milestone_ref: "", task_id: "" };
+
   const createNewSession = async () => {
     if (!sForm.title.trim() || !sForm.start_time || !sForm.end_time) { notify(t("vadmin.sessions.titleStartEndRequired"), "error"); return; }
     setSaving(true);
     try {
       const res = await fetch(`/api/ventures/${id}/sessions`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create_session", ...sForm, coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null }),
+        body: JSON.stringify({
+          action: "create_session", ...sForm,
+          journey_stage_id: sForm.journey_stage_id || null,
+          milestone_ref: sForm.milestone_ref || null,
+          task_id: sForm.task_id ? parseInt(sForm.task_id) : null,
+          coach_id: sForm.coach_id ? parseInt(sForm.coach_id) : null,
+        }),
       });
       const d = await res.json();
-      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ title: "", session_type: "coaching", coach_id: "", start_time: "", end_time: "", meeting_link: "", description: "", venture_facing: false }); fetchAll(true); }
+      if (d.success) { notify(t("vadmin.sessions.sessionCreated")); setShowCreateModal(false); setSForm({ ...RESET_SFORM }); fetchAll(true); }
       else notify(t((d.error || t("vadmin.sessions.failed")) || "") || (d.error || t("vadmin.sessions.failed")), "error");
     } catch { notify(t("vadmin.sessions.networkError"), "error"); }
     setSaving(false);
@@ -158,7 +210,7 @@ export default function VentureSessionsPage() {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">{venture?.company_name||""} · {t("vadmin.sessions.upcomingCount", { count: upcoming.length })}</p>
           </div>
-          <button onClick={()=>setShowCreateModal(true)} className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
+          <button onClick={()=>openCreateModal()} className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2">
             <Plus className="w-3.5 h-3.5" /> {t("vadmin.sessions.scheduleSession")}
           </button>
         </div>
@@ -219,7 +271,7 @@ export default function VentureSessionsPage() {
       {/* ── Create Session Modal ── */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6">
+          <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.sessions.scheduleSession")}</h2>
               <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
@@ -264,6 +316,44 @@ export default function VentureSessionsPage() {
               <div>
                 <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.description")}</label>
                 <textarea value={sForm.description} onChange={(e)=>setSForm((p)=>({...p,description:e.target.value}))} rows={2} className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none resize-none" />
+              </div>
+              {/* Journey context: optional stage/milestone/task links for this session */}
+              <div className="rounded-xl border border-[var(--border-primary)] bg-primary p-3 space-y-3">
+                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">{t("vadmin.sessions.journeyContext")}</p>
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.journeyStage")}</label>
+                  {journeyStages.length === 0 ? (
+                    <p className="text-[9px] text-slate-500">{t("vadmin.sessions.noJourneyStages")}</p>
+                  ) : (
+                    <select value={sForm.journey_stage_id} onChange={(e)=>{ setSForm((p)=>({ ...p, journey_stage_id: e.target.value, milestone_ref: "", task_id: "" })); }}
+                      className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none">
+                      <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
+                      {journeyStages.map((s)=>(
+                        <option key={s.id} value={s.id}>{s.name} ({stageStatusLabel(s.status)})</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.milestone")}</label>
+                  <select value={sForm.milestone_ref} disabled={!sForm.journey_stage_id} onChange={(e)=>{ setSForm((p)=>({ ...p, milestone_ref: e.target.value, task_id: "" })); }}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none disabled:opacity-40">
+                    <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
+                    {stageMilestones.map((m)=>(
+                      <option key={m.id} value={String(m.id)}>{m.title}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 block">{t("vadmin.sessions.task")}</label>
+                  <select value={sForm.task_id} disabled={!sForm.milestone_ref} onChange={(e)=>setSForm((p)=>({...p,task_id:e.target.value}))}
+                    className="w-full bg-primary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none disabled:opacity-40">
+                    <option value="">{t("vadmin.sessions.selectPlaceholder")}</option>
+                    {milestoneTasks.map((tk)=>(
+                      <option key={tk.id} value={tk.id}>{tk.title}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <label className="flex items-start gap-2.5 cursor-pointer select-none rounded-xl border border-[var(--border-primary)] bg-primary px-4 py-3">
                 <input type="checkbox" checked={!!sForm.venture_facing} onChange={(e)=>setSForm((p)=>({...p,venture_facing:e.target.checked}))} className="mt-0.5" />

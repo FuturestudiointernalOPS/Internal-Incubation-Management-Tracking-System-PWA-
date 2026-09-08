@@ -639,7 +639,10 @@
       "deliverableTitleRequired": "Deliverable title required",
       "deliverableCreated": "Deliverable created",
       "deliverableSubmitted": "Deliverable submitted for review",
-      "deliverableDecision": "Deliverable {decision}"
+      "deliverableDecision": "Deliverable {decision}",
+      "duplicate": "Duplicate",
+      "duplicateConfirm": "Duplicate milestone \"{name}\"? The milestone and its tasks are copied into a new independent milestone — submissions, reviews and history are not copied.",
+      "duplicateSuccess": "Milestone duplicated ({tasks} tasks)."
     },
     "reports": {
       "backToDashboard": "Back to Dashboard",
@@ -694,7 +697,15 @@
       "blockedCount": "{count} blocked",
       "overdueCount": "{count} overdue",
       "estimatedHours": "{hours}h estimated",
-      "workloadDistribution": "Workload Distribution"
+      "workloadDistribution": "Workload Distribution",
+      "tabJourney": "Journey",
+      "journeyProgression": "Journey Progression",
+      "journeyCompleteOf": "{done} of {total} journeys complete",
+      "milestonesFraction": "{done}/{total} milestones",
+      "upcomingSessions": "Upcoming Sessions",
+      "support": "Support",
+      "noJourneyData": "No journey defined yet — create stages in the Venture Journey.",
+      "journeyLoadFailed": "Could not load the journey report."
     },
     "tasks": {
       "backToDashboard": "Back to Dashboard",
@@ -748,7 +759,10 @@
       "taskUpdated": "Task updated",
       "taskCreated": "Task created",
       "saveError": "Error saving task",
-      "commentFailed": "Failed to add comment"
+      "commentFailed": "Failed to add comment",
+      "duplicate": "Duplicate",
+      "duplicateConfirm": "Duplicate task \"{name}\"? A fresh backlog copy is created — submissions, reviews and history are not copied.",
+      "duplicateSuccess": "Task duplicated"
     },
     "timeline": {
       "backToDashboard": "Back to Dashboard",
@@ -995,7 +1009,17 @@
       "statusCompleted": "Completed",
       "statusCancelled": "Cancelled",
       "statusRescheduled": "Rescheduled",
-      "statusNoShow": "No Show"
+      "statusNoShow": "No Show",
+      "journeyContext": "Journey Context",
+      "journeyStage": "Journey Stage",
+      "milestone": "Milestone",
+      "task": "Task",
+      "noJourneyStages": "No journey stages yet"
+    },
+    "journey": {
+      "statusLocked": "Locked",
+      "statusActive": "Active",
+      "statusCompleted": "Completed"
     }
   }
 }

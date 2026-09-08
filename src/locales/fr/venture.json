@@ -364,7 +364,17 @@
       "currentJourney": "Parcours actuel",
       "failed": "Impossible de charger le rapport d'exploitation."
     },
-    "history": {
+    "coach": {
+      "mySessionsBadge": "Animé par vous",
+      "reportAction": "Compte rendu de séance",
+      "reportNotes": "Notes de séance",
+      "reportEmpty": "Aucune note de séance pour l'instant.",
+      "reportPlaceholder": "Rédigez votre note de séance…",
+      "reportSave": "Enregistrer la note",
+      "reportLoadError": "Impossible de charger le compte rendu de séance.",
+      "reportSaveError": "Impossible d'enregistrer votre note.",
+      "contextTask": "Tâche"
+    },    "history": {
       "title": "Historique de la Venture",
       "subtitle": "Mémoire institutionnelle — tout ce qui a été enregistré sur cette Venture, en un seul endroit.",
       "events": "Événements",

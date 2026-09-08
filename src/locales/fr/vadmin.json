@@ -639,7 +639,10 @@
       "deliverableTitleRequired": "Le titre du livrable est requis",
       "deliverableCreated": "Livrable créé",
       "deliverableSubmitted": "Livrable soumis pour examen",
-      "deliverableDecision": "Livrable {decision}"
+      "deliverableDecision": "Livrable {decision}",
+      "duplicate": "Dupliquer",
+      "duplicateConfirm": "Dupliquer le jalon « {name} » ? Le jalon et ses tâches seront copiés dans un nouveau jalon indépendant — soumissions, avis et historique ne sont pas copiés.",
+      "duplicateSuccess": "Jalon dupliqué ({tasks} tâches)."
     },
     "reports": {
       "backToDashboard": "Retour au tableau de bord",
@@ -694,7 +697,15 @@
       "blockedCount": "{count} bloquées",
       "overdueCount": "{count} en retard",
       "estimatedHours": "{hours}h estimées",
-      "workloadDistribution": "Répartition de la charge de travail"
+      "workloadDistribution": "Répartition de la charge de travail",
+      "tabJourney": "Parcours",
+      "journeyProgression": "Progression du parcours",
+      "journeyCompleteOf": "{done} parcours sur {total} terminés",
+      "milestonesFraction": "{done}/{total} jalons",
+      "upcomingSessions": "Sessions à venir",
+      "support": "Support",
+      "noJourneyData": "Aucun parcours défini pour le moment — créez des étapes dans le parcours de la Venture.",
+      "journeyLoadFailed": "Impossible de charger le rapport de parcours."
     },
     "tasks": {
       "backToDashboard": "Retour au tableau de bord",
@@ -748,7 +759,10 @@
       "taskUpdated": "Tâche mise à jour",
       "taskCreated": "Tâche créée",
       "saveError": "Erreur lors de l'enregistrement de la tâche",
-      "commentFailed": "Échec de l'ajout du commentaire"
+      "commentFailed": "Échec de l'ajout du commentaire",
+      "duplicate": "Dupliquer",
+      "duplicateConfirm": "Dupliquer la tâche « {name} » ? Une nouvelle copie en backlog sera créée — soumissions, avis et historique ne sont pas copiés.",
+      "duplicateSuccess": "Tâche dupliquée"
     },
     "timeline": {
       "backToDashboard": "Retour au tableau de bord",
@@ -995,7 +1009,17 @@
       "statusCompleted": "Terminée",
       "statusCancelled": "Annulée",
       "statusRescheduled": "Reportée",
-      "statusNoShow": "Absence"
+      "statusNoShow": "Absence",
+      "journeyContext": "Contexte du parcours",
+      "journeyStage": "Étape du parcours",
+      "milestone": "Jalon",
+      "task": "Tâche",
+      "noJourneyStages": "Aucune étape de parcours pour le moment"
+    },
+    "journey": {
+      "statusLocked": "Verrouillée",
+      "statusActive": "Active",
+      "statusCompleted": "Terminée"
     }
   }
 }

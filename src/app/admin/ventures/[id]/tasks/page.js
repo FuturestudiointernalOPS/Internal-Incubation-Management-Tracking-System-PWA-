@@ -5,9 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Trash2, Edit3,
   Calendar, Clock, User, Paperclip, MessageCircle, Flag, ChevronDown, ChevronRight,
-  List, Columns, LayoutGrid, Circle, Square,
+  List, Columns, LayoutGrid, Circle, Square, CopyPlus,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 const STATUS_ORDER = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
 
@@ -26,6 +27,7 @@ const PRIORITY_CFG = { low: "text-slate-500", medium: "text-blue-400", high: "te
 export default function VentureTasksPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [tasks, setTasks] = useState([]);
   const [byStatus, setByStatus] = useState({});
@@ -43,6 +45,7 @@ export default function VentureTasksPage() {
   const [editTask, setEditTask] = useState(null);
   const [tForm, setTForm] = useState({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
   const [saving, setSaving] = useState(false);
+  const [dupBusy, setDupBusy] = useState(null);
 
   // Comment input
   const [commentText, setCommentText] = useState("");
@@ -112,6 +115,23 @@ export default function VentureTasksPage() {
       });
       fetchData(true);
     } catch {}
+  };
+
+  // Duplicate a task as an independent structure copy (same milestone binding,
+  // fresh backlog copy; submissions/reviews/history stay with the source).
+  const duplicateTask = async (task) => {
+    if (!window.confirm(t("vadmin.tasks.duplicateConfirm", { name: task.title }))) return;
+    setDupBusy(task.id);
+    try {
+      const res = await fetch(`/api/ventures/${id}/tasks/duplicate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ task_id: task.id }),
+      });
+      const data = await res.json();
+      if (data.success) { notify(t("vadmin.tasks.duplicateSuccess")); fetchData(true); }
+      else notify(data.error || t("venture.manager.duplicateStageFailed"), "error");
+    } catch { notify(t("venture.manager.duplicateStageFailed"), "error"); }
+    setDupBusy(null);
   };
 
   const handleDragStart = (e, taskId) => {
@@ -270,6 +290,11 @@ export default function VentureTasksPage() {
                           <div className="flex items-center gap-2 mt-2 text-[7px] text-slate-600">
                             {task.assigned_name && <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{task.assigned_name}</span>}
                             {task.due_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{new Date(task.due_date).toLocaleDateString()}</span>}
+                            <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
+                              title={t("vadmin.tasks.duplicate")}
+                              className="ml-auto p-1 text-slate-500 hover:text-sky-300 rounded disabled:opacity-40">
+                              {dupBusy === task.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CopyPlus className="w-3 h-3" />}
+                            </button>
                           </div>
                           {(task.checklist || []).length > 0 && (
                             <div className="mt-2">
@@ -309,6 +334,11 @@ export default function VentureTasksPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
+                        title={t("vadmin.tasks.duplicate")}
+                        className="p-1.5 text-slate-500 hover:text-sky-300 rounded-lg disabled:opacity-40">
+                        {dupBusy === task.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
+                      </button>
                       <span className={`text-[7px] font-black uppercase px-1.5 py-0.5 rounded ${sc.color}`}>{sc.label}</span>
                       {task.due_date && <span className="text-[8px] text-slate-500">{new Date(task.due_date).toLocaleDateString()}</span>}
                     </div>

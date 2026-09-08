@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Trash2, Edit3,
   Flag, Calendar, Clock, User, Paperclip, Send, ChevronDown, ChevronRight, FileText,
-  BookOpen, BarChart3, Layers,
+  BookOpen, BarChart3, Layers, CopyPlus,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -50,6 +50,7 @@ export default function VentureMilestonesPage() {
   const [dForm, setDForm] = useState({ title: "", description: "", deliverable_type: "document", due_date: "", assigned_cid: "" });
   const [reviewForm, setReviewForm] = useState({ decision: "approved", comments: "" });
   const [saving, setSaving] = useState(false);
+  const [dupBusy, setDupBusy] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -122,6 +123,27 @@ export default function VentureMilestonesPage() {
       if (data.success) { notify(t("vadmin.milestones.statusUpdated", { status })); fetchData(true); }
       else notify(t((data.error || t("vadmin.milestones.failed")) || "") || (data.error || t("vadmin.milestones.failed")), "error");
     } catch { notify(t("vadmin.milestones.networkError"), "error"); }
+  };
+
+  // Duplicate a milestone as an independent structure copy (keeps its Journey
+  // stage binding + tasks; submissions/reviews/history stay with the source).
+  const duplicateMilestone = async (milestone) => {
+    if (!window.confirm(t("vadmin.milestones.duplicateConfirm", { name: milestone.title }))) return;
+    setDupBusy(milestone.id);
+    try {
+      const res = await fetch(`/api/ventures/${id}/milestones/duplicate`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ milestone_id: milestone.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        notify(t("vadmin.milestones.duplicateSuccess", { tasks: data.tasks_copied || 0 }));
+        fetchData(true);
+      } else {
+        notify(data.error || t("venture.manager.duplicateStageFailed"), "error");
+      }
+    } catch { notify(t("venture.manager.duplicateStageFailed"), "error"); }
+    setDupBusy(null);
   };
 
   const createDeliverable = async () => {
@@ -275,6 +297,11 @@ export default function VentureMilestonesPage() {
                         className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none">
                         {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                       </select>
+                      <button onClick={() => duplicateMilestone(m)} disabled={dupBusy === m.id}
+                        title={t("vadmin.milestones.duplicate")}
+                        className="p-1.5 bg-primary text-slate-500 rounded-lg hover:text-sky-300 disabled:opacity-40">
+                        {dupBusy === m.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
+                      </button>
                       <button onClick={() => { setSelectedMilestone(m.id); setShowDelModal(true); }}
                         className="p-1.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-lg hover:brightness-110">
                         <Plus className="w-3.5 h-3.5" />

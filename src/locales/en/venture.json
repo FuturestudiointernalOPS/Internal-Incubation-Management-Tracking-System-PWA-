@@ -364,7 +364,17 @@
       "currentJourney": "Current journey",
       "failed": "Could not load the operating report."
     },
-    "history": {
+    "coach": {
+      "mySessionsBadge": "Coached by you",
+      "reportAction": "Session report",
+      "reportNotes": "Session notes",
+      "reportEmpty": "No session notes yet.",
+      "reportPlaceholder": "Write your session note…",
+      "reportSave": "Save note",
+      "reportLoadError": "Could not load the session report.",
+      "reportSaveError": "Could not save your note.",
+      "contextTask": "Task"
+    },    "history": {
       "title": "Venture History",
       "subtitle": "Institutional memory — everything recorded about this Venture, in one place.",
       "events": "Events",

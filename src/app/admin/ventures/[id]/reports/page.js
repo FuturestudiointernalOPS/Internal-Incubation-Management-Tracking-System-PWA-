@@ -4,19 +4,26 @@ import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Download,
-  BarChart3, RefreshCw, TrendingUp, Clock, Users, Target,Activity,
+  BarChart3, RefreshCw, TrendingUp, Clock, Users, Target, Activity, Route,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 export default function VentureReportsPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
-  useEffect(() => { fetchData(); }, []);
+  // Journey progression report (independent fetch — graceful degradation).
+  const [journeyReport, setJourneyReport] = useState(null);
+  const [jrLoading, setJrLoading] = useState(false);
+  const [jrError, setJrError] = useState(false);
+
+  useEffect(() => { fetchData(); fetchJourneyReport(); }, []);
 
   const fetchData = async (bypassCache = false) => {
     const urls = [
@@ -76,6 +83,17 @@ export default function VentureReportsPage() {
   const [tasks, setTasks] = useState([]);
   const [team, setTeam] = useState([]);
 
+  const fetchJourneyReport = async () => {
+    setJrLoading(true);
+    try {
+      const res = await fetch(`/api/ventures/${id}/journey-report`);
+      const d = await res.json();
+      if (d.success) { setJourneyReport(d.journey_report || null); setJrError(false); }
+      else setJrError(true);
+    } catch { setJrError(true); }
+    finally { setJrLoading(false); }
+  };
+
   const handleExport = async (format) => {
     try {
       const res = await fetch(`/api/ventures/${id}/reports?type=export&format=${format}&export_type=tasks`);
@@ -104,6 +122,16 @@ export default function VentureReportsPage() {
       <div className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
+
+  const stageStatusLabel = (status) =>
+    status === "completed" ? t("vadmin.journey.statusCompleted")
+    : status === "active" ? t("vadmin.journey.statusActive")
+    : t("vadmin.journey.statusLocked");
+
+  const journeyStagePill = (status) =>
+    status === "completed" ? "bg-emerald-500/10 text-emerald-400"
+    : status === "active" ? "bg-blue-500/10 text-blue-400"
+    : "bg-slate-500/10 text-slate-400";
 
   if (loading) return (
     <>
@@ -134,7 +162,7 @@ export default function VentureReportsPage() {
             <button onClick={() => handleExport("csv")} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <Download className="w-3 h-3" /> CSV
             </button>
-            <button onClick={fetchData} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
+            <button onClick={() => { fetchData(true); fetchJourneyReport(); }} className="px-3 py-2 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wider hover:bg-tertiary transition-all flex items-center gap-1.5">
               <RefreshCw className="w-3 h-3" /> Refresh
             </button>
           </div>
@@ -148,6 +176,7 @@ export default function VentureReportsPage() {
             { id: "milestones", label: "Milestones", icon: Target },
             { id: "tasks", label: "Tasks", icon: Activity },
             { id: "team", label: "Productivity", icon: Users },
+            { id: "journey", label: t("vadmin.reports.tabJourney"), icon: Route },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -351,6 +380,57 @@ export default function VentureReportsPage() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Journey Progression Tab */}
+        {activeTab === "journey" && (
+          <div className="card">
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-4">{t("vadmin.reports.journeyProgression")}</h3>
+            {jrLoading && !journeyReport ? (
+              <div className="flex items-center justify-center py-10"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div>
+            ) : jrError ? (
+              <p className="text-sm text-[var(--text-secondary)] text-center py-8">{t("vadmin.reports.journeyLoadFailed")}</p>
+            ) : !journeyReport || (journeyReport.stages || []).length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)] text-center py-8">{t("vadmin.reports.noJourneyData")}</p>
+            ) : (() => {
+              const jp = journeyReport.journey_progression || {};
+              const overdueCount = (journeyReport.overdue || []).length;
+              const upcomingSessions = journeyReport.sessions?.upcoming || 0;
+              const responsibilities = journeyReport.support?.responsibilities || [];
+              return (
+                <>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-[var(--text-primary)]">
+                      {t("vadmin.reports.journeyCompleteOf", { done: jp.completed || 0, total: jp.total || 0 })}
+                      <span className="text-[var(--text-secondary)]"> · {jp.progress_pct || 0}%</span>
+                    </p>
+                  </div>
+                  {progressBar(jp.progress_pct || 0)}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+                    {kpiCard(t("vadmin.reports.kpiOverdue"), overdueCount)}
+                    {kpiCard(t("vadmin.reports.upcomingSessions"), upcomingSessions)}
+                    {kpiCard(t("vadmin.reports.support"), responsibilities.length, responsibilities.length ? responsibilities.join(", ") : "—")}
+                  </div>
+                  <div className="space-y-3 mt-6 pt-6 border-t border-[var(--border-primary)]">
+                    {(journeyReport.stages || []).map((st) => (
+                      <div key={st.id} className="p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{st.name}</span>
+                            <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${journeyStagePill(st.status)}`}>{stageStatusLabel(st.status)}</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-[var(--text-secondary)] shrink-0">
+                            {t("vadmin.reports.milestonesFraction", { done: st.milestones?.completed || 0, total: st.milestones?.total || 0 })} · {st.milestones?.progress_pct || 0}%
+                          </span>
+                        </div>
+                        {progressBar(st.milestones?.progress_pct || 0)}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

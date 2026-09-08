@@ -7,6 +7,7 @@ import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
+import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -27,6 +28,13 @@ export default function StaffVentureWorkspace() {
   const [sessions, setSessions] = useState([]);
   const [reviewQueue, setReviewQueue] = useState([]);
   const [queueLoading, setQueueLoading] = useState(true);
+  // Coach tint: who is viewing, and title maps used to render each session's
+  // operational context (Journey stage · milestone · task) in the Sessions pane.
+  const [myCid, setMyCid] = useState(null);
+  const [myName, setMyName] = useState("");
+  const [stageNameById, setStageNameById] = useState({});
+  const [milestoneTitleById, setMilestoneTitleById] = useState({});
+  const [taskTitleById, setTaskTitleById] = useState({});
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -81,7 +89,11 @@ export default function StaffVentureWorkspace() {
         setMyRoles((roles.assignments || []).filter((r) => r.venture_id === id));
         setMembers((m.members || m.rows || []));
         setMilestones((ms.milestones || []).slice(0, 8));
-        setTasks((tk.tasks || []).slice(0, 8));
+        const fullTasks = tk.tasks || [];
+        setTasks(fullTasks.slice(0, 8));
+        const taskMap = {};
+        for (const x of fullTasks) if (x.id != null && x.title) taskMap[String(x.id)] = x.title;
+        setTaskTitleById(taskMap);
         setSessions((s.sessions || s.coaching_sessions || []).slice(0, 8));
         loadReviewQueue();
       } catch (e) {
@@ -90,6 +102,53 @@ export default function StaffVentureWorkspace() {
       } finally {
         setLoading(false);
       }
+    })();
+  }, [id]);
+
+  // Coach tint: the viewer's contact id (localStorage fallback first, then the
+  // authoritative session endpoint) decides which sessions show "Coached by you".
+  useEffect(() => {
+    let known = false;
+    try {
+      const saved = JSON.parse(localStorage.getItem("user") || "null");
+      if (saved && saved.cid) {
+        setMyCid(String(saved.cid));
+        setMyName(saved.name || "");
+        known = true;
+      }
+    } catch (_) {}
+    if (known) return;
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.authenticated && d.user) {
+          setMyCid(String(d.user.cid || d.user.id || ""));
+          setMyName(d.user.full_name || d.user.name || "");
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Coach tint: the sessions list payload carries only soft context ids, so
+  // Journey stage/milestone titles come from the same journey read the
+  // JourneyManager uses (names are never invented client-side).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/ventures/${id}/journey`);
+        const d = await res.json();
+        if (!d.success || !Array.isArray(d.stages)) return;
+        const stageMap = {};
+        const milestoneMap = {};
+        for (const st of d.stages) {
+          if (st.id) stageMap[String(st.id)] = st.name;
+          for (const m of st.milestones || []) {
+            if (m.id && m.title) milestoneMap[String(m.id)] = m.title;
+          }
+        }
+        setStageNameById(stageMap);
+        setMilestoneTitleById(milestoneMap);
+      } catch (_) {}
     })();
   }, [id]);
 
@@ -246,12 +305,16 @@ export default function StaffVentureWorkspace() {
           ) : (
             <div className="space-y-2">
               {sessions.map((s) => (
-                <div key={s.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <div>
-                    <p className="text-xs font-medium text-[var(--text-primary)]">{s.advisor_name || s.title || "Session"}</p>
-                    {s.session_date && <p className="text-[10px] text-slate-500">{new Date(s.session_date).toLocaleDateString()}{s.start_time ? ` at ${s.start_time}` : ""}</p>}
-                  </div>
-                </div>
+                <CoachSessionPanel
+                  key={s.id}
+                  session={s}
+                  ventureId={id}
+                  myCid={myCid}
+                  myName={myName}
+                  stageNameById={stageNameById}
+                  milestoneTitleById={milestoneTitleById}
+                  taskTitleById={taskTitleById}
+                />
               ))}
             </div>
           )}
