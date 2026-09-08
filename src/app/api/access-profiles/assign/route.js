@@ -1,7 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import { requireAuthorization, assertTemplateCapsEligible, invalidateAuthorizationContext } from "@/lib/authorization";
+import {
+  getContactForAssignment,
+  getActiveAccessProfile,
+  getUserGroupNames,
+  assignUserAccessProfile,
+  clearUserAccessProfileOverride,
+  getRoleDefaultProfileName,
+  getContactAssignmentState,
+  getAccessProfileSummary,
+  getRoleDefaultAccessProfile,
+} from "@/models/authorization";
 
 /**
  * PUT /api/access-profiles/assign
@@ -26,10 +37,7 @@ export async function PUT(req) {
     }
 
     // Verify user exists
-    const user = await db.execute({
-      sql: "SELECT cid, name, role, access_profile_id FROM contacts WHERE cid = ?",
-      args: [user_cid],
-    });
+    const user = await getContactForAssignment(user_cid);
     if (user.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found" },
@@ -41,10 +49,7 @@ export async function PUT(req) {
 
     // If profile_id is provided, verify it exists
     if (profile_id) {
-      const profile = await db.execute({
-        sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-        args: [profile_id],
-      });
+      const profile = await getActiveAccessProfile(profile_id);
       if (profile.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Access profile not found or inactive" },
@@ -55,12 +60,9 @@ export async function PUT(req) {
       // Phase 2: eligibility is the boundary — a template assigned to a
       // person must never grant capabilities the person's identity is not
       // eligible for.
-      const groups = (
-        await db.execute({
-          sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
-          args: [user_cid],
-        })
-      ).rows.map((r) => r.group_name);
+      const groups = (await getUserGroupNames(user_cid)).rows.map(
+        (r) => r.group_name,
+      );
       const { valid, violations } = await assertTemplateCapsEligible({
         role: user.rows[0].role,
         groups,
@@ -77,10 +79,7 @@ export async function PUT(req) {
         );
       }
 
-      await db.execute({
-        sql: "UPDATE contacts SET access_profile_id = ? WHERE cid = ?",
-        args: [profile_id, user_cid],
-      });
+      await assignUserAccessProfile(profile_id, user_cid);
 
       await logPermissionAudit({
         actorCid: session?.cid,
@@ -100,18 +99,10 @@ export async function PUT(req) {
     }
 
     // Remove override
-    await db.execute({
-      sql: "UPDATE contacts SET access_profile_id = NULL WHERE cid = ?",
-      args: [user_cid],
-    });
+    await clearUserAccessProfileOverride(user_cid);
 
     // Get the role default that will now apply
-    const roleDefault = await db.execute({
-      sql: `SELECT ap.name FROM role_access_profile_defaults rpd
-            JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-            WHERE rpd.role_name = ?`,
-      args: [user.rows[0].role],
-    });
+    const roleDefault = await getRoleDefaultProfileName(user.rows[0].role);
 
     await logPermissionAudit({
       actorCid: session?.cid,
@@ -158,10 +149,7 @@ export async function GET(req) {
       );
     }
 
-    const user = await db.execute({
-      sql: "SELECT cid, name, role, access_profile_id FROM contacts WHERE cid = ?",
-      args: [userCid],
-    });
+    const user = await getContactAssignmentState(userCid);
     if (user.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "User not found" },
@@ -174,10 +162,7 @@ export async function GET(req) {
     // Get explicitly assigned profile
     let assignedProfile = null;
     if (u.access_profile_id) {
-      const profile = await db.execute({
-        sql: "SELECT id, name FROM access_profiles WHERE id = ?",
-        args: [u.access_profile_id],
-      });
+      const profile = await getAccessProfileSummary(u.access_profile_id);
       if (profile.rows.length > 0) {
         assignedProfile = { id: profile.rows[0].id, name: profile.rows[0].name };
       }
@@ -185,12 +170,7 @@ export async function GET(req) {
 
     // Get role default profile
     let roleDefault = null;
-    const roleDef = await db.execute({
-      sql: `SELECT ap.id, ap.name FROM role_access_profile_defaults rpd
-            JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-            WHERE rpd.role_name = ?`,
-      args: [u.role],
-    });
+    const roleDef = await getRoleDefaultAccessProfile(u.role);
     if (roleDef.rows.length > 0) {
       roleDefault = { id: roleDef.rows[0].id, name: roleDef.rows[0].name };
     }

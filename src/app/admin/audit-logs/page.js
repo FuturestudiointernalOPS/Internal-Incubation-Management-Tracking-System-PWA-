@@ -62,6 +62,7 @@ export default function AuditLogsPage() {
   const fetchLogs = useCallback(async (bypassCache = false) => {
     setLoading(true);
     setError(null);
+    let painted = false;
     try {
       const params = new URLSearchParams();
       if (filters.event_type) params.set("event_type", filters.event_type);
@@ -71,7 +72,6 @@ export default function AuditLogsPage() {
 
       const logsUrl = `/api/audit-logs?${params}`;
       const statsUrl = "/api/audit-logs?type=stats&hours=24";
-      let painted = false;
       const apply = (logsData, statsData) => {
         if (logsData.success) {
           setLogs(logsData.logs || []);

@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
@@ -12,6 +12,14 @@ import {
   MODULE_TO_FEATURE,
   validateEligibilityChanges,
 } from "@/lib/authorization";
+import {
+  listFeatureEligibilityRows,
+  listDistinctUserGroupNames,
+  listDistinctContactGroupNames,
+  getEligibilityRow,
+  deleteEligibilityRow,
+  upsertEligibilityRow,
+} from "@/models/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -36,12 +44,7 @@ export const dynamic = "force-dynamic";
  */
 
 async function fetchAllRows() {
-  const r = await db.execute({
-    sql: `SELECT feature_key, identity_type, identity_value, eligible
-          FROM feature_eligibility
-          ORDER BY feature_key, identity_type, identity_value`,
-    args: [],
-  });
+  const r = await listFeatureEligibilityRows();
   return r.rows;
 }
 
@@ -59,14 +62,8 @@ export async function GET() {
 
     // Distinct groups from user_groups + contacts.group_name fallback.
     const groupsRes = await Promise.all([
-      db.execute({
-        sql: "SELECT DISTINCT group_name FROM user_groups WHERE group_name IS NOT NULL AND group_name != ''",
-        args: [],
-      }),
-      db.execute({
-        sql: "SELECT DISTINCT group_name FROM contacts WHERE group_name IS NOT NULL AND group_name != ''",
-        args: [],
-      }),
+      listDistinctUserGroupNames(),
+      listDistinctContactGroupNames(),
     ]);
     const groups = [
       ...new Set(
@@ -125,29 +122,27 @@ export async function PUT(req) {
     for (const c of normalized) {
       // Read the previous value for the audit trail.
       const prev = (
-        await db.execute({
-          sql: `SELECT eligible FROM feature_eligibility
-                WHERE feature_key = ? AND identity_type = ? AND identity_value = ?`,
-          args: [c.feature_key, c.identity_type, c.identity_value],
-        })
+        await getEligibilityRow(
+          c.feature_key,
+          c.identity_type,
+          c.identity_value,
+        )
       ).rows[0];
       const prevValue = prev ? Number(prev.eligible) : null;
 
       if (c.eligible === null) {
-        await db.execute({
-          sql: `DELETE FROM feature_eligibility
-                WHERE feature_key = ? AND identity_type = ? AND identity_value = ?`,
-          args: [c.feature_key, c.identity_type, c.identity_value],
-        });
+        await deleteEligibilityRow(
+          c.feature_key,
+          c.identity_type,
+          c.identity_value,
+        );
       } else {
-        await db.execute({
-          sql: `INSERT INTO feature_eligibility
-                  (feature_key, identity_type, identity_value, eligible)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (feature_key, identity_type, identity_value)
-                DO UPDATE SET eligible = EXCLUDED.eligible`,
-          args: [c.feature_key, c.identity_type, c.identity_value, c.eligible],
-        });
+        await upsertEligibilityRow(
+          c.feature_key,
+          c.identity_type,
+          c.identity_value,
+          c.eligible,
+        );
       }
 
       const session = await getSession();

@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import {
@@ -13,6 +13,14 @@ import {
   getMembership,
   isGroupProtected,
 } from "@/lib/authorization/membership";
+import {
+  listMemberships,
+  listMembershipEvents,
+  updateMembershipStatus,
+  insertMembership,
+  syncMembershipUserGroup,
+  insertMembershipEvent,
+} from "@/models/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -69,17 +77,7 @@ export async function GET(req) {
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const memberships = (
-      await db.execute({
-        sql: `SELECT gm.user_cid, gm.group_name, gm.started_at, gm.expires_at,
-                     gm.status, c.name, c.email, c.role, c.status AS account_status
-              FROM group_memberships gm
-              LEFT JOIN contacts c ON c.cid = gm.user_cid
-              ${whereSql}
-              ORDER BY gm.group_name, gm.user_cid`,
-        args,
-      })
-    ).rows;
+    const memberships = (await listMemberships(whereSql, args)).rows;
 
     let events = [];
     if (withHistory) {
@@ -94,19 +92,7 @@ export async function GET(req) {
         evArgs.push(userCid);
       }
       const evWhereSql = evWhere.length ? `WHERE ${evWhere.join(" AND ")}` : "";
-      events = (
-        await db.execute({
-          sql: `SELECT ev.user_cid, ev.group_name, ev.action, ev.actor_cid,
-                       ev.note, ev.created_at,
-                       actor.name AS actor_name
-                FROM group_membership_events ev
-                LEFT JOIN contacts actor ON actor.cid = ev.actor_cid
-                ${evWhereSql}
-                ORDER BY ev.created_at DESC
-                LIMIT 200`,
-          args: evArgs,
-        })
-      ).rows;
+      events = (await listMembershipEvents(evWhereSql, evArgs)).rows;
     }
 
     const protectedGroups = {};
@@ -185,34 +171,34 @@ export async function PUT(req) {
     );
 
     if (current) {
-      await db.execute({
-        sql: `UPDATE group_memberships
-              SET status = ?, started_at = ?, expires_at = ?, updated_by = ?, updated_at = NOW()
-              WHERE user_cid = ? AND group_name = ?`,
-        args: [row.status, row.started_at, row.expires_at, actor, userCid, groupName],
-      });
+      await updateMembershipStatus(
+        row.status,
+        row.started_at,
+        row.expires_at,
+        actor,
+        userCid,
+        groupName,
+      );
     } else {
-      await db.execute({
-        sql: `INSERT INTO group_memberships
-                (user_cid, group_name, started_at, expires_at, status, created_by)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [userCid, groupName, row.started_at, row.expires_at, row.status, actor],
-      });
+      await insertMembership(
+        userCid,
+        groupName,
+        row.started_at,
+        row.expires_at,
+        row.status,
+        actor,
+      );
       // Keep user_groups in sync so legacy consumers (workspaces hub, etc.)
       // see the same membership edge.
-      await db.execute({
-        sql: `INSERT INTO user_groups (user_cid, group_name, assigned_by)
-              VALUES (?, ?, ?)
-              ON CONFLICT (user_cid, group_name) DO NOTHING`,
-        args: [userCid, groupName, actor || "admin"],
-      });
+      await syncMembershipUserGroup(userCid, groupName, actor || "admin");
     }
-    await db.execute({
-      sql: `INSERT INTO group_membership_events
-              (user_cid, group_name, action, actor_cid, note)
-            VALUES (?, ?, ?, ?, ?)`,
-      args: [userCid, groupName, event.action, event.actor_cid, event.note],
-    });
+    await insertMembershipEvent(
+      userCid,
+      groupName,
+      event.action,
+      event.actor_cid,
+      event.note,
+    );
 
     // Unified permission audit trail (in addition to the membership events).
     await logPermissionAudit({

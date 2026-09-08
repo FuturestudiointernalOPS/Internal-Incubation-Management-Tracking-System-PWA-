@@ -1,6 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  archiveAnnouncementById,
+  createAnnouncement,
+  ensureAnnouncementsTable,
+  ensureAnnouncementsTableForInsert,
+  getAnnouncementAuthorById,
+  getAnnouncementAuthorByIdForDelete,
+  listAnnouncements,
+  notifyAllActiveUsersOfAnnouncement,
+  notifyAnnouncementGroupMembers,
+  updateAnnouncementFields,
+} from "@/models/communications";
 
 /**
  * GET /api/announcements
@@ -27,45 +39,15 @@ export async function GET(req) {
 
     // Ensure table exists (safe migration)
     try {
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS v2_announcements (
-          id SERIAL PRIMARY KEY,
-          title TEXT NOT NULL,
-          body TEXT NOT NULL,
-          author_id TEXT NOT NULL,
-          author_name TEXT NOT NULL DEFAULT '',
-          target_type TEXT NOT NULL DEFAULT 'all',
-          target_id TEXT,
-          is_pinned BOOLEAN DEFAULT false,
-          is_archived BOOLEAN DEFAULT false,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
+      await ensureAnnouncementsTable();
     } catch (_) {}
 
-    let query;
-    let args = [];
-
-    if (showAll && session.role === "super_admin") {
-      // Admin: return everything including archived
-      query =
-        "SELECT * FROM v2_announcements ORDER BY is_pinned DESC, created_at DESC";
-    } else if (targetType && targetId) {
-      // Specific audience + global announcements
-      query = `SELECT * FROM v2_announcements
-        WHERE is_archived = false
-          AND (target_type = 'all' OR (target_type = ? AND target_id = ?))
-        ORDER BY is_pinned DESC, created_at DESC`;
-      args = [targetType, targetId];
-    } else {
-      // Return all active announcements (for dashboards)
-      query = `SELECT * FROM v2_announcements
-        WHERE is_archived = false
-        ORDER BY is_pinned DESC, created_at DESC`;
-    }
-
-    const res = await db.execute({ sql: query, args });
+    const res = await listAnnouncements({
+      showAll,
+      isSuperAdmin: session.role === "super_admin",
+      targetType,
+      targetId,
+    });
     return NextResponse.json({ success: true, announcements: res.rows });
   } catch (error) {
     return NextResponse.json(
@@ -99,21 +81,7 @@ export async function POST(req) {
 
     // Ensure table exists (safe migration)
     try {
-      await db.execute(`
-        CREATE TABLE IF NOT EXISTS v2_announcements (
-          id SERIAL PRIMARY KEY,
-          title TEXT NOT NULL,
-          body TEXT NOT NULL,
-          author_id TEXT NOT NULL,
-          author_name TEXT NOT NULL DEFAULT '',
-          target_type TEXT NOT NULL DEFAULT 'all',
-          target_id TEXT,
-          is_pinned BOOLEAN DEFAULT false,
-          is_archived BOOLEAN DEFAULT false,
-          created_at TIMESTAMPTZ DEFAULT NOW(),
-          updated_at TIMESTAMPTZ DEFAULT NOW()
-        )
-      `);
+      await ensureAnnouncementsTableForInsert();
     } catch (_) {}
 
     const {
@@ -137,18 +105,14 @@ export async function POST(req) {
     const effectiveAuthorName =
       author_name || session.name || effectiveAuthorId;
 
-    const insertRes = await db.execute({
-      sql: `INSERT INTO v2_announcements (title, body, author_id, author_name, target_type, target_id, is_pinned)
-            VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        title,
-        body,
-        effectiveAuthorId,
-        effectiveAuthorName,
-        target_type || "all",
-        target_id || null,
-        is_pinned ? true : false,
-      ],
+    const insertRes = await createAnnouncement({
+      title,
+      body,
+      authorId: effectiveAuthorId,
+      authorName: effectiveAuthorName,
+      targetType: target_type,
+      targetId: target_id,
+      isPinned: is_pinned,
     });
 
     const newId = insertRes.rows[0]?.id;
@@ -161,21 +125,10 @@ export async function POST(req) {
 
       if (target_type === "all" || !target_type || !target_id) {
         // Organization-wide: notify all users
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                SELECT cid, ?, ?, 'announcement', 0, NOW() FROM users WHERE status = 'active'`,
-          args: [notifTitle, notifBody],
-        });
+        await notifyAllActiveUsersOfAnnouncement(notifTitle, notifBody);
       } else if (target_type === "group") {
         // Target by group: notify all users in that group
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                SELECT gm.user_id, ?, ?, 'announcement', 0, NOW()
-                FROM v2_group_members gm
-                INNER JOIN users u ON u.cid = gm.user_id AND u.status = 'active'
-                WHERE gm.group_name = ?`,
-          args: [notifTitle, notifBody, target_id],
-        });
+        await notifyAnnouncementGroupMembers(notifTitle, notifBody, target_id);
       }
     } catch (_) {
       // Notifications are non-blocking
@@ -218,10 +171,7 @@ export async function PUT(req) {
     }
 
     // Verify ownership or super_admin
-    const existing = await db.execute({
-      sql: "SELECT author_id FROM v2_announcements WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getAnnouncementAuthorById(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Announcement not found." },
@@ -241,40 +191,21 @@ export async function PUT(req) {
       );
     }
 
-    // Build update
-    const updates = [];
-    const args = [];
-    if (is_archived !== undefined) {
-      updates.push("is_archived = ?");
-      args.push(is_archived);
-    }
-    if (is_pinned !== undefined) {
-      updates.push("is_pinned = ?");
-      args.push(is_pinned);
-    }
-    if (title !== undefined) {
-      updates.push("title = ?");
-      args.push(title);
-    }
-    if (body !== undefined) {
-      updates.push("body = ?");
-      args.push(body);
-    }
-
-    if (updates.length === 0) {
+    // No fields to update guard — the UPDATE itself is assembled in
+    // src/models/communications.js (updateAnnouncementFields)
+    if (
+      is_archived === undefined &&
+      is_pinned === undefined &&
+      title === undefined &&
+      body === undefined
+    ) {
       return NextResponse.json(
         { success: false, error: "No fields to update." },
         { status: 400 },
       );
     }
 
-    updates.push("updated_at = NOW()");
-    args.push(id);
-
-    await db.execute({
-      sql: `UPDATE v2_announcements SET ${updates.join(", ")} WHERE id = ?`,
-      args,
-    });
+    await updateAnnouncementFields({ id, is_archived, is_pinned, title, body });
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -313,10 +244,7 @@ export async function DELETE(req) {
     }
 
     // Verify ownership or super_admin
-    const existing = await db.execute({
-      sql: "SELECT author_id FROM v2_announcements WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getAnnouncementAuthorByIdForDelete(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Announcement not found." },
@@ -338,10 +266,7 @@ export async function DELETE(req) {
     }
 
     // Soft archive
-    await db.execute({
-      sql: "UPDATE v2_announcements SET is_archived = true, updated_at = NOW() WHERE id = ?",
-      args: [id],
-    });
+    await archiveAnnouncementById(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

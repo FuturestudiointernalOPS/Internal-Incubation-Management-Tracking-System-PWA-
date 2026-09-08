@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
+import {
+  getFormForAiAnalysis,
+  getRunForAiAnalysis,
+  getSubmissionForAiAnalysis,
+  logAiAnalysisToTimeline,
+} from "@/models/platformAi";
 
 /**
  * Platform AI Analysis API
@@ -25,10 +31,7 @@ export async function POST(req) {
     }
 
     // Fetch submission
-    const sub = await db.execute({
-      sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
-      args: [submission_id],
-    });
+    const sub = await getSubmissionForAiAnalysis(submission_id);
     if (sub.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
     }
@@ -36,18 +39,12 @@ export async function POST(req) {
     const submission = sub.rows[0];
 
     // Fetch run and form for context
-    const runRes = await db.execute({
-      sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-      args: [submission.run_id],
-    });
+    const runRes = await getRunForAiAnalysis(submission.run_id);
     const run = runRes.rows[0] || null;
 
     let form = null;
     if (run?.form_id) {
-      const formRes = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id = ?",
-        args: [run.form_id],
-      });
+      const formRes = await getFormForAiAnalysis(run.form_id);
       form = formRes.rows[0] || null;
     }
 
@@ -64,14 +61,9 @@ export async function POST(req) {
 
     // Log AI usage for governance
     try {
-      await db.execute({
-        sql: `INSERT INTO platform_submission_timeline (submission_id, action, actor_id, metadata)
-              VALUES (?, 'ai_analyzed', ?, ?)`,
-        args: [
-          submission_id,
-          "system",
-          JSON.stringify({ mode: analysisMode, timestamp: new Date().toISOString() }),
-        ],
+      await logAiAnalysisToTimeline(submission_id, {
+        mode: analysisMode,
+        timestamp: new Date().toISOString(),
       });
     } catch (_) { /* timeline logging is non-critical */ }
 

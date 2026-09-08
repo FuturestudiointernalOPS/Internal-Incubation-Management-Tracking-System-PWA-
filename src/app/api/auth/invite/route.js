@@ -1,4 +1,4 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
@@ -9,6 +9,19 @@ import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { addContactToGroup } from "@/lib/contact-groups";
 import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
+import {
+  getContactBriefByEmailForResend,
+  expirePasswordSetupTokensForResend,
+  createStaffInviteSetupTokenForResend,
+  logInvitationResent,
+  getContactWithPasswordByEmail,
+  updateContactNameAndGroup,
+  updateContactGroup,
+  createPendingContact,
+  expirePasswordSetupTokensForNewInvite,
+  createStaffInviteSetupTokenForNewInvite,
+  logInvitationSent,
+} from "@/models/authFlows";
 
 export const dynamic = "force-dynamic";
 
@@ -62,31 +75,21 @@ export async function POST(req) {
 
     // RESEND
     if (action === "resend") {
-      const existingContact = await db.execute({
-        sql: "SELECT cid, name, email FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-        args: [cleanEmail],
-      });
+      const existingContact = await getContactBriefByEmailForResend(cleanEmail);
       if (existingContact.rows.length === 0) {
         return NextResponse.json({ success: false, error: "No contact found. Send a new invite instead." }, { status: 404 });
       }
       const contact = existingContact.rows[0];
-      await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contact.cid] });
+      await expirePasswordSetupTokensForResend(contact.cid);
       const token = uuidv4();
       const tokenHash = hashToken(token);
-      await db.execute({
-        sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
-        args: [token, tokenHash, contact.cid],
-      });
+      await createStaffInviteSetupTokenForResend(token, tokenHash, contact.cid);
       const sendResult = await sendInviteEmail({ to: contact.email, name: contact.name || "", role: contact.role || "participant", token });
       if (sendResult?.success) {
         await recordEmailSent({ contact_cid: contact.cid, email_type: "activation", provider: "resend", to: contact.email, note: "Manual activation email resent" });
       }
       try {
-        await db.execute({
-          sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, actor_id, metadata)
-                VALUES (?, 'invitation_resent', 'Invitation resent', 'contacts', ?, '{}'::jsonb)`,
-          args: [contact.cid, actor],
-        });
+        await logInvitationResent(contact.cid, actor);
       } catch (_) {}
       return NextResponse.json({ success: true, message: "Invitation resent", email: contact.email, token, action: "resent" });
     }
@@ -97,10 +100,7 @@ export async function POST(req) {
     const displayName = (name || "").trim();
 
     let contactCid;
-    const existingContact = await db.execute({
-      sql: "SELECT cid, name, password FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [cleanEmail],
-    });
+    const existingContact = await getContactWithPasswordByEmail(cleanEmail);
 
     const accountActivated = !!(existingContact.rows[0] && String(existingContact.rows[0].password || "").trim());
 
@@ -112,22 +112,19 @@ export async function POST(req) {
       contactCid = existingContact.rows[0].cid;
       // Never blank an existing name when the inviter did not provide one.
       if ((name || "").trim()) {
-        await db.execute({
-          sql: "UPDATE contacts SET name = ?, group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [name.trim(), normGroup, contactCid],
-        });
+        await updateContactNameAndGroup(name.trim(), normGroup, contactCid);
       } else if (group_id) {
-        await db.execute({
-          sql: "UPDATE contacts SET group_name = COALESCE(?, group_name) WHERE cid = ?",
-          args: [normGroup, contactCid],
-        });
+        await updateContactGroup(normGroup, contactCid);
       }
     } else {
       contactCid = "USR_" + uuidv4().toUpperCase().replace(/-/g, "").substring(0, 12);
-      await db.execute({
-        sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, ?, 'pending', ?)",
-        args: [contactCid, displayName, cleanEmail, role || "member", normGroup],
-      });
+      await createPendingContact(
+        contactCid,
+        displayName,
+        cleanEmail,
+        role || "member",
+        normGroup,
+      );
     }
 
     // Record proper group membership (invitation source). This is additive and
@@ -142,27 +139,20 @@ export async function POST(req) {
       });
     }
 
-    await db.execute({ sql: "UPDATE password_setup_tokens SET used = 1 WHERE contact_cid = ?", args: [contactCid] });
+    await expirePasswordSetupTokensForNewInvite(contactCid);
 
     const token = uuidv4();
     const tokenHash = hashToken(token);
-    await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at, token_type) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours', 'staff_invite')",
-      args: [token, tokenHash, contactCid],
-    });
+    await createStaffInviteSetupTokenForNewInvite(token, tokenHash, contactCid);
 
     // CRM history: invitation sent (context = the program, when provided).
     try {
-      await db.execute({
-        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-              VALUES (?, 'invitation_sent', ?, 'programs', ?, ?, '{}'::jsonb)`,
-        args: [
-          contactCid,
-          program_name ? `Invited to facilitate ${program_name}` : "Invitation sent",
-          program_id ? String(program_id) : null,
-          actor,
-        ],
-      });
+      await logInvitationSent(
+        contactCid,
+        program_name ? `Invited to facilitate ${program_name}` : "Invitation sent",
+        program_id ? String(program_id) : null,
+        actor,
+      );
     } catch (_) {}
 
     // Existing activated account → login email (no new password setup).

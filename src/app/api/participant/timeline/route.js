@@ -1,6 +1,7 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import { getParticipantTimeline } from "@/models/participantPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -31,15 +32,7 @@ export async function GET(req) {
       200,
     );
 
-    const res = await db.execute({
-      sql: `SELECT id, event_type, description, context_module, context_id, created_at
-            FROM contact_timeline
-            WHERE contact_cid = ?
-              AND (context_module IS NULL OR context_module != 'crm')
-            ORDER BY created_at DESC
-            LIMIT ?`,
-      args: [session.cid, limit],
-    });
+    const res = await getParticipantTimeline(session.cid, limit);
 
     return NextResponse.json({ success: true, events: res.rows });
   } catch (error) {

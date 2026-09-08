@@ -60,7 +60,7 @@
 4. **Schema drift — 162 broken SQL statements** — code and live database schema have diverged in ~12 clusters (password reset, participant enrollment, campaign emails, rituals, curriculum, forms, KPI progress, attendance). These code paths throw 500 errors at runtime. Documented in `docs/SCHEMA_DRIFT_AUDIT.md`; fixes partially applied in 3 batches.
 5. **Zero automated tests** — 0 unit, integration, or E2E tests across 355+ files. Every change relies on manual verification. Regression risk on every edit.
 6. **Duplicate migration locations** — SQL migrations in both `src/migrations/` and `supabase/migrations/`. No single source of truth for the current schema shape.
-7. **Legacy SQLite files** — `src/lib/impactos.db` and `src/lib/impact_os_v2.db` are tracked in git as binary files from a pre-Postgres era. Not used by current code. Should be confirmed safe to remove.
+7. **Model layer (MVC refactor, waves 0-6)** — every SQL statement lives in a named function under `src/models/**`; API routes, pages and components never run SQL or import `@/lib/db`. Legacy domain libs were relocated behind facades (some `src/lib/*.js` now re-export from `@/models/*`). The two pre-Postgres SQLite files were removed (they were empty).
 8. **API boilerplate duplication** — ~120 route handlers repeat the same try/catch + `NextResponse.json` pattern (~800 lines of pure duplication). A `createHandler()` wrapper is planned.
 9. **48 dynamically-built SQL queries** — cannot be statically validated. Manual review still needed.
 10. **1 debug endpoint leaks schema info** — `debug-db/project-tasks` returns raw query results without auth. Fix is planned (Wave 1).

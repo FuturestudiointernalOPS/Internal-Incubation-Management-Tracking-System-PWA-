@@ -1,9 +1,21 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
 import { resolveEffectiveRole } from "@/lib/platform/roles";
 import { getEffectiveGroupsForUser } from "@/lib/authorization/membership";
 import bcrypt from "bcryptjs";
+import {
+  getContactByEmailOrId,
+  getTeamByUsernameForLogin,
+  getFamilyBySharedEmailForLogin,
+  getParticipantProgramRecordForLogin,
+  getLmsEnrollmentRecordForLogin,
+  getVentureMembershipRecordForLogin,
+  ensureContactsActivatedAtColumn,
+  ensureContactsLastLoginColumnForLogin,
+  ensureContactsLoginCountColumnForLogin,
+  recordContactLoginActivityForLogin,
+} from "@/models/authFlows";
 
 export async function POST(req) {
   try {
@@ -24,10 +36,7 @@ export async function POST(req) {
     let userLanguage = "en";
 
     // Search Database for User
-    const result = await db.execute({
-      sql: "SELECT * FROM contacts WHERE (email = ? OR id = ?) AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [cleanEmail, cleanEmail],
-    });
+    const result = await getContactByEmailOrId(cleanEmail);
 
     let user = result.rows[0];
     let isTeamLogin = false;
@@ -36,10 +45,7 @@ export async function POST(req) {
 
     if (!user) {
       // Check for Team Login
-      const teamResult = await db.execute({
-        sql: "SELECT * FROM v2_teams WHERE team_username = ? LIMIT 1",
-        args: [cleanEmail],
-      });
+      const teamResult = await getTeamByUsernameForLogin(cleanEmail);
 
       if (teamResult.rows.length > 0) {
         user = teamResult.rows[0];
@@ -49,10 +55,7 @@ export async function POST(req) {
 
     if (!user) {
       // Check for Family/Company Login (Shared Entity Credentials)
-      const familyResult = await db.execute({
-        sql: "SELECT * FROM families WHERE shared_email = ? LIMIT 1",
-        args: [cleanEmail],
-      });
+      const familyResult = await getFamilyBySharedEmailForLogin(cleanEmail);
 
       if (familyResult.rows.length > 0) {
         const family = familyResult.rows[0];
@@ -182,18 +185,9 @@ export async function POST(req) {
       if (!hasDirectProgram && user.cid) {
         try {
           const [ppRes, lmsRes, ventureRes] = await Promise.all([
-            db.execute({
-              sql: "SELECT 1 FROM participant_programs WHERE participant_id = ?",
-              args: [user.cid],
-            }),
-            db.execute({
-              sql: "SELECT 1 FROM lms_enrollments WHERE user_cid = ? LIMIT 1",
-              args: [user.cid],
-            }),
-            db.execute({
-              sql: "SELECT 1 FROM venture_members WHERE user_cid = ? LIMIT 1",
-              args: [user.cid],
-            }),
+            getParticipantProgramRecordForLogin(user.cid),
+            getLmsEnrollmentRecordForLogin(user.cid),
+            getVentureMembershipRecordForLogin(user.cid),
           ]);
           hasParticipantPrograms = ppRes.rows.length > 0;
           hasLms = lmsRes.rows.length > 0;
@@ -233,13 +227,10 @@ export async function POST(req) {
     // emails must never update these fields.
     if (!isTeamLogin && !isFamilyLogin && user.cid) {
       try {
-        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ");
-        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ");
-        await db.execute("ALTER TABLE contacts ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0");
-        await db.execute({
-          sql: "UPDATE contacts SET last_login_at = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE cid = ?",
-          args: [user.cid],
-        });
+        await ensureContactsActivatedAtColumn();
+        await ensureContactsLastLoginColumnForLogin();
+        await ensureContactsLoginCountColumnForLogin();
+        await recordContactLoginActivityForLogin(user.cid);
       } catch (_) {}
     }
 

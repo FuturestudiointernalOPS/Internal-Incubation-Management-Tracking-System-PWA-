@@ -1,7 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
+import {
+  getBulkProgramById,
+  checkBulkFacilitatorConflict,
+  insertBulkParticipantProgram,
+  deleteBulkParticipantProgram,
+  insertBulkAudit,
+} from "@/models/participantPortal";
 export const dynamic = "force-dynamic";
 
 /**
@@ -55,10 +62,7 @@ export async function POST(req) {
 
     // Verify the program exists before assigning (only on add)
     if (action === "add") {
-      const progCheck = await db.execute({
-        sql: "SELECT id FROM v2_programs WHERE id = ?",
-        args: [program_id],
-      });
+      const progCheck = await getBulkProgramById(program_id);
       if (progCheck.rows.length === 0) {
         return NextResponse.json(
           {
@@ -76,42 +80,24 @@ export async function POST(req) {
     for (const participant_id of participant_ids) {
       try {
         if (action === "add") {
-          const facConflict = await db.execute({
-            sql: "SELECT 1 FROM v2_program_staff WHERE CAST(program_id AS TEXT) = ? AND role = 'facilitator' AND (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(TRIM(?))) LIMIT 1",
-            args: [String(program_id), participant_id, participant_id],
-          });
+          const facConflict = await checkBulkFacilitatorConflict(program_id, participant_id);
           if (facConflict.rows.length > 0) {
             errors.push({ participant_id, error: "errors.roleConflictFacilitatorParticipant" });
             continue;
           }
 
-          await db.execute({
-            sql: `INSERT INTO participant_programs (participant_id, program_id)
-                  VALUES (?, ?)
-                  ON CONFLICT (participant_id, program_id) DO NOTHING`,
-            args: [
-              participant_id,
-              program_id,
-            ],
-          });
+          await insertBulkParticipantProgram(participant_id, program_id);
         } else {
-          await db.execute({
-            sql: "DELETE FROM participant_programs WHERE participant_id = ? AND program_id = ?",
-            args: [participant_id, program_id],
-          });
+          await deleteBulkParticipantProgram(participant_id, program_id);
         }
 
         // Audit log
-        await db.execute({
-          sql: `INSERT INTO participant_program_audit (participant_id, program_id, action, performed_by)
-                VALUES (?, ?, ?, ?)`,
-          args: [
-            participant_id,
-            program_id,
-            action === "add" ? "assigned" : "removed",
-            assigned_by || null,
-          ],
-        });
+        await insertBulkAudit(
+          participant_id,
+          program_id,
+          action === "add" ? "assigned" : "removed",
+          assigned_by || null,
+        );
 
         // Phase 6: auto-enroll added participants in every PUBLISHED course
         // the program requires (server-side, idempotent).

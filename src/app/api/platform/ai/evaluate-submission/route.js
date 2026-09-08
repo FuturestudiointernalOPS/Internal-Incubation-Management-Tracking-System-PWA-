@@ -1,6 +1,32 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { evaluateSubmission, hasEvaluation, getEvaluation } from "@/lib/platform/ai/evaluate";
+import {
+  approveSubmissionAndReturn,
+  claimEvaluationSubmission,
+  countApprovalDecisionsForForm,
+  countProgressEvaluatedSubmissions,
+  countProgressFailedSubmissions,
+  countProgressTotalSubmissions,
+  createEvaluationClaimsTable,
+  createEvaluationFailuresTable,
+  deleteEvaluationFailureRecord,
+  deleteEvaluationsForSubmission,
+  deleteExpiredEvaluationClaims,
+  findEvaluationBatchCandidates,
+  findHigherScoredDuplicateSubmissions,
+  getContactNameByCid,
+  getFieldLabelsForApprovalEmail,
+  getFieldLabelsForDuplicateGuard,
+  getFormForAutoApprove,
+  getGroupNameForRun,
+  getRunForAutoApprove,
+  getSubmissionForAutoApprove,
+  insertAutoApprovalReview,
+  recordEvaluationFailure,
+  releaseEvaluationClaim,
+  resetEvaluationFailuresForSubmission,
+} from "@/models/platformAi";
 
 /**
  * POST /api/platform/ai/evaluate-submission
@@ -29,59 +55,29 @@ const IN_FLIGHT = 4; // concurrent AI evaluations within one batch request
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
 
-async function ensureTables(db) {
+async function ensureTables() {
   try {
-    await db.execute(`CREATE TABLE IF NOT EXISTS platform_evaluation_claims (
-      submission_id INTEGER PRIMARY KEY,
-      claimed_at TIMESTAMP DEFAULT NOW()
-    )`);
-    await db.execute(`CREATE TABLE IF NOT EXISTS platform_evaluation_failures (
-      submission_id INTEGER PRIMARY KEY,
-      error TEXT,
-      created_at TIMESTAMP DEFAULT NOW()
-    )`);
+    await createEvaluationClaimsTable();
+    await createEvaluationFailuresTable();
   } catch (e) {
     console.warn("[Batch Eval] Could not ensure tables:", e.message);
   }
 }
 
-async function cleanupExpiredClaims(db) {
+async function cleanupExpiredClaims() {
   try {
-    await db.execute({
-      sql: `DELETE FROM platform_evaluation_claims WHERE claimed_at < NOW() - INTERVAL '${CLAIM_TTL_MINUTES} minutes'`,
-      args: [],
-    });
+    await deleteExpiredEvaluationClaims(CLAIM_TTL_MINUTES);
   } catch (_) {}
 }
 
-async function getProgress(db, formId) {
+async function getProgress(formId) {
   // NOTE: total counts ALL real submissions (submitted/approved/rejected), not
   // only 'submitted' — auto-approval flips status to 'approved' as evaluations
   // complete, and that must not shrink the denominator while the batch runs.
   const [totalRes, evaluatedRes, failedRes] = await Promise.all([
-    db.execute({
-      sql: `SELECT COUNT(*)::int AS cnt FROM platform_form_submissions ps
-            JOIN platform_form_runs r ON ps.run_id = r.id
-            WHERE r.form_id = ? AND ps.status IN ('submitted', 'approved', 'rejected', 'revision_requested')`,
-      args: [parseInt(formId)],
-    }),
-    db.execute({
-      sql: `SELECT COUNT(DISTINCT e.submission_id)::int AS cnt
-            FROM platform_submission_evaluations e
-            JOIN platform_form_submissions ps ON e.submission_id = ps.id
-            JOIN platform_form_runs r ON ps.run_id = r.id
-            WHERE r.form_id = ?`,
-      args: [parseInt(formId)],
-    }),
-    db.execute({
-      sql: `SELECT COUNT(*)::int AS cnt
-            FROM platform_evaluation_failures f
-            JOIN platform_form_submissions ps ON f.submission_id = ps.id
-            JOIN platform_form_runs r ON ps.run_id = r.id
-            WHERE r.form_id = ?
-            AND f.submission_id NOT IN (SELECT submission_id FROM platform_submission_evaluations)`,
-      args: [parseInt(formId)],
-    }),
+    countProgressTotalSubmissions(formId),
+    countProgressEvaluatedSubmissions(formId),
+    countProgressFailedSubmissions(formId),
   ]);
 
   const total = totalRes.rows[0]?.cnt || 0;
@@ -106,7 +102,7 @@ function withTimeout(promise, ms, label) {
   ]);
 }
 
-async function processSubmission(db, subId) {
+async function processSubmission(subId) {
   try {
     const result = await withTimeout(evaluateSubmission(subId), AI_TIMEOUT_MS, "AI evaluation timed out");
     if (result === null) {
@@ -115,25 +111,17 @@ async function processSubmission(db, subId) {
     }
     // Success: clear any failure record
     try {
-      await db.execute({
-        sql: "DELETE FROM platform_evaluation_failures WHERE submission_id = ?",
-        args: [subId],
-      });
+      await deleteEvaluationFailureRecord(subId);
     } catch (_) {}
 
     // ── AUTO-APPROVE BY CUTOFF (optional, configurable per form) ──
-    await maybeAutoApprove(db, subId, result);
+    await maybeAutoApprove(subId, result);
 
     return { ok: true, score: result.overall_score };
   } catch (e) {
     const msg = e?.message || "Unknown error";
     try {
-      await db.execute({
-        sql: `INSERT INTO platform_evaluation_failures (submission_id, error)
-              VALUES (?, ?)
-              ON CONFLICT (submission_id) DO UPDATE SET error = EXCLUDED.error, created_at = NOW()`,
-        args: [subId, msg.substring(0, 500)],
-      });
+      await recordEvaluationFailure(subId, msg);
     } catch (_) {}
     return { ok: false, error: msg };
   }
@@ -142,16 +130,9 @@ async function processSubmission(db, subId) {
 /**
  * Look up the group linked to a run (used for approval email templates).
  */
-async function getRunGroupName(db, runId) {
+async function getRunGroupName(runId) {
   try {
-    const res = await db.execute({
-      sql: `SELECT f.name
-            FROM platform_form_run_assignments a
-            JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
-            WHERE a.run_id = ? AND a.target_type = 'group'
-            LIMIT 1`,
-      args: [runId],
-    });
+    const res = await getGroupNameForRun(runId);
     return res.rows[0]?.name || null;
   } catch (_) {
     return null;
@@ -163,26 +144,17 @@ async function getRunGroupName(db, runId) {
  * cutoff. Reuses the existing review automation (group assignment,
  * approval email, activation) — no parallel system.
  */
-async function maybeAutoApprove(db, submissionId, evaluation) {
+async function maybeAutoApprove(submissionId, evaluation) {
   try {
-    const sub = await db.execute({
-      sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
-      args: [submissionId],
-    });
+    const sub = await getSubmissionForAutoApprove(submissionId);
     if (sub.rows.length === 0) return;
     const submission = sub.rows[0];
     if (submission.status !== "submitted") return; // never override existing decision
 
-    const run = await db.execute({
-      sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-      args: [submission.run_id],
-    });
+    const run = await getRunForAutoApprove(submission.run_id);
     if (run.rows.length === 0) return;
 
-    const form = await db.execute({
-      sql: "SELECT * FROM platform_forms WHERE id = ?",
-      args: [run.rows[0].form_id],
-    });
+    const form = await getFormForAutoApprove(run.rows[0].form_id);
     if (form.rows.length === 0) return;
 
     const auto = (form.rows[0].settings || {}).automation;
@@ -201,10 +173,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     // resolved label-aware (EN/FR), never from placeholder values.
     let labels = {};
     try {
-      const fieldRes = await db.execute({
-        sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
-        args: [form.rows[0].id],
-      });
+      const fieldRes = await getFieldLabelsForDuplicateGuard(form.rows[0].id);
       for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
     } catch (_) {}
     const { resolveSubmissionEmail } = await import("@/lib/email");
@@ -215,16 +184,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     });
     if (applicantEmail) {
       try {
-        const siblings = await db.execute({
-          sql: `SELECT s.id, s.status,
-                      (SELECT overall_score FROM platform_submission_evaluations
-                       WHERE submission_id = s.id ORDER BY evaluated_at DESC LIMIT 1) AS overall_score
-                FROM platform_form_submissions s
-                WHERE s.run_id = ? AND s.id != ?
-                  AND s.data::text ILIKE '%' || ? || '%'
-                  AND s.status IN ('submitted','approved')`,
-          args: [submission.run_id, submissionId, applicantEmail],
-        });
+        const siblings = await findHigherScoredDuplicateSubmissions(submission.run_id, submissionId, applicantEmail);
         const better = siblings.rows.find((r) => {
           const s = parseFloat(r.overall_score);
           return !isNaN(s) && s > score;
@@ -250,16 +210,10 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
     const comment = `Auto-approved: AI score ${score} meets cutoff ${cutoff}`;
 
     // Record review row (system reviewer)
-    await db.execute({
-      sql: `INSERT INTO platform_submission_reviews (submission_id, reviewer_id, reviewer_name, decision, comment) VALUES (?, 'system', 'System Auto-Approval', 'approved', ?)`,
-      args: [submissionId, comment],
-    });
+    await insertAutoApprovalReview(submissionId, comment);
 
     // Update submission status
-    const updated = await db.execute({
-      sql: "UPDATE platform_form_submissions SET status = 'approved', updated_at = NOW() WHERE id = ? AND status = 'submitted' RETURNING *",
-      args: [submissionId],
-    });
+    const updated = await approveSubmissionAndReturn(submissionId);
     if (updated.rows.length === 0) return; // raced with another decision
 
     // Send the TRACKED approval email (Gmail transport) with template variables
@@ -271,10 +225,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
       // email (label-aware, EN/FR) and the name resolution below.
       let labels = {};
       try {
-        const fieldRes = await db.execute({
-          sql: "SELECT id, label FROM platform_form_fields WHERE form_id = ?",
-          args: [form.rows[0].id],
-        });
+        const fieldRes = await getFieldLabelsForApprovalEmail(form.rows[0].id);
         for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
       } catch (_) {}
       const applicantEmail = resolveSubmissionEmail({
@@ -285,7 +236,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
       if (applicantEmail) {
         const decisionTemplate = getTemplate(form.rows[0].settings || {}, "approval", run.rows[0].settings || {});
         const formName = form.rows[0].name || "";
-        const groupName = await getRunGroupName(db, run.rows[0].id);
+        const groupName = await getRunGroupName(run.rows[0].id);
 
         // Approval email requires a group. With no group, the person stays in
         // the platform/CRM but no approval email is sent.
@@ -294,10 +245,7 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
           // question labels; never "Unknown" when a real name exists.
           let applicantName = "";
           try {
-            const cRes = await db.execute({
-              sql: "SELECT name FROM contacts WHERE cid = ?",
-              args: [updated.rows[0].submitter_id],
-            });
+            const cRes = await getContactNameByCid(updated.rows[0].submitter_id);
             applicantName = resolvePersonName({
               contactName: cRes.rows[0]?.name || "",
               submitterName: updated.rows[0].submitter_name || "",
@@ -360,26 +308,9 @@ async function maybeAutoApprove(db, submissionId, evaluation) {
   }
 }
 
-async function runBatch(db, formId, onlyFailed, batchSize) {
-  const where = onlyFailed
-    ? `AND ps.id IN (SELECT submission_id FROM platform_evaluation_failures)`
-    : `AND ps.id NOT IN (SELECT submission_id FROM platform_evaluation_failures)`;
-
+async function runBatch(formId, onlyFailed, batchSize) {
   // Candidates: submitted, not evaluated, no active claim
-  const candidates = await db.execute({
-    sql: `SELECT ps.id FROM platform_form_submissions ps
-          JOIN platform_form_runs r ON ps.run_id = r.id
-          WHERE r.form_id = ? AND ps.status = 'submitted'
-          ${where}
-          AND ps.id NOT IN (SELECT submission_id FROM platform_submission_evaluations)
-          AND NOT EXISTS (
-            SELECT 1 FROM platform_evaluation_claims c
-            WHERE c.submission_id = ps.id AND c.claimed_at > NOW() - INTERVAL '${CLAIM_TTL_MINUTES} minutes'
-          )
-          ORDER BY ps.id
-          LIMIT ?`,
-    args: [parseInt(formId), batchSize],
-  });
+  const candidates = await findEvaluationBatchCandidates(formId, batchSize, onlyFailed, CLAIM_TTL_MINUTES);
 
   if (candidates.rows.length === 0) {
     return { evaluated: 0, failed: 0, processed: 0 };
@@ -389,11 +320,7 @@ async function runBatch(db, formId, onlyFailed, batchSize) {
   const claimed = [];
   for (const row of candidates.rows) {
     try {
-      const claimRes = await db.execute({
-        sql: `INSERT INTO platform_evaluation_claims (submission_id)
-              VALUES (?) ON CONFLICT (submission_id) DO NOTHING RETURNING submission_id`,
-        args: [row.id],
-      });
+      const claimRes = await claimEvaluationSubmission(row.id);
       if (claimRes.rows.length > 0) claimed.push(row.id);
     } catch (_) {}
   }
@@ -409,14 +336,11 @@ async function runBatch(db, formId, onlyFailed, batchSize) {
     while (cursor < claimed.length) {
       const i = cursor++;
       const subId = claimed[i];
-      const res = await processSubmission(db, subId);
+      const res = await processSubmission(subId);
       results[i] = res;
       // Release claim regardless of outcome
       try {
-        await db.execute({
-          sql: "DELETE FROM platform_evaluation_claims WHERE submission_id = ?",
-          args: [subId],
-        });
+        await releaseEvaluationClaim(subId);
       } catch (_) {}
     }
   });
@@ -436,25 +360,18 @@ export async function POST(req) {
     if (authError) return authError;
 
     const body = await req.json();
-    const { default: db, initDb } = await import("@/lib/db");
+    const { initDb } = await import("@/lib/db");
     await initDb();
-    await ensureTables(db);
+    await ensureTables();
 
     // ── PROGRESS ONLY ──
     if (body.action === "progress" && body.form_id) {
-      const progress = await getProgress(db, body.form_id);
+      const progress = await getProgress(body.form_id);
       // Approval + email stats for the dashboard panel
       let approvals = { approved: 0, rejected: 0 };
       let emailStats = { sent: 0, failed: 0, pending: 0, activation_sent: 0, approval_sent: 0 };
       try {
-        const appRes = await db.execute({
-          sql: `SELECT ps.status, COUNT(*)::int AS cnt
-                FROM platform_form_submissions ps
-                JOIN platform_form_runs r ON ps.run_id = r.id
-                WHERE r.form_id = ? AND ps.status IN ('approved','rejected')
-                GROUP BY ps.status`,
-          args: [parseInt(body.form_id)],
-        });
+        const appRes = await countApprovalDecisionsForForm(body.form_id);
         for (const row of appRes.rows) {
           if (row.status === "approved") approvals.approved = row.cnt;
           if (row.status === "rejected") approvals.rejected = row.cnt;
@@ -469,15 +386,15 @@ export async function POST(req) {
 
     // ── BATCH / RETRY ──
     if ((body.action === "batch" || body.action === "retry_failed") && body.form_id) {
-      await cleanupExpiredClaims(db);
+      await cleanupExpiredClaims();
       const batchSize = Math.min(
         parseInt(body.batch_size) || DEFAULT_BATCH_SIZE,
         MAX_BATCH_SIZE
       );
       const onlyFailed = body.action === "retry_failed";
 
-      const res = await runBatch(db, body.form_id, onlyFailed, batchSize);
-      const progress = await getProgress(db, body.form_id);
+      const res = await runBatch(body.form_id, onlyFailed, batchSize);
+      const progress = await getProgress(body.form_id);
 
       return NextResponse.json({
         success: true,
@@ -498,14 +415,8 @@ export async function POST(req) {
     // Manual Re-evaluate: delete prior evaluations so exactly one current row remains
     if (force) {
       try {
-        await db.execute({
-          sql: "DELETE FROM platform_submission_evaluations WHERE submission_id = ?",
-          args: [parseInt(submission_id)],
-        });
-        await db.execute({
-          sql: "DELETE FROM platform_evaluation_failures WHERE submission_id = ?",
-          args: [parseInt(submission_id)],
-        });
+        await deleteEvaluationsForSubmission(submission_id);
+        await resetEvaluationFailuresForSubmission(submission_id);
       } catch (_) {}
     }
 
@@ -515,7 +426,7 @@ export async function POST(req) {
     }
 
     // Auto-approve by cutoff applies to manual single evaluation too
-    await maybeAutoApprove(db, parseInt(submission_id), evaluation);
+    await maybeAutoApprove(parseInt(submission_id), evaluation);
 
     return NextResponse.json({ success: true, evaluation, re_evaluated: !!force });
   } catch (error) {

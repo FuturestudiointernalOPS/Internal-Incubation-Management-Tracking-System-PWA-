@@ -2,7 +2,7 @@
 // from src/lib/email.js — the module cannot be imported directly in Node
 // because of the Next.js "@/..." path alias).
 
-const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|\-+|\s*)$/i;
+const GENERIC_NAMES = /^(unknown|anonymous|n\/a|none|participant|null|undefined|-+|\s*)$/i;
 
 function isGenericName(v) {
   return GENERIC_NAMES.test(typeof v === "string" ? v.trim() : "");

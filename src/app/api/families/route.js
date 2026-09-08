@@ -1,8 +1,24 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 
 import { v4 as uuidv4 } from "uuid";
+
+import {
+  getFamilyByRegistrationId,
+  getAllFamilies,
+  ensureFamilyDescriptionColumn,
+  ensureFamilyFormIdColumn,
+  ensureFamilyDefaultRoleColumn,
+  createFamilyRegistrationForm,
+  createFamilyFormSection,
+  createFamilyFormField,
+  createFamily,
+  updateFamilyFields,
+  updateFamilyArchiveStatus,
+  ensureFamilyArchiveColumn,
+  deleteFamily,
+} from "@/models/contacts";
 
 export async function GET(req) {
   try {
@@ -12,10 +28,7 @@ export async function GET(req) {
 
     // Lookup by registration_id is public (used by join page)
     if (regId) {
-      const result = await db.execute({
-        sql: "SELECT * FROM families WHERE registration_id = ?",
-        args: [regId],
-      });
+      const result = await getFamilyByRegistrationId(regId);
       return NextResponse.json({ success: true, families: result.rows });
     }
 
@@ -25,7 +38,7 @@ export async function GET(req) {
     ]);
     if (authError) return authError;
 
-    const result = await db.execute("SELECT * FROM families ORDER BY name ASC");
+    const result = await getAllFamilies();
     return NextResponse.json({ success: true, families: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -40,9 +53,9 @@ export async function POST(req) {
     const { name, type, program_id, description, default_role } = await req.json();
 
     try {
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS description TEXT");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS form_id UUID");
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS default_role TEXT");
+      await ensureFamilyDescriptionColumn();
+      await ensureFamilyFormIdColumn();
+      await ensureFamilyDefaultRoleColumn();
     } catch (e) {}
 
     if (!name)
@@ -53,16 +66,10 @@ export async function POST(req) {
     // Auto-create a Platform form for this group
     let formId = null;
     try {
-      const formRes = await db.execute({
-        sql: "INSERT INTO platform_forms (name, description, owner_id, owner_name, created_by) VALUES (?, 'Auto-created for group: ' || ?, 'system', 'AI', 'system') RETURNING id",
-        args: [name, name],
-      });
+      const formRes = await createFamilyRegistrationForm(name);
       formId = formRes.rows[0]?.id;
       if (formId) {
-        const secRes = await db.execute({
-          sql: "INSERT INTO platform_form_sections (form_id, title, sort_order) VALUES (?, 'Profile Information', 0) RETURNING id",
-          args: [formId],
-        });
+        const secRes = await createFamilyFormSection(formId);
         const sectionId = secRes.rows[0]?.id;
         if (sectionId) {
           const defaultFields = [
@@ -71,18 +78,20 @@ export async function POST(req) {
             { label: 'Phone Number', field_type: 'phone', required: false, sort_order: 2 },
           ];
           for (const f of defaultFields) {
-            await db.execute({
-              sql: "INSERT INTO platform_form_fields (form_id, section_id, label, field_type, required, sort_order) VALUES (?, ?, ?, ?, ?, ?)",
-              args: [formId, sectionId, f.label, f.field_type, f.required, f.sort_order],
-            });
+            await createFamilyFormField(formId, sectionId, f);
           }
         }
       }
     } catch (e) { console.warn("Auto-create form failed:", e.message); }
 
-    const res = await db.execute({
-      sql: "INSERT INTO families (name, registration_id, program_id, type, description, form_id, default_role) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
-      args: [name, registration_id, program_id || null, type || "individual", description || null, formId, default_role || null],
+    const res = await createFamily({
+      name,
+      registration_id,
+      program_id,
+      type,
+      description,
+      form_id: formId,
+      default_role,
     });
 
     const newId = res.lastInsertRowid;
@@ -118,7 +127,7 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
 
     args.push(body.id);
-    await db.execute({ sql: `UPDATE families SET ${updates.join(", ")} WHERE id = ?`, args });
+    await updateFamilyFields(updates, args);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
@@ -140,16 +149,10 @@ export async function PATCH(req) {
         { status: 400 },
       );
 
-    await db.execute({
-      sql: "UPDATE families SET is_archived = ? WHERE id = ?",
-      args: [is_archived ? 1 : 0, id],
-    }).catch(async () => {
+    await updateFamilyArchiveStatus(id, is_archived).catch(async () => {
       // Column may not exist yet — try adding it
-      await db.execute("ALTER TABLE families ADD COLUMN IF NOT EXISTS is_archived INTEGER DEFAULT 0");
-      await db.execute({
-        sql: "UPDATE families SET is_archived = ? WHERE id = ?",
-        args: [is_archived ? 1 : 0, id],
-      });
+      await ensureFamilyArchiveColumn();
+      await updateFamilyArchiveStatus(id, is_archived);
     });
 
     return NextResponse.json({ success: true });
@@ -173,10 +176,7 @@ export async function DELETE(req) {
         { status: 400 },
       );
 
-    await db.execute({
-      sql: "DELETE FROM families WHERE id = ?",
-      args: [id],
-    });
+    await deleteFamily(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

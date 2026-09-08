@@ -117,10 +117,12 @@ const execute = async (queryObj) => {
   const sql = typeof queryObj === "string" ? queryObj : queryObj.sql;
   const args = queryObj.args || [];
 
+  let pgSql = sql;
+
   try {
     // Forensic Parameter Translation: ? -> $1, $2, etc.
     let count = 0;
-    let pgSql = sql.replace(/\?/g, () => {
+    pgSql = sql.replace(/\?/g, () => {
       count++;
       return `$${count}`;
     });

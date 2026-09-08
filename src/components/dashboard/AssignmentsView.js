@@ -78,7 +78,7 @@ export default function AssignmentsView() {
           Object.entries(progMap).map(([id, name]) => ({ id, name })),
         );
       } else {
-        setError(t((data.error || "Failed to load") || "") || (data.error || "Failed to load"));
+        setError(t(data.error || "Failed to load") || data.error || "Failed to load");
       }
     };
     let painted = false;
@@ -379,7 +379,7 @@ export default function AssignmentsView() {
                     <a
                       href={a.submission.fileUrl}
                       target="_blank"
-                      className="p-2 rounded-lg hover:bg-white/5 transition-all"
+                      className="p-2 rounded-lg hover:bg-white/5 transition-all" rel="noreferrer"
                     >
                       <ExternalLink className="w-4 h-4 text-[var(--text-tertiary)]" />
                     </a>

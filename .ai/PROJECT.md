@@ -44,7 +44,7 @@ Sidebar navigation and role→route resolution live in `src/components/layout/Da
 - **`src/lib/db.js`** — single Postgres connection pool (`pg`), lazy-initialized from `DATABASE_URL`. All DB access via `db.execute({sql, args})`. Supports `?` → `$N` parameter translation and auto-retry on connection errors. Includes `db.transaction(callback)`.
 - **SQL inline in route handlers** — no dedicated data-access layer. The same query patterns repeat across multiple routes (see known issues in MEMORY.md).
 - **Migrations** in two places: `src/migrations/*.sql` (historical, manually applied) and `supabase/migrations/` (timestamped, idempotent).
-- **Two legacy SQLite files** (`src/lib/impactos.db`, `src/lib/impact_os_v2.db`) — pre-Postgres artifacts, not used by the current `db.js`. Tracked in git as binary files; team should confirm whether they can be removed.
+- **Model layer** — SQL lives in `src/models/**` only (MVC); thin API controllers under `src/app/api/**/route.js`. The pre-Postgres SQLite files were removed (empty).
 
 ### 2.4 Domain modules
 

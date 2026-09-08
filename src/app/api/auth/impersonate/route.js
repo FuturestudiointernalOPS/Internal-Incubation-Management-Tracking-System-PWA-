@@ -1,6 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createSession, setSessionCookieOnResponse } from "@/lib/auth";
+import {
+  getImpersonationTargetByCid,
+  getImpersonationTargetByEmail,
+  getImpersonationTargetUsingCidAsEmail,
+  getVentureIdForContact,
+  listActiveContactsForImpersonation,
+} from "@/models/authFlows";
 
 /**
  * IMPERSONATION ENDPOINT - STAGING ONLY
@@ -42,30 +49,25 @@ export async function POST(req) {
 
     // Try exact CID match first
     if (cid) {
-      userResult = await db.execute({
-        sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-        args: [cid],
-      });
+      userResult = await getImpersonationTargetByCid(cid);
       console.log("[impersonate:POST] CID lookup result rows:", userResult.rows.length);
     }
 
     // Fallback: lookup by email
     if (userResult.rows.length === 0 && lookupEmail) {
       console.log("[impersonate:POST] Trying email lookup:", lookupEmail);
-      userResult = await db.execute({
-        sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-        args: [lookupEmail.trim().toLowerCase()],
-      });
+      userResult = await getImpersonationTargetByEmail(
+        lookupEmail.trim().toLowerCase(),
+      );
       console.log("[impersonate:POST] Email lookup result rows:", userResult.rows.length);
     }
 
     // Last fallback: try cid as email
     if (userResult.rows.length === 0 && cid && cid.includes("@")) {
       console.log("[impersonate:POST] Trying cid as email:", cid);
-      userResult = await db.execute({
-        sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-        args: [cid.trim().toLowerCase()],
-      });
+      userResult = await getImpersonationTargetUsingCidAsEmail(
+        cid.trim().toLowerCase(),
+      );
       console.log("[impersonate:POST] CID-as-email lookup result rows:", userResult.rows.length);
     }
 
@@ -147,7 +149,7 @@ export async function POST(req) {
     else if (finalRole === "investor") target = "/investor/dashboard";
     else if (finalRole === "founder") {
       try {
-        const vRes = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE contact_id = ? LIMIT 1", args: [userCid] });
+        const vRes = await getVentureIdForContact(userCid);
         target = vRes.rows.length > 0 ? "/participant/ventures/" + vRes.rows[0].venture_id : "/participant";
       } catch (_) { target = "/participant"; }
     } else {
@@ -195,10 +197,7 @@ export async function GET() {
   try {
     await initDb();
 
-    const result = await db.execute({
-      sql: "SELECT cid, name, email, role, group_name, status FROM contacts WHERE deleted = 0 AND deleted_at IS NULL AND status IN ('active','approved') ORDER BY role, name",
-      args: [],
-    });
+    const result = await listActiveContactsForImpersonation();
 
     console.log("[impersonate:GET] Found", result.rows.length, "active contacts");
 

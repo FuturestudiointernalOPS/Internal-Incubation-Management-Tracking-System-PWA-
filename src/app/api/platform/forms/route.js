@@ -1,6 +1,30 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  getPlatformFormByTextId,
+  getPlatformFormSections,
+  getPlatformFormFields,
+  getLatestPlatformFormVersion,
+  listPlatformForms,
+  getPlatformFormById,
+  createPlatformFormVersion,
+  publishPlatformForm,
+  createPlatformForm,
+  updatePlatformFormSection,
+  createPlatformFormSection,
+  deletePlatformFormField,
+  updatePlatformFormField,
+  createPlatformFormField,
+  deletePlatformFormSection,
+  touchPlatformForm,
+  updatePlatformFormMetadata,
+  deletePlatformEmailLogsForForm,
+  deletePlatformSubmissionReviewsForForm,
+  deletePlatformSubmissionEvaluationsForForm,
+  deletePlatformForm,
+  archivePlatformForm,
+} from "@/models/forms";
 
 /**
  * PLATFORM FORMS API — CRUD with versioning
@@ -30,23 +54,14 @@ export async function GET(req) {
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
-      const form = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id::text = ?",
-        args: [id],
-      });
+      const form = await getPlatformFormByTextId(id);
       if (form.rows.length === 0) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
 
-      const sections = await db.execute({
-        sql: "SELECT * FROM platform_form_sections WHERE form_id::text = ? ORDER BY sort_order",
-        args: [id],
-      });
+      const sections = await getPlatformFormSections(id);
 
-      const fields = await db.execute({
-        sql: "SELECT * FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order",
-        args: [id],
-      });
+      const fields = await getPlatformFormFields(id);
 
       let sectionsResult = sections.rows;
       let fieldsResult = fields.rows;
@@ -54,10 +69,7 @@ export async function GET(req) {
       // ─── Fallback: read from version snapshot if live tables are empty but form is published ───
       // Only fall back if the form hasn't been edited since the last publish
       if (sectionsResult.length === 0 && fieldsResult.length === 0 && form.rows[0].status === "published") {
-        const version = await db.execute({
-          sql: "SELECT snapshot, created_at FROM platform_form_versions WHERE form_id = ? ORDER BY version DESC LIMIT 1",
-          args: [parseInt(id)],
-        });
+        const version = await getLatestPlatformFormVersion(parseInt(id));
         // Only use snapshot if form hasn't been saved since publish (user intentionally cleared sections)
         if (version.rows.length > 0 && version.rows[0].snapshot) {
           const snapshotTime = new Date(version.rows[0].created_at).getTime();
@@ -84,20 +96,7 @@ export async function GET(req) {
     if (authError) return authError;
 
     // List forms with filters
-    let sql = "SELECT * FROM platform_forms WHERE 1=1";
-    const args = [];
-
-    if (collectionId) {
-      sql += " AND collection_id = ?";
-      args.push(parseInt(collectionId));
-    }
-    if (status && status !== "all") {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-    sql += " ORDER BY updated_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listPlatformForms(collectionId, status);
     return NextResponse.json({ success: true, forms: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -123,10 +122,7 @@ export async function POST(req) {
         return NextResponse.json({ success: false, error: "id, fields, and sections are required" }, { status: 400 });
       }
 
-      const form = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id = ?",
-        args: [parseInt(body.id)],
-      });
+      const form = await getPlatformFormById(parseInt(body.id));
       if (form.rows.length === 0) {
         return NextResponse.json({ success: false, error: "Form not found" }, { status: 404 });
       }
@@ -142,16 +138,15 @@ export async function POST(req) {
       };
 
       // Save version snapshot
-      await db.execute({
-        sql: `INSERT INTO platform_form_versions (form_id, version, snapshot, published_by) VALUES (?, ?, ?, ?)`,
-        args: [parseInt(body.id), newVersion, JSON.stringify(snapshot), session.cid || null],
-      });
+      await createPlatformFormVersion(
+        parseInt(body.id),
+        newVersion,
+        JSON.stringify(snapshot),
+        session.cid || null,
+      );
 
       // Increment version on form
-      await db.execute({
-        sql: "UPDATE platform_forms SET version = ?, status = 'published', updated_at = NOW() WHERE id = ?",
-        args: [newVersion, parseInt(body.id)],
-      });
+      await publishPlatformForm(parseInt(body.id), newVersion);
 
       return NextResponse.json({ success: true, version: newVersion });
     }
@@ -177,21 +172,16 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO platform_forms (name, description, collection_id, visibility, settings, tags, owner_id, owner_name, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            RETURNING *`,
-      args: [
-        name.trim(),
-        description || null,
-        collection_id ? parseInt(collection_id) : null,
-        visibility || "internal",
-        JSON.stringify(settings || {}),
-        tags || [],
-        session.cid || null,
-        null,
-        session.cid || null,
-      ],
+    const result = await createPlatformForm({
+      name,
+      description,
+      collection_id,
+      visibility,
+      settings,
+      tags,
+      owner_id: session.cid,
+      owner_name: null,
+      created_by: session.cid,
     });
 
     return NextResponse.json({ success: true, form: result.rows[0] });
@@ -252,15 +242,9 @@ export async function PUT(req) {
         for (const sec of sections) {
           if (sec._delete) continue; // handled in Step 4
           if (sec.id) {
-            await db.execute({
-              sql: "UPDATE platform_form_sections SET title = ?, description = ?, sort_order = ?, settings = ? WHERE id = ? AND form_id = ?",
-              args: [sec.title, sec.description || null, sec.sort_order || 0, JSON.stringify(sec.settings || {}), parseInt(sec.id), parseInt(id)],
-            });
+            await updatePlatformFormSection({ formId: id, section: sec });
           } else {
-            await db.execute({
-              sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, ?, ?, ?)",
-              args: [parseInt(id), sec.title, sec.description || null, sec.sort_order || 0],
-            });
+            await createPlatformFormSection({ formId: id, section: sec });
           }
         }
       }
@@ -271,10 +255,7 @@ export async function PUT(req) {
       if (Array.isArray(fields)) {
         for (const fld of fields) {
           if (fld._delete && fld.id) {
-            await db.execute({
-              sql: "DELETE FROM platform_form_fields WHERE id = ? AND form_id = ?",
-              args: [parseInt(fld.id), parseInt(id)],
-            });
+            await deletePlatformFormField({ formId: id, fieldId: fld.id });
             continue;
           }
 
@@ -287,43 +268,9 @@ export async function PUT(req) {
               : null;
 
           if (fld.id) {
-            await db.execute({
-              sql: `UPDATE platform_form_fields
-                    SET label = ?, field_type = ?, placeholder = ?, help_text = ?, required = ?,
-                        options = ?, validation = ?, conditional_logic = ?, sort_order = ?,
-                        section_id = ?, settings = ?, updated_at = NOW()
-                    WHERE id = ? AND form_id = ?`,
-              args: [
-                fld.label, fld.field_type || "text", fld.placeholder || null, fld.help_text || null,
-                fld.required ? 1 : 0,
-                fld.options ? JSON.stringify(fld.options) : null,
-                fld.validation ? JSON.stringify(fld.validation) : null,
-                fld.conditional_logic ? JSON.stringify(fld.conditional_logic) : null,
-                fld.sort_order || 0,
-                resolvedSectionId,
-                JSON.stringify(fld.settings || {}),
-                parseInt(fld.id), parseInt(id),
-              ],
-            });
+            await updatePlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });
           } else {
-            await db.execute({
-              sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, conditional_logic, sort_order)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    RETURNING *`,
-              args: [
-                parseInt(id),
-                resolvedSectionId,
-                fld.field_type || "text",
-                fld.label,
-                fld.placeholder || null,
-                fld.help_text || null,
-                fld.required ? 1 : 0,
-                fld.options ? JSON.stringify(fld.options) : null,
-                fld.validation ? JSON.stringify(fld.validation) : null,
-                fld.conditional_logic ? JSON.stringify(fld.conditional_logic) : null,
-                fld.sort_order || 0,
-              ],
-            });
+            await createPlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });
           }
         }
       }
@@ -333,16 +280,10 @@ export async function PUT(req) {
       //    so no FK violation can occur. The DB ON DELETE SET NULL acts as a
       //    safety net for any edge-case fields not sent in this payload.
       for (const sectionId of deletedSectionIds) {
-        await db.execute({
-          sql: "DELETE FROM platform_form_sections WHERE id = ? AND form_id = ?",
-          args: [sectionId, parseInt(id)],
-        });
+        await deletePlatformFormSection({ formId: id, sectionId });
       }
 
-      await db.execute({
-        sql: "UPDATE platform_forms SET updated_at = NOW() WHERE id = ?",
-        args: [parseInt(id)],
-      });
+      await touchPlatformForm(id);
 
       return NextResponse.json({ success: true });
     }
@@ -354,26 +295,15 @@ export async function PUT(req) {
       return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
     }
 
-    const fields = [];
-    const args = [];
-    const updatable = { name, description, collection_id, visibility, tags, status };
-
-    for (const [key, value] of Object.entries(updatable)) {
-      if (value !== undefined) {
-        fields.push(`${key} = ?`);
-        args.push(key === "collection_id" && value ? parseInt(value) : value);
-      }
-    }
-    if (settings !== undefined) {
-      fields.push("settings = ?");
-      args.push(JSON.stringify(settings));
-    }
-    fields.push("updated_at = NOW()");
-    args.push(parseInt(id));
-
-    const result = await db.execute({
-      sql: `UPDATE platform_forms SET ${fields.join(", ")} WHERE id = ? RETURNING *`,
-      args,
+    const result = await updatePlatformFormMetadata({
+      id,
+      name,
+      description,
+      collection_id,
+      visibility,
+      tags,
+      status,
+      settings,
     });
 
     return NextResponse.json({ success: true, form: result.rows[0] });
@@ -401,17 +331,14 @@ export async function DELETE(req) {
       // Hard delete the form and everything attached to it. Sections, fields,
       // versions and runs cascade via FK; email/review/evaluation logs for the
       // form's runs' submissions must be cleaned up explicitly first.
-      await db.execute({ sql: "DELETE FROM platform_email_log WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
-      await db.execute({ sql: "DELETE FROM platform_submission_reviews WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
-      await db.execute({ sql: "DELETE FROM platform_submission_evaluations WHERE submission_id IN (SELECT s.id FROM platform_form_submissions s JOIN platform_form_runs r ON s.run_id = r.id WHERE r.form_id = ?)", args: [formId] });
-      await db.execute({ sql: "DELETE FROM platform_forms WHERE id = ?", args: [formId] });
+      await deletePlatformEmailLogsForForm(formId);
+      await deletePlatformSubmissionReviewsForForm(formId);
+      await deletePlatformSubmissionEvaluationsForForm(formId);
+      await deletePlatformForm(formId);
       return NextResponse.json({ success: true });
     }
 
-    await db.execute({
-      sql: "UPDATE platform_forms SET status = 'archived', updated_at = NOW() WHERE id = ?",
-      args: [formId],
-    });
+    await archivePlatformForm(formId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

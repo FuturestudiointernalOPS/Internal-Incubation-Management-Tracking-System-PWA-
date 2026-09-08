@@ -6,8 +6,16 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import {
+  findV2WeeklyReportByProgramWeekTeacher,
+  insertV2WeeklyReport,
+  listV2WeeklyReports,
+  logV2WeeklyReportCreatedActivity,
+  logV2WeeklyReportUpdatedActivity,
+  updateV2WeeklyReport,
+} from "@/models/teacher";
 
 export async function GET(req) {
   try {
@@ -18,21 +26,7 @@ export async function GET(req) {
     const program_id = searchParams.get("program_id");
     const week_number = searchParams.get("week_number");
 
-    let sql = "SELECT * FROM v2_weekly_reports WHERE 1=1";
-    const args = [];
-
-    if (program_id) {
-      sql += " AND program_id = ?";
-      args.push(program_id);
-    }
-    if (week_number) {
-      sql += " AND week_number = ?";
-      args.push(parseInt(week_number));
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const reports = await db.execute({ sql, args });
+    const reports = await listV2WeeklyReports(program_id, week_number);
     return NextResponse.json({ success: true, reports: reports.rows });
   } catch (e) {
     return NextResponse.json(
@@ -60,39 +54,23 @@ export async function POST(req) {
     } = body;
 
     // Check if report already exists for this week/program/teacher to update instead of insert
-    const existing = await db.execute({
-      sql: "SELECT id FROM v2_weekly_reports WHERE program_id = ? AND week_number = ? AND teacher_id = ?",
-      args: [program_id, week_number, teacher_id],
-    });
+    const existing = await findV2WeeklyReportByProgramWeekTeacher(
+      program_id,
+      week_number,
+      teacher_id,
+    );
 
     if (existing.rows.length > 0) {
-      await db.execute({
-        sql: `UPDATE v2_weekly_reports SET
-                  reception_score = ?,
-                  progress_notes = ?,
-                  student_reception = ?,
-                  action_taken = ?,
-                  updated_at = CURRENT_TIMESTAMP
-                  WHERE id = ?`,
-        args: [
-          reception_score,
-          progress_notes,
-          student_reception,
-          action_taken,
-          existing.rows[0].id,
-        ],
+      await updateV2WeeklyReport({
+        reception_score,
+        progress_notes,
+        student_reception,
+        action_taken,
+        reportId: existing.rows[0].id,
       });
 
       // Log Activity
-      await db.execute({
-        sql: "INSERT INTO activity_logs (user_identity, action, module, status) VALUES (?, ?, ?, ?)",
-        args: [
-          teacher_name,
-          `Updated Weekly Report (Week ${week_number})`,
-          "Programs",
-          "success",
-        ],
-      });
+      await logV2WeeklyReportUpdatedActivity(teacher_name, week_number);
 
       return NextResponse.json({
         success: true,
@@ -100,32 +78,19 @@ export async function POST(req) {
         action: "updated",
       });
     } else {
-      const result = await db.execute({
-        sql: `INSERT INTO v2_weekly_reports
-                  (program_id, week_number, teacher_id, teacher_name, reception_score, progress_notes, student_reception, action_taken)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [
-          program_id,
-          week_number,
-          teacher_id,
-          teacher_name,
-          reception_score || 5,
-          progress_notes,
-          student_reception,
-          action_taken,
-        ],
+      const result = await insertV2WeeklyReport({
+        program_id,
+        week_number,
+        teacher_id,
+        teacher_name,
+        reception_score,
+        progress_notes,
+        student_reception,
+        action_taken,
       });
 
       // Log Activity
-      await db.execute({
-        sql: "INSERT INTO activity_logs (user_identity, action, module, status) VALUES (?, ?, ?, ?)",
-        args: [
-          teacher_name,
-          `Created Weekly Report (Week ${week_number})`,
-          "Programs",
-          "success",
-        ],
-      });
+      await logV2WeeklyReportCreatedActivity(teacher_name, week_number);
 
       return NextResponse.json({
         success: true,

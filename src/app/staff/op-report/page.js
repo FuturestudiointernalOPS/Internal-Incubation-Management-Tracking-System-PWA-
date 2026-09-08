@@ -1076,16 +1076,14 @@ function StaffOpReport() {
         fetchTasks(true);
       } else {
         notify(
-          t((data.error || "Failed to create task") || "") ||
-            (data.error || "Failed to create task"),
+          t(data.error || "Failed to create task") || data.error || "Failed to create task",
           "error",
         );
       }
     } catch (e) {
       console.error("Create task error:", e);
       notify(
-        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
-          "Something went wrong. Please try again.",
+        t("errors.somethingWrong") || "Something went wrong. Please try again.",
         "error",
       );
     } finally {

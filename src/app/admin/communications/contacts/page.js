@@ -1439,7 +1439,7 @@ function ContactsPageContent() {
                     "bulk-program-select",
                   ).value;
                   const actionEl = document.querySelector(
-                    "#bulk-action-add.bg-\[var\(--brand-orange\)\/10\]",
+                    "#bulk-action-add.bg-[var(--brand-orange)/10]",
                   );
                   const isAdd = true; // default to add
                   if (!programId || !bulkSelected.length) return;

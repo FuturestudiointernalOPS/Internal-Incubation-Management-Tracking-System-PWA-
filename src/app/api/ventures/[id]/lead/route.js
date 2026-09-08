@@ -19,6 +19,11 @@ import { NextResponse } from "next/server";
 import db, { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
 import { changeVentureLead } from "@/lib/ventures";
+import {
+  findLeadFounderMembership,
+  getLeadVentureCodeByUuid,
+  logVentureLeadChanged,
+} from "@/models/ventureJourney";
 
 export async function POST(req, { params }) {
   await initDb();
@@ -40,7 +45,7 @@ export async function POST(req, { params }) {
     // Resolve the venture's VNT code (the members table keys on it)
     let ventureId = id;
     if (!/^VNT-/i.test(id)) {
-      const byId = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id::text = ?", args: [id] });
+      const byId = await getLeadVentureCodeByUuid(id);
       if (byId.rows.length > 0) ventureId = byId.rows[0].venture_id;
     }
 
@@ -69,10 +74,7 @@ export async function POST(req, { params }) {
     } catch (_) {}
 
     if (!privileged.includes(session.role)) {
-      const leadCheck = await db.execute({
-        sql: "SELECT id FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND lead_founder = TRUE AND removed_at IS NULL",
-        args: [ventureId, session.cid, session.cid],
-      });
+      const leadCheck = await findLeadFounderMembership(ventureId, session.cid);
       if (leadCheck.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Unauthorized. Only Future Studio staff or the current lead founder can change the lead." },
@@ -93,11 +95,12 @@ export async function POST(req, { params }) {
 
     // ── Audit + notification ──
     try {
-      await db.execute({
-        sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
-              VALUES (?, 'LEAD_CHANGED', ?, ?, ?::jsonb, NOW())`,
-        args: [ventureId, session.cid || "system", session.name || "", JSON.stringify({ member_id: member_id })],
-      });
+      await logVentureLeadChanged(
+        ventureId,
+        session.cid || "system",
+        session.name || "",
+        JSON.stringify({ member_id: member_id }),
+      );
     } catch (_) {}
     try {
       const { createVentureNotification } = await import("@/lib/ventures");

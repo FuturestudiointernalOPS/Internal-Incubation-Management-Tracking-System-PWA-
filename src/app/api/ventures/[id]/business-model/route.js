@@ -2,15 +2,19 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  createVentureBusinessModel,
+  findVentureBusinessModel,
+  getBusinessModelVentureId,
+  getVentureBusinessModel,
+  updateVentureBusinessModel,
+} from "@/models/ventureJourney";
 
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer"];
 const ALLOWED = ["participant", "founder", "staff", "program_manager", "super_admin", "teacher"];
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({
-    sql: "SELECT id FROM ventures WHERE venture_id = ?",
-    args: [ventureId],
-  });
+  const r = await getBusinessModelVentureId(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -26,10 +30,7 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    const r = await db.execute({
-      sql: `SELECT * FROM venture_business_models WHERE venture_id = ?`,
-      args: [dbId],
-    });
+    const r = await getVentureBusinessModel(dbId);
     return NextResponse.json({ success: true, business_model: r.rows?.[0] || null });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -52,10 +53,7 @@ export async function PUT(req, { params }) {
     const fields = ["business_model_canvas", "lean_canvas", "revenue_streams", "cost_structure", "key_partners"];
 
     // Check if row exists
-    const existing = await db.execute({
-      sql: "SELECT id FROM venture_business_models WHERE venture_id = ?",
-      args: [dbId],
-    });
+    const existing = await findVentureBusinessModel(dbId);
 
     if (existing.rows?.length > 0) {
       // UPDATE
@@ -73,10 +71,7 @@ export async function PUT(req, { params }) {
       setClauses.push("updated_by = ?");
       upArgs.push(session.cid);
       upArgs.push(dbId);
-      await db.execute({
-        sql: `UPDATE venture_business_models SET ${setClauses.join(", ")} WHERE venture_id = ?`,
-        args: upArgs,
-      });
+      await updateVentureBusinessModel(setClauses, upArgs);
     } else {
       // INSERT
       const insertCols = ["venture_id"];
@@ -94,10 +89,7 @@ export async function PUT(req, { params }) {
       insertCols.push("updated_by");
       insertVals.push("?");
       insertArgs.push(session.cid);
-      await db.execute({
-        sql: `INSERT INTO venture_business_models (${insertCols.join(", ")}) VALUES (${insertVals.join(", ")})`,
-        args: insertArgs,
-      });
+      await createVentureBusinessModel(insertCols, insertVals, insertArgs);
     }
 
     return NextResponse.json({ success: true });

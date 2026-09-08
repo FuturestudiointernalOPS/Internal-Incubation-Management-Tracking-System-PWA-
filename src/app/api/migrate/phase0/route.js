@@ -1,7 +1,16 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  addErrorLogColumn,
+  addErrorLogsSeverityCheck,
+  addTasksPriorityCheckConstraint,
+  addTasksPriorityColumn,
+  createErrorLogsTaskIdIndex,
+  createTasksAssignedPriorityIndex,
+  createTasksPriorityIndex,
+  dropErrorLogsSeverityCheck,
+} from "@/models/platformConfig";
 
 /**
  * GET /api/migrate/phase0
@@ -19,10 +28,7 @@ export async function GET() {
 
     // 1. Add priority column to tasks
     try {
-      await db.execute({
-        sql: `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority TEXT NOT NULL DEFAULT 'medium'`,
-        args: [],
-      });
+      await addTasksPriorityColumn();
       results.push({ step: "Add priority column", status: "ok" });
     } catch (e) {
       results.push({ step: "Add priority column", status: e.message.includes("already exists") ? "already exists" : e.message });
@@ -30,10 +36,7 @@ export async function GET() {
 
     // 2. Add priority check constraint
     try {
-      await db.execute({
-        sql: `ALTER TABLE tasks ADD CONSTRAINT tasks_priority_check CHECK (priority IN ('critical', 'high', 'medium', 'low'))`,
-        args: [],
-      });
+      await addTasksPriorityCheckConstraint();
       results.push({ step: "Add priority check", status: "ok" });
     } catch (e) {
       results.push({ step: "Add priority check", status: e.message.includes("already exists") ? "already exists" : e.message.substring(0, 80) });
@@ -41,14 +44,14 @@ export async function GET() {
 
     // 3. Create indexes
     try {
-      await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)", args: [] });
+      await createTasksPriorityIndex();
       results.push({ step: "Create priority index", status: "ok" });
     } catch (e) {
       results.push({ step: "Create priority index", status: e.message.substring(0, 80) });
     }
 
     try {
-      await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_tasks_assigned_priority ON tasks(assigned_to, priority)", args: [] });
+      await createTasksAssignedPriorityIndex();
       results.push({ step: "Create assigned_priority index", status: "ok" });
     } catch (e) {
       results.push({ step: "Create assigned_priority index", status: e.message.substring(0, 80) });
@@ -64,10 +67,7 @@ export async function GET() {
 
     for (const col of errorColumns) {
       try {
-        await db.execute({
-          sql: `ALTER TABLE error_logs ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`,
-          args: [],
-        });
+        await addErrorLogColumn(col.name, col.type);
         results.push({ step: `Add error_logs.${col.name}`, status: "ok" });
       } catch (e) {
         results.push({ step: `Add error_logs.${col.name}`, status: e.message.includes("already exists") ? "already exists" : e.message.substring(0, 80) });
@@ -76,7 +76,7 @@ export async function GET() {
 
     // 5. Create error_logs task_id index
     try {
-      await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_error_logs_task_id ON error_logs(task_id)", args: [] });
+      await createErrorLogsTaskIdIndex();
       results.push({ step: "Create error_logs task_id index", status: "ok" });
     } catch (e) {
       results.push({ step: "Create error_logs task_id index", status: e.message.substring(0, 80) });
@@ -84,14 +84,8 @@ export async function GET() {
 
     // 6. Update severity check constraint
     try {
-      await db.execute({
-        sql: `ALTER TABLE error_logs DROP CONSTRAINT IF EXISTS error_logs_severity_check`,
-        args: [],
-      });
-      await db.execute({
-        sql: `ALTER TABLE error_logs ADD CONSTRAINT error_logs_severity_check CHECK (severity IN ('info', 'warning', 'error', 'critical', 'fatal'))`,
-        args: [],
-      });
+      await dropErrorLogsSeverityCheck();
+      await addErrorLogsSeverityCheck();
       results.push({ step: "Update severity check", status: "ok" });
     } catch (e) {
       results.push({ step: "Update severity check", status: e.message.substring(0, 80) });

@@ -5,8 +5,19 @@
 // All NEW features must go in V1 API routes (/api/pm/, /api/kpis/ etc.)
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import {
+  deleteV2Kpi,
+  getV2KpiIdsByProgramId,
+  getV2KpiProgramId,
+  getV2KpisAfterCreate,
+  getV2KpisAfterWeightUpdate,
+  getV2KpisByProgramId,
+  insertV2KpiWithAutoWeight,
+  updateV2KpiAutoWeight,
+  updateV2KpiManualWeight,
+} from "@/models/platformConfig";
 import { NextResponse } from "next/server";
 
 export async function GET(req) {
@@ -16,10 +27,7 @@ export async function GET(req) {
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
-    const result = await db.execute({
-      sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-      args: [programId],
-    });
+    const result = await getV2KpisByProgramId(programId);
     return NextResponse.json({ success: true, kpis: result.rows });
   } catch (error) {
     return NextResponse.json(
@@ -35,17 +43,11 @@ export async function POST(req) {
     const authError = await requireAuth(["super_admin", "program_manager"]);
     if (authError) return authError;
     const { program_id, title, target_value } = await req.json();
-    const result = await db.execute({
-      sql: "INSERT INTO v2_kpis (program_id, title, target_value, auto_weight) VALUES (?, ?, ?, TRUE) RETURNING *",
-      args: [program_id, title, target_value],
-    });
+    const result = await insertV2KpiWithAutoWeight(program_id, title, target_value);
     // After inserting, redistribute weights equally for the program
     await redistributeProgramWeights(program_id);
     // Re-fetch all KPIs
-    const allKpis = await db.execute({
-      sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-      args: [program_id],
-    });
+    const allKpis = await getV2KpisAfterCreate(program_id);
     return NextResponse.json({ success: true, kpi: result.rows[0], kpis: allKpis.rows });
   } catch (error) {
     return NextResponse.json(
@@ -73,19 +75,13 @@ export async function PUT(req) {
       }
       // Apply manual weights
       for (const w of weights) {
-        await db.execute({
-          sql: "UPDATE v2_kpis SET weight = ?, auto_weight = FALSE WHERE id = ?",
-          args: [parseFloat(parseFloat(w.weight).toFixed(2)), w.id],
-        });
+        await updateV2KpiManualWeight(parseFloat(parseFloat(w.weight).toFixed(2)), w.id);
       }
     } else if (mode === "auto") {
       await redistributeProgramWeights(program_id);
     }
 
-    const allKpis = await db.execute({
-      sql: "SELECT * FROM v2_kpis WHERE program_id = ?",
-      args: [program_id],
-    });
+    const allKpis = await getV2KpisAfterWeightUpdate(program_id);
     return NextResponse.json({ success: true, kpis: allKpis.rows });
   } catch (error) {
     return NextResponse.json(
@@ -96,10 +92,7 @@ export async function PUT(req) {
 }
 
 async function redistributeProgramWeights(programId) {
-  const kpis = await db.execute({
-    sql: "SELECT id FROM v2_kpis WHERE program_id = ?",
-    args: [programId],
-  });
+  const kpis = await getV2KpiIdsByProgramId(programId);
   const count = kpis.rows.length;
   if (count === 0) return;
   const equal = parseFloat((100 / count).toFixed(2));
@@ -107,10 +100,7 @@ async function redistributeProgramWeights(programId) {
   for (let i = 0; i < count; i++) {
     const w = i === count - 1 ? parseFloat(remaining.toFixed(2)) : equal;
     remaining -= w;
-    await db.execute({
-      sql: "UPDATE v2_kpis SET weight = ?, auto_weight = TRUE WHERE id = ?",
-      args: [w, kpis.rows[i].id],
-    });
+    await updateV2KpiAutoWeight(w, kpis.rows[i].id);
   }
 }
 
@@ -121,15 +111,9 @@ export async function DELETE(req) {
     if (authError) return authError;
     const { id } = await req.json();
     // Get program_id before deleting
-    const kpi = await db.execute({
-      sql: "SELECT program_id FROM v2_kpis WHERE id = ?",
-      args: [id],
-    });
+    const kpi = await getV2KpiProgramId(id);
     const programId = kpi.rows[0]?.program_id;
-    await db.execute({
-      sql: "DELETE FROM v2_kpis WHERE id = ?",
-      args: [id],
-    });
+    await deleteV2Kpi(id);
     // Redistribute weights for remaining KPIs
     if (programId) await redistributeProgramWeights(programId);
     return NextResponse.json({ success: true });

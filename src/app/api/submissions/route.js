@@ -1,7 +1,32 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
+import {
+  getSubmissionProgramStatus,
+  getParticipantProgramSubmissionStatus,
+  ensureSubmissionsTeamIdColumn,
+  findMaxSubmissionVersion,
+  createSubmission,
+  ensureSubmissionsRoleLockColumn,
+  getSubmissionProgramId,
+  checkSubmissionInFacilitatorTeamScope,
+  getSubmissionReviewDetails,
+  ensureSubmissionsScoreColumn,
+  ensureSubmissionsReviewedByRoleColumn,
+  ensureSubmissionsUpdatedAtColumn,
+  ensureSubmissionsFollowupsParticipantCidColumn,
+  updateSubmissionReview,
+  createSubmissionFollowupEvent,
+  createSubmissionFollowup,
+  createSubmissionNotification,
+  propagateSubmissionToTeamMembers,
+  ensureSubmissionsTeamIdColumnForListing,
+  listSubmissions,
+  ensureSubmissionScoresColumn,
+  ensureSubmissionEvaluationScoreColumn,
+  updateSubmissionScoreById,
+  updateSubmissionsScoreForParticipant,
+} from "@/models/forms";
 
 /**
  * SUBMISSIONS API — TRACK 3 ENHANCED
@@ -49,10 +74,7 @@ export async function POST(req) {
     const session = await getSession();
     if (session && ["participant", "team"].includes(session.role)) {
       try {
-        const progCheck = await db.execute({
-          sql: "SELECT status FROM v2_programs WHERE id::text = ?",
-          args: [String(program_id)],
-        });
+        const progCheck = await getSubmissionProgramStatus(program_id);
         const progStatus = progCheck.rows[0]?.status;
         if (progStatus && String(progStatus).toLowerCase() !== "active") {
           return NextResponse.json(
@@ -63,12 +85,7 @@ export async function POST(req) {
         // Person-level completion: the participant's own membership is closed
         // even if the program itself is still active.
         if (session.role === "participant") {
-          const ppCheck = await db.execute({
-            sql: `SELECT status FROM participant_programs
-                  WHERE participant_id = ? AND program_id::text = ?
-                  LIMIT 1`,
-            args: [session.cid, String(program_id)],
-          });
+          const ppCheck = await getParticipantProgramSubmissionStatus(session.cid, program_id);
           const ppStatus = String(ppCheck.rows[0]?.status || "").toLowerCase();
           if (ppStatus === "completed") {
             return NextResponse.json(
@@ -86,7 +103,7 @@ export async function POST(req) {
     // Ensure team_id column exists (teams submit as a unit; the PM table
     // matches submissions to members by team_id).
     try {
-      await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS team_id TEXT");
+      await ensureSubmissionsTeamIdColumn();
     } catch (_) {}
 
     // Auto-detect deliverable_id from document_id if needed
@@ -97,49 +114,32 @@ export async function POST(req) {
     // Determine version number: find the highest existing version for this participant+deliverable
     let nextVersion = 1;
     try {
-      let verSql = "SELECT MAX(version_number) as max_ver FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ? AND (";
-      let verArgs = [participant_id || null, program_id];
-      let conditions = [];
-      
-      if (finalDeliverableId) {
-        conditions.push("deliverable_id::text = ?");
-        verArgs.push(finalDeliverableId);
-      }
-      if (finalDocumentId) {
-        conditions.push("document_id = ?");
-        verArgs.push(finalDocumentId);
-      }
-      
-      if (conditions.length > 0) {
-        verSql += conditions.join(" OR ") + ")";
-        const existingRes = await db.execute({ sql: verSql, args: verArgs });
-        const existingVersion = existingRes.rows[0]?.max_ver;
-        if (existingVersion) {
-          nextVersion = Number(existingVersion) + 1;
-        }
+      const existingRes = await findMaxSubmissionVersion({
+        participant_id,
+        program_id,
+        deliverable_id: finalDeliverableId,
+        document_id: finalDocumentId,
+      });
+      const existingVersion = existingRes.rows[0]?.max_ver;
+      if (existingVersion) {
+        nextVersion = Number(existingVersion) + 1;
       }
     } catch (_) {
       // version_number column might not exist yet (pre-migration)
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_submissions (
-          program_id, deliverable_id, document_id, group_id, team_id, participant_id,
-          file_url, supporting_url, status, feedback, version_number
-       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        program_id,
-        finalDeliverableId,
-        finalDocumentId,
-        group_id || null,
-        team_id || null,
-        participant_id || null,
-        resolvedFileUrl,
-        supporting_url || null,
-        status || "pending",
-        feedback || null,
-        nextVersion,
-      ],
+    const result = await createSubmission({
+      program_id,
+      deliverable_id: finalDeliverableId,
+      document_id: finalDocumentId,
+      group_id,
+      team_id,
+      participant_id,
+      file_url: resolvedFileUrl,
+      supporting_url,
+      status,
+      feedback,
+      version_number: nextVersion,
     });
 
     return NextResponse.json({
@@ -196,12 +196,9 @@ export async function PATCH(req) {
     // and hold assignments.grade to review submissions.
     const session = await getSession();
     // Ensure role-lock column exists before we read it below.
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS reviewed_by_role TEXT DEFAULT NULL"); } catch (_) {}
+    try { await ensureSubmissionsRoleLockColumn(); } catch (_) {}
     if (session && !hasProgramManagementAccess(session.role)) {
-      const subRow = await db.execute({
-        sql: "SELECT program_id FROM v2_submissions WHERE id::text = ?",
-        args: [String(id)],
-      });
+      const subRow = await getSubmissionProgramId(id);
       const progId = subRow.rows[0]?.program_id;
       if (!progId) {
         return NextResponse.json(
@@ -218,12 +215,7 @@ export async function PATCH(req) {
       if (facError) return facError;
       const scope = await getFacilitatorTeamScope(progId, session.cid);
       if (scope.scope !== "all" && scope.teamIds.length > 0) {
-        const inScope = await db.execute({
-          sql: "SELECT 1 FROM v2_submissions s JOIN contacts c ON s.participant_id::text = c.cid WHERE s.id::text = ? AND c.v2_team_id IN (" +
-            scope.teamIds.map(() => "?").join(",") +
-            ")",
-          args: [String(id), ...scope.teamIds],
-        });
+        const inScope = await checkSubmissionInFacilitatorTeamScope(id, scope.teamIds);
         if (inScope.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
@@ -252,21 +244,7 @@ export async function PATCH(req) {
     const statusLabel = { approved: "Approved", rejected: "Rejected", revision_requested: "Revision Requested", pending: "Pending", pending_followup: "Follow-up Scheduled" }[status] || status;
 
     // 1. Fetch current submission & participant details for notification
-    const subRes = await db.execute({
-      sql: `
-           SELECT s.id, s.program_id, s.participant_id, s.team_id,
-                  s.status, s.reviewed_by_role, s.teacher_id,
-                  c.email, c.name as participant_name,
-                  d.title as deliverable_title, prog.assigned_pm_id,
-                  prog.name as program_name
-           FROM v2_submissions s
-           LEFT JOIN contacts c ON s.participant_id::text = c.cid
-           LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
-           LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
-           WHERE s.id::text = ?
-        `,
-      args: [id],
-    });
+    const subRes = await getSubmissionReviewDetails(id);
 
     const sub = subRes.rows[0];
 
@@ -299,33 +277,25 @@ export async function PATCH(req) {
     }
 
     // 2. Ensure score column exists (migration safety)
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL"); } catch (_) {}
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS reviewed_by_role TEXT DEFAULT NULL"); } catch (_) {}
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()"); } catch (_) {}
-    try { await db.execute("ALTER TABLE v2_followups ADD COLUMN IF NOT EXISTS participant_cid TEXT DEFAULT NULL"); } catch (_) {}
+    try { await ensureSubmissionsScoreColumn(); } catch (_) {}
+    try { await ensureSubmissionsReviewedByRoleColumn(); } catch (_) {}
+    try { await ensureSubmissionsUpdatedAtColumn(); } catch (_) {}
+    try { await ensureSubmissionsFollowupsParticipantCidColumn(); } catch (_) {}
 
     // 3. Update Database with all review fields
     // Preserve an existing score when the reviewer does not send a new one
     // (facilitators review without a score; the PM grades via the dashboard).
     const hasNewScore = score !== undefined && score !== null && score !== "";
-    await db.execute({
-      sql: `UPDATE v2_submissions SET
-              status = ?, feedback = ?, score = COALESCE(?, score),
-              review_action = ?, rejection_reason = ?,
-              reviewed_by_role = ?, teacher_id = ?,
-              approved_at = CURRENT_TIMESTAMP,
-              updated_at = NOW()
-            WHERE id = ?`,
-      args: [
-        status,
-        feedback || null,
-        hasNewScore ? parseInt(score) : null,
-        review_action || null,
-        rejection_reason || null,
-        session?.role || null,
-        session?.cid || session?.email || null,
-        id,
-      ],
+    await updateSubmissionReview({
+      id,
+      status,
+      feedback,
+      score,
+      hasNewScore,
+      review_action,
+      rejection_reason,
+      role: session?.role,
+      teacherId: session?.cid || session?.email || null,
     });
 
     // 3. Handle Follow-up Scheduling (creates calendar event)
@@ -337,35 +307,27 @@ export async function PATCH(req) {
           ? new Date(`${followup_date}T${followup_time}`)
           : new Date(followup_date);
 
-        const eventRes = await db.execute({
-          sql: `INSERT INTO v2_events (program_id, title, description, event_type, start_time, end_time, location, participant_id, created_by)
-                VALUES (?, ?, ?, 'followup', ?, ?, ?, ?, ?) RETURNING id`,
-          args: [
-            sub.program_id,
-            eventTitle,
-            followup_notes || null,
-            eventStart.toISOString(),
-            new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
-            meeting_link || null,
-            sub.participant_id,
-            "instructor",
-          ],
+        const eventRes = await createSubmissionFollowupEvent({
+          program_id: sub.program_id,
+          title: eventTitle,
+          description: followup_notes || null,
+          start_time: eventStart.toISOString(),
+          end_time: new Date(eventStart.getTime() + (followup_duration || 30) * 60000).toISOString(),
+          location: meeting_link || null,
+          participant_id: sub.participant_id,
+          created_by: "instructor",
         });
 
         // Also create a followup record
-        await db.execute({
-          sql: `INSERT INTO v2_followups (program_id, participant_cid, submission_id, comment, scheduled_at, duration_minutes, meeting_link, notes, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'scheduled')`,
-          args: [
-            sub.program_id,
-            sub.participant_cid || sub.participant_id,
-            id,
-            followup_notes || `Follow-up meeting for ${sub.deliverable_title || "submission"}`,
-            eventStart.toISOString(),
-            followup_duration || 30,
-            meeting_link || null,
-            followup_notes || null,
-          ],
+        await createSubmissionFollowup({
+          program_id: sub.program_id,
+          participant_cid: sub.participant_cid || sub.participant_id,
+          submission_id: id,
+          comment: followup_notes || `Follow-up meeting for ${sub.deliverable_title || "submission"}`,
+          scheduled_at: eventStart.toISOString(),
+          duration_minutes: followup_duration || 30,
+          meeting_link: meeting_link || null,
+          notes: followup_notes || null,
         });
       } catch (_) {
         // Calendar creation failure is non-blocking
@@ -384,11 +346,7 @@ export async function PATCH(req) {
           notifMessage += ` Reason: ${rejection_reason}`;
         }
 
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                VALUES (?, ?, ?, 'submission', 0, NOW())`,
-          args: [sub.participant_id, notifTitle, notifMessage],
-        });
+        await createSubmissionNotification(sub.participant_id, notifTitle, notifMessage);
       } catch (_) {}
 
       // NOTE: No email is sent for program-deliverable reviews. In-app
@@ -402,38 +360,21 @@ export async function PATCH(req) {
     if (sub?.team_id && (score != null || status === "approved")) {
       try {
         const requesterCampForProp = roleCamp(session?.role);
-        const propagateSql = `UPDATE v2_submissions SET
-              status = ?, score = COALESCE(?, score), feedback = ?,
-              review_action = ?, rejection_reason = ?,
-              reviewed_by_role = ?, teacher_id = ?,
-              approved_at = CURRENT_TIMESTAMP, updated_at = NOW()
-            WHERE team_id::text = ?
-              AND (deliverable_id::text = ? OR document_id::text = ?)
-              AND id::text != ?
-              ${
-                requesterCampForProp
-                  ? `AND NOT (
-                      status IN ('approved','rejected')
-                      AND reviewed_by_role IS NOT NULL
-                      AND reviewed_by_role != ?
-                    )`
-                  : ""
-              }`;
-        const propArgs = [
+        await propagateSubmissionToTeamMembers({
           status,
-          hasNewScore ? parseInt(score) : null,
-          feedback || null,
-          review_action || null,
-          rejection_reason || null,
-          session?.role || null,
-          session?.cid || session?.email || null,
-          sub.team_id,
-          sub.deliverable_id || String(sub.document_id),
-          sub.document_id != null ? String(sub.document_id) : sub.deliverable_id,
+          score,
+          hasNewScore,
+          feedback,
+          review_action,
+          rejection_reason,
+          role: session?.role,
+          teacherId: session?.cid || session?.email || null,
+          teamId: sub.team_id,
+          deliverableId: sub.deliverable_id,
+          documentId: sub.document_id,
           id,
-        ];
-        if (requesterCampForProp) propArgs.push(requesterCampForProp);
-        await db.execute({ sql: propagateSql, args: propArgs });
+          requesterCampForProp,
+        });
       } catch (_) {}
     }
 
@@ -469,7 +410,7 @@ export async function GET(req) {
     if (authError) return authError;
     // Ensure team_id column exists so team-level submissions resolve.
     try {
-      await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS team_id TEXT");
+      await ensureSubmissionsTeamIdColumnForListing();
     } catch (_) {}
     const { searchParams } = new URL(req.url);
     const participant_id = searchParams.get("participant_id");
@@ -509,100 +450,18 @@ export async function GET(req) {
       }
     }
 
-    let sql = `
-       SELECT s.*,
-              d.title as deliverable_title,
-              d.week_number as deliverable_week,
-              d.due_date as deliverable_due_date,
-              c.name as participant_name, g.name as group_name
-       FROM v2_submissions s
-       LEFT JOIN v2_deliverables d ON s.deliverable_id::text = d.id::text
-       LEFT JOIN contacts c ON s.participant_id::text = c.cid
-       LEFT JOIN v2_groups g ON s.group_id::text = g.id::text
-       WHERE 1=1
-    `;
-    let args = [];
-
-    if (participant_id) {
-      sql += " AND s.participant_id::text = ?";
-      args.push(participant_id);
-    }
-    if (team_id) {
-      sql += " AND s.team_id::text = ?";
-      args.push(team_id);
-    }
-    if (group_id) {
-      sql += " AND s.group_id::text = ?";
-      args.push(group_id);
-    }
-    if (program_id) {
-      sql += " AND s.program_id::text = ?";
-      args.push(program_id);
-    }
-    if (deliverable_id) {
-      sql += " AND s.deliverable_id::text = ?";
-      args.push(deliverable_id);
-    }
-    if (document_id) {
-      sql += " AND s.document_id = ?";
-      args.push(Number(document_id));
-    }
-    if (status) {
-      sql += " AND s.status = ?";
-      args.push(status);
-    }
-    if (facScopeFilter) {
-      sql += " AND " + facScopeFilter;
-      args.push(...facScopeArgs);
-    }
-
-    // If latest_only, get the latest version per participant+deliverable
-    if (latest_only) {
-      sql = `
-        SELECT s1.*,
-               COALESCE(del.title, dr.title) as deliverable_title,
-               COALESCE(del.week_number, dr.week_number) as deliverable_week,
-               del.due_date as deliverable_due_date,
-               c.name as participant_name, g.name as group_name
-        FROM v2_submissions s1
-        LEFT JOIN v2_deliverables del ON s1.deliverable_id::text = del.id::text
-        LEFT JOIN v2_document_requirements dr ON s1.document_id = dr.id
-        LEFT JOIN contacts c ON s1.participant_id::text = c.cid
-        LEFT JOIN v2_groups g ON s1.group_id::text = g.id::text
-        INNER JOIN (
-          SELECT participant_id, COALESCE(deliverable_id::text, document_id::text) as lookup_id, MAX(version_number) as max_ver
-          FROM v2_submissions
-          WHERE 1=1
-      `;
-      let innerArgs = [];
-      if (participant_id) {
-        sql += " AND participant_id::text = ?";
-        innerArgs.push(participant_id);
-      }
-      if (program_id) {
-        sql += " AND program_id::text = ?";
-        innerArgs.push(program_id);
-      }
-      if (deliverable_id) {
-        sql += " AND (deliverable_id::text = ? OR document_id = ?)";
-        innerArgs.push(deliverable_id, Number(deliverable_id) || 0);
-      }
-      if (facScopeFilter) {
-        sql +=
-          " AND participant_id IN (SELECT c.cid FROM contacts c WHERE c.v2_team_id IN (" +
-          facScopeArgs.map(() => "?").join(",") +
-          "))";
-        innerArgs.push(...facScopeArgs);
-      }
-      sql += " GROUP BY participant_id::text, COALESCE(deliverable_id::text, document_id::text)";
-      sql += " ) s2";
-      sql += " ON s1.participant_id::text = s2.participant_id AND COALESCE(s1.deliverable_id::text, s1.document_id::text) = s2.lookup_id AND s1.version_number = s2.max_ver";
-      args = [...innerArgs];
-    }
-
-    sql += " ORDER BY s.created_at DESC";
-
-    const { rows } = await db.execute({ sql, args });
+    const { rows } = await listSubmissions({
+      participant_id,
+      team_id,
+      group_id,
+      program_id,
+      deliverable_id,
+      document_id,
+      status,
+      latest_only,
+      facScopeFilter,
+      facScopeArgs,
+    });
 
     // Format for UI
     const submissions = rows.map((r) => ({
@@ -674,8 +533,8 @@ export async function PUT(req) {
     }
 
     // Ensure both score columns exist (migration safety).
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT NULL"); } catch (_) {}
-    try { await db.execute("ALTER TABLE v2_submissions ADD COLUMN IF NOT EXISTS evaluation_score INTEGER DEFAULT NULL"); } catch (_) {}
+    try { await ensureSubmissionScoresColumn(); } catch (_) {}
+    try { await ensureSubmissionEvaluationScoreColumn(); } catch (_) {}
 
     const payload = {
       score: score != null ? parseInt(score) : null,
@@ -684,14 +543,15 @@ export async function PUT(req) {
     };
 
     if (id) {
-      await db.execute({
-        sql: "UPDATE v2_submissions SET score = ?, evaluation_score = ?, evaluation_data = ?, updated_at = NOW() WHERE id = ?",
-        args: [payload.score, payload.evaluation_score, payload.evaluation_data, id],
+      await updateSubmissionScoreById({
+        ...payload,
+        id,
       });
     } else {
-      await db.execute({
-        sql: "UPDATE v2_submissions SET score = ?, evaluation_score = ?, evaluation_data = ?, updated_at = NOW() WHERE participant_id::text = ? AND program_id::text = ?",
-        args: [payload.score, payload.evaluation_score, payload.evaluation_data, String(participant_id), String(program_id)],
+      await updateSubmissionsScoreForParticipant({
+        ...payload,
+        participant_id,
+        program_id,
       });
     }
 

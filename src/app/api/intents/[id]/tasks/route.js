@@ -1,6 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  checkVentureMembership,
+  createIntentTask,
+  getIntentForTaskCreation,
+} from "@/models/intents";
 
 /**
  * POST /api/intents/[id]/tasks
@@ -33,10 +38,7 @@ export async function POST(req, { params }) {
     const { id: intentId } = await params;
 
     // Fetch the intent
-    const intentRes = await db.execute({
-      sql: "SELECT * FROM intents WHERE id = ?",
-      args: [intentId],
-    });
+    const intentRes = await getIntentForTaskCreation(intentId);
 
     if (intentRes.rows.length === 0) {
       return NextResponse.json(
@@ -54,10 +56,10 @@ export async function POST(req, { params }) {
     ) {
       // For venture intents, check membership
       if (intent.context_type === "venture" && intent.context_id) {
-        const memberCheck = await db.execute({
-          sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-          args: [intent.context_id, session.cid],
-        });
+        const memberCheck = await checkVentureMembership(
+          intent.context_id,
+          session.cid,
+        );
         if (memberCheck.rows.length === 0) {
           return NextResponse.json(
             {
@@ -136,32 +138,23 @@ export async function POST(req, { params }) {
     const weekNum = created_week || getCurrentWeekNumber().week;
     const yearNum = created_year || getCurrentWeekNumber().year;
 
-    const result = await db.execute({
-      sql: `INSERT INTO tasks
-        (user_id, user_name, title, description, status, project_id, category,
-         created_week, created_year, start_date, end_date, assigned_to, priority,
-         context_type, context_id, supervisor_id, intent_id)
-        VALUES (?, ?, ?, ?, 'in_progress', ?, ?, ?, ?, ?, ?, ?, ?,
-                ?, ?, ?, ?)
-        RETURNING id`,
-      args: [
-        finalUserId,
-        user_name || session.name || "",
-        title,
-        description || null,
-        project_id || intent.project_id || null,
-        category || null,
-        weekNum,
-        yearNum,
-        start_date || null,
-        end_date || null,
-        finalAssignedTo,
-        priority || "medium",
-        finalContextType,
-        finalContextId,
-        finalSupervisorId,
-        intentId,
-      ],
+    const result = await createIntentTask({
+      user_id: finalUserId,
+      user_name: user_name || session.name || "",
+      title,
+      description: description || null,
+      project_id: project_id || intent.project_id || null,
+      category: category || null,
+      created_week: weekNum,
+      created_year: yearNum,
+      start_date: start_date || null,
+      end_date: end_date || null,
+      assigned_to: finalAssignedTo,
+      priority: priority || "medium",
+      context_type: finalContextType,
+      context_id: finalContextId,
+      supervisor_id: finalSupervisorId,
+      intent_id: intentId,
     });
 
     const taskId = Number(result.rows[0]?.id || result.lastInsertRowid);

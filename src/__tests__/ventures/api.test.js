@@ -41,6 +41,29 @@ jest.mock("@/lib/authorization", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
 }));
 
+// Phase 3/10 (post-dating these tests): the /api/ventures/[id] routes also
+// run the venture access/archive gates (requireVentureAccess /
+// requireOperationalVentureAccess) and consult getSession() before the
+// business logic. Same rationale as the authorization mock above — access
+// control is out of scope — so the gates are mocked as granted for a
+// super_admin session. Without this, the gates' real db.execute queries
+// consume the mock queue that the tests set up for getVentureById etc.
+jest.mock("@/lib/ventureAuth", () => ({
+  requireVentureAccess: jest.fn().mockResolvedValue({
+    session: { cid: "sa-001", name: "Super Admin", role: "super_admin", email: "admin@test.com" },
+  }),
+  requireOperationalVentureAccess: jest.fn().mockResolvedValue({ ok: true }),
+}));
+
+jest.mock("@/lib/auth", () => ({
+  getSession: jest.fn().mockResolvedValue({
+    cid: "sa-001",
+    name: "Super Admin",
+    role: "super_admin",
+    email: "admin@test.com",
+  }),
+}));
+
 // Mock createHandler to simulate session
 jest.mock("@/lib/api/createHandler", () => {
   const actualModule = jest.requireActual("@/lib/api/createHandler");
@@ -219,6 +242,7 @@ describe("Venture API Integration Tests", () => {
         .mockResolvedValueOnce({ rows: [] }) // members
         .mockResolvedValueOnce({ rows: [{ id: 1, action: "VENTURE_CREATED" }] }) // activity
         .mockResolvedValueOnce({ rows: [] }) // history
+        .mockResolvedValueOnce({ rows: [] }) // startup_profile_progress (getVentureById reads it too)
         // updateVenture
         .mockResolvedValueOnce({ rows: [] })
         // logVentureActivity
@@ -239,7 +263,8 @@ describe("Venture API Integration Tests", () => {
         .mockResolvedValueOnce({ rows: [] }) // founders
         .mockResolvedValueOnce({ rows: [] }) // members
         .mockResolvedValueOnce({ rows: [{ id: 1, action: "VENTURE_CREATED" }, { id: 2, action: "VENTURE_UPDATED" }] }) // activity
-        .mockResolvedValueOnce({ rows: [{ id: 1, event_type: "VENTURE_UPDATED" }] }); // history
+        .mockResolvedValueOnce({ rows: [{ id: 1, event_type: "VENTURE_UPDATED" }] }) // history
+        .mockResolvedValueOnce({ rows: [] }); // startup_profile_progress (getVentureById reads it too)
 
       const { PATCH } = await import("@/app/api/ventures/[id]/route");
 

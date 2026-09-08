@@ -198,7 +198,7 @@ export default function ProgressView({ programId: filterProgramId }) {
     const url = "/api/participant/progress";
     const apply = (result) => {
       if (result.success) setData(result);
-      else setError(t((result.error || "Failed to load") || "") || (result.error || "Failed to load"));
+      else setError(t(result.error || "Failed to load") || result.error || "Failed to load");
     };
     let painted = false;
     try {

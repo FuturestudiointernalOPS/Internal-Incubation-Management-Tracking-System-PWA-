@@ -1,7 +1,20 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendEmail } from "@/lib/mailer";
+import {
+  getOrgTeams,
+  getOrgTeamMembers,
+  createOrgTeam,
+  getOrgTeamParticipantEmails,
+  linkOrgTeamContactsByEmail,
+  linkOrgTeamContactsByCid,
+  updateOrgTeam,
+  clearOrgTeamMemberLinks,
+  linkOrgTeamContactsByCidOnUpdate,
+  clearOrgTeamMemberLinksOnDelete,
+  deleteOrgTeam,
+} from "@/models/groups";
 
 export async function GET(req) {
   try {
@@ -18,33 +31,11 @@ export async function GET(req) {
     const teamId = searchParams.get("team_id");
 
     // For team role: only return the team that matches the session's team_id
-    let sql = `SELECT t.*, (SELECT COUNT(*) FROM contacts WHERE team_id = t.id) AS members_count FROM v2_teams t`;
-    let args = [];
-    const conditions = [];
-
-    // Team role: restrict to own team
-    if (teamId) {
-      conditions.push("t.id = ?");
-      args.push(teamId);
-    } else if (programId && programId !== "all") {
-      conditions.push("t.program_id = ?");
-      args.push(programId);
-    }
-
-    if (conditions.length > 0) {
-      sql += " WHERE " + conditions.join(" AND ");
-    }
-
-    sql += " ORDER BY t.name ASC";
-
-    const result = await db.execute({ sql, args });
+    const result = await getOrgTeams(programId, teamId);
 
     // If fetching a specific team, also include member details
     if (teamId && result.rows.length > 0) {
-      const memberRes = await db.execute({
-        sql: "SELECT cid, name, email, role, group_name FROM contacts WHERE team_id = ? AND deleted = 0",
-        args: [teamId],
-      });
+      const memberRes = await getOrgTeamMembers(teamId);
       result.rows[0].members = memberRes.rows;
     }
 
@@ -89,36 +80,26 @@ export async function POST(req) {
     const teamId = `TEAM-${Date.now().toString(36).toUpperCase()}`;
 
     // 1. Create Team Record
-    const result = await db.execute({
-      sql: "INSERT INTO v2_teams (id, program_id, name, handler_id, handler_name, password, team_username) VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING *",
-      args: [
-        teamId,
-        program_id,
-        name,
-        handler_id || null,
-        handler_name || null,
-        generatedPassword,
-        generatedUsername,
-      ],
-    });
+    const result = await createOrgTeam(
+      teamId,
+      program_id,
+      name,
+      handler_id,
+      handler_name,
+      generatedPassword,
+      generatedUsername,
+    );
 
     const team = result.rows[0];
 
     // 2. Link Members to Team if provided (supports both contacts CIDs and v2_participants UUIDs)
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
       // Try finding matching contacts by participant ID (v2_participants.email → contacts.email)
-      const pRes = await db.execute({
-        sql: `SELECT email FROM v2_participants WHERE id::text IN (${member_ids.map(() => "?").join(",")})`,
-        args: member_ids,
-      });
+      const pRes = await getOrgTeamParticipantEmails(member_ids);
       const emails = pRes.rows.map(r => r.email).filter(Boolean);
 
       if (emails.length > 0) {
-        const emailPlaceholders = emails.map(() => "?").join(",");
-        await db.execute({
-          sql: `UPDATE contacts SET team_id = ? WHERE email IN (${emailPlaceholders})`,
-          args: [team.id, ...emails],
-        });
+        await linkOrgTeamContactsByEmail(team.id, emails);
 
         // Send welcome emails with team credentials
         for (const email of emails) {
@@ -132,11 +113,7 @@ export async function POST(req) {
         }
       } else {
         // Fallback: try direct CID match
-        const placeholders = member_ids.map(() => "?").join(",");
-        await db.execute({
-          sql: `UPDATE contacts SET team_id = ? WHERE cid IN (${placeholders})`,
-          args: [team.id, ...member_ids],
-        });
+        await linkOrgTeamContactsByCid(team.id, member_ids);
       }
     }
 
@@ -177,24 +154,14 @@ export async function PUT(req) {
       args.push(is_venture_ready);
     }
     args.push(id);
-    await db.execute({
-      sql: `UPDATE v2_teams SET ${sets.join(", ")} WHERE id = ?`,
-      args,
-    });
+    await updateOrgTeam(sets, args);
 
     // 2. Clear existing member links for this team
-    await db.execute({
-      sql: "UPDATE contacts SET team_id = NULL WHERE team_id = ?",
-      args: [id],
-    });
+    await clearOrgTeamMemberLinks(id);
 
     // 3. Re-link members if provided
     if (member_ids && Array.isArray(member_ids) && member_ids.length > 0) {
-      const placeholders = member_ids.map(() => "?").join(",");
-      await db.execute({
-        sql: `UPDATE contacts SET team_id = ? WHERE cid IN (${placeholders})`,
-        args: [id, ...member_ids],
-      });
+      await linkOrgTeamContactsByCidOnUpdate(id, member_ids);
     }
 
     return NextResponse.json({ success: true });
@@ -225,16 +192,10 @@ export async function DELETE(req) {
     }
 
     // Clear member links first
-    await db.execute({
-      sql: "UPDATE contacts SET team_id = NULL WHERE team_id = ?",
-      args: [id],
-    });
+    await clearOrgTeamMemberLinksOnDelete(id);
 
     // Delete the team
-    await db.execute({
-      sql: "DELETE FROM v2_teams WHERE id = ?",
-      args: [id],
-    });
+    await deleteOrgTeam(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

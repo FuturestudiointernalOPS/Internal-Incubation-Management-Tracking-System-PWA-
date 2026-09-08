@@ -1,6 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  getFounderProgramHistory,
+  getProgramById,
+  getVentureForHistory,
+  getVentureFounderHistory,
+  isVentureMemberContact,
+} from "@/models/ventureJourney";
 
 export async function GET(req, { params }) {
   try {
@@ -13,10 +20,7 @@ export async function GET(req, { params }) {
     const session = await getSession();
     const { id } = await params;
 
-    const ventureRes = await db.execute({
-      sql: `SELECT * FROM ventures WHERE venture_id = ?`,
-      args: [id],
-    });
+    const ventureRes = await getVentureForHistory(id);
 
     if (!ventureRes.rows?.[0]) {
       return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -42,10 +46,7 @@ export async function GET(req, { params }) {
 
     if (session.role === "participant" && venture.visibility !== "public") {
       // venture_members stores venture_id as the VNT code (TEXT)
-      const memberCheck = await db.execute({
-        sql: `SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL`,
-        args: [id, session.cid],
-      });
+      const memberCheck = await isVentureMemberContact(id, session.cid);
       if (!memberCheck.rows?.length) {
         return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
       }
@@ -54,10 +55,7 @@ export async function GET(req, { params }) {
     // Previous program info
     let program = null;
     if (venture.program_id) {
-      const progRes = await db.execute({
-        sql: `SELECT id, name, start_date, end_date, deliverables FROM v2_programs WHERE id = ?`,
-        args: [venture.program_id],
-      });
+      const progRes = await getProgramById(venture.program_id);
       if (progRes.rows?.[0]) {
         const p = progRes.rows[0];
         let deliverables = p.deliverables;
@@ -73,32 +71,14 @@ export async function GET(req, { params }) {
 
     // Founder program history (all founders including removed)
     // venture_members stores venture_id as the VNT code (TEXT)
-    const foundersRes = await db.execute({
-      sql: `
-        SELECT vm.contact_id, vm.role, vm.joined_at, vm.removed_at, c.name as contact_name
-        FROM venture_members vm
-        LEFT JOIN contacts c ON vm.contact_id = c.cid
-        WHERE vm.venture_id = ? AND vm.member_type = 'founder'
-        ORDER BY vm.joined_at DESC
-      `,
-      args: [id],
-    });
+    const foundersRes = await getVentureFounderHistory(id);
 
     const founderHistory = [];
     for (const founder of (foundersRes.rows || [])) {
       let ppRows = [];
       if (venture.program_id) {
         try {
-          const ppRes = await db.execute({
-            sql: `
-              SELECT pp.*, vp.name as program_name
-              FROM participant_programs pp
-              LEFT JOIN v2_programs vp ON CAST(pp.program_id AS TEXT) = CAST(vp.id AS TEXT)
-              WHERE pp.participant_id = ? AND CAST(pp.program_id AS TEXT) != CAST(? AS TEXT)
-              ORDER BY pp.enrolled_at DESC
-            `,
-            args: [founder.contact_id, venture.program_id],
-          });
+          const ppRes = await getFounderProgramHistory(founder.contact_id, venture.program_id);
           ppRows = ppRes.rows || [];
         } catch (e) {
           console.error("Founder program history query error:", e.message);

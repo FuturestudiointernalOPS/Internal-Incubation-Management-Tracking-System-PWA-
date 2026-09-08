@@ -3,10 +3,10 @@
 // Reads KPI progress from the kpi_progress table.
 // Falls back to dynamic calculation if no persisted data exists.
 // =============================================================================
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
+import { getKpiProgressByProgramId } from "@/models/platformConfig";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +30,7 @@ export const GET = createHandler(
     // Read from persisted kpi_progress table
     let progressEntries;
     try {
-      const progressRes = await db.execute({
-        sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-        args: [programId],
-      });
+      const progressRes = await getKpiProgressByProgramId(programId);
       progressEntries = progressRes.rows || [];
     } catch (e) {
       // kpi_progress schema mismatch, see SCHEMA_DRIFT_AUDIT.md cluster 11

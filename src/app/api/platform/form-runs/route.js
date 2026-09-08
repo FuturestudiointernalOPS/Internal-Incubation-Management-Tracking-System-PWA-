@@ -1,10 +1,129 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireAuth } from "@/lib/auth";
-import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun } from "@/lib/email";
+import { sendDecisionEmail, getTemplate, resolvePersonName, resolveSubmissionEmail, recordEmailStatus, isGenericName, isPlaceholderEmail, hasSentEmailToRecipientInRun, detectLanguage, getEmailLogRow } from "@/lib/email";
 import { onSubmission, onReview, onRunCreated, onRunLaunched, onAssignmentAdded } from "@/lib/platform/automation";
 import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
+import {
+  insertTimelineEntry,
+  getContactsForAssignmentEnrichment,
+  getFamiliesForAssignmentEnrichment,
+  getProgramsForAssignmentEnrichment,
+  getRunScoringSettingsById,
+  getFormScoringSettingsById,
+  getSubmissionById,
+  getRunById,
+  getSubmissionReviewsBySubmissionId,
+  getMySubmissionsBySubmitterId,
+  getParticipantRunById,
+  getParticipantSubmissionByRunAndSubmitter,
+  getTimelineBySubmissionId,
+  countActiveRuns,
+  countTotalAssignments,
+  countNonDraftSubmissions,
+  countSubmittedSubmissions,
+  countApprovedSubmissions,
+  countOverdueSubmissions,
+  getRecentActivityTimeline,
+  getAssignableContactsList,
+  getScoringSubmissionById,
+  getRunContextForScoringById,
+  getFormScoringConfigById,
+  getRunDetailWithGroupTargetById,
+  getAssignmentsByRunId,
+  getSubmissionsByRunId,
+  getReviewsByRunId,
+  getLatestEvaluationsByRunId,
+  getLatestEmailsByRunId,
+  getActivationEmailLogsByRunId,
+  getFormFieldsForRunById,
+  getContactsByCids,
+  getContactsByLowerEmails,
+  getPasswordTokensByContactCids,
+  getSubmissionsBySubmitterId,
+  countFormRuns,
+  listFormRuns,
+  getDecisionEmailSubmissionById,
+  getFieldLabelsByRunId,
+  getContactNameEmailByCid,
+  getGroupAssignedToRunById,
+  getRunFormSettingsForDecisionById,
+  getRunTemplateSettingsForDecisionById,
+  getGroupNameForDecisionEmailByRunId,
+  getLatestScoreBySubmissionId,
+  getRunFormContextBySubmissionId,
+  getLatestEvaluationBySubmissionId,
+  getSubmissionReviewStateById,
+  getReviewerNameByCid,
+  createSubmissionReview,
+  getLatestEvaluationForOverridesBySubmissionId,
+  updateEvaluationDimensionsById,
+  updateSubmissionStatusById,
+  getSubmissionRunIdById,
+  getRunDataForReviewAutomationById,
+  getFormById,
+  updateRunStatusById,
+  getRunSubmissionGateById,
+  findExistingSubmissionIdForRunAndSubmitter,
+  getRunFormIdForEvaluationById,
+  getSubmissionCurrentStatusById,
+  updateSubmissionContentAndStatusById,
+  getFullRunForSubmissionAutomationById,
+  getFormForSubmissionAutomationById,
+  insertSubmissionForSubmitter,
+  getFullRunForInsertSubmissionAutomationById,
+  getFormForInsertSubmissionAutomationById,
+  getRunForManualAddById,
+  findContactByLowerEmailForManualAdd,
+  updateContactNameById,
+  getAssignedGroupForManualAddById,
+  insertContactForManualAdd,
+  getRunFormIdForManualEvaluationById,
+  insertManualAddSubmission,
+  getFormForManualAddAutomationById,
+  getBulkReviewValidationsByIdsInRun,
+  getRetryEmailValidationsByIdsInRun,
+  getSubmissionForActivationRetryById,
+  getRunDataForActivationRetryById,
+  getFormForActivationRetryById,
+  getCancelledBatchSubmissionIdsInRun,
+  getRunPublicSlugById,
+  updateRunPublicSlugById,
+  launchRunById,
+  insertRunAssignmentForAction,
+  getAssignmentsAfterAssignByRunId,
+  getFullRunAfterAssignById,
+  getRunIdByAssignmentId,
+  deleteAssignmentById,
+  getAssignmentsAfterUnassignByRunId,
+  deleteReviewsBySubmissionId,
+  deleteTimelineBySubmissionId,
+  deleteEvaluationsBySubmissionId,
+  deleteSubmissionById,
+  executeRawMigrationSql,
+  getManualMessageSubmissionsByIdsInRun,
+  getManualMessageFieldLabelsByRunId,
+  getManualMessageGroupNameByRunId,
+  getActivationMessageSubmissionsByIdsInRun,
+  getContactStatusForActivationById,
+  getRunDataForActivationSendById,
+  getFormForActivationSendById,
+  updatePublicSlugForRegeneratedLinkById,
+  addPublicSlugColumnIfMissing,
+  updatePublicSlugRetryAfterAlterById,
+  getRunAfterSlugRotationById,
+  getFormVersionById,
+  createFormRun,
+  createRunAssignmentForRunCreation,
+  updateFormRunMetadataById,
+  deleteEmailLogsByRunId,
+  deleteReviewsByRunId,
+  deleteEvaluationsByRunId,
+  deleteFormRunById,
+} from "@/models/formRuns";
+
+import { getPlatformFormSections, getPlatformFormFields } from "@/models/forms";
 
 /**
  * PLATFORM FORM RUNS API — Run creation, submissions, reviews, timeline, assignments
@@ -28,10 +147,7 @@ import { syncApprovedSubmissionToProgramGroup } from "@/lib/contact-group-sync";
  */
 
 function logTimeline(submissionId, action, actorId, actorName, meta = {}) {
-  db.execute({
-    sql: `INSERT INTO platform_submission_timeline (submission_id, action, actor_id, actor_name, metadata) VALUES (?, ?, ?, ?, ?)`,
-    args: [submissionId, action, actorId || null, actorName || null, JSON.stringify(meta)],
-  }).catch(() => {});
+  insertTimelineEntry(submissionId, action, actorId, actorName, meta).catch(() => {});
 }
 
 /**
@@ -61,10 +177,7 @@ async function enrichAssignments(assignments) {
   if (userIds.length > 0) {
     try {
       const emails = userIds.map((u) => String(u).toLowerCase());
-      const res = await db.execute({
-        sql: 'SELECT cid, name, email FROM contacts WHERE cid = ANY(?) OR LOWER(email) = ANY(?)',
-        args: [userIds, emails],
-      });
+      const res = await getContactsForAssignmentEnrichment(userIds, emails);
       for (const row of res.rows) {
         userMap.set(row.cid, row);
         if (row.email) userMap.set(String(row.email).toLowerCase(), row);
@@ -75,10 +188,7 @@ async function enrichAssignments(assignments) {
   const groupIds = byType('group');
   if (groupIds.length > 0) {
     try {
-      const res = await db.execute({
-        sql: 'SELECT id, registration_id, name FROM families WHERE registration_id = ANY(?) OR CAST(id AS TEXT) = ANY(?)',
-        args: [groupIds, groupIds],
-      });
+      const res = await getFamiliesForAssignmentEnrichment(groupIds);
       for (const row of res.rows) {
         if (row.registration_id) groupMap.set(row.registration_id, row);
         groupMap.set(String(row.id), row);
@@ -89,10 +199,7 @@ async function enrichAssignments(assignments) {
   const programIds = byType('program');
   if (programIds.length > 0) {
     try {
-      const res = await db.execute({
-        sql: 'SELECT id, name FROM v2_programs WHERE id = ANY(?)',
-        args: [programIds],
-      });
+      const res = await getProgramsForAssignmentEnrichment(programIds);
       for (const row of res.rows) programMap.set(String(row.id), row);
     } catch (_) {}
   }
@@ -142,10 +249,7 @@ function deriveAccountStatus(contactRow) {
 
 async function calculateSubmissionScores(runId, submissionData) {
   try {
-    const run = await db.execute({
-      sql: "SELECT form_id, settings FROM platform_form_runs WHERE id = ?",
-      args: [parseInt(runId)],
-    });
+    const run = await getRunScoringSettingsById(runId);
     if (run.rows.length === 0) return null;
 
     // Check run-level scoring config first, then fall back to form-level
@@ -153,10 +257,7 @@ async function calculateSubmissionScores(runId, submissionData) {
     let scoring = runSettings.scoring;
 
     if (!scoring || !scoring.enabled) {
-      const form = await db.execute({
-        sql: "SELECT settings FROM platform_forms WHERE id = ?",
-        args: [run.rows[0].form_id],
-      });
+      const form = await getFormScoringSettingsById(run.rows[0].form_id);
       if (form.rows.length === 0) return null;
       const formSettings = form.rows[0].settings || {};
       scoring = formSettings.scoring;
@@ -244,21 +345,12 @@ export async function GET(req) {
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
-      const sub = await db.execute({
-        sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
-        args: [parseInt(submissionId)],
-      });
+      const sub = await getSubmissionById(submissionId);
       if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
 
-      const run = await db.execute({
-        sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-        args: [sub.rows[0].run_id],
-      });
+      const run = await getRunById(sub.rows[0].run_id);
 
-      const reviews = await db.execute({
-        sql: "SELECT * FROM platform_submission_reviews WHERE submission_id = ? ORDER BY created_at DESC",
-        args: [parseInt(submissionId)],
-      });
+      const reviews = await getSubmissionReviewsBySubmissionId(submissionId);
 
       return NextResponse.json({
         success: true,
@@ -273,24 +365,18 @@ export async function GET(req) {
       const { getSession } = await import("@/lib/auth");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const subs = await db.execute({
-        sql: "SELECT ps.*, pfr.name as run_name, pfr.status as run_status FROM platform_form_submissions ps JOIN platform_form_runs pfr ON ps.run_id = pfr.id WHERE ps.submitter_id = ? ORDER BY ps.updated_at DESC",
-        args: [session.cid],
-      });
+      const subs = await getMySubmissionsBySubmitterId(session.cid);
       return NextResponse.json({ success: true, submissions: subs.rows });
     }
 
     // ─── PARTICIPANT: Get single run (for filling forms, returns user's own submission) ───
     if (id && searchParams.get("participant") === "true") {
-      const run = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
+      const run = await getParticipantRunById(id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       const { getSession } = await import("@/lib/auth");
       const session = await getSession();
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const mySub = await db.execute({
-        sql: "SELECT * FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? LIMIT 1",
-        args: [parseInt(id), session.cid],
-      });
+      const mySub = await getParticipantSubmissionByRunAndSubmitter(id, session.cid);
       return NextResponse.json({ success: true, run: run.rows[0], submission: mySub.rows[0] || null });
     }
 
@@ -299,22 +385,19 @@ export async function GET(req) {
 
     // ─── TIMELINE for a specific submission ───
     if (timeline) {
-      const entries = await db.execute({
-        sql: "SELECT * FROM platform_submission_timeline WHERE submission_id = ? ORDER BY created_at ASC",
-        args: [parseInt(timeline)],
-      });
+      const entries = await getTimelineBySubmissionId(timeline);
       return NextResponse.json({ success: true, timeline: entries.rows });
     }
 
     // ─── DASHBOARD STATS ───
     if (searchParams.get("dashboard") === "true") {
       const [active, assigned, subs, pending, approved, overdue] = await Promise.all([
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_runs WHERE status = 'active'" }),
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_run_assignments" }),
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_submissions WHERE status != 'draft'" }),
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_submissions WHERE status = 'submitted'" }),
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_submissions WHERE status = 'approved'" }),
-        db.execute({ sql: "SELECT COUNT(*) as c FROM platform_form_submissions ps JOIN platform_form_runs pfr ON ps.run_id = pfr.id WHERE ps.status = 'submitted' AND pfr.closes_at IS NOT NULL AND pfr.closes_at < NOW()" }),
+        countActiveRuns(),
+        countTotalAssignments(),
+        countNonDraftSubmissions(),
+        countSubmittedSubmissions(),
+        countApprovedSubmissions(),
+        countOverdueSubmissions(),
       ]);
       const totalSubs = parseInt(subs.rows[0].c) || 0;
       const totalApproved = parseInt(approved.rows[0].c) || 0;
@@ -334,27 +417,13 @@ export async function GET(req) {
 
     // ─── ACTIVITY FEED ───
     if (searchParams.get("activity") === "true") {
-      const timeline = await db.execute({
-        sql: `SELECT pst.action, pst.actor_name, pst.created_at,
-              CASE pst.action
-                WHEN 'submitted' THEN 'New submission received'
-                WHEN 'approved' THEN 'Submission approved'
-                WHEN 'rejected' THEN 'Submission rejected'
-                WHEN 'revision_requested' THEN 'Revision requested'
-                WHEN 'launched' THEN 'Form run launched'
-                WHEN 'created' THEN 'Form run created'
-                ELSE pst.action
-              END as details
-              FROM platform_submission_timeline pst
-              ORDER BY pst.created_at DESC LIMIT 20`,
-        args: [],
-      });
+      const timeline = await getRecentActivityTimeline();
       return NextResponse.json({ success: true, activity: timeline.rows });
     }
 
     // ─── ASSIGNABLE CONTACTS ───
     if (contacts === "true") {
-      const users = await db.execute({ sql: "SELECT cid, name, email, role FROM contacts WHERE deleted = 0 ORDER BY name ASC LIMIT 1000" });
+      const users = await getAssignableContactsList();
       return NextResponse.json({ success: true, contacts: users.rows });
     }
 
@@ -363,10 +432,7 @@ export async function GET(req) {
       const submissionId = parseInt(searchParams.get("scoring"));
       if (!submissionId) return NextResponse.json({ success: false, error: "Invalid submission id" }, { status: 400 });
 
-      const sub = await db.execute({
-        sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
-        args: [submissionId],
-      });
+      const sub = await getScoringSubmissionById(submissionId);
       if (sub.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
 
       const submission = sub.rows[0];
@@ -374,10 +440,7 @@ export async function GET(req) {
       const scores = subData._scores || null;
 
       // Fetch run for context
-      const run = await db.execute({
-        sql: "SELECT id, name, form_id, settings FROM platform_form_runs WHERE id = ?",
-        args: [submission.run_id],
-      });
+      const run = await getRunContextForScoringById(submission.run_id);
 
       // Fetch scoring config from run or form
       let scoringConfig = null;
@@ -386,10 +449,7 @@ export async function GET(req) {
         if (runSettings.scoring?.enabled) {
           scoringConfig = runSettings.scoring;
         } else {
-          const form = await db.execute({
-            sql: "SELECT settings FROM platform_forms WHERE id = ?",
-            args: [run.rows[0].form_id],
-          });
+          const form = await getFormScoringConfigById(run.rows[0].form_id);
           if (form.rows.length > 0) {
             const formSettings = form.rows[0].settings || {};
             if (formSettings.scoring?.enabled) scoringConfig = formSettings.scoring;
@@ -409,37 +469,25 @@ export async function GET(req) {
 
     // Single run with submissions
     if (id) {
-      const run = await db.execute({ sql: "SELECT r.*, (SELECT a.target_id FROM platform_form_run_assignments a WHERE a.run_id = r.id AND a.target_type = 'group' LIMIT 1) as group_target_id FROM platform_form_runs r WHERE r.id = ?", args: [parseInt(id)] });
+      const run = await getRunDetailWithGroupTargetById(id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(id)] });
-      const submissions = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE run_id = ? ORDER BY updated_at DESC", args: [parseInt(id)] });
-      const reviews = await db.execute({ sql: "SELECT pr.* FROM platform_submission_reviews pr JOIN platform_form_submissions ps ON pr.submission_id = ps.id WHERE ps.run_id = ? ORDER BY pr.created_at DESC", args: [parseInt(id)] });
+      const assignments = await getAssignmentsByRunId(id);
+      const submissions = await getSubmissionsByRunId(id);
+      const reviews = await getReviewsByRunId(id);
 
       // AI evaluation rows (latest per submission) so the Responses table can
       // show stored scores/rankings without loading each submission individually.
       let evaluations = [];
       try {
-        const evalRes = await db.execute({
-          sql: `SELECT DISTINCT ON (submission_id) *
-                FROM platform_submission_evaluations
-                WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)
-                ORDER BY submission_id, evaluated_at DESC`,
-          args: [parseInt(id)],
-        });
+        const evalRes = await getLatestEvaluationsByRunId(id);
         evaluations = evalRes.rows;
       } catch (_) {}
 
       // Email delivery log so the Responses table can show activation-email state.
       let emails = [];
       try {
-        const emailRes = await db.execute({
-          sql: `SELECT DISTINCT ON (submission_id, email_type) *
-                FROM platform_email_log
-                WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)
-                ORDER BY submission_id, email_type, id DESC`,
-          args: [parseInt(id)],
-        });
+        const emailRes = await getLatestEmailsByRunId(id);
         emails = emailRes.rows;
       } catch (_) {}
 
@@ -447,14 +495,7 @@ export async function GET(req) {
       // so first/last sent timestamps can be surfaced per submission.
       let activationLogs = [];
       try {
-        const actRes = await db.execute({
-          sql: `SELECT el.submission_id, el.status, el.sent_at, el.created_at
-                FROM platform_email_log el
-                JOIN platform_form_submissions s ON el.submission_id = s.id
-                WHERE s.run_id = ? AND el.email_type = 'activation'
-                ORDER BY el.id ASC`,
-          args: [parseInt(id)],
-        });
+        const actRes = await getActivationEmailLogsByRunId(id);
         activationLogs = actRes.rows;
       } catch (_) {}
 
@@ -464,10 +505,7 @@ export async function GET(req) {
       let fieldLabels = {};
       let filterableFields = [];
       try {
-        const fRes = await db.execute({
-          sql: "SELECT id, label, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
-          args: [String(formIdOfRun)],
-        });
+        const fRes = await getFormFieldsForRunById(formIdOfRun);
         for (const f of fRes.rows) {
           fieldLabels[String(f.id)] = f.label;
           let parsedOpts = null;
@@ -508,10 +546,7 @@ export async function GET(req) {
       const accountMap = new Map(); // keyed by BOTH cid and lower(email)
       if (cids.length > 0) {
         try {
-          const cres = await db.execute({
-            sql: "SELECT cid, email, name, password, status, archived_at, deleted, deleted_at FROM contacts WHERE cid = ANY(?)",
-            args: [cids],
-          });
+          const cres = await getContactsByCids(cids);
           for (const row of cres.rows) {
             emailMap.set(row.cid, row.email || "");
             nameMap.set(row.cid, row.name || "");
@@ -522,10 +557,7 @@ export async function GET(req) {
       }
       if (emailKeys.length > 0) {
         try {
-          const cres = await db.execute({
-            sql: "SELECT cid, email, name, password, status, archived_at, deleted, deleted_at FROM contacts WHERE LOWER(email) = ANY(?)",
-            args: [emailKeys],
-          });
+          const cres = await getContactsByLowerEmails(emailKeys);
           for (const row of cres.rows) {
             accountMap.set(row.cid, row);
             if (row.email) accountMap.set(String(row.email).toLowerCase(), row);
@@ -540,13 +572,7 @@ export async function GET(req) {
       try {
         const contactCids = [...new Set([...accountMap.values()].map((c) => c.cid).filter(Boolean))];
         if (contactCids.length > 0) {
-          const tokRes = await db.execute({
-            sql: `SELECT contact_cid, used, expires_at
-                  FROM password_setup_tokens
-                  WHERE contact_cid = ANY(?)
-                  ORDER BY created_at DESC, id DESC`,
-            args: [contactCids],
-          });
+          const tokRes = await getPasswordTokensByContactCids(contactCids);
           for (const t of tokRes.rows) {
             if (!tokenByCid.has(t.contact_cid)) tokenByCid.set(t.contact_cid, t);
           }
@@ -624,7 +650,7 @@ export async function GET(req) {
 
     // Submissions for a specific user
     if (submitterId) {
-      const subs = await db.execute({ sql: "SELECT ps.*, pfr.name as run_name, pfr.status as run_status FROM platform_form_submissions ps JOIN platform_form_runs pfr ON ps.run_id = pfr.id WHERE ps.submitter_id = ? ORDER BY ps.updated_at DESC", args: [submitterId] });
+      const subs = await getSubmissionsBySubmitterId(submitterId);
       return NextResponse.json({ success: true, submissions: subs.rows });
     }
 
@@ -635,42 +661,10 @@ export async function GET(req) {
     const perPage = Math.max(1, parseInt(searchParams.get("per_page")) || 50);
     const offset = (page - 1) * perPage;
 
-    const baseFrom = `FROM platform_form_runs r
-      JOIN platform_forms f ON r.form_id = f.id
-      LEFT JOIN LATERAL (
-        SELECT a.target_id
-        FROM platform_form_run_assignments a
-        WHERE a.run_id = r.id AND a.target_type = 'group'
-        LIMIT 1
-      ) ga ON true`;
-    const conditions = [];
-    const args = [];
-
-    if (groupId) {
-      conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND ga2.target_id = ?)");
-      args.push(groupId);
-    }
-    if (programId) {
-      conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments pa WHERE pa.run_id = r.id AND pa.target_type = 'program' AND pa.target_id = ?)");
-      args.push(programId);
-    }
-    if (formId) { conditions.push("r.form_id = ?"); args.push(parseInt(formId)); }
-    if (status && status !== "all") {
-      conditions.push("r.status = ?");
-      args.push(status);
-    } else {
-      conditions.push("r.status IS DISTINCT FROM 'archived'");
-    }
-
-    const whereClause = conditions.length ? " WHERE " + conditions.join(" AND ") : "";
-
-    const countRes = await db.execute({ sql: `SELECT COUNT(*) AS total ${baseFrom}${whereClause}`, args });
+    const countRes = await countFormRuns({ groupId, programId, formId, status });
     const total = parseInt(countRes.rows[0]?.total) || 0;
 
-    const result = await db.execute({
-      sql: `SELECT r.*, f.name as form_name, ga.target_id as group_target_id ${baseFrom}${whereClause} ORDER BY r.updated_at DESC LIMIT ? OFFSET ?`,
-      args: [...args, perPage, offset],
-    });
+    const result = await listFormRuns({ groupId, programId, formId, status, perPage, offset });
 
     return NextResponse.json({ success: true, runs: result.rows, total, page, per_page: perPage });
   } catch (error) {
@@ -688,10 +682,7 @@ export async function GET(req) {
  * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
  */
 async function sendDecisionEmailForSubmission({ submission_id, decision, comment }) {
-  const subRes = await db.execute({
-    sql: "SELECT * FROM platform_form_submissions WHERE id = ?",
-    args: [parseInt(submission_id)],
-  });
+  const subRes = await getDecisionEmailSubmissionById(submission_id);
   if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
   const row = subRes.rows[0];
 
@@ -705,18 +696,9 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     let crmName = "";
     let crmEmail = "";
     try {
-      const fieldRes = await db.execute({
-        sql: `SELECT f2.id, f2.label
-              FROM platform_form_fields f2
-              JOIN platform_form_runs r2 ON f2.form_id = r2.form_id
-              WHERE r2.id = ?`,
-        args: [row.run_id],
-      });
+      const fieldRes = await getFieldLabelsByRunId(row.run_id);
       for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
-      const cNameRes = await db.execute({
-        sql: "SELECT name, email FROM contacts WHERE cid = ?",
-        args: [row.submitter_id],
-      });
+      const cNameRes = await getContactNameEmailByCid(row.submitter_id);
       if (cNameRes.rows[0]) {
         crmName = cNameRes.rows[0].name || "";
         crmEmail = cNameRes.rows[0].email || "";
@@ -764,14 +746,7 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     // group, the person stays in the platform/CRM but no email is sent.
     if (decision === "approved") {
       try {
-        const grpCheck = await db.execute({
-          sql: `SELECT 1
-                FROM platform_form_run_assignments a
-                JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
-                WHERE a.run_id = ? AND a.target_type = 'group'
-                LIMIT 1`,
-          args: [row.run_id],
-        });
+        const grpCheck = await getGroupAssignedToRunById(row.run_id);
         if (grpCheck.rows.length === 0) {
           shouldSend = false;
           await recordEmailStatus({
@@ -788,7 +763,7 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     }
     if (decision !== "approved") {
       try {
-        const runInfo2 = await db.execute({ sql: "SELECT r.form_id, f.settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [row.run_id] });
+        const runInfo2 = await getRunFormSettingsForDecisionById(row.run_id);
         if (runInfo2.rows[0]) {
           const auto = (runInfo2.rows[0].settings || {}).automation;
           if (auto?.on_reject?.send_rejection_email === false) shouldSend = false;
@@ -802,7 +777,7 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
     let templateVars = null;
     let score = null;
     try {
-      const runInfo2 = await db.execute({ sql: "SELECT f.name, f.settings, r.settings AS run_settings FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.id = ?", args: [row.run_id] });
+      const runInfo2 = await getRunTemplateSettingsForDecisionById(row.run_id);
       if (runInfo2.rows[0]) {
         const formName = runInfo2.rows[0].name || "";
         decisionTemplate = getTemplate(
@@ -812,21 +787,11 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
         );
         templateVars = { form_name: formName };
         try {
-          const groupRes = await db.execute({
-            sql: `SELECT f.name AS group_name
-                  FROM platform_form_run_assignments a
-                  JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT))
-                  WHERE a.run_id = ? AND a.target_type = 'group'
-                  LIMIT 1`,
-            args: [row.run_id],
-          });
+          const groupRes = await getGroupNameForDecisionEmailByRunId(row.run_id);
           if (groupRes.rows.length > 0) templateVars.group_name = groupRes.rows[0].group_name;
         } catch (_) {}
       }
-      const evalRes = await db.execute({
-        sql: "SELECT overall_score FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
-        args: [parseInt(submission_id)],
-      });
+      const evalRes = await getLatestScoreBySubmissionId(submission_id);
       if (evalRes.rows.length > 0) score = evalRes.rows[0].overall_score;
     } catch (_) {}
 
@@ -861,6 +826,267 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
   }
 }
 
+/** Render one submission answer value for the result PDF (phone JSON → text). */
+function formatResultAnswer(value) {
+  if (value === undefined || value === null || value === "") return "";
+  if (typeof value === "string") {
+    const t = value.trim();
+    if (t.startsWith("{") && t.includes('"code"')) {
+      try {
+        const p = JSON.parse(t);
+        if (p.code && p.number) return `${p.code} ${p.number}`;
+      } catch (_) {}
+    }
+    return t;
+  }
+  if (Array.isArray(value)) return value.map(formatResultAnswer).filter(Boolean).join(", ");
+  if (typeof value === "object") {
+    try {
+      return JSON.stringify(value);
+    } catch (_) {
+      return String(value);
+    }
+  }
+  return String(value);
+}
+
+/**
+ * Send the participant-facing RESULT email (PDF attachment) for a submission.
+ * The PDF contains the applicant's answers, the evaluation feedback and the
+ * final score. The copy and the document never reference how the evaluation
+ * was produced — the applicant must not learn an automated evaluation ran.
+ *
+ * Recipient/name resolution follows the SAME chain as the decision email so
+ * the UI and the sender can never disagree; the send is tracked exactly once
+ * per submission (email_type "result") and respects the per-run
+ * duplicate-recipient guard used by the other workflow emails.
+ *
+ * Returns { status: "sent"|"already_sent"|"skipped"|"failed"|"not_found", error?, to? }.
+ */
+async function sendResultEmailForSubmission({ submission_id }) {
+  const subRes = await getDecisionEmailSubmissionById(submission_id);
+  if (subRes.rows.length === 0) return { status: "not_found", error: "Submission not found" };
+  const row = subRes.rows[0];
+
+  if (String(row.status || "") === "draft") {
+    return { status: "failed", error: "Cannot send a result for a draft submission" };
+  }
+
+  let ctx = null;
+  try {
+    const ctxRes = await getRunFormContextBySubmissionId(submission_id);
+    ctx = ctxRes.rows[0] || null;
+  } catch (_) {}
+
+  // A result document requires an evaluation (dimensions + overall score).
+  const evalRes = await getLatestEvaluationBySubmissionId(submission_id);
+  if (evalRes.rows.length === 0) {
+    return { status: "failed", error: "This submission has not been evaluated yet — run the evaluation first" };
+  }
+  const evalRow = evalRes.rows[0];
+  let rawDims = Array.isArray(evalRow.dimensions) ? evalRow.dimensions : [];
+  if (!rawDims.length && typeof evalRow.dimensions === "string") {
+    try {
+      rawDims = JSON.parse(evalRow.dimensions) || [];
+    } catch (_) {}
+  }
+  if (evalRow.overall_score == null && rawDims.length === 0) {
+    return { status: "failed", error: "This submission has no evaluation results yet" };
+  }
+
+  try {
+    const subData = row.data || {};
+
+    // Fetch the form's real field labels + CRM contact once, then resolve
+    // BOTH the name and the real applicant email from the same sources so
+    // the UI and the sender can never disagree about the recipient.
+    let labels = {};
+    let crmName = "";
+    let crmEmail = "";
+    try {
+      const fieldRes = await getFieldLabelsByRunId(row.run_id);
+      for (const frow of fieldRes.rows) labels[String(frow.id)] = frow.label;
+      const cNameRes = await getContactNameEmailByCid(row.submitter_id);
+      if (cNameRes.rows[0]) {
+        crmName = cNameRes.rows[0].name || "";
+        crmEmail = cNameRes.rows[0].email || "";
+      }
+    } catch (_) {}
+
+    // Real applicant email — placeholders (import-…@placeholder…) never used.
+    const applicantEmail = resolveSubmissionEmail({
+      submissionData: subData,
+      fieldLabels: labels,
+      contactEmail: crmEmail,
+    });
+    if (!applicantEmail) return { status: "failed", error: "No real email address found in the submission data" };
+
+    // Already emailed for THIS submission → polite already_sent (re-click).
+    const existingLog = await getEmailLogRow(parseInt(submission_id), "result");
+    if (existingLog && existingLog.status === "sent") {
+      return { status: "already_sent", to: existingLog.recipient || applicantEmail };
+    }
+
+    // Duplicate-recipient guard: when the same email address appears in
+    // multiple submissions of this run, only ONE result email is ever sent.
+    const alreadyEmailed = await hasSentEmailToRecipientInRun({
+      run_id: row.run_id,
+      email_type: "result",
+      recipient: applicantEmail,
+    });
+    if (alreadyEmailed) {
+      await recordEmailStatus({
+        submission_id: parseInt(submission_id),
+        contact_cid: row.submitter_id || null,
+        email_type: "result",
+        status: "skipped",
+        error: "Skipped — duplicate recipient: a result email was already sent to this address for this run",
+        to: applicantEmail,
+      });
+      return { status: "skipped", error: "Duplicate recipient — already emailed in this run", to: applicantEmail };
+    }
+
+    // Best real name — resolved deterministically with the form's actual
+    // question labels (submission data is keyed by field id).
+    const applicantName = resolvePersonName({
+      contactName: crmName,
+      submitterName: row.submitter_name || "",
+      submissionData: subData,
+      fieldLabels: labels,
+    });
+
+    // Workflow language from the form's question labels (FR forms get a
+    // French document + email, EN forms an English one).
+    const lang = detectLanguage(labels);
+
+    // ── Answers: rebuild the form Q&A in section order ──
+    let sectionsRows = [];
+    let fieldRows = [];
+    if (ctx?.form_id) {
+      try {
+        const secRes = await getPlatformFormSections(ctx.form_id);
+        sectionsRows = secRes.rows || [];
+        const fldRes = await getPlatformFormFields(ctx.form_id);
+        fieldRows = fldRes.rows || [];
+      } catch (_) {}
+    }
+    const isHidden = (f) => String(f.field_type || "") === "hidden";
+    const getVal = (f) => subData[f.label] ?? subData[String(f.id)] ?? subData[f.id];
+
+    const sections = [];
+    const matchedKeys = new Set();
+    for (const sec of sectionsRows) {
+      const items = [];
+      for (const f of fieldRows) {
+        if (String(f.section_id) !== String(sec.id)) continue;
+        if (isHidden(f)) continue;
+        const value = formatResultAnswer(getVal(f));
+        if (value === "") continue;
+        matchedKeys.add(String(f.id));
+        if (f.label) matchedKeys.add(f.label);
+        items.push({ label: f.label || String(f.id), value });
+      }
+      if (items.length > 0) sections.push({ title: sec.title, items });
+    }
+
+    // Fields without any section (older forms) → one flat group.
+    const looseItems = [];
+    for (const f of fieldRows) {
+      if (sectionsRows.some((s) => String(s.id) === String(f.section_id))) continue;
+      if (isHidden(f)) continue;
+      const value = formatResultAnswer(getVal(f));
+      if (value === "") continue;
+      matchedKeys.add(String(f.id));
+      if (f.label) matchedKeys.add(f.label);
+      looseItems.push({ label: f.label || String(f.id), value });
+    }
+    if (looseItems.length > 0) sections.push({ title: null, items: looseItems });
+
+    // Unmatched data keys (imported submissions may store answers under keys
+    // that no longer map to a form field) — still part of the response.
+    const unmatchedItems = Object.entries(subData)
+      .filter(([k]) => !String(k).startsWith("_"))
+      .filter(([k, v]) => !matchedKeys.has(String(k)) && formatResultAnswer(v) !== "")
+      .map(([k, v]) => ({ label: k, value: formatResultAnswer(v) }));
+    if (unmatchedItems.length > 0) sections.push({ title: null, items: unmatchedItems });
+
+    // ── Evaluation: final dimension scores + feedback for the PDF ──
+    // Weighted recompute mirrors the review page: human overrides (final_score)
+    // are the source of truth when present.
+    const totalWeight = rawDims.reduce((s, d) => s + (d.weight ?? 1), 0);
+    const weighted = rawDims.reduce((s, d) => s + ((d.final_score ?? d.score ?? 0) * (d.weight ?? 1)), 0);
+    const finalScore = rawDims.length > 0 && totalWeight > 0
+      ? Math.round((weighted / totalWeight) * 10)
+      : evalRow.overall_score;
+    const dimensions = rawDims
+      .map((d) => {
+        const humanComment = typeof d.human_comment === "string" ? d.human_comment.trim() : "";
+        const reasoning = typeof d.reasoning === "string" ? d.reasoning.trim() : "";
+        return {
+          name: d.name,
+          score: d.final_score ?? d.score ?? null,
+          feedback: humanComment || reasoning,
+          strengths: Array.isArray(d.strengths) ? d.strengths.map((s) => String(s)) : [],
+          improvements: Array.isArray(d.weaknesses) ? d.weaknesses.map((s) => String(s)) : [],
+        };
+      })
+      .filter((d) => d.name);
+
+    // ── Outcome: only when a real decision exists (approved/rejected/revision) ──
+    let outcome = null;
+    if (["approved", "rejected", "revision_requested"].includes(row.status)) {
+      let comment = "";
+      try {
+        const revRes = await getSubmissionReviewsBySubmissionId(submission_id);
+        const latest = revRes.rows[0];
+        if (latest && typeof latest.comment === "string") comment = latest.comment;
+      } catch (_) {}
+      outcome = { decision: row.status, comment };
+    }
+
+    // ── Build the PDF + send it (tracked, once per submission) ──
+    const { buildSubmissionResultPdf } = await import("@/models/platform/resultPdf");
+    const pdfBytes = buildSubmissionResultPdf({
+      lang,
+      applicantName: applicantName || "",
+      submittedAt: row.submitted_at || row.updated_at || null,
+      finalScore: finalScore != null ? Number(finalScore) : 0,
+      ranking: evalRow.ranking || "",
+      outcome,
+      dimensions,
+      sections,
+    });
+
+    const { sendResultEmail, sendTrackedEmail } = await import("@/lib/email");
+    const tracked = await sendTrackedEmail({
+      submission_id: parseInt(submission_id),
+      contact_cid: row.submitter_id || null,
+      email_type: "result",
+      provider: "gmail",
+      to: applicantEmail,
+      sendFn: () =>
+        sendResultEmail({
+          to: applicantEmail,
+          applicantName,
+          pdfBuffer: pdfBytes,
+          lang,
+          runId: row.run_id,
+          submissionId: parseInt(submission_id),
+        }),
+    });
+    if (tracked.success) {
+      logTimeline(parseInt(submission_id), "email_sent", "system", "System", { to: applicantEmail, email_type: "result" });
+      return { status: "sent", to: applicantEmail };
+    }
+    if (tracked.skipped) return { status: "already_sent", to: applicantEmail };
+    logTimeline(parseInt(submission_id), "email_failed", "system", "System", { to: applicantEmail, email_type: "result" });
+    return { status: "failed", error: tracked.error || "Email send failed", to: applicantEmail };
+  } catch (e) {
+    console.error("[form-runs] Result email error:", e);
+    return { status: "failed", error: e?.message || "Email error" };
+  }
+}
+
 /**
  * Shared approval/rejection workflow — used by BOTH the single review action
  * and the bulk review action so bulk approval is a controlled extension of
@@ -877,10 +1103,7 @@ async function sendDecisionEmailForSubmission({ submission_id, decision, comment
 async function processReviewInternal({ submission_id, decision, comment, internal_note, dimension_overrides, force, session }) {
   // ── IDEMPOTENCY GUARD: never re-approve an already-approved submission ──
   // Manual override requires explicit force: true
-  const existingSub = await db.execute({
-    sql: "SELECT id, status FROM platform_form_submissions WHERE id = ?",
-    args: [parseInt(submission_id)],
-  });
+  const existingSub = await getSubmissionReviewStateById(submission_id);
   if (existingSub.rows.length === 0) {
     return { ok: false, statusCode: 404, error: "Submission not found" };
   }
@@ -891,23 +1114,24 @@ async function processReviewInternal({ submission_id, decision, comment, interna
 
   let reviewerName = session.cid;
   try {
-    const r = await db.execute({ sql: "SELECT name FROM contacts WHERE cid = ?", args: [session.cid] });
+    const r = await getReviewerNameByCid(session.cid);
     if (r.rows.length) reviewerName = r.rows[0].name;
   } catch (_) {}
 
   // Save review with dimension overrides if provided
-  await db.execute({
-    sql: `INSERT INTO platform_submission_reviews (submission_id, reviewer_id, reviewer_name, decision, comment, internal_note) VALUES (?, ?, ?, ?, ?, ?)`,
-    args: [parseInt(submission_id), session.cid, reviewerName, decision, comment || null, internal_note || null],
+  await createSubmissionReview({
+    submissionId: submission_id,
+    reviewerId: session.cid,
+    reviewerName,
+    decision,
+    comment,
+    internalNote: internal_note,
   });
 
   // Store dimension overrides in separate evaluation update
   if (dimension_overrides && Array.isArray(dimension_overrides) && dimension_overrides.length > 0) {
     try {
-      const evalRes = await db.execute({
-        sql: "SELECT id, dimensions FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
-        args: [parseInt(submission_id)],
-      });
+      const evalRes = await getLatestEvaluationForOverridesBySubmissionId(submission_id);
       if (evalRes.rows.length > 0) {
         const existing = evalRes.rows[0];
         const dims = existing.dimensions || [];
@@ -918,10 +1142,7 @@ async function processReviewInternal({ submission_id, decision, comment, interna
           }
           return d;
         });
-        await db.execute({
-          sql: "UPDATE platform_submission_evaluations SET dimensions = ? WHERE id = ?",
-          args: [JSON.stringify(updatedDims), existing.id],
-        });
+        await updateEvaluationDimensionsById(existing.id, updatedDims);
       }
     } catch (_) {}
   }
@@ -929,10 +1150,7 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   // Update submission status — map workflow decision to core platform state
   const CORE_STATES = ["approved", "rejected", "revision_requested", "submitted", "draft"];
   const newStatus = CORE_STATES.includes(decision) ? decision : "approved";
-  const result = await db.execute({
-    sql: `UPDATE platform_form_submissions SET status = ?, updated_at = NOW() WHERE id = ? RETURNING *`,
-    args: [newStatus, parseInt(submission_id)],
-  });
+  const result = await updateSubmissionStatusById(submission_id, newStatus);
 
   logTimeline(parseInt(submission_id), decision, session.cid, reviewerName, { comment, internal_note });
 
@@ -940,12 +1158,12 @@ async function processReviewInternal({ submission_id, decision, comment, interna
   await sendDecisionEmailForSubmission({ submission_id, decision, comment: comment || "" });
 
   // Fire automation — get run details + form config for context
-  const sub = await db.execute({ sql: "SELECT run_id FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });
+  const sub = await getSubmissionRunIdById(submission_id);
   if (sub.rows.length > 0) {
-    const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.rows[0].run_id] });
+    const runData = await getRunDataForReviewAutomationById(sub.rows[0].run_id);
     let formData = null;
     if (runData.rows[0]) {
-      const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+      const f = await getFormById(runData.rows[0].form_id);
       formData = f.rows[0] || null;
     }
 
@@ -1009,10 +1227,7 @@ export async function POST(req) {
       const valid = ["draft", "scheduled", "active", "closed", "cancelled", "archived"];
       if (!valid.includes(newStatus)) return NextResponse.json({ success: false, error: `Invalid status: ${newStatus}` }, { status: 400 });
 
-      const result = await db.execute({
-        sql: `UPDATE platform_form_runs SET status = ?, updated_at = NOW() WHERE id = ? RETURNING *`,
-        args: [newStatus, parseInt(id)],
-      });
+      const result = await updateRunStatusById(id, newStatus);
       return NextResponse.json({ success: true, run: result.rows[0] });
     }
 
@@ -1024,7 +1239,7 @@ export async function POST(req) {
       if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });
 
       // Check run is active and not closed
-      const run = await db.execute({ sql: "SELECT status, closes_at FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+      const run = await getRunSubmissionGateById(run_id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
       if (run.rows[0].status !== "active") return NextResponse.json({ success: false, error: "Run is not active" }, { status: 400 });
       if (run.rows[0].closes_at && new Date(run.rows[0].closes_at) < new Date()) {
@@ -1032,10 +1247,7 @@ export async function POST(req) {
       }
 
       // Check if already submitted
-      const existing = await db.execute({
-        sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? LIMIT 1",
-        args: [parseInt(run_id), session.cid],
-      });
+      const existing = await findExistingSubmissionIdForRunAndSubmitter(run_id, session.cid);
 
       const newStatus = subStatus || "submitted";
 
@@ -1048,29 +1260,30 @@ export async function POST(req) {
         // Check if AI evaluation should run
         try {
           const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
-          const runInfo = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          const runInfo = await getRunFormIdForEvaluationById(run_id);
           if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
         } catch (_) {}
       }
 
       if (existing.rows.length > 0) {
-        const cur = await db.execute({ sql: "SELECT status FROM platform_form_submissions WHERE id = ?", args: [existing.rows[0].id] });
+        const cur = await getSubmissionCurrentStatusById(existing.rows[0].id);
         // Don't allow overwriting approved/rejected submissions
         if (cur.rows[0] && (cur.rows[0].status === "approved" || cur.rows[0].status === "rejected")) {
           return NextResponse.json({ success: false, error: "Cannot modify an already decided submission" }, { status: 400 });
         }
-        const result = await db.execute({
-          sql: `UPDATE platform_form_submissions SET data = ?, status = ?, submitted_at = COALESCE(submitted_at, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END), updated_at = NOW() WHERE id = ? RETURNING *`,
-          args: [JSON.stringify(finalData), newStatus, newStatus, existing.rows[0].id],
+        const result = await updateSubmissionContentAndStatusById({
+          submissionId: existing.rows[0].id,
+          data: finalData,
+          status: newStatus,
         });
         logTimeline(existing.rows[0].id, newStatus === "draft" ? "draft_saved" : "submitted", session.cid, null);
         // Fire automation
         if (newStatus !== "draft") {
-          const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          const fullRun = await getFullRunForSubmissionAutomationById(run_id);
           const runRow = fullRun.rows[0];
           let formRow = null;
           if (runRow) {
-            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+            const f = await getFormForSubmissionAutomationById(runRow.form_id);
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
@@ -1089,18 +1302,21 @@ export async function POST(req) {
         }
         return NextResponse.json({ success: true, submission: result.rows[0] });
       } else {
-        const result = await db.execute({
-          sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at) VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END) RETURNING *`,
-          args: [parseInt(run_id), session.cid, null, newStatus, JSON.stringify(finalData), newStatus],
+        const result = await insertSubmissionForSubmitter({
+          runId: run_id,
+          submitterId: session.cid,
+          submitterName: null,
+          status: newStatus,
+          data: finalData,
         });
         logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, null);
         // Fire automation
         if (newStatus !== "draft") {
-          const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          const fullRun = await getFullRunForInsertSubmissionAutomationById(run_id);
           const runRow = fullRun.rows[0];
           let formRow = null;
           if (runRow) {
-            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+            const f = await getFormForInsertSubmissionAutomationById(runRow.form_id);
             formRow = f.rows[0] || null;
           }
           onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
@@ -1134,7 +1350,7 @@ export async function POST(req) {
       const { run_id, name, email, data, status: subStatus } = body;
       if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });
 
-      const run = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+      const run = await getRunForManualAddById(run_id);
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
 
       const cleanName = (name || "").trim();
@@ -1144,14 +1360,11 @@ export async function POST(req) {
       // through scoring, review, and the approval/activation email pipeline.
       let submitterId = null;
       if (cleanEmail) {
-        const existing = await db.execute({
-          sql: "SELECT cid, name FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
-          args: [cleanEmail],
-        });
+        const existing = await findContactByLowerEmailForManualAdd(cleanEmail);
         if (existing.rows.length > 0) {
           submitterId = existing.rows[0].cid;
           if (cleanName && !existing.rows[0].name) {
-            await db.execute({ sql: "UPDATE contacts SET name = ? WHERE cid = ?", args: [cleanName, submitterId] });
+            await updateContactNameById(submitterId, cleanName);
           }
         } else {
           submitterId = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();
@@ -1161,19 +1374,16 @@ export async function POST(req) {
           // never an assumed participant.
           let assignedGroup = null;
           try {
-            const assignRes = await db.execute({
-              sql: `SELECT target_type, target_id FROM platform_form_run_assignments
-                    WHERE run_id = ? AND target_type IN ('group','program','organization','cohort')
-                    LIMIT 1`,
-              args: [run.rows[0].id],
-            });
+            const assignRes = await getAssignedGroupForManualAddById(run.rows[0].id);
             if (assignRes.rows[0]) {
               assignedGroup = String(assignRes.rows[0].target_id || "").trim().toUpperCase() || null;
             }
           } catch (_) {}
-          await db.execute({
-            sql: "INSERT INTO contacts (cid, name, email, role, status, group_name) VALUES (?, ?, ?, 'member', 'approved', ?)",
-            args: [submitterId, cleanName || cleanEmail, cleanEmail, assignedGroup],
+          await insertContactForManualAdd({
+            cid: submitterId,
+            name: cleanName || cleanEmail,
+            email: cleanEmail,
+            groupName: assignedGroup,
           });
         }
       } else {
@@ -1189,15 +1399,17 @@ export async function POST(req) {
         if (scores) finalData._scores = scores;
         try {
           const { hasEvaluation } = await import("@/lib/platform/ai/evaluate");
-          const runInfo = await db.execute({ sql: "SELECT form_id FROM platform_form_runs WHERE id = ?", args: [parseInt(run_id)] });
+          const runInfo = await getRunFormIdForManualEvaluationById(run_id);
           if (runInfo.rows.length > 0) shouldEvaluate = await hasEvaluation(runInfo.rows[0].form_id);
         } catch (_) {}
       }
 
-      const result = await db.execute({
-        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, submitted_at)
-              VALUES (?, ?, ?, ?, ?, CASE WHEN ? = 'submitted' THEN NOW() ELSE NULL END) RETURNING *`,
-        args: [parseInt(run_id), submitterId, cleanName || null, newStatus, JSON.stringify(finalData), newStatus],
+      const result = await insertManualAddSubmission({
+        runId: run_id,
+        submitterId,
+        submitterName: cleanName || null,
+        status: newStatus,
+        data: finalData,
       });
       logTimeline(result.rows[0].id, newStatus === "draft" ? "started" : "submitted", session.cid, cleanName || null);
 
@@ -1205,7 +1417,7 @@ export async function POST(req) {
         const runRow = run.rows[0];
         let formRow = null;
         if (runRow) {
-          const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runRow.form_id] });
+          const f = await getFormForManualAddAutomationById(runRow.form_id);
           formRow = f.rows[0] || null;
         }
         onSubmission(result.rows[0], runRow || { id: parseInt(run_id) }, formRow, session);
@@ -1284,10 +1496,7 @@ export async function POST(req) {
 
       // Backend validation: every id must belong to THIS run — the frontend
       // selection state is never trusted alone.
-      const valRes = await db.execute({
-        sql: `SELECT id, status, submitter_name FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
-        args: [idList, parseInt(run_id)],
-      });
+      const valRes = await getBulkReviewValidationsByIdsInRun(idList, run_id);
       const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
 
       const results = [];
@@ -1349,10 +1558,7 @@ export async function POST(req) {
 
       // Backend validation: every submission must belong to THIS run.
       const idList = [...new Set(retries.map((r) => parseInt(r.submission_id)))];
-      const valRes = await db.execute({
-        sql: `SELECT id, submitter_name FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
-        args: [idList, parseInt(run_id)],
-      });
+      const valRes = await getRetryEmailValidationsByIdsInRun(idList, run_id);
       const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
 
       const { getEmailLogRow } = await import("@/lib/email");
@@ -1382,13 +1588,16 @@ export async function POST(req) {
             comment: "",
           });
           results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
+        } else if (type === "result") {
+          const r = await sendResultEmailForSubmission({ submission_id: id });
+          results.push({ submission_id: id, email_type: type, name, status: r.status, error: r.error, to: r.to });
         } else if (type === "activation") {
           try {
-            const sub = await db.execute({ sql: "SELECT * FROM platform_form_submissions WHERE id = ?", args: [id] });
-            const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.rows[0]?.run_id] });
+            const sub = await getSubmissionForActivationRetryById(id);
+            const runData = await getRunDataForActivationRetryById(sub.rows[0]?.run_id);
             let formData = null;
             if (runData.rows[0]) {
-              const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+              const f = await getFormForActivationRetryById(runData.rows[0].form_id);
               formData = f.rows[0] || null;
             }
             await onReview(
@@ -1435,10 +1644,7 @@ export async function POST(req) {
       }
 
       const idList = [...new Set(items.map((r) => parseInt(r?.submission_id)).filter((n) => Number.isFinite(n)))];
-      const valRes = await db.execute({
-        sql: `SELECT id FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
-        args: [idList, parseInt(run_id)],
-      });
+      const valRes = await getCancelledBatchSubmissionIdsInRun(idList, run_id);
       const validSet = new Set(valRes.rows.map((r) => r.id));
 
       const { getEmailLogRow } = await import("@/lib/email");
@@ -1472,17 +1678,14 @@ export async function POST(req) {
       if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
       
       // Generate public slug if not present (for runs created before slug feature)
-      const existing = await db.execute({ sql: "SELECT public_slug FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
+      const existing = await getRunPublicSlugById(id);
       let slug = existing.rows[0]?.public_slug;
       if (!slug) {
         slug = "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+        await updateRunPublicSlugById(slug, id);
       }
       
-      const result = await db.execute({
-        sql: `UPDATE platform_form_runs SET status = 'active', public_slug = COALESCE(public_slug, ?), updated_at = NOW() WHERE id = ? RETURNING *`,
-        args: [slug, parseInt(id)],
-      });
+      const result = await launchRunById(id, slug);
       // Fire automation
       onRunLaunched(result.rows[0], session);
       return NextResponse.json({ success: true, run: result.rows[0] });
@@ -1514,9 +1717,11 @@ export async function POST(req) {
       let skipped = 0;
       const createdTargets = [];
       for (const t of valid) {
-        const insertRes = await db.execute({
-          sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
-          args: [runId, t.target_type, t.target_id, session.cid],
+        const insertRes = await insertRunAssignmentForAction({
+          runId,
+          targetType: t.target_type,
+          targetId: t.target_id,
+          assignedBy: session.cid,
         });
         if (insertRes.rowsAffected > 0) {
           added++;
@@ -1526,9 +1731,9 @@ export async function POST(req) {
         }
       }
 
-      const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [runId] });
+      const assignments = await getAssignmentsAfterAssignByRunId(runId);
       // Fire automation for each newly created assignment
-      const fullRun = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [runId] });
+      const fullRun = await getFullRunAfterAssignById(runId);
       for (const t of createdTargets) {
         onAssignmentAdded(t, fullRun.rows[0] || { id: runId });
       }
@@ -1544,16 +1749,53 @@ export async function POST(req) {
       const { assignment_id } = body;
       if (!assignment_id) return NextResponse.json({ success: false, error: "assignment_id required" }, { status: 400 });
 
-      const a = await db.execute({ sql: "SELECT run_id FROM platform_form_run_assignments WHERE id = ?", args: [parseInt(assignment_id)] });
+      const a = await getRunIdByAssignmentId(assignment_id);
       const runId = a.rows[0]?.run_id;
 
-      await db.execute({ sql: "DELETE FROM platform_form_run_assignments WHERE id = ?", args: [parseInt(assignment_id)] });
+      await deleteAssignmentById(assignment_id);
 
       if (runId) {
-        const assignments = await db.execute({ sql: "SELECT * FROM platform_form_run_assignments WHERE run_id = ?", args: [parseInt(runId)] });
+        const assignments = await getAssignmentsAfterUnassignByRunId(runId);
         return NextResponse.json({ success: true, assignments: await enrichAssignments(assignments.rows) });
       }
       return NextResponse.json({ success: true, assignments: [] });
+    }
+
+    // ─── SEND RESULT EMAILS ACTION (Actions menu → response PDF per submission) ───
+    // Emails each selected applicant a PDF with their answers, the evaluation
+    // feedback and their final score. Runs through the same per-submission
+    // helper as retries (tracked once per submission, draft/no-evaluation
+    // submissions are reported as skipped/failed). The PDF/copy never mention
+    // AI or the form/run names.
+    if (action === "send_result_emails") {
+      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+      if (authError) return authError;
+
+      const { run_id, submission_ids } = body;
+      if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
+        return NextResponse.json({ success: false, error: "run_id and submission_ids are required" }, { status: 400 });
+      }
+      if (submission_ids.length > 500) {
+        return NextResponse.json({ success: false, error: "Result emails can be sent to at most 500 submissions at once" }, { status: 400 });
+      }
+
+      const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
+      const valRes = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
+      const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
+
+      const results = [];
+      for (const id of idList) {
+        const sub = validMap.get(id);
+        if (!sub) {
+          results.push({ submission_id: id, name: "", status: "failed", error: "Submission is not in this run" });
+          continue;
+        }
+        const r = await sendResultEmailForSubmission({ submission_id: id });
+        results.push({ submission_id: id, name: sub.submitter_name || "", status: r.status || "failed", error: r.error, to: r.to });
+      }
+
+      return NextResponse.json({ success: true, results });
     }
 
     // ─── DELETE SUBMISSION ACTION (super admin only) ───
@@ -1566,10 +1808,10 @@ export async function POST(req) {
       if (!submission_id) return NextResponse.json({ success: false, error: "submission_id required" }, { status: 400 });
 
       // Delete associated data
-      await db.execute({ sql: "DELETE FROM platform_submission_reviews WHERE submission_id = ?", args: [parseInt(submission_id)] });
-      await db.execute({ sql: "DELETE FROM platform_submission_timeline WHERE submission_id = ?", args: [parseInt(submission_id)] });
-      await db.execute({ sql: "DELETE FROM platform_submission_evaluations WHERE submission_id = ?", args: [parseInt(submission_id)] });
-      await db.execute({ sql: "DELETE FROM platform_form_submissions WHERE id = ?", args: [parseInt(submission_id)] });
+      await deleteReviewsBySubmissionId(submission_id);
+      await deleteTimelineBySubmissionId(submission_id);
+      await deleteEvaluationsBySubmissionId(submission_id);
+      await deleteSubmissionById(submission_id);
 
       return NextResponse.json({ success: true, message: "Submission deleted" });
     }
@@ -1581,7 +1823,7 @@ export async function POST(req) {
       if (authError) return authError;
       const { sql } = body;
       if (!sql) return NextResponse.json({ success: false, error: "sql required" }, { status: 400 });
-      await db.execute({ sql, args: [] });
+      await executeRawMigrationSql(sql);
       return NextResponse.json({ success: true, message: "Migration executed" });
     }
 
@@ -1604,28 +1846,19 @@ export async function POST(req) {
 
       const batchId = "msg_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
       const idList = [...new Set(submission_ids.map((id) => parseInt(id)).filter((n) => Number.isFinite(n)))];
-      const valRes = await db.execute({
-        sql: `SELECT * FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
-        args: [idList, parseInt(run_id)],
-      });
+      const valRes = await getManualMessageSubmissionsByIdsInRun(idList, run_id);
       const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
 
       // Fetch the form's field labels once for identity resolution.
       let fieldLabels = {};
       try {
-        const flRes = await db.execute({
-          sql: `SELECT f2.id, f2.label FROM platform_form_fields f2 JOIN platform_form_runs r2 ON f2.form_id = r2.form_id WHERE r2.id = ?`,
-          args: [parseInt(run_id)],
-        });
+        const flRes = await getManualMessageFieldLabelsByRunId(run_id);
         for (const frow of flRes.rows) fieldLabels[String(frow.id)] = frow.label;
       } catch (_) {}
 
       let groupName = null;
       try {
-        const grpRes = await db.execute({
-          sql: `SELECT f.name FROM platform_form_run_assignments a JOIN families f ON (a.target_id = f.registration_id OR a.target_id = CAST(f.id AS TEXT)) WHERE a.run_id = ? AND a.target_type = 'group' LIMIT 1`,
-          args: [parseInt(run_id)],
-        });
+        const grpRes = await getManualMessageGroupNameByRunId(run_id);
         if (grpRes.rows.length > 0) groupName = grpRes.rows[0].name;
       } catch (_) {}
 
@@ -1706,10 +1939,7 @@ export async function POST(req) {
 
       // Backend validation: every submission must belong to THIS run.
       const idList = [...new Set(submission_ids.map((id) => parseInt(id)))];
-      const valRes = await db.execute({
-        sql: `SELECT * FROM platform_form_submissions WHERE id = ANY(?) AND run_id = ?`,
-        args: [idList, parseInt(run_id)],
-      });
+      const valRes = await getActivationMessageSubmissionsByIdsInRun(idList, run_id);
       const validMap = new Map(valRes.rows.map((r) => [r.id, r]));
 
       const { getEmailLogRow, getActivationHistory } = await import("@/lib/email");
@@ -1735,10 +1965,7 @@ export async function POST(req) {
         // Account already activated → no activation email needed. This avoids
         // the misleading "Send failed" when the person already completed setup.
         try {
-          const actCheck = await db.execute({
-            sql: "SELECT status FROM contacts WHERE cid = ?",
-            args: [sub.submitter_id],
-          });
+          const actCheck = await getContactStatusForActivationById(sub.submitter_id);
           if (actCheck.rows[0] && String(actCheck.rows[0].status || "").toLowerCase() === "active") {
             results.push({ submission_id: id, name, status: "skipped", error: "Account already activated — no activation email needed" });
             continue;
@@ -1746,10 +1973,10 @@ export async function POST(req) {
         } catch (_) {}
 
         try {
-          const runData = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [sub.run_id] });
+          const runData = await getRunDataForActivationSendById(sub.run_id);
           let formData = null;
           if (runData.rows[0]) {
-            const f = await db.execute({ sql: "SELECT * FROM platform_forms WHERE id = ?", args: [runData.rows[0].form_id] });
+            const f = await getFormForActivationSendById(runData.rows[0].form_id);
             formData = f.rows[0] || null;
           }
           // Force resend bypasses the once-per-submission dedup so an admin can
@@ -1800,18 +2027,18 @@ export async function POST(req) {
       const slug = "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
       try {
-        await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+        await updatePublicSlugForRegeneratedLinkById(slug, id);
       } catch (_) {
         // Legacy schemas may lack the column — add it idempotently, then retry.
         try {
-          await db.execute({ sql: "ALTER TABLE platform_form_runs ADD COLUMN IF NOT EXISTS public_slug TEXT" });
-          await db.execute({ sql: "UPDATE platform_form_runs SET public_slug = ? WHERE id = ?", args: [slug, parseInt(id)] });
+          await addPublicSlugColumnIfMissing();
+          await updatePublicSlugRetryAfterAlterById(slug, id);
         } catch (e) {
           return NextResponse.json({ success: false, error: "Could not rotate the share link" }, { status: 500 });
         }
       }
 
-      const fresh = await db.execute({ sql: "SELECT * FROM platform_form_runs WHERE id = ?", args: [parseInt(id)] });
+      const fresh = await getRunAfterSlugRotationById(id);
       if (fresh.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
 
       return NextResponse.json({ success: true, run: fresh.rows[0], public_slug: slug });
@@ -1826,23 +2053,33 @@ export async function POST(req) {
     if (!form_id || !name) return NextResponse.json({ success: false, error: "form_id and name required" }, { status: 400 });
 
     // Get current form version
-    const form = await db.execute({ sql: "SELECT version FROM platform_forms WHERE id = ?", args: [parseInt(form_id)] });
+    const form = await getFormVersionById(form_id);
     if (form.rows.length === 0) return NextResponse.json({ success: false, error: "Form not found" }, { status: 404 });
 
     // Generate a random public slug (8-char hex, not guessable)
     const publicSlug = "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
-    const result = await db.execute({
-      sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by, public_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-      args: [parseInt(form_id), form.rows[0].version, name.trim(), description || null, opens_at || null, closes_at || null, JSON.stringify(settings || {}), session.cid || null, session.cid || null, publicSlug],
+    const result = await createFormRun({
+      form_id,
+      form_version: form.rows[0].version,
+      name,
+      description,
+      opens_at,
+      closes_at,
+      settings,
+      owner_id: session.cid,
+      created_by: session.cid,
+      public_slug: publicSlug,
     });
 
     // Create assignments
     if (Array.isArray(assignments)) {
       for (const a of assignments) {
-        await db.execute({
-          sql: "INSERT INTO platform_form_run_assignments (run_id, target_type, target_id, assigned_by) VALUES (?, ?, ?, ?) ON CONFLICT (run_id, target_type, target_id) DO NOTHING",
-          args: [result.rows[0].id, a.target_type || "user", a.target_id, session.cid],
+        await createRunAssignmentForRunCreation({
+          runId: result.rows[0].id,
+          targetType: a.target_type || "user",
+          targetId: a.target_id,
+          assignedBy: session.cid,
         });
       }
     }
@@ -1865,20 +2102,7 @@ export async function PUT(req) {
     const { id, name, description, status, opens_at, closes_at, settings } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "id is required" }, { status: 400 });
 
-    const fields = [];
-    const args = [];
-    const updatable = { name, description, status, opens_at, closes_at };
-    for (const [k, v] of Object.entries(updatable)) {
-      if (v !== undefined) { fields.push(`${k} = ?`); args.push(v); }
-    }
-    if (settings !== undefined) { fields.push("settings = ?"); args.push(JSON.stringify(settings)); }
-    fields.push("updated_at = NOW()");
-    args.push(parseInt(id));
-
-    const result = await db.execute({
-      sql: `UPDATE platform_form_runs SET ${fields.join(", ")} WHERE id = ? RETURNING *`,
-      args,
-    });
+    const result = await updateFormRunMetadataById({ id, name, description, status, opens_at, closes_at, settings });
     return NextResponse.json({ success: true, run: result.rows[0] });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -1899,10 +2123,10 @@ export async function DELETE(req) {
     // Permanently delete the run and everything attached to it. Assignments
     // and submissions cascade via FK, but email/review/evaluation logs
     // reference submission_id without a FK cascade, so clean those up first.
-    await db.execute({ sql: "DELETE FROM platform_email_log WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
-    await db.execute({ sql: "DELETE FROM platform_submission_reviews WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
-    await db.execute({ sql: "DELETE FROM platform_submission_evaluations WHERE submission_id IN (SELECT id FROM platform_form_submissions WHERE run_id = ?)", args: [runId] });
-    await db.execute({ sql: "DELETE FROM platform_form_runs WHERE id = ?", args: [runId] });
+    await deleteEmailLogsByRunId(runId);
+    await deleteReviewsByRunId(runId);
+    await deleteEvaluationsByRunId(runId);
+    await deleteFormRunById(runId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

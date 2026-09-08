@@ -1,7 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import {
+  getContactByEmailForQuickLogin,
+  createImpersonationUserSession,
+} from "@/models/authFlows";
 
 /**
  * QUICK LOGIN - Staging-only endpoint.
@@ -35,10 +39,9 @@ export async function POST(req) {
     }
 
     // Find user by email
-    const result = await db.execute({
-      sql: "SELECT * FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [email.trim().toLowerCase()],
-    });
+    const result = await getContactByEmailForQuickLogin(
+      email.trim().toLowerCase(),
+    );
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -74,10 +77,13 @@ export async function POST(req) {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     const expiresAtStr = expiresAt.toISOString().replace("T", " ").replace("Z", "");
 
-    await db.execute({
-      sql: "INSERT INTO user_sessions (token, token_hash, user_cid, role, expires_at, is_impersonation) VALUES (?, ?, ?, ?, ?, ?)",
-      args: [token, hashToken(token), userCid, finalRole, expiresAtStr, 1],
-    });
+    await createImpersonationUserSession(
+      token,
+      hashToken(token),
+      userCid,
+      finalRole,
+      expiresAtStr,
+    );
 
     // Determine redirect
     let target = "/participant";

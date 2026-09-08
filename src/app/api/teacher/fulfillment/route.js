@@ -1,6 +1,10 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  getFulfillmentParticipantsByProgram,
+  getFulfillmentRequirementsByProgramWeek,
+  getSubmissionsByDocumentIds,
+} from "@/models/teacher";
 
 export const GET = createHandler(
   { roles: ["teacher", "staff", "super_admin"] },
@@ -16,25 +20,18 @@ export const GET = createHandler(
       });
     }
 
-    const participants = await db.execute({
-      sql: "SELECT id, name, cid, email, phone FROM v2_participants WHERE program_id = ?",
-      args: [program_id],
-    });
+    const participants = await getFulfillmentParticipantsByProgram(program_id);
 
-    const requirements = await db.execute({
-      sql: "SELECT id, title FROM v2_document_requirements WHERE program_id = ? AND week_number = ?",
-      args: [program_id, week_number],
-    });
+    const requirements = await getFulfillmentRequirementsByProgramWeek(
+      program_id,
+      week_number,
+    );
 
     const reqIds = requirements.rows.map((r) => r.id);
 
     let submissions = [];
     if (reqIds.length > 0) {
-      const placeholders = reqIds.map(() => "?").join(",");
-      const subRes = await db.execute({
-        sql: `SELECT * FROM v2_submissions WHERE document_id IN (${placeholders})`,
-        args: reqIds.map(String),
-      });
+      const subRes = await getSubmissionsByDocumentIds(reqIds);
       submissions = subRes.rows;
     }
 

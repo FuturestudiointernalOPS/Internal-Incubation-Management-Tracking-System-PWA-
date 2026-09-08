@@ -3,9 +3,15 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/lib/ventures";
+import {
+  getRetroForWeek,
+  getVentureDbIdForRetros,
+  insertVentureRetro,
+  listVentureRetrosWithCreators,
+} from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureDbIdForRetros(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -24,8 +30,8 @@ export async function GET(req, { params }) {
     const { session } = await requireVentureAccess(id, db);
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const { week_number, year } = getWeekNumber();
-    const cur = await db.execute({ sql: "SELECT id FROM venture_retros WHERE venture_id = ? AND week_number = ? AND year = ? LIMIT 1", args: [dbId, week_number, year] });
-    const r = await db.execute({ sql: "SELECT vr.*, c.name as creator_name FROM venture_retros vr LEFT JOIN contacts c ON vr.created_by = c.cid WHERE vr.venture_id = ? ORDER BY vr.year DESC, vr.week_number DESC", args: [dbId] });
+    const cur = await getRetroForWeek(dbId, week_number, year);
+    const r = await listVentureRetrosWithCreators(dbId);
     return NextResponse.json({ success: true, retros: r.rows || [], current_week_submitted: cur.rows?.length > 0, current_week: week_number, current_year: year });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
@@ -37,7 +43,7 @@ export async function POST(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     const { week_number, year, completed_tasks, outstanding_tasks, carry_forward_notes } = await req.json();
     if (!week_number || !year) return NextResponse.json({ success: false, error: "week_number and year required" }, { status: 400 });
-    try { await db.execute({ sql: "INSERT INTO venture_retros (venture_id, week_number, year, completed_tasks, outstanding_tasks, carry_forward_notes, created_by) VALUES (?,?,?,?,?,?,?)", args: [dbId, week_number, year, completed_tasks||null, outstanding_tasks||null, carry_forward_notes||null, session.cid] });
+    try { await insertVentureRetro({ venture_id: dbId, week_number, year, completed_tasks, outstanding_tasks, carry_forward_notes, created_by: session.cid });
       notifyVentureFounders(dbId, 'Weekly Retro Submitted', `The venture retro for week ${week_number}/${year} has been submitted.`);
     } catch(e) { if (e.message?.includes("UNIQUE")) return NextResponse.json({ success: false, error: "Retro already exists for this week" }, { status: 409 }); throw e; }
     return NextResponse.json({ success: true });

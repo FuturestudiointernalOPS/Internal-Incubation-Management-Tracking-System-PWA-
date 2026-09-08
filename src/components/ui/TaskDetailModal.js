@@ -71,7 +71,7 @@ export default function TaskDetailModal({ task, onClose }) {
           <div className="p-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)]">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">Reference Link</p>
             {task.link ? (
-              <a href={task.link} target="_blank" className="text-[var(--brand-orange)] font-bold underline flex items-center gap-1"><LinkIcon className="w-3 h-3" />{task.link}</a>
+              <a href={task.link} target="_blank" className="text-[var(--brand-orange)] font-bold underline flex items-center gap-1" rel="noreferrer"><LinkIcon className="w-3 h-3" />{task.link}</a>
             ) : <p className="text-[var(--text-secondary)]">No link</p>}
           </div>
 

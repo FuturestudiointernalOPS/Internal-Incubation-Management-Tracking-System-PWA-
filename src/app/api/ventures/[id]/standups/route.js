@@ -3,9 +3,15 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { notifyVentureFounders } from "@/lib/ventures";
+import {
+  getStandupForWeek,
+  getVentureDbIdForStandups,
+  insertVentureStandup,
+  listVentureStandupsWithCreators,
+} from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureDbIdForStandups(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -30,11 +36,8 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     const { week_number, year } = getWeekNumber();
-    const cur = await db.execute({ sql: "SELECT id FROM venture_standups WHERE venture_id = ? AND week_number = ? AND year = ? LIMIT 1", args: [dbId, week_number, year] });
-    const r = await db.execute({
-      sql: `SELECT vs.*, c.name as creator_name FROM venture_standups vs LEFT JOIN contacts c ON vs.created_by = c.cid WHERE vs.venture_id = ? ORDER BY vs.year DESC, vs.week_number DESC`,
-      args: [dbId],
-    });
+    const cur = await getStandupForWeek(dbId, week_number, year);
+    const r = await listVentureStandupsWithCreators(dbId);
     return NextResponse.json({ success: true, standups: r.rows || [], current_week_submitted: cur.rows?.length > 0, current_week: week_number, current_year: year });
   } catch(e) { return NextResponse.json({ success: false, error: e.message }, { status: 500 }); }
 }
@@ -53,10 +56,7 @@ export async function POST(req, { params }) {
     const { week_number, year, top_priorities, expected_deliverables, weekly_priorities } = await req.json();
     if (!week_number || !year) return NextResponse.json({ success: false, error: "week_number and year required" }, { status: 400 });
     try {
-      await db.execute({
-        sql: "INSERT INTO venture_standups (venture_id, week_number, year, top_priorities, expected_deliverables, weekly_priorities, created_by) VALUES (?,?,?,?,?,?,?)",
-        args: [dbId, week_number, year, top_priorities||null, expected_deliverables||null, weekly_priorities||null, session.cid],
-      });
+      await insertVentureStandup({ venture_id: dbId, week_number, year, top_priorities, expected_deliverables, weekly_priorities, created_by: session.cid });
       notifyVentureFounders(dbId, 'Weekly Standup Submitted', `The venture standup for week ${week_number}/${year} has been submitted.`);
     } catch(e) {
       if (e.message?.includes("UNIQUE") || e.message?.includes("unique")) {

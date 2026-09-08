@@ -1,8 +1,27 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  deleteCampaignContacts,
+  deleteCampaignSteps,
+  getCampaignContactCids,
+  getCampaignContacts,
+  getCampaignSteps,
+  getCampaignWithCounts,
+  updateCampaign,
+} from "@/models/communications";
+
+// ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
+// Campaigns are hidden from the sidebar and their API is disabled (403).
+// The code below is intentionally kept — set RETIRED = false to re-enable.
+const RETIRED = true;
+const RETIRED_RESPONSE = NextResponse.json(
+  { success: false, error: "Campaigns are retired and no longer accessible." },
+  { status: 403 },
+);
 
 export async function GET(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     await initDb();
@@ -10,16 +29,7 @@ export async function GET(req, { params }) {
     if (authError) return authError;
 
     // Get Campaign Info
-    const campaignRes = await db.execute({
-      sql: `SELECT c.*,
-                   COUNT(cc.id) as total_contacts,
-                   SUM(CASE WHEN cc.status != 'pending' THEN 1 ELSE 0 END) as sent_contacts
-            FROM campaigns c
-            LEFT JOIN campaign_contacts cc ON c.id = cc.campaign_id
-            WHERE c.id = ?
-            GROUP BY c.id`,
-      args: [id],
-    });
+    const campaignRes = await getCampaignWithCounts(id);
 
     if (!campaignRes.rows[0])
       return NextResponse.json(
@@ -29,16 +39,10 @@ export async function GET(req, { params }) {
     const campaign = campaignRes.rows[0];
 
     // 1. Get individual Step Logic
-    const stepsRes = await db.execute({
-      sql: "SELECT * FROM campaign_steps WHERE campaign_id = ? ORDER BY step_order",
-      args: [id],
-    });
+    const stepsRes = await getCampaignSteps(id);
 
     // 2. Get Step-by-Step Delivery Counts
-    const contactsRes = await db.execute({
-      sql: "SELECT contact_cid, status FROM campaign_contacts WHERE campaign_id = ?",
-      args: [id],
-    });
+    const contactsRes = await getCampaignContacts(id);
 
     const nonPendingCount = contactsRes.rows.filter(
       (c) => c.status !== "pending",
@@ -65,6 +69,7 @@ export async function GET(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     const data = await req.json();
@@ -73,17 +78,11 @@ export async function PUT(req, { params }) {
     if (authError) return authError;
 
     // Update main info
-    await db.execute({
-      sql: "UPDATE campaigns SET name = ?, form_id = ? WHERE id = ?",
-      args: [data.name, data.form_id || null, id],
-    });
+    await updateCampaign({ id, name: data.name, formId: data.form_id });
 
     // Update steps
     if (data.steps) {
-      await db.execute({
-        sql: "DELETE FROM campaign_steps WHERE campaign_id = ?",
-        args: [id],
-      });
+      await deleteCampaignSteps(id);
       const stepQueries = data.steps.map((s, idx) => {
         const delay_hours =
           (s.wait_type === "days" ? (s.delay_days || 0) * 24 : 0) +
@@ -101,10 +100,7 @@ export async function PUT(req, { params }) {
     if (data.cids) {
       // For simplicity, we'll keep existing sent records and only sync pending/new ones
       // 1. Get existing contact IDs
-      const existingRes = await db.execute({
-        sql: "SELECT contact_cid FROM campaign_contacts WHERE campaign_id = ?",
-        args: [id],
-      });
+      const existingRes = await getCampaignContactCids(id);
       const existingCids = existingRes.rows.map((r) => r.contact_cid);
 
       // 2. Identities to add
@@ -120,10 +116,7 @@ export async function PUT(req, { params }) {
       // 3. Identities to remove (only if they aren't 'sent' yet)
       const toRemove = existingCids.filter((cid) => !data.cids.includes(cid));
       if (toRemove.length > 0) {
-        await db.execute({
-          sql: `DELETE FROM campaign_contacts WHERE campaign_id = ? AND contact_cid IN (${toRemove.map(() => "?").join(",")}) AND status != 'sent'`,
-          args: [id, ...toRemove],
-        });
+        await deleteCampaignContacts(id, toRemove);
       }
     }
 
@@ -137,6 +130,7 @@ export async function PUT(req, { params }) {
 }
 
 export async function DELETE(req, { params }) {
+  if (RETIRED) return RETIRED_RESPONSE;
   try {
     const { id } = await params;
     await initDb();

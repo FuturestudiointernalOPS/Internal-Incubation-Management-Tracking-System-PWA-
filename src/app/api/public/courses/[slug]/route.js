@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
+import { insertSelfEnrollment } from "@/models/platformConfig";
 import {
   getPublicCourseBySlug,
   getPublicCourseStructure,
@@ -93,12 +94,7 @@ export async function POST(req, { params }) {
     }
 
     await initDb();
-    await db.execute({
-      sql: `INSERT INTO lms_enrollments (course_id, user_cid, source)
-            VALUES (?, ?, 'self')
-            ON CONFLICT (course_id, user_cid) DO NOTHING`,
-      args: [row.id, session.cid],
-    });
+    await insertSelfEnrollment(row.id, session.cid);
 
     const enrollment = await getEnrollment(row.id, session.cid);
     return NextResponse.json({

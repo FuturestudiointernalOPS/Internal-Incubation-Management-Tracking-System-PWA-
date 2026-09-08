@@ -1,5 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import {
+  listPlatformNotifications,
+  markAllPlatformNotificationsRead,
+  markPlatformNotificationRead,
+} from "@/models/forms";
 
 /**
  * PLATFORM NOTIFICATIONS API
@@ -19,11 +24,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const all = searchParams.get("all") === "true";
 
-    const sql = all
-      ? "SELECT * FROM platform_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
-      : "SELECT * FROM platform_notifications WHERE user_id = ? AND read = false ORDER BY created_at DESC LIMIT 20";
-
-    const result = await db.execute({ sql, args: [session.cid] });
+    const result = await listPlatformNotifications(session.cid, all);
     return NextResponse.json({ success: true, notifications: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -40,18 +41,12 @@ export async function POST(req) {
     const body = await req.json();
 
     if (body.mark_all) {
-      await db.execute({
-        sql: "UPDATE platform_notifications SET read = true WHERE user_id = ? AND read = false",
-        args: [session.cid],
-      });
+      await markAllPlatformNotificationsRead(session.cid);
       return NextResponse.json({ success: true });
     }
 
     if (body.id) {
-      await db.execute({
-        sql: "UPDATE platform_notifications SET read = true WHERE id = ? AND user_id = ?",
-        args: [parseInt(body.id), session.cid],
-      });
+      await markPlatformNotificationRead(body.id, session.cid);
       return NextResponse.json({ success: true });
     }
 

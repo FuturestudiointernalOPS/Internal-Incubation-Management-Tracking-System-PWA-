@@ -6,9 +6,9 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { v4 as uuidv4 } from "uuid";
+import { createV2Invitation, listV2Invitations } from "@/models/authFlows";
 
 export async function POST(req) {
   try {
@@ -39,18 +39,14 @@ export async function POST(req) {
       expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     }
 
-    await db.execute({
-      sql: `INSERT INTO v2_invitations (token, program_id, group_name, team_id, role, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?)`,
-      args: [
-        token,
-        program_id,
-        group_name || null,
-        team_id || null,
-        role,
-        expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-      ],
-    });
+    await createV2Invitation(
+      token,
+      program_id,
+      group_name,
+      team_id,
+      role,
+      expiresAt,
+    );
 
     // Detect the base URL dynamically from the request headers
     const protocol = req.headers.get("x-forwarded-proto") || "http";
@@ -81,16 +77,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
 
-    let query =
-      "SELECT * FROM v2_invitations WHERE expires_at > NOW()";
-    let args = [];
-
-    if (program_id) {
-      query += " AND program_id = ?";
-      args.push(program_id);
-    }
-
-    const result = await db.execute({ sql: query, args });
+    const result = await listV2Invitations(program_id);
     return NextResponse.json({ invites: result.rows });
   } catch (error) {
     console.error("[Fetch Invites Error]:", error);

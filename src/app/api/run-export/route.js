@@ -1,9 +1,9 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import * as XLSX from "xlsx";
 import { jsPDF } from "jspdf";
+import { getRunWithFormName, getRunSubmissions } from "@/models/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -55,21 +55,13 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "format must be xlsx or pdf" }, { status: 400 });
     }
 
-    const runRes = await db.execute({
-      sql: `SELECT r.id, r.name, r.status, f.name AS form_name
-            FROM platform_form_runs r LEFT JOIN platform_forms f ON f.id = r.form_id
-            WHERE r.id = ?`,
-      args: [parseInt(runId)],
-    });
+    const runRes = await getRunWithFormName(parseInt(runId));
     if (runRes.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Run not found" }, { status: 404 });
     }
     const run = runRes.rows[0];
 
-    const subRes = await db.execute({
-      sql: "SELECT id, submitter_name, status, submitted_at, data FROM platform_form_submissions WHERE run_id = ? ORDER BY submitted_at DESC NULLS LAST",
-      args: [parseInt(runId)],
-    });
+    const subRes = await getRunSubmissions(parseInt(runId));
 
     // Build structured rows: collect question labels in order of first appearance.
     const flattened = subRes.rows.map((s) => {

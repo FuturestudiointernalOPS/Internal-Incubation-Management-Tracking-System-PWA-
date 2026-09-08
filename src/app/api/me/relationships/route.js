@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  hasParticipantProgramMembership,
+  hasV2ParticipantRecord,
+  getVentureMembershipsForContact,
+} from "@/models/contacts";
 
 /**
  * GET /api/me/relationships
@@ -36,32 +41,19 @@ export async function GET() {
 
     let isProgramParticipant = false;
     try {
-      const pp = await db.execute({
-        sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? LIMIT 1",
-        args: [cid],
-      });
+      const pp = await hasParticipantProgramMembership(cid);
       if (pp.rows?.length > 0) isProgramParticipant = true;
     } catch (_) {}
     if (!isProgramParticipant) {
       try {
-        const vp = await db.execute({
-          sql: "SELECT 1 FROM v2_participants WHERE user_id = ? OR LOWER(email) = LOWER((SELECT email FROM contacts WHERE cid = ?)) LIMIT 1",
-          args: [cid, cid],
-        });
+        const vp = await hasV2ParticipantRecord(cid);
         if (vp.rows?.length > 0) isProgramParticipant = true;
       } catch (_) {}
     }
 
     let ventures = [];
     try {
-      const vm = await db.execute({
-        sql: `SELECT v.venture_id, COALESCE(v.company_name, v.name) AS name, v.status
-              FROM venture_members vm
-              LEFT JOIN ventures v ON v.venture_id = vm.venture_id
-              WHERE vm.contact_id = ? AND vm.removed_at IS NULL
-              ORDER BY vm.joined_at DESC`,
-        args: [cid],
-      });
+      const vm = await getVentureMembershipsForContact(cid);
       ventures = vm.rows || [];
     } catch (_) {}
 

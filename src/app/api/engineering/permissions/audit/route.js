@@ -1,6 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  countPermissionAudits,
+  listPermissionAudits,
+} from "@/models/authorization";
 
 /**
  * GET /api/engineering/permissions/audit
@@ -36,7 +40,7 @@ export async function GET(req) {
     const actor = searchParams.get("actor")?.trim();
     const target = searchParams.get("target")?.trim();
     const action = searchParams.get("action")?.trim();
-    const module = searchParams.get("module")?.trim();
+    const moduleName = searchParams.get("module")?.trim();
     const capability = searchParams.get("capability")?.trim();
     const targetCid = searchParams.get("target_cid")?.trim();
     const from = searchParams.get("from")?.trim();
@@ -66,9 +70,9 @@ export async function GET(req) {
       where.push("action = ?");
       args.push(action);
     }
-    if (module) {
+    if (moduleName) {
       where.push("module = ?");
-      args.push(module);
+      args.push(moduleName);
     }
     if (capability) {
       where.push("capability ILIKE ?");
@@ -88,23 +92,11 @@ export async function GET(req) {
     }
     const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
-    const countRes = await db.execute({
-      sql: `SELECT COUNT(*) AS n FROM permission_audit_log ${whereSql}`,
-      args,
-    });
+    const countRes = await countPermissionAudits(whereSql, args);
     const total = parseInt(countRes.rows[0]?.n || 0);
 
     const entries = (
-      await db.execute({
-        sql: `SELECT id, actor_cid, actor_name, target_cid, target_name,
-                     action, module, capability, previous_value, new_value,
-                     details, created_at
-              FROM permission_audit_log
-              ${whereSql}
-              ORDER BY created_at DESC, id DESC
-              LIMIT ? OFFSET ?`,
-        args: [...args, pageSize, offset],
-      })
+      await listPermissionAudits(whereSql, [...args, pageSize, offset])
     ).rows;
 
     return NextResponse.json({ success: true, entries, total, page, pageSize });

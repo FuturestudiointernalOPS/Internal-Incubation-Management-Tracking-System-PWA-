@@ -2,9 +2,17 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import {
+  getVentureDbIdForCalendar,
+  listVentureActionPlansWithDeadlines,
+  listVentureCoachingFollowUpDates,
+  listVentureCoachingSessionsForCalendar,
+  listVentureMilestonesWithTargetDates,
+  listVentureTasksWithDueDates,
+} from "@/models/ventureWorkspace";
 
 async function resolveVentureDbId(ventureId) {
-  const r = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureId] });
+  const r = await getVentureDbIdForCalendar(ventureId);
   return r.rows?.[0]?.id || null;
 }
 
@@ -17,19 +25,19 @@ export async function GET(req, { params }) {
     if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
     // Venture tasks with due_date
-    const tasks = await db.execute({ sql: "SELECT id, title, due_date as date, status, priority FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL ORDER BY due_date", args: [dbId] });
+    const tasks = await listVentureTasksWithDueDates(dbId);
 
     // Milestones with target_date
-    const milestones = await db.execute({ sql: "SELECT id, title, target_date as date, status FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL ORDER BY target_date", args: [dbId] });
+    const milestones = await listVentureMilestonesWithTargetDates(dbId);
 
     // Action plans with deadline
-    const actions = await db.execute({ sql: "SELECT id, title, deadline as date, status, priority FROM venture_action_plans WHERE venture_id = ? AND deadline IS NOT NULL ORDER BY deadline", args: [dbId] });
+    const actions = await listVentureActionPlansWithDeadlines(dbId);
 
     // Coaching sessions with session_date (used as follow-up meetings)
-    const coachings = await db.execute({ sql: "SELECT vcs.id, CONCAT(c.name, ' Coaching') as title, vcs.session_date as date, c.name as advisor_name, vcs.location, vcs.meeting_link, vcs.start_time FROM venture_coaching_sessions vcs LEFT JOIN contacts c ON vcs.advisor_contact_id = c.cid WHERE vcs.venture_id = ? AND vcs.session_date IS NOT NULL ORDER BY vcs.session_date", args: [dbId] });
+    const coachings = await listVentureCoachingSessionsForCalendar(dbId);
 
     // Follow-up dates as separate events
-    const followups = await db.execute({ sql: "SELECT vcs.id, CONCAT('Follow-up: ', c.name) as title, vcs.follow_up_date as date, c.name as advisor_name FROM venture_coaching_sessions vcs LEFT JOIN contacts c ON vcs.advisor_contact_id = c.cid WHERE vcs.venture_id = ? AND vcs.follow_up_date IS NOT NULL ORDER BY vcs.follow_up_date", args: [dbId] });
+    const followups = await listVentureCoachingFollowUpDates(dbId);
 
     // Canonical sessions (venture_sessions) — ONLY rows staff explicitly marked
     // Venture-facing. Internal sessions never surface on the founder calendar.

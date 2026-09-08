@@ -1,7 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createVentureUpdate,
+  listVentureUpdatesByVentureId,
+} from "@/models/investor";
 
 export async function GET(req) {
   try {
@@ -13,10 +17,7 @@ export async function GET(req) {
     const ventureId = searchParams.get("venture_id");
     if (!ventureId) return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
 
-    const result = await db.execute({
-      sql: "SELECT * FROM venture_updates WHERE venture_id = ? ORDER BY created_at DESC",
-      args: [ventureId],
-    });
+    const result = await listVentureUpdatesByVentureId(ventureId);
     return NextResponse.json({ success: true, updates: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -35,10 +36,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "venture_id, title, and content required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: "INSERT INTO venture_updates (venture_id, title, content, update_type, created_by) VALUES (?, ?, ?, ?, ?) RETURNING *",
-      args: [venture_id, title, content, update_type || "general", session.cid || session.id],
-    });
+    const result = await createVentureUpdate({ venture_id, title, content, update_type, created_by: session.cid || session.id });
     return NextResponse.json({ success: true, update: result.rows[0] });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

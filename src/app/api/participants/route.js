@@ -1,10 +1,16 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import bcrypt from "bcryptjs";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess, assertNoParticipantFacilitatorConflict } from "@/lib/auth";
 import { getAuthorizationContext, authorize } from "@/lib/authorization";
+import {
+  upsertParticipantContact,
+  getContactCidByEmail,
+  enrollPendingParticipantProgram,
+  logParticipantEnrollment,
+  getProgramParticipants,
+} from "@/models/groups";
 
 /**
  * PARTICIPANTS API — ENROLLMENT ENGINE
@@ -32,31 +38,13 @@ export async function POST(req) {
     const unusableHash = await bcrypt.hash(uuidv4(), 10);
     const cid = `c-${Math.random().toString(36).substr(2, 9)}`;
 
-    await db.execute({
-      sql: `INSERT INTO contacts (cid, name, email, phone, role, password)
-            VALUES (?, ?, ?, ?, ?, ?)
-            ON CONFLICT(email) DO UPDATE SET
-              name = EXCLUDED.name,
-              phone = EXCLUDED.phone,
-              role = EXCLUDED.role`,
-      args: [
-        cid,
-        name,
-        email,
-        phone || null,
-        "participant",
-        unusableHash,
-      ],
-    });
+    await upsertParticipantContact(cid, name, email, phone, unusableHash);
 
     // Resolve the actual contact cid (the upsert above may have matched an
     // existing email, in which case the generated cid is not the real one).
     let contactCid = cid;
     try {
-      const cRes = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
-        args: [email],
-      });
+      const cRes = await getContactCidByEmail(email);
       if (cRes.rows.length > 0) contactCid = cRes.rows[0].cid;
     } catch (_) {}
 
@@ -72,21 +60,12 @@ export async function POST(req) {
     // Keep participant_programs (canonical membership) in sync so direct-add
     // participants show up in the Program Participants view once active.
     try {
-      await db.execute({
-        sql: `INSERT INTO participant_programs (participant_id, program_id, status, accepted_at, screening_status)
-              VALUES (?, ?, 'pending', NOW(), ?)
-              ON CONFLICT (participant_id, program_id) DO UPDATE SET screening_status = EXCLUDED.screening_status`,
-        args: [contactCid, program_id, screening_status || "pending"],
-      });
+      await enrollPendingParticipantProgram(contactCid, program_id, screening_status);
     } catch (_) {}
 
     // Timeline event
     try {
-      await db.execute({
-        sql: `INSERT INTO contact_timeline (contact_cid, event_type, description, context_module, context_id, actor_id, metadata)
-              VALUES (?, 'participant_enrolled', 'Enrolled in program', 'programs', ?, 'system', '{}'::jsonb)`,
-        args: [cid, program_id],
-      });
+      await logParticipantEnrollment(cid, program_id);
     } catch (_) {}
 
     return NextResponse.json({
@@ -146,46 +125,20 @@ export async function GET(req) {
     // + contacts (active account). id is contacts.cid so attendance and team
     // links use one consistent identifier. Form submissions and v2_participants
     // are NOT treated as operational participant membership.
-    let sql = `
-      SELECT CAST(c.cid AS TEXT) as id,
-             c.cid,
-             CAST(c.cid AS TEXT) as user_id,
-             c.name, c.email, c.phone,
-             c.status, c.created_at, c.group_name, c.v2_team_id,
-             pp.screening_status,
-             pp.program_id, 'enrolled' as source
-      FROM participant_programs pp
-      JOIN contacts c ON pp.participant_id = c.cid
-      WHERE CAST(pp.program_id AS TEXT) = ?
-        AND c.deleted = 0
-        AND c.deleted_at IS NULL
-        AND c.archived_at IS NULL
-        AND LOWER(COALESCE(c.status, '')) = 'active'
-        AND NOT EXISTS (
-          SELECT 1 FROM v2_program_staff ps
-          WHERE CAST(ps.program_id AS TEXT) = ?
-            AND ps.role = 'facilitator'
-            AND (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(TRIM(c.email)))
-        )
-    `;
-    const args = [String(program_id), String(program_id)];
-
     // Facilitator team scope: only participants assigned to the facilitator's
     // v2_teams (where handler_id = facilitator cid).
+    let teamIds = [];
     if (session && !canViewParticipants) {
       const scope = await getFacilitatorTeamScope(program_id, session.cid);
       if (scope.scope !== "all") {
         if (scope.teamIds.length === 0) {
           return NextResponse.json({ success: true, participants: [] });
         }
-        sql += " AND c.v2_team_id IN (" + scope.teamIds.map(() => "?").join(",") + ")";
-        args.push(...scope.teamIds);
+        teamIds = scope.teamIds;
       }
     }
 
-    sql += " ORDER BY c.created_at DESC";
-
-    const { rows } = await db.execute({ sql, args });
+    const { rows } = await getProgramParticipants(program_id, teamIds);
     return NextResponse.json({ success: true, participants: rows });
   } catch (error) {
     return NextResponse.json(

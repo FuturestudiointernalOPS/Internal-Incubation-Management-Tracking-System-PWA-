@@ -1,6 +1,8 @@
 # ImpactOS — MVC Refactoring Blueprint
 
-> Status: **in progress** — Wave 0 ✅ + Wave 1 ✅ + Wave 2 ✅ (SQL extraction) delivered.
+> Status: **in progress** — Waves 0–6 ✅ + polish ✅ (no inline SQL in API layer,
+> domain libs relocated behind facades; repo 100 % green: 39/39 suites ·
+> 623/623 tests · eslint 0 errors · build green).
 > This document is the master plan for refactoring the *entire* codebase into a
 > Model–View–Controller (MVC) layering that fits Next.js App Router.
 
@@ -66,8 +68,12 @@ src/
 │   ├── curriculum.js            ✅ pm curriculum (wave 2)
 │   ├── teams.js                 ✅ pm teams (wave 2)
 │   ├── responsibilities.js      ✅ responsibilities (wave 2)
-│   ├── users.js                 ← Wave 3
-│   ├── users.js                 ← contacts / sessions / people
+│   ├── contacts.js              ✅ contacts/people/families (wave 3)
+│   ├── authFlows.js             ✅ auth flows (wave 3)
+│   ├── groups.js                ✅ groups/participants/segments/invites (wave 3)
+│   ├── authorization.js         ✅ access control (wave 3)
+│   ├── ventures.js              ✅ venture business logic relocated (wave 4)
+│   ├── users.js                 ← long tail (lib/authorization helpers)
 │   ├── ventures/                ← split out of lib/ventures.js (5.6k LOC)
 │   │   ├── index.js             ← facade re-exporting lib/ventures.js during migration
 │   │   ├── venture.core.js
@@ -196,38 +202,104 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
   GET/PUT/DELETE behavior incl. executed SQL fragments), full suite 17 pass /
   3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
-### Wave 3 — People & Auth model
-- [ ] `src/models/users.js`: sessions/contacts queries duplicated across
-      `api/auth`, `api/me`, `api/contacts` (133 inline `FROM contacts`),
-      `api/admin`, invitations, families, groups, org-membership.
-- [ ] `src/models/authorization.js`: from `src/lib/authorization/*` + auth
-      capability checks (leave `lib/auth.js` session mechanics in place — it is
-      infrastructure).
+### Wave 3 — People & Auth model ✅ (SQL extraction done 2026-09-02)
+- [x] `src/models/contacts.js` (70 fns: contacts CRUD/search/merge/duplicates/
+      timeline/full-state + me/relationships + families), `src/models/authFlows.js`
+      (69 fns: login/session-login/impersonate/activate/invite/password flows +
+      revoke + language), `src/models/groups.js` (52 fns: groups, user-groups,
+      participants, segments, invites, org teams), `src/models/authorization.js`
+      (67 fns: org-membership, access-profiles*, engineering/permissions*) —
+      **39 route files / 258 queries** → 0 `db.execute` left (grep-audited).
+- [ ] `src/lib/authorization/*` (resolver/membership/backfill still hold SQL)
+      + capability checks in `lib/auth.js` — deferred: these are shared helpers
+      with few importers; migrate them during the long-tail wave (facade pattern).
+      `lib/auth.js` session mechanics remain infrastructure by design.
+- **Gate ✅:** new `relationships-api.test.js` **3/3** (written first — pins the
+  sidebar's personal-relationships endpoint), existing org-membership (12),
+  governance-audit (8) and permissions-admin (11) suites stay green; full suite
+  36 pass / 3 fail (only pre-existing `ventures/*`), `npm run build` green.
 
-### Wave 4 — Venture OS
-- [ ] Split `src/lib/ventures.js` (5,619 LOC, 277 exports) into
-      `src/models/ventures/*` behind a facade (53 importers → zero breakage).
-      Fix the 3 failing `ventures/*` test suites during the move.
-- [ ] Same for `src/lib/finance*`, `src/lib/platform/*`, `src/lib/email.js`
-      (1,391 — split template building from transport).
+### Wave 4 — Venture OS ✅ (2026-09-02 — lib relocated, suites green)
+- [x] `src/lib/ventures.js` (5,619 LOC / 277 exports) moved **byte-identical** to
+      `src/models/ventures.js`; `src/lib/ventures.js` is now a facade
+      (`export * from "@/models/ventures"`) → 53 importers untouched.
+- [x] ⚠️ 2026-09-08 — a later merge (`Merge origin/Ventures into G`) resurrected
+      the inline code inside `src/lib/ventures.js`, which is again the canonical
+      self-contained module (it received the assignment-aware staff fix and the
+      completion weighting fix). `src/models/ventures.js` was an unused stale
+      duplicate (0 importers, missing those fixes) → **deleted**. The facade
+      split is no longer in place.
+- [x] **All 3 failing `ventures/*` suites fixed → repo 100 % green**
+      (39/39 suites, 623/623 tests). Root causes: 1 real code bug
+      (`calculateCompletion` granted half-credit to empty optional steps —
+      now measured over required-content steps only: empty = 0 %, full = 100 %)
+      + 9 test-harness issues (`jest.clearAllMocks` vs queued once-values,
+      repo-wide constant `uuid` stub, stale mocks after the ventureAuth gate
+      was added to `/api/ventures/[id]`).
+- [ ] Deeper split of `src/lib/ventures.js` into a folder (core/founders/
+      promotion/startup-profile…) — deferred to long tail (single module, so
+      it is safe to do later).
+- [ ] `api/ventures/**` inline SQL (~35 files / ~200 queries) → models —
+      moved to Wave 5 (route-extraction wave).
+- [ ] `src/lib/finance*`, `src/lib/platform/*`, `src/lib/email.js` splits —
+      moved to Wave 6 (lib-domain splits).
+- **Gate ✅:** full suite 39/39 suites · 623/623 tests · `npm run build` green.
 
-### Wave 5 — Reporting & Op-reports
-- [ ] `src/models/op-reports.js`, `src/models/reports.js` from
-      `api/op-reports` (318), `api/reports`, `api/standups`, and the two giant
-      pages `staff/op-report/page.js` (4,059) and `admin/op-reports/page.js`
-      (2,375): keep table/filter/export views, move aggregation SQL to models.
+### Wave 5 — Remaining API routes → models ✅ (complete — no inline SQL left)
+- [x] **Venture cluster** ✅ (2026-09-02): `api/ventures/**` 32 routes /
+      194 queries → `src/models/ventureWorkspace.js` (78), `ventureJourney.js`
+      (68), `ventureAssets.js` (48).
+- [x] **Platform cluster** ✅ (2026-09-02): 27 routes / 332 queries →
+      `src/models/formRuns.js` (113), `publicFormRuns.js` (32), `forms.js`
+      (79), `platformAi.js` (75), `intents.js` (17), `platformImport.js` (16).
+- [x] **Investor + communications clusters** ✅ (2026-09-02): 30 routes /
+      219 queries → `src/models/investor.js` (80), `investorRelations.js`
+      (78), `communications.js` (60), `finance.js` (1, seed).
+- [x] **Final clusters** ✅ (2026-09-02): 78 routes / 341 queries →
+      `participantPortal.js` (72), `adminOps.js` (54), `teacher.js` (25),
+      `engineering.js` (22), `facilitation.js` (41), `workspace.js` (52),
+      `platformConfig.js` (49), + appends to `tasks.js`/`authFlows.js`/
+      `groups.js` (26).
+- [x] **Wave 5 gate ✅: 0 `db.execute` left in `src/app/api`** (audited),
+      0 pages import the db layer, 42 model files / 2,227 queries,
+      full suite 39/39 · 623/623, `npm run build` green.
 
-### Wave 6 — Remaining domains + long tail
-- communications (contacts/groups/campaigns/segments/families),
-  platform forms & runs (`api/platform/*`), participant, investor (incl.
-  `lib/finance` pipeline), messaging, crm, intelligence.
-- Long tail: thin the remaining 19 route files > 400 LOC and all 27 files > 1,000 LOC.
+### Wave 6 — Lib-domain splits ✅ (2026-09-02 — 41 modules relocated behind facades)
+- [x] 15 top-level domain modules moved byte-identical to `src/models/` with
+      facades at their lib paths (contactIdentity, contact-group-sync,
+      contact-groups, contactGroups, invitations, kpi-progress,
+      participant-membership, program-history, standupUpsert, taskAudit,
+      taskCarryover, ventureIntake, ventureInvitations, venturePipeline,
+      ventureTemplates).
+- [x] 4 domain folders mirrored under `src/models/` (26 files):
+      `authorization/` (9), `finance/` (2), `platform/` (9 incl. ai/*),
+      `integrations/` (6). Every original path is now a facade. Folders
+      coexist with the pre-existing `src/models/authorization.js` /
+      `finance.js` files.
+- [x] `src/lib/lms/*` (17 files, interlinked, covered by 12 jest suites)
+      relocated byte-identical to `src/models/lms/` behind per-file facades
+      (2026-09-02; 11 lms suites green, 254 tests).
+- [ ] `src/lib/email.js` (1,462), `auth.js`, `audit.js`, `token-hashing.js`,
+      `ventureAuth.js` stay in `lib/` by design (infrastructure).
+- **Gate ✅:** 8 focused suites green (171 tests) + full suite 39/39 ·
+  623/623 · `npm run build` green.
 
-### Wave 7 — Delete facades & final polish
-- [ ] Remove facade re-exports once importers migrated (grep count = 0).
-- [ ] Full `npm run lint`, `npm test`, `npm run build`; update `AGENTS.md`,
-      `.ai/*`, `docs/ARCHITECTURE.md` + this doc's status; delete legacy
-      SQLite binaries (`src/lib/*.db`) after confirmation.
+### Wave 7 — Remaining (views, lms lib, facades, polish)
+- [ ] View decomposition: the giant client pages (`pm/programs/[id]` 6,873;
+      `staff/op-report` 4,059; `admin/op-reports` 2,375; `admin/programs`
+      2,059; `admin/projects/*`, `TaskManager` 2,511, `DashboardLayout` 2,196…)
+      are layering-compliant (API-driven) — splitting them is pure file-size
+      debt; do it feature-by-feature with no behavior change.
+- [x] Relocate `src/lib/lms/*` → `src/models/lms/` behind per-file facades.
+- [ ] Remove facade re-exports once importers are migrated (grep count = 0),
+      incl. `src/lib/ventures.js` + `src/lib/db/queries/tasks.js`.
+      *(advisory only — facades are zero-cost and keep legacy paths working)*
+- [x] Polish: ESLint flat config rewritten (`eslint .` runs, **0 errors**,
+      2.1k warnings = intentional unused-var noise + aspirational react-hooks
+      compiler rules); lint sweep fixed ~120 real issues (incl. 5 scope bugs
+      that would ReferenceError and 6 missing `useI18n` wirings); `package.json`
+      lint script → `eslint .`; empty legacy SQLite files removed; AGENTS.md /
+      docs/ARCHITECTURE.md / .ai updated to the MVC structure.
 
 ---
 

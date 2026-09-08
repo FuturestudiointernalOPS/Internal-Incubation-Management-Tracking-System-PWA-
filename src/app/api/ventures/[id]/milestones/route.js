@@ -4,12 +4,16 @@ import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority } from "@/lib/ventureMilestoneEngine";
 import { notifyVentureFounders } from "@/lib/ventures";
+import {
+  getVentureDbIdForMilestoneCreate,
+  getVentureDbIdForMilestoneList,
+} from "@/models/ventureWorkspace";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const { session } = await requireVentureAccess(id, db);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-  const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const ventureRes = await getVentureDbIdForMilestoneList(id);
   const ventureDbId = ventureRes.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const r = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
@@ -29,7 +33,7 @@ export const POST = createHandler(async (req, { params }) => {
   const { title, description, target_date } = body;
   if (!title?.trim()) return NextResponse.json({ success: false, error: "Milestone title is required." }, { status: 400 });
 
-  const ventureRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [id] });
+  const ventureRes = await getVentureDbIdForMilestoneCreate(id);
   const ventureDbId = ventureRes.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 

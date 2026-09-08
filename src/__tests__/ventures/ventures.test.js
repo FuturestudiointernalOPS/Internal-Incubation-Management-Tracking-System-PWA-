@@ -23,6 +23,19 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
+// The repo-wide uuid stub (moduleNameMapper: ^uuid$ -> __mocks__/uuid.js)
+// returns a CONSTANT v4, which makes generateVentureId() return the same ID
+// on every call. generateVentureId() is exercised directly here (uniqueness
+// contract), so give uuid a fresh value per call.
+// NOTE: keep the variation inside the first 8 characters after "VNT-" —
+// generateVentureId() only reads the first 8 chars of the stripped uuid.
+jest.mock("uuid", () => {
+  let seq = 0;
+  return {
+    v4: () => `${String(seq++).padStart(4, "0")}-mock-uuid-1234567890`,
+  };
+});
+
 import db from "@/lib/db";
 import {
   generateVentureId,
@@ -214,7 +227,10 @@ describe("Venture OS — Workflow B", () => {
     it("should detect duplicate founder email", async () => {
       db.execute
         .mockResolvedValueOnce({ rows: [] }) // name check
-        .mockResolvedValueOnce({ rows: [] }) // reg check (registration_number is empty — query won't execute)
+        // NOTE: registration_number is empty, so checkDuplicates skips the
+        // registration-number query — only name + email checks run, so only
+        // two responses are queued (a third would be consumed by the email
+        // check and hide the duplicate).
         .mockResolvedValueOnce({ rows: [{ id: 1 }] }); // email check
 
       const result = await checkDuplicates({

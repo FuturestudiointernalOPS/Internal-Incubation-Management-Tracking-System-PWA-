@@ -1,7 +1,24 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { after } from "next/server";
 import { onSubmission } from "@/lib/platform/automation";
+import {
+  ensurePublicSubmitInvitationColumn,
+  ensurePublicSubmitInvitationIndex,
+  ensurePublicSubmitRateTable,
+  getActiveRunIdByPublicSlug,
+  getActiveRunById,
+  countRecentSubmissionsFromIp,
+  getFormIdByRunId,
+  getFormFieldsByFormId,
+  getSubmittedSubmissionBySubmitter,
+  insertRateEntryForSubmission,
+  getDraftSubmissionBySubmitter,
+  upgradeDraftToSubmitted,
+  insertSubmittedSubmission,
+  getFormSettingsByRunId,
+  getFormById,
+} from "@/models/publicFormRuns";
 
 // The pipeline adds platform_form_submissions.invitation_id lazily via
 // ensureVentureSchema() (seed/approval paths). Public submit inserts that
@@ -12,27 +29,13 @@ async function ensurePublicSubmitSchema() {
   if (!submitSchemaPromise) {
     submitSchemaPromise = (async () => {
       try {
-        await db.execute({
-          sql: "ALTER TABLE platform_form_submissions ADD COLUMN IF NOT EXISTS invitation_id INTEGER",
-          args: [],
-        });
-        await db.execute({
-          sql: "CREATE INDEX IF NOT EXISTS idx_form_submissions_invitation ON platform_form_submissions(invitation_id)",
-          args: [],
-        });
+        await ensurePublicSubmitInvitationColumn();
+        await ensurePublicSubmitInvitationIndex();
       } catch (e) {
         console.warn("[Public Submit] schema ensure failed:", e.message);
       }
       try {
-        await db.execute({
-          sql: `CREATE TABLE IF NOT EXISTS platform_submissions_rate (
-            id SERIAL PRIMARY KEY,
-            run_id INTEGER NOT NULL REFERENCES platform_form_runs(id) ON DELETE CASCADE,
-            ip TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT NOW()
-          )`,
-          args: [],
-        });
+        await ensurePublicSubmitRateTable();
       } catch (_) {}
       return true;
     })();
@@ -52,6 +55,7 @@ async function ensurePublicSubmitSchema() {
  * - IP-based rate limiting: max 5 submissions per IP per run per hour
  */
 export async function POST(req) {
+  let body = null;
   try {
     await initDb();
     await ensurePublicSubmitSchema();
@@ -65,7 +69,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Payload too large" }, { status: 413 });
     }
 
-    const body = await req.json();
+    body = await req.json();
     const { data, slug, invitation_token } = body;
 
     if (!slug || !data || typeof data !== "object") {
@@ -76,10 +80,7 @@ export async function POST(req) {
     // accepted on the public endpoint (prevents sequential-ID probing).
     let run_id = null;
     try {
-      const runBySlug = await db.execute({
-        sql: "SELECT id FROM platform_form_runs WHERE public_slug = ? AND status = 'active'",
-        args: [slug],
-      });
+      const runBySlug = await getActiveRunIdByPublicSlug(slug);
       if (runBySlug.rows.length > 0) {
         run_id = runBySlug.rows[0].id;
       }
@@ -91,10 +92,7 @@ export async function POST(req) {
     }
 
     // Verify run exists and is active
-    const run = await db.execute({
-      sql: "SELECT * FROM platform_form_runs WHERE id = ? AND status = 'active'",
-      args: [parseInt(run_id)],
-    });
+    const run = await getActiveRunById(run_id);
     if (run.rows.length === 0) {
       return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
     }
@@ -121,10 +119,7 @@ export async function POST(req) {
     // IP-based rate limiting: max 5 submissions per IP per run per hour
     // Gracefully skip if rate table doesn't exist yet
     try {
-      const rateCheck = await db.execute({
-        sql: "SELECT COUNT(*) as c FROM platform_submissions_rate WHERE run_id = ? AND ip = ? AND created_at > NOW() - INTERVAL '1 hour'",
-        args: [parseInt(run_id), ip],
-      });
+      const rateCheck = await countRecentSubmissionsFromIp(run_id, ip);
       if (parseInt(rateCheck.rows[0]?.c) >= 5) {
         return NextResponse.json({ success: false, error: "Too many submissions. Please try again later." }, { status: 429 });
       }
@@ -136,15 +131,9 @@ export async function POST(req) {
     if (typeof data === "object" && run_id) {
       try {
         // Fetch form fields to map field IDs to labels
-        const runInfo = await db.execute({
-          sql: "SELECT form_id FROM platform_form_runs WHERE id = ?",
-          args: [parseInt(run_id)],
-        });
+        const runInfo = await getFormIdByRunId(run_id);
         if (runInfo.rows.length > 0) {
-          const fieldsRes = await db.execute({
-            sql: "SELECT id, label, field_type FROM platform_form_fields WHERE form_id = ?",
-            args: [runInfo.rows[0].form_id],
-          });
+          const fieldsRes = await getFormFieldsByFormId(runInfo.rows[0].form_id);
           const fieldMap = {};
           for (const f of fieldsRes.rows) {
             fieldMap[String(f.id)] = { label: f.label, type: f.field_type };
@@ -191,10 +180,7 @@ export async function POST(req) {
     // a repeat submission returns success (not an error) so a participant who
     // resubmits after a misleading error is NOT told their application failed.
     if (submitterEmail) {
-      const existing = await db.execute({
-        sql: "SELECT id, status FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'submitted'",
-        args: [parseInt(run_id), submitterEmail],
-      });
+      const existing = await getSubmittedSubmissionBySubmitter(run_id, submitterEmail);
       if (existing.rows.length > 0) {
         return NextResponse.json({
           success: true,
@@ -208,44 +194,28 @@ export async function POST(req) {
 
     // Record rate limit entry (skip if table doesn't exist)
     try {
-      await db.execute({
-        sql: "INSERT INTO platform_submissions_rate (run_id, ip, created_at) VALUES (?, ?, NOW())",
-        args: [parseInt(run_id), ip],
-      });
+      await insertRateEntryForSubmission(run_id, ip);
     } catch (_) {}
 
     // Insert submission — or upgrade existing draft
     let submissionId;
     if (submitterEmail) {
-      const draftCheck = await db.execute({
-        sql: "SELECT id FROM platform_form_submissions WHERE run_id = ? AND submitter_id = ? AND status = 'draft'",
-        args: [parseInt(run_id), submitterEmail],
-      });
+      const draftCheck = await getDraftSubmissionBySubmitter(run_id, submitterEmail);
       if (draftCheck.rows.length > 0) {
-        await db.execute({
-          sql: "UPDATE platform_form_submissions SET status = 'submitted', data = ?, submitted_at = NOW(), submitter_name = ?, invitation_id = COALESCE(?, invitation_id) WHERE id = ?",
-          args: [JSON.stringify(data), submitterName, invitationId, draftCheck.rows[0].id],
-        });
+        await upgradeDraftToSubmitted(data, submitterName, invitationId, draftCheck.rows[0].id);
         submissionId = draftCheck.rows[0].id;
       }
     }
 
     if (!submissionId) {
-      const result = await db.execute({
-        sql: `INSERT INTO platform_form_submissions (run_id, submitter_id, submitter_name, status, data, invitation_id, submitted_at)
-              VALUES (?, ?, ?, 'submitted', ?, ?, NOW()) RETURNING id`,
-        args: [parseInt(run_id), submitterId, submitterName, JSON.stringify(data), invitationId],
-      });
+      const result = await insertSubmittedSubmission(run_id, submitterId, submitterName, data, invitationId);
       submissionId = result.rows[0].id;
     }
 
     // Fetch form settings for success message configuration
     let successConfig = null;
     try {
-      const formQuery = await db.execute({
-        sql: "SELECT f.name, f.settings FROM platform_forms f JOIN platform_form_runs r ON r.form_id = f.id WHERE r.id = ?",
-        args: [parseInt(run_id)],
-      });
+      const formQuery = await getFormSettingsByRunId(run_id);
       if (formQuery.rows.length > 0 && formQuery.rows[0].settings) {
         const settings = formQuery.rows[0].settings;
         const auto = settings.automation || {};
@@ -263,10 +233,7 @@ export async function POST(req) {
     try {
       const runForAuto = run.rows[0];
       let formForAuto = null;
-      const fRes = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id = ?",
-        args: [runForAuto?.form_id],
-      });
+      const fRes = await getFormById(runForAuto?.form_id);
       formForAuto = fRes.rows[0] || null;
       after(() => {
         onSubmission(

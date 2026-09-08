@@ -8,9 +8,20 @@
    ===================================================================================== */
 
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import bcrypt from "bcryptjs";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import {
+  getV2InviteWithProgramNameByHashOrToken,
+  backfillV2InviteTokenHashOnValidate,
+  getV2InviteByHashOrToken,
+  backfillV2InviteTokenHashOnAccept,
+  getContactByEmailForV2InviteAccept,
+  updateContactByEmailForV2InviteAccept,
+  insertContactForV2InviteAccept,
+  getV2ParticipantByEmailAndProgram,
+  updateV2ParticipantTeamByEmailAndProgram,
+  insertV2ParticipantForInviteAccept,
+} from "@/models/authFlows";
 
 // GET: Validate the token and return program/group info for the UI
 export async function GET(req, { params }) {
@@ -19,14 +30,7 @@ export async function GET(req, { params }) {
     const { token } = await params; // Destructure carefully
     const tokenHash = hashToken(token);
 
-    const result = await db.execute({
-      sql: `SELECT i.*, p.name as program_name
-            FROM v2_invitations i
-            LEFT JOIN v2_programs p ON i.program_id = p.id::text
-            WHERE i.expires_at > NOW()
-              AND (i.token_hash = ? OR i.token = ?)`,
-      args: [tokenHash, token]
-    });
+    const result = await getV2InviteWithProgramNameByHashOrToken(tokenHash, token);
 
     if (result.rows.length === 0) {
       return NextResponse.json({ error: "Invalid or expired Future Studio Invite Link." }, { status: 404 });
@@ -36,10 +40,7 @@ export async function GET(req, { params }) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!invite.token_hash) {
-      await db.execute({
-        sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
-        args: [tokenHash, token],
-      }).catch(() => {});
+      await backfillV2InviteTokenHashOnValidate(tokenHash, token).catch(() => {});
     }
     return NextResponse.json({
       invite: {
@@ -68,10 +69,7 @@ export async function POST(req, { params }) {
 
     // 1. Validate Invite
     const tokenHash = hashToken(token);
-    const inviteCheck = await db.execute({
-      sql: "SELECT * FROM v2_invitations WHERE expires_at > NOW() AND (token_hash = ? OR token = ?)",
-      args: [tokenHash, token]
-    });
+    const inviteCheck = await getV2InviteByHashOrToken(tokenHash, token);
 
     if (inviteCheck.rows.length === 0) {
       return NextResponse.json({ error: "Invalid or expired Future Studio Invite Link." }, { status: 404 });
@@ -80,10 +78,7 @@ export async function POST(req, { params }) {
 
     // Lazily backfill the hash for legacy rows stored before hashing was added.
     if (!invite.token_hash) {
-      await db.execute({
-        sql: "UPDATE v2_invitations SET token_hash = ? WHERE token = ?",
-        args: [tokenHash, token],
-      }).catch(() => {});
+      await backfillV2InviteTokenHashOnAccept(tokenHash, token).catch(() => {});
     }
 
     // 2. Hash Password & Prepare User (Ticket 2 - Auth System)
@@ -93,48 +88,43 @@ export async function POST(req, { params }) {
 
     // 3. Upsert User into Contacts
     let contactId;
-    const existingUser = await db.execute({
-      sql: "SELECT * FROM contacts WHERE email = ?",
-      args: [email]
-    });
+    const existingUser = await getContactByEmailForV2InviteAccept(email);
 
     if (existingUser.rows.length > 0) {
       // User exists, update their profile with the new invite credentials and group
-      await db.execute({
-        sql: `UPDATE contacts
-              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, v2_team_id = ?
-              WHERE email = ?`,
-        args: [name, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null, email]
-      });
+      await updateContactByEmailForV2InviteAccept(
+        name,
+        phone,
+        hashedPassword,
+        invite.role,
+        invite.group_name,
+        invite.team_id,
+        email,
+      );
       contactId = existingUser.rows[0].cid;
     } else {
       // Create new user
-      await db.execute({
-        sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, v2_team_id)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        args: [cid, name, email, phone || null, hashedPassword, invite.role, invite.group_name, invite.team_id || null]
-      });
+      await insertContactForV2InviteAccept(
+        cid,
+        name,
+        email,
+        phone,
+        hashedPassword,
+        invite.role,
+        invite.group_name,
+        invite.team_id,
+      );
       contactId = cid;
     }
 
     // 4. Map user to v2_participants to prevent duplicate joins
-    const participantCheck = await db.execute({
-      sql: "SELECT id FROM v2_participants WHERE email = ? AND program_id = ?",
-      args: [email, invite.program_id]
-    });
+    const participantCheck = await getV2ParticipantByEmailAndProgram(email, invite.program_id);
 
     if (participantCheck.rows.length > 0) {
       // Update existing participant record if they are re-joining with a team
-      await db.execute({
-        sql: "UPDATE v2_participants SET team_id = ? WHERE email = ? AND program_id = ?",
-        args: [invite.team_id || null, email, invite.program_id]
-      });
+      await updateV2ParticipantTeamByEmailAndProgram(invite.team_id, email, invite.program_id);
     } else {
-      await db.execute({
-        sql: `INSERT INTO v2_participants (program_id, name, email, phone, status, team_id)
-              VALUES (?, ?, ?, ?, 'Active', ?)`,
-        args: [invite.program_id, name, email, phone || null, invite.team_id || null]
-      });
+      await insertV2ParticipantForInviteAccept(invite.program_id, name, email, phone, invite.team_id);
     }
 
     return NextResponse.json({

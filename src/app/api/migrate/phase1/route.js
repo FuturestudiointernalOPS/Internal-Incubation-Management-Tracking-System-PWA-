@@ -1,6 +1,6 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { runPhase1MigrationStatement } from "@/models/platformConfig";
 import fs from "fs";
 import path from "path";
 
@@ -41,7 +41,7 @@ export async function POST(req) {
         : stmt;
 
       try {
-        await db.execute({ sql: fullStmt, args: [] });
+        await runPhase1MigrationStatement(fullStmt);
         results.push({
           statement: fullStmt.substring(0, 80).replace(/\n/g, " ") + "...",
           success: true,

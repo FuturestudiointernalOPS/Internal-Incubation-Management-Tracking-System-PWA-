@@ -1,6 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendEmail } from "@/lib/mailer";
+import {
+  findContactByEmail,
+  getExistingInvestorProfileId,
+  getNewInvestorProfileId,
+  insertContactForRegistration,
+  insertInvestorPreferences,
+  insertInvestorProfileForRegistration,
+  listAdminContactIdsForNotification,
+  notifyAdminsOfNewInvestor,
+  setContactRoleToInvestor,
+  upsertInvestorPreferences,
+  upsertInvestorProfileForRegistration,
+} from "@/models/investorRelations";
 
 /**
  * POST /api/investor/register
@@ -22,10 +35,7 @@ export async function POST(req) {
     }
 
     // Check if email already exists
-    const existing = await db.execute({
-      sql: "SELECT cid, role FROM contacts WHERE email = ? AND deleted = 0",
-      args: [email],
-    });
+    const existing = await findContactByEmail(email);
 
     if (existing.rows.length > 0) {
       // User exists — if already investor, tell them
@@ -37,35 +47,29 @@ export async function POST(req) {
         }, { status: 409 });
       }
       // Update role to investor and create profile
-      await db.execute({
-        sql: "UPDATE contacts SET role = 'investor', name = ? WHERE cid = ?",
-        args: [name, user.cid],
-      });
+      await setContactRoleToInvestor(name, user.cid);
 
       // Create or update investor profile
-      await db.execute({
-        sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
-              VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)
-              ON CONFLICT (user_id) DO UPDATE
-              SET organization_name = EXCLUDED.organization_name, biography = EXCLUDED.biography,
-                  website = EXCLUDED.website, linkedin = EXCLUDED.linkedin,
-                  qualification_status = 'pending_review', investment_experience = EXCLUDED.investment_experience,
-                  approval_status = CASE WHEN investor_profiles.approval_status = 'rejected' THEN 'pending_review' ELSE investor_profiles.approval_status END,
-                  updated_at = NOW()`,
-        args: [user.cid, organization_name || null, biography || null, website || null, linkedin || null, investment_experience || null],
-      });
+      await upsertInvestorProfileForRegistration(
+        user.cid,
+        organization_name || null,
+        biography || null,
+        website || null,
+        linkedin || null,
+        investment_experience || null,
+      );
 
       // Save preferences
       if (industries?.length || countries?.length || startup_stages?.length) {
-        const prof = await db.execute({ sql: "SELECT id FROM investor_profiles WHERE user_id = ?", args: [user.cid] });
-        await db.execute({
-          sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT (investor_id) DO UPDATE
-                SET industries = EXCLUDED.industries, countries = EXCLUDED.countries, startup_stages = EXCLUDED.startup_stages,
-                    ticket_size_min = EXCLUDED.ticket_size_min, ticket_size_max = EXCLUDED.ticket_size_max`,
-          args: [prof.rows[0]?.id, industries || [], countries || [], startup_stages || [], ticket_size_min || null, ticket_size_max || null],
-        });
+        const prof = await getExistingInvestorProfileId(user.cid);
+        await upsertInvestorPreferences(
+          prof.rows[0]?.id,
+          industries || [],
+          countries || [],
+          startup_stages || [],
+          ticket_size_min || null,
+          ticket_size_max || null,
+        );
       }
 
       return NextResponse.json({ success: true, message: "Investor registration submitted for review." });
@@ -74,26 +78,28 @@ export async function POST(req) {
     // New user — create contact + profile
     const cid = `USR-${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
 
-    await db.execute({
-      sql: `INSERT INTO contacts (cid, name, email, password, role, status, group_name)
-            VALUES (?, ?, ?, ?, 'investor', 'active', 'INVESTOR')`,
-      args: [cid, name, email, password],
-    });
+    await insertContactForRegistration(cid, name, email, password);
 
-    await db.execute({
-      sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, approval_status, qualification_status, investment_experience, profile_completion)
-            VALUES (?, ?, ?, ?, ?, 'pending_review', 'pending_review', ?, 100)`,
-      args: [cid, organization_name || null, biography || null, website || null, linkedin || null, investment_experience || null],
-    });
+    await insertInvestorProfileForRegistration(
+      cid,
+      organization_name || null,
+      biography || null,
+      website || null,
+      linkedin || null,
+      investment_experience || null,
+    );
 
     // Save preferences
     if (industries?.length || countries?.length || startup_stages?.length) {
-      const profile = await db.execute({ sql: "SELECT id FROM investor_profiles WHERE user_id = ?", args: [cid] });
-      await db.execute({
-        sql: `INSERT INTO investor_preferences (investor_id, industries, countries, startup_stages, ticket_size_min, ticket_size_max)
-              VALUES (?, ?, ?, ?, ?, ?)`,
-        args: [profile.rows[0].id, industries || [], countries || [], startup_stages || [], ticket_size_min || null, ticket_size_max || null],
-      });
+      const profile = await getNewInvestorProfileId(cid);
+      await insertInvestorPreferences(
+        profile.rows[0].id,
+        industries || [],
+        countries || [],
+        startup_stages || [],
+        ticket_size_min || null,
+        ticket_size_max || null,
+      );
     }
 
     // Send confirmation email
@@ -107,16 +113,9 @@ export async function POST(req) {
 
     // Notify admins
     try {
-      const admins = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE role IN ('super_admin', 'staff') AND deleted_at IS NULL",
-        args: [],
-      });
+      const admins = await listAdminContactIdsForNotification();
       for (const a of admins.rows) {
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
-                VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
-          args: [a.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`, "/admin/investors/review"],
-        });
+        await notifyAdminsOfNewInvestor(a.cid, `New Investor: ${organization_name || name}`, `${name} completed the Investor Profile Wizard. Review their qualification.`);
       }
     } catch (_) {}
 

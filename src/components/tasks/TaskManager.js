@@ -301,7 +301,7 @@ export default function TaskManager({
       if (resourceFile) {
         const upload = await uploadTaskAttachment(resourceFile, taskId);
         if (!upload.success) {
-          notify('error', t((upload.error || "Upload failed") || "") || (upload.error || "Upload failed"));
+          notify('error', t(upload.error || "Upload failed") || upload.error || "Upload failed");
           setResourceAdding(false);
           return;
         }
@@ -657,8 +657,8 @@ export default function TaskManager({
           if (!attach.success) {
             notify(
               "error",
-              t((attach.error || "Upload failed") || "") ||
-                (attach.error || "Upload failed"),
+              t(attach.error || "Upload failed") ||
+                attach.error || "Upload failed",
             );
           }
         }
@@ -679,14 +679,13 @@ export default function TaskManager({
           window.__refreshAdminDashboard?.();
         }
       } else {
-        alert(t((data.error || "Failed to create task.") || "") || (data.error || "Failed to create task."));
+        alert(t(data.error || "Failed to create task.") || data.error || "Failed to create task.");
       }
     } catch (e) {
       console.error("Create task error:", e);
       notify(
         "error",
-        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
-          "Something went wrong. Please try again.",
+        t("errors.somethingWrong") || "Something went wrong. Please try again.",
       );
     } finally {
       setCreating(false);
@@ -754,8 +753,8 @@ export default function TaskManager({
           if (!attach.success) {
             notify(
               "error",
-              t((attach.error || "Upload failed") || "") ||
-                (attach.error || "Upload failed"),
+              t(attach.error || "Upload failed") ||
+                attach.error || "Upload failed",
             );
           }
         }
@@ -779,8 +778,7 @@ export default function TaskManager({
       console.error("Add sub-task error:", e);
       notify(
         "error",
-        t(("errors.somethingWrong") || "Something went wrong. Please try again.") ||
-          "Something went wrong. Please try again.",
+        t("errors.somethingWrong") || "Something went wrong. Please try again.",
       );
     }
   }, [
@@ -1105,7 +1103,7 @@ export default function TaskManager({
                       if (data.success) {
                         if (onTasksChange) onTasksChange();
                       } else {
-                        notify('error', t((data.error || "Failed to archive task.") || "") || (data.error || "Failed to archive task."));
+                        notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
                       }
                     } catch (e) {
                       notify('error', "Network error while archiving task.");
@@ -1134,7 +1132,7 @@ export default function TaskManager({
                   if (data.success) {
                     if (onTasksChange) onTasksChange();
                   } else {
-                    notify('error', t((data.error || "Failed to duplicate task.") || "") || (data.error || "Failed to duplicate task."));
+                    notify('error', t(data.error || "Failed to duplicate task.") || data.error || "Failed to duplicate task.");
                   }
                 } catch (e) {
                   notify('error', "Network error while duplicating task.");
@@ -1172,7 +1170,7 @@ export default function TaskManager({
                             if (data.success) {
                               if (onTasksChange) onTasksChange();
                             } else {
-                              notify('error', t((data.error || "Failed to archive task.") || "") || (data.error || "Failed to archive task."));
+                              notify('error', t(data.error || "Failed to archive task.") || data.error || "Failed to archive task.");
                             }
                           } catch (e) {
                             notify('error', "Network error while archiving task.");
@@ -1202,10 +1200,10 @@ export default function TaskManager({
                             if (onTasksChange) onTasksChange();
                           } else {
                             notify('error',
-                              t((data.error ||
-                                "Cannot delete this task. It may be locked (older than 12 hours).") || "") ||
-                                (data.error ||
-                                "Cannot delete this task. It may be locked (older than 12 hours)."),
+                              t(data.error ||
+                                "Cannot delete this task. It may be locked (older than 12 hours).") ||
+                                data.error ||
+                                "Cannot delete this task. It may be locked (older than 12 hours).",
                             );
                           }
                         } catch (e) {
@@ -1837,10 +1835,10 @@ export default function TaskManager({
                                     if (onTasksChange) onTasksChange();
                                   } else {
                                     notify('error',
-                                      t((data.error ||
-                                        "Cannot delete this subtask. It may be older than 12 hours.") || "") ||
-                                        (data.error ||
-                                        "Cannot delete this subtask. It may be older than 12 hours."),
+                                      t(data.error ||
+                                        "Cannot delete this subtask. It may be older than 12 hours.") ||
+                                        data.error ||
+                                        "Cannot delete this subtask. It may be older than 12 hours.",
                                     );
                                   }
                                 } catch (e) {
@@ -2198,7 +2196,7 @@ export default function TaskManager({
                       setEditTaskModal(null);
                       if (onTasksChange) onTasksChange();
                     } else {
-                      notify('error', t((data.error || "Failed to save task.") || "") || (data.error || "Failed to save task."));
+                      notify('error', t(data.error || "Failed to save task.") || data.error || "Failed to save task.");
                     }
                   } catch (e) {
                     notify('error', "Network error saving task.");

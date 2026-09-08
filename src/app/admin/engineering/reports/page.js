@@ -18,6 +18,7 @@ import {
   ArrowDown,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 
 const PERIODS = [
   { value: "week", label: "This Week" },
@@ -27,6 +28,7 @@ const PERIODS = [
 ];
 
 export default function EngineeringReports() {
+  const { t } = useI18n();
   const [period, setPeriod] = useState("month");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

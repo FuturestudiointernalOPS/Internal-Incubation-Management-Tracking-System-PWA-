@@ -11,9 +11,21 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { updateSetting } from "@/lib/ventures";
+import {
+  createVentureApplicationForm,
+  createVentureApplicationRun,
+  findActiveVentureRun,
+  findVentureApplicationFormByName,
+  flagFormAsVentureApplication,
+  getFormByIdForVentureSeed,
+  getVentureRunById,
+  insertVentureApplicationField,
+  insertVentureApplicationSection,
+  insertVentureApplicationSnapshot,
+} from "@/models/platformAi";
 
 const FORM_NAME = "Venture Application";
 const RUN_NAME = "Venture Application";
@@ -32,10 +44,7 @@ export async function POST() {
 
   try {
     // ── 1. Find or create the Venture Application form ──
-    let formRes = await db.execute({
-      sql: "SELECT * FROM platform_forms WHERE name = ?",
-      args: [FORM_NAME],
-    });
+    let formRes = await findVentureApplicationFormByName(FORM_NAME);
     let form = formRes.rows[0];
 
     // ── 1b. Single-active Venture intake guard ──
@@ -55,13 +64,7 @@ export async function POST() {
         );
       }
       if (!selfFlagged) {
-        await db.execute({
-          sql: `UPDATE platform_forms
-                SET settings = settings || '{"venture_application": true}'::jsonb,
-                    updated_at = NOW()
-                WHERE id = ?`,
-          args: [form.id],
-        });
+        await flagFormAsVentureApplication(form.id);
       }
     } else {
       const guard = await assertSingleVentureForm(null);
@@ -75,31 +78,26 @@ export async function POST() {
     await ensureSingleVentureFormIndex();
 
     if (!form) {
-      const created = await db.execute({
-        sql: `INSERT INTO platform_forms (name, description, status, visibility, version, settings, created_by, owner_id, owner_name, created_at, updated_at)
-              VALUES (?, ?, 'published', 'internal', 1, ?::jsonb, 'system', 'system', 'Platform', NOW(), NOW())
-              RETURNING id`,
-        args: [
-          FORM_NAME,
-          "The single Venture intake form. Approval of a submission creates the Venture.",
-          JSON.stringify({
-            venture_application: true,
-            automation: {
-              on_submit: { send_acknowledgement: true },
-              on_approve: {
-                create_platform_user: true,
-                send_activation_email: true,
-                enroll_in_program: false,
-                assign_to_group: false,
-              },
-              on_reject: { send_rejection_email: true },
-              auto_approve: false,
-              redirect_after_submit: "",
-              success_message: "Your Venture request has been received and is currently under processing.",
+      const created = await createVentureApplicationForm(
+        FORM_NAME,
+        "The single Venture intake form. Approval of a submission creates the Venture.",
+        {
+          venture_application: true,
+          automation: {
+            on_submit: { send_acknowledgement: true },
+            on_approve: {
+              create_platform_user: true,
+              send_activation_email: true,
+              enroll_in_program: false,
+              assign_to_group: false,
             },
-          }),
-        ],
-      });
+            on_reject: { send_rejection_email: true },
+            auto_approve: false,
+            redirect_after_submit: "",
+            success_message: "Your Venture request has been received and is currently under processing.",
+          },
+        }
+      );
       const formId = created.rows[0].id;
 
       // ── 2. Sections + fields (settings.key drives venture creation mapping) ──
@@ -150,69 +148,35 @@ export async function POST() {
       ];
 
       for (const section of sections) {
-        const secRes = await db.execute({
-          sql: `INSERT INTO platform_form_sections (form_id, title, sort_order, created_at)
-                VALUES (?, ?, ?, NOW()) RETURNING id`,
-          args: [formId, section.title, section.sort],
-        });
+        const secRes = await insertVentureApplicationSection(formId, section.title, section.sort);
         const sectionId = secRes.rows[0].id;
         for (const f of section.fields) {
-          await db.execute({
-            sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, required, options, settings, sort_order, created_at)
-                  VALUES (?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, NOW())`,
-            args: [
-              formId, sectionId, f.type, f.label, f.required ? true : false,
-              JSON.stringify(f.options || []),
-              JSON.stringify({ key: f.key }),
-              section.sort,
-            ],
-          });
+          await insertVentureApplicationField(formId, sectionId, f, section.sort);
         }
       }
 
       // ── 3. Version snapshot ──
-      await db.execute({
-        sql: `INSERT INTO platform_form_versions (form_id, version, snapshot, published_at, published_by, created_at)
-              VALUES (?, 1, ?::jsonb, NOW(), 'system', NOW())`,
-        args: [formId, JSON.stringify({ name: FORM_NAME, version: 1 })],
-      });
+      await insertVentureApplicationSnapshot(formId, { name: FORM_NAME, version: 1 });
 
-      formRes = await db.execute({
-        sql: "SELECT * FROM platform_forms WHERE id = ?",
-        args: [formId],
-      });
+      formRes = await getFormByIdForVentureSeed(formId);
       form = formRes.rows[0];
     }
 
     // ── 4. Find or create the active Venture Run ──
-    let runRes = await db.execute({
-      sql: `SELECT * FROM platform_form_runs
-            WHERE form_id = ? AND status = 'active' AND public_slug IS NOT NULL
-            ORDER BY created_at DESC LIMIT 1`,
-      args: [form.id],
-    });
+    let runRes = await findActiveVentureRun(form.id);
     let run = runRes.rows[0];
 
     if (!run) {
       const slug = randomSlug();
-      const createdRun = await db.execute({
-        sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, status, settings, owner_id, created_by, public_slug, created_at, updated_at)
-              VALUES (?, ?, ?, ?, 'active', ?::jsonb, 'system', 'system', ?, NOW(), NOW())
-              RETURNING id`,
-        args: [
-          form.id,
-          form.version || 1,
-          RUN_NAME,
-          "The single Venture intake run. Approval of a submission creates the Venture.",
-          JSON.stringify({}),
-          slug,
-        ],
-      });
+      const createdRun = await createVentureApplicationRun(
+        form.id,
+        form.version,
+        RUN_NAME,
+        "The single Venture intake run. Approval of a submission creates the Venture.",
+        slug
+      );
       const runId = createdRun.rows[0].id;
-      runRes = await db.execute({
-        sql: "SELECT * FROM platform_form_runs WHERE id = ?",
-        args: [runId],
-      });
+      runRes = await getVentureRunById(runId);
       run = runRes.rows[0];
     }
 

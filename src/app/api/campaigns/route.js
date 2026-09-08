@@ -1,22 +1,25 @@
 import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { insertCampaign, listCampaignsWithStats } from "@/models/communications";
+
+// ── CAMPAIGNS RETIRED ──────────────────────────────────────────────────────
+// Campaigns are hidden from the sidebar and their API is disabled (403).
+// The code below is intentionally kept — set RETIRED = false to re-enable.
+const RETIRED = true;
+const RETIRED_RESPONSE = NextResponse.json(
+  { success: false, error: "Campaigns are retired and no longer accessible." },
+  { status: 403 },
+);
 
 export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () => {
-  const result = await db.execute(`
-    SELECT c.*,
-           COUNT(cc.id) as total_contacts,
-           SUM(CASE WHEN cc.status != 'pending' THEN 1 ELSE 0 END) as sent_contacts,
-           (SELECT COUNT(*) FROM campaign_steps cs WHERE cs.campaign_id = c.id) as total_steps
-    FROM campaigns c
-    LEFT JOIN campaign_contacts cc ON c.id = cc.campaign_id
-    GROUP BY c.id
-    ORDER BY c.created_at DESC
-  `);
+  if (RETIRED) return RETIRED_RESPONSE;
+  const result = await listCampaignsWithStats();
   return NextResponse.json({ success: true, campaigns: result.rows });
 });
 
 export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+  if (RETIRED) return RETIRED_RESPONSE;
   const data = await req.json();
   const { name, form_id, cids, steps } = data;
 
@@ -27,10 +30,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
     );
 
   // Insert Campaign
-  const res = await db.execute({
-    sql: "INSERT INTO campaigns (name, form_id, status) VALUES (?, ?, 'pending') RETURNING id",
-    args: [name, form_id || null],
-  });
+  const res = await insertCampaign(name, form_id);
   const campaign_id = res.rows[0].id;
 
   // Insert Steps (The Sequence)

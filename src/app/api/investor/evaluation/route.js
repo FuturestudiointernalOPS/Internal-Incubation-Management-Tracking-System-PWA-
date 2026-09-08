@@ -1,7 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createFounderEvaluation,
+  listFounderEvaluationsByPipelineId,
+  listRiskAssessmentsByPipelineId,
+  upsertRiskAssessment,
+} from "@/models/investor";
 
 /**
  * GET /api/investor/evaluation?pipeline_id=X
@@ -21,8 +27,8 @@ export async function GET(req) {
     if (!pipelineId) return NextResponse.json({ success: false, error: "pipeline_id required" }, { status: 400 });
 
     const [founders, risks] = await Promise.all([
-      db.execute({ sql: "SELECT * FROM founder_evaluations WHERE pipeline_id = ? ORDER BY created_at DESC", args: [pipelineId] }),
-      db.execute({ sql: "SELECT * FROM risk_assessments WHERE pipeline_id = ? ORDER BY severity DESC, created_at DESC", args: [pipelineId] }),
+      listFounderEvaluationsByPipelineId(pipelineId),
+      listRiskAssessmentsByPipelineId(pipelineId),
     ]);
 
     return NextResponse.json({
@@ -53,11 +59,7 @@ export async function POST(req) {
       const { founder_name, role, experience_score, leadership_score, domain_expertise_score, overall_rating, notes } = fields;
       if (!founder_name) return NextResponse.json({ success: false, error: "founder_name required" }, { status: 400 });
 
-      const result = await db.execute({
-        sql: `INSERT INTO founder_evaluations (pipeline_id, founder_name, role, experience_score, leadership_score, domain_expertise_score, overall_rating, notes, created_by)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-        args: [pipeline_id, founder_name, role||null, experience_score||0, leadership_score||0, domain_expertise_score||0, overall_rating||0, notes||null, session.cid||session.id],
-      });
+      const result = await createFounderEvaluation({ pipeline_id, founder_name, role, experience_score, leadership_score, domain_expertise_score, overall_rating, notes, created_by: session.cid || session.id });
       return NextResponse.json({ success: true, evaluation: result.rows[0] });
     }
 
@@ -65,15 +67,7 @@ export async function POST(req) {
       const { risk_category, risk_description, severity, mitigation, status } = fields;
       if (!risk_category || !risk_description) return NextResponse.json({ success: false, error: "risk_category and risk_description required" }, { status: 400 });
 
-      const result = await db.execute({
-        sql: `INSERT INTO risk_assessments (pipeline_id, risk_category, risk_description, severity, mitigation, status, created_by)
-              VALUES (?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT (pipeline_id, risk_category) DO UPDATE
-              SET risk_description = EXCLUDED.risk_description, severity = EXCLUDED.severity,
-                  mitigation = EXCLUDED.mitigation, status = EXCLUDED.status, updated_at = NOW()
-              RETURNING *`,
-        args: [pipeline_id, risk_category, risk_description, severity||"medium", mitigation||null, status||"open", session.cid||session.id],
-      });
+      const result = await upsertRiskAssessment({ pipeline_id, risk_category, risk_description, severity, mitigation, status, created_by: session.cid || session.id });
       return NextResponse.json({ success: true, evaluation: result.rows[0] });
     }
 

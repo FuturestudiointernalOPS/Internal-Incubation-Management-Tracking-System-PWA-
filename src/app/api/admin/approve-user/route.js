@@ -1,9 +1,16 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { sendEmail } from "@/lib/mailer";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import {
+  approveContact,
+  getUserForApproval,
+  insertApprovalAuditLog,
+  insertPasswordSetupToken,
+  markApprovalUserNotificationsRead,
+} from "@/models/adminOps";
 
 /**
  * APPROVE USER ENDPOINT
@@ -35,10 +42,7 @@ export async function POST(req) {
     }
 
     // 1. Find the user
-    const userResult = await db.execute({
-      sql: "SELECT * FROM contacts WHERE cid = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-      args: [user_cid],
-    });
+    const userResult = await getUserForApproval(user_cid);
 
     if (userResult.rows.length === 0) {
       return NextResponse.json(
@@ -61,10 +65,7 @@ export async function POST(req) {
     }
 
     // 2. Change status to 'approved' and set role
-    await db.execute({
-      sql: "UPDATE contacts SET status = 'approved', role = ? WHERE cid = ?",
-      args: [role || "participant", user_cid],
-    });
+    await approveContact(role, user_cid);
 
     // 3. Generate password setup token (24h expiry)
     const token = uuidv4();
@@ -72,16 +73,7 @@ export async function POST(req) {
     expiresAt.setHours(expiresAt.getHours() + 24);
 
     const tokenHash = hashToken(token);
-    await db.execute({
-      sql: `INSERT INTO password_setup_tokens (contact_cid, token, token_hash, expires_at, used)
-            VALUES (?, ?, ?, ?, 0)`,
-      args: [
-        user_cid,
-        token,
-        tokenHash,
-        expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-      ],
-    });
+    await insertPasswordSetupToken(user_cid, token, tokenHash, expiresAt);
 
     // 4. Send email with setup link
     const protocol = req.headers.get("x-forwarded-proto") || "https";
@@ -139,20 +131,13 @@ export async function POST(req) {
 
     // 5. Log to audit_log
     try {
-      await db.execute({
-        sql: `INSERT INTO audit_log (entity_type, entity_id, user_id, user_name, action, details, metadata)
-              VALUES ('user', 0, ?, ?, 'approved', ?, ?)`,
-        args: [
-          admin_name || "super_admin",
-          user_cid,
-          `User '${user.name}' (${user.email}) approved. Setup email sent.`,
-          JSON.stringify({
-            user_name: user.name,
-            user_email: user.email,
-            token_expires: expiresAt.toISOString(),
-            email_sent: emailResult.success,
-          }),
-        ],
+      await insertApprovalAuditLog({
+        adminName: admin_name,
+        userCid: user_cid,
+        userName: user.name,
+        userEmail: user.email,
+        expiresAt,
+        emailSent: emailResult.success,
       });
     } catch (e) {
       console.error("Audit log error (non-critical):", e.message);
@@ -160,14 +145,7 @@ export async function POST(req) {
 
     // 6. Clear related notifications
     try {
-      await db.execute({
-        sql: `UPDATE v2_notifications
-              SET is_read = 1
-              WHERE recipient_id = 'sa'
-              AND message ILIKE ?
-              AND is_read = 0`,
-        args: [`%${user.name}%`],
-      });
+      await markApprovalUserNotificationsRead(user.name);
     } catch (e) {
       console.error("Notification clear error (non-critical):", e.message);
     }

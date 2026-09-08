@@ -12,8 +12,13 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  getPlaybookStageMilestones,
+  getPlaybookTemplateStages,
+  listActivePlaybookTemplates,
+} from "@/models/platformConfig";
 import { createPlaybookTemplate, assignPlaybookToVenture } from "@/lib/ventureTemplates";
 
 const SETUP_ROLES = ["super_admin", "staff"];
@@ -24,33 +29,14 @@ export async function GET() {
   if (authError) return authError;
 
   try {
-    const tpls = await db.execute({
-      sql: `SELECT t.*,
-              (SELECT COUNT(*) FROM venture_playbook_template_stages s WHERE s.template_id = t.id) AS stage_count
-            FROM venture_playbook_templates t
-            WHERE t.is_active = TRUE
-            ORDER BY t.created_at DESC`,
-      args: [],
-    });
+    const tpls = await listActivePlaybookTemplates();
     const templates = [];
     for (const t of tpls.rows || []) {
-      const stages = await db.execute({
-        sql: `SELECT s.id, s.stage_order, s.name, s.description, s.objective, s.completion_criteria
-              FROM venture_playbook_template_stages s WHERE s.template_id = ? ORDER BY s.stage_order`,
-        args: [t.id],
-      });
+      const stages = await getPlaybookTemplateStages(t.id);
       const stageIds = (stages.rows || []).map((s) => s.id);
       let milestones = [];
       if (stageIds.length > 0) {
-        milestones = (
-          await db.execute({
-            sql: `SELECT sm.stage_id, m.id, m.name, m.description, m.expected_outcome, m.default_due_days
-                  FROM venture_playbook_stage_milestones sm
-                  JOIN venture_milestone_templates m ON m.id = sm.milestone_template_id
-                  WHERE sm.stage_id IN (${stageIds.map(() => "?").join(", ")}) ORDER BY sm.sort_order`,
-            args: stageIds,
-          })
-        ).rows || [];
+        milestones = (await getPlaybookStageMilestones(stageIds)).rows || [];
       }
       templates.push({ ...t, stages: stages.rows || [], milestones });
     }

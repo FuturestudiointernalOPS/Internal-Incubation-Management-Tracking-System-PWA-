@@ -1,7 +1,18 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { logAuditEvent } from "@/lib/audit";
+import {
+  createIntent,
+  deleteIntent,
+  getContactForResponsibleCheck,
+  getExistingIntent,
+  getIntentsByFilters,
+  getIntentTaskCounts,
+  getIntentToDelete,
+  unlinkTasksFromIntent,
+  updateIntentFields,
+} from "@/models/intents";
 
 /**
  * INTENTS API — Phase 4
@@ -40,78 +51,35 @@ export async function GET(req) {
     const status = searchParams.get("status");
     const project_id = searchParams.get("project_id");
 
-    let sql = "SELECT * FROM intents WHERE 1=1";
-    const args = [];
-
     // SECURITY: Non-SA users see only their own intents + intents in their context
-    if (session.role !== "super_admin") {
-      // User can see intents they're responsible for, or intents in their context
-      if (responsible_id) {
-        if (String(responsible_id) !== String(session.cid)) {
-          return NextResponse.json(
-            { success: false, error: "You can only view your own intents." },
-            { status: 403 },
-          );
-        }
-        sql += " AND responsible_id = ?";
-        args.push(String(responsible_id));
-      } else {
-        // See intents where responsible OR in same context
-        sql += " AND (responsible_id = ?";
-        args.push(String(session.cid));
-        if (context_type) {
-          sql += " OR context_type = ?";
-          args.push(context_type);
-        }
-        sql += ")";
-      }
-    } else {
-      // SA: apply filters as given
-      if (responsible_id) {
-        sql += " AND responsible_id = ?";
-        args.push(responsible_id);
-      }
+    if (
+      session.role !== "super_admin" &&
+      responsible_id &&
+      String(responsible_id) !== String(session.cid)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "You can only view your own intents." },
+        { status: 403 },
+      );
     }
 
-    if (context_type) {
-      sql += " AND context_type = ?";
-      args.push(context_type);
-    }
-
-    if (context_id) {
-      sql += " AND context_id = ?";
-      args.push(context_id);
-    }
-
-    if (status) {
-      sql += " AND status = ?";
-      args.push(status);
-    }
-
-    if (project_id) {
-      sql += " AND project_id = ?";
-      args.push(project_id);
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    // SQL assembled in src/models/intents.js (getIntentsByFilters)
+    const result = await getIntentsByFilters({
+      isSuperAdmin: session.role === "super_admin",
+      sessionCid: session.cid,
+      responsibleId: responsible_id,
+      contextType: context_type,
+      contextId: context_id,
+      status,
+      projectId: project_id,
+    });
 
     // Batch per-intent task counts into ONE grouped query instead of one
     // query per intent. Produces identical `taskCounts` per intent.
     const intentIds = result.rows.map((i) => String(i.id));
     const countMap = {};
     if (intentIds.length > 0) {
-      const idsPh = intentIds.map(() => "?").join(",");
-      const countRes = await db.execute({
-        sql: `SELECT intent_id::text AS iid,
-            COUNT(*) FILTER (WHERE status NOT IN ('completed','archived')) AS active_count,
-            COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
-            COUNT(*) AS total_count
-            FROM tasks WHERE intent_id::text IN (${idsPh})
-            GROUP BY intent_id::text`,
-        args: intentIds,
-      });
+      const countRes = await getIntentTaskCounts(intentIds);
       for (const r of countRes.rows || []) countMap[r.iid] = r;
     }
 
@@ -180,10 +148,7 @@ export async function POST(req) {
     const finalContextType = context_type || "staff";
 
     // SECURITY: Verify responsible person exists
-    const respCheck = await db.execute({
-      sql: "SELECT cid, name FROM contacts WHERE cid = ?",
-      args: [finalResponsibleId],
-    });
+    const respCheck = await getContactForResponsibleCheck(finalResponsibleId);
     if (respCheck.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Responsible person not found." },
@@ -191,24 +156,17 @@ export async function POST(req) {
       );
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO intents
-        (title, description, responsible_id, context_type, context_id,
-         contact_group_id, project_id, status, start_date, target_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        RETURNING id`,
-      args: [
-        title,
-        description || null,
-        finalResponsibleId,
-        finalContextType,
-        context_id || null,
-        contact_group_id || null,
-        project_id || null,
-        status || "active",
-        start_date || null,
-        target_date || null,
-      ],
+    const result = await createIntent({
+      title,
+      description,
+      responsible_id: finalResponsibleId,
+      context_type: finalContextType,
+      context_id,
+      contact_group_id,
+      project_id,
+      status,
+      start_date,
+      target_date,
     });
 
     const intentId = result.rows[0].id;
@@ -284,10 +242,7 @@ export async function PUT(req) {
     }
 
     // Fetch existing intent
-    const existing = await db.execute({
-      sql: "SELECT * FROM intents WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getExistingIntent(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Intent not found" },
@@ -368,10 +323,7 @@ export async function PUT(req) {
     updates.push("updated_at = NOW()");
     args.push(id);
 
-    await db.execute({
-      sql: `UPDATE intents SET ${updates.join(", ")} WHERE id = ?`,
-      args,
-    });
+    await updateIntentFields(updates, args);
 
     // Audit log
     await logAuditEvent({
@@ -423,10 +375,7 @@ export async function DELETE(req) {
     }
 
     // Fetch intent
-    const existing = await db.execute({
-      sql: "SELECT * FROM intents WHERE id = ?",
-      args: [id],
-    });
+    const existing = await getIntentToDelete(id);
     if (existing.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Intent not found" },
@@ -448,16 +397,10 @@ export async function DELETE(req) {
     }
 
     // Unlink tasks (set intent_id to NULL, remove supervisor)
-    await db.execute({
-      sql: "UPDATE tasks SET intent_id = NULL, supervisor_id = NULL WHERE intent_id = ?",
-      args: [id],
-    });
+    await unlinkTasksFromIntent(id);
 
     // Delete the intent
-    await db.execute({
-      sql: "DELETE FROM intents WHERE id = ?",
-      args: [id],
-    });
+    await deleteIntent(id);
 
     // Audit log
     await logAuditEvent({

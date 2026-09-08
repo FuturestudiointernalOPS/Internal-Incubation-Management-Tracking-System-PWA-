@@ -63,7 +63,7 @@ export default function FacilitatorDashboard() {
 
   useEffect(() => {
     loadDashboard();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   // Upcoming list = future events; the calendar panel shows the full month.

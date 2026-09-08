@@ -108,7 +108,7 @@ export default function PublicSubmitPage() {
   // Re-translate when language is switched
   useEffect(() => {
     if (rawForm.current) translateFormContent(lang);
-  }, [lang]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [lang]);  
 
   const loadRun = async (bypassCache = false) => {
     const url = `/api/s/public-run?slug=${runId}`;
@@ -171,7 +171,7 @@ export default function PublicSubmitPage() {
       }
       const res = await fetch(url);
       const data = await res.json();
-      if (!data.success) throw new Error(t((data.error || "Run not found") || "") || (data.error || "Run not found"));
+      if (!data.success) throw new Error(t(data.error || "Run not found") || data.error || "Run not found");
       cacheSet(url, data);
       apply(data);
     } catch (e) {

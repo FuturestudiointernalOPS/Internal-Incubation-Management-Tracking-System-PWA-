@@ -1,27 +1,23 @@
-import db from "@/lib/db";
 import { createHandler } from "@/lib/api/createHandler";
 import { NextResponse } from "next/server";
+import {
+  countActiveV2Programs,
+  countParticipantContacts,
+  countStaffContacts,
+  listRecentActivityLogs,
+  listActiveV2Programs,
+} from "@/models/adminOps";
 
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler({ roles: ["super_admin"] }, async () => {
   const [progRes, partRes, staffRes, logRes, activeProgList] =
     await Promise.all([
-      db.execute(
-        "SELECT COUNT(*) as count FROM v2_programs WHERE is_archived = 0 AND status = 'active'",
-      ),
-      db.execute(
-        "SELECT COUNT(*) as count FROM contacts WHERE role = 'participant' AND deleted = 0",
-      ),
-      db.execute(
-        "SELECT COUNT(*) as count FROM contacts WHERE role IN ('admin', 'staff', 'teacher')",
-      ),
-      db.execute(
-        "SELECT id, user_identity as user, action, module, status, created_at as timestamp FROM activity_logs ORDER BY created_at DESC LIMIT 10",
-      ),
-      db.execute(
-        "SELECT id, name, status, created_at FROM v2_programs WHERE is_archived = 0 AND status = 'active' ORDER BY created_at DESC LIMIT 5",
-      ),
+      countActiveV2Programs(),
+      countParticipantContacts(),
+      countStaffContacts(),
+      listRecentActivityLogs(),
+      listActiveV2Programs(),
     ]);
 
   return NextResponse.json(

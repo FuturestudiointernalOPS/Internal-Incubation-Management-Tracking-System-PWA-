@@ -28,7 +28,7 @@ export default function CourseThumb({
       </div>
     );
   }
-  // eslint-disable-next-line @next/next/no-img-element
+   
   return (
     <img
       src={src}

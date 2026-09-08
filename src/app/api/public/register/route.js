@@ -1,8 +1,17 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { v4 as uuidv4 } from "uuid";
 import { assertNoParticipantFacilitatorConflict } from "@/lib/auth";
+import {
+  findContactCidByEmail,
+  findRegistrationGroupInFamilies,
+  findRegistrationGroupInV2Groups,
+  insertContactForRegistration,
+  insertParticipantForRegistration,
+  insertParticipantProgramMembership,
+  updateContactForRegistration,
+} from "@/models/platformConfig";
 
 /**
  * PUBLIC endpoint — no auth required.
@@ -22,16 +31,10 @@ export async function POST(req) {
     }
 
     // Find the group in families or v2_groups
-    let groupResult = await db.execute({
-      sql: "SELECT CAST(id AS TEXT) as id, name, program_id, registration_id FROM families WHERE registration_id = ? OR CAST(id AS TEXT) = ?",
-      args: [group_id, group_id],
-    });
+    let groupResult = await findRegistrationGroupInFamilies(group_id);
 
     if (groupResult.rows.length === 0) {
-      groupResult = await db.execute({
-        sql: "SELECT CAST(id AS TEXT) as id, name, program_id, registration_id FROM v2_groups WHERE registration_id = ? OR CAST(id AS TEXT) = ?",
-        args: [group_id, group_id],
-      });
+      groupResult = await findRegistrationGroupInV2Groups(group_id);
     }
 
     if (groupResult.rows.length === 0) {
@@ -42,26 +45,17 @@ export async function POST(req) {
 
     // Check if contact already exists
     const normalizedEmail = email.trim().toLowerCase();
-    const existCheck = await db.execute({
-      sql: "SELECT cid FROM contacts WHERE email = ? AND deleted = 0",
-      args: [normalizedEmail],
-    });
+    const existCheck = await findContactCidByEmail(normalizedEmail);
 
     const cid = "USR-" + uuidv4().split("-")[0].toUpperCase();
     const hashedPassword = await bcrypt.hash(password, 12);
 
     if (existCheck.rows.length > 0) {
       // Update existing contact
-      await db.execute({
-        sql: "UPDATE contacts SET password = ?, name = ?, status = 'pending', group_name = ? WHERE email = ?",
-        args: [hashedPassword, name, String(group?.name || "").trim().toUpperCase(), normalizedEmail],
-      });
+      await updateContactForRegistration(hashedPassword, name, group, normalizedEmail);
     } else {
       // Create new contact
-      await db.execute({
-        sql: "INSERT INTO contacts (cid, name, email, phone, password, role, status, group_name, created_at) VALUES (?, ?, ?, ?, ?, 'participant', 'pending', ?, NOW())",
-        args: [cid, name, normalizedEmail, phone || null, hashedPassword, group.name],
-      });
+      await insertContactForRegistration(cid, name, normalizedEmail, phone, hashedPassword, group.name);
     }
 
     // Add participant to the program
@@ -81,17 +75,11 @@ export async function POST(req) {
             { status: 409 },
           );
         }
-        await db.execute({
-          sql: "INSERT INTO v2_participants (program_id, user_id, name, email, phone, status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW()) ON CONFLICT DO NOTHING",
-          args: [group.program_id, contactCid, name, normalizedEmail, phone || null],
-        });
+        await insertParticipantForRegistration(group.program_id, contactCid, name, normalizedEmail, phone);
         // Keep the canonical membership table (participant_programs) in sync so
         // group-link registrations show up in the Program Participants view once
         // the contact's account becomes active.
-        await db.execute({
-          sql: "INSERT INTO participant_programs (participant_id, program_id, status, accepted_at) VALUES (?, ?, 'pending', NOW()) ON CONFLICT (participant_id, program_id) DO NOTHING",
-          args: [contactCid, group.program_id],
-        });
+        await insertParticipantProgramMembership(contactCid, group.program_id);
       } catch (e) {
         console.warn("Failed to add participant:", e.message);
       }

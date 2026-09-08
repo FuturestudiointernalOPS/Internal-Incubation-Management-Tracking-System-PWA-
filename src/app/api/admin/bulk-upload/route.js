@@ -1,9 +1,17 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { normalizeGroupName, INTERNAL_GROUP } from "@/lib/authorization/membership";
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import Papa from "papaparse";
+import {
+  deleteContactByCid,
+  findActiveContactByEmail,
+  getAllActiveContactPhones,
+  insertBulkImportNotification,
+  insertContact,
+  updateContactByEmail,
+} from "@/models/adminOps";
 
 /**
  * BULK USER UPLOAD — with rollback + phone support
@@ -88,10 +96,7 @@ export async function POST(req) {
     // Pre-fetch all existing phones for duplicate check
     const phoneSet = new Set();
     try {
-      const phoneRes = await db.execute({
-        sql: "SELECT phone FROM contacts WHERE phone IS NOT NULL AND phone != '' AND deleted = 0 AND deleted_at IS NULL",
-        args: [],
-      });
+      const phoneRes = await getAllActiveContactPhones();
       for (const r of phoneRes.rows) {
         if (r.phone) phoneSet.add(r.phone.trim());
       }
@@ -176,40 +181,28 @@ export async function POST(req) {
           "USR-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
         // Upsert: check existing by email (7.3: duplicate emails → update)
-        const existing = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE email = ? AND deleted = 0 AND deleted_at IS NULL LIMIT 1",
-          args: [row.email],
-        });
+        const existing = await findActiveContactByEmail(row.email);
 
         if (existing.rows.length > 0) {
-          await db.execute({
-            sql: `UPDATE contacts
-                  SET name = ?, phone = ?, group_name = ?, role = ?, status = 'pending', password = ?
-                  WHERE email = ?`,
-            args: [
-              row.name,
-              row.phone || null,
-              String(row.groupName || "").trim().toUpperCase(),
-              row.role,
-              hashedPassword,
-              row.email,
-            ],
+          await updateContactByEmail({
+            name: row.name,
+            phone: row.phone,
+            groupName: row.groupName,
+            role: row.role,
+            password: hashedPassword,
+            email: row.email,
           });
           results.updated++;
           processedCids.push(existing.rows[0].cid);
         } else {
-          await db.execute({
-            sql: `INSERT INTO contacts (cid, name, email, phone, password, role, group_name, status, deleted)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', 0)`,
-            args: [
-              cid,
-              row.name,
-              row.email,
-              row.phone || null,
-              hashedPassword,
-              row.role,
-              String(row.groupName || "").trim().toUpperCase(),
-            ],
+          await insertContact({
+            cid,
+            name: row.name,
+            email: row.email,
+            phone: row.phone,
+            password: hashedPassword,
+            role: row.role,
+            groupName: row.groupName,
           });
           results.created++;
           processedCids.push(cid);
@@ -226,10 +219,7 @@ export async function POST(req) {
         // Rollback: delete all records we just created in this batch
         for (const cid of processedCids) {
           try {
-            await db.execute({
-              sql: "DELETE FROM contacts WHERE cid = ?",
-              args: [cid],
-            });
+            await deleteContactByCid(cid);
           } catch (_) {}
         }
 
@@ -247,14 +237,7 @@ export async function POST(req) {
     // Create notification
     if (results.created > 0 || results.updated > 0) {
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type)
-                VALUES ('sa', ?, ?, 'verification')`,
-          args: [
-            "BULK USER IMPORT",
-            `${results.created} new users created, ${results.updated} updated via CSV upload. ${results.errors.length} errors.`,
-          ],
-        });
+        await insertBulkImportNotification(results.created, results.updated, results.errors.length);
       } catch (e) {
         console.error("Notification error:", e.message);
       }

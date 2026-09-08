@@ -123,8 +123,7 @@ export default function LoginPage() {
         router.replace(target);
       } else {
         setImpersonateError(
-          t((data.error || "Impersonation failed.") || "") ||
-            (data.error || "Impersonation failed."),
+          t(data.error || "Impersonation failed.") || data.error || "Impersonation failed.",
         );
         setImpersonateLoading(false);
       }

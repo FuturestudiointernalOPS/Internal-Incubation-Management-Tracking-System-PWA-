@@ -1,13 +1,18 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import {
+  ensureDocumentRequirementsResourceUrlColumn,
+  ensureDocumentRequirementsResourceLabelColumn,
+  getDocumentRequirementsByProgram,
+  createDocumentRequirement,
+} from "@/models/workspace";
 
 async function ensureDeliverableResourceSchema() {
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_url TEXT", args: [] });
+    await ensureDocumentRequirementsResourceUrlColumn();
   } catch (_) {}
   try {
-    await db.execute({ sql: "ALTER TABLE v2_document_requirements ADD COLUMN IF NOT EXISTS resource_label TEXT", args: [] });
+    await ensureDocumentRequirementsResourceLabelColumn();
   } catch (_) {}
 }
 
@@ -16,10 +21,7 @@ export const GET = createHandler(
   async (req) => {
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
-    const result = await db.execute({
-      sql: "SELECT * FROM v2_document_requirements WHERE program_id = ?",
-      args: [programId],
-    });
+    const result = await getDocumentRequirementsByProgram(programId);
     return NextResponse.json({ success: true, documents: result.rows });
   },
 );
@@ -29,10 +31,13 @@ export const POST = createHandler(
   async (req) => {
     await ensureDeliverableResourceSchema();
     const { program_id, title, description, resource_url, resource_label } = await req.json();
-    const result = await db.execute({
-      sql: "INSERT INTO v2_document_requirements (program_id, title, description, resource_url, resource_label) VALUES (?, ?, ?, ?, ?) RETURNING *",
-      args: [program_id, title, description, resource_url || null, resource_label || null],
-    });
+    const result = await createDocumentRequirement(
+      program_id,
+      title,
+      description,
+      resource_url || null,
+      resource_label || null,
+    );
     return NextResponse.json({ success: true, document: result.rows[0] });
   },
 );

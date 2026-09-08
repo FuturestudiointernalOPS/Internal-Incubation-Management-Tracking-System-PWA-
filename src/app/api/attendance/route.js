@@ -1,8 +1,21 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession, requireAssignmentAccess, getFacilitatorTeamScope, hasProgramManagementAccess } from "@/lib/auth";
 import { recalculateKpiProgress } from "@/lib/kpi-progress";
 import { getLocalToday } from "@/lib/constants";
+import {
+  addAttendanceDateColumn,
+  addAttendanceProgramIdColumn,
+  addAttendanceUpdatedAtColumn,
+  createAttendanceTable,
+  createAttendanceUniqueIndex,
+  dedupeLegacyAttendanceRows,
+  deleteAttendanceMark,
+  getAttendanceSummary,
+  getContactsInTeams,
+  insertAttendanceMark,
+  listAttendance,
+} from "@/models/facilitation";
 
 export async function POST(req) {
   try {
@@ -20,33 +33,16 @@ export async function POST(req) {
     // an INTEGER SERIAL primary key (see scripts/migrations/migrate_attendance.mjs).
     // The INSERT below omits id so the database auto-generates it.
     try {
-      await db.execute({
-        sql: `CREATE TABLE IF NOT EXISTS v2_attendance (
-          id SERIAL PRIMARY KEY,
-          session_id TEXT NOT NULL,
-          participant_id TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'neutral',
-          created_at TIMESTAMPTZ DEFAULT NOW()
-        )`,
-        args: [],
-      });
+      await createAttendanceTable();
       // Add columns that may not exist on older versions of the table
-      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS program_id TEXT", args: [] });
-      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE", args: [] });
-      await db.execute({ sql: "ALTER TABLE v2_attendance ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()", args: [] });
+      await addAttendanceProgramIdColumn();
+      await addAttendanceDateColumn();
+      await addAttendanceUpdatedAtColumn();
       // Dedupe legacy duplicate rows (same session+date+participant), keeping
       // the most recently updated one, then enforce uniqueness so attendance
       // saves stay idempotent: one mark per participant per session per day.
-      await db.execute({
-        sql: `DELETE FROM v2_attendance a USING v2_attendance b
-              WHERE a.session_id = b.session_id AND a.date = b.date AND a.participant_id = b.participant_id
-                AND a.updated_at < b.updated_at`,
-        args: [],
-      });
-      await db.execute({
-        sql: "CREATE UNIQUE INDEX IF NOT EXISTS uq_v2_attendance_session_date_participant ON v2_attendance (session_id, date, participant_id)",
-        args: [],
-      });
+      await dedupeLegacyAttendanceRows();
+      await createAttendanceUniqueIndex();
     } catch (_) {}
 
     const body = await req.json();
@@ -77,10 +73,7 @@ export async function POST(req) {
       if (scope.scope === "none") {
         allowedParticipantIds = new Set();
       } else if (scope.scope === "teams" && scope.teamIds.length > 0) {
-        const inScope = await db.execute({
-          sql: "SELECT cid FROM contacts WHERE v2_team_id IN (" + scope.teamIds.map(() => "?").join(",") + ")",
-          args: scope.teamIds,
-        });
+        const inScope = await getContactsInTeams(scope.teamIds);
         allowedParticipantIds = new Set(inScope.rows.map((r) => r.cid));
       }
     }
@@ -133,14 +126,14 @@ export async function POST(req) {
     for (const r of scoped) {
       if (!r.session_id || !r.participant_id) continue;
       const recordDate = r.date || requestedDate;
-      await db.execute({
-        sql: "DELETE FROM v2_attendance WHERE session_id = ? AND date = ? AND participant_id = ?",
-        args: [r.session_id, recordDate, r.participant_id],
-      });
+      await deleteAttendanceMark(r.session_id, recordDate, r.participant_id);
       if (r.status) {
-        await db.execute({
-          sql: "INSERT INTO v2_attendance (session_id, program_id, participant_id, status, date) VALUES (?, ?, ?, ?, ?)",
-          args: [r.session_id, r.program_id || null, r.participant_id, r.status, recordDate],
+        await insertAttendanceMark({
+          session_id: r.session_id,
+          program_id: r.program_id,
+          participant_id: r.participant_id,
+          status: r.status,
+          date: recordDate,
         });
         upserted++;
       }
@@ -205,28 +198,7 @@ export async function GET(req) {
 
     // ── Summary mode: return attendance rates per participant ──
     if (summary && programId) {
-      const summaryRes = await db.execute({
-        sql: `
-          SELECT
-            a.participant_id,
-            c.name as participant_name,
-            COUNT(*) as total_sessions,
-            SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END) as present_count,
-            SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absent_count,
-            SUM(CASE WHEN a.status = 'excused' THEN 1 ELSE 0 END) as excused_count,
-            SUM(CASE WHEN a.status = 'late' THEN 1 ELSE 0 END) as late_count,
-            ROUND(
-              (SUM(CASE WHEN a.status = 'present' THEN 1 ELSE 0 END)::decimal / 
-              NULLIF((SELECT COUNT(DISTINCT date) FROM v2_attendance WHERE program_id = a.program_id), 0)) * 100
-            , 1) as attendance_rate
-          FROM v2_attendance a
-          LEFT JOIN contacts c ON a.participant_id::text = c.cid
-          WHERE a.program_id = ? AND ${facGroupFilter ? facGroupFilter : "1=1"}
-          GROUP BY a.participant_id, c.name, a.program_id
-          ORDER BY attendance_rate DESC
-        `,
-        args: [programId, ...facGroupArgs],
-      });
+      const summaryRes = await getAttendanceSummary(programId, facGroupFilter, facGroupArgs);
 
       return NextResponse.json({
         success: true,
@@ -234,32 +206,14 @@ export async function GET(req) {
       });
     }
 
-    let sql = "SELECT a.*, c.name as participant_name FROM v2_attendance a LEFT JOIN contacts c ON a.participant_id::text = c.cid WHERE 1=1";
-    const args = [];
-
-    if (sessionId) {
-      sql += " AND a.session_id = ?";
-      args.push(sessionId);
-    }
-    if (dateStr) {
-      sql += " AND a.date = ?";
-      args.push(dateStr);
-    }
-    if (programId) {
-      sql += " AND a.program_id = ?";
-      args.push(programId);
-    }
-    if (participantId) {
-      sql += " AND a.participant_id = ?";
-      args.push(participantId);
-    }
-    if (facGroupFilter) {
-      sql += " AND " + facGroupFilter;
-      args.push(...facGroupArgs);
-    }
-    sql += " ORDER BY date DESC, created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listAttendance({
+      sessionId,
+      dateStr,
+      programId,
+      participantId,
+      facGroupFilter,
+      facGroupArgs,
+    });
     return NextResponse.json({ success: true, attendance: result.rows });
   } catch (e) {
     return NextResponse.json(

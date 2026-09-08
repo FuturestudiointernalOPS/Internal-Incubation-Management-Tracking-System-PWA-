@@ -1,8 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { requireAuth, getSession } from "@/lib/auth";
 import { groupNotificationContext } from "@/lib/notificationContext";
+import {
+  createNotification,
+  getRecentNotifications,
+  getNotificationRecipientById,
+  markNotificationRead,
+  markNotificationsSeen,
+} from "@/models/workspace";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -36,11 +43,7 @@ export async function POST(req) {
       );
     }
 
-    await db.execute({
-      sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-            VALUES (?, ?, ?, ?, 0, NOW())`,
-      args: [recipientId, title, message, type || "general"],
-    });
+    await createNotification(recipientId, title, message, type || "general");
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -80,10 +83,7 @@ export async function GET(req) {
 
     let rows = [];
     try {
-      const result = await db.execute({
-        sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? ORDER BY created_at DESC LIMIT 50",
-        args: [recipientId],
-      });
+      const result = await getRecentNotifications(recipientId);
       rows = result.rows || [];
       rows = rows.filter((r) => r.is_read == 0 || r.is_read == null);
 
@@ -93,11 +93,7 @@ export async function GET(req) {
       const ids = (rows || []).map((r) => r.id).filter((v) => v !== undefined && v !== null);
       if (ids.length > 0) {
         try {
-          await db.execute({
-            sql: `UPDATE v2_notifications SET seen_at = COALESCE(seen_at, NOW())
-                  WHERE id IN (${ids.map(() => "?").join(",")}) AND seen_at IS NULL`,
-            args: ids,
-          });
+          await markNotificationsSeen(ids);
         } catch (_) {}
       }
     } catch (_) {
@@ -127,10 +123,7 @@ export async function PATCH(req) {
     const { id, action } = await req.json();
 
     if (action === "read") {
-      const nRes = await db.execute({
-        sql: "SELECT recipient_id FROM v2_notifications WHERE id = ?",
-        args: [parseInt(id)],
-      });
+      const nRes = await getNotificationRecipientById(parseInt(id));
       if (!nRes.rows || nRes.rows.length === 0) {
         return NextResponse.json(
           { success: false, error: "Notification not found." },
@@ -146,10 +139,7 @@ export async function PATCH(req) {
           { status: 403 },
         );
       }
-      await db.execute({
-        sql: "UPDATE v2_notifications SET is_read = 1, read_at = COALESCE(read_at, NOW()) WHERE id = ?",
-        args: [id],
-      });
+      await markNotificationRead(id);
       return NextResponse.json({ success: true });
     }
 

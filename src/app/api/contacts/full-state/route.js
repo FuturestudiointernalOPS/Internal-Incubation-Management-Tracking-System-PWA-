@@ -1,8 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
 import { reconcileProgramGroups } from "@/lib/contact-group-sync";
 import { attachInvitationStatus } from "@/lib/invitations";
+import {
+  getPmAssignedPrograms,
+  getContactsScopedByProgramsAndGroups,
+  getEnrolledProgramParticipants,
+  getFamiliesScopedByProgramsAndGroups,
+  getTeamsScopedByPrograms,
+  getRegistryContacts,
+  getFamiliesList,
+  getRegistryTeams,
+  getActivationEmailLogForContacts,
+} from "@/models/contacts";
 
 /**
  * CONTACTS FULL-STATE API — CENTRAL REGISTRY FEED
@@ -35,48 +46,23 @@ export async function GET(req) {
 
     if (pmId) {
       // 1. Identify assigned programs and segments
-      const progRes = await db.execute({
-        sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ?",
-        args: [pmId],
-      });
+      const progRes = await getPmAssignedPrograms(pmId);
       const myProgs = progRes.rows;
       const myProgIds = myProgs.map((p) => p.id);
       const myProgNames = myProgs.map((p) => p.name.toUpperCase());
 
       // 2. Fetch scoped contacts (include v2_participants for full registry)
       if (myProgIds.length > 0 || myProgNames.length > 0) {
-        const idPlaceholders = myProgIds.map(() => "?").join(",") || "NULL";
-        const namePlaceholders = myProgNames.map(() => "?").join(",") || "NULL";
-
-        const archiveClause = statusFilter === "archived"
-          ? "AND archived_at IS NOT NULL"
-          : "AND archived_at IS NULL";
-
-        contactsRes = await db.execute({
-          sql: `SELECT * FROM contacts
-                WHERE (cid IN (
-                        SELECT participant_id FROM participant_programs
-                        WHERE CAST(program_id AS TEXT) IN (${idPlaceholders})
-                      )
-                OR UPPER(TRIM(group_name)) IN (${namePlaceholders}))
-                AND deleted_at IS NULL
-                ${archiveClause}
-                ORDER BY created_at DESC`,
-          args: [...myProgIds, ...myProgNames],
-        });
+        contactsRes = await getContactsScopedByProgramsAndGroups(
+          myProgIds,
+          myProgNames,
+          statusFilter,
+        );
 
         // Also fetch participants via participant_programs (authoritative
         // membership) — skip when viewing archived.
         if (statusFilter !== "archived") {
-          const ppRes = await db.execute({
-            sql: `SELECT c.*
-                  FROM participant_programs pp
-                  JOIN contacts c ON pp.participant_id = c.cid
-                  WHERE CAST(pp.program_id AS TEXT) IN (${idPlaceholders})
-                    AND c.deleted = 0
-                    AND c.deleted_at IS NULL`,
-            args: [...myProgIds],
-          });
+          const ppRes = await getEnrolledProgramParticipants(myProgIds);
           const ppRows = ppRes.rows || [];
           if (ppRows.length > 0) {
             const existingEmails = new Set(
@@ -93,20 +79,14 @@ export async function GET(req) {
         }
 
         // 3. Fetch scoped families/segments
-        const famRes = await db.execute({
-          sql: `SELECT * FROM families
-                WHERE program_id IN (${idPlaceholders})
-                OR UPPER(TRIM(name)) IN (${namePlaceholders})`,
-          args: [...myProgIds, ...myProgNames],
-        });
+        const famRes = await getFamiliesScopedByProgramsAndGroups(
+          myProgIds,
+          myProgNames,
+        );
         familiesList = famRes.rows;
 
         // 4. Fetch scoped teams
-        const teamRes = await db.execute({
-          sql: `SELECT id, name, group_name, program_id FROM v2_teams
-                WHERE program_id IN (${idPlaceholders})`,
-          args: [...myProgIds],
-        });
+        const teamRes = await getTeamsScopedByPrograms(myProgIds);
         teamsRows = teamRes.rows;
       } else {
         contactsRes = { rows: [] };
@@ -115,19 +95,10 @@ export async function GET(req) {
       }
     } else {
       // Global View (Super Admin)
-      const archiveClause = statusFilter === "archived"
-        ? "AND archived_at IS NOT NULL"
-        : "AND archived_at IS NULL";
-      contactsRes = await db.execute(
-        `SELECT * FROM contacts WHERE deleted_at IS NULL ${archiveClause} ORDER BY created_at DESC`,
-      );
-      const famRes = await db.execute(
-        "SELECT * FROM families ORDER BY name ASC",
-      );
+      contactsRes = await getRegistryContacts(statusFilter);
+      const famRes = await getFamiliesList();
       familiesList = famRes.rows;
-      const teamRes = await db.execute(
-        "SELECT id, name, group_name FROM v2_teams",
-      );
+      const teamRes = await getRegistryTeams();
       teamsRows = teamRes.rows;
     }
 
@@ -159,14 +130,7 @@ export async function GET(req) {
     const activationByCid = {};
     if (cids.length > 0) {
       try {
-        const placeholders = cids.map(() => "?").join(",");
-        const elRes = await db.execute({
-          sql: `SELECT el.contact_cid, el.status, el.sent_at, el.created_at, el.error
-                FROM platform_email_log el
-                WHERE el.email_type = 'activation' AND el.contact_cid IN (${placeholders})
-                ORDER BY el.id ASC`,
-          args: cids,
-        });
+        const elRes = await getActivationEmailLogForContacts(cids);
         for (const row of elRes.rows) {
           const cur = activationByCid[row.contact_cid] || { latest: null, lastSentAt: null };
           cur.latest = row;

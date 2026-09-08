@@ -1,5 +1,10 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
+import {
+  findFamilyForGroupInfo,
+  findV2GroupForGroupInfo,
+  getProgramRegistrationWindow,
+} from "@/models/platformConfig";
 
 /**
  * PUBLIC endpoint — no auth required.
@@ -19,10 +24,7 @@ export async function GET(req) {
     let group = null;
 
     // Try families table first (by id OR registration_id)
-    const result = await db.execute({
-      sql: "SELECT CAST(id AS TEXT) as id, registration_id, name, program_id FROM families WHERE CAST(id AS TEXT) = ? OR registration_id = ?",
-      args: [id, id],
-    });
+    const result = await findFamilyForGroupInfo(id);
 
     if (result.rows.length > 0) {
       group = result.rows[0];
@@ -30,10 +32,7 @@ export async function GET(req) {
 
     // Try v2_groups (by id OR registration_id)
     if (!group) {
-      const v2result = await db.execute({
-        sql: "SELECT CAST(id AS TEXT) as id, registration_id, name, program_id FROM v2_groups WHERE CAST(id AS TEXT) = ? OR registration_id = ?",
-        args: [id, id],
-      });
+      const v2result = await findV2GroupForGroupInfo(id);
       if (v2result.rows.length > 0) {
         group = v2result.rows[0];
       }
@@ -46,10 +45,7 @@ export async function GET(req) {
     // Fetch program registration window if program_id exists
     let registration_window = null;
     if (group.program_id) {
-      const progResult = await db.execute({
-        sql: "SELECT registration_window FROM v2_programs WHERE CAST(id AS TEXT) = ?",
-        args: [String(group.program_id)],
-      });
+      const progResult = await getProgramRegistrationWindow(group.program_id);
       if (progResult.rows.length > 0) {
         registration_window = progResult.rows[0].registration_window;
       }

@@ -1,6 +1,7 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuthorization } from "@/lib/authorization";
 import { NextResponse } from "next/server";
+import { listPendingUsers } from "@/models/adminOps";
 
 export async function GET() {
   try {
@@ -8,10 +9,7 @@ export async function GET() {
     if (capError) return capError;
 
     await initDb();
-    const result = await db.execute({
-      sql: `SELECT cid, name, email, phone, group_name, role, created_at, program_name, gender FROM contacts WHERE status = 'pending' AND archived_at IS NULL AND deleted_at IS NULL ORDER BY created_at DESC`,
-      args: [],
-    });
+    const result = await listPendingUsers();
 
     const pendingUsers = result.rows;
     const grouped = {};

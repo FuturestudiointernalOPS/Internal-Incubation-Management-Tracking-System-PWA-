@@ -391,7 +391,7 @@ export default function VentureSessionsPage() {
                 {selectedSession.session_type && <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.sessions.type")}</p><p className="font-bold mt-0.5 capitalize">{selectedSession.session_type}</p></div>}
               </div>
               {selectedSession.meeting_link && (
-                <a href={selectedSession.meeting_link} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 w-fit">
+                <a href={selectedSession.meeting_link} target="_blank" className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] rounded-xl text-[9px] font-black uppercase tracking-wider hover:brightness-110 w-fit" rel="noreferrer">
                   <Video className="w-3.5 h-3.5" /> {t("vadmin.sessions.joinMeeting")}
                 </a>
               )}

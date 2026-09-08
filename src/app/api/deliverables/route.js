@@ -1,6 +1,6 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { createDeliverable, listDeliverables } from "@/models/facilitation";
 
 export const POST = createHandler(
   { roles: ["staff", "super_admin"] },
@@ -15,16 +15,7 @@ export const POST = createHandler(
       );
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_deliverables (program_id, title, description, week_number)
-                 VALUES (?, ?, ?, ?) RETURNING id`,
-            args: [
-              program_id,
-              title,
-              description || null,
-              week_number || 1,
-            ],
-    });
+    const result = await createDeliverable({ program_id, title, description, week_number });
 
     return NextResponse.json({
       success: true,
@@ -45,15 +36,7 @@ export const GET = createHandler(
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
 
-    let sql = "SELECT * FROM v2_deliverables";
-    let args = [];
-    if (program_id) {
-      sql += " WHERE program_id = ?";
-      args.push(program_id);
-    }
-    sql += " ORDER BY week_number ASC";
-
-    const { rows } = await db.execute({ sql, args });
+    const { rows } = await listDeliverables(program_id);
     return NextResponse.json({ success: true, deliverables: rows });
   },
 );

@@ -13,8 +13,13 @@
  */
 
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth, getSession } from "@/lib/auth";
+import {
+  listVentureOptions,
+  updateVentureOption,
+  upsertVentureOption,
+} from "@/models/platformConfig";
 
 const SETUP_ROLES = ["super_admin", "staff"];
 
@@ -28,18 +33,7 @@ export async function GET(req) {
     const optionType = searchParams.get("option_type");
     const includeInactive = searchParams.get("include_inactive") === "true";
 
-    let sql = "SELECT id, option_type, value, label, sort_order, is_active FROM venture_option_values WHERE 1=1";
-    const args = [];
-    if (optionType) {
-      sql += " AND option_type = ?";
-      args.push(optionType);
-    }
-    if (!includeInactive) {
-      sql += " AND is_active = TRUE";
-    }
-    sql += " ORDER BY option_type ASC, sort_order ASC, value ASC";
-
-    const res = await db.execute({ sql, args });
+    const res = await listVentureOptions(optionType, includeInactive);
     return NextResponse.json({ success: true, options: res.rows || [] });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -64,13 +58,7 @@ export async function POST(req) {
     if (!option_type || !value) {
       return NextResponse.json({ success: false, error: "option_type and value are required." }, { status: 400 });
     }
-    const res = await db.execute({
-      sql: `INSERT INTO venture_option_values (option_type, value, label, sort_order, is_active, created_at)
-            VALUES (?, ?, ?, ?, TRUE, NOW())
-            ON CONFLICT (option_type, value) DO UPDATE SET label = EXCLUDED.label
-            RETURNING id`,
-      args: [option_type, value, label || value, sort_order || 0],
-    });
+    const res = await upsertVentureOption(option_type, value, label, sort_order);
     return NextResponse.json({ success: true, id: res.rows[0]?.id });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });
@@ -104,10 +92,7 @@ export async function PATCH(req) {
       return NextResponse.json({ success: false, error: "Nothing to update." }, { status: 400 });
     }
     args.push(id);
-    await db.execute({
-      sql: `UPDATE venture_option_values SET ${sets.join(", ")} WHERE id = ?`,
-      args,
-    });
+    await updateVentureOption(sets, args);
     return NextResponse.json({ success: true });
   } catch (e) {
     return NextResponse.json({ success: false, error: e.message }, { status: 500 });

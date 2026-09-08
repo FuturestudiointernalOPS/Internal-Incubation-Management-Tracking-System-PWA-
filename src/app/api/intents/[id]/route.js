@@ -1,6 +1,13 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import {
+  getActiveBlockersForIntent,
+  getBlockersForTask,
+  getIntentById,
+  getTasksForIntent,
+  getVentureMembership,
+} from "@/models/intents";
 
 /**
  * GET /api/intents/[id]
@@ -26,10 +33,7 @@ export async function GET(req, { params }) {
     const { id } = await params;
 
     // Fetch intent
-    const intentRes = await db.execute({
-      sql: "SELECT * FROM intents WHERE id = ?",
-      args: [id],
-    });
+    const intentRes = await getIntentById(id);
 
     if (intentRes.rows.length === 0) {
       return NextResponse.json(
@@ -47,10 +51,10 @@ export async function GET(req, { params }) {
     ) {
       // For venture contexts, check membership
       if (intent.context_type === "venture" && intent.context_id) {
-        const memberCheck = await db.execute({
-          sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND contact_id = ? AND removed_at IS NULL LIMIT 1",
-          args: [intent.context_id, session.cid],
-        });
+        const memberCheck = await getVentureMembership(
+          intent.context_id,
+          session.cid,
+        );
         if (memberCheck.rows.length === 0) {
           return NextResponse.json(
             { success: false, error: "You do not have access to this intent." },
@@ -66,21 +70,11 @@ export async function GET(req, { params }) {
     }
 
     // Fetch tasks under this intent with blockers
-    const taskRes = await db.execute({
-      sql: `SELECT * FROM tasks WHERE intent_id = ?
-        ORDER BY CASE priority
-          WHEN 'critical' THEN 0 WHEN 'high' THEN 1
-          WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4
-        END, created_at ASC`,
-      args: [id],
-    });
+    const taskRes = await getTasksForIntent(id);
 
     const tasks = await Promise.all(
       taskRes.rows.map(async (task) => {
-        const blockerRes = await db.execute({
-          sql: "SELECT id, title, status, severity FROM blockers WHERE task_id = ? ORDER BY created_at DESC",
-          args: [task.id],
-        });
+        const blockerRes = await getBlockersForTask(task.id);
         return { ...task, blockers: blockerRes.rows || [] };
       }),
     );
@@ -94,13 +88,7 @@ export async function GET(req, { params }) {
     ).length;
 
     // Fetch blocker summary for the intent
-    const blockerSummary = await db.execute({
-      sql: `SELECT b.*, t.title AS task_title FROM blockers b
-        JOIN tasks t ON b.task_id = t.id
-        WHERE t.intent_id = ? AND b.status = 'active'
-        ORDER BY b.created_at DESC`,
-      args: [id],
-    });
+    const blockerSummary = await getActiveBlockersForIntent(id);
 
     return NextResponse.json({
       success: true,

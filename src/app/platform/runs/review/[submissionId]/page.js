@@ -554,7 +554,7 @@ export default function ReviewPage() {
                             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("platformMisc.runReview.evidenceFromApplicant")}</p>
                             <div className="space-y-2">
                               {dim.evidence.map((ev, i) => (
-                                <p key={i} className="text-[11px] text-[var(--text-secondary)] pl-4 border-l-2 border-purple-500/30 leading-relaxed">"{ev}"</p>
+                                <p key={i} className="text-[11px] text-[var(--text-secondary)] pl-4 border-l-2 border-purple-500/30 leading-relaxed">&quot;{ev}&quot;</p>
                               ))}
                             </div>
                           </div>

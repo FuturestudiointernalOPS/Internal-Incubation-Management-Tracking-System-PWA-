@@ -129,7 +129,7 @@ export default function AnnouncementsPage() {
         setShowForm(false);
         fetchAnnouncements(true);
       } else {
-        setError(t((data.error || "Failed to create announcement.") || "") || (data.error || "Failed to create announcement."));
+        setError(t(data.error || "Failed to create announcement.") || data.error || "Failed to create announcement.");
       }
     } catch (err) {
       setError(t(err.message || "") || err.message);

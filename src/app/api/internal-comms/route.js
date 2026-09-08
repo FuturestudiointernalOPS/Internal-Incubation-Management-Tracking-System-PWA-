@@ -1,6 +1,37 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  createMessage,
+  ensureMessagesAttachmentNameColumn,
+  ensureMessagesAttachmentUrlColumn,
+  ensureMessagesIsDeletedColumn,
+  ensureMessagesIsReadColumn,
+  ensureMessagesIsReadColumnForMarkRead,
+  findFamiliesByMatchingGroupNames,
+  findFamilyByIdText,
+  findFamilyIdsByProgramIds,
+  getContactMessageScopeById,
+  getContactsByFamilyGroupName,
+  getLegacyContactsByProgramId,
+  getParticipantIdsByProgramId,
+  getProgramAssigneeIdsByProgramId,
+  getProgramIdsAssignedToUser,
+  getProgramIdsForProgramStaff,
+  getProgramIdsForTeamHandler,
+  getProgramStaffIdsByProgramId,
+  getSenderNameByCidOrId,
+  getStaffMemberCids,
+  getUserGroupCidsByGroupName,
+  getUserGroupNamesByCid,
+  insertDirectMessageNotification,
+  insertGroupMessageNotification,
+  insertProgramMessageNotification,
+  listMessagesForScope,
+  markConversationMessagesRead,
+  markMessageNotificationsRead,
+  markMessagesReadByIds,
+} from "@/models/communications";
 
 // ─── Message-scope resolution helpers ───────────────────────────────────────
 // Group/program messages (target_type 'role'/'program') carry a target_id but
@@ -11,30 +42,18 @@ async function resolveGroupMemberIds(targetId) {
   const ids = new Set();
   try {
     if (String(targetId) === "__staff__") {
-      const res = await db.execute({
-        sql: `SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = 'FUTURE STUDIO' OR role IN ('staff', 'developer', 'intern', 'admin', 'super_admin')`,
-        args: [],
-      });
+      const res = await getStaffMemberCids();
       res.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
       return Array.from(ids);
     }
-    const fam = await db.execute({
-      sql: "SELECT name, program_id FROM families WHERE id::text = ?",
-      args: [String(targetId)],
-    });
+    const fam = await findFamilyByIdText(targetId);
     if (fam.rows.length === 0) return [];
     const family = fam.rows[0];
     if (family.name) {
-      const members = await db.execute({
-        sql: "SELECT cid FROM contacts WHERE UPPER(TRIM(group_name)) = ?",
-        args: [String(family.name).toUpperCase()],
-      });
+      const members = await getContactsByFamilyGroupName(family.name);
       members.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
       try {
-        const ug = await db.execute({
-          sql: "SELECT user_cid FROM user_groups WHERE UPPER(TRIM(group_name)) = ?",
-          args: [String(family.name).toUpperCase()],
-        });
+        const ug = await getUserGroupCidsByGroupName(family.name);
         ug.rows.forEach((r) => r.user_cid && ids.add(String(r.user_cid)));
       } catch (_) {}
     }
@@ -75,24 +94,15 @@ async function recipientSharesProgram(recipientId, senderScope) {
 async function resolveProgramMemberIds(programId) {
   const ids = new Set();
   try {
-    const pp = await db.execute({
-      sql: "SELECT participant_id FROM participant_programs WHERE program_id::text = ?",
-      args: [String(programId)],
-    });
+    const pp = await getParticipantIdsByProgramId(programId);
     pp.rows.forEach((r) => r.participant_id && ids.add(String(r.participant_id)));
   } catch (_) {}
   try {
-    const staff = await db.execute({
-      sql: "SELECT staff_id FROM v2_program_staff WHERE program_id::text = ?",
-      args: [String(programId)],
-    });
+    const staff = await getProgramStaffIdsByProgramId(programId);
     staff.rows.forEach((r) => r.staff_id && ids.add(String(r.staff_id)));
   } catch (_) {}
   try {
-    const prog = await db.execute({
-      sql: "SELECT assigned_pm_id, assigned_assistant_id FROM v2_programs WHERE id::text = ?",
-      args: [String(programId)],
-    });
+    const prog = await getProgramAssigneeIdsByProgramId(programId);
     const p = prog.rows[0];
     if (p) {
       if (p.assigned_pm_id) ids.add(String(p.assigned_pm_id));
@@ -106,10 +116,7 @@ async function resolveProgramMemberIds(programId) {
     }
   } catch (_) {}
   try {
-    const legacy = await db.execute({
-      sql: "SELECT cid FROM contacts WHERE program_id::text = ?",
-      args: [String(programId)],
-    });
+    const legacy = await getLegacyContactsByProgramId(programId);
     legacy.rows.forEach((r) => r.cid && ids.add(String(r.cid)));
   } catch (_) {}
   return Array.from(ids);
@@ -130,20 +137,14 @@ async function resolveUserMessageScope(session) {
 
   let contact = {};
   try {
-    const cRes = await db.execute({
-      sql: "SELECT group_name, role, program_id FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const cRes = await getContactMessageScopeById(cid);
     if (cRes.rows.length > 0) contact = cRes.rows[0];
   } catch (_) {}
 
   const groupNames = new Set();
   if (contact.group_name) groupNames.add(String(contact.group_name).trim());
   try {
-    const ug = await db.execute({
-      sql: "SELECT group_name FROM user_groups WHERE user_cid = ?",
-      args: [cid],
-    });
+    const ug = await getUserGroupNamesByCid(cid);
     ug.rows.forEach((r) => {
       if (r.group_name) groupNames.add(String(r.group_name).trim());
     });
@@ -155,12 +156,10 @@ async function resolveUserMessageScope(session) {
 
   // Families whose name matches one of the user's group names
   if (groupNames.size > 0) {
-    const placeholders = Array.from(groupNames).map(() => "?").join(",");
     try {
-      const famRes = await db.execute({
-        sql: `SELECT id, program_id FROM families WHERE UPPER(TRIM(name)) IN (${placeholders})`,
-        args: Array.from(groupNames).map((g) => String(g).toUpperCase()),
-      });
+      const famRes = await findFamiliesByMatchingGroupNames(
+        Array.from(groupNames),
+      );
       famRes.rows.forEach((r) => {
         scope.groupIds.add(String(r.id));
         if (r.program_id) scope.programIds.add(String(r.program_id));
@@ -184,37 +183,24 @@ async function resolveUserMessageScope(session) {
       });
   }
   try {
-    const progRes = await db.execute({
-      sql: "SELECT id::text AS id FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ?",
-      args: [cid, `%${cid}%`],
-    });
+    const progRes = await getProgramIdsAssignedToUser(cid);
     progRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
   } catch (_) {}
   try {
-    const staffRes = await db.execute({
-      sql: "SELECT program_id::text AS id FROM v2_program_staff WHERE staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)",
-      args: [cid, email || ""],
-    });
+    const staffRes = await getProgramIdsForProgramStaff(cid, email);
     staffRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
   } catch (_) {}
   try {
-    const teamRes = await db.execute({
-      sql: "SELECT program_id::text AS id FROM v2_teams WHERE handler_id = ?",
-      args: [cid],
-    });
+    const teamRes = await getProgramIdsForTeamHandler(cid);
     teamRes.rows.forEach((r) => scope.programIds.add(String(r.id)));
   } catch (_) {}
 
   // Families linked to those programs
   if (scope.programIds.size > 0) {
-    const placeholders = Array.from(scope.programIds)
-      .map(() => "?")
-      .join(",");
     try {
-      const famRes = await db.execute({
-        sql: `SELECT id FROM families WHERE program_id IN (${placeholders})`,
-        args: Array.from(scope.programIds),
-      });
+      const famRes = await findFamilyIdsByProgramIds(
+        Array.from(scope.programIds),
+      );
       famRes.rows.forEach((r) => scope.groupIds.add(String(r.id)));
     } catch (_) {}
   }
@@ -252,62 +238,25 @@ export async function GET(req) {
 
     // Ensure is_deleted column exists (safe migration)
     try {
-      await db.execute(
-        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0",
-      );
+      await ensureMessagesIsDeletedColumn();
     } catch (_) {}
 
-    let query = "SELECT * FROM v2_messages";
-    let args = [];
-
-    if (session.role === "super_admin") {
-      // SA sees everything (individual + broadcasts)
-      query = "SELECT * FROM v2_messages";
-      args = [];
-      if (targetCid) {
-        query +=
-          " WHERE (recipient_id = ? OR sender_id = ? OR target_type = 'all')";
-        args = [targetCid, targetCid];
-      }
-    } else {
-      // Users see their own individual messages + group/program messages
-      // for the groups/programs they belong to. Broadcasts stay SA-only.
-      const visibility = ["(recipient_id = ? OR sender_id = ?)"];
-      const visArgs = [targetCid, targetCid];
-
-      const scope = await resolveUserMessageScope(session);
-      const groupIds = Array.from(scope.groupIds);
-      const programIds = Array.from(scope.programIds);
-      if (scope.isFutureStudioStaff) {
-        visibility.push("(target_type = 'role' AND target_id = '__staff__')");
-      }
-      if (groupIds.length > 0) {
-        visibility.push(
-          `(target_type = 'role' AND target_id IN (${groupIds
-            .map(() => "?")
-            .join(",")}))`,
-        );
-        visArgs.push(...groupIds);
-      }
-      if (programIds.length > 0) {
-        visibility.push(
-          `(target_type = 'program' AND target_id IN (${programIds
-            .map(() => "?")
-            .join(",")}))`,
-        );
-        visArgs.push(...programIds);
-      }
-
-      query = `SELECT * FROM v2_messages WHERE (${visibility.join(
-        " OR ",
-      )})`;
-      args = visArgs;
+    // Message visibility SQL assembled in listMessagesForScope (model):
+    // SA sees everything (individual + broadcasts); everyone else sees their
+    // own messages + group/program messages for the groups/programs they
+    // belong to. Broadcasts stay SA-only.
+    let scope = null;
+    if (session.role !== "super_admin") {
+      scope = await resolveUserMessageScope(session);
     }
 
-    query +=
-      " AND (is_deleted IS NULL OR is_deleted = 0) ORDER BY created_at DESC";
-
-    const res = await db.execute({ sql: query, args });
+    const res = await listMessagesForScope({
+      isSuperAdmin: session.role === "super_admin",
+      targetCid,
+      groupIds: scope ? Array.from(scope.groupIds) : [],
+      programIds: scope ? Array.from(scope.programIds) : [],
+      isFutureStudioStaff: scope ? scope.isFutureStudioStaff : false,
+    });
     return NextResponse.json({ success: true, messages: res.rows });
   } catch (error) {
     return NextResponse.json(
@@ -403,47 +352,34 @@ export async function POST(req) {
 
     // Ensure is_read column exists (safe migration)
     try {
-      await db.execute(
-        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_read INTEGER DEFAULT 0",
-      );
+      await ensureMessagesIsReadColumn();
     } catch (_) {}
 
     // Ensure attachment columns exist (safe migration)
     try {
-      await db.execute(
-        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS attachment_url TEXT",
-      );
+      await ensureMessagesAttachmentUrlColumn();
     } catch (_) {}
     try {
-      await db.execute(
-        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS attachment_name TEXT",
-      );
+      await ensureMessagesAttachmentNameColumn();
     } catch (_) {}
 
-    const insertRes = await db.execute({
-      sql: "INSERT INTO v2_messages (sender_id, recipient_id, target_type, target_id, subject, body, priority, is_read, attachment_url, attachment_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
-      args: [
-        effectiveSenderId,
-        recipient_id || null,
-        target_type || "individual",
-        target_id || null,
-        subject,
-        body,
-        priority || "normal",
-        0,
-        attachment_url || null,
-        attachment_name || null,
-      ],
+    const insertRes = await createMessage({
+      senderId: effectiveSenderId,
+      recipientId: recipient_id,
+      targetType: target_type,
+      targetId: target_id,
+      subject,
+      body,
+      priority,
+      attachmentUrl: attachment_url,
+      attachmentName: attachment_name,
     });
     const newMessageId = insertRes.rows[0]?.id;
 
     // Get sender name for notification
     let senderName = effectiveSenderId;
     try {
-      const senderRes = await db.execute({
-        sql: "SELECT name FROM contacts WHERE cid = ? OR id = ?",
-        args: [effectiveSenderId, effectiveSenderId],
-      });
+      const senderRes = await getSenderNameByCidOrId(effectiveSenderId);
       if (senderRes.rows.length > 0) senderName = senderRes.rows[0].name;
     } catch (_) {}
 
@@ -452,29 +388,20 @@ export async function POST(req) {
     const notifMessage = `You have 1 new message from ${senderName}`;
 
     if (recipient_id) {
-      await db.execute({
-        sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-        args: [recipient_id, notifTitle, notifMessage, "message"],
-      });
+      await insertDirectMessageNotification(recipient_id, notifTitle, notifMessage);
     } else if (target_type === "role" && target_id) {
       // Group message — notify every member of the group (family or staff)
       const memberIds = await resolveGroupMemberIds(target_id);
       for (const m of memberIds) {
         if (String(m) === String(effectiveSenderId)) continue;
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-          args: [m, notifTitle, notifMessage, "message"],
-        });
+        await insertGroupMessageNotification(m, notifTitle, notifMessage);
       }
     } else if (target_type === "program" && target_id) {
       // Program message — notify participants, staff, PM and assistants
       const memberIds = await resolveProgramMemberIds(target_id);
       for (const m of memberIds) {
         if (String(m) === String(effectiveSenderId)) continue;
-        await db.execute({
-          sql: "INSERT INTO v2_notifications (recipient_id, title, message, type) VALUES (?, ?, ?, ?)",
-          args: [m, notifTitle, notifMessage, "message"],
-        });
+        await insertProgramMessageNotification(m, notifTitle, notifMessage);
       }
     }
 
@@ -523,30 +450,21 @@ export async function PUT(req) {
 
     // Ensure is_read column exists
     try {
-      await db.execute(
-        "ALTER TABLE v2_messages ADD COLUMN IF NOT EXISTS is_read INTEGER DEFAULT 0",
-      );
+      await ensureMessagesIsReadColumnForMarkRead();
     } catch (_) {}
 
     if (Array.isArray(messageIds) && messageIds.length > 0) {
-      const placeholders = messageIds.map((_, i) => `$${i + 1}`).join(",");
-      await db.execute({
-        sql: `UPDATE v2_messages SET is_read = 1 WHERE id IN (${placeholders})`,
-        args: messageIds,
-      });
+      await markMessagesReadByIds(messageIds);
       // Mark corresponding notifications as read
       try {
-        await db.execute({
-          sql: "UPDATE v2_notifications SET is_read = 1 WHERE recipient_id = ? AND type = 'message' AND is_read = 0",
-          args: [sessionCid],
-        });
+        await markMessageNotificationsRead(sessionCid);
       } catch (_) {}
     } else if (conversationWith) {
       // Mark all messages from a specific sender as read
-      await db.execute({
-        sql: "UPDATE v2_messages SET is_read = 1 WHERE sender_id = ? AND recipient_id = ? AND (is_read IS NULL OR is_read = 0)",
-        args: [conversationWith.senderId, conversationWith.recipientId],
-      });
+      await markConversationMessagesRead(
+        conversationWith.senderId,
+        conversationWith.recipientId,
+      );
     }
 
     return NextResponse.json({ success: true });

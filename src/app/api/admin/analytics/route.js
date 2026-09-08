@@ -1,6 +1,15 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  getAvgBlockerResolutionSeconds,
+  getBlockerStatusStats,
+  getDistinctTaskUserCount,
+  getSubmittedReportCountsByWeek,
+  getTaskStatusStats,
+  getV2ProjectCount,
+  getWeeklyProductivityStats,
+} from "@/models/adminOps";
 
 /**
  * GET /api/admin/analytics
@@ -15,48 +24,23 @@ export async function GET(req) {
     if (authError) return authError;
 
     // Task stats across ALL users
-    const taskStats = await db.execute({
-      sql: `SELECT
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE status = 'completed')::int AS completed,
-        COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
-        COUNT(*) FILTER (WHERE status = 'blocked')::int AS blocked,
-        COUNT(*) FILTER (WHERE status = 'carried_over')::int AS carried_over,
-        COUNT(*) FILTER (WHERE status = 'pending')::int AS pending
-        FROM tasks`,
-    });
+    const taskStats = await getTaskStatusStats();
 
     // Blocker stats
-    const blockerStats = await db.execute({
-      sql: `SELECT
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE status = 'active')::int AS active,
-        COUNT(*) FILTER (WHERE status = 'resolved')::int AS resolved
-        FROM blockers`,
-    });
+    const blockerStats = await getBlockerStatusStats();
 
     // Standup/Retro compliance — current week
     const now = new Date();
     const weekNumber = getWeekNumber(now);
     const year = now.getFullYear();
 
-    const reportStats = await db.execute({
-      sql: `SELECT
-        COUNT(*) FILTER (WHERE report_type = 'standup')::int AS standups,
-        COUNT(*) FILTER (WHERE report_type = 'retro')::int AS retros
-        FROM v2_op_reports WHERE week_number = ? AND year = ? AND status = 'submitted'`,
-      args: [weekNumber, year],
-    });
+    const reportStats = await getSubmittedReportCountsByWeek(weekNumber, year);
 
     // Project stats
-    const projectStats = await db.execute({
-      sql: "SELECT COUNT(*)::int AS total FROM v2_projects",
-    });
+    const projectStats = await getV2ProjectCount();
 
     // Unique users with tasks
-    const activeUsers = await db.execute({
-      sql: "SELECT COUNT(DISTINCT user_id)::int AS count FROM tasks",
-    });
+    const activeUsers = await getDistinctTaskUserCount();
 
     // Carry-over rate
     const carryoverRate =
@@ -75,25 +59,13 @@ export async function GET(req) {
         : 0;
 
     // Average blocker resolution time (hours)
-    const resolutionTimeRes = await db.execute({
-      sql: "SELECT AVG(EXTRACT(EPOCH FROM (resolved_at - created_at)))::int AS avg_seconds FROM blockers WHERE status = 'resolved' AND resolved_at IS NOT NULL AND created_at IS NOT NULL",
-    });
+    const resolutionTimeRes = await getAvgBlockerResolutionSeconds();
     const avgResolutionHours = resolutionTimeRes.rows[0]?.avg_seconds
       ? Math.round(resolutionTimeRes.rows[0].avg_seconds / 3600)
       : 0;
 
     // Weekly productivity: tasks completed per week (by completion date), last 8 weeks
-    const weeklyProductivity = await db.execute({
-      sql: `SELECT
-              EXTRACT(week FROM completed_at)::int AS week,
-              EXTRACT(isoyear FROM completed_at)::int AS year,
-              COUNT(*)::int AS completed
-            FROM tasks
-            WHERE status = 'completed' AND completed_at IS NOT NULL
-            GROUP BY EXTRACT(isoyear FROM completed_at), EXTRACT(week FROM completed_at)
-            ORDER BY year DESC, week DESC
-            LIMIT 8`,
-    });
+    const weeklyProductivity = await getWeeklyProductivityStats();
 
     return NextResponse.json({
       success: true,

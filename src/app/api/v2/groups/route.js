@@ -6,9 +6,16 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import {
+  findV2FacilitatorsGroupByProgram,
+  createV2Group,
+  getV2GroupSystemFlagsById,
+  updateV2GroupFields,
+  getFamilyGroupRowsByProgram,
+  getV2GroupRowsByProgram,
+} from "@/models/groups";
 
 export async function POST(req) {
   try {
@@ -29,10 +36,7 @@ export async function POST(req) {
     // only one per program, never duplicated, never downgraded.
     const isFacilitatorsGroup = name.trim().toUpperCase() === "FACILITATORS";
     if (isFacilitatorsGroup) {
-      const dup = await db.execute({
-        sql: "SELECT id FROM v2_groups WHERE program_id = ? AND UPPER(TRIM(name)) = 'FACILITATORS'",
-        args: [program_id],
-      });
+      const dup = await findV2FacilitatorsGroupByProgram(program_id);
       if (dup.rows.length > 0) {
         return NextResponse.json(
           { success: false, error: "The Facilitators group already exists for this program and is system-protected." },
@@ -41,17 +45,13 @@ export async function POST(req) {
       }
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_groups (program_id, name, project_description, type, is_system)
-             VALUES (?, ?, ?, ?, ?) RETURNING id`,
-      args: [
-        program_id,
-        name,
-        project_description || null,
-        isFacilitatorsGroup ? "facilitators" : type || "participant",
-        isFacilitatorsGroup ? 1 : 0,
-      ],
-    });
+    const result = await createV2Group(
+      program_id,
+      name,
+      project_description || null,
+      isFacilitatorsGroup ? "facilitators" : type || "participant",
+      isFacilitatorsGroup ? 1 : 0,
+    );
 
     return NextResponse.json({
       success: true,
@@ -85,10 +85,7 @@ export async function PUT(req) {
     }
 
     // System groups (e.g. Facilitators) cannot be renamed, retyped, or deleted
-    const existing = await db.execute({
-      sql: "SELECT name, type, is_system FROM v2_groups WHERE CAST(id AS TEXT) = ?",
-      args: [String(id)],
-    });
+    const existing = await getV2GroupSystemFlagsById(id);
     const row = existing.rows[0];
     if (row && Number(row.is_system) === 1 && name !== undefined && name.trim() !== row.name) {
       return NextResponse.json(
@@ -108,10 +105,7 @@ export async function PUT(req) {
       return NextResponse.json({ success: true, message: "No fields to update." });
     }
     args.push(id);
-    await db.execute({
-      sql: `UPDATE v2_groups SET ${fields.join(", ")} WHERE CAST(id AS TEXT) = ?`,
-      args,
-    });
+    await updateV2GroupFields(fields, args);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
@@ -134,25 +128,13 @@ export async function GET(req) {
 
     // Query families table
     try {
-      let famSql = "SELECT CAST(f.id AS TEXT) as id, f.program_id, f.name, f.description as project_description, f.lead_facilitator_id, c.name as lead_facilitator_name, 'participant' as type, 0 as is_system, f.created_at FROM families f LEFT JOIN contacts c ON f.lead_facilitator_id = c.cid";
-      let famArgs = [];
-      if (program_id) {
-        famSql += " WHERE f.program_id = ?";
-        famArgs.push(program_id);
-      }
-      const famRes = await db.execute({ sql: famSql, args: famArgs });
+      const famRes = await getFamilyGroupRowsByProgram(program_id);
       allGroups.push(...famRes.rows.map(r => ({ ...r, source: 'family' })));
     } catch (_) {}
 
     // Query v2_groups table
     try {
-      let v2Sql = "SELECT CAST(id AS TEXT) as id, program_id, name, project_description, type, is_system, created_at FROM v2_groups";
-      let v2Args = [];
-      if (program_id) {
-        v2Sql += " WHERE program_id = ?";
-        v2Args.push(program_id);
-      }
-      const v2Res = await db.execute({ sql: v2Sql, args: v2Args });
+      const v2Res = await getV2GroupRowsByProgram(program_id);
       allGroups.push(...v2Res.rows.map(r => ({ ...r, source: 'v2_group' })));
     } catch (_) {}
 

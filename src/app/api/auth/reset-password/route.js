@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
-import db, { initDb } from '@/lib/db';
+import { initDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
+import {
+  getContactByEmailForPasswordReset,
+  updateContactPasswordByEmail,
+} from '@/models/authFlows';
 
 export async function POST(req) {
   try {
@@ -24,10 +28,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Current password required for self-reset.' }, { status: 400 });
     }
 
-    const userRes = await db.execute({
-      sql: 'SELECT * FROM contacts WHERE email = ? LIMIT 1',
-      args: [cleanEmail]
-    });
+    const userRes = await getContactByEmailForPasswordReset(cleanEmail);
 
     if (!userRes.rows || userRes.rows.length === 0) {
       return NextResponse.json({ success: false, error: 'User not found.' }, { status: 404 });
@@ -47,10 +48,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: 'Current password is incorrect.' }, { status: 401 });
     }
 
-    await db.execute({
-      sql: 'UPDATE contacts SET password = ? WHERE email = ?',
-      args: [hashedNewPassword, cleanEmail]
-    });
+    await updateContactPasswordByEmail(hashedNewPassword, cleanEmail);
 
     return NextResponse.json({
       success: true,

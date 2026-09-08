@@ -1,10 +1,14 @@
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import {
+  getContactBriefByCid,
+  expirePendingSetupTokensByCid,
+  createResendInviteSetupToken,
+} from "@/models/authFlows";
 
 export const dynamic = "force-dynamic";
 
@@ -30,26 +34,17 @@ export const POST = createHandler(
     });
     if (contactLimited) return contactLimited;
 
-    const contactRes = await db.execute({
-      sql: "SELECT cid, name, email, role FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const contactRes = await getContactBriefByCid(cid);
     if (contactRes.rows.length === 0)
       return NextResponse.json(
         { success: false, error: "User not found" },
         { status: 404 },
       );
     const contact = contactRes.rows[0];
-    await db.execute({
-      sql: "UPDATE password_setup_tokens SET expires_at = NOW() - INTERVAL '1 second' WHERE contact_cid = ? AND used = 0",
-      args: [cid],
-    });
+    await expirePendingSetupTokensByCid(cid);
     const token = uuidv4();
     const tokenHash = hashToken(token);
-    await db.execute({
-      sql: "INSERT INTO password_setup_tokens (token, token_hash, contact_cid, expires_at) VALUES (?, ?, ?, NOW() + INTERVAL '48 hours')",
-      args: [token, tokenHash, cid],
-    });
+    await createResendInviteSetupToken(token, tokenHash, cid);
     sendInviteEmail({
       to: contact.email,
       name: contact.name,

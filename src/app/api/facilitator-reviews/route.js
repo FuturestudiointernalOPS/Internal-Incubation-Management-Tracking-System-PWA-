@@ -1,5 +1,4 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import {
   requireAuth,
@@ -7,6 +6,16 @@ import {
   requireAssignmentAccess,
   hasProgramManagementAccess,
 } from "@/lib/auth";
+import {
+  createFacilitatorReview,
+  decideFacilitatorReview,
+  ensureFacilitatorReviewColumn,
+  findChangesRequestedReview,
+  getProgramAssignedPmId,
+  getReviewProgramId,
+  listFacilitatorReviews,
+  resetReviewForResubmission,
+} from "@/models/facilitation";
 
 /**
  * FACILITATOR REVIEWS API
@@ -39,30 +48,14 @@ export async function GET(req) {
     const facilitatorId = searchParams.get("facilitator_id");
     const weekNumber = searchParams.get("week_number");
 
-    let sql = "SELECT * FROM program_facilitator_reviews WHERE 1=1";
-    const args = [];
-
-    if (programId) {
-      sql += " AND CAST(program_id AS TEXT) = ?";
-      args.push(String(programId));
-    }
-    if (facilitatorId) {
-      sql += " AND facilitator_id = ?";
-      args.push(facilitatorId);
-    }
-    if (weekNumber) {
-      sql += " AND week_number = ?";
-      args.push(parseInt(weekNumber));
-    }
-
     // Non-management roles may only read their own reviews
-    if (session && !hasProgramManagementAccess(session.role)) {
-      sql += " AND facilitator_id = ?";
-      args.push(session.cid);
-    }
-
-    sql += " ORDER BY created_at DESC";
-    const res = await db.execute({ sql, args });
+    const res = await listFacilitatorReviews({
+      programId,
+      facilitatorId,
+      weekNumber,
+      onlyOwn: !!(session && !hasProgramManagementAccess(session.role)),
+      ownCid: session?.cid,
+    });
     return NextResponse.json({ success: true, reviews: res.rows });
   } catch (error) {
     return NextResponse.json(
@@ -87,9 +80,7 @@ async function ensureReviewStructure() {
   ];
   for (const col of cols) {
     try {
-      await db.execute(
-        `ALTER TABLE program_facilitator_reviews ADD COLUMN IF NOT EXISTS ${col}`,
-      );
+      await ensureFacilitatorReviewColumn(col);
     } catch (_) {}
   }
 }
@@ -172,51 +163,24 @@ export async function POST(req) {
     // update the same row (reset to submitted, clear the decision) instead of
     // creating a duplicate review for the same program/week.
     if (parsedWeek != null) {
-      const existing = await db.execute({
-        sql: `SELECT id FROM program_facilitator_reviews
-              WHERE CAST(program_id AS TEXT) = ?
-                AND facilitator_id = ?
-                AND week_number = ?
-                AND pm_decision = 'changes_requested'
-              ORDER BY created_at DESC LIMIT 1`,
-        args: [String(program_id), facilitatorCid, parsedWeek],
-      });
+      const existing = await findChangesRequestedReview(
+        program_id,
+        facilitatorCid,
+        parsedWeek,
+      );
       if (existing.rows.length > 0) {
         const reviewId = existing.rows[0].id;
-        await db.execute({
-          sql: `UPDATE program_facilitator_reviews SET
-                  participant_progress = ?, attendance_concerns = ?, assignment_performance = ?,
-                  challenges = ?, participants_needing_intervention = ?, completed_work = ?,
-                  needs_attention = ?, recommendations = ?,
-                  overall_rating = ?, went_well = ?, struggles = ?, engagement = ?,
-                  needs_attention_type = ?, needs_attention_note = ?, focus_next_week = ?,
-                  additional_notes = ?, status = 'submitted',
-                  pm_decision = NULL, pm_decision_note = NULL, pm_decision_by = NULL, pm_decision_at = NULL,
-                  updated_at = NOW()
-                WHERE id = ?`,
-          args: [...values, reviewId],
-        });
+        await resetReviewForResubmission(reviewId, values);
         return NextResponse.json({ success: true, reviewId });
       }
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO program_facilitator_reviews (
-        program_id, facilitator_id, facilitator_name, week_number,
-        participant_progress, attendance_concerns, assignment_performance,
-        challenges, participants_needing_intervention, completed_work,
-        needs_attention, recommendations,
-        overall_rating, went_well, struggles, engagement,
-        needs_attention_type, needs_attention_note, focus_next_week,
-        additional_notes, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'submitted') RETURNING id`,
-      args: [
-        program_id,
-        facilitatorCid,
-        session.name || null,
-        parsedWeek,
-        ...values,
-      ],
+    const result = await createFacilitatorReview({
+      program_id,
+      facilitatorCid,
+      facilitatorName: session.name || null,
+      weekNumber: parsedWeek,
+      values,
     });
 
     return NextResponse.json({
@@ -255,16 +219,10 @@ export async function PUT(req) {
 
     // PMs can only decide on reviews for programs they manage (or SA/staff)
     if (session.role === "program_manager") {
-      const review = await db.execute({
-        sql: "SELECT program_id FROM program_facilitator_reviews WHERE id = ?",
-        args: [id],
-      });
+      const review = await getReviewProgramId(id);
       const progId = review.rows[0]?.program_id;
       if (progId) {
-        const prog = await db.execute({
-          sql: "SELECT assigned_pm_id FROM v2_programs WHERE id = ?",
-          args: [progId],
-        });
+        const prog = await getProgramAssignedPmId(progId);
         if (prog.rows[0]?.assigned_pm_id !== session.cid) {
           return NextResponse.json(
             { success: false, error: "errors.insufficientPermissions" },
@@ -274,21 +232,11 @@ export async function PUT(req) {
       }
     }
 
-    await db.execute({
-      sql: `UPDATE program_facilitator_reviews SET
-              pm_decision = ?,
-              pm_decision_note = ?,
-              pm_decision_by = ?,
-              pm_decision_at = NOW(),
-              status = 'decided',
-              updated_at = NOW()
-            WHERE id = ?`,
-      args: [
-        pm_decision || null,
-        pm_decision_note || null,
-        session.cid || null,
-        id,
-      ],
+    await decideFacilitatorReview({
+      id,
+      pm_decision,
+      pm_decision_note,
+      decidedBy: session.cid,
     });
 
     return NextResponse.json({ success: true });

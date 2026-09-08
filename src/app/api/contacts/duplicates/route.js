@@ -1,7 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  getPendingDuplicateFlags,
+  dismissDuplicateFlag,
+} from "@/models/contacts";
 
 export const dynamic = "force-dynamic";
 
@@ -25,20 +29,7 @@ export async function GET(req) {
         ? Math.min(limitRaw, MAX_LIMIT)
         : DEFAULT_LIMIT;
 
-    const flags = await db.execute({
-      sql: `SELECT df.*,
-              ca.name AS contact_a_name, ca.email AS contact_a_email,
-              cb.name AS contact_b_name, cb.email AS contact_b_email
-            FROM contact_duplicate_flags df
-            LEFT JOIN contacts ca ON ca.cid = df.contact_cid_a
-            LEFT JOIN contacts cb ON cb.cid = df.contact_cid_b
-            WHERE df.status = 'pending'
-              AND (ca.deleted IS NULL OR ca.deleted = 0)
-              AND (cb.deleted IS NULL OR cb.deleted = 0)
-            ORDER BY df.created_at DESC
-            LIMIT ?`,
-      args: [limit],
-    });
+    const flags = await getPendingDuplicateFlags(limit);
 
     const result = flags.rows.map(
       ({ contact_a_name, contact_a_email, contact_b_name, contact_b_email, ...rest }) => ({
@@ -75,12 +66,7 @@ export async function DELETE(req) {
       );
 
     // Only dismiss flags that are still pending; never overwrite a merged flag.
-    const result = await db.execute({
-      sql: `UPDATE contact_duplicate_flags
-            SET status = 'dismissed', reviewed_by = ?, reviewed_at = NOW()
-            WHERE id = ? AND status = 'pending'`,
-      args: [session?.cid || null, id],
-    });
+    const result = await dismissDuplicateFlag(id, session?.cid || null);
 
     if (!result.rowsAffected) {
       return NextResponse.json(

@@ -1,6 +1,30 @@
 import { NextResponse } from "next/server";
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { requireAuth } from "@/lib/auth";
+import {
+  deleteFounderFormFields,
+  deleteFounderFormSections,
+  findFounderAssessmentForm,
+  getFormFieldsForSnapshot,
+  getFormForSnapshot,
+  getFormSectionsForSnapshot,
+  insertFounderAssessmentForm,
+  insertFounderProfileField,
+  insertFounderProfileSection,
+  insertOpenResponseField,
+  insertOpenResponseSection,
+  insertScoredAssessmentSection,
+  insertScoredRatingField,
+  publishFounderAssessmentForm,
+  resetFounderAssessmentForm,
+  setCustomerInterviewsLogic,
+  setIdeaValidationApproachLogic,
+  setMonthlyRecurringRevenueLogic,
+  setPayingCustomersLogic,
+  setTeamManagementLogic,
+  upsertFounderAssessmentCollection,
+  upsertFounderAssessmentVersion,
+} from "@/models/platformAi";
 
 /**
  * POST /api/platform/seed/founder-assessment
@@ -146,13 +170,7 @@ export async function POST() {
     if (authError) return authError;
 
     // ── Upsert Collection ──
-    const collRes = await db.execute({
-      sql: `INSERT INTO platform_collections (name, slug, description, status, visibility, tags, category, color, created_by)
-            VALUES ('Founder Assessments', 'founder-assessments', 'Standardized founder evaluation assessments for incubation and acceleration programs', 'active', 'internal', ARRAY['assessment','founder','scoring','evaluation'], 'Assessment', '#FF6600', 'system')
-            ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description, status = EXCLUDED.status, updated_at = NOW()
-            RETURNING id`,
-      args: [],
-    });
+    const collRes = await upsertFounderAssessmentCollection();
     const collectionId = collRes.rows[0].id;
 
     // ── Build scoring config ──
@@ -176,27 +194,23 @@ export async function POST() {
     };
 
     // ── Upsert Form ──
-    const existing = await db.execute({
-      sql: "SELECT id FROM platform_forms WHERE name = 'Founder Fit Score Assessment'",
-      args: [],
-    });
+    const existing = await findFounderAssessmentForm();
 
     let formId;
     if (existing.rows.length > 0) {
       formId = existing.rows[0].id;
-      await db.execute({ sql: "DELETE FROM platform_form_fields WHERE form_id = ?", args: [formId] });
-      await db.execute({ sql: "DELETE FROM platform_form_sections WHERE form_id = ?", args: [formId] });
-      await db.execute({
-        sql: `UPDATE platform_forms SET description = ?, collection_id = ?, visibility = ?, tags = ?, owner_id = 'system', owner_name = 'Platform', settings = ?, status = 'draft', version = 1, updated_at = NOW() WHERE id = ?`,
-        args: ["Intelligent assessment designed to evaluate whether an entrepreneur or founder is suitable for a startup incubation or acceleration program.", collectionId, "internal", ["founder", "assessment", "scoring", "incubation"], JSON.stringify(formSettings), formId],
-      });
+      await deleteFounderFormFields(formId);
+      await deleteFounderFormSections(formId);
+      await resetFounderAssessmentForm(
+        "Intelligent assessment designed to evaluate whether an entrepreneur or founder is suitable for a startup incubation or acceleration program.",
+        collectionId,
+        "internal",
+        ["founder", "assessment", "scoring", "incubation"],
+        formSettings,
+        formId
+      );
     } else {
-      const formRes = await db.execute({
-        sql: `INSERT INTO platform_forms (name, description, collection_id, status, visibility, version, tags, owner_id, owner_name, settings, created_by)
-              VALUES ('Founder Fit Score Assessment', 'Intelligent assessment designed to evaluate whether an entrepreneur or founder is suitable for a startup incubation or acceleration program.', ?, 'draft', 'internal', 1, ARRAY['founder','assessment','scoring','incubation'], 'system', 'Platform', ?, 'system')
-              RETURNING id`,
-        args: [collectionId, JSON.stringify(formSettings)],
-      });
+      const formRes = await insertFounderAssessmentForm(collectionId, formSettings);
       formId = formRes.rows[0].id;
     }
 
@@ -232,21 +246,14 @@ export async function POST() {
       { field_type: "file", label: "Prototype / Product Images", required: false, sort_order: 24, validation: { acceptedFiles: ".jpg,.png,.mp4", maxSize: 50 } },
     ];
 
-    const profileSec = await db.execute({
-      sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, 'Founder Profile', 'Basic founder and startup information', ?) RETURNING id",
-      args: [formId, sortOrder++],
-    });
+    const profileSec = await insertFounderProfileSection(formId, sortOrder++);
     const profileSecId = profileSec.rows[0].id;
 
     let stageOfBusinessFieldId = null;
     let teamSizeFieldId = null;
 
     for (const f of profileFields) {
-      const res = await db.execute({
-        sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, required, options, validation, sort_order)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-        args: [formId, profileSecId, f.field_type, f.label, f.required, f.options ? JSON.stringify(f.options) : null, f.validation ? JSON.stringify(f.validation) : null, f.sort_order],
-      });
+      const res = await insertFounderProfileField(formId, profileSecId, f);
       if (f.label === "Stage of Business") stageOfBusinessFieldId = res.rows[0].id;
       if (f.label === "Team Size") teamSizeFieldId = res.rows[0].id;
     }
@@ -256,18 +263,11 @@ export async function POST() {
     const isIdeaField = (label) => label === "Describe your idea validation approach" || label === "Have you conducted any customer interviews?";
 
     for (const sec of SCORED_SECTIONS) {
-      const secRes = await db.execute({
-        sql: "INSERT INTO platform_form_sections (form_id, title, sort_order) VALUES (?, ?, ?) RETURNING id",
-        args: [formId, sec.title, sortOrder++],
-      });
+      const secRes = await insertScoredAssessmentSection(formId, sec.title, sortOrder++);
       const secId = secRes.rows[0].id;
 
       for (let i = 0; i < sec.questions.length; i++) {
-        await db.execute({
-          sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, required, options, settings, sort_order)
-                VALUES (?, ?, 'rating', ?, true, ?, ?, ?)`,
-          args: [formId, secId, sec.questions[i], JSON.stringify(RATING_OPTIONS), JSON.stringify({ scored: true }), i],
-        });
+        await insertScoredRatingField(formId, secId, sec.questions[i], RATING_OPTIONS, i);
       }
     }
 
@@ -281,72 +281,45 @@ export async function POST() {
       "Where do you see yourself and your startup in 5 years?",
     ];
 
-    const openSec = await db.execute({
-      sql: "INSERT INTO platform_form_sections (form_id, title, sort_order) VALUES (?, 'Open Response', ?) RETURNING id",
-      args: [formId, sortOrder++],
-    });
+    const openSec = await insertOpenResponseSection(formId, sortOrder++);
     const openSecId = openSec.rows[0].id;
 
     for (let i = 0; i < openQuestions.length; i++) {
-      await db.execute({
-        sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, required, validation, sort_order)
-              VALUES (?, ?, 'textarea', ?, true, ?, ?)`,
-        args: [formId, openSecId, openQuestions[i], JSON.stringify({ minLength: 50 }), i],
-      });
+      await insertOpenResponseField(formId, openSecId, openQuestions[i], i);
     }
 
     // ── Apply conditional logic ──
     if (stageOfBusinessFieldId) {
       // Idea Stage
-      await db.execute({
-        sql: `UPDATE platform_form_fields SET conditional_logic = ?, updated_at = NOW()
-              WHERE form_id = ? AND label = 'Describe your idea validation approach'`,
-        args: [JSON.stringify({ field_id: stageOfBusinessFieldId, operator: "equals", value: "Idea Stage" }), formId],
-      });
-      await db.execute({
-        sql: `UPDATE platform_form_fields SET conditional_logic = ?, updated_at = NOW()
-              WHERE form_id = ? AND label = 'Have you conducted any customer interviews?'`,
-        args: [JSON.stringify({ field_id: stageOfBusinessFieldId, operator: "equals", value: "Idea Stage" }), formId],
-      });
+      await setIdeaValidationApproachLogic(
+        { field_id: stageOfBusinessFieldId, operator: "equals", value: "Idea Stage" },
+        formId
+      );
+      await setCustomerInterviewsLogic(
+        { field_id: stageOfBusinessFieldId, operator: "equals", value: "Idea Stage" },
+        formId
+      );
 
       // Revenue Generating or Scaling
       const revenueLogic = [
         { field_id: stageOfBusinessFieldId, operator: "equals", value: "Revenue Generating" },
         { field_id: stageOfBusinessFieldId, operator: "equals", value: "Scaling" },
       ];
-      await db.execute({
-        sql: `UPDATE platform_form_fields SET conditional_logic = ?, updated_at = NOW()
-              WHERE form_id = ? AND label = 'Monthly Recurring Revenue (USD)'`,
-        args: [JSON.stringify(revenueLogic), formId],
-      });
-      await db.execute({
-        sql: `UPDATE platform_form_fields SET conditional_logic = ?, updated_at = NOW()
-              WHERE form_id = ? AND label = 'Number of Paying Customers'`,
-        args: [JSON.stringify(revenueLogic), formId],
-      });
+      await setMonthlyRecurringRevenueLogic(revenueLogic, formId);
+      await setPayingCustomersLogic(revenueLogic, formId);
     }
 
     if (teamSizeFieldId) {
-      await db.execute({
-        sql: `UPDATE platform_form_fields SET conditional_logic = ?, updated_at = NOW()
-              WHERE form_id = ? AND label = 'How do you manage and coordinate your team?'`,
-        args: [JSON.stringify({ field_id: teamSizeFieldId, operator: "greater_than", value: "1" }), formId],
-      });
+      await setTeamManagementLogic(
+        { field_id: teamSizeFieldId, operator: "greater_than", value: "1" },
+        formId
+      );
     }
 
     // ── Publish ──
-    const sectionsRows = await db.execute({
-      sql: "SELECT * FROM platform_form_sections WHERE form_id = ? ORDER BY sort_order",
-      args: [formId],
-    });
-    const fieldsRows = await db.execute({
-      sql: "SELECT * FROM platform_form_fields WHERE form_id = ? ORDER BY sort_order",
-      args: [formId],
-    });
-    const formRow = await db.execute({
-      sql: "SELECT * FROM platform_forms WHERE id = ?",
-      args: [formId],
-    });
+    const sectionsRows = await getFormSectionsForSnapshot(formId);
+    const fieldsRows = await getFormFieldsForSnapshot(formId);
+    const formRow = await getFormForSnapshot(formId);
 
     const snapshot = {
       sections: sectionsRows.rows,
@@ -355,17 +328,9 @@ export async function POST() {
       publishedAt: new Date().toISOString(),
     };
 
-    await db.execute({
-      sql: `INSERT INTO platform_form_versions (form_id, version, snapshot, published_at, published_by)
-            VALUES (?, 1, ?, NOW(), 'system')
-            ON CONFLICT (form_id, version) DO UPDATE SET snapshot = EXCLUDED.snapshot, published_at = NOW()`,
-      args: [formId, JSON.stringify(snapshot)],
-    });
+    await upsertFounderAssessmentVersion(formId, snapshot);
 
-    await db.execute({
-      sql: "UPDATE platform_forms SET status = 'published', version = 1, updated_at = NOW() WHERE id = ?",
-      args: [formId],
-    });
+    await publishFounderAssessmentForm(formId);
 
     return NextResponse.json({
       success: true,

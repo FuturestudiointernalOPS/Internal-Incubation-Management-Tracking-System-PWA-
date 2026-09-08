@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   PlayCircle,
@@ -11,13 +11,14 @@ import {
   AlertCircle,
   ListVideo,
   Film,
+  X,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import LessonStateIcon from "./LessonStateIcon";
 import LearnerProgressBar from "./LearnerProgressBar";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
-import { isValidYouTubeVideoId } from "@/lib/lms/youtube";
+import { isValidYouTubeVideoId, buildYouTubeEmbedUrl } from "@/lib/lms/youtube";
 
 /**
  * COURSE PLAYER (learner).
@@ -36,7 +37,18 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [completing, setCompleting] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
   const [contentOpen, setContentOpen] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const completeTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(completeTimer.current), []);
+
+  // The video starts on a clean poster (no YouTube chrome); it is only
+  // embedded once the learner clicks play. Switching lessons resets it.
+  useEffect(() => {
+    setPlaying(false);
+  }, [lessonId]);
 
   const fetchCourse = useCallback(async () => {
     setLoading(true);
@@ -70,24 +82,36 @@ export default function LearnerPlayer({ courseId, lessonId }) {
 
   const isCompleted = !!lesson && lesson.state === "completed";
 
+  /** Refresh course data in the background — no full-page loading flash. */
+  const refreshSilently = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/lms/courses/${courseId}/learn`);
+      const json = await res.json();
+      if (json.success) setData(json);
+    } catch {
+      /* best-effort background refresh */
+    }
+  }, [courseId]);
+
   const complete = async () => {
-    if (!lesson || isCompleted) return;
+    if (!lesson || isCompleted || completing || justCompleted) return;
     setCompleting(true);
     try {
       const res = await fetch(`/api/lms/lessons/${lesson.id}/complete`, { method: "POST" });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "lms.errors.saveFailed");
+      // Update the page behind the overlay, then confirm with the check badge.
+      await refreshSilently();
+      setCompleting(false);
+      setJustCompleted(true);
       if (json.courseCompleted && json.certificate) {
         notify("success", "lms.certificate.courseCompleted");
-      } else {
-        notify("success", "lms.player.lessonCompleted");
       }
-      fetchCourse(); // refresh progress + states (server is the source of truth)
+      completeTimer.current = setTimeout(() => setJustCompleted(false), 2600);
     } catch (e) {
+      setCompleting(false);
       notify("error", "lms.player.saveProgressFailed");
       console.error("[LMS] complete error:", e);
-    } finally {
-      setCompleting(false);
     }
   };
 
@@ -122,8 +146,27 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   const { course, progress } = data;
   const videoId = isValidYouTubeVideoId(lesson.youtube_video_id) ? lesson.youtube_video_id : null;
 
+  // The assessment that follows this lesson, when there is one: the current
+  // section's assessment after its last lesson, else the first course-level
+  // assessment after the very last lesson. Surfaced as its own CTA so the
+  // learner does not have to find it in the sidebar.
+  const currentSection = data.sections.find((s) =>
+    (s.lessons || []).some((l) => String(l.id) === String(lessonId)),
+  );
+  const isSectionLast =
+    !!currentSection &&
+    currentSection.lessons.length > 0 &&
+    String(currentSection.lessons[currentSection.lessons.length - 1].id) === String(lessonId);
+  const isCourseLast = currentIndex >= 0 && currentIndex === lessons.length - 1;
+  const upcomingAssessment =
+    isSectionLast && currentSection?.assessment
+      ? currentSection.assessment
+      : isCourseLast && (data.courseAssessments || []).length > 0
+        ? data.courseAssessments[0]
+        : null;
+
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="relative max-w-6xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <button
@@ -166,14 +209,49 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
           >
             {videoId ? (
-              <iframe
-                className="absolute inset-0 w-full h-full"
-                src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1&color=white`}
-                title={lesson.title}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
+              playing ? (
+                <>
+                  <iframe
+                    className="absolute inset-0 w-full h-full"
+                    src={buildYouTubeEmbedUrl(videoId, { autoplay: true, loop: true })}
+                    title={lesson.title}
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPlaying(false)}
+                    title={t("common.close")}
+                    className="absolute top-2 right-2 z-10 p-1.5 rounded-full transition-colors"
+                    style={{ background: "rgba(0,0,0,0.6)", color: "rgba(255,255,255,0.9)" }}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPlaying(true)}
+                  title={t("lms.player.playVideo")}
+                  className="absolute inset-0 w-full h-full flex items-center justify-center group"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+                    alt=""
+                    aria-hidden="true"
+                    className="absolute inset-0 w-full h-full object-cover"
+                    loading="lazy"
+                  />
+                  <span
+                    className="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110"
+                    style={{ background: "rgba(0,0,0,0.55)" }}
+                  >
+                    <PlayCircle className="w-9 h-9" style={{ color: "rgba(255,255,255,0.95)" }} />
+                  </span>
+                </button>
+              )
             ) : (
               <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                 <Film className="w-10 h-10" style={{ color: "var(--text-tertiary)" }} />
@@ -230,6 +308,41 @@ export default function LearnerPlayer({ courseId, lessonId }) {
             </div>
           </div>
 
+          {/* Up-next assessment CTA (last lesson of a section / of the course) */}
+          {upcomingAssessment && (
+            <div
+              className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border px-4 py-3"
+              style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <HelpCircle className="w-5 h-5 shrink-0" style={{ color: "var(--brand-blue)" }} />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                    {t("lms.player.upNext")}
+                  </p>
+                  <p className="text-xs font-black truncate" style={{ color: "var(--text-primary)" }}>
+                    {upcomingAssessment.title}
+                  </p>
+                </div>
+              </div>
+              {upcomingAssessment.passed ? (
+                <AppButton variant="success" icon={CheckCircle2} disabled>
+                  {t("lms.assessment.passed")}
+                </AppButton>
+              ) : (
+                <AppButton
+                  variant="primary"
+                  icon={HelpCircle}
+                  onClick={() => openAssessment(upcomingAssessment.id)}
+                >
+                  {upcomingAssessment.attempted
+                    ? t("lms.assessment.tryAgain")
+                    : t("lms.player.startAssessment")}
+                </AppButton>
+              )}
+            </div>
+          )}
+
           {/* Mobile content toggle */}
           <button
             type="button"
@@ -248,6 +361,36 @@ export default function LearnerPlayer({ courseId, lessonId }) {
           <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={go} onOpenAssessment={openAssessment} />
         </div>
       </div>
+
+      {/* In-place completion feedback: blur the page, confirm, then fade back. */}
+      {(completing || justCompleted) && (
+        <div
+          className="absolute inset-0 z-30 flex items-center justify-center rounded-xl"
+          style={{ background: "rgba(127,127,127,0.12)", backdropFilter: "blur(3px)" }}
+          aria-live="polite"
+        >
+          <div
+            className="flex items-center gap-3 rounded-2xl border px-6 py-4"
+            style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+          >
+            {completing ? (
+              <>
+                <span className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin shrink-0" />
+                <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                  {t("lms.player.saving")}
+                </p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-6 h-6 shrink-0" style={{ color: "var(--chart-success)" }} />
+                <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--chart-success)" }}>
+                  {t("lms.player.lessonCompleted")}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

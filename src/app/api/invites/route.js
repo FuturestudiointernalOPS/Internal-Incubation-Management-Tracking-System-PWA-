@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import db from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { createHandler } from "@/lib/api/createHandler";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
+import { ensureInvitationsTable, createInvitation, listActiveInvites } from "@/models/groups";
 
 export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
   // Rate limit: 20 program invite links per IP per 10 minutes
@@ -31,19 +31,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
 
   // Ensure table exists
   try {
-    await db.execute({
-      sql: `CREATE TABLE IF NOT EXISTS v2_invitations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        token TEXT NOT NULL UNIQUE,
-        program_id TEXT NOT NULL,
-        group_name TEXT,
-        team_id TEXT,
-        role TEXT DEFAULT 'participant',
-        expires_at TIMESTAMP NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )`,
-      args: [],
-    });
+    await ensureInvitationsTable();
   } catch (_) {}
 
   // Ensure the hashed-token column exists (idempotent, cached once per process)
@@ -59,20 +47,16 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
   }
 
   try {
-    await db.execute({
-      sql: `INSERT INTO v2_invitations (token, token_hash, program_id, group_name, team_id, role, email, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [
-        token,
-        hashToken(token),
-        program_id,
-        group_name || null,
-        team_id || null,
-        role,
-        '',
-        expiresAt.toISOString().replace("T", " ").replace("Z", ""),
-      ],
-    });
+    await createInvitation(
+      token,
+      hashToken(token),
+      program_id,
+      group_name,
+      team_id,
+      role,
+      '',
+      expiresAt.toISOString().replace("T", " ").replace("Z", ""),
+    );
 
     // Detect the base URL dynamically from the request headers
     const protocol = req.headers.get("x-forwarded-proto") || "http";
@@ -101,16 +85,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
 
-    let query =
-      "SELECT * FROM v2_invitations WHERE expires_at > datetime('now')";
-    let args = [];
-
-    if (program_id) {
-      query += " AND program_id = ?";
-      args.push(program_id);
-    }
-
-    const result = await db.execute({ sql: query, args });
+    const result = await listActiveInvites(program_id);
     return NextResponse.json({ invites: result.rows });
   } catch (error) {
     console.error("[Fetch Invites Error]:", error);

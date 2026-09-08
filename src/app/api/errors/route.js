@@ -1,7 +1,16 @@
 import { initDb } from "@/lib/db";
-import db from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  findRecentErrorByFingerprint,
+  findRecentErrorByMessageAndPage,
+  incrementErrorOccurrence,
+  insertErrorLog,
+  listErrorLogs,
+  updateErrorResolution,
+  updateErrorResolutionNotes,
+  updateErrorTaskId,
+} from "@/models/adminOps";
 
 /**
  * Auto-categorize an error based on its properties.
@@ -59,22 +68,7 @@ function buildFingerprint({ message, page }) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const {
-      message,
-      stack,
-      url,
-      user_id,
-      user_name,
-      user_role,
-      user_agent,
-      severity,
-      status_code,
-      method,
-      endpoint,
-      request_body,
-      page,
-      action_attempted,
-    } = body;
+    const { message, page } = body;
 
     if (!message) {
       return NextResponse.json(
@@ -91,28 +85,12 @@ export async function POST(request) {
     // Dedup: check if same error exists within last 24 hours and is unresolved
     let existing = null;
     try {
-      const result = await db.execute({
-        sql: `SELECT id, occurrence_count FROM error_logs
-              WHERE fingerprint = ?
-                AND created_at > NOW() - INTERVAL '24 hours'
-                AND (resolved IS NULL OR resolved = false)
-              ORDER BY created_at DESC
-              LIMIT 1`,
-        args: [fingerprint],
-      });
+      const result = await findRecentErrorByFingerprint(fingerprint);
       existing = result.rows[0] || null;
     } catch (_) {
       // fingerprint column may not exist yet — fallback to message+page matching
       try {
-        const result = await db.execute({
-          sql: `SELECT id, occurrence_count FROM error_logs
-                WHERE message = ? AND COALESCE(page, '') = COALESCE(?, '')
-                  AND created_at > NOW() - INTERVAL '24 hours'
-                  AND (resolved IS NULL OR resolved = false)
-                ORDER BY created_at DESC
-                LIMIT 1`,
-          args: [message, page || ""],
-        });
+        const result = await findRecentErrorByMessageAndPage(message, page);
         existing = result.rows[0] || null;
       } catch (_) {
         existing = null;
@@ -123,28 +101,7 @@ export async function POST(request) {
       // Increment occurrence count
       const err = existing;
       const newCount = (parseInt(err.occurrence_count) || 1) + 1;
-      await db.execute({
-        sql: `UPDATE error_logs
-              SET occurrence_count = ?, created_at = NOW(), user_id = ?, user_name = ?, user_role = ?, page = ?, action_attempted = ?, url = ?, status_code = ?, method = ?, endpoint = ?, request_body = ?, user_agent = ?, severity = ?, stack = ?
-              WHERE id = ?`,
-        args: [
-          newCount,
-          user_id || null,
-          user_name || null,
-          user_role || null,
-          page || null,
-          action_attempted || null,
-          url || null,
-          status_code || null,
-          method || null,
-          endpoint || null,
-          request_body || null,
-          user_agent || null,
-          severity || "error",
-          stack || null,
-          err.id,
-        ],
-      });
+      await incrementErrorOccurrence(err.id, newCount, body);
 
       return NextResponse.json({
         success: true,
@@ -155,32 +112,7 @@ export async function POST(request) {
     }
 
     // New error — insert with category and fingerprint
-    const result = await db.execute({
-      sql: `INSERT INTO error_logs
-            (message, stack, url, user_id, user_name, user_role, user_agent,
-             severity, status_code, method, endpoint, request_body,
-             page, action_attempted, category, fingerprint, occurrence_count)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
-            RETURNING id`,
-      args: [
-        message,
-        stack || null,
-        url || null,
-        user_id || null,
-        user_name || null,
-        user_role || null,
-        user_agent || null,
-        severity || "error",
-        status_code || null,
-        method || null,
-        endpoint || null,
-        request_body || null,
-        page || null,
-        action_attempted || null,
-        category,
-        fingerprint,
-      ],
-    });
+    const result = await insertErrorLog(body, category, fingerprint);
 
     const newId = result.rows?.[0]?.id || result.lastInsertRowid;
     return NextResponse.json({
@@ -214,33 +146,7 @@ export async function GET(request) {
 
     await initDb();
 
-    let sql = "SELECT * FROM error_logs WHERE 1=1";
-    const args = [];
-
-    if (severity) {
-      sql += " AND severity = ?";
-      args.push(severity);
-    }
-
-    if (resolved === "true") {
-      sql += " AND resolved = true";
-    } else if (resolved === "false") {
-      sql += " AND (resolved IS NULL OR resolved = false)";
-    }
-
-    if (category) {
-      sql += " AND category = ?";
-      args.push(category);
-    }
-
-    if (search) {
-      sql += " AND message ILIKE ?";
-      args.push(`%${search}%`);
-    }
-
-    sql += " ORDER BY created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listErrorLogs({ severity, resolved, category, search });
 
     return NextResponse.json({ success: true, errors: result.rows });
   } catch (err) {
@@ -272,27 +178,13 @@ export async function PATCH(request) {
     await initDb();
 
     if (typeof resolved === "boolean") {
-      await db.execute({
-        sql: "UPDATE error_logs SET resolved = ?, resolution_notes = ?, resolved_at = CASE WHEN ? THEN NOW() ELSE NULL END WHERE id = ?",
-        args: [
-          resolved ? 1 : 0,
-          resolution_notes || null,
-          resolved ? 1 : 0,
-          id,
-        ],
-      });
+      await updateErrorResolution(id, resolved, resolution_notes);
     } else if (resolution_notes !== undefined) {
-      await db.execute({
-        sql: "UPDATE error_logs SET resolution_notes = ? WHERE id = ?",
-        args: [resolution_notes, id],
-      });
+      await updateErrorResolutionNotes(id, resolution_notes);
     }
 
     if (task_id !== undefined) {
-      await db.execute({
-        sql: "UPDATE error_logs SET task_id = ? WHERE id = ?",
-        args: [task_id, id],
-      });
+      await updateErrorTaskId(id, task_id);
     }
 
     return NextResponse.json({ success: true });

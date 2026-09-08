@@ -1,6 +1,7 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { executeMigrationStatement } from "@/models/adminOps";
 
 /**
  * TEMPORARY MIGRATION RUNNER
@@ -99,7 +100,7 @@ export async function POST() {
 
     for (const sql of MIGRATION_STATEMENTS) {
       try {
-        await db.execute({ sql, args: [] });
+        await executeMigrationStatement(sql);
         results.push({ sql: sql.substring(0, 80) + "...", status: "ok" });
       } catch (e) {
         errors.push({ sql: sql.substring(0, 80) + "...", error: e.message });

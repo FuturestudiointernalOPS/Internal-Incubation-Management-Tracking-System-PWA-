@@ -35,8 +35,7 @@ export default function ForgotPasswordPage() {
         setSent(true);
       } else {
         setError(
-          t((data.error || "Failed to send reset email.") || "") ||
-            (data.error || "Failed to send reset email."),
+          t(data.error || "Failed to send reset email.") || data.error || "Failed to send reset email.",
         );
       }
     } catch (err) {

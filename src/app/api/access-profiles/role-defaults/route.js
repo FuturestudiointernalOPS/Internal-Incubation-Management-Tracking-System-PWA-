@@ -1,7 +1,12 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession, logPermissionAudit } from "@/lib/auth";
 import { requireAuthorization, assertTemplateCapsEligible, invalidateAllAuthorizationContexts } from "@/lib/authorization";
+import {
+  getActiveProfileForRoleDefault,
+  setRoleDefaultProfile,
+  listRoleDefaultMappings,
+} from "@/models/authorization";
 
 /**
  * PUT /api/access-profiles/role-defaults
@@ -26,10 +31,7 @@ export async function PUT(req) {
     }
 
     // Verify profile exists
-    const profile = await db.execute({
-      sql: "SELECT id, name FROM access_profiles WHERE id = ? AND is_active = 1",
-      args: [profile_id],
-    });
+    const profile = await getActiveProfileForRoleDefault(profile_id);
     if (profile.rows.length === 0) {
       return NextResponse.json(
         { success: false, error: "Access profile not found or inactive" },
@@ -55,12 +57,7 @@ export async function PUT(req) {
       );
     }
 
-    await db.execute({
-      sql: `INSERT INTO role_access_profile_defaults (role_name, access_profile_id)
-            VALUES (?, ?)
-            ON CONFLICT (role_name) DO UPDATE SET access_profile_id = ?`,
-      args: [role_name, profile_id, profile_id],
-    });
+    await setRoleDefaultProfile(role_name, profile_id);
 
     await logPermissionAudit({
       actorCid: session?.cid,
@@ -96,12 +93,7 @@ export async function GET() {
     if (capError) return capError;
 
     await initDb();
-    const mappings = await db.execute({
-      sql: `SELECT rpd.role_name, ap.id as profile_id, ap.name as profile_name, ap.is_active
-            FROM role_access_profile_defaults rpd
-            JOIN access_profiles ap ON ap.id = rpd.access_profile_id
-            ORDER BY rpd.role_name`,
-    });
+    const mappings = await listRoleDefaultMappings();
 
     return NextResponse.json({
       success: true,

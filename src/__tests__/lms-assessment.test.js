@@ -35,7 +35,7 @@ jest.mock("@/lib/authorization", () => ({
 
 const { requireAuth } = require("@/lib/auth");
 
-const { scoreAssessment } = require("@/lib/lms/scoring");
+const { scoreAssessment, analyzePassMark, DEFAULT_PASS_MARK } = require("@/lib/lms/scoring");
 const {
   getAssessmentForTake,
   submitAssessment,
@@ -459,5 +459,70 @@ describe("Assessment API routes", () => {
     expect(data.attempt.percent).toBe(100);
     expect(data.attempt.passed).toBe(true);
     expect(data.attempt.attempt_number).toBe(1);
+  });
+});
+
+describe("analyzePassMark — pass-mark feasibility for authoring", () => {
+  test("no questions → unreachable, no minimum", () => {
+    const a = analyzePassMark(70, []);
+    expect(a.reachable).toBe(false);
+    expect(a.count).toBe(0);
+    expect(a.totalPoints).toBe(0);
+    expect(a.minCorrect).toBeNull();
+    expect(a.perfectScoreRequired).toBe(false);
+  });
+
+  test("null/empty pass mark uses the shared default (70)", () => {
+    expect(DEFAULT_PASS_MARK).toBe(70);
+    expect(analyzePassMark(null, [Q_MC, Q_TF]).threshold).toBe(DEFAULT_PASS_MARK);
+    expect(analyzePassMark("", [Q_MC, Q_TF]).threshold).toBe(DEFAULT_PASS_MARK);
+    expect(analyzePassMark(null, [Q_MC, Q_TF]).usesDefault).toBe(true);
+    expect(analyzePassMark(80, [Q_MC, Q_TF]).usesDefault).toBe(false);
+  });
+
+  test("2 questions at the default 70% pass mark need a perfect score", () => {
+    const a = analyzePassMark(null, [Q_MC, Q_TF]);
+    expect(a.minCorrect).toBe(2); // 1/2 → 50%, below 70
+    expect(a.percentAtMinCorrect).toBe(100);
+    expect(a.perfectScoreRequired).toBe(true);
+    expect(a.reachable).toBe(true);
+  });
+
+  test("10 questions at 70% need 7 correct — not a perfect score", () => {
+    const ten = Array.from({ length: 10 }, (_, i) => ({ ...Q_MC, id: `Q-${i}` }));
+    const a = analyzePassMark(70, ten);
+    expect(a.minCorrect).toBe(7);
+    expect(a.percentAtMinCorrect).toBe(70);
+    expect(a.perfectScoreRequired).toBe(false);
+  });
+
+  test("3 questions at 60% pass with 2 correct (rounds to 67%)", () => {
+    const three = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
+    const a = analyzePassMark(60, three);
+    expect(a.minCorrect).toBe(2);
+    expect(a.percentAtMinCorrect).toBe(67);
+    expect(a.perfectScoreRequired).toBe(false);
+  });
+
+  test("3 questions at 70% again require a perfect score (rounding trap)", () => {
+    const three = [Q_MC, Q_TF, { ...Q_MC, id: "Q-3" }];
+    const a = analyzePassMark(70, three);
+    expect(a.minCorrect).toBe(3);
+    expect(a.percentAtMinCorrect).toBe(100);
+    expect(a.perfectScoreRequired).toBe(true);
+  });
+
+  test("0% pass mark is met from zero correct answers", () => {
+    const a = analyzePassMark(0, [Q_MC, Q_TF]);
+    expect(a.reachable).toBe(true);
+    expect(a.minCorrect).toBe(0);
+    expect(a.perfectScoreRequired).toBe(false);
+  });
+
+  test("sums question points for display (each clamped to at least 1)", () => {
+    const mixed = [Q_MC, { ...Q_TF, points: 3 }, { ...Q_MC, id: "Q-3", points: 0 }];
+    const a = analyzePassMark(70, mixed);
+    expect(a.count).toBe(3);
+    expect(a.totalPoints).toBe(5); // 1 + 3 + 1 (0 is clamped up)
   });
 });

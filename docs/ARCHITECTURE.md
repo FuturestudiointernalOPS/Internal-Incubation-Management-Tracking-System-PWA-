@@ -32,9 +32,9 @@ This is why some routes check role AND capability — role gets you in the door,
 ## Data Layer
 
 - `src/lib/db.js` — single Postgres connection pool (`pg`), lazy-initialized from `DATABASE_URL`. All DB access goes through this module's `execute()`-style query wrapper.
+- **Model layer — `src/models/`** (MVC refactor, waves 0–6): every SQL statement lives in a domain model module under `src/models/**` (files + domain folders: `lms/`, `authorization/`, `finance/`, `platform/`, `integrations/`). API route handlers (`src/app/api/**/route.js`) are thin controllers — they authenticate, validate, orchestrate model calls and shape responses; they contain **no inline SQL**. Pages/components never import the db layer. Legacy domain modules that used to live in `src/lib` now sit in `src/models` behind facades re-exported from their old `src/lib` paths (e.g. `src/lib/ventures.js`, `src/lib/taskAudit.js`), so old import paths keep working. See `docs/MVC_REFACTOR.md`.
 - `src/migrations/*.sql` — schema migrations, applied manually/historically.
 - `scripts/migrations/*.mjs` — Node-based migration/seed/backfill scripts, re-runnable (check for "already exists" before erroring).
-- Two legacy SQLite files (`src/lib/impactos.db`, `src/lib/impact_os_v2.db`) are present in the repo from an earlier pre-Postgres iteration — not used by the current `db.js` (which is Postgres-only). Worth confirming with the team whether these can be removed; they're tracked in git as binary files.
 
 ## Roles & Routing
 

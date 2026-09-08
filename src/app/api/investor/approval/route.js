@@ -1,7 +1,14 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { sendEmail } from "@/lib/mailer";
+import {
+  getInvestorWithContactByProfileId,
+  listInvestorsByApprovalStatus,
+  notifyInvestorOfApprovalStatus,
+  setInvestorApprovalStatus,
+  setInvestorReviewNotes,
+} from "@/models/investorRelations";
 
 /** GET /api/investor/approval — list investors by status (admin only) */
 export async function GET(req) {
@@ -14,25 +21,7 @@ export async function GET(req) {
     const status = searchParams.get("status") || "all";
     const search = searchParams.get("search") || "";
 
-    let sql = `SELECT ip.*, c.name, c.email, c.status as contact_status, c.created_at as joined_at
-               FROM investor_profiles ip
-               JOIN contacts c ON ip.user_id = c.cid
-               WHERE 1=1`;
-    const args = [];
-
-    if (status !== "all") {
-      sql += " AND ip.approval_status = ?";
-      args.push(status);
-    }
-    if (search) {
-      sql += " AND (c.name ILIKE ? OR c.email ILIKE ? OR ip.organization_name ILIKE ?)";
-      const q = `%${search}%`;
-      args.push(q, q, q);
-    }
-
-    sql += " ORDER BY ip.created_at DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listInvestorsByApprovalStatus({ status, search });
     return NextResponse.json({ success: true, investors: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -61,25 +50,15 @@ export async function POST(req) {
     const newStatus = statusMap[action];
 
     // Update profile
-    await db.execute({
-      sql: "UPDATE investor_profiles SET approval_status = ?, updated_at = NOW() WHERE id = ?",
-      args: [newStatus, profile_id],
-    });
+    await setInvestorApprovalStatus(profile_id, newStatus);
 
     // Save review notes if provided
     if (reason) {
-      await db.execute({
-        sql: "UPDATE investor_profiles SET review_notes = ?, reviewed_at = NOW(), updated_at = NOW() WHERE id = ?",
-        args: [reason, profile_id],
-      });
+      await setInvestorReviewNotes(profile_id, reason);
     }
 
     // Get investor with contact info for notification
-    const investor = await db.execute({
-      sql: `SELECT ip.*, c.name, c.email FROM investor_profiles ip
-            JOIN contacts c ON ip.user_id = c.cid WHERE ip.id = ?`,
-      args: [profile_id],
-    });
+    const investor = await getInvestorWithContactByProfileId(profile_id);
 
     const inv = investor.rows[0];
     if (inv && inv.email) {
@@ -94,15 +73,11 @@ export async function POST(req) {
 
       // Create notification
       try {
-        await db.execute({
-          sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-                VALUES (?, ?, ?, 'investor', 0, NOW())`,
-          args: [
-            inv.user_id,
-            `Investor Account ${statusLabels[newStatus]}`,
-            `Your investor account has been ${statusLabels[newStatus]}.${newStatus === "approved" ? " Welcome to Investor OS!" : ""}`,
-          ],
-        });
+        await notifyInvestorOfApprovalStatus(
+          inv.user_id,
+          `Investor Account ${statusLabels[newStatus]}`,
+          `Your investor account has been ${statusLabels[newStatus]}.${newStatus === "approved" ? " Welcome to Investor OS!" : ""}`,
+        );
       } catch (_) {}
     }
 

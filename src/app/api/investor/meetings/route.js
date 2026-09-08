@@ -1,7 +1,11 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { requireAuthorization } from "@/lib/authorization";
+import {
+  insertInvestorMeeting,
+  listInvestorMeetingEvents,
+} from "@/models/investorRelations";
 
 /** GET /api/investor/meetings?venture_id=X */
 export async function GET(req) {
@@ -13,20 +17,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
 
-    let sql = `SELECT e.*, p.name as venture_name
-               FROM v2_events e
-               LEFT JOIN v2_programs p ON e.program_id = p.id
-               WHERE e.event_type = 'investor_meeting'`;
-    const args = [];
-
-    if (ventureId) {
-      sql += " AND e.program_id = ?";
-      args.push(ventureId);
-    }
-
-    sql += " ORDER BY e.start_time DESC";
-
-    const result = await db.execute({ sql, args });
+    const result = await listInvestorMeetingEvents({ ventureId });
     return NextResponse.json({ success: true, meetings: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -47,11 +38,15 @@ export async function POST(req) {
       return NextResponse.json({ success: false, error: "Title and start_time required" }, { status: 400 });
     }
 
-    const result = await db.execute({
-      sql: `INSERT INTO v2_events (program_id, title, description, event_type, start_time, end_time, location, created_by)
-            VALUES (?, ?, ?, 'investor_meeting', ?, ?, ?, ?) RETURNING *`,
-      args: [venture_id || null, title, description || null, start_time, end_time || null, location || "video", session.cid || session.id],
-    });
+    const result = await insertInvestorMeeting(
+      venture_id || null,
+      title,
+      description || null,
+      start_time,
+      end_time || null,
+      location || "video",
+      session.cid || session.id,
+    );
 
     return NextResponse.json({ success: true, meeting: result.rows[0] });
   } catch (error) {

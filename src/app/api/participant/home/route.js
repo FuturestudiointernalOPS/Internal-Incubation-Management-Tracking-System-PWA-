@@ -1,7 +1,19 @@
-import db, { initDb } from "@/lib/db";
+import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { getParticipantProgramIds } from "@/lib/participant-membership";
+import {
+  getHomeContactByCid,
+  getHomeProgramById,
+  getHomeSessionsByProgramId,
+  getHomeDeliverablesByProgramId,
+  getHomeSubmissionsByParticipantProgram,
+  getHomeAttendanceByProgram,
+  getHomeKpisByProgramId,
+  countHomeAttendanceByProgramId,
+  getHomeNotifications,
+  getHomeEventsByProgramIds,
+} from "@/models/participantPortal";
 
 export const dynamic = "force-dynamic";
 
@@ -23,10 +35,7 @@ export async function GET(req) {
     const cid = session.cid;
     const email = session.email;
 
-    const contactRes = await db.execute({
-      sql: "SELECT cid, name, email, group_name, program_id, program_name, role FROM contacts WHERE cid = ?",
-      args: [cid],
-    });
+    const contactRes = await getHomeContactByCid(cid);
 
     if (contactRes.rows.length === 0) {
       return NextResponse.json(
@@ -47,30 +56,12 @@ export async function GET(req) {
     for (const pid of programIdList) {
       const [progRes, sesRes, delRes, subRes, attRes, kpiRes] =
         await Promise.all([
-          db.execute({
-            sql: "SELECT * FROM v2_programs WHERE id::text = ?",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_sessions WHERE program_id::text = ? ORDER BY week_number ASC, start_at ASC",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_document_requirements WHERE program_id::text = ? ORDER BY created_at ASC",
-            args: [pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_submissions WHERE participant_id::text = ? AND program_id::text = ?",
-            args: [cid, pid],
-          }),
-          db.execute({
-            sql: "SELECT a.* FROM v2_attendance a JOIN v2_sessions s ON a.session_id::text = s.id::text WHERE a.participant_id::text = ? AND s.program_id::text = ?",
-            args: [cid, pid],
-          }),
-          db.execute({
-            sql: "SELECT * FROM v2_kpis WHERE program_id::text = ?",
-            args: [pid],
-          }),
+          getHomeProgramById(pid),
+          getHomeSessionsByProgramId(pid),
+          getHomeDeliverablesByProgramId(pid),
+          getHomeSubmissionsByParticipantProgram(cid, pid),
+          getHomeAttendanceByProgram(cid, pid),
+          getHomeKpisByProgramId(pid),
         ]);
 
       const program = progRes.rows[0];
@@ -135,10 +126,7 @@ export async function GET(req) {
       );
 
       // A program "tracks" attendance only when attendance records actually exist.
-      const attMetaRes = await db.execute({
-        sql: "SELECT COUNT(*) AS total FROM v2_attendance WHERE program_id::text = ?",
-        args: [program.id],
-      });
+      const attMetaRes = await countHomeAttendanceByProgramId(program.id);
       const attendanceTracked = parseInt(attMetaRes.rows[0]?.total || 0) > 0;
       // Expected attendance = sessions unlocked so far (future sessions don't count).
       const totalExpectedDays = unlockedSessions.length || 1;
@@ -319,10 +307,7 @@ export async function GET(req) {
           .slice(0, 5)
       : [];
 
-    const notifRes = await db.execute({
-      sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? OR recipient_id = 'all' OR recipient_id = ? ORDER BY created_at DESC LIMIT 10",
-      args: [cid, email],
-    });
+    const notifRes = await getHomeNotifications(cid, email);
     const announcements = (notifRes.rows || []).map((n) => ({
       id: n.id,
       title: n.title,
@@ -391,11 +376,7 @@ export async function GET(req) {
     // Fetch events from v2_events for all enrolled programs
     try {
       if (programIdList.length > 0) {
-        const placeholders = programIdList.map(() => "?").join(",");
-        const eventRes = await db.execute({
-          sql: `SELECT * FROM v2_events WHERE program_id IN (${placeholders}) AND start_time IS NOT NULL ORDER BY start_time ASC`,
-          args: programIdList,
-        });
+        const eventRes = await getHomeEventsByProgramIds(programIdList);
         for (const ev of eventRes.rows || []) {
           const d = new Date(ev.start_time);
           const dateStr = d.toISOString().split("T")[0];
