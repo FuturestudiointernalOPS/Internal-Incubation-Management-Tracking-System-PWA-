@@ -1,3 +1,5 @@
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility-defaults";
+
 /**
  * ImpactOS — Responsibility → Feature Access (seed + helpers)
  *
@@ -13,6 +15,13 @@
  * - Once the SA saves a config (even an empty list = "nobody"), that saved
  *   value wins and this seed is ignored for that responsibility.
  *
+ * The DEFAULT role allowlists are derived from FEATURE_ELIGIBILITY_DEFAULTS
+ * (single source of truth) — the same role lists that seed feature
+ * eligibility — so the two can never drift. RESPONSIBILITY_FEATURES lists
+ * which features have a responsibility; to make another feature
+ * responsibility-driven, add it here and to seedDefaultResponsibilities() +
+ * RESPONSIBILITY_NAV (src/lib/masterNavigation.js).
+ *
  * A responsibility grants navigation + dashboards. But if the underlying
  * feature API rejects the user's role, the nav item appears and clicking it
  * fails (redirect to login / 403). This module powers the amber warnings in:
@@ -24,58 +33,55 @@
  * the server-side route allowlists.
  */
 
-// Initial defaults — used to seed the DB once and as fallback for
-// responsibilities that have not been configured yet.
-export const RESPONSIBILITY_FEATURE_ROLES = {
+/**
+ * Features that have an assignable responsibility. Order preserved for
+ * readability; lookups are key-based.
+ */
+export const RESPONSIBILITY_FEATURES = [
   // Financial operations — budgets, transactions, reports
-  finance: ["super_admin", "staff"],
+  "finance",
   // CRM — people, contacts, timeline, membership, duplicates
-  crm: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
+  "crm",
   // Communication — messaging, announcements, forms (distinct from CRM)
-  communication: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
+  "communication",
   // Program oversight — programs, participants, submissions
-  program_management: ["super_admin", "staff", "program_manager", "teacher"],
+  "program_management",
   // Project management — projects, tasks, team reporting
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
+  "project_ownership",
   // Internal operations — workspace, reports, standups
-  operations: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
+  "operations",
   // Reports and analytics
-  reporting: ["super_admin", "staff", "program_manager", "teacher"],
+  "reporting",
   // Knowledge management
-  knowledge_base: ["super_admin", "staff"],
+  "knowledge_base",
   // Business intelligence and trends
-  intelligence: ["super_admin", "developer"],
+  "intelligence",
   // Engineering operations — tasks, standups, retros, error logs
-  engineering: ["super_admin", "developer"],
+  "engineering",
   // User administration — personnel, permissions
-  user_management: ["super_admin"],
+  "user_management",
   // System configuration
-  system_settings: ["super_admin"],
-};
+  "system_settings",
+  // LMS — course management (admin authoring area)
+  "lms",
+  // Tasks — task management (task lists, tasks, blockers)
+  "tasks",
+  // Ventures — venture portfolio & registrations
+  "ventures",
+  // Investor — investor records, reviews, campaigns
+  "investor",
+];
+
+/**
+ * Role allowlist per responsibility — mirrors the feature's eligibility
+ * defaults (single source of truth in models/authorization/eligibility-defaults).
+ */
+export const RESPONSIBILITY_FEATURE_ROLES = Object.fromEntries(
+  RESPONSIBILITY_FEATURES.map((key) => [
+    key,
+    [...(FEATURE_ELIGIBILITY_DEFAULTS[key] || [])],
+  ]),
+);
 
 // Canonical role list offered in the "Responsibility Access" toggle UI.
 // Keep in sync with src/lib/platform/roles.js when new roles are added.

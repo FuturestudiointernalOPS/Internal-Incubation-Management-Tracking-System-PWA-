@@ -59,7 +59,7 @@ jest.mock("@/lib/auth", () => {
         "reviews.submit",
       ],
     },
-    lms: { capabilities: ["view", "create", "edit", "delete", "publish", "enroll"] },
+    lms: { capabilities: ["view", "create", "edit", "delete"] },
   };
   return {
     PERMISSION_MODULES,
@@ -784,17 +784,17 @@ describe("requireAuthorization", () => {
   });
 });
 
-// ─── LMS module (Phase 12) — capability-only, no eligibility entry ──────────
+// ─── LMS module (Phase 12) — feature-gated after promotion ───────────────────
 
 describe("lms module", () => {
-  test("MODULE_TO_FEATURE does not map lms — capability-only in Phase 1", () => {
+  test("MODULE_TO_FEATURE maps lms → lms (feature-gated)", () => {
     const { MODULE_TO_FEATURE } = require("@/lib/authorization/eligibility");
-    expect(MODULE_TO_FEATURE.lms).toBeUndefined();
+    expect(MODULE_TO_FEATURE.lms).toBe("lms");
   });
 
-  test("delegated staff with lms.create is allowed", () => {
+  test("delegated staff with lms.create is allowed when eligible", () => {
     const ctx = staffCtx({
-      eligibility: {},
+      eligibility: { lms: true },
       effective: { lms: { view: 1, create: 2 } },
     });
     expect(authorize(ctx, "lms", "create")).toBe(true);
@@ -802,7 +802,12 @@ describe("lms module", () => {
   });
 
   test("staff without lms capabilities is denied (no default grant)", () => {
-    const ctx = staffCtx({ eligibility: {}, effective: { programs: { view: 1 } } });
+    const ctx = staffCtx({ eligibility: { lms: true }, effective: { programs: { view: 1 } } });
+    expect(authorize(ctx, "lms", "view")).toBe(false);
+  });
+
+  test("ineligible user is denied even with lms capability", () => {
+    const ctx = staffCtx({ eligibility: {}, effective: { lms: { view: 1 } } });
     expect(authorize(ctx, "lms", "view")).toBe(false);
   });
 
@@ -818,7 +823,7 @@ describe("lms module", () => {
   });
 
   test("missing capability → denied (fail closed)", () => {
-    const ctx = staffCtx({ eligibility: {}, effective: {} });
+    const ctx = staffCtx({ eligibility: { lms: true }, effective: {} });
     expect(authorize(ctx, "lms", "enroll")).toBe(false);
   });
 });

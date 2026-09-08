@@ -190,16 +190,15 @@ describe("LMS permission registration", () => {
     expect(PERMISSION_MODULES.lms.name).toBe("LMS");
   });
 
-  test("exposes the planned capabilities without inventing a new role", () => {
-    expect(PERMISSION_MODULES.lms.capabilities).toEqual(
-      expect.arrayContaining([
-        "view",
-        "create",
-        "edit",
-        "delete",
-        "publish",
-        "enroll",
-      ]),
+  test("exposes view/create/edit/delete without publish/enroll/assign", () => {
+    expect(PERMISSION_MODULES.lms.capabilities).toEqual([
+      "view",
+      "create",
+      "edit",
+      "delete",
+    ]);
+    expect(PERMISSION_MODULES.lms.capabilities).not.toEqual(
+      expect.arrayContaining(["publish", "enroll", "assign"]),
     );
   });
 });

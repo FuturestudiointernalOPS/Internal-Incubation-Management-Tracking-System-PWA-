@@ -146,9 +146,6 @@ export const CAPABILITY_CATALOG = {
       create: { label: "Create", risk: "medium", description: "Create courses" },
       edit: { label: "Edit", risk: "medium", description: "Edit courses and sections" },
       delete: { label: "Delete", risk: "high", description: "Delete courses" },
-      publish: { label: "Publish", risk: "medium", description: "Publish course content" },
-      enroll: { label: "Enroll", risk: "medium", description: "Enroll learners in courses" },
-      assign: { label: "Assign", risk: "medium", description: "Assign courses to programs/sessions" },
     },
   },
   tasks: {

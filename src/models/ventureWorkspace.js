@@ -16,8 +16,7 @@ import db from "@/lib/db";
  * Note: extraction is strictly 1:1 with the original inline call sites, so a
  * handful of lookups (e.g. the ventures.id-by-code resolvers) intentionally
  * repeat the same SQL across functions. Queries that also exist in
- * "@/lib/ventures" or "@/models/ventures" are kept here without cross-file
- * coupling.
+ * "@/lib/ventures" are kept here without cross-file coupling.
  */
 
 // ── GET/POST/PUT /api/ventures ───────────────────────────────────────────────

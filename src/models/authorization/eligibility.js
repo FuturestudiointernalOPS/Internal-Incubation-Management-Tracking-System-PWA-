@@ -17,6 +17,9 @@
  */
 
 import db from "@/lib/db";
+import { FEATURE_ELIGIBILITY_DEFAULTS } from "./eligibility-defaults";
+
+export { FEATURE_ELIGIBILITY_DEFAULTS };
 
 // Capability module → feature key. The resolver authorizes against capability
 // modules (PERMISSION_MODULES); eligibility is expressed per feature
@@ -38,54 +41,11 @@ export const MODULE_TO_FEATURE = {
   engineering: "engineering",
   settings: "system_settings",
   facilitator: "program_management",
+  lms: "lms",
 };
 
-/**
- * Initial seeds = the CURRENT route allowlists (from the per-route
- * authorization inventory). These only fill rows that have never been
- * configured (ON CONFLICT DO NOTHING) — admin edits are never overwritten.
- */
-export const FEATURE_ELIGIBILITY_DEFAULTS = {
-  crm: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  communication: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  finance: ["super_admin", "staff"],
-  program_management: ["super_admin", "staff", "program_manager", "teacher", "participant"],
-  project_ownership: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  operations: ["super_admin", "staff", "program_manager", "teacher", "developer"],
-  reporting: [
-    "super_admin",
-    "staff",
-    "program_manager",
-    "teacher",
-    "developer",
-  ],
-  knowledge_base: ["super_admin", "staff"],
-  intelligence: ["super_admin", "developer"],
-  engineering: ["super_admin", "developer"],
-  user_management: ["super_admin", "staff"],
-  system_settings: ["super_admin", "staff"],
-  tasks: ["super_admin", "staff", "program_manager", "team"],
-  ventures: ["super_admin", "staff", "program_manager", "investor"],
-  investor: ["super_admin", "staff", "investor"],
-};
+// FEATURE_ELIGIBILITY_DEFAULTS lives in ./eligibility-defaults (pure module,
+// single source of truth shared with the responsibility defaults).
 
 let eligibilitySchemaPromise = null;
 
@@ -121,30 +81,49 @@ export function ensureEligibilitySchema() {
 }
 
 /**
- * Seed eligibility from FEATURE_ELIGIBILITY_DEFAULTS. Idempotent: existing
- * rows (including admin edits and explicit empty lists) are never touched.
+ * Insert seed rows for one feature. Idempotent: existing rows (including
+ * admin edits and explicit empty lists) are never touched.
  */
-export async function seedDefaultEligibility() {
+async function seedFeatureRows(featureKey, roles) {
   try {
     await ensureEligibilitySchema();
-    for (const [featureKey, roles] of Object.entries(
-      FEATURE_ELIGIBILITY_DEFAULTS,
-    )) {
-      for (const role of roles) {
-        await db.execute({
-          sql: `INSERT INTO feature_eligibility
-                  (feature_key, identity_type, identity_value, eligible)
-                VALUES (?, 'role', ?, 1)
-                ON CONFLICT (feature_key, identity_type, identity_value)
-                DO NOTHING`,
-          args: [featureKey, role],
-        });
-      }
+    for (const role of roles || []) {
+      await db.execute({
+        sql: `INSERT INTO feature_eligibility
+                (feature_key, identity_type, identity_value, eligible)
+              VALUES (?, 'role', ?, 1)
+              ON CONFLICT (feature_key, identity_type, identity_value)
+              DO NOTHING`,
+        args: [featureKey, role],
+      });
     }
     return { success: true };
   } catch (e) {
     return { success: false, error: e.message };
   }
+}
+
+/**
+ * Seed eligibility from FEATURE_ELIGIBILITY_DEFAULTS. Idempotent: existing
+ * rows (including admin edits and explicit empty lists) are never touched.
+ */
+export async function seedDefaultEligibility() {
+  for (const [featureKey, roles] of Object.entries(
+    FEATURE_ELIGIBILITY_DEFAULTS,
+  )) {
+    const result = await seedFeatureRows(featureKey, roles);
+    if (!result.success) return result;
+  }
+  return { success: true };
+}
+
+/**
+ * One-time seed for databases whose eligibility bootstrap already ran before
+ * the LMS feature existed (see resolver's "eligibility-lms-bootstrap").
+ * Fails closed on error; ON CONFLICT DO NOTHING keeps admin edits intact.
+ */
+export async function seedLmsFeatureEligibility() {
+  return seedFeatureRows("lms", FEATURE_ELIGIBILITY_DEFAULTS.lms || []);
 }
 
 /**

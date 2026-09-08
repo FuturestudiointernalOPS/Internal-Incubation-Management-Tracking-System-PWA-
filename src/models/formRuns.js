@@ -434,6 +434,26 @@ export async function getLatestScoreBySubmissionId(submissionId) {
   });
 }
 
+/** Run + form context (names + form id) for a submission's result PDF. */
+export async function getRunFormContextBySubmissionId(submissionId) {
+  return db.execute({
+    sql: `SELECT s.run_id, r.form_id, r.name AS run_name, f.name AS form_name
+          FROM platform_form_submissions s
+          JOIN platform_form_runs r ON s.run_id = r.id
+          JOIN platform_forms f ON r.form_id = f.id
+          WHERE s.id = ?`,
+    args: [parseInt(submissionId)],
+  });
+}
+
+/** Latest full evaluation row (dimensions/overall/ranking) for a submission. */
+export async function getLatestEvaluationBySubmissionId(submissionId) {
+  return db.execute({
+    sql: "SELECT * FROM platform_submission_evaluations WHERE submission_id = ? ORDER BY evaluated_at DESC LIMIT 1",
+    args: [parseInt(submissionId)],
+  });
+}
+
 // ── Review workflow queries (processReviewInternal) ──────────────────────────
 
 /** Existing submission id + status (review idempotency guard). */

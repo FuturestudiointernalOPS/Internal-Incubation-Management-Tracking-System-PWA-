@@ -3,14 +3,21 @@
 export const dynamic = "force-dynamic";
 
 import React, { useEffect, useLayoutEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import { responsibilityRequiredForPath } from "@/lib/masterNavigation";
 
 /**
- * ADMIN LAYOUT — Role Guard + persistent dashboard shell
+ * ADMIN LAYOUT — Section guard + persistent dashboard shell
  *
- * Blocks non-super_admin / non-developer users from accessing /admin/* routes
- * and redirects them to their appropriate dashboard.
+ * super_admin and developer can open every /admin/* route.
+ *
+ * Other roles can open an /admin section ONLY when they hold the
+ * responsibility that owns the current page (path → responsibility map in
+ * masterNavigation.js, the same map the sidebar uses). Page rendering is
+ * therefore aligned with what the sidebar shows, and each page's APIs remain
+ * the real authorization boundary (requireAuthorization per module/capability).
+ * Users without the required responsibility are redirected to their dashboard.
  *
  * Renders the shared DashboardLayout shell here — not inside each page — so
  * the sidebar mounts ONCE and survives client-side navigation between admin
@@ -18,7 +25,9 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  */
 export default function AdminLayout({ children }) {
   const router = useRouter();
-  // "super_admin" | "developer" — the role authorized to view this section.
+  const pathname = usePathname();
+  // The rendered session role when access is granted (super_admin, developer,
+  // or the user's real role for responsibility-scoped sections).
   const [sessionRole, setSessionRole] = useState(null);
 
   // Optimistic fast-path: restore a cached admin session before first paint so
@@ -40,7 +49,6 @@ export default function AdminLayout({ children }) {
   useEffect(() => {
     async function checkAccess() {
       try {
-        // Try session API first
         const res = await fetch("/api/auth/session");
         const data = await res.json();
         if (data.authenticated && data.user) {
@@ -49,12 +57,28 @@ export default function AdminLayout({ children }) {
             setSessionRole(role);
             return;
           }
-          // Redirect non-admin users to their correct dashboard
+          // Non-admin roles: wait for the pathname, then allow only when the
+          // page's owning responsibility is held by the user.
+          if (typeof pathname !== "string") return;
+          const required = responsibilityRequiredForPath(pathname);
+          if (required) {
+            const respRes = await fetch(
+              `/api/responsibilities?user_cid=${data.user.cid}`,
+            );
+            const respData = await respRes.json();
+            const keys = (respData.responsibilities || []).map((r) => r.key);
+            if (keys.includes(required)) {
+              setSessionRole(role);
+              return;
+            }
+          }
+          // Redirect non-authorized users to their correct dashboard
           const redirectMap = {
             staff: "/staff",
             program_manager: "/pm",
             teacher: "/teacher",
             participant: "/participant",
+            developer: "/developer",
           };
           const dest = redirectMap[role] || "/login";
           router.replace(dest);
@@ -65,22 +89,22 @@ export default function AdminLayout({ children }) {
       router.replace("/login");
     }
     checkAccess();
-  }, [router]);
+  }, [router, pathname]);
 
   // Show nothing while checking
   if (!sessionRole) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+        <div
+          className="w-8 h-8 border-2 border-t-[var(--brand-orange)] rounded-full animate-spin"
+          style={{
+            borderColor: "rgba(255,102,0,0.15)",
+            borderTopColor: "var(--brand-orange)",
+          }}
+        />
       </div>
     );
   }
 
-  return (
-    <DashboardLayout
-      role={sessionRole === "developer" ? "developer" : "super_admin"}
-    >
-      {children}
-    </DashboardLayout>
-  );
+  return <DashboardLayout role={sessionRole}>{children}</DashboardLayout>;
 }

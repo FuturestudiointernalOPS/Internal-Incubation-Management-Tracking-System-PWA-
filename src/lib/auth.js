@@ -437,7 +437,7 @@ export const PERMISSION_MODULES = {
   },
   lms: {
     name: "LMS",
-    capabilities: ["view", "create", "edit", "delete", "publish", "enroll", "assign"],
+    capabilities: ["view", "create", "edit", "delete"],
   },
   tasks: {
     name: "Tasks",
@@ -1243,7 +1243,7 @@ export async function seedDefaultAccessProfiles() {
           reports: { view: 1, create: 2, export: 3 },
           messaging: { view: 1, send: 2 },
           contacts: { view: 1, create: 2 },
-          lms: { view: 1, assign: 2 },
+          lms: { view: 1 },
         },
       },
       "Project Owner": {
@@ -1686,6 +1686,30 @@ export async function seedDefaultResponsibilities() {
         key: "system_settings",
         description: "System configuration",
         icon: "Settings",
+      },
+      {
+        name: "LMS",
+        key: "lms",
+        description: "Course management — create and maintain courses",
+        icon: "GraduationCap",
+      },
+      {
+        name: "Tasks",
+        key: "tasks",
+        description: "Task management — tasks and blockers",
+        icon: "CheckSquare",
+      },
+      {
+        name: "Ventures",
+        key: "ventures",
+        description: "Venture management — portfolio and registrations",
+        icon: "Rocket",
+      },
+      {
+        name: "Investor",
+        key: "investor",
+        description: "Investor management — records, reviews, campaigns",
+        icon: "TrendingUp",
       },
     ];
 

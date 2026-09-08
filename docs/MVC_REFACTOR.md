@@ -223,6 +223,12 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
 - [x] `src/lib/ventures.js` (5,619 LOC / 277 exports) moved **byte-identical** to
       `src/models/ventures.js`; `src/lib/ventures.js` is now a facade
       (`export * from "@/models/ventures"`) → 53 importers untouched.
+- [x] ⚠️ 2026-09-08 — a later merge (`Merge origin/Ventures into G`) resurrected
+      the inline code inside `src/lib/ventures.js`, which is again the canonical
+      self-contained module (it received the assignment-aware staff fix and the
+      completion weighting fix). `src/models/ventures.js` was an unused stale
+      duplicate (0 importers, missing those fixes) → **deleted**. The facade
+      split is no longer in place.
 - [x] **All 3 failing `ventures/*` suites fixed → repo 100 % green**
       (39/39 suites, 623/623 tests). Root causes: 1 real code bug
       (`calculateCompletion` granted half-credit to empty optional steps —
@@ -230,9 +236,9 @@ Each wave ends with `npm test` (compare against baseline: 4 failing suites) and
       + 9 test-harness issues (`jest.clearAllMocks` vs queued once-values,
       repo-wide constant `uuid` stub, stale mocks after the ventureAuth gate
       was added to `/api/ventures/[id]`).
-- [ ] Deeper split of `src/models/ventures.js` into a folder (core/founders/
-      promotion/startup-profile…) — deferred to long tail (facade already in
-      place, so it is safe to do later).
+- [ ] Deeper split of `src/lib/ventures.js` into a folder (core/founders/
+      promotion/startup-profile…) — deferred to long tail (single module, so
+      it is safe to do later).
 - [ ] `api/ventures/**` inline SQL (~35 files / ~200 queries) → models —
       moved to Wave 5 (route-extraction wave).
 - [ ] `src/lib/finance*`, `src/lib/platform/*`, `src/lib/email.js` splits —

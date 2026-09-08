@@ -107,4 +107,11 @@ describe("Phase 9 — model consistency", () => {
       expect(ROLE_CATALOG).toContain(ident);
     }
   });
+
+  test("responsibility defaults align with eligibility defaults (single source)", () => {
+    const { RESPONSIBILITY_FEATURE_ROLES } = require("@/lib/featureAccess");
+    for (const [key, roles] of Object.entries(RESPONSIBILITY_FEATURE_ROLES)) {
+      expect(FEATURE_ELIGIBILITY_DEFAULTS[key]).toEqual(roles);
+    }
+  });
 });
