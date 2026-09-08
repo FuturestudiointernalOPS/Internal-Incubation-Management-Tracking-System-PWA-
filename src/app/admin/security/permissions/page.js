@@ -35,7 +35,7 @@ import {
   ALL_FEATURE_ROLES,
 } from "@/lib/featureAccess";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import { MASTER_NAVIGATION } from "@/lib/masterNavigation";
+import { SIDEBAR_FEATURES } from "@/lib/masterNavigation";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -114,7 +114,7 @@ const NAV_PAGE_INDEX = (() => {
       if (n.children && n.children.length) walk(n.children);
       else if (n.href && !index[n.id]) index[n.id] = n;
     });
-  walk(MASTER_NAVIGATION);
+  walk(SIDEBAR_FEATURES);
   return index;
 })();
 

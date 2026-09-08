@@ -20,7 +20,7 @@ import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility
  * eligibility — so the two can never drift. RESPONSIBILITY_FEATURES lists
  * which features have a responsibility; to make another feature
  * responsibility-driven, add it here and to seedDefaultResponsibilities() +
- * NAV_RESPONSIBILITY_MAP.
+ * RESPONSIBILITY_NAV (src/lib/masterNavigation.js).
  *
  * A responsibility grants navigation + dashboards. But if the underlying
  * feature API rejects the user's role, the nav item appears and clicking it
