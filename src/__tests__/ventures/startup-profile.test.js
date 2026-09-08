@@ -19,7 +19,14 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
+// Venture read access for staff is assignment-aware (Phase 2), so the
+// delegated-assignment helper is mocked at the module level.
+jest.mock("@/lib/ventureAuth", () => ({
+  hasActiveVentureAssignment: jest.fn(),
+}));
+
 import db from "@/lib/db";
+import { hasActiveVentureAssignment } from "@/lib/ventureAuth";
 import {
   calculateCompletion,
   validateStep,
@@ -393,20 +400,32 @@ describe("Startup Profile Wizard — Business Logic", () => {
       expect(result).toBe(true);
     });
 
-    it("should allow staff to read", async () => {
-      db.execute.mockResolvedValue({ rows: [] });
+    it("should reject staff without a venture assignment (Phase 2)", async () => {
+      hasActiveVentureAssignment.mockResolvedValue(false);
       const result = await canReadStartupProfile("VNT-001", {
         role: "staff",
+        cid: "staff-001",
       });
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
-    it("should allow program_manager to read", async () => {
-      db.execute.mockResolvedValue({ rows: [] });
+    it("should allow staff with an active venture assignment to read", async () => {
+      hasActiveVentureAssignment.mockResolvedValue(true);
       const result = await canReadStartupProfile("VNT-001", {
-        role: "program_manager",
+        role: "staff",
+        cid: "staff-001",
       });
       expect(result).toBe(true);
+      expect(hasActiveVentureAssignment).toHaveBeenCalledWith("VNT-001", "staff-001", db);
+    });
+
+    it("should reject program_manager without a venture assignment (Phase 2)", async () => {
+      hasActiveVentureAssignment.mockResolvedValue(false);
+      const result = await canReadStartupProfile("VNT-001", {
+        role: "program_manager",
+        cid: "pm-001",
+      });
+      expect(result).toBe(false);
     });
   });
 
