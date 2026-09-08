@@ -47,17 +47,18 @@ function rowsOf(result) {
  * Returns the new task id.
  */
 async function copyTaskRow(exec, { task, ventureId, newMilestoneId, actorCid, parentMap, suffixTitle = false }) {
-  const newTaskId = newUuid();
   const title = suffixTitle && task.title ? `${task.title}${COPY_SUFFIX}` : task.title;
-  await exec(
+  // venture_tasks.id is SERIAL (integer) — never insert an explicit id;
+  // capture the generated one for subtask re-parenting.
+  const ins = await exec(
     `INSERT INTO venture_tasks
-       (id, venture_id, milestone_id, title, description, status, priority,
+       (venture_id, milestone_id, title, description, status, priority,
         due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid,
         reporter_name, labels, checklist, display_order, parent_task_id,
         review_required, required_deliverable_type)
-     VALUES (?, ?, ?, ?, ?, 'backlog', ?, ?, ?, NULL, NULL, ?, NULL, ?::jsonb, ?::jsonb, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, NULL, NULL, ?, NULL, ?::jsonb, ?::jsonb, ?, ?, ?, ?)
+     RETURNING id`,
     [
-      newTaskId,
       ventureId,
       newMilestoneId,
       title,
@@ -74,6 +75,7 @@ async function copyTaskRow(exec, { task, ventureId, newMilestoneId, actorCid, pa
       task.required_deliverable_type || null,
     ],
   );
+  const newTaskId = ins?.rows?.[0]?.id ?? ins?.lastInsertRowid;
   parentMap.set(String(task.id), newTaskId);
   return newTaskId;
 }
@@ -165,16 +167,21 @@ export async function duplicateJourneyStage(db, { dbId, stageId, actorCid }) {
       "SELECT * FROM venture_milestones WHERE journey_stage_id = ?",
       [stageId],
     );
-    for (const m of rowsOf(msRes)) {
+    const stageMilestones = rowsOf(msRes);
+    for (let mi = 0; mi < stageMilestones.length; mi++) {
+      const m = stageMilestones[mi];
       const newMsId = newUuid();
+      // Sequential release (Phase 3): the first milestone of the copied stage
+      // is available; the rest start locked until the previous one completes.
+      const msStatus = mi === 0 ? "not_started" : "locked";
       await query(
         `INSERT INTO venture_milestones
            (id, venture_id, title, description, objective, target_date, start_date,
             status, progress, priority, owner_cid, display_order, journey_stage_id, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'not_started', 0, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
         [
           newMsId, dbId, m.title, m.description || null, m.objective || null,
-          m.target_date || null, m.start_date || null,
+          m.target_date || null, m.start_date || null, msStatus,
           m.priority || "medium", m.owner_cid || null,
           m.display_order ?? null, newStageId, actorCid || null,
         ],
@@ -229,10 +236,10 @@ export async function duplicateMilestone(db, { dbId, code, milestoneId, actorCid
       `INSERT INTO venture_milestones
          (id, venture_id, title, description, objective, target_date, start_date,
           status, progress, priority, owner_cid, display_order, journey_stage_id, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'not_started', 0, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
       [
         newMsId, m.venture_id || dbId, title, m.description || null, m.objective || null,
-        m.target_date || null, m.start_date || null,
+        m.target_date || null, m.start_date || null, "not_started",
         m.priority || "medium", m.owner_cid || null,
         m.display_order ?? null, m.journey_stage_id || null, actorCid || null,
       ],
@@ -269,16 +276,16 @@ export async function duplicateTask(db, { dbId, code, taskId, actorCid }) {
   const task = rowsOf(sourceRes)[0];
   if (!task) return { error: "Task not found." };
 
-  const newTaskId = newUuid();
-  await db.execute({
+  // venture_tasks.id is SERIAL — omit the id and capture the generated one.
+  const ins = await db.execute({
     sql: `INSERT INTO venture_tasks
-       (id, venture_id, milestone_id, title, description, status, priority,
+       (venture_id, milestone_id, title, description, status, priority,
         due_date, estimated_hours, assigned_cid, assigned_name, reporter_cid,
         reporter_name, labels, checklist, display_order, parent_task_id,
         review_required, required_deliverable_type)
-     VALUES (?, ?, ?, ?, ?, 'backlog', ?, ?, ?, NULL, NULL, ?, NULL, ?::jsonb, ?::jsonb, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, 'backlog', ?, ?, ?, NULL, NULL, ?, NULL, ?::jsonb, ?::jsonb, ?, NULL, ?, ?)
+     RETURNING id`,
     args: [
-      newTaskId,
       task.venture_id || dbId,
       task.milestone_id || null,
       task.title ? `${task.title}${COPY_SUFFIX}` : "Untitled task",
@@ -290,11 +297,12 @@ export async function duplicateTask(db, { dbId, code, taskId, actorCid }) {
       JSON.stringify(typeof task.labels === "string" ? safeParse(task.labels, []) : task.labels || []),
       JSON.stringify(typeof task.checklist === "string" ? safeParse(task.checklist, []) : task.checklist || []),
       task.display_order ?? 0,
-      null,
       boolParam(task.review_required) ? "TRUE" : "FALSE",
       task.required_deliverable_type || null,
     ],
   });
+  const newTaskId = ins?.rows?.[0]?.id ?? ins?.lastInsertRowid;
+
   return {
     success: true,
     task: { id: newTaskId, title: task.title ? `${task.title}${COPY_SUFFIX}` : "Untitled task" },

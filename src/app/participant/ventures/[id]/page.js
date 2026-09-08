@@ -486,7 +486,11 @@ export default function VentureDetail() {
   }
   async function fetchInvestmentReadiness(bypassCache = false) {
     const url = `/api/ventures/${params.id}/investment-readiness`;
-    const apply = (d) => { if (d.success) setInvestmentReadiness(d.investment_readiness); };
+    // Keep the legacy payload flat for existing consumers and ADD the
+    // roadmap engine data (Vinance 3 Phase 2 — "what am I evaluated on").
+    const apply = (d) => {
+      if (d.success) setInvestmentReadiness({ ...d.investment_readiness, roadmap_readiness: d.roadmap_readiness });
+    };
     try {
       if (!bypassCache) { const cached = cacheGet(url); if (cached !== null && cached.success) apply(cached); }
       const r = await fetch(url); const d = await r.json(); if (d.success) cacheSet(url, d); apply(d);

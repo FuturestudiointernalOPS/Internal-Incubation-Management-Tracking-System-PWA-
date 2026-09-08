@@ -21,12 +21,16 @@ import { sendEmail } from "@/lib/email";
  *   message      — in-app notification body (founders)
  *   emailSubject — email subject line
  *   emailLines   — array of plain-text lines rendered into the email body
+ *   context      — optional entity context for the drill-down inbox
+ *                  ({ journey_stage_id, milestone_id, task_id, session_id })
+ *   templateKey/params/dedupeKey — i18n-able event identity + idempotency
+ *                  (additive; title/message remain the display fallback)
  */
-export async function notifyAndEmailVentureFounders(db, { dbId, title, message, emailSubject, emailLines = [] }) {
+export async function notifyAndEmailVentureFounders(db, { dbId, title, message, emailSubject, emailLines = [], context = {}, templateKey = null, params = null, dedupeKey = null }) {
   // In-app founder notifications (existing stream).
   try {
     const { notifyVentureFounders } = await import("@/lib/ventures");
-    await notifyVentureFounders(dbId, title, message);
+    await notifyVentureFounders(dbId, title, message, context, { templateKey, params, dedupeKey });
   } catch (_) {}
 
   // Venture-facing email to founders via the centralized provider.

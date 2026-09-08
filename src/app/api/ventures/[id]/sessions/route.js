@@ -11,14 +11,22 @@ import {
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
 // internal and never email founders.
-async function emailVentureAboutSession(ventureParam, sess, { inAppTitle, inAppMsg, subject, lines }) {
+async function emailVentureAboutSession(ventureParam, sess, { inAppTitle, inAppMsg, subject, lines, templateKey = null, params = null, dedupeKey = null }) {
   try {
     if (!sess || sess.venture_facing !== true) return;
     const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
     const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ?", args: [ventureParam] });
     const dbId = dbIdRes.rows?.[0]?.id;
     if (!dbId) return;
-    await notifyAndEmailVentureFounders(db, { dbId, title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines });
+    await notifyAndEmailVentureFounders(db, {
+      dbId, title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
+      context: {
+        journey_stage_id: sess.journey_stage_id || null,
+        milestone_id: sess.milestone_ref || null,
+        session_id: sess.id || null,
+      },
+      templateKey, params, dedupeKey,
+    });
   } catch (_) {}
 }
 
@@ -81,6 +89,14 @@ export const POST = createHandler(async (req, { params }) => {
                 body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
                 "Log in to ImpactOS to see the details in your calendar.",
               ].filter(Boolean),
+              context: {
+                journey_stage_id: body.journey_stage_id || null,
+                milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
+                session_id: r.id || null,
+              },
+              templateKey: "venture.notif.sessionScheduled",
+              params: { title: body.title, when: when ? ` for ${when}` : "" },
+              dedupeKey: `session-scheduled:${r.id || ""}`,
             });
           }
         } catch (_) {}
@@ -107,6 +123,9 @@ export const POST = createHandler(async (req, { params }) => {
               sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
               "Log in to ImpactOS to see the details.",
             ].filter(Boolean),
+            templateKey: "venture.notif.sessionUpdated",
+            params: { title: sess.title },
+            dedupeKey: `session-updated:${sess.id}`,
           });
         }
       }
@@ -127,6 +146,9 @@ export const POST = createHandler(async (req, { params }) => {
           sess.start_time ? `Was scheduled for: ${fmtWhen(sess.start_time)}` : "",
           "Log in to ImpactOS to see your updated calendar.",
         ].filter(Boolean),
+        templateKey: "venture.notif.sessionCancelled",
+        params: { title: sess.title },
+        dedupeKey: `session-cancelled:${sess.id}`,
       });
     }
     return NextResponse.json({ success: true });
@@ -147,6 +169,9 @@ export const POST = createHandler(async (req, { params }) => {
             sess.meeting_link ? `Meeting link: ${sess.meeting_link}` : "",
             "Log in to ImpactOS to see the details.",
           ].filter(Boolean),
+          templateKey: "venture.notif.sessionRescheduled",
+          params: { title: sess.title },
+          dedupeKey: `session-rescheduled:${sess.id}`,
         });
       }
       return NextResponse.json({ success: true });

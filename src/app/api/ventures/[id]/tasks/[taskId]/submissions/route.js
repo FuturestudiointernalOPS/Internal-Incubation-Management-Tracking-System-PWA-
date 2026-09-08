@@ -130,9 +130,21 @@ export const POST = createHandler(async (req, { params }) => {
     const taskStatus = decision === "approved" ? "accepted" : "revision_requested";
     await db.execute({ sql: "UPDATE venture_tasks SET status = ? WHERE id = ?", args: [taskStatus, task.id] });
     // Venture-facing notification + email (founders hear about review outcomes).
+    // Entity context lets the platform inbox drill down venture → journey →
+    // milestone → task (Vinance 3 Phase 1).
     try {
       const { notifyAndEmailVentureFounders } = await import("@/lib/ventureNotify");
       const approved = decision === "approved";
+      let stageId = null;
+      if (task.milestone_id) {
+        try {
+          const stRes = await db.execute({
+            sql: "SELECT journey_stage_id FROM venture_milestones WHERE id = ? AND journey_stage_id IS NOT NULL",
+            args: [task.milestone_id],
+          });
+          stageId = stRes.rows?.[0]?.journey_stage_id || null;
+        } catch (_) {}
+      }
       await notifyAndEmailVentureFounders(db, {
         dbId,
         title: approved ? "Submission approved" : "Changes requested",
@@ -143,6 +155,14 @@ export const POST = createHandler(async (req, { params }) => {
           body.comment ? `Feedback: ${body.comment}` : "",
           "Log in to ImpactOS to see the details.",
         ].filter(Boolean),
+        context: {
+          journey_stage_id: stageId,
+          milestone_id: task.milestone_id || null,
+          task_id: task.id,
+        },
+        templateKey: approved ? "venture.notif.submissionApproved" : "venture.notif.changesRequested",
+        params: { taskTitle: task.title },
+        dedupeKey: `submission-review:${submissionId}:${decision}`,
       });
     } catch (_) {}
     const data = await listSubmissions(task.id);

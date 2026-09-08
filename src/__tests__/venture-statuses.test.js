@@ -35,8 +35,9 @@ describe("ventureStatuses — journey stages", () => {
 });
 
 describe("ventureStatuses — milestones", () => {
-  test("vocabulary matches the founder Journey labels", () => {
+  test("vocabulary matches the founder Journey labels + locked release state", () => {
     expect(MILESTONE_STATUSES).toEqual([
+      "locked",
       "not_started",
       "in_progress",
       "under_review",
@@ -45,9 +46,9 @@ describe("ventureStatuses — milestones", () => {
     ]);
   });
 
-  test("only completed is terminal", () => {
+  test("only completed is terminal; locked is the unreleased state", () => {
     expect(isMilestoneComplete("completed")).toBe(true);
-    for (const s of ["not_started", "in_progress", "under_review", "changes_requested"]) {
+    for (const s of ["not_started", "in_progress", "under_review", "changes_requested", "locked"]) {
       expect(isMilestoneComplete(s)).toBe(false);
     }
   });

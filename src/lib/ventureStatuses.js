@@ -20,7 +20,11 @@ export function isJourneyStageComplete(status) {
 }
 
 // ─── Milestones (venture_milestones.status) ────────────────────────────────
+// "locked" (Vinance 3 Phase 3): milestone is part of the roadmap but not yet
+// released — the previous milestone in its Journey stage must be completed
+// (approved by the Lead Manager / Super Admin) before it unlocks.
 export const MILESTONE_STATUSES = [
+  "locked",
   "not_started",
   "in_progress",
   "under_review",
@@ -28,9 +32,14 @@ export const MILESTONE_STATUSES = [
   "completed",
 ];
 export const MILESTONE_COMPLETED = "completed";
+export const MILESTONE_LOCKED = "locked";
 
 export function isMilestoneComplete(status) {
   return status === MILESTONE_COMPLETED;
+}
+
+export function isMilestoneLocked(status) {
+  return status === MILESTONE_LOCKED;
 }
 
 // ─── Tasks (venture_tasks.status) ──────────────────────────────────────────

@@ -106,9 +106,24 @@ export async function GET(req, { params }) {
     // Venture-facing information. Staff and global roles always see the full
     // roadmap through the authoring surfaces.
     if (!access && viewer && !roleIsPrivileged(viewer.role)) {
+      const visibleStages = stages
+        .filter((s) => s.status !== "locked")
+        .map((s) => {
+          // Phase 3: milestones still locked inside a released stage are not
+          // visible either — only completed/current work is Venture-facing.
+          const visibleMilestones = (s.milestones || []).filter((m) => m.status !== "locked");
+          return {
+            ...s,
+            milestones: visibleMilestones,
+            milestone_counts: {
+              total: visibleMilestones.length,
+              completed: visibleMilestones.filter((m) => m.status === "completed").length,
+            },
+          };
+        });
       return NextResponse.json({
         success: true,
-        stages: stages.filter((s) => s.status !== "locked"),
+        stages: visibleStages,
         access,
         guided: true,
       });
@@ -262,6 +277,10 @@ export async function PATCH(req, { params }) {
             `Your Journey milestone "${stage.name}" has been marked as completed.`,
             "Log in to ImpactOS to see what is next in your Journey.",
           ],
+          context: { journey_stage_id: stage.id },
+          templateKey: "venture.notif.stageCompleted",
+          params: { stageName: stage.name },
+          dedupeKey: `journey-stage-complete:${stage.id}`,
         });
       } catch (_) {}
     } else if (action === "reset") {

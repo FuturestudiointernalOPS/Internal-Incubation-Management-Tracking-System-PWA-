@@ -34,7 +34,10 @@ async function resolveCode(ventureId) {
   return code;
 }
 
-async function isGlobal(session) {
+// Synchronous on purpose — callers use it as a plain boolean in gates.
+// (It was accidentally declared async before, which made every gate treat
+// non-global users as global — founders could read/create internal notes.)
+function isGlobal(session) {
   return !!session && GLOBAL_ROLES.includes(session.role);
 }
 
@@ -99,10 +102,23 @@ export const GET = createHandler(
       if (!canView) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
-    const r = await db.execute({
-      sql: "SELECT * FROM venture_notes WHERE venture_id = ? AND is_archived = FALSE ORDER BY created_at DESC",
-      args: [code],
-    });
+    const { searchParams } = new URL(req.url);
+    const scopeType = searchParams.get("scope_type");
+    const scopeId = searchParams.get("scope_id");
+    let notesSql = "SELECT * FROM venture_notes WHERE venture_id = ? AND is_archived = FALSE";
+    const notesArgs = [code];
+    // Contextual reads (Phase 2): object views (journey stage / milestone /
+    // task) load exactly their own notes. Additive — no param = all notes.
+    if (scopeType) {
+      notesSql += " AND scope_ref_type = ?";
+      notesArgs.push(String(scopeType));
+    }
+    if (scopeId) {
+      notesSql += " AND scope_ref_id = ?";
+      notesArgs.push(String(scopeId));
+    }
+    notesSql += " ORDER BY created_at DESC";
+    const r = await db.execute({ sql: notesSql, args: notesArgs });
     const all = r.rows || [];
 
     // Scope filtering: global sees everything; delegated staff see notes
@@ -138,6 +154,15 @@ export const POST = createHandler(
     }
     const scopeRefType = body.scope_ref_type || null;
     const scopeRefId = body.scope_ref_id ? String(body.scope_ref_id) : null;
+    // Attachments (Phase 2): array of { name, url, type?, size? } — links and
+    // files kept next to the note they belong to.
+    let attachments = null;
+    if (Array.isArray(body.attachments) && body.attachments.length > 0) {
+      attachments = body.attachments
+        .filter((a) => a && (a.name || a.url))
+        .slice(0, 20)
+        .map((a) => ({ name: String(a.name || "").slice(0, 255), url: String(a.url || "").slice(0, 2000), type: a.type ? String(a.type).slice(0, 100) : null, size: a.size || null }));
+    }
 
     if (!isGlobal(session)) {
       // Scope integrity: scoped notes may only be created inside the writer's scope.
@@ -156,8 +181,9 @@ export const POST = createHandler(
     }
 
     const res = await db.execute({
-      sql: "INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id) VALUES (?,?,?,?,?,?,?) RETURNING id",
-      args: [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId],
+      sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
+            VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
+      args: attachments ? [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId, JSON.stringify(attachments)] : [code, session.cid, session.name || null, title, text, scopeRefType, scopeRefId],
     });
     try {
       const { addVentureHistory } = await import("@/lib/ventures");

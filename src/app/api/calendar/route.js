@@ -260,6 +260,139 @@ export async function GET(req) {
       console.error("Calendar: followups error:", e.message);
     }
 
+    // 6. Venture sources (Vinance 3 Phase 1 — the platform calendar aggregates
+    //    Venture activities too: venture-facing sessions, task deadlines,
+    //    milestone target dates, journey stage targets).
+    //    Scope: privileged roles see every Venture; founders/team see their
+    //    own member ventures (venture_members rows keyed on the VNT code);
+    //    delegated staff see their active assignments.
+    try {
+      const privilegedVentureRoles = ["staff", "super_admin", "program_manager", "developer", "admin"];
+      const seesAllVentures = privilegedVentureRoles.includes(session?.role);
+      let ventureScope = null; // null = no restriction
+      if (!seesAllVentures && cid) {
+        const vRes = await db.execute({
+          sql: `SELECT venture_id FROM venture_members
+                WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
+                UNION
+                SELECT venture_id FROM venture_staff_assignments
+                WHERE staff_contact_id = ? AND status = 'active'`,
+          args: [cid, cid, cid],
+        }).catch(() => ({ rows: [] }));
+        ventureScope = (vRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+      }
+
+      if (seesAllVentures || (ventureScope && ventureScope.length > 0)) {
+        // Membership codes are TEXT; canonical venture rows are UUID-keyed, so
+        // resolve codes → internal ids and scope on BOTH key styles.
+        let scopeIds = null;
+        let scopeArgs = [];
+        if (!seesAllVentures) {
+          const idRes = await db.execute({
+            sql: `SELECT id, venture_id FROM ventures WHERE venture_id IN (${ventureScope.map(() => "?").join(",")})`,
+            args: ventureScope,
+          }).catch(() => ({ rows: [] }));
+          scopeIds = (idRes.rows || []).map((r) => r.id).filter(Boolean);
+          scopeArgs = [...ventureScope, ...scopeIds];
+        }
+        const scopeSql = seesAllVentures
+          ? ""
+          : ` AND (venture_id IN (${ventureScope.map(() => "?").join(",")}) OR venture_id IN (${scopeIds.map(() => "?").join(",")}))`;
+        const scopeQueryArgs = seesAllVentures ? [] : scopeArgs;
+
+        // 6a. Venture-facing sessions
+        const sessRes = await db.execute({
+          sql: `SELECT id, title, start_time, coach_name, status FROM venture_sessions
+                WHERE venture_facing = TRUE AND start_time IS NOT NULL${scopeSql}`,
+          args: scopeQueryArgs,
+        }).catch(() => ({ rows: [] }));
+        for (const s of sessRes.rows || []) {
+          events.push({
+            id: `vsess-${s.id}`,
+            title: s.title || "Venture session",
+            date: s.start_time,
+            type: "venture_session",
+            source: "venture_session",
+            status: s.status || "scheduled",
+            description: s.coach_name ? `Coach: ${s.coach_name}` : null,
+            related_id: s.id,
+            project_id: null,
+            user_id: null,
+          });
+        }
+
+        // 6b. Venture task deadlines
+        const vTaskRes = await db.execute({
+          sql: `SELECT id, title, due_date, status FROM venture_tasks
+                WHERE due_date IS NOT NULL${scopeSql}`,
+          args: scopeQueryArgs,
+        }).catch(() => ({ rows: [] }));
+        for (const t of vTaskRes.rows || []) {
+          events.push({
+            id: `vtask-${t.id}`,
+            title: `${t.title} (due)`,
+            date: t.due_date,
+            type: "venture_task_due",
+            source: "venture_task",
+            status: t.status || "backlog",
+            description: null,
+            related_id: t.id,
+            project_id: null,
+            user_id: null,
+          });
+        }
+
+        // 6c. Venture milestone target dates
+        const msRes = await db.execute({
+          sql: `SELECT id, title, target_date, status FROM venture_milestones
+                WHERE target_date IS NOT NULL${scopeSql}`,
+          args: scopeQueryArgs,
+        }).catch(() => ({ rows: [] }));
+        for (const m of msRes.rows || []) {
+          events.push({
+            id: `vms-${m.id}`,
+            title: `${m.title} (milestone)`,
+            date: m.target_date,
+            type: "venture_milestone",
+            source: "venture_milestone",
+            status: m.status || "not_started",
+            description: null,
+            related_id: m.id,
+            project_id: null,
+            user_id: null,
+          });
+        }
+
+        // 6d. Journey stage targets (journey stages are UUID-keyed only)
+        if (seesAllVentures || (scopeIds && scopeIds.length > 0)) {
+          const stageRes = await db.execute({
+            sql: seesAllVentures
+              ? `SELECT id, name, target_date, status FROM venture_journey_stages
+                 WHERE target_date IS NOT NULL`
+              : `SELECT id, name, target_date, status FROM venture_journey_stages
+                 WHERE target_date IS NOT NULL AND venture_id IN (${scopeIds.map(() => "?").join(",")})`,
+            args: seesAllVentures ? [] : scopeIds,
+          }).catch(() => ({ rows: [] }));
+          for (const st of stageRes.rows || []) {
+            events.push({
+              id: `vstage-${st.id}`,
+              title: st.name || "Journey stage",
+              date: st.target_date,
+              type: "venture_journey_target",
+              source: "venture_journey",
+              status: st.status || "locked",
+              description: null,
+              related_id: st.id,
+              project_id: null,
+              user_id: null,
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Calendar: venture sources error:", e.message);
+    }
+
     // Normalize dates to YYYY-MM-DD format
     const normalized = events.map((e) => {
       let dateStr = e.date;

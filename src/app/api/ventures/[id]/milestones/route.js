@@ -2,6 +2,8 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { computeInitialMilestoneStatus, completeMilestoneAndUnlockNext, isMilestoneLeadAuthority } from "@/lib/ventureMilestoneEngine";
+import { notifyVentureFounders } from "@/lib/ventures";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -39,13 +41,17 @@ export const POST = createHandler(async (req, { params }) => {
     }
   }
 
+  // Sequential release (Phase 3): bound milestones start 'locked' unless they
+  // are the stage's first milestone or follow a completed one.
+  const initialStatus = await computeInitialMilestoneStatus(db, { dbId: ventureDbId, stageId: journey_stage_id || null });
+
   const randomUUID = crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; const v = c==='x'?r:(r&0x3|0x8); return v.toString(16); });
 
   await db.execute({
-    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, 'not_started', 0, ?, ?, ?, ?, ?, ?, ?)`,
-    args: [randomUUID, ventureDbId, title, description || null, target_date || null, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, body.owner_cid || null, body.display_order ?? null],
+    sql: `INSERT INTO venture_milestones (id, venture_id, title, description, target_date, status, progress, created_by, journey_stage_id, objective, start_date, priority, owner_cid, display_order) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [randomUUID, ventureDbId, title, description || null, target_date || null, initialStatus, req.session?.cid || null, journey_stage_id || null, body.objective || null, body.start_date || null, body.priority || null, body.owner_cid || null, body.display_order ?? null],
   });
-  return NextResponse.json({ success: true });
+  return NextResponse.json({ success: true, status: initialStatus });
 });
 
 export const PATCH = createHandler(async (req, { params }) => {
@@ -58,6 +64,23 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   const body = await req.json();
   const { progress, status, title, description, target_date } = body;
+  const completing = status === "completed";
+
+  // Completion authority (Phase 3, locked decision): ONLY the Venture's
+  // assigned Lead Manager or a Super Admin may mark a milestone completed.
+  if (completing) {
+    const vRes = await db.execute({
+      sql: "SELECT id, venture_id FROM ventures WHERE venture_id = ? OR id::text = ?",
+      args: [id, id],
+    }).catch(() => ({ rows: [] }));
+    const ventureDbId = vRes.rows?.[0]?.id;
+    const code = vRes.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
+    if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
+    const authorized = await isMilestoneLeadAuthority(db, { code, cid: session.cid, role: session.role });
+    if (!authorized) {
+      return NextResponse.json({ success: false, error: "Only the assigned Lead Manager or a Super Admin can complete milestones." }, { status: 403 });
+    }
+  }
 
   const updates = ["updated_at = NOW()"];
   const args = [];
@@ -92,5 +115,37 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
   args.push(mid);
   await db.execute({ sql: `UPDATE venture_milestones SET ${updates.join(", ")} WHERE id = ?`, args });
+
+  // Approval cascade (Phase 3): completing a milestone unlocks the next
+  // locked milestone in the same Journey stage, then founders are notified.
+  if (completing) {
+    const vRes = await db.execute({
+      sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?",
+      args: [id, id],
+    }).catch(() => ({ rows: [] }));
+    const ventureDbId = vRes.rows?.[0]?.id || null;
+    if (ventureDbId) {
+      const outcome = await completeMilestoneAndUnlockNext(db, { dbId: ventureDbId, milestoneId: mid });
+      const milestoneRes = await db.execute({
+        sql: "SELECT title, journey_stage_id FROM venture_milestones WHERE id = ?",
+        args: [mid],
+      }).catch(() => ({ rows: [] }));
+      const m = milestoneRes.rows?.[0];
+      try {
+        await notifyVentureFounders(
+          ventureDbId,
+          "Milestone approved",
+          `The milestone "${m?.title || ""}" has been completed and approved.`,
+          { journey_stage_id: m?.journey_stage_id || null, milestone_id: mid },
+          { templateKey: "venture.notif.milestoneApproved", params: { milestoneTitle: m?.title || "" }, dedupeKey: `milestone-completed:${mid}` },
+        );
+      } catch (_) {}
+      try {
+        const { addVentureHistory } = await import("@/lib/ventures");
+        await addVentureHistory({ venture_id: id, event_type: "MILESTONE_COMPLETED", description: `Milestone "${m?.title || mid}" completed${outcome?.unlocked_milestone_id ? " — next milestone unlocked" : ""}` });
+      } catch (_) {}
+    }
+  }
+
   return NextResponse.json({ success: true });
 });

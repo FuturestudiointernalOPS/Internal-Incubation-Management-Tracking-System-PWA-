@@ -310,7 +310,38 @@
       "duplicateStageBusy": "Duplicating stage…",
       "milestoneProgress": "{done} of {total} milestones complete",
       "memberVisibilityLocked": "Hidden from members until activated",
-      "memberVisibilityActive": "Members see this as their current stage"
+      "memberVisibilityActive": "Members see this as their current stage",
+      "saveTemplate": "Save as Template",
+      "saveTemplateTitle": "Save this Venture's Journey as a reusable template",
+      "saveTemplateNamePlaceholder": "Template name (e.g. Family & Friends Fundraising)",
+      "saveTemplateDescPlaceholder": "Description (optional)",
+      "saveTemplateSaved": "Journey saved as template ({stages} stages, {milestones} milestones, {tasks} tasks).",
+      "saveTemplateFailed": "Could not save the template.",
+      "journeyTemplateApplied": "Journey generated from saved template — structure only.",
+      "notes": {
+        "title": "Notes",
+        "empty": "No notes yet for this item.",
+        "add": "Add note",
+        "titlePlaceholder": "Title",
+        "bodyPlaceholder": "Write the note…",
+        "urlPlaceholder": "Attachment URL (optional)",
+        "urlNamePlaceholder": "Attachment name (optional)",
+        "delete": "Delete note",
+        "deleteConfirm": "Delete this note?",
+        "added": "Note added.",
+        "loadFailed": "Could not load notes.",
+        "postFailed": "Could not add the note.",
+        "deleteFailed": "Could not delete the note."
+      },
+      "irTracked": "Your Venture progression",
+      "irTrackedDesc": "What Future Studio tracks towards investment readiness — updated live as your Journey progresses.",
+      "irJourneys": "Journeys",
+      "irMilestones": "Milestones",
+      "irTasks": "Tasks",
+      "irDeliverables": "Approved deliverables",
+      "irMilestonesDone": "milestones done",
+      "irTasksDone": "tasks done"
+    }
     },
     "history": {
       "title": "Venture History",
@@ -321,7 +352,25 @@
       "sessionNotes": "Session records",
       "empty": "Nothing recorded yet.",
       "decisionApproved": "Approved",
-      "decisionChanges": "Changes requested"
+      "decisionChanges": "Changes requested",
+      "notif": {
+        "submissionApproved": "Submission approved",
+        "submissionApprovedMsg": "Your submission for \"{taskTitle}\" was approved.",
+        "changesRequested": "Changes requested",
+        "changesRequestedMsg": "Your submission for \"{taskTitle}\" has changes requested.",
+        "stageCompleted": "Stage completed",
+        "stageCompletedMsg": "\"{stageName}\" has been marked as completed.",
+        "sessionScheduled": "Session scheduled",
+        "sessionScheduledMsg": "A session \"{title}\" has been scheduled{when}.",
+        "sessionUpdated": "Session updated",
+        "sessionUpdatedMsg": "Session \"{title}\" has been updated.",
+        "sessionCancelled": "Session cancelled",
+        "sessionCancelledMsg": "Session \"{title}\" has been cancelled.",
+        "sessionRescheduled": "Session rescheduled",
+        "sessionRescheduledMsg": "Session \"{title}\" has been rescheduled.",
+        "milestoneApproved": "Milestone approved",
+        "milestoneApprovedMsg": "The milestone \"{milestoneTitle}\" has been completed and approved."
+      }
     }
   }
 }

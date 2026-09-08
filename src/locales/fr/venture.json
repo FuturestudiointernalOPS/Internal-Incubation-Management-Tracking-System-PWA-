@@ -310,7 +310,38 @@
       "duplicateStageBusy": "Duplication en cours…",
       "milestoneProgress": "{done} jalon(s) sur {total} terminé(s)",
       "memberVisibilityLocked": "Masqué pour les membres tant qu'il n'est pas activé",
-      "memberVisibilityActive": "Les membres voient cette étape comme leur étape actuelle"
+      "memberVisibilityActive": "Les membres voient cette étape comme leur étape actuelle",
+      "saveTemplate": "Enregistrer comme modèle",
+      "saveTemplateTitle": "Enregistrer le parcours de cette Venture comme modèle réutilisable",
+      "saveTemplateNamePlaceholder": "Nom du modèle (ex. Levée Famille & Amis)",
+      "saveTemplateDescPlaceholder": "Description (facultatif)",
+      "saveTemplateSaved": "Parcours enregistré comme modèle ({stages} étapes, {milestones} jalons, {tasks} tâches).",
+      "saveTemplateFailed": "Impossible d'enregistrer le modèle.",
+      "journeyTemplateApplied": "Parcours généré depuis le modèle enregistré — structure uniquement.",
+      "notes": {
+        "title": "Notes",
+        "empty": "Aucune note pour cet élément pour le moment.",
+        "add": "Ajouter une note",
+        "titlePlaceholder": "Titre",
+        "bodyPlaceholder": "Écrire la note…",
+        "urlPlaceholder": "URL de la pièce jointe (facultatif)",
+        "urlNamePlaceholder": "Nom de la pièce jointe (facultatif)",
+        "delete": "Supprimer la note",
+        "deleteConfirm": "Supprimer cette note ?",
+        "added": "Note ajoutée.",
+        "loadFailed": "Impossible de charger les notes.",
+        "postFailed": "Impossible d'ajouter la note.",
+        "deleteFailed": "Impossible de supprimer la note."
+      },
+      "irTracked": "Progression de votre Venture",
+      "irTrackedDesc": "Ce que Future Studio suit vers la préparation à l'investissement — mis à jour en direct à mesure que votre parcours avance.",
+      "irJourneys": "Parcours",
+      "irMilestones": "Jalons",
+      "irTasks": "Tâches",
+      "irDeliverables": "Livrables approuvés",
+      "irMilestonesDone": "jalons terminés",
+      "irTasksDone": "tâches terminées"
+    }
     },
     "history": {
       "title": "Historique de la Venture",
@@ -321,7 +352,25 @@
       "sessionNotes": "Comptes rendus de sessions",
       "empty": "Rien d’enregistré pour le moment.",
       "decisionApproved": "Approuvé",
-      "decisionChanges": "Modifications demandées"
+      "decisionChanges": "Modifications demandées",
+      "notif": {
+        "submissionApproved": "Soumission approuvée",
+        "submissionApprovedMsg": "Votre soumission pour \"{taskTitle}\" a été approuvée.",
+        "changesRequested": "Modifications demandées",
+        "changesRequestedMsg": "Des modifications ont été demandées sur votre soumission \"{taskTitle}\".",
+        "stageCompleted": "Étape terminée",
+        "stageCompletedMsg": "\"{stageName}\" a été marquée comme terminée.",
+        "sessionScheduled": "Session planifiée",
+        "sessionScheduledMsg": "Une session \"{title}\" a été planifiée{when}.",
+        "sessionUpdated": "Session mise à jour",
+        "sessionUpdatedMsg": "La session \"{title}\" a été mise à jour.",
+        "sessionCancelled": "Session annulée",
+        "sessionCancelledMsg": "La session \"{title}\" a été annulée.",
+        "sessionRescheduled": "Session reprogrammée",
+        "sessionRescheduledMsg": "La session \"{title}\" a été reprogrammée.",
+        "milestoneApproved": "Jalon approuvé",
+        "milestoneApprovedMsg": "Le jalon \"{milestoneTitle}\" a été terminé et approuvé."
+      }
     }
   }
 }

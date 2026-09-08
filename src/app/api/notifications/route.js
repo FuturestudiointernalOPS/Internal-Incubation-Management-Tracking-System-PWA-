@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 import { requireAuth, getSession } from "@/lib/auth";
+import { groupNotificationContext } from "@/lib/notificationContext";
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
@@ -85,14 +86,32 @@ export async function GET(req) {
       });
       rows = result.rows || [];
       rows = rows.filter((r) => r.is_read == 0 || r.is_read == null);
+
+      // Opening the inbox marks fetched notifications as SEEN (not read).
+      // Read = the user opened the item (PATCH read). Seen ≠ read is what
+      // makes unread badges feel correct.
+      const ids = (rows || []).map((r) => r.id).filter((v) => v !== undefined && v !== null);
+      if (ids.length > 0) {
+        try {
+          await db.execute({
+            sql: `UPDATE v2_notifications SET seen_at = COALESCE(seen_at, NOW())
+                  WHERE id IN (${ids.map(() => "?").join(",")}) AND seen_at IS NULL`,
+            args: ids,
+          });
+        } catch (_) {}
+      }
     } catch (_) {
       rows = [];
     }
 
-    return NextResponse.json({
-      success: true,
-      notifications: rows,
-    });
+    // Drill-down mode (Vinance 3 Phase 1): ?group_by=context adds the §4
+    // breadcrumb tree (venture → journey → milestone → task/session) as an
+    // ADDITIVE field — the default `notifications` payload is unchanged.
+    const payload = { success: true, notifications: rows };
+    if (searchParams.get("group_by") === "context") {
+      payload.grouped = groupNotificationContext(rows);
+    }
+    return NextResponse.json(payload);
   } catch (error) {
     console.error("GET Notifications Error:", error);
     return NextResponse.json({ success: true, notifications: [] });
@@ -128,7 +147,7 @@ export async function PATCH(req) {
         );
       }
       await db.execute({
-        sql: "UPDATE v2_notifications SET is_read = 1 WHERE id = ?",
+        sql: "UPDATE v2_notifications SET is_read = 1, read_at = COALESCE(read_at, NOW()) WHERE id = ?",
         args: [id],
       });
       return NextResponse.json({ success: true });

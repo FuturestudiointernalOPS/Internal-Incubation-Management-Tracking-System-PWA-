@@ -36,6 +36,11 @@ function makeFakeDb() {
     if (sql.startsWith("CREATE TABLE IF NOT EXISTS venture_journey_stages")) return { rows: [] };
     if (sql.includes("FROM ventures WHERE id::text")) return { rows: [{ id: VENTURE_DB_ID }] };
     if (sql.includes("SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?")) return { rows: [{ id: VENTURE_DB_ID }] };
+    // RETURNING id on task inserts (venture_tasks.id is SERIAL)
+    if (sql.includes("INSERT INTO venture_tasks") && sql.includes("RETURNING id")) {
+      executed._taskSeq = (executed._taskSeq || 0) + 1;
+      return { rows: [{ id: `copy-${executed._taskSeq}` }] };
+    }
     // Source journey stage lookup (before the transaction)
     if (sql.includes("FROM venture_journey_stages WHERE id = ? AND venture_id = ?")) {
       return flags.stageExists
@@ -65,6 +70,10 @@ function makeFakeDb() {
 
   const tx = jest.fn(async (sql, args = []) => {
     executed.push({ tx: true, sql, args });
+    if (sql.includes("INSERT INTO venture_tasks") && sql.includes("RETURNING id")) {
+      executed._taskSeq = (executed._taskSeq || 0) + 1;
+      return { rows: [{ id: `copy-${executed._taskSeq}` }] };
+    }
     if (sql.includes("SELECT id, stage_order FROM venture_journey_stages WHERE venture_id")) {
       return { rows: [{ id: STAGE_ID, stage_order: 1 }] };
     }
@@ -169,6 +178,7 @@ const codeCtx = { params: { id: "VNT-TEST" } };
 
 beforeEach(() => {
   executed.length = 0;
+  delete executed._taskSeq;
   jest.clearAllMocks();
   mockDb.flags.stageExists = true;
   mockDb.flags.milestoneExists = true;
@@ -214,19 +224,20 @@ describe("POST /journey/duplicate", () => {
     expect(msInserts.length).toBe(2);
     const newStageId = stageArgs[0];
     for (const ins of msInserts) {
-      expect(ins.args[10]).toBe(newStageId); // journey_stage_id → new stage
+      expect(ins.args[11]).toBe(newStageId); // journey_stage_id → new stage
     }
 
-    // Task copies: 3, reset to backlog, review config preserved.
+    // Task copies: 3, reset to backlog, review config preserved. Task ids are
+    // SERIAL — the lib omits them and captures RETURNING ids (`copy-N`).
     const taskInserts = insertsMatching("INSERT INTO venture_tasks");
     expect(taskInserts.length).toBe(3);
-    const parentInsert = taskInserts.find((t) => t.args[3] === "Define the problem");
+    const parentInsert = taskInserts.find((t) => t.args[2] === "Define the problem");
     expect(parentInsert).toBeDefined();
-    expect(parentInsert.args[13]).toBe("TRUE"); // review_required preserved
-    expect(parentInsert.args[14]).toBe("document"); // required deliverable preserved
-    const childInsert = taskInserts.find((t) => t.args[3] === "Interview customers");
+    expect(parentInsert.args[12]).toBe("TRUE"); // review_required preserved
+    expect(parentInsert.args[13]).toBe("document"); // required deliverable preserved
+    const childInsert = taskInserts.find((t) => t.args[2] === "Interview customers");
     expect(childInsert).toBeDefined();
-    expect(childInsert.args[12]).toBe(parentInsert.args[0]); // re-parented to the copy
+    expect(childInsert.args[11]).toBe("copy-1"); // re-parented to the first copy (parent inserted first)
 
     // Execution data is never copied.
     const forbidden = executed.filter((q) => /venture_task_submissions|venture_task_reviews|venture_task_comments|venture_task_attachments/.test(q.sql));
@@ -275,15 +286,15 @@ describe("POST /milestones/duplicate", () => {
 
     const msInserts = insertsMatching("INSERT INTO venture_milestones");
     expect(msInserts.length).toBe(1);
-    expect(msInserts[0].args[10]).toBe(STAGE_ID); // binding preserved
+    expect(msInserts[0].args[11]).toBe(STAGE_ID); // binding preserved
     const taskInserts = insertsMatching("INSERT INTO venture_tasks");
     expect(taskInserts.length).toBe(2);
     for (const ins of taskInserts) {
-      expect(ins.args[2]).toBe(msInserts[0].args[0]); // bound to the copy
+      expect(ins.args[1]).toBe(msInserts[0].args[0]); // bound to the copy (milestone_id)
     }
-    const childInsert = taskInserts.find((t) => t.args[3] === "Interview customers");
-    const parentInsert = taskInserts.find((t) => t.args[3] === "Define the problem");
-    expect(childInsert.args[12]).toBe(parentInsert.args[0]); // re-parented inside the copy
+    const childInsert = taskInserts.find((t) => t.args[2] === "Interview customers");
+    const parentInsert = taskInserts.find((t) => t.args[2] === "Define the problem");
+    expect(childInsert.args[11]).toBe("copy-1"); // re-parented inside the copy
   });
 
   test("returns 404 when the milestone does not exist", async () => {
@@ -310,9 +321,10 @@ describe("POST /tasks/duplicate", () => {
     const inserts = insertsMatching("INSERT INTO venture_tasks");
     expect(inserts.length).toBe(1);
     const args = inserts[0].args;
-    expect(args[0]).not.toBe(TASK_PARENT); // independent id
-    expect(args[2]).toBe(MILESTONE_1); // same milestone binding
-    expect(args[13]).toBe("TRUE"); // review_required preserved
+    expect(args[1]).toBe(MILESTONE_1); // same milestone binding
+    expect(args[11]).toBe("TRUE"); // review_required preserved (parent is a NULL literal)
+    expect(args[12]).toBe("document");
+    expect(data.task.id).toBeTruthy(); // SERIAL id captured from RETURNING
   });
 
   test("returns 404 when the task does not exist", async () => {

@@ -226,6 +226,8 @@ export function InvestmentTab() {
   const { investmentReadiness, cardStyle } = useVenture();
   return (
     <div className="space-y-4">
+      {/* Roadmap-derived readiness (Phase 2): what the Venture is evaluated on */}
+      <RoadmapReadinessCard />
       <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.investmentReadiness') || 'Investment Readiness'}</h2>
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.investmentDesc') || 'Documents required before a venture can be introduced to investors.'}</p>
       {investmentReadiness ? (
@@ -274,6 +276,50 @@ export function InvestmentTab() {
         </>
       ) : (
         <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{ color: 'var(--text-secondary)' }} size={24} /></div>
+      )}
+    </div>
+  );
+}
+
+/* Roadmap readiness — what the Founder is being evaluated on (Phase 2). */
+export function RoadmapReadinessCard() {
+  const { t } = useI18n();
+  const { investmentReadiness, cardStyle } = useVenture();
+  const rr = investmentReadiness?.roadmap_readiness;
+  if (!rr) return null;
+  const rows = [
+    { key: 'journeys', label: t('venture.irJourneys'), pct: rr.components.journeys },
+    { key: 'milestones', label: t('venture.irMilestones'), pct: rr.components.milestones },
+    { key: 'tasks', label: t('venture.irTasks'), pct: rr.components.tasks },
+    { key: 'deliverables', label: t('venture.irDeliverables'), pct: rr.components.deliverables },
+  ];
+  return (
+    <div className="rounded-xl p-5 border" style={cardStyle}>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold">{t('venture.irTracked')}</h3>
+        <span className="text-2xl font-black" style={{ color: 'var(--brand-orange)' }}>{rr.overall_percent}%</span>
+      </div>
+      <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t('venture.irTrackedDesc')}</p>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <div key={row.key}>
+            <div className="flex justify-between text-xs mb-0.5">
+              <span>{row.label}</span>
+              <span style={{ color: 'var(--text-secondary)' }}>{row.pct === null ? '—' : `${row.pct}%`}</span>
+            </div>
+            {row.pct !== null && (
+              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'rgb(255 255 255 / 0.08)' }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: 'var(--brand-orange)' }} />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      {rr.counts && (
+        <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
+          <div><span className="font-bold">{rr.counts.milestones.completed}/{rr.counts.milestones.total}</span> {t('venture.irMilestonesDone')}</div>
+          <div><span className="font-bold">{rr.counts.tasks.completed}/{rr.counts.tasks.total}</span> {t('venture.irTasksDone')}</div>
+        </div>
       )}
     </div>
   );

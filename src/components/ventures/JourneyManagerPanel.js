@@ -18,7 +18,9 @@ import {
   Pencil,
   Lock,
   Play,
+  StickyNote,
 } from "lucide-react";
+import ScopedNotes from "@/components/ventures/ScopedNotes";
 
 /**
  * JourneyManagerPanel — staff instrument for a Venture's Journey.
@@ -50,6 +52,11 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [tplSel, setTplSel] = useState("");
   const [savingTpl, setSavingTpl] = useState(false);
   const [dupBusy, setDupBusy] = useState(null);
+  const [notesStageId, setNotesStageId] = useState(null);
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [saveForm, setSaveForm] = useState({ name: "", description: "" });
+  const [savingSave, setSavingSave] = useState(false);
+  const [journeyTemplates, setJourneyTemplates] = useState([]);
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
@@ -85,6 +92,13 @@ export default function JourneyManagerPanel({ ventureId }) {
       if (d.success) setTemplates(d.templates || []);
     } catch (e) {
       console.error("Failed to load plan templates:", e);
+    }
+    try {
+      const jres = await fetch(`/api/journey-templates`);
+      const jd = await jres.json();
+      if (jd.success) setJourneyTemplates(jd.templates || []);
+    } catch (e) {
+      console.error("Failed to load journey templates:", e);
     }
   };
 
@@ -181,14 +195,21 @@ export default function JourneyManagerPanel({ ventureId }) {
     if (!tplSel) return;
     setSavingTpl(true);
     try {
-      const res = await fetch(`/api/ventures/${ventureId}/journey/apply-template`, {
+      // Journey templates (structure incl. milestones/tasks) vs operating-plan
+      // templates (stage structure only) — two libraries, one picker.
+      const [kind, rawId] = String(tplSel).split(":");
+      const isJourneyTpl = kind === "journey";
+      const endpoint = isJourneyTpl
+        ? `/api/ventures/${ventureId}/journey/apply-journey-template`
+        : `/api/ventures/${ventureId}/journey/apply-template`;
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_id: tplSel }),
+        body: JSON.stringify({ template_id: rawId }),
       });
       const d = await res.json();
       if (d.success) {
-        notify("Journey generated from template — structure only (no Venture data).");
+        notify(isJourneyTpl ? t("venture.manager.journeyTemplateApplied") : "Journey generated from template — structure only (no Venture data).");
         setApplyOpen(false);
         setTplSel("");
         setStages(d.stages || []);
@@ -199,6 +220,32 @@ export default function JourneyManagerPanel({ ventureId }) {
       notify("Apply failed.", "error");
     } finally {
       setSavingTpl(false);
+    }
+  };
+
+  // Save this Venture's ENTIRE journey (stages + milestones + tasks) as a
+  // reusable template in the ImpactOS library (structure only).
+  const saveJourneyTemplate = async (e) => {
+    e.preventDefault();
+    setSavingSave(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/journey/save-template`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(saveForm),
+      });
+      const d = await res.json();
+      if (d.success) {
+        notify(t("venture.manager.saveTemplateSaved", { stages: d.stages || 0, milestones: d.milestones || 0, tasks: d.tasks || 0 }));
+        setSaveOpen(false);
+        setSaveForm({ name: "", description: "" });
+      } else {
+        notify(d.error || t("venture.manager.saveTemplateFailed"), "error");
+      }
+    } catch (err) {
+      notify(t("venture.manager.saveTemplateFailed"), "error");
+    } finally {
+      setSavingSave(false);
     }
   };
 
@@ -235,6 +282,15 @@ export default function JourneyManagerPanel({ ventureId }) {
               <Copy className="w-3 h-3" />
               {applyOpen ? "Cancel" : "From Template"}
             </button>
+            {access.manage && stages.length > 0 && (
+              <button
+                onClick={() => setSaveOpen(!saveOpen)}
+                className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 flex items-center gap-1.5"
+              >
+                <Save className="w-3 h-3" />
+                {t("venture.manager.saveTemplate")}
+              </button>
+            )}
             <button
               onClick={() => setAddOpen(!addOpen)}
               className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
@@ -249,14 +305,47 @@ export default function JourneyManagerPanel({ ventureId }) {
         Define the journey this Venture actually needs — it is not a fixed curriculum. Members see only the published stages (name, description, objective, target date, status).
       </p>
 
+      {saveOpen && (
+        <form onSubmit={saveJourneyTemplate} className="mb-4 p-3 rounded-xl border border-[var(--brand-orange)]/30 bg-tertiary space-y-2">
+          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+            {t("venture.manager.saveTemplateTitle")}
+          </p>
+          <input
+            value={saveForm.name}
+            onChange={(e) => setSaveForm({ ...saveForm, name: e.target.value })}
+            placeholder={t("venture.manager.saveTemplateNamePlaceholder")}
+            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+          />
+          <textarea
+            rows={2}
+            value={saveForm.description}
+            onChange={(e) => setSaveForm({ ...saveForm, description: e.target.value })}
+            placeholder={t("venture.manager.saveTemplateDescPlaceholder")}
+            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+          />
+          <div className="flex items-center gap-2 justify-end">
+            <button type="button" onClick={() => { setSaveOpen(false); setSaveForm({ name: "", description: "" }); }} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
+              {t("common.cancel")}
+            </button>
+            <button type="submit" disabled={savingSave} className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+              {savingSave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} {t("venture.manager.saveTemplate")}
+            </button>
+          </div>
+        </form>
+      )}
+
       {applyOpen && (
         <div className="mb-4 p-3 rounded-xl border border-[var(--border-primary)] bg-tertiary flex flex-wrap items-end gap-3">
           <div className="flex-1 min-w-[200px]">
             <label className="block text-[9px] font-black uppercase tracking-widest text-slate-500 mb-1">Generate journey from a reusable template</label>
             <select value={tplSel} onChange={(e) => setTplSel(e.target.value)} className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]">
               <option value="">Select template…</option>
+              {journeyTemplates.map((t) => (
+                <option key={`j-${t.id}`} value={`journey:${t.id}`}>{t.name} ({t.stage_count || 0} stages · journey)</option>
+              ))}
+              {journeyTemplates.length > 0 && templates.length > 0 && <option disabled>──────────</option>}
               {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name} ({t.section_count || 0} sections)</option>
+                <option key={`p-${t.id}`} value={`plan:${t.id}`}>{t.name} ({t.section_count || 0} sections)</option>
               ))}
             </select>
           </div>
@@ -420,6 +509,13 @@ export default function JourneyManagerPanel({ ventureId }) {
                               <RotateCcw className="w-3.5 h-3.5" />
                             </button>
                           )}
+                          <button
+                            onClick={() => setNotesStageId(notesStageId === stage.id ? null : stage.id)}
+                            className={`p-1 hover:text-sky-300 ${notesStageId === stage.id ? "text-sky-300" : "text-slate-400"}`}
+                            title={t("venture.notes.title")}
+                          >
+                            <StickyNote className="w-3.5 h-3.5" />
+                          </button>
                           <button onClick={() => duplicateStage(stage)} disabled={dupBusy === stage.id} className="p-1 text-slate-400 hover:text-sky-300 disabled:opacity-40" title={t("venture.manager.duplicateStageTitle")}>
                             {dupBusy === stage.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CopyPlus className="w-3.5 h-3.5" />}
                           </button>
@@ -431,6 +527,9 @@ export default function JourneyManagerPanel({ ventureId }) {
                     </div>
                   )}
                 </div>
+              )}
+              {notesStageId === stage.id && !editId && (
+                <ScopedNotes ventureId={ventureId} scopeType="journey_stage" scopeId={stage.id} />
               )}
             </div>
           ))}

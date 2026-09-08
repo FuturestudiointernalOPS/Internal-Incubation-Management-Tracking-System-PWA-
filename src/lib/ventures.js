@@ -295,6 +295,34 @@ export async function ensureVentureSchema() {
     "CREATE TABLE IF NOT EXISTS venture_plan_templates (id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT, is_active BOOLEAN DEFAULT TRUE, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
     "CREATE TABLE IF NOT EXISTS venture_plan_template_sections (id SERIAL PRIMARY KEY, template_id INTEGER NOT NULL REFERENCES venture_plan_templates(id) ON DELETE CASCADE, title TEXT NOT NULL, objective TEXT, instructions TEXT, sort_order INTEGER DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())",
     "CREATE INDEX IF NOT EXISTS idx_vpts_template ON venture_plan_template_sections(template_id)",
+    // ─── Vinance 3 Phase 1 — notification entity context (drill-down) ───
+    // Soft refs (nullable TEXT) so every producer can record WHERE the
+    // notification happened (venture → journey → milestone → task/session).
+    // Old rows simply have NULL context and degrade gracefully.
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS entity_venture_id TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS entity_journey_stage_id TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS entity_milestone_id TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS entity_task_id TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS entity_session_id TEXT",
+    // Vinance 3 — notification hardening (template keys + params for local
+    // rendering, seen/read lifecycle, dedupe keys for idempotent producers).
+    // All nullable: legacy rows and existing consumers are untouched.
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS template_key TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS params JSONB",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS dedupe_key TEXT",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ",
+    "ALTER TABLE v2_notifications ADD COLUMN IF NOT EXISTS read_at TIMESTAMPTZ",
+    "CREATE INDEX IF NOT EXISTS idx_notif_dedupe ON v2_notifications(recipient_id, dedupe_key) WHERE dedupe_key IS NOT NULL",
+    // ─── Vinance 3 — Journey template library (Save-as-Template) ───
+    // Structure-only copies of an entire Venture Journey (stages + milestones
+    // + top-level tasks). Independent from Venture rows by design: templates
+    // are reusable blueprints, never a live view of the Venture.
+    "CREATE TABLE IF NOT EXISTS venture_journey_templates (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), name TEXT NOT NULL, description TEXT, created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_journey_template_stages (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), template_id UUID NOT NULL REFERENCES venture_journey_templates(id) ON DELETE CASCADE, name TEXT NOT NULL, description TEXT, objective TEXT, stage_order INTEGER NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), UNIQUE(template_id, stage_order))",
+    "CREATE TABLE IF NOT EXISTS venture_journey_template_milestones (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), stage_id UUID NOT NULL REFERENCES venture_journey_template_stages(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, objective TEXT, priority TEXT DEFAULT 'medium', display_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    "CREATE TABLE IF NOT EXISTS venture_journey_template_tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), milestone_id UUID NOT NULL REFERENCES venture_journey_template_milestones(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, priority TEXT DEFAULT 'medium', labels JSONB DEFAULT '[]', checklist JSONB DEFAULT '[]', review_required BOOLEAN DEFAULT FALSE, required_deliverable_type TEXT, display_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
+    // Vinance 3 Phase 2 — contextual notes: attachments (text/links/files)
+    "ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS attachments JSONB",
   ];
 
   for (const sql of migrations) {
@@ -597,39 +625,104 @@ export async function addVentureHistory({
 
 /**
  * Create a notification for a venture event.
+ *
+ * `context` (optional) records where the notification happened so the
+ * platform inbox can drill down: venture → journey stage → milestone →
+ * task/session (Vinance 3 Phase 1). All entity refs are nullable soft refs.
+ *
+ * Professional hardening (additive, non-disruptive):
+ *   - templateKey/params store the i18n-able event identity alongside the
+ *     pre-rendered title/message, so future renderers can localize without
+ *     touching legacy consumers (which keep reading title/message).
+ *   - dedupeKey makes producers idempotent: the same event never creates a
+ *     second notification for the same recipient (noise control).
  */
+const NOTIFICATION_CONTEXT_COLS = {
+  venture_id: "entity_venture_id",
+  journey_stage_id: "entity_journey_stage_id",
+  milestone_id: "entity_milestone_id",
+  task_id: "entity_task_id",
+  session_id: "entity_session_id",
+};
+
 export async function createVentureNotification({
   recipient_id,
   title,
   message,
   type = "venture",
+  context = {},
+  templateKey = null,
+  params = null,
+  dedupeKey = null,
 }) {
+  if (dedupeKey) {
+    const dup = await db.execute({
+      sql: "SELECT 1 FROM v2_notifications WHERE recipient_id = ? AND dedupe_key = ? LIMIT 1",
+      args: [recipient_id, dedupeKey],
+    }).catch(() => ({ rows: [] }));
+    if (dup.rows?.length) return { skipped: true, dedupeKey };
+  }
+
+  const cols = ["recipient_id", "title", "message", "type", "is_read", "created_at"];
+  const placeholders = ["?", "?", "?", "?", 0, "NOW()"];
+  const args = [recipient_id, title, message, type];
+  for (const [key, col] of Object.entries(NOTIFICATION_CONTEXT_COLS)) {
+    const val = context ? context[key] : undefined;
+    if (val !== undefined && val !== null && val !== "") {
+      cols.push(col);
+      placeholders.push("?");
+      args.push(String(val));
+    }
+  }
+  if (templateKey) {
+    cols.push("template_key");
+    placeholders.push("?");
+    args.push(String(templateKey));
+  }
+  if (params !== null && params !== undefined) {
+    cols.push("params");
+    placeholders.push("?::jsonb");
+    args.push(JSON.stringify(params));
+  }
+  if (dedupeKey) {
+    cols.push("dedupe_key");
+    placeholders.push("?");
+    args.push(String(dedupeKey));
+  }
   await db.execute({
-    sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at)
-          VALUES (?, ?, ?, ?, 0, NOW())`,
-    args: [recipient_id, title, message, type],
+    sql: `INSERT INTO v2_notifications (${cols.join(", ")}) VALUES (${placeholders.join(", ")})`,
+    args,
   });
+  return { success: true };
 }
 
 /** Notify all venture founders about an event */
-export async function notifyVentureFounders(dbId, title, message) {
+export async function notifyVentureFounders(dbId, title, message, context = {}, template = {}) {
   try {
     // venture_members stores venture_id as the VNT code (TEXT)
     const v = await db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
     const code = v.rows?.[0]?.venture_id || dbId;
+    const ctx = { ...(context || {}), venture_id: context?.venture_id || dbId };
+    const { templateKey = null, params = null, dedupeKey = null } = template || {};
     const founders = await db.execute({
       sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
       args: [code],
     });
     for (const f of founders.rows || []) {
       if (f.contact_id) {
-        await createVentureNotification({ recipient_id: f.contact_id, title, message });
+        await createVentureNotification({
+          recipient_id: f.contact_id, title, message, context: ctx,
+          templateKey, params, dedupeKey,
+        });
       }
     }
     // Also notify the venture venture_id (for super admin overview)
     const vid = v.rows?.[0]?.venture_id;
     if (vid) {
-      await createVentureNotification({ recipient_id: "sa", title: `[${vid}] ${title}`, message });
+      await createVentureNotification({
+        recipient_id: "sa", title: `[${vid}] ${title}`, message, context: ctx,
+        templateKey, params, dedupeKey: dedupeKey ? `sa:${dedupeKey}` : null,
+      });
     }
   } catch (e) { /* non-blocking */ }
 }
