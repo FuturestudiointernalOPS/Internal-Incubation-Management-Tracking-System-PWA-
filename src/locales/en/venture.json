@@ -341,7 +341,28 @@
       "irDeliverables": "Approved deliverables",
       "irMilestonesDone": "milestones done",
       "irTasksDone": "tasks done"
-    }
+    },
+    "personal": {
+      "title": "My Dashboard",
+      "subtitle": "Your personal ImpactOS workspace — calendar, notifications and the Ventures you support.",
+      "myCalendar": "My Calendar",
+      "myNotifications": "My Notifications",
+      "myVentures": "My Ventures",
+      "noEvents": "Nothing scheduled in your calendar yet.",
+      "noNotifications": "You are all caught up.",
+      "noVentures": "No Venture assignments yet.",
+      "general": "General",
+      "open": "Open"
+    },
+    "attention": {
+      "title": "Needs attention",
+      "overdue": "Overdue tasks",
+      "awaitingReview": "Awaiting review",
+      "upcomingSessions": "Upcoming sessions",
+      "awaitingApproval": "Milestones to approve",
+      "journeyProgress": "Journey progress",
+      "currentJourney": "Current journey",
+      "failed": "Could not load the operating report."
     },
     "history": {
       "title": "Venture History",

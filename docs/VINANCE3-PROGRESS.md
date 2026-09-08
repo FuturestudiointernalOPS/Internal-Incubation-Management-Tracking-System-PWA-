@@ -118,6 +118,70 @@ Remaining Phase 3 work: reports/timeline consumption of the engine data and
 full-loop UI polish (manager approval affordance on milestone screens is the
 next visible piece).
 
+## Manager & Coach model — Phase 1 delivered (coach identity & delivery)
+
+Following the Program-layer blueprint: a Venture session coach is a PLATFORM
+USER (contact) — Future Studio staff or an invited external coach.
+- `venture_sessions.coach_contact_id` (additive soft ref); legacy catalog
+  rows keep working via `coach_name` fallback.
+- `src/lib/ventureCoach.js` resolves identity: explicit contact id wins;
+  legacy catalog coach matches to a contact by email; unmatched → null
+  (graceful, no delivery).
+- `src/lib/ventureNotify.js` `notifyVentureCoach`: in-app notification with
+  entity context + dedupe and email through the centralized provider.
+- Sessions route: creation stores the resolved coach contact; coaches are
+  notified (in-app + email) on create/update/cancel/reschedule — founders'
+  delivery untouched.
+- `GET /api/calendar?personal=1`: personal mode scopes Venture events to the
+  caller's assignments ∪ coach sessions (coach sees own non-facing sessions);
+  default mode byte-identical.
+- Contract tests: `venture-coach-delivery.test.js` (9).
+
+### Phase 1 completion — coach invite-by-email + Phase 2 first surface
+- `POST /api/ventures/[id]/coach-invite` (`inviteCoachByEmail` in
+  `ventureCoach.js`): the Venture mirror of the Program facilitator invite —
+  email analysis (invalid / existing / new / already_assigned), existing
+  Future Studio staff assigned as-is (account role untouched), external
+  coaches created with the NARROW 'facilitator' role (never 'staff'; access
+  comes from the assignment row), venture assignment with responsibility
+  (default facilitator) + scope, activation/login email, token hashing,
+  CRM timeline + Venture history. `preview: true` reports without writing.
+- Personal staff home `/staff/me` (Manager & Coach Phase 2 first surface):
+  My Calendar (personal=1), My Notifications (drill-down chips + deep links
+  via the notification registry), My Ventures (assignments with
+  responsibility labels → staff venture pages). Bilingual.
+- Coach suite now 14 tests (invite paths included).
+
+### Phase 2 completion — attention block, personal-home nav, locale repair
+- **Manager attention block live:** `AttentionWidget` on the admin Venture
+dashboard (`/admin/ventures/[id]/dashboard`) — journey-report counts (overdue
+open tasks, tasks awaiting review, upcoming sessions, milestones awaiting
+approval) + current active journey + journey progress. Staff surface only;
+founder dashboards untouched.
+- **Nav entry:** `MY DASHBOARD → /staff/me` beside `MY VENTURES` for
+staff/program-manager with ≥1 active Venture assignment — wired in BOTH nav
+assembly paths (role fallback + responsibilities path, guarded against
+duplicate ids).
+- **Critical fix:** `en/venture.json` + `fr/venture.json` were INVALID JSON
+since the template-library commit (an extra `}` closed the `venture` object
+prematurely; `JSON.parse` failed, so the `next build` import graph would have
+broken). Structure repaired. Also moved the `personal` keys out of
+`venture.manager.*` to `venture.personal.*` (the path `/staff/me` actually
+calls) and added `venture.attention.*` (EN+FR). `npm run i18n:parity`: 0
+missing.
+
+## Phase 3 (Manager & Coach) — reports slice delivered
+- `venture_reports` (additive) + `src/lib/ventureReports.js` + endpoints
+  GET/POST/PATCH `/api/ventures/[id]/progress-reports`: Manager composes a
+  typed, period-based report (current journey/milestone, completed/
+  outstanding items, support delivered, challenges, recommendation); submits
+  for Super Admin review (draft → submitted → reviewed/archived); founders
+  denied, staff-with-assignment read-only; history events recorded.
+- Contract tests: `venture-reports.test.js`.
+- **Deferred (staged):** review/scope hardening (submission & task reviews
+  limited by assignment scope) and general milestone/task PATCH tightening —
+  behavior-changing; needs its own pass with per-capability rollout.
+
 ## Phase 3 — Readiness & Reporting Intelligence ✅ delivered (data layer)
 - `src/lib/ventureReadiness.js` — roadmap-derived Investment Readiness over
   the whole defined progression (journeys 30 / milestones 30 / tasks 25 /

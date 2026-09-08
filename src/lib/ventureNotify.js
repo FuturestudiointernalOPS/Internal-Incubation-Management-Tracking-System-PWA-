@@ -63,3 +63,42 @@ export async function notifyAndEmailVentureFounders(db, { dbId, title, message, 
   } catch (_) {}
   return { sent };
 }
+
+/**
+ * Coach delivery (Vinance 3 — Phase 1): notify ONE platform user (contact)
+ * in-app + by email about a Venture session they are attached to as coach.
+ * Coach may be Future Studio staff or an invited external contact. Degrades
+ * gracefully when the contact cannot be resolved.
+ */
+export async function notifyVentureCoach(db, { dbId, coachContactId, title, message, emailSubject, emailLines = [], context = {}, templateKey = null, params = null, dedupeKey = null }) {
+  try {
+    if (!coachContactId) return { sent: 0, skipped: true };
+    const cRes = await db.execute({
+      sql: "SELECT cid, name, email FROM contacts WHERE cid = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
+      args: [String(coachContactId)],
+    });
+    const contact = cRes.rows?.[0];
+    if (!contact) return { sent: 0, skipped: true };
+
+    const { createVentureNotification } = await import("@/lib/ventures");
+    await createVentureNotification({
+      recipient_id: contact.cid,
+      title,
+      message,
+      context: { ...(context || {}), venture_id: dbId },
+      templateKey,
+      params,
+      dedupeKey,
+    });
+
+    if (!contact.email) return { sent: 0 };
+    const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
+      ${(emailLines || []).map((l) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${l}</p>`).join("")}
+      <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
+    </div>`;
+    const r = await sendEmail({ to: contact.email, subject: emailSubject, html });
+    return { sent: r && r.success !== false ? 1 : 0 };
+  } catch (_) {
+    return { sent: 0 };
+  }
+}

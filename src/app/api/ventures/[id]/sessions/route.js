@@ -2,11 +2,13 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import db from "@/lib/db";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { resolveCoachContact } from "@/lib/ventureCoach";
 import {
   listSessions, getSession, createSession, updateSession, cancelSession,
   rescheduleSession, deleteSession, addSessionNote, recordAttendance,
   createActionItem, updateActionItem,
 } from "@/lib/ventures";
+import { notifyVentureCoach } from "@/lib/ventureNotify";
 
 // Venture-facing session changes notify founders (in-app + email). Sessions
 // created before the venture_facing flag existed (NULL) are treated as
@@ -27,6 +29,20 @@ async function emailVentureAboutSession(ventureParam, sess, { inAppTitle, inAppM
       },
       templateKey, params, dedupeKey,
     });
+    // Coach delivery (Phase 1): the platform user attached as coach gets the
+    // same event in-app + by email (Future Studio staff or invited external).
+    if (sess.coach_contact_id) {
+      await notifyVentureCoach(db, {
+        dbId, coachContactId: sess.coach_contact_id,
+        title: inAppTitle, message: inAppMsg, emailSubject: subject, emailLines: lines,
+        context: {
+          journey_stage_id: sess.journey_stage_id || null,
+          milestone_id: sess.milestone_ref || null,
+          session_id: sess.id || null,
+        },
+        templateKey, params, dedupeKey: dedupeKey ? `${dedupeKey}:coach` : null,
+      });
+    }
   } catch (_) {}
 }
 
@@ -55,9 +71,17 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (action === "create_session") {
     try {
+      // Coach identity (Phase 1): explicit coach_contact_id wins; otherwise
+      // resolve the legacy catalog coach by email to a platform contact.
+      let coachContactId = body.coach_contact_id ? String(body.coach_contact_id) : null;
+      let resolvedCoach = null;
+      if (!coachContactId && body.coach_id) {
+        resolvedCoach = await resolveCoachContact(db, { coachId: parseInt(body.coach_id) });
+        if (resolvedCoach) coachContactId = resolvedCoach.cid;
+      }
       const r = await createSession({
         ventureId: id, title: body.title, description: body.description,
-        sessionType: body.session_type, coachId: body.coach_id, coachName: body.coach_name,
+        sessionType: body.session_type, coachId: body.coach_id, coachName: body.coach_name || resolvedCoach?.name || null,
         founderCid: body.founder_cid, founderName: body.founder_name,
         startTime: body.start_time, endTime: body.end_time, timezone: body.timezone,
         location: body.location, meetingLink: body.meeting_link, agenda: body.agenda,
@@ -68,8 +92,40 @@ export const POST = createHandler(async (req, { params }) => {
         journeyStageId: body.journey_stage_id || null,
         milestoneRef: body.milestone_ref ? String(body.milestone_ref) : null,
         taskId: body.task_id ? parseInt(body.task_id) : null,
+        coachContactId,
         createdBy: req.session?.cid,
       });
+      // Coach delivery (Phase 1): the coach is added to the session — the
+      // platform tells them (in-app + email), regardless of venture_facing.
+      if (coachContactId) {
+        try {
+          const dbIdRes = await db.execute({ sql: "SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?", args: [id, id] });
+          const dbId = dbIdRes.rows?.[0]?.id;
+          if (dbId) {
+            const when = body.start_time ? new Date(body.start_time).toLocaleString() : "";
+            await notifyVentureCoach(db, {
+              dbId, coachContactId,
+              title: "Session scheduled",
+              message: `You have been added to the Venture session "${body.title}"${when ? ` for ${when}` : ""}.`,
+              emailSubject: "You have been added to a Venture session",
+              emailLines: [
+                `Session "${body.title}" has been scheduled${when ? ` for ${when}` : ""}.`,
+                body.preparation_notes ? `Preparation: ${body.preparation_notes}` : "",
+                body.meeting_link ? `Meeting link: ${body.meeting_link}` : "",
+                "Log in to ImpactOS to see the details in your calendar.",
+              ].filter(Boolean),
+              context: {
+                journey_stage_id: body.journey_stage_id || null,
+                milestone_id: body.milestone_ref ? String(body.milestone_ref) : null,
+                session_id: r.id || null,
+              },
+              templateKey: "venture.notif.sessionScheduled",
+              params: { title: body.title, when: when ? ` for ${when}` : "" },
+              dedupeKey: `session-scheduled:${r.id || ""}:coach`,
+            });
+          }
+        } catch (_) {}
+      }
       // Venture-facing sessions notify founders (in-app + email).
       if (body.venture_facing === true) {
         try {

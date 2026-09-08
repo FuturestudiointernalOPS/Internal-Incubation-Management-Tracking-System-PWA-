@@ -267,10 +267,13 @@ export async function GET(req) {
     //    own member ventures (venture_members rows keyed on the VNT code);
     //    delegated staff see their active assignments.
     try {
+      const personalMode = searchParams.get("personal") === "1";
       const privilegedVentureRoles = ["staff", "super_admin", "program_manager", "developer", "admin"];
-      const seesAllVentures = privilegedVentureRoles.includes(session?.role);
+      // Personal mode (Vinance 3 Phase 1): even privileged roles see only the
+      // Ventures they are assigned to / coach sessions they are attached to.
+      const seesAllVentures = privilegedVentureRoles.includes(session?.role) && !personalMode;
       let ventureScope = null; // null = no restriction
-      if (!seesAllVentures && cid) {
+      if ((!seesAllVentures || personalMode) && cid) {
         const vRes = await db.execute({
           sql: `SELECT venture_id FROM venture_members
                 WHERE (contact_id = ? OR user_cid = ?) AND removed_at IS NULL
@@ -279,12 +282,24 @@ export async function GET(req) {
                 WHERE staff_contact_id = ? AND status = 'active'`,
           args: [cid, cid, cid],
         }).catch(() => ({ rows: [] }));
-        ventureScope = (vRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+        let scopeList = (vRes.rows || []).map((r) => r.venture_id).filter(Boolean);
+        // A coach's own sessions count even when stored under a UUID key or
+        // when the coach holds no assignment row yet.
+        if (personalMode) {
+          const coachRes = await db.execute({
+            sql: "SELECT DISTINCT venture_id FROM venture_sessions WHERE coach_contact_id = ?",
+            args: [cid],
+          }).catch(() => ({ rows: [] }));
+          scopeList = [...scopeList, ...(coachRes.rows || []).map((r) => r.venture_id).filter(Boolean)];
+        }
+        ventureScope = [...new Set(scopeList)];
       }
 
       if (seesAllVentures || (ventureScope && ventureScope.length > 0)) {
-        // Membership codes are TEXT; canonical venture rows are UUID-keyed, so
-        // resolve codes → internal ids and scope on BOTH key styles.
+        // Membership/assignment codes are TEXT; canonical venture rows are
+        // UUID-keyed — resolve codes → internal ids and scope on BOTH key
+        // styles. Entries that resolve to neither are kept as ids (stale
+        // codes simply match nothing).
         let scopeIds = null;
         let scopeArgs = [];
         if (!seesAllVentures) {
@@ -292,19 +307,27 @@ export async function GET(req) {
             sql: `SELECT id, venture_id FROM ventures WHERE venture_id IN (${ventureScope.map(() => "?").join(",")})`,
             args: ventureScope,
           }).catch(() => ({ rows: [] }));
-          scopeIds = (idRes.rows || []).map((r) => r.id).filter(Boolean);
+          const resolvedCodes = new Set((idRes.rows || []).map((r) => r.venture_id));
+          const mappedIds = (idRes.rows || []).map((r) => r.id).filter(Boolean);
+          const leftoverIds = ventureScope.filter((v) => !resolvedCodes.has(v));
+          scopeIds = [...new Set([...mappedIds, ...leftoverIds])];
           scopeArgs = [...ventureScope, ...scopeIds];
         }
         const scopeSql = seesAllVentures
           ? ""
           : ` AND (venture_id IN (${ventureScope.map(() => "?").join(",")}) OR venture_id IN (${scopeIds.map(() => "?").join(",")}))`;
         const scopeQueryArgs = seesAllVentures ? [] : scopeArgs;
+        // Personal coach filter: coaches always see their own sessions even
+        // when not marked venture-facing.
+        const sessPersonalSql = personalMode && cid ? " AND (coach_contact_id = ? OR venture_facing = TRUE)" : "";
+        const sessPersonalArgs = personalMode && cid ? [cid] : [];
 
-        // 6a. Venture-facing sessions
+        // 6a. Venture sessions (founder-facing, plus the coach's own)
+        const sessBaseWhere = personalMode ? "start_time IS NOT NULL" : "venture_facing = TRUE AND start_time IS NOT NULL";
         const sessRes = await db.execute({
-          sql: `SELECT id, title, start_time, coach_name, status FROM venture_sessions
-                WHERE venture_facing = TRUE AND start_time IS NOT NULL${scopeSql}`,
-          args: scopeQueryArgs,
+          sql: `SELECT id, title, start_time, coach_name, coach_contact_id, status FROM venture_sessions
+                WHERE ${sessBaseWhere}${scopeSql}${sessPersonalSql}`,
+          args: [...scopeQueryArgs, ...sessPersonalArgs],
         }).catch(() => ({ rows: [] }));
         for (const s of sessRes.rows || []) {
           events.push({

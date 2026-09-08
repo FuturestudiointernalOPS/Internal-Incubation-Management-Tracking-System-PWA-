@@ -323,6 +323,13 @@ export async function ensureVentureSchema() {
     "CREATE TABLE IF NOT EXISTS venture_journey_template_tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), milestone_id UUID NOT NULL REFERENCES venture_journey_template_milestones(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, priority TEXT DEFAULT 'medium', labels JSONB DEFAULT '[]', checklist JSONB DEFAULT '[]', review_required BOOLEAN DEFAULT FALSE, required_deliverable_type TEXT, display_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
     // Vinance 3 Phase 2 — contextual notes: attachments (text/links/files)
     "ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS attachments JSONB",
+    // Vinance 3 Phase 1 (coach identity) — sessions know WHO the coach is as
+    // a platform user (Future Studio staff or invited external coach). Soft
+    // ref: legacy venture_coaches rows keep working via coach_name fallback.
+    "ALTER TABLE venture_sessions ADD COLUMN IF NOT EXISTS coach_contact_id TEXT",
+    // Vinance 3 Phase 3 — typed Venture Progress Reports (Manager → Super Admin)
+    "CREATE TABLE IF NOT EXISTS venture_reports (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, title TEXT NOT NULL, reporting_period TEXT, summary TEXT, current_journey TEXT, current_milestone TEXT, completed_items JSONB DEFAULT '[]'::jsonb, outstanding_items JSONB DEFAULT '[]'::jsonb, support_delivered TEXT, challenges TEXT, recommendation TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), submitted_at TIMESTAMPTZ)",
+    "CREATE INDEX IF NOT EXISTS idx_venture_reports_venture ON venture_reports(venture_id, status)",
   ];
 
   for (const sql of migrations) {
@@ -3368,15 +3375,15 @@ export async function checkDoubleBooking({ ventureId, coachId, startTime, endTim
   return { conflict: false };
 }
 
-export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null }) {
+export async function createSession({ ventureId, title, description, sessionType, coachId, coachName, founderCid, founderName, startTime, endTime, timezone, location, meetingLink, agenda, createdBy, ventureFacing = false, preparationNotes = null, journeyStageId = null, milestoneRef = null, taskId = null, coachContactId = null }) {
   if (new Date(startTime) >= new Date(endTime)) throw new Error("End time must be after start time.");
   if (new Date(endTime) < new Date()) throw new Error("Cannot schedule sessions in the past.");
   const conflict = await checkDoubleBooking({ ventureId, coachId, startTime, endTime });
   if (conflict.conflict) throw new Error(conflict.message);
   const res = await db.execute({
-    sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-    args: [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null],
+    sql: `INSERT INTO venture_sessions (venture_id, title, description, session_type, coach_id, coach_name, founder_cid, founder_name, start_time, end_time, timezone, location, meeting_link, agenda, created_by, venture_facing, preparation_notes, journey_stage_id, milestone_ref, task_id, coach_contact_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [ventureId, title.trim(), description||null, sessionType||"coaching", coachId||null, coachName||null, founderCid||null, founderName||null, startTime, endTime, timezone||"UTC", location||null, meetingLink||null, agenda||null, createdBy||"system", ventureFacing ? true : false, preparationNotes||null, journeyStageId||null, milestoneRef||null, taskId||null, coachContactId||null],
   });
   const id = res.rows[0]?.id || res.lastInsertRowid;
   await db.execute({
@@ -3387,7 +3394,7 @@ export async function createSession({ ventureId, title, description, sessionType
 }
 
 export async function updateSession(sessionId, updates) {
-  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id"];
+  const allowed = ["title", "description", "session_type", "coach_id", "coach_name", "founder_cid", "founder_name", "start_time", "end_time", "timezone", "location", "meeting_link", "status", "agenda", "recording_url", "venture_facing", "preparation_notes", "journey_stage_id", "milestone_ref", "task_id", "coach_contact_id"];
   const sets = []; const args = [];
   for (const f of allowed) { if (updates[f] !== undefined) { sets.push(`${f} = ?`); args.push(updates[f]); } }
   if (sets.length === 0) return { updated: false };

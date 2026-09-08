@@ -341,7 +341,28 @@
       "irDeliverables": "Livrables approuvés",
       "irMilestonesDone": "jalons terminés",
       "irTasksDone": "tâches terminées"
-    }
+    },
+    "personal": {
+      "title": "Mon tableau de bord",
+      "subtitle": "Votre espace ImpactOS personnel — calendrier, notifications et Ventures que vous accompagnez.",
+      "myCalendar": "Mon calendrier",
+      "myNotifications": "Mes notifications",
+      "myVentures": "Mes Ventures",
+      "noEvents": "Rien de prévu dans votre calendrier pour le moment.",
+      "noNotifications": "Vous êtes à jour.",
+      "noVentures": "Aucune affectation Venture pour le moment.",
+      "general": "Général",
+      "open": "Ouvrir"
+    },
+    "attention": {
+      "title": "À traiter",
+      "overdue": "Tâches en retard",
+      "awaitingReview": "En attente de révision",
+      "upcomingSessions": "Sessions à venir",
+      "awaitingApproval": "Jalons à approuver",
+      "journeyProgress": "Progression du parcours",
+      "currentJourney": "Parcours actuel",
+      "failed": "Impossible de charger le rapport d'exploitation."
     },
     "history": {
       "title": "Historique de la Venture",

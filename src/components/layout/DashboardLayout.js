@@ -1502,7 +1502,36 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // across ALL role views instead of just the user's role view
     if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
       const respKeys = new Set(userResponsibilities.map((r) => r.key));
-      return gateMyLearning(attachIcons(buildNavFromResponsibilities(respKeys, activeRole)));
+      const respNav = attachIcons(
+        buildNavFromResponsibilities(respKeys, activeRole),
+      );
+      // Staff Venture console (Phase 3): personal home + ventures appear only
+      // when the staff member holds at least one active Venture assignment.
+      if (
+        ["staff", "program_manager"].includes(activeRole) &&
+        typeof ventureAssignCount === "number" &&
+        ventureAssignCount > 0
+      ) {
+        const dashIndex = respNav.findIndex((i) => i.id === "dashboard");
+        const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
+        if (!respNav.some((i) => i.id === "personal_home")) {
+          respNav.splice(insertAt, 0, {
+            id: "personal_home",
+            name: "MY DASHBOARD",
+            icon: LayoutDashboard,
+            href: "/staff/me",
+          });
+        }
+        if (!respNav.some((i) => i.id === "ventures")) {
+          respNav.splice(insertAt + 1, 0, {
+            id: "ventures",
+            name: "MY VENTURES",
+            icon: Rocket,
+            href: "/staff/ventures",
+          });
+        }
+      }
+      return gateMyLearning(respNav);
     }
 
     // Fallback: role view (backward compatible)
@@ -1559,7 +1588,15 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     ) {
       const dashIndex = itemsFinal.findIndex((i) => i.id === "dashboard");
       const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-      itemsFinal.splice(insertAt, 0, {
+      if (!itemsFinal.some((i) => i.id === "personal_home")) {
+        itemsFinal.splice(insertAt, 0, {
+          id: "personal_home",
+          name: "MY DASHBOARD",
+          icon: LayoutDashboard,
+          href: "/staff/me",
+        });
+      }
+      itemsFinal.splice(insertAt + 1, 0, {
         id: "ventures",
         name: "MY VENTURES",
         icon: Rocket,
