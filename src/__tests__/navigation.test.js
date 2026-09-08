@@ -348,3 +348,60 @@ describe("Master navigation — role projections", () => {
     }
   });
 });
+
+describe("capability projection consistency (Phase 4 contract)", () => {
+  const {
+    NAV_ROLE_KEYS,
+    NAV_CAPABILITY_REQUIREMENTS,
+    ROLE_NAV_PROJECTION,
+    EXTRA_SECTION_HREFS,
+    buildRoleNav,
+  } = require("@/lib/masterNavigation");
+  const { CAPABILITY_CATALOG } = require("@/lib/authorization/capability-catalog");
+  const { FEATURE_ELIGIBILITY_DEFAULTS, MODULE_TO_FEATURE } = require("@/models/authorization/eligibility");
+
+  // Every nav id any role can render (union across role masks).
+  const allIds = new Set();
+  const collect = (items) => {
+    for (const item of items || []) {
+      allIds.add(item.id);
+      collect(item.subItems);
+    }
+  };
+  for (const role of NAV_ROLE_KEYS) collect(buildRoleNav(role));
+
+  test("every projection requirement resolves to a real catalog capability and nav node", () => {
+    for (const [nodeId, req] of Object.entries(NAV_CAPABILITY_REQUIREMENTS)) {
+      expect(CAPABILITY_CATALOG[req.module]).toBeDefined();
+      expect(CAPABILITY_CATALOG[req.module].capabilities[req.capability]).toBeDefined();
+      expect(allIds.has(nodeId)).toBe(true);
+    }
+  });
+
+  test("staff hide/show ids exist, carry requirements, and extras have landing hrefs", () => {
+    const staff = ROLE_NAV_PROJECTION.staff;
+    for (const id of [...(staff.hide || []), ...(staff.show || [])]) {
+      expect(allIds.has(id)).toBe(true);
+      expect(NAV_CAPABILITY_REQUIREMENTS[id]).toBeDefined();
+    }
+    expect(Object.keys(EXTRA_SECTION_HREFS).sort()).toEqual([...(staff.show || [])].sort());
+  });
+
+  test("menu extras never exceed the staff eligibility boundary", () => {
+    const staff = ROLE_NAV_PROJECTION.staff;
+    for (const id of staff.show) {
+      const feature = MODULE_TO_FEATURE[NAV_CAPABILITY_REQUIREMENTS[id].module];
+      expect(feature).toBeDefined();
+      expect(FEATURE_ELIGIBILITY_DEFAULTS[feature]).toContain("staff");
+    }
+  });
+
+  test("hidden sections are staff-eligible features shown only when the cap is granted", () => {
+    const staff = ROLE_NAV_PROJECTION.staff;
+    for (const id of staff.hide) {
+      const feature = MODULE_TO_FEATURE[NAV_CAPABILITY_REQUIREMENTS[id].module];
+      if (!feature) continue; // no eligibility concept — role-mask driven
+      expect(FEATURE_ELIGIBILITY_DEFAULTS[feature]).toContain("staff");
+    }
+  });
+});

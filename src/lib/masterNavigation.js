@@ -365,6 +365,16 @@ export const NAV_ROLE_KEYS = Object.keys(ROLE_ACCESS);
 // else stays role-mask-driven, and roles without projection rules are
 // untouched. Server-side authorization remains authoritative; this is
 // visibility only.
+//
+// CONFIG CHAIN (single source, enforced by tests):
+//   eligibility-defaults (canonical) → featureAccess responsibility roles
+//   → NAV_CAPABILITY_REQUIREMENTS (node → module capability) → projection.
+// navigation.test.js's "capability projection consistency" contract locks:
+// requirements resolve to real catalog capabilities/nav nodes, show/hide ids
+// never exceed the eligibility boundary, and every extra has a landing href.
+// Changing eligibility for a feature does NOT auto-change the menu — add the
+// node to a role's hide/show list deliberately (visibility is curated, and
+// the server gates remain authoritative).
 export const NAV_CAPABILITY_REQUIREMENTS = {
   crm: { module: "contacts", capability: "view" },
   finance: { module: "finance", capability: "view" },
