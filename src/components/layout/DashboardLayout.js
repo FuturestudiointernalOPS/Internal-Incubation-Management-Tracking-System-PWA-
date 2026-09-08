@@ -1492,13 +1492,14 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
-    // When the user holds responsibilities, scope their OWN role nav to those
-    // responsibility areas (Communication stays hidden unless the communication
-    // responsibility is held, etc.). Users without responsibilities keep the
-    // legacy capability-driven role nav.
     const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
+    // Staff nav is ALWAYS scoped to responsibilities — even when none are
+    // assigned, a staff member without duties sees only the un-mapped core
+    // items (Dashboard). Other roles keep the legacy capability-driven role
+    // nav unless they actually hold responsibilities.
+    const staffScoped = !bypass && activeRole === "staff";
     const itemsScoped =
-      !bypass && respKeys.size > 0
+      staffScoped || (!bypass && respKeys.size > 0)
         ? gateOwnNavByResponsibilities(items, respKeys)
         : items;
 
