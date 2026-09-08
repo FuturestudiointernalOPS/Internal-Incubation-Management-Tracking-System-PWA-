@@ -3,6 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Users, Trash2, UserPlus, Save, X } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+
+// Platform roles that represent Future Studio staff/operators — founders,
+// participants and investors are never offered for Venture assignments here.
+const STAFF_ROLES = new Set([
+  "super_admin", "developer", "admin", "staff", "program_manager",
+  "teacher", "facilitator", "finance", "crm", "team",
+]);
 
 /**
  * Super Admin → Ventures → [Venture] → Staff Assignments
@@ -14,6 +22,7 @@ import { ArrowLeft, Loader2, Users, Trash2, UserPlus, Save, X } from "lucide-rea
 export default function VentureStaffAssignmentsPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { t } = useI18n();
 
   const [venture, setVenture] = useState(null);
   const [responsibilities, setResponsibilities] = useState([]);
@@ -70,7 +79,11 @@ export default function VentureStaffAssignmentsPage() {
     try {
       const res = await fetch(`/api/contacts/search?q=${encodeURIComponent(q)}`);
       const d = await res.json();
-      if (d.success) setContactResults(d.contacts || []);
+      if (d.success) {
+        // Only Future Studio staff-type contacts may be assigned to a Venture.
+        const staffResults = (d.contacts || []).filter((c) => STAFF_ROLES.has(c.role));
+        setContactResults(staffResults);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -199,7 +212,7 @@ export default function VentureStaffAssignmentsPage() {
                     value={contactQ}
                     onChange={(e) => { setContactQ(e.target.value); searchContacts(e.target.value); }}
                     className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
-                    placeholder="Type at least 2 characters…"
+                    placeholder={t("venture.staffAssign.searchPlaceholder")}
                   />
                   {searching && <p className="text-xs text-slate-500 mt-1">Searching…</p>}
                   {contactResults.length > 0 && (
@@ -207,10 +220,14 @@ export default function VentureStaffAssignmentsPage() {
                       {contactResults.map((c) => (
                         <button type="button" key={c.cid} onClick={() => { setPicked(c); setContactResults([]); }} className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
                           <span className="font-medium text-[var(--text-primary)]">{c.name}</span>
+                          {c.role && <span className="ml-2 px-1.5 py-0.5 rounded bg-slate-500/10 text-slate-400 text-[8px] font-bold uppercase">{c.role}</span>}
                           {c.email && <span className="ml-2 text-slate-500">{c.email}</span>}
                         </button>
                       ))}
                     </div>
+                  )}
+                  {!searching && contactQ.length >= 2 && contactResults.length === 0 && (
+                    <p className="text-xs text-slate-500 mt-1">{t("venture.staffAssign.noStaffFound")}</p>
                   )}
                 </>
               )}

@@ -245,6 +245,25 @@ missing.
   excluding the 3 pre-existing broken suites). No build/commit/push yet —
   awaiting manual approval.
 
+## Follow-up fixes (post-batch, uncommitted)
+- **Save-as-Template self-heals schema:** the save-template route now runs the
+  canonical `ensureVentureSchema()` (best-effort, idempotent) before saving,
+  so environments whose DB predates the Vinance migrations no longer fail
+  with a raw Postgres "relation/column does not exist" 500. Schema-type
+  failures now return a short, actionable message instead of engine text.
+- **Register Venture removed from the Super Admin console:** the sidebar
+  VENTURES group now contains only "All Ventures" (navigation fixture
+  updated); the dead "Register Startup" empty-state button on the All-Ventures
+  page was removed (intake runs through the Forms/Runs pipeline — the header
+  "Open Venture Form" button remains).
+- **Venture Manager assignment clarified + staff-only picker:** the Venture →
+  Staff page (`/admin/ventures/[id]/permissions`) is the assignment surface
+  (responsibility "Lead Manager"). Contact search now includes the contact
+  `role` and the picker filters results to Future Studio staff-type roles
+  (founders/participants/investors are never offered), with role tags and
+  bilingual placeholder/empty copy (`venture.staffAssign.*`).
+- Validation: 53 suites / 681 tests green; i18n parity 0 missing.
+
 ## Deferred follow-ups (product/screen decisions needed)
 - Milestone/task duplicate buttons on their admin screens (endpoints live).
 - Journey-context fields in the sessions admin form (API/lib live).

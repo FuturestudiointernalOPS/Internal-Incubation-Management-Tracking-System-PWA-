@@ -115,9 +115,11 @@ export async function GET(req) {
       return NextResponse.json({ success: true, contacts: result.rows || [] });
     }
 
-    // Internal CRM roles: general directory search (unchanged).
+    // Internal CRM roles: general directory search (unchanged). `role` is
+    // included so callers (e.g. the Venture Staff picker) can distinguish
+    // Future Studio staff from founders/participants in the results.
     const result = await db.execute({
-      sql: `SELECT cid, name, email FROM contacts
+      sql: `SELECT cid, name, email, role FROM contacts
             WHERE (name ILIKE ? OR email ILIKE ?)
             ORDER BY name ASC LIMIT 20`,
       args: [like, like],

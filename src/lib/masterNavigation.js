@@ -220,7 +220,7 @@ export const ROLE_ACCESS = {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
       communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
-      ventures: ["all_ventures", "register_venture"],
+      ventures: ["all_ventures"],
       investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_overview", "investors_campaigns", "investors_relationships"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],

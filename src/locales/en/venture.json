@@ -364,7 +364,10 @@
       "currentJourney": "Current journey",
       "failed": "Could not load the operating report."
     },
-    "coach": {
+    "staffAssign": {
+      "searchPlaceholder": "Search Future Studio staff by name or email…",
+      "noStaffFound": "No Future Studio staff match this search."
+    },    "coach": {
       "mySessionsBadge": "Coached by you",
       "reportAction": "Session report",
       "reportNotes": "Session notes",

@@ -252,14 +252,6 @@ export default function VenturesPage() {
                 ? t("vadmin.list.tryDifferentSearch")
                 : t("vadmin.list.noVenturesDesc")}
             </p>
-            {!searchQuery && (
-              <button
-                onClick={() => router.push("/admin/ventures/register")}
-                className="btn btn-primary gap-2"
-              >
-                <Plus className="w-4 h-4" /> {t("vadmin.list.registerStartup")}
-              </button>
-            )}
           </div>
         ) : (
           <div className="card overflow-hidden">

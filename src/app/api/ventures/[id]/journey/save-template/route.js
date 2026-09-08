@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth";
 import { resolvePlanAccess, allowsPlanAction } from "@/lib/ventureOperatingPlans";
 import { ensureJourneyTable, resolveVentureInternalId } from "@/lib/ventureJourneys";
 import { saveJourneyAsTemplate } from "@/lib/ventureJourneyTemplates";
+import { ensureVentureSchema } from "@/lib/ventures";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,17 @@ export async function POST(req, { params }) {
     const name = body.name ? String(body.name).trim() : "";
     const description = body.description ? String(body.description).trim() : null;
 
+    // Self-heal: the journey/template tables and the milestone columns this
+    // feature reads (journey_stage_id etc.) ship inside ensureVentureSchema(),
+    // which only runs on Venture intake elsewhere. Environments whose schema
+    // predates those migrations must not fail here — ensure once per call is
+    // idempotent and cheap for an occasional admin action.
+    try {
+      await ensureVentureSchema();
+    } catch (_) {
+      // Best effort — the save below reports the real error if the schema
+      // still cannot support it.
+    }
     await ensureJourneyTable(db);
     const dbId = await resolveVentureInternalId(db, id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
@@ -52,6 +64,21 @@ export async function POST(req, { params }) {
 
     return NextResponse.json({ success: true, ...result });
   } catch (e) {
-    return NextResponse.json({ success: false, error: e.message }, { status: 500 });
+    const msg = String((e && e.message) || e || "Unknown error");
+    // Environments whose Venture schema was never migrated return raw Postgres
+    // "relation/column does not exist" text — surface a short, actionable
+    // message instead of the raw engine error.
+    const missingSchema = /does not exist|undefined column|relation .* does not exist/i.test(msg);
+    return NextResponse.json(
+      {
+        success: false,
+        error: missingSchema
+          ? "Journey data is not fully set up in this database yet — retry once (the app self-heals the schema) and contact an admin if it persists."
+          : msg.length > 240
+            ? `${msg.slice(0, 240)}…`
+            : msg,
+      },
+      { status: 500 },
+    );
   }
 }

@@ -364,7 +364,10 @@
       "currentJourney": "Parcours actuel",
       "failed": "Impossible de charger le rapport d'exploitation."
     },
-    "coach": {
+    "staffAssign": {
+      "searchPlaceholder": "Recherchez un membre de l’équipe Future Studio par nom ou e-mail…",
+      "noStaffFound": "Aucun membre de l’équipe Future Studio ne correspond à cette recherche."
+    },    "coach": {
       "mySessionsBadge": "Animé par vous",
       "reportAction": "Compte rendu de séance",
       "reportNotes": "Notes de séance",
