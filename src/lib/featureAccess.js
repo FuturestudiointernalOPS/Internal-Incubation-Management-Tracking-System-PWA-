@@ -64,6 +64,12 @@ export const RESPONSIBILITY_FEATURES = [
   "system_settings",
   // LMS — course management (admin authoring area)
   "lms",
+  // Tasks — task management (task lists, tasks, blockers)
+  "tasks",
+  // Ventures — venture portfolio & registrations
+  "ventures",
+  // Investor — investor records, reviews, campaigns
+  "investor",
 ];
 
 /**

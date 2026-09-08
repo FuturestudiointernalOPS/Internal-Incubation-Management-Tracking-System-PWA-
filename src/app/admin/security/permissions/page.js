@@ -147,7 +147,7 @@ const FEATURE_SUBSECTION_IDS = {
     "investors_campaigns",
     "investors_relationships",
   ],
-  tasks: ["internal_ops_board", "tasks", "blockers"],
+  tasks: ["tasks", "blockers"],
   finance: ["finance"],
   engineering: ["engineering_dashboard"],
 };

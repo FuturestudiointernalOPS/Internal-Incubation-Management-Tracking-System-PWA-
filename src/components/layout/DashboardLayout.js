@@ -49,7 +49,7 @@ import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
-import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities, NAV_CAPABILITY_REQUIREMENTS, hasCapability } from "@/lib/masterNavigation";
+import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities, NAV_CAPABILITY_REQUIREMENTS, NAV_RESPONSIBILITY_MAP, hasCapability } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -540,87 +540,11 @@ const SidebarContent = ({
 // =============================================================================
 // RESPONSIBILITY-GATED NAVIGATION
 // =============================================================================
-// Maps nav item IDs to the responsibility key required to see them.
-// Items not listed here are visible to everyone with that role.
-// Super Admin always sees everything.
+// NAV_RESPONSIBILITY_MAP (nav node id → responsibility key) is the single
+// source of truth in src/lib/masterNavigation.js — shared with the /admin
+// layout guard so a user may open exactly the /admin sections owned by the
+// responsibilities they hold.
 // =============================================================================
-
-const NAV_RESPONSIBILITY_MAP = {
-  // CRM — people data only (dashboard, people, membership, timeline, duplicates)
-  crm: "crm",
-  crm_dashboard: "crm",
-  crm_membership: "crm",
-  crm_timeline: "crm",
-  crm_duplicates: "crm",
-  all_contacts: "crm",
-
-  // Communication — messaging, announcements, forms.
-  // These belong to the COMMUNICATION feature, never to CRM.
-  communication: "communication",
-  messages: "communication",
-  announcements: "communication",
-  forms: "communication",
-  groups: "communication",
-
-  // Administration (user tools moved out of CRM — kept under user_management)
-  pending_users: "user_management",
-  bulk_upload: "user_management",
-
-  // Programs
-  programs: "program_management",
-  all_programs: "program_management",
-  create_program: "program_management",
-  progress: "program_management",
-  program_reports: "program_management",
-  submissions: "program_management",
-  // Ventures
-  ventures: "program_management",
-  all_ventures: "program_management",
-  register_venture: "program_management",
-  // Projects / Operations
-  operations: "operations",
-  internal_ops: "operations",
-  internal_ops_board: "operations",
-  all_projects: "project_ownership",
-  create_project: "project_ownership",
-  my_projects: "project_ownership",
-  tasks: "operations",
-  blockers: "operations",
-  standup: "operations",
-  retro: "operations",
-  standups_retros: "operations",
-  weekly_ops: "operations",
-  internal_reports: "reporting",
-  // Knowledge
-  knowledge: "knowledge_base",
-  knowledge_base: "knowledge_base",
-  intelligence: "intelligence",
-  // Finance & Health
-  finance: "finance",
-  metrics: "reporting",
-  reports: "reporting",
-  // Settings
-  settings: "system_settings",
-  audit_logs: "system_settings",
-  security: "system_settings",
-  integrations: "system_settings",
-  system: "system_settings",
-  access_summary: "user_management",
-  permissions: "user_management",
-  engineering_dashboard: "engineering",
-  engineering: "engineering",
-  // LMS — course management (admin authoring area)
-  lms: "lms",
-  lms_courses: "lms",
-  // Legacy / always visible
-  dashboard: null,
-  projects: null,
-  personnel: "user_management",
-  logs: "user_management",
-  my_tasks: "operations",
-  assigned_tasks: "operations",
-  rituals: "operations",
-};
 
 // Resolve icon names from the master navigation module into components.
 const NAV_ICONS = {
@@ -694,6 +618,20 @@ function contextRoleFromPathname(pathname) {
 }
 
 /**
+ * Resolve the nav role for a page. /admin pages are now reachable by other
+ * roles through their responsibilities — those users must keep their OWN nav
+ * context (never the super_admin one), so the /admin context only applies to
+ * super_admin/developer sessions.
+ */
+function resolveActiveRole(sessionRole, pathname) {
+  if (sessionRole === "super_admin" || sessionRole === "developer") {
+    return sessionRole;
+  }
+  const ctxRole = contextRoleFromPathname(pathname);
+  return ctxRole === "super_admin" ? sessionRole : ctxRole || sessionRole;
+}
+
+/**
  * Scope a role's OWN nav matrix to the areas the user's responsibilities
  * cover (applied only when responsibilities are assigned). Items without a
  * responsibility requirement (dashboard, profile) always stay; sections are
@@ -727,7 +665,10 @@ function gateOwnNavByResponsibilities(items, respKeys) {
 function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiveCaps) {
   const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
   if (respKeys.size === 0) return [];
-  // Only Super Admin and developer can open /admin/* pages.
+  // Only Super Admin and developer open EVERY /admin page. Other roles may
+  // open the /admin section pages owned by a responsibility they hold (the
+  // /admin layout guard mirrors this map), so admin hrefs are kept for those
+  // instead of being dropped.
   const canOpenAdmin = activeRole === "super_admin" || activeRole === "developer";
   const req = NAV_CAPABILITY_REQUIREMENTS;
 
@@ -736,7 +677,9 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
     hasCapability(effectiveCaps, req[node.id].module, req[node.id].capability);
 
   const resolveHref = (itemId, href) => {
-    if (canOpenAdmin || !href) return href;
+    if (!href) return href;
+    const itemRequired = NAV_RESPONSIBILITY_MAP[itemId];
+    if (canOpenAdmin || (itemRequired && respKeys.has(itemRequired))) return href;
     const fallback = NON_ADMIN_HREF_FALLBACKS[itemId];
     if (fallback) return fallback;
     return String(href).startsWith("/admin/") ? null : href;
@@ -758,8 +701,10 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
       for (const item of items || []) {
         if (seenIds.has(item.id)) continue;
         const required = NAV_RESPONSIBILITY_MAP[item.id];
-        if (!(required && respKeys.has(required))) continue;
-        seenIds.add(item.id);
+        // Container sections (operations/settings/security/reports/investors)
+        // group children owned by different responsibilities: they are added
+        // when at least one held child passes, without requiring their own
+        // (null) responsibility. Leaf items need their own responsibility.
         if (item.subItems && item.subItems.length > 0) {
           const subItems = item.subItems
             .filter((sub) => {
@@ -776,14 +721,18 @@ function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiv
               return href === null ? null : { ...sub, href };
             })
             .filter(Boolean);
-          if (subItems.length > 0 && hasCap(item)) {
+          const parentIsContainer = !required; // null-responsibility container
+          if (subItems.length > 0 && (parentIsContainer || hasCap(item))) {
+            seenIds.add(item.id);
             for (const sub of subItems) seenIds.add(sub.id);
             additions.push({ ...item, subItems });
           }
         } else {
+          if (required && !respKeys.has(required)) continue;
           if (!hasCap(item)) continue;
           const href = resolveHref(item.id, item.href);
           if (href === null) continue;
+          seenIds.add(item.id);
           additions.push({ ...item, href });
         }
       }
@@ -1386,10 +1335,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // (e.g. a staff member assigned as Program Manager) sees that role's nav
     // while on its pages. Super Admin and developer always keep their own.
     const sessionRole = user.role || role || "admin";
-    const activeRole =
-      sessionRole === "super_admin" || sessionRole === "developer"
-        ? sessionRole
-        : contextRoleFromPathname(pathname) || sessionRole;
+    const activeRole = resolveActiveRole(sessionRole, pathname);
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1653,10 +1599,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     router.replace("/login");
   };
 
-  const activeRole =
-    user.role === "super_admin" || user.role === "developer"
-      ? user.role
-      : contextRoleFromPathname(pathname) || user.role || role || "admin";
+  const activeRole = resolveActiveRole(user.role || role || "admin", pathname);
   const commonProps = {
     collapsed,
     role: activeRole,
@@ -1687,10 +1630,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // it never shows a few sections first and then gains the responsibility /
   // capability-driven sections moments later.
   const navSessionRole = user.role || role || "admin";
-  const navActiveRole =
-    navSessionRole === "super_admin" || navSessionRole === "developer"
-      ? navSessionRole
-      : contextRoleFromPathname(pathname) || navSessionRole;
+  const navActiveRole = resolveActiveRole(navSessionRole, pathname);
   const personalNavReady =
     !["member", "founder", "participant", "team"].includes(navActiveRole) ||
     relationshipsLoaded;

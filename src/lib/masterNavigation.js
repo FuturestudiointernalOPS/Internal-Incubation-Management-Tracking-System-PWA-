@@ -384,13 +384,144 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   settings: { module: "settings", capability: "view" },
 };
 
+// ─── Node → responsibility map ───────────────────────────────────────────────
+// Declares which operational responsibility “owns” each nav node. Pure
+// container sections (operations, settings, security, reports, investors)
+// group children owned by DIFFERENT responsibilities — they are not owned
+// themselves (null), so a child stays reachable without its parent's
+// responsibility (e.g. Settings ▸ Engineering for a user holding only
+// `engineering`). Leaf/null ids are always visible when the parent shows.
+export const NAV_RESPONSIBILITY_MAP = {
+  // CRM — people data only
+  crm: "crm",
+  crm_dashboard: "crm",
+  crm_membership: "crm",
+  crm_timeline: "crm",
+  crm_duplicates: "crm",
+  all_contacts: "crm",
+
+  // Communication
+  communication: "communication",
+  messages: "communication",
+  announcements: "communication",
+  forms: "communication",
+  groups: "communication",
+
+  // User administration tools (kept out of CRM/communication)
+  pending_users: "user_management",
+  bulk_upload: "user_management",
+  personnel: "user_management",
+  logs: "user_management",
+
+  // Programs
+  programs: "program_management",
+  all_programs: "program_management",
+  create_program: "program_management",
+  progress: "program_management",
+  program_reports: "program_management",
+  submissions: "program_management",
+
+  // Ventures (own responsibility — no longer rides program_management)
+  ventures: "ventures",
+  all_ventures: "ventures",
+  register_venture: "ventures",
+
+  // Projects & operations — operations is a container
+  operations: null,
+  internal_ops: null,
+  internal_ops_board: "operations",
+  weekly_ops: "operations",
+  standup: "operations",
+  retro: "operations",
+  rituals: "operations",
+  standups_retros: "operations",
+  all_projects: "project_ownership",
+  create_project: "project_ownership",
+  my_projects: "project_ownership",
+  projects: "project_ownership",
+
+  // Tasks (own responsibility)
+  tasks: "tasks",
+  blockers: "tasks",
+  my_tasks: "tasks",
+  assigned_tasks: "tasks",
+
+  // Reports — container (program_reports rides program_management)
+  reports: null,
+  internal_reports: "reporting",
+  metrics: "reporting",
+
+  // Knowledge & intelligence
+  knowledge: "knowledge_base",
+  knowledge_base: "knowledge_base",
+  intelligence: "intelligence",
+
+  // LMS
+  lms: "lms",
+  lms_courses: "lms",
+
+  // Finance
+  finance: "finance",
+
+  // Security & system — security/settings are containers
+  security: "system_settings",
+  audit_logs: "system_settings",
+  settings: null,
+  integrations: "system_settings",
+  system: "system_settings",
+  engineering: "engineering",
+  engineering_dashboard: "engineering",
+  access_summary: "user_management",
+  permissions: "user_management",
+
+  // Investors (own responsibility)
+  investors: null,
+  investors_manage: "investor",
+  investors_dashboard: "investor",
+  investors_review: "investor",
+  investors_overview: "investor",
+  investors_campaigns: "investor",
+  investors_relationships: "investor",
+
+  // Legacy / always visible
+  dashboard: null,
+};
+
+/**
+ * The responsibility required to OPEN an /admin page (longest master-tree
+ * href prefix match). Returns null when the path is not covered by a
+ * responsibility (root dashboard, …) → super_admin/developer only.
+ */
+export function responsibilityRequiredForPath(pathname) {
+  if (!pathname) return null;
+  let best = null;
+  let bestLen = -1;
+  const walk = (items) =>
+    (items || []).forEach((n) => {
+      if (
+        n.href &&
+        String(n.href).startsWith("/admin") &&
+        pathname.startsWith(n.href) &&
+        n.href.length > bestLen
+      ) {
+        const required = NAV_RESPONSIBILITY_MAP[n.id];
+        if (required) {
+          best = required;
+          bestLen = n.href.length;
+        }
+      }
+      if (n.children && n.children.length) walk(n.children);
+    });
+  walk(MASTER_NAVIGATION);
+  return best;
+}
+
 // Per-role projection rules. Only Staff (incl. PM-as-staff, which resolves to
 // the staff session role) is projected today: nodes in `hide` disappear when
-// the capability is missing. No section is ever ADDED by capability — the
-// global-management sections live under /admin/*, which is unreachable outside
-// super_admin/developer, so advertising them to staff would create dead links.
-// Cross-area navigation comes from assigned responsibilities instead
-// (DashboardLayout builds those additively).
+// the capability is missing. No section is ever ADDED by capability — section
+// visibility is responsibility-driven (see NAV_RESPONSIBILITY_MAP). Once a
+// section is shown, whether its page actually loads is capability-gated
+// server-side and mirrored here (visibility only).
 export const ROLE_NAV_PROJECTION = {
   staff: {
     hide: ["programs", "weekly_ops", "my_projects", "messages"],

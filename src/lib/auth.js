@@ -1693,6 +1693,24 @@ export async function seedDefaultResponsibilities() {
         description: "Course management — create and maintain courses",
         icon: "GraduationCap",
       },
+      {
+        name: "Tasks",
+        key: "tasks",
+        description: "Task management — tasks and blockers",
+        icon: "CheckSquare",
+      },
+      {
+        name: "Ventures",
+        key: "ventures",
+        description: "Venture management — portfolio and registrations",
+        icon: "Rocket",
+      },
+      {
+        name: "Investor",
+        key: "investor",
+        description: "Investor management — records, reviews, campaigns",
+        icon: "TrendingUp",
+      },
     ];
 
     for (const resp of defaults) {
