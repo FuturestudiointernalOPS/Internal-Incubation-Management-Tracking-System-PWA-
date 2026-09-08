@@ -694,6 +694,30 @@ function contextRoleFromPathname(pathname) {
 }
 
 /**
+ * Scope a role's OWN nav matrix to the areas the user's responsibilities
+ * cover (applied only when responsibilities are assigned). Items without a
+ * responsibility requirement (dashboard, profile) always stay; sections are
+ * pruned to their held children. Capability gating happens afterwards in
+ * projectNavForCapabilities — this is an area gate, not an access gate.
+ */
+function gateOwnNavByResponsibilities(items, respKeys) {
+  return (items || []).reduce((acc, item) => {
+    const required = NAV_RESPONSIBILITY_MAP[item.id];
+    if (required && !respKeys.has(required)) return acc;
+    if (item.subItems && item.subItems.length > 0) {
+      const subItems = item.subItems.filter((sub) => {
+        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
+        return !subRequired || respKeys.has(subRequired);
+      });
+      if (subItems.length > 0) acc.push({ ...item, subItems });
+      return acc;
+    }
+    acc.push(item);
+    return acc;
+  }, []);
+}
+
+/**
  * Additive responsibilities: pages from OTHER role matrices that the held
  * responsibilities grant. Unmapped items from other roles never leak in, and
  * every added node is capability-gated so no dead links appear. Admin-only
@@ -1468,9 +1492,19 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     }
 
+    // When the user holds responsibilities, scope their OWN role nav to those
+    // responsibility areas (Communication stays hidden unless the communication
+    // responsibility is held, etc.). Users without responsibilities keep the
+    // legacy capability-driven role nav.
+    const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
+    const itemsScoped =
+      !bypass && respKeys.size > 0
+        ? gateOwnNavByResponsibilities(items, respKeys)
+        : items;
+
     // Capability projection (visibility only — the server remains authoritative).
     // Currently applies to staff (incl. PM-as-staff); other roles pass through.
-    const projected = projectNavForCapabilities(items, effectiveCaps, activeRole);
+    const projected = projectNavForCapabilities(itemsScoped, effectiveCaps, activeRole);
     const itemsFinal = attachIcons(projected);
 
     // Additive responsibilities: pages from OTHER role matrices granted by the
