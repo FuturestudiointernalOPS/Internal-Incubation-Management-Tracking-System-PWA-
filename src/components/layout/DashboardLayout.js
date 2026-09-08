@@ -1044,6 +1044,18 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   // null = unknown (show by default), false = hide "My Learning"
   const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
 
+  // Sidebar hydration flags — the sidebar is only rendered once every input
+  // that composes it (responsibilities, effective caps, venture count, PM
+  // programs, personal relationships, learning enrollments) has settled, so
+  // it never paints partially and then gains sections a moment later.
+  const [capsLoaded, setCapsLoaded] = useState(false);
+  const [responsibilitiesSettled, setResponsibilitiesSettled] = useState(false);
+  const [relationshipsLoaded, setRelationshipsLoaded] = useState(false);
+  const [ventureLoaded, setVentureLoaded] = useState(false);
+  const [pmProgramsLoaded, setPmProgramsLoaded] = useState(false);
+  const [hasLmsLoaded, setHasLmsLoaded] = useState(false);
+  const [navHydrated, setNavHydrated] = useState(false);
+
   // Fast path: restore the cached session synchronously before first paint so
   // navigating between pages doesn't flash an empty screen while initAuth()
   // re-validates against the server in the background.
@@ -1078,7 +1090,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       .then((d) => {
         if (alive && d.success) setEffectiveCaps(d.effective || null);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setCapsLoaded(true);
+      });
     return () => {
       alive = false;
     };
@@ -1189,6 +1204,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
           setDashboardSession({ user: JSON.parse(savedUser) });
         }
       } finally {
+        setResponsibilitiesSettled(true);
         setAuthChecked(true);
       }
     }
@@ -1205,6 +1221,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       user.role !== "program_manager" &&
       user.role !== "super_admin"
     ) {
+      setPmProgramsLoaded(true);
       return;
     }
     const url =
@@ -1216,7 +1233,8 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       .then((data) => {
         if (data.success) setPmPrograms(data.programs || []);
       })
-      .catch((e) => console.error(e));
+      .catch((e) => console.error(e))
+      .finally(() => setPmProgramsLoaded(true));
   }, [user.role, user.cid, user.id, pathname]);
 
   // "My Learning" only appears once the participant has subscribed to a course
@@ -1235,6 +1253,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       !participantNavActive
     ) {
       setHasLmsEnrollments(null);
+      setHasLmsLoaded(true);
       return;
     }
     let active = true;
@@ -1246,6 +1265,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       })
       .catch(() => {
         if (active) setHasLmsEnrollments(null);
+      })
+      .finally(() => {
+        if (active) setHasLmsLoaded(true);
       });
     return () => {
       active = false;
@@ -1323,7 +1345,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       .then((d) => {
         if (alive && d.success) setRelationships(d);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (alive) setRelationshipsLoaded(true);
+      });
     return () => {
       alive = false;
     };
@@ -1334,14 +1359,22 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const [ventureAssignCount, setVentureAssignCount] = useState(null);
   useEffect(() => {
     if (!user.cid) return;
-    if (!["staff", "program_manager"].includes(user.role)) return;
+    if (!["staff", "program_manager"].includes(user.role)) {
+      setVentureLoaded(true);
+      return;
+    }
     let alive = true;
     fetch("/api/ventures/assigned")
       .then((r) => r.json())
       .then((d) => {
         if (alive) setVentureAssignCount((d.assignments || []).length);
       })
-      .catch(() => setVentureAssignCount(0));
+      .catch(() => {
+        if (alive) setVentureAssignCount(0);
+      })
+      .finally(() => {
+        if (alive) setVentureLoaded(true);
+      });
     return () => {
       alive = false;
     };
@@ -1648,8 +1681,53 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     (typeof pathname === "string" &&
       pathname.startsWith("/admin/communications/contacts"));
 
-  if (!authChecked) {
-    return <div className="min-h-screen bg-primary" />;
+  // ── Sidebar hydration gate ───────────────────────────────────────────────
+  // Keep the loading spinner until every input that composes the connected
+  // user's sidebar has settled, so the sidebar is painted ONCE, complete —
+  // it never shows a few sections first and then gains the responsibility /
+  // capability-driven sections moments later.
+  const navSessionRole = user.role || role || "admin";
+  const navActiveRole =
+    navSessionRole === "super_admin" || navSessionRole === "developer"
+      ? navSessionRole
+      : contextRoleFromPathname(pathname) || navSessionRole;
+  const personalNavReady =
+    !["member", "founder", "participant", "team"].includes(navActiveRole) ||
+    relationshipsLoaded;
+  const ventureNavReady =
+    !["staff", "program_manager"].includes(navActiveRole) || ventureLoaded;
+  const pmNavReady =
+    !(
+      navActiveRole === "program_manager" ||
+      navActiveRole === "super_admin" ||
+      (typeof pathname === "string" && pathname.startsWith("/pm"))
+    ) || pmProgramsLoaded;
+  const lmsNavReady = navActiveRole !== "participant" || hasLmsLoaded;
+  const navReady =
+    authChecked &&
+    responsibilitiesSettled &&
+    capsLoaded &&
+    personalNavReady &&
+    ventureNavReady &&
+    pmNavReady &&
+    lmsNavReady;
+
+  useEffect(() => {
+    if (!navHydrated && navReady) setNavHydrated(true);
+  }, [navHydrated, navReady]);
+
+  if (!navHydrated) {
+    return (
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <div
+          className="w-8 h-8 border-2 rounded-full animate-spin"
+          style={{
+            borderColor: "rgba(255,102,0,0.15)",
+            borderTopColor: "var(--brand-orange)",
+          }}
+        />
+      </div>
+    );
   }
 
   return (
