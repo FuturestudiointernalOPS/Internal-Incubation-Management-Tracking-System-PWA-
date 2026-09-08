@@ -53,6 +53,10 @@ jest.mock("@/lib/ventureAuth", () => ({
     session: { cid: "sa-001", name: "Super Admin", role: "super_admin", email: "admin@test.com" },
   }),
   requireOperationalVentureAccess: jest.fn().mockResolvedValue({ ok: true }),
+  // Ventures' GET route privacy split: staff actors keep the full payload
+  // (activity/history). Mocked as granted so no real db.execute query
+  // consumes the mock queue set up for getVentureById.
+  isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock("@/lib/auth", () => ({
