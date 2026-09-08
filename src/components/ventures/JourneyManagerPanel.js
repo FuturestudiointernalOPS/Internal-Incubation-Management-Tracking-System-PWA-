@@ -14,6 +14,7 @@ import {
   Copy,
   CopyPlus,
   CheckCircle2,
+  AlertTriangle,
   RotateCcw,
   Pencil,
   Lock,
@@ -63,7 +64,7 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const notify = (msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 5000);
   };
 
   const load = async () => {
@@ -263,9 +264,11 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   return (
     <div className="card">
+      {/* Inline status message — never a floating top-right toast */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 px-4 py-2 rounded-xl text-sm text-white shadow-lg ${toast.type === "error" ? "bg-rose-500" : "bg-emerald-500"}`}>
-          {toast.msg}
+        <div className={`mb-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-bold ${toast.type === "error" ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"}`}>
+          {toast.type === "error" ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+          <span>{toast.msg}</span>
         </div>
       )}
 

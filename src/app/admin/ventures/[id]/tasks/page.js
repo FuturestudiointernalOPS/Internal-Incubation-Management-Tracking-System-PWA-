@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Trash2, Edit3,
   Calendar, Clock, User, Paperclip, MessageCircle, Flag, ChevronDown, ChevronRight,
-  List, Columns, LayoutGrid, Circle, Square, CopyPlus,
+  List, Columns, LayoutGrid, Circle, Square, CopyPlus, Archive, RotateCcw,
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
@@ -46,6 +46,10 @@ export default function VentureTasksPage() {
   const [tForm, setTForm] = useState({ title: "", description: "", priority: "medium", status: "todo", due_date: "", estimated_hours: "", assigned_cid: "", assigned_name: "", labels: [], milestone_id: "" });
   const [saving, setSaving] = useState(false);
   const [dupBusy, setDupBusy] = useState(null);
+  // Archive (soft delete): archived view + inline result banner.
+  const [viewArchived, setViewArchived] = useState(false);
+  const [archBusy, setArchBusy] = useState(false);
+  const [archMsg, setArchMsg] = useState(null);
 
   // Comment input
   const [commentText, setCommentText] = useState("");
@@ -62,7 +66,9 @@ export default function VentureTasksPage() {
   };
 
   const fetchData = async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/tasks`];
+    // include_archived=1: archived (soft-deleted) tasks are rendered in their
+    // own view — the page splits active vs archived client-side.
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/tasks?include_archived=1`];
     const apply = (vData, tData) => {
       if (vData.success) setVenture(vData.venture);
       if (tData.success) {
@@ -188,7 +194,51 @@ export default function VentureTasksPage() {
     } catch { notify("Failed to add comment", "error"); }
   };
 
-  const filteredTasks = tasks.filter((t) => {
+  // ── Archive (soft delete) actions ───────────────────────────────────────
+  const showArchMsg = (msg, type = "success") => {
+    setArchMsg({ msg, type });
+    setTimeout(() => setArchMsg(null), 6000);
+  };
+
+  const runArchive = async (ids, action) => {
+    if (!ids.length) return;
+    setArchBusy(true);
+    try {
+      const res = await fetch(`/api/ventures/${id}/tasks/archive`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, action }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const done = action === "restore" ? d.restored || [] : d.archived || [];
+        const blocked = d.blocked || [];
+        const parts = [];
+        if (done.length) parts.push(action === "restore" ? t("vadmin.tasks.restoredOk", { n: done.length }) : t("vadmin.tasks.archivedOk", { n: done.length }));
+        if (blocked.length) parts.push(blocked[0]?.reason || t("vadmin.tasks.blockedMsg", { n: blocked.length }));
+        showArchMsg(parts.join(" — ") || t("vadmin.tasks.archivedOk", { n: 0 }), blocked.length && !done.length ? "error" : "success");
+      } else {
+        showArchMsg(d.error || t("venture.manager.duplicateStageFailed"), "error");
+      }
+    } catch {
+      showArchMsg(t("venture.manager.duplicateStageFailed"), "error");
+    }
+    setArchBusy(false);
+    await fetchData(true);
+  };
+
+  const archiveOne = (task) => {
+    if (!window.confirm(t("vadmin.tasks.archiveConfirm", { name: task.title }))) return;
+    runArchive([String(task.id)], "archive");
+  };
+  const restoreOne = (task) => {
+    if (!window.confirm(t("vadmin.tasks.restoreConfirm", { name: task.title }))) return;
+    runArchive([String(task.id)], "restore");
+  };
+
+  const activeTasks = tasks.filter((t) => t.is_archived !== true);
+  const archivedTasks = tasks.filter((t) => t.is_archived === true);
+
+  const filteredTasks = (viewArchived ? archivedTasks : activeTasks).filter((t) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return t.title?.toLowerCase().includes(q) || t.description?.toLowerCase().includes(q) || t.assigned_name?.toLowerCase().includes(q);
@@ -207,8 +257,8 @@ export default function VentureTasksPage() {
     </>
   );
 
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter((t) => t.status === "done").length;
+  const totalTasks = activeTasks.length;
+  const doneTasks = activeTasks.filter((t) => t.status === "done").length;
 
   return (
     <>
@@ -251,6 +301,51 @@ export default function VentureTasksPage() {
           </div>
         </div>
 
+        {/* Archive toolbar + inline result */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => { setViewArchived(false); setSearch(""); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            {t("vadmin.tasks.viewActive", { n: activeTasks.length })}
+          </button>
+          <button onClick={() => { setViewArchived(true); setSearch(""); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            {t("vadmin.tasks.viewArchived", { n: archivedTasks.length })}
+          </button>
+        </div>
+        {archMsg && (
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold ${archMsg.type === "error" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"}`}>
+            {archMsg.type === "error" ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            <span>{archMsg.msg}</span>
+            <button onClick={() => setArchMsg(null)} className="ml-auto text-slate-500 hover:text-[var(--text-primary)]"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+
+        {/* Archived view: soft-deleted tasks with restore */}
+        {viewArchived ? (
+          archivedTasks.length === 0 ? (
+            <div className="text-center py-16">
+              <Archive className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-sm text-slate-500">{t("vadmin.tasks.emptyArchived")}</p>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {filteredTasks.map((task) => (
+                <div key={task.id} className="flex items-center gap-4 p-4 rounded-xl bg-tertiary border border-[var(--border-primary)]">
+                  <Archive className="w-4 h-4 text-slate-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-[var(--text-primary)] truncate line-through decoration-slate-600">{task.title}</p>
+                    <p className="text-[8px] text-slate-500 mt-0.5">{task.status} · {task.archived_at ? new Date(task.archived_at).toLocaleDateString() : ""}</p>
+                  </div>
+                  <button onClick={() => restoreOne(task)} disabled={archBusy}
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[8px] font-black uppercase tracking-widest hover:bg-emerald-500/20 disabled:opacity-40 flex items-center gap-1.5">
+                    <RotateCcw className="w-3 h-3" /> {t("vadmin.tasks.restore")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )
+        ) : (
+        <>
         {/* Kanban Board */}
         {view === "kanban" && (
           <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: "60vh" }}>
@@ -290,6 +385,11 @@ export default function VentureTasksPage() {
                           <div className="flex items-center gap-2 mt-2 text-[7px] text-slate-600">
                             {task.assigned_name && <span className="flex items-center gap-1"><User className="w-2.5 h-2.5" />{task.assigned_name}</span>}
                             {task.due_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" />{new Date(task.due_date).toLocaleDateString()}</span>}
+                            <button onClick={(e) => { e.stopPropagation(); archiveOne(task); }} disabled={archBusy}
+                              title={t("vadmin.tasks.archive")}
+                              className="p-1 text-slate-500 hover:text-amber-400 rounded disabled:opacity-40">
+                              {archBusy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Archive className="w-3 h-3" />}
+                            </button>
                             <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
                               title={t("vadmin.tasks.duplicate")}
                               className="ml-auto p-1 text-slate-500 hover:text-sky-300 rounded disabled:opacity-40">
@@ -334,6 +434,11 @@ export default function VentureTasksPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
+                      <button onClick={(e) => { e.stopPropagation(); archiveOne(task); }} disabled={archBusy}
+                        title={t("vadmin.tasks.archive")}
+                        className="p-1.5 text-slate-500 hover:text-amber-400 rounded-lg disabled:opacity-40">
+                        {archBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                      </button>
                       <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} disabled={dupBusy === task.id}
                         title={t("vadmin.tasks.duplicate")}
                         className="p-1.5 text-slate-500 hover:text-sky-300 rounded-lg disabled:opacity-40">
@@ -347,6 +452,8 @@ export default function VentureTasksPage() {
               })
             )}
           </div>
+        )}
+        </>
         )}
       </div>
 

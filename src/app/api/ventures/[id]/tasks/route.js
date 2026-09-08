@@ -3,10 +3,11 @@ import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
 import { getSession } from "@/lib/auth";
 import {
-  listTasks, getTask, createTask, updateTask, deleteTask,
+  listTasks, getTask, createTask, updateTask,
   listTaskComments, addTaskComment, deleteTaskComment,
   listTaskAttachments, addTaskAttachment, deleteTaskAttachment,
 } from "@/lib/ventures";
+import { archiveTask } from "@/lib/ventureArchive";
 import { TASK_BOARD_COLUMNS, TASK_REVIEW_GATED_COMPLETION_STATUSES } from "@/lib/ventureStatuses";
 import db from "@/lib/db";
 
@@ -30,13 +31,19 @@ export const GET = createHandler(async (req, { params }) => {
   const s = new URL(req.url).searchParams;
   const tasks = await listTasks(dbId, s.get("milestone_id"), s.get("status"), s.get("assigned_cid"));
 
+  // Archived (soft-deleted) tasks stay in the database (history is kept) but
+  // are hidden from default lists. Row-level filter: environments whose
+  // schema predates the is_archived column keep working (field is undefined).
+  const includeArchived = s.get("include_archived") === "1";
+  const visibleTasks = tasks.filter((t) => includeArchived || t.is_archived !== true);
+
   // Group by status for Kanban (column vocabulary from lib/ventureStatuses)
   const byStatus = {};
   for (const status of TASK_BOARD_COLUMNS) {
-    byStatus[status] = tasks.filter((t) => t.status === status);
+    byStatus[status] = visibleTasks.filter((t) => t.status === status);
   }
 
-  return NextResponse.json({ success: true, tasks, by_status: byStatus });
+  return NextResponse.json({ success: true, tasks: visibleTasks, by_status: byStatus });
 });
 
 export const POST = createHandler(async (req, { params }) => {
@@ -145,6 +152,12 @@ export const DELETE = createHandler(async (req, { params }) => {
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   const taskId = new URL(req.url).searchParams.get("id");
   if (!taskId) return NextResponse.json({ success: false, error: "Task ID required." }, { status: 400 });
-  await deleteTask(parseInt(taskId));
-  return NextResponse.json({ success: true });
+
+  // Soft delete (archive): a task that already has filed work (submissions or
+  // reviews) is part of the Venture's record and can never be removed.
+  const out = await archiveTask(db, { taskId, actorCid: session.cid || null });
+  if (out?.error) {
+    return NextResponse.json({ success: false, error: out.error }, { status: 409 });
+  }
+  return NextResponse.json({ success: true, archived: true });
 });

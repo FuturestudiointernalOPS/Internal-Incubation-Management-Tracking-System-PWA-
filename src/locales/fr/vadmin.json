@@ -642,7 +642,22 @@
       "deliverableDecision": "Livrable {decision}",
       "duplicate": "Dupliquer",
       "duplicateConfirm": "Dupliquer le jalon « {name} » ? Le jalon et ses tâches seront copiés dans un nouveau jalon indépendant — soumissions, avis et historique ne sont pas copiés.",
-      "duplicateSuccess": "Jalon dupliqué ({tasks} tâches)."
+      "duplicateSuccess": "Jalon dupliqué ({tasks} tâches).",
+      "archive": "Archiver",
+      "selectAll": "Tout sélectionner",
+      "selectMilestone": "Sélectionner le jalon",
+      "archiveSelected": "Archiver la sélection ({n})",
+      "archiveConfirm": "Archiver « {name} » ? Suppression douce — il peut être restauré depuis la vue Archivés. Les jalons avec des travaux soumis ne peuvent pas être supprimés.",
+      "archiveBulkConfirm": "Archiver {n} jalon(s) sélectionné(s) ?",
+      "restore": "Restaurer",
+      "restoreConfirm": "Restaurer « {name} » ?",
+      "viewActive": "Actifs ({n})",
+      "viewArchived": "Archivés ({n})",
+      "archivedOk": "{n} jalon(s) archivé(s)",
+      "restoredOk": "{n} jalon(s) restauré(s)",
+      "blockedMsg": "{n} conservés — ils ont déjà des travaux soumis",
+      "emptyArchived": "Aucun jalon archivé.",
+      "emptyArchivedDesc": "Les jalons archivés restent en base et peuvent être restaurés."
     },
     "reports": {
       "backToDashboard": "Retour au tableau de bord",
@@ -762,7 +777,17 @@
       "commentFailed": "Échec de l'ajout du commentaire",
       "duplicate": "Dupliquer",
       "duplicateConfirm": "Dupliquer la tâche « {name} » ? Une nouvelle copie en backlog sera créée — soumissions, avis et historique ne sont pas copiés.",
-      "duplicateSuccess": "Tâche dupliquée"
+      "duplicateSuccess": "Tâche dupliquée",
+      "archive": "Archiver",
+      "archiveConfirm": "Archiver la tâche « {name} » ? Suppression douce — elle peut être restaurée depuis la vue Archivés. Les tâches avec des travaux soumis ne peuvent pas être supprimées.",
+      "restore": "Restaurer",
+      "restoreConfirm": "Restaurer « {name} » ?",
+      "viewActive": "Actives ({n})",
+      "viewArchived": "Archivées ({n})",
+      "archivedOk": "{n} tâche(s) archivée(s)",
+      "restoredOk": "{n} tâche(s) restaurée(s)",
+      "blockedMsg": "{n} conservées — elles ont déjà des travaux soumis",
+      "emptyArchived": "Aucune tâche archivée."
     },
     "timeline": {
       "backToDashboard": "Retour au tableau de bord",

@@ -330,6 +330,14 @@ export async function ensureVentureSchema() {
     // Vinance 3 Phase 3 — typed Venture Progress Reports (Manager → Super Admin)
     "CREATE TABLE IF NOT EXISTS venture_reports (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, title TEXT NOT NULL, reporting_period TEXT, summary TEXT, current_journey TEXT, current_milestone TEXT, completed_items JSONB DEFAULT '[]'::jsonb, outstanding_items JSONB DEFAULT '[]'::jsonb, support_delivered TEXT, challenges TEXT, recommendation TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), submitted_at TIMESTAMPTZ)",
     "CREATE INDEX IF NOT EXISTS idx_venture_reports_venture ON venture_reports(venture_id, status)",
+    // Milestone & task archiving (soft delete). Archived rows stay in the
+    // database forever (history preserved) but are hidden from default lists.
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
+    "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS archived_by TEXT",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS is_archived BOOLEAN NOT NULL DEFAULT FALSE",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ",
+    "ALTER TABLE venture_tasks ADD COLUMN IF NOT EXISTS archived_by TEXT",
   ];
 
   for (const sql of migrations) {

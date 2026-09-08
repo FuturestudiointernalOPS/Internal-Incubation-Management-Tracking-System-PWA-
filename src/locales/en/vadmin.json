@@ -642,7 +642,22 @@
       "deliverableDecision": "Deliverable {decision}",
       "duplicate": "Duplicate",
       "duplicateConfirm": "Duplicate milestone \"{name}\"? The milestone and its tasks are copied into a new independent milestone — submissions, reviews and history are not copied.",
-      "duplicateSuccess": "Milestone duplicated ({tasks} tasks)."
+      "duplicateSuccess": "Milestone duplicated ({tasks} tasks).",
+      "archive": "Archive",
+      "selectAll": "Select all",
+      "selectMilestone": "Select milestone",
+      "archiveSelected": "Archive selected ({n})",
+      "archiveConfirm": "Archive \"{name}\"? Soft delete — it can be restored from the Archived view. Milestones with submitted work cannot be deleted.",
+      "archiveBulkConfirm": "Archive {n} selected milestone(s)?",
+      "restore": "Restore",
+      "restoreConfirm": "Restore \"{name}\"?",
+      "viewActive": "Active ({n})",
+      "viewArchived": "Archived ({n})",
+      "archivedOk": "{n} milestone(s) archived",
+      "restoredOk": "{n} milestone(s) restored",
+      "blockedMsg": "{n} kept — they already have submitted work",
+      "emptyArchived": "No archived milestones.",
+      "emptyArchivedDesc": "Archived milestones stay in the database and can be restored."
     },
     "reports": {
       "backToDashboard": "Back to Dashboard",
@@ -762,7 +777,17 @@
       "commentFailed": "Failed to add comment",
       "duplicate": "Duplicate",
       "duplicateConfirm": "Duplicate task \"{name}\"? A fresh backlog copy is created — submissions, reviews and history are not copied.",
-      "duplicateSuccess": "Task duplicated"
+      "duplicateSuccess": "Task duplicated",
+      "archive": "Archive",
+      "archiveConfirm": "Archive task \"{name}\"? Soft delete — it can be restored from the Archived view. Tasks with submitted work cannot be deleted.",
+      "restore": "Restore",
+      "restoreConfirm": "Restore \"{name}\"?",
+      "viewActive": "Active ({n})",
+      "viewArchived": "Archived ({n})",
+      "archivedOk": "{n} task(s) archived",
+      "restoredOk": "{n} task(s) restored",
+      "blockedMsg": "{n} kept — they already have submitted work",
+      "emptyArchived": "No archived tasks."
     },
     "timeline": {
       "backToDashboard": "Back to Dashboard",

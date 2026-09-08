@@ -13,7 +13,12 @@ export const GET = createHandler(async (req, { params }) => {
   const ventureDbId = ventureRes.rows?.[0]?.id;
   if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
   const r = await db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
-  return NextResponse.json({ success: true, milestones: r.rows || [] });
+  // Archived (soft-deleted) milestones stay in the database (history is kept)
+  // but are hidden from default lists. Row-level filter: environments whose
+  // schema predates the is_archived column keep working (field is undefined).
+  const includeArchived = new URL(req.url).searchParams.get("include_archived") === "1";
+  const rows = (r.rows || []).filter((m) => includeArchived || m.is_archived !== true);
+  return NextResponse.json({ success: true, milestones: rows });
 });
 
 export const POST = createHandler(async (req, { params }) => {

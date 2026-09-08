@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import {
   ArrowLeft, Plus, Loader2, CheckCircle2, AlertCircle, AlertTriangle, X, Trash2, Edit3,
   Flag, Calendar, Clock, User, Paperclip, Send, ChevronDown, ChevronRight, FileText,
-  BookOpen, BarChart3, Layers, CopyPlus,
+  BookOpen, BarChart3, Layers, CopyPlus, Archive, RotateCcw, Square, CheckSquare,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
@@ -51,6 +51,11 @@ export default function VentureMilestonesPage() {
   const [reviewForm, setReviewForm] = useState({ decision: "approved", comments: "" });
   const [saving, setSaving] = useState(false);
   const [dupBusy, setDupBusy] = useState(null);
+  // Archive (soft delete): selection + archived view + inline result banner.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [viewArchived, setViewArchived] = useState(false);
+  const [archBusy, setArchBusy] = useState(false);
+  const [archMsg, setArchMsg] = useState(null);
 
   useEffect(() => { fetchData(); }, []);
 
@@ -60,7 +65,9 @@ export default function VentureMilestonesPage() {
   };
 
   const fetchData = async (bypassCache = false) => {
-    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/milestones`];
+    // include_archived=1: archived (soft-deleted) milestones are rendered in
+    // their own view — the page splits active vs archived client-side.
+    const urls = [`/api/ventures/${id}`, `/api/ventures/${id}/milestones?include_archived=1`];
     const apply = (vData, mData) => {
       if (vData.success) setVenture(vData.venture);
       if (mData.success) setMilestones(mData.milestones || []);
@@ -201,6 +208,72 @@ export default function VentureMilestonesPage() {
     </>
   );
 
+  // ── Archive (soft delete) actions ───────────────────────────────────────
+  const showArchMsg = (msg, type = "success") => {
+    setArchMsg({ msg, type });
+    setTimeout(() => setArchMsg(null), 6000);
+  };
+
+  const runArchive = async (ids, action) => {
+    if (!ids.length) return;
+    setArchBusy(true);
+    try {
+      const res = await fetch(`/api/ventures/${id}/milestones/archive`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, action }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        const done = action === "restore" ? d.restored || [] : d.archived || [];
+        const blocked = d.blocked || [];
+        const parts = [];
+        if (done.length) parts.push(action === "restore" ? t("vadmin.milestones.restoredOk", { n: done.length }) : t("vadmin.milestones.archivedOk", { n: done.length }));
+        if (blocked.length) parts.push(t("vadmin.milestones.blockedMsg", { n: blocked.length }));
+        showArchMsg(parts.join(" — ") || t("vadmin.milestones.archivedOk", { n: 0 }), blocked.length && !done.length ? "error" : "success");
+      } else {
+        showArchMsg(d.error || t("venture.manager.duplicateStageFailed"), "error");
+      }
+    } catch {
+      showArchMsg(t("venture.manager.duplicateStageFailed"), "error");
+    }
+    setSelectedIds(new Set());
+    setArchBusy(false);
+    await fetchData(true);
+  };
+
+  const archiveOne = (m) => {
+    if (!window.confirm(t("vadmin.milestones.archiveConfirm", { name: m.title }))) return;
+    runArchive([String(m.id)], "archive");
+  };
+  const restoreOne = (m) => {
+    if (!window.confirm(t("vadmin.milestones.restoreConfirm", { name: m.title }))) return;
+    runArchive([String(m.id)], "restore");
+  };
+  const archiveSelected = () => {
+    const activeIds = milestones.filter((m) => m.is_archived !== true);
+    const picked = activeIds.filter((m) => selectedIds.has(String(m.id))).map((m) => String(m.id));
+    if (!picked.length) return;
+    if (!window.confirm(t("vadmin.milestones.archiveBulkConfirm", { n: picked.length }))) return;
+    runArchive(picked, "archive");
+  };
+
+  const toggleSelect = (mid) => {
+    const next = new Set(selectedIds);
+    const key = String(mid);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    setSelectedIds(next);
+  };
+  const toggleSelectAll = () => {
+    const activeIds = milestones.filter((m) => m.is_archived !== true);
+    if (activeIds.length > 0 && activeIds.every((m) => selectedIds.has(String(m.id)))) setSelectedIds(new Set());
+    else setSelectedIds(new Set(activeIds.map((m) => String(m.id))));
+  };
+
+  const activeMilestones = milestones.filter((m) => m.is_archived !== true);
+  const archivedMilestones = milestones.filter((m) => m.is_archived === true);
+  const visibleMilestones = viewArchived ? archivedMilestones : activeMilestones;
+  const allSelected = activeMilestones.length > 0 && activeMilestones.every((m) => selectedIds.has(String(m.id)));
+
   const completedCount = milestones.filter((m) => m.status === "completed").length;
   const totalDeliverables = Object.values(deliverables).flat().length;
   const completedDeliverables = Object.values(deliverables).flat().filter((d) => d.status === "approved" || d.status === "completed").length;
@@ -253,19 +326,57 @@ export default function VentureMilestonesPage() {
           </div>
         </div>
 
+        {/* Archive toolbar (soft delete + select all + views) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => { setViewArchived(false); setSelectedIds(new Set()); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${!viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            {t("vadmin.milestones.viewActive", { n: activeMilestones.length })}
+          </button>
+          <button onClick={() => { setViewArchived(true); setSelectedIds(new Set()); }}
+            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${viewArchived ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)] border-[var(--brand-orange)]/30" : "bg-tertiary border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]"}`}>
+            {t("vadmin.milestones.viewArchived", { n: archivedMilestones.length })}
+          </button>
+          {!viewArchived && activeMilestones.length > 0 && (
+            <button onClick={toggleSelectAll} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-[var(--text-primary)] border border-[var(--border-primary)] transition-all">
+              {allSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />} {t("vadmin.milestones.selectAll")}
+            </button>
+          )}
+          {!viewArchived && selectedIds.size > 0 && (
+            <button onClick={archiveSelected} disabled={archBusy}
+              className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25 disabled:opacity-40 flex items-center gap-1.5">
+              {archBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />} {t("vadmin.milestones.archiveSelected", { n: selectedIds.size })}
+            </button>
+          )}
+        </div>
+
+        {/* Inline result message (archive actions) */}
+        {archMsg && (
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold ${archMsg.type === "error" ? "bg-rose-500/10 text-rose-400 border border-rose-500/30" : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"}`}>
+            {archMsg.type === "error" ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
+            <span>{archMsg.msg}</span>
+            <button onClick={() => setArchMsg(null)} className="ml-auto text-slate-500 hover:text-[var(--text-primary)]"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+
         {/* Milestones List */}
-        {milestones.length === 0 ? (
+        {visibleMilestones.length === 0 ? (
           <div className="text-center py-20">
             <Flag className="w-16 h-16 text-slate-600 mx-auto mb-4" />
-            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">{t("vadmin.milestones.noMilestonesYet")}</h3>
-            <p className="text-sm text-slate-500 mb-6">{t("vadmin.milestones.noMilestonesDesc")}</p>
-            <button onClick={() => setShowMilestoneModal(true)} className="btn btn-primary gap-2">
-              <Plus className="w-4 h-4" /> {t("vadmin.milestones.addMilestone")}
-            </button>
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
+              {viewArchived ? t("vadmin.milestones.emptyArchived") : t("vadmin.milestones.noMilestonesYet")}
+            </h3>
+            <p className="text-sm text-slate-500 mb-6">
+              {viewArchived ? t("vadmin.milestones.emptyArchivedDesc") : t("vadmin.milestones.noMilestonesDesc")}
+            </p>
+            {!viewArchived && (
+              <button onClick={() => setShowMilestoneModal(true)} className="btn btn-primary gap-2">
+                <Plus className="w-4 h-4" /> {t("vadmin.milestones.addMilestone")}
+              </button>
+            )}
           </div>
         ) : (
           <div className="space-y-4">
-            {milestones.map((m) => {
+            {visibleMilestones.map((m) => {
               const sc = STATUS_CFG[m.status] || STATUS_CFG.not_started;
               const milestoneDels = deliverables[m.id] || [];
               const isExpanded = expandedMilestones[m.id];
@@ -292,7 +403,27 @@ export default function VentureMilestonesPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex gap-2 shrink-0 items-center" onClick={(e) => e.stopPropagation()}>
+                      {!m.is_archived ? (
+                        <>
+                          <button onClick={() => toggleSelect(m.id)}
+                            className={`p-1.5 rounded-lg transition-all ${selectedIds.has(String(m.id)) ? "bg-[var(--brand-orange)]/15 text-[var(--brand-orange)]" : "bg-primary text-slate-500 hover:text-[var(--text-primary)]"}`}
+                            title={t("vadmin.milestones.selectMilestone")}>
+                            {selectedIds.has(String(m.id)) ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                          </button>
+                          <button onClick={() => archiveOne(m)} disabled={archBusy}
+                            title={t("vadmin.milestones.archive")}
+                            className="p-1.5 bg-primary text-slate-500 rounded-lg hover:text-amber-400 disabled:opacity-40">
+                            {archBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Archive className="w-3.5 h-3.5" />}
+                          </button>
+                        </>
+                      ) : (
+                        <button onClick={() => restoreOne(m)} disabled={archBusy}
+                          title={t("vadmin.milestones.restore")}
+                          className="p-1.5 bg-primary text-slate-500 rounded-lg hover:text-emerald-400 disabled:opacity-40">
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                       <select value={m.status} onChange={(e) => updateMilestoneStatus(m.id, e.target.value)}
                         className="bg-primary border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[8px] font-bold text-[var(--text-primary)] outline-none">
                         {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}

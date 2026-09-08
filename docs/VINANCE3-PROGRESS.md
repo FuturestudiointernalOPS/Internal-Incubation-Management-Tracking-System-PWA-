@@ -264,6 +264,31 @@ missing.
   bilingual placeholder/empty copy (`venture.staffAssign.*`).
 - Validation: 53 suites / 681 tests green; i18n parity 0 missing.
 
+## Milestone/task archiving + inline success messages (uncommitted → pushed with batch)
+- **Inline status messages:** the Journey manager panel (Venture → Journey —
+  the Save-as-Template / duplicate surface) no longer flashes a fixed
+  top-right toast; success/error now render as an inline banner inside the
+  panel (5s, dismissible content, green/red with icons).
+- **Soft delete (archive) for milestones and tasks:** new `is_archived` /
+  `archived_at` / `archived_by` columns on `venture_milestones` +
+  `venture_tasks` (ensureVentureSchema, idempotent); new `ventureArchive.js`
+  with filed-work guards (task submissions, task reviews, milestone
+  deliverables) — anything already filed can NEVER be deleted/archived;
+  archiving a milestone cascades to its tasks; restore restores both.
+  Milestone archive cascades only while every task is still clean.
+- **Endpoints:** POST /milestones/archive + POST /tasks/archive (bulk ids,
+  archive | restore, per-id blocked report). Milestone/task list routes hide
+  archived rows by default (row-level JS filter → safe on unmigrated
+  schemas); tasks DELETE is now a guarded soft archive (409 when filed).
+- **Admin UI:** Milestones page gains Active/Archived tabs, per-row checkboxes,
+  Select-all, Archive-selected bulk action, per-row Archive/Restore and an
+  inline result banner (including blocked items). Tasks page gains
+  Active/Archived tabs, per-row Archive (kanban cards + list rows) and
+  Restore in the archived view. New labels EN+FR (`vadmin.milestones.*`,
+  `vadmin.tasks.*`).
+- Contract tests: `venture-archive.test.js` (13). Regression: 54 suites /
+  694 tests green; parity 0 missing.
+
 ## Deferred follow-ups (product/screen decisions needed)
 - Milestone/task duplicate buttons on their admin screens (endpoints live).
 - Journey-context fields in the sessions admin form (API/lib live).
