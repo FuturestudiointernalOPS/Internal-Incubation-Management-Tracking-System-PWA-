@@ -1218,31 +1218,29 @@ export const WIZARD_STEPS_MAP = {
 export const TOTAL_WIZARD_STEPS = 6;
 
 /**
- * Calculate completion percentage based on filled fields across all steps.
- * Each step contributes equally (100/6 ≈ 16.67% per step).
- * Within each step, the percentage is based on required fields filled.
+ * Calculate completion percentage from the required content steps only.
+ * Optional / review-only steps (Supporting Documents, Review) never block
+ * completion: the denominator is the steps that carry required fields
+ * (steps 1-4 today), so a profile whose required content is filled reaches
+ * 100 even without uploaded documents.
  */
 export function calculateCompletion(profileData) {
   if (!profileData) return 0;
 
-  const totalSteps = TOTAL_WIZARD_STEPS;
-  const stepWeight = 100 / totalSteps;
+  const requiredStepNumbers = [];
+  for (let step = 1; step <= TOTAL_WIZARD_STEPS; step++) {
+    const validator = WIZARD_STEP_VALIDATORS[step];
+    if (validator && validator.required.length > 0) requiredStepNumbers.push(step);
+  }
+  if (requiredStepNumbers.length === 0) return 0;
+
+  const stepWeight = 100 / requiredStepNumbers.length;
   let totalPercent = 0;
 
-  for (let step = 1; step <= totalSteps; step++) {
+  for (const step of requiredStepNumbers) {
     const validator = WIZARD_STEP_VALIDATORS[step];
-    if (!validator) continue;
-
     const stepData = profileData[`step_${step}_data`] || {};
     const requiredFields = validator.required;
-
-    if (requiredFields.length === 0) {
-      // No required fields means always count this step
-      // Check if there's at least some data
-      const hasData = Object.keys(stepData).length > 0;
-      totalPercent += hasData ? stepWeight : stepWeight * 0.5;
-      continue;
-    }
 
     let filledCount = 0;
     for (const field of requiredFields) {
@@ -1260,10 +1258,7 @@ export function calculateCompletion(profileData) {
       }
     }
 
-    const stepPercent = requiredFields.length > 0
-      ? (filledCount / requiredFields.length) * stepWeight
-      : 0;
-    totalPercent += stepPercent;
+    totalPercent += (filledCount / requiredFields.length) * stepWeight;
   }
 
   return Math.min(Math.round(totalPercent), 100);
