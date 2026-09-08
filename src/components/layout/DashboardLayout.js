@@ -49,7 +49,7 @@ import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
-import { buildRoleNav, NAV_ROLE_KEYS, projectNavForCapabilities, NAV_CAPABILITY_REQUIREMENTS, NAV_RESPONSIBILITY_MAP, hasCapability } from "@/lib/masterNavigation";
+import { buildSidebarNav } from "@/lib/masterNavigation";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -112,6 +112,7 @@ const NAV_KEY_MAP = {
   projects: "navigation.projects",
   all_projects: "navigation.allProjects",
   my_projects: "navigation.myProjects",
+  my_programs: "navigation.myPrograms",
   my_tasks: "navigation.myTasks",
   assigned_tasks: "navigation.assignedTasks",
   sessions: "navigation.sessions",
@@ -155,10 +156,12 @@ const NAV_KEY_MAP = {
   access_summary: "navigation.accessSummary",
   crm_membership: "navigation.groups",
   permissions: "navigation.permissions",
+  engineering: "navigation.engineering",
   engineering_dashboard: "navigation.engineering",
   system: "navigation.system",
   personnel: "navigation.personnel",
   logs: "navigation.logs",
+  user_management: "navigation.userManagement",
   groups: "navigation.groups",
   crm: "navigation.crm",
   crm_dashboard: "navigation.crmDashboard",
@@ -538,12 +541,8 @@ const SidebarContent = ({
 
 
 // =============================================================================
-// RESPONSIBILITY-GATED NAVIGATION
-// =============================================================================
-// NAV_RESPONSIBILITY_MAP (nav node id → responsibility key) is the single
-// source of truth in src/lib/masterNavigation.js — shared with the /admin
-// layout guard so a user may open exactly the /admin sections owned by the
-// responsibilities they hold.
+// SIDEBAR — single source in src/lib/masterNavigation.js (buildSidebarNav):
+// role → Dashboard home; responsibilities → features + subsections.
 // =============================================================================
 
 // Resolve icon names from the master navigation module into components.
@@ -577,22 +576,10 @@ function attachIcons(items) {
     // components (from a previous pass) pass through untouched.
     icon:
       typeof item.icon === "string" ? NAV_ICONS[item.icon] : item.icon,
+    children: item.children ? attachIcons(item.children) : item.children,
     subItems: item.subItems ? attachIcons(item.subItems) : item.subItems,
   }));
 }
-
-// Roles that bypass responsibility filtering entirely
-const RESPONSIBILITY_BYPASS_ROLES = ["super_admin"];
-
-// Admin-only destinations remapped to a page the role can actually open when a
-// responsibility grants a nav item that normally points at /admin/*. Items with
-// no fallback are dropped for non-admin roles instead of leading to a login
-// redirect. Super Admin and developer keep the original admin hrefs.
-const NON_ADMIN_HREF_FALLBACKS = {
-  finance: "/finance",
-  crm_dashboard: "/crm",
-  forms: "/platform",
-};
 
 // The sidebar follows the page context: a user acting under another role
 // (e.g. a staff member assigned as Program Manager) sees that role's nav
@@ -631,116 +618,8 @@ function resolveActiveRole(sessionRole, pathname) {
   return ctxRole === "super_admin" ? sessionRole : ctxRole || sessionRole;
 }
 
-/**
- * Scope a role's OWN nav matrix to the areas the user's responsibilities
- * cover (applied only when responsibilities are assigned). Items without a
- * responsibility requirement (dashboard, profile) always stay; sections are
- * pruned to their held children. Capability gating happens afterwards in
- * projectNavForCapabilities — this is an area gate, not an access gate.
- */
-function gateOwnNavByResponsibilities(items, respKeys) {
-  return (items || []).reduce((acc, item) => {
-    const required = NAV_RESPONSIBILITY_MAP[item.id];
-    if (required && !respKeys.has(required)) return acc;
-    if (item.subItems && item.subItems.length > 0) {
-      const subItems = item.subItems.filter((sub) => {
-        const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-        return !subRequired || respKeys.has(subRequired);
-      });
-      if (subItems.length > 0) acc.push({ ...item, subItems });
-      return acc;
-    }
-    acc.push(item);
-    return acc;
-  }, []);
-}
 
-/**
- * Additive responsibilities: pages from OTHER role matrices that the held
- * responsibilities grant. Unmapped items from other roles never leak in, and
- * every added node is capability-gated so no dead links appear. Admin-only
- * destinations are re-homed via NON_ADMIN_HREF_FALLBACKS (or dropped) for
- * roles that cannot open /admin/* pages.
- */
-function buildResponsibilityAdditions(userResponsibilities, activeRole, effectiveCaps) {
-  const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
-  if (respKeys.size === 0) return [];
-  // Only Super Admin and developer open EVERY /admin page. Other roles may
-  // open the /admin section pages owned by a responsibility they hold (the
-  // /admin layout guard mirrors this map), so admin hrefs are kept for those
-  // instead of being dropped.
-  const canOpenAdmin = activeRole === "super_admin" || activeRole === "developer";
-  const req = NAV_CAPABILITY_REQUIREMENTS;
 
-  const hasCap = (node) =>
-    !req[node.id] ||
-    hasCapability(effectiveCaps, req[node.id].module, req[node.id].capability);
-
-  const resolveHref = (itemId, href) => {
-    if (!href) return href;
-    const itemRequired = NAV_RESPONSIBILITY_MAP[itemId];
-    if (canOpenAdmin || (itemRequired && respKeys.has(itemRequired))) return href;
-    const fallback = NON_ADMIN_HREF_FALLBACKS[itemId];
-    if (fallback) return fallback;
-    return String(href).startsWith("/admin/") ? null : href;
-  };
-
-  const additions = [];
-  const seenIds = new Set();
-  // super_admin's matrix carries the full section trees (every master
-  // section), so collect it FIRST: children are recorded under their section
-  // and later role-specific leaf duplicates (e.g. the crm role's CRM
-  // Dashboard) are skipped instead of leaking out as top-level items.
-  const orderedRoles = [
-    "super_admin",
-    ...NAV_ROLE_KEYS.filter((role) => role !== "super_admin"),
-  ];
-  for (const role of orderedRoles) {
-    if (role === activeRole) continue;
-    const visit = (items) => {
-      for (const item of items || []) {
-        if (seenIds.has(item.id)) continue;
-        const required = NAV_RESPONSIBILITY_MAP[item.id];
-        // Container sections (operations/settings/security/reports/investors)
-        // group children owned by different responsibilities: they are added
-        // when at least one held child passes, without requiring their own
-        // (null) responsibility. Leaf items need their own responsibility.
-        if (item.subItems && item.subItems.length > 0) {
-          const subItems = item.subItems
-            .filter((sub) => {
-              const subRequired = NAV_RESPONSIBILITY_MAP[sub.id];
-              return (
-                !seenIds.has(sub.id) &&
-                subRequired &&
-                respKeys.has(subRequired) &&
-                hasCap(sub)
-              );
-            })
-            .map((sub) => {
-              const href = resolveHref(sub.id, sub.href);
-              return href === null ? null : { ...sub, href };
-            })
-            .filter(Boolean);
-          const parentIsContainer = !required; // null-responsibility container
-          if (subItems.length > 0 && (parentIsContainer || hasCap(item))) {
-            seenIds.add(item.id);
-            for (const sub of subItems) seenIds.add(sub.id);
-            additions.push({ ...item, subItems });
-          }
-        } else {
-          if (required && !respKeys.has(required)) continue;
-          if (!hasCap(item)) continue;
-          const href = resolveHref(item.id, item.href);
-          if (href === null) continue;
-          seenIds.add(item.id);
-          additions.push({ ...item, href });
-        }
-      }
-    };
-    visit(buildRoleNav(role));
-  }
-  return additions;
-}
 
 export default function DashboardLayout({ children, role = "admin", modals, fullWidth = false }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -989,20 +868,9 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const { theme, setTheme } = useTheme();
   const [user, setUser] = useState({});
   const [authChecked, setAuthChecked] = useState(false);
-  const [pmPrograms, setPmPrograms] = useState([]);
-  // null = unknown (show by default), false = hide "My Learning"
-  const [hasLmsEnrollments, setHasLmsEnrollments] = useState(null);
-
-  // Sidebar hydration flags — the sidebar is only rendered once every input
-  // that composes it (responsibilities, effective caps, venture count, PM
-  // programs, personal relationships, learning enrollments) has settled, so
-  // it never paints partially and then gains sections a moment later.
-  const [capsLoaded, setCapsLoaded] = useState(false);
+  // Sidebar hydration: rendered once the session and the responsibilities
+  // (the two inputs of buildSidebarNav) have settled.
   const [responsibilitiesSettled, setResponsibilitiesSettled] = useState(false);
-  const [relationshipsLoaded, setRelationshipsLoaded] = useState(false);
-  const [ventureLoaded, setVentureLoaded] = useState(false);
-  const [pmProgramsLoaded, setPmProgramsLoaded] = useState(false);
-  const [hasLmsLoaded, setHasLmsLoaded] = useState(false);
   const [navHydrated, setNavHydrated] = useState(false);
 
   // Fast path: restore the cached session synchronously before first paint so
@@ -1028,26 +896,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       }
     } catch (_) {}
   }, []);
-  // Effective capability matrix for visibility projection (server remains authoritative).
-  const [effectiveCaps, setEffectiveCaps] = useState(null);
-
-  // Load the current user's effective permissions once (resolver-cached server-side).
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) setEffectiveCaps(d.effective || null);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setCapsLoaded(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   // Load user from session API first, fallback to localStorage
   useEffect(() => {
     async function initAuth() {
@@ -1160,86 +1008,6 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     initAuth();
   }, []);
 
-  // Fetch PM programs when user changes or when the user is acting in the PM
-  // context (e.g. a staff member assigned as Program Manager on /pm/*).
-  useEffect(() => {
-    if (!user.cid && !user.id) return;
-    const inPmContext = (pathname || "").startsWith("/pm");
-    if (
-      !inPmContext &&
-      user.role !== "program_manager" &&
-      user.role !== "super_admin"
-    ) {
-      setPmProgramsLoaded(true);
-      return;
-    }
-    const url =
-      user.role === "super_admin"
-        ? "/api/pm/programs"
-        : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
-    fetch(url)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) setPmPrograms(data.programs || []);
-      })
-      .catch((e) => console.error(e))
-      .finally(() => setPmProgramsLoaded(true));
-  }, [user.role, user.cid, user.id, pathname]);
-
-  // "My Learning" only appears once the participant has subscribed to a course
-  // or been assigned one (admin/program enrollment). The flag is refreshed on
-  // every navigation inside the participant context so the entry appears as
-  // soon as an enrollment exists. null (unknown) keeps the entry visible
-  // instead of flashing it off for learners who are enrolled.
-  useEffect(() => {
-    const sessionRole = user.role || role || "";
-    const participantNavActive =
-      contextRoleFromPathname(pathname) === "participant" ||
-      sessionRole === "participant";
-    if (
-      sessionRole === "super_admin" ||
-      sessionRole === "developer" ||
-      !participantNavActive
-    ) {
-      setHasLmsEnrollments(null);
-      setHasLmsLoaded(true);
-      return;
-    }
-    let active = true;
-    fetch("/api/lms/my-learning?exists=1")
-      .then((res) => res.json())
-      .then((data) => {
-        if (!active) return;
-        setHasLmsEnrollments(data && data.success ? !!data.enrolled : null);
-      })
-      .catch(() => {
-        if (active) setHasLmsEnrollments(null);
-      })
-      .finally(() => {
-        if (active) setHasLmsLoaded(true);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user.role, user.cid, user.id, pathname, role]);
-
-  // Pre-open menus that have an active child route
-  // useEffect(() => {
-  //   const toOpen = {};
-  //   const checkItems = (items) => {
-  //     items.forEach((item) => {
-  //       if (item.subItems) {
-  //         const hasActiveChild = item.subItems.some((sub) =>
-  //           pathname?.startsWith(sub.href),
-  //         );
-  //         if (hasActiveChild) toOpen[item.id] = true;
-  //       }
-  //     });
-  //   };
-  //   Object.keys(ROLE_ACCESS).forEach((role) => checkItems(buildRoleNav(role)));
-  //   setOpenMenus((prev) => ({ ...prev, ...toOpen }));
-  // }, [pathname]);
-
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
     const counts = {
@@ -1282,53 +1050,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     return commSubIds.some((id) => unreadByType[id] > 0);
   }, [unreadByType]);
 
-  // Personal relationships (program participation + venture membership) —
-  // these drive the personal sidebar so it reflects actual membership, not
-  // the legacy contact.role string.
-  const [relationships, setRelationships] = useState(null);
-  useEffect(() => {
-    if (!user.cid) return;
-    let alive = true;
-    fetch("/api/me/relationships")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) setRelationships(d);
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setRelationshipsLoaded(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [user.cid]);
-
-  // Staff Venture console visibility (Phase 3): delegated staff see the
-  // Ventures entry ONLY when they hold at least one active Venture assignment.
-  const [ventureAssignCount, setVentureAssignCount] = useState(null);
-  useEffect(() => {
-    if (!user.cid) return;
-    if (!["staff", "program_manager"].includes(user.role)) {
-      setVentureLoaded(true);
-      return;
-    }
-    let alive = true;
-    fetch("/api/ventures/assigned")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive) setVentureAssignCount((d.assignments || []).length);
-      })
-      .catch(() => {
-        if (alive) setVentureAssignCount(0);
-      })
-      .finally(() => {
-        if (alive) setVentureLoaded(true);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [user.cid, user.role]);
-
+  // Unread counts per nav type — messages from actual unread count, others from notifications
   const navItems = useMemo(() => {
     // Priority: page context > user.role (from session) > role (from prop) > fallback 'admin'.
     // The sidebar follows the page context so a user acting under another role
@@ -1336,200 +1058,16 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     // while on its pages. Super Admin and developer always keep their own.
     const sessionRole = user.role || role || "admin";
     const activeRole = resolveActiveRole(sessionRole, pathname);
-
-    // "My Learning" is hidden until the participant actually has a course
-    // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
-    // is null while unknown, so the entry never flickers off for enrolled users.
-    const hideMyLearning =
-      activeRole === "participant" && hasLmsEnrollments === false;
-    const gateMyLearning = (items) =>
-      hideMyLearning ? items.filter((i) => i.id !== "learning") : items;
-
-    // Check if user belongs to Future Studio Interns group
-    const userGroups = user.groups || [];
-    const isIntern = userGroups.some(
-      (g) =>
-        g.toUpperCase() === "FUTURE STUDIO INTERNS" ||
-        g.toUpperCase() === "INTERN",
+    // Single logic (src/lib/masterNavigation.js) : le rôle fournit le
+    // Dashboard d'accueil, les responsabilités détenues fournissent les
+    // features (chacune avec ses sous-sections).
+    return attachIcons(
+      buildSidebarNav({
+        role: activeRole,
+        responsibilities: userResponsibilities || [],
+      }),
     );
-
-    if (isIntern && activeRole !== "participant") {
-      // Interns get restricted navigation regardless of their role
-      // Exception: participants keep their own dashboard
-      return [
-        {
-          id: "dashboard",
-          name: "DASHBOARD",
-          icon: LayoutDashboard,
-          href: "/developer",
-        },
-        {
-          id: "standup",
-          name: "STAND-UP",
-          icon: MessageSquare,
-          href: "/staff/op-report?tab=standup",
-        },
-        {
-          id: "my_tasks",
-          name: "MY TASKS",
-          icon: CheckSquare,
-          href: "/developer/my-tasks",
-        },
-        {
-          id: "projects",
-          name: "MY PROJECTS",
-          icon: Briefcase,
-          href: "/staff/projects",
-        },
-        {
-          id: "communication",
-          name: "COMMUNICATION",
-          icon: MessageSquare,
-          subItems: [
-            {
-              id: "messages",
-              name: "MESSAGING",
-              icon: Send,
-              href: "/staff/messages",
-            },
-          ],
-        },
-      ];
-    }
-
-    const matrix = buildRoleNav(activeRole);
-    const bypass = RESPONSIBILITY_BYPASS_ROLES.includes(activeRole);
-
-    // Personal roles: sidebar is relationship-driven (Phase 1). A person with
-    // no program and no venture sees only Dashboard; programs/certificates
-    // appear only for participants, ventures only for venture members.
-    const PERSONAL_ROLES = ["member", "founder", "participant", "team"];
-    if (PERSONAL_ROLES.includes(activeRole)) {
-      const rel = relationships || {
-        isProgramParticipant: false,
-        isVentureMember: false,
-        ventures: [],
-      };
-      const homeRole = sessionRole || activeRole;
-      const dashboardHref =
-        homeRole === "team"
-          ? "/team"
-          : homeRole === "participant"
-            ? "/participant"
-            : "/workspaces";
-      const items = [
-        { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
-      ];
-      if (rel.isProgramParticipant) {
-        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
-        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
-      }
-      if (rel.isVentureMember) {
-        items.push({ id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" });
-      }
-      return items;
-    }
-
-    // Role nav + capability projection is the single base for every user —
-    // responsibilities never REPLACE the sidebar, they only ADD pages below.
-    const items = attachIcons(matrix);
-
-    if (
-      (activeRole === "program_manager" || activeRole === "super_admin") &&
-      pmPrograms.length > 0
-    ) {
-      const progIndex = items.findIndex((i) => i.id === "programs");
-      if (progIndex !== -1) {
-        const baseSubItems =
-          activeRole === "super_admin"
-            ? [
-                {
-                  id: "all_programs",
-                  name: "ALL PROGRAMS",
-                  href: "/admin/programs",
-                },
-                {
-                  id: "create_program",
-                  name: "CREATE PROGRAM",
-                  href: "/admin/programs/new",
-                },
-              ]
-            : [
-                { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
-                {
-                  id: "submissions",
-                  name: "SUBMISSIONS",
-                  href: "/pm/submissions",
-                },
-              ];
-
-        // Only static menu items — no dynamic program listing
-        items[progIndex] = {
-          ...items[progIndex],
-          subItems: [...baseSubItems],
-        };
-      }
-    }
-
-    const respKeys = new Set((userResponsibilities || []).map((r) => r.key));
-    // Staff nav is ALWAYS scoped to responsibilities — even when none are
-    // assigned, a staff member without duties sees only the un-mapped core
-    // items (Dashboard). Other roles keep the legacy capability-driven role
-    // nav unless they actually hold responsibilities.
-    const staffScoped = !bypass && activeRole === "staff";
-    const itemsScoped =
-      staffScoped || (!bypass && respKeys.size > 0)
-        ? gateOwnNavByResponsibilities(items, respKeys)
-        : items;
-
-    // Capability projection (visibility only — the server remains authoritative).
-    // Currently applies to staff (incl. PM-as-staff); other roles pass through.
-    const projected = projectNavForCapabilities(itemsScoped, effectiveCaps, activeRole);
-    const itemsFinal = attachIcons(projected);
-
-    // Additive responsibilities: pages from OTHER role matrices granted by the
-    // held responsibilities — capability-gated and re-homed away from /admin
-    // for roles that cannot open those pages.
-    if (!bypass && userResponsibilities && userResponsibilities.length > 0) {
-      const additions = attachIcons(
-        buildResponsibilityAdditions(userResponsibilities, activeRole, effectiveCaps),
-      );
-      const seenIds = new Set(itemsFinal.map((i) => i.id));
-      for (const add of additions) {
-        if (seenIds.has(add.id)) continue;
-        itemsFinal.push(add);
-        seenIds.add(add.id);
-      }
-    }
-    // Staff Venture console (Phase 3): appears only when the staff member has
-    // at least one active Venture assignment — delegated access, never global.
-    if (
-      ["staff", "program_manager"].includes(activeRole) &&
-      typeof ventureAssignCount === "number" &&
-      ventureAssignCount > 0
-    ) {
-      const dashIndex = itemsFinal.findIndex((i) => i.id === "dashboard");
-      const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-      itemsFinal.splice(insertAt, 0, {
-        id: "ventures",
-        name: "MY VENTURES",
-        icon: Rocket,
-        href: "/staff/ventures",
-      });
-    }
-    // "My Learning" is hidden for participants who have no course enrollment.
-    return gateMyLearning(itemsFinal);
-  }, [
-    user.role,
-    user.groups,
-    role,
-    pmPrograms,
-    userResponsibilities,
-    pathname,
-    hasLmsEnrollments,
-    effectiveCaps,
-    ventureAssignCount,
-  ]);
+  }, [user.role, role, pathname, userResponsibilities]);
 
   // Active navigation path — the current page plus every ancestor node id.
   const activePathIds = useMemo(
@@ -1625,32 +1163,10 @@ export default function DashboardLayout({ children, role = "admin", modals, full
       pathname.startsWith("/admin/communications/contacts"));
 
   // ── Sidebar hydration gate ───────────────────────────────────────────────
-  // Keep the loading spinner until every input that composes the connected
-  // user's sidebar has settled, so the sidebar is painted ONCE, complete —
-  // it never shows a few sections first and then gains the responsibility /
-  // capability-driven sections moments later.
-  const navSessionRole = user.role || role || "admin";
-  const navActiveRole = resolveActiveRole(navSessionRole, pathname);
-  const personalNavReady =
-    !["member", "founder", "participant", "team"].includes(navActiveRole) ||
-    relationshipsLoaded;
-  const ventureNavReady =
-    !["staff", "program_manager"].includes(navActiveRole) || ventureLoaded;
-  const pmNavReady =
-    !(
-      navActiveRole === "program_manager" ||
-      navActiveRole === "super_admin" ||
-      (typeof pathname === "string" && pathname.startsWith("/pm"))
-    ) || pmProgramsLoaded;
-  const lmsNavReady = navActiveRole !== "participant" || hasLmsLoaded;
-  const navReady =
-    authChecked &&
-    responsibilitiesSettled &&
-    capsLoaded &&
-    personalNavReady &&
-    ventureNavReady &&
-    pmNavReady &&
-    lmsNavReady;
+  // Keep the loading spinner until the session and the responsibilities — the
+  // only two inputs of buildSidebarNav — have settled, so the sidebar is
+  // painted ONCE, complete, and never gains sections moments later.
+  const navReady = authChecked && responsibilitiesSettled;
 
   useEffect(() => {
     if (!navHydrated && navReady) setNavHydrated(true);
