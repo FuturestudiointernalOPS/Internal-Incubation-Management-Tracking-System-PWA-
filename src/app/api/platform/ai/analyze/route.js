@@ -22,8 +22,19 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+    // Phase 1.6 (C5b = A): AI analysis is management-only (SA/admin/PM) —
+    // same rule as /api/platform/ai. Assignment-verified program staff can be
+    // admitted later via a capability seam once run->program resolution lands.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
 
     const { submission_id, mode } = await req.json();
     if (!submission_id) {

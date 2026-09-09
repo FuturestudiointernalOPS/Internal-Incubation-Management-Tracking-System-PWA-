@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
 import { summarizeSubmission, analyzeSubmission } from "@/lib/platform/integrations";
 
 /**
@@ -15,8 +14,18 @@ export async function POST(req) {
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
 
-    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
-    if (authError) return authError;
+    // Phase 1.6 (C5b = A): AI analysis is management-only (SA/admin/PM). The
+    // request carries opaque submission/form objects with no program context,
+    // so no assignment can be verified — the legacy teacher entry is dropped
+    // rather than trusted (zero holders on staging). Seam for later: a
+    // canOperateAiReview() capability may admit assignment-verified program
+    // staff once run->program resolution exists on this path.
+    if (!["super_admin", "admin", "program_manager"].includes(session?.role)) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");

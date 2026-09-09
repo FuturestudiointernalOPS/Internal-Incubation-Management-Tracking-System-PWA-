@@ -1440,8 +1440,14 @@ export async function POST(req) {
     // ─── REVIEW ACTION ───
     if (action === "review") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
-      if (authError) return authError;
+      // Phase 1.6 (C5c = A): applicant review (approve/reject + automation +
+      // emails) is management-only (SA/admin/PM).
+      if (!["super_admin", "admin", "program_manager"].includes(session.role)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
 
       const { submission_id, decision, comment, internal_note, dimension_overrides, force } = body;
       if (!submission_id || !decision) return NextResponse.json({ success: false, error: "submission_id and decision required" }, { status: 400 });
@@ -1769,8 +1775,13 @@ export async function POST(req) {
     // AI or the form/run names.
     if (action === "send_result_emails") {
       if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-      const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
-      if (authError) return authError;
+      // Phase 1.6 (C5c = A): bulk result emails are management-only.
+      if (!["super_admin", "admin", "program_manager"].includes(session.role)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
 
       const { run_id, submission_ids } = body;
       if (!run_id || !Array.isArray(submission_ids) || submission_ids.length === 0) {
