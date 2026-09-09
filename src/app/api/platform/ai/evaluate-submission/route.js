@@ -436,6 +436,13 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
+    // Defect fix (I6A defect queue): this read was completely unauthenticated
+    // and returned evaluation rows for any submission/form id. Same gate as
+    // the POST handler that produces the data — no wider surface.
+    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+    if (authError) return authError;
+    const { initDb } = await import("@/lib/db");
+    await initDb();
     const { searchParams } = new URL(req.url);
     const subId = searchParams.get("submission_id");
     if (subId) {

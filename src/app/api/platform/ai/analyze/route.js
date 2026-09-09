@@ -80,6 +80,16 @@ export async function POST(req) {
 }
 
 export async function GET(req) {
+  // Defect fix (I6A defect queue): health probe now requires an authenticated
+  // session (consistent with the sibling platform/ai GET). It still only
+  // reports provider configuration — never data.
+  try {
+    await initDb();
+    const authError = await requireAuth();
+    if (authError) return authError;
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
   const { searchParams } = new URL(req.url);
   if (searchParams.get("health") === "true") {
     const aiConfigured = !!process.env.DEEPSEEK_API_KEY;
