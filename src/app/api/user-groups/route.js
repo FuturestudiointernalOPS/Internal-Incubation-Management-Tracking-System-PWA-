@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+import { requireAuthorization, invalidateAuthorizationContext } from "@/lib/authorization";
 import {
   isGroupProtected,
   normalizeGroupName,
@@ -104,6 +104,11 @@ export async function POST(req) {
 
     const normalized = normalizeGroupName(group_name);
     await assignUserToGroup(user_cid, normalized);
+    // P1 freshness: group membership feeds group_capabilities + group
+    // eligibility rows — drop the user's cached context so the new edge is
+    // effective immediately (freshness mechanism only; server authorization
+    // stays authoritative).
+    invalidateAuthorizationContext(user_cid);
     // Keep the membership layer in sync so the new edge is effective
     // immediately (active, no expiry) and has history.
     const existing = await getMembership(user_cid, normalized);
@@ -175,6 +180,9 @@ export async function DELETE(req) {
 
     const normalized = normalizeGroupName(group_name);
     await unassignUserFromGroup(user_cid, normalized);
+    // P1 freshness: same rationale as POST — membership removal must not linger
+    // in the cached authorization context.
+    invalidateAuthorizationContext(user_cid);
     // End (never delete) the membership record — the person, account, CRM
     // record and history stay; only active authorization stops.
     const existing = await getMembership(user_cid, normalized);

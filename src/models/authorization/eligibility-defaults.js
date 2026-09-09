@@ -49,7 +49,10 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   user_management: ["super_admin", "staff"],
   system_settings: ["super_admin", "staff"],
   tasks: ["super_admin", "staff", "program_manager", "team"],
-  ventures: ["super_admin", "staff", "program_manager", "investor"],
+  // P1: founder is an official eligibility identity. Ventures is the founder's
+  // own-venture feature (venture_own scope) — founders are NOT program
+  // participants and gain no participant defaults from this row.
+  ventures: ["super_admin", "staff", "program_manager", "investor", "founder"],
   investor: ["super_admin", "staff", "investor"],
   // LMS: capability-gated authoring feature (view/create/edit/delete only).
   // Program Manager is the default non-SA holder of lms capabilities

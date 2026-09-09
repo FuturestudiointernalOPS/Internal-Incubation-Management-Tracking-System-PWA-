@@ -26,6 +26,11 @@ export { FEATURE_ELIGIBILITY_DEFAULTS };
 // (responsibility-level concept the Product Owner configures).
 export const MODULE_TO_FEATURE = {
   contacts: "crm",
+  // P1: duplicates + bulk_upload are CRM modules — any future grant of their
+  // capabilities is gated by crm feature eligibility (participant/founder/
+  // facilitator remain ineligible for crm by default).
+  duplicates: "crm",
+  bulk_upload: "crm",
   finance: "finance",
   programs: "program_management",
   projects: "project_ownership",
