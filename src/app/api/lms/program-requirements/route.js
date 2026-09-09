@@ -62,7 +62,9 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
+    // gate — program-requirement wiring is course management.
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const body = await req.json();

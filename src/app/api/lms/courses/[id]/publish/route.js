@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "publish");
+    // Phase 3 (Option A): retired lms.publish migrated to the canonical
+    // lms.edit gate — course lifecycle (publish/unpublish) is course
+    // management.
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { id } = await params;
