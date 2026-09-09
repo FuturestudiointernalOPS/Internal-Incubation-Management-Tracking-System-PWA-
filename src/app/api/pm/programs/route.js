@@ -45,13 +45,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "facilitator",
-    ]);
+    // Phase I6B: the model below scopes every non-management session to its
+    // own program-staff assignments (membership-keyed), so authentication
+    // alone is safe here. Management roles + staff stay unscoped.
+    const authError = await requireAuth();
     if (authError) return authError;
     const session = await getSession();
     const url = new URL(req.url);
@@ -348,13 +345,9 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "admin",
-    ]);
+    // Phase I6B: program editing is decided by the programs.edit capability
+    // below (resolver + eligibility). Authentication only here.
+    const authError = await requireAuth();
     if (authError) return authError;
     // Phase 2 (legacy cleanup): no more staff/teacher/admin compatibility
     // bypass — program editing requires the programs.edit capability through

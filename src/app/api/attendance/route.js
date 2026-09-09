@@ -150,14 +150,10 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "participant",
-      "facilitator",
-    ]);
+    // Phase I6B: any authenticated session may reach the scoping below —
+    // program context → assignment (attendance.view) + team scope;
+    // no program context → own rows only (own-scope fallback below).
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const session = await getSession();
@@ -165,9 +161,22 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const sessionId = searchParams.get("session_id");
     const programId = searchParams.get("program_id");
-    const participantId = searchParams.get("participant_id");
+    let participantId = searchParams.get("participant_id");
     const summary = searchParams.get("summary") === "true";
     const dateStr = searchParams.get("date");
+
+    // Own-scope (Phase I6B): without a program context, non-management,
+    // non-staff sessions (participants, members, …) may only read their own
+    // attendance rows — participant_id is bound server-side, never
+    // caller-chosen.
+    if (
+      session &&
+      !programId &&
+      !hasProgramManagementAccess(session.role) &&
+      session.role !== "staff"
+    ) {
+      participantId = session.cid;
+    }
 
     // Facilitator scope: facilitators only see attendance for participants in
     // the v2_teams where they are the handler.

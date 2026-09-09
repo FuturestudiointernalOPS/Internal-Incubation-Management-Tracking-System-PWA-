@@ -14,15 +14,12 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "facilitator",
-    ]);
+    // Phase I6B: access is decided below for every non-management session —
+    // assigned PM of the program, else requireProgramFacilitator (program
+    // assignment). The removed role pre-filter blocked baseline Members who
+    // hold a legitimate facilitator assignment.
+    const authError = await requireAuth();
     if (authError) return authError;
-
     const { searchParams: sp } = new URL(req.url);
     const progId = sp.get("id");
 

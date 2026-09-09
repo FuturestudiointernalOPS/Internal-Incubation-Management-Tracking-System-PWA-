@@ -1,19 +1,21 @@
 /**
- * PHASE I5 — Legacy facilitator-gate bridge contract.
+ * PHASE I5/I6A/I6B — Legacy gate-bridge contract.
  *
- * Locks the I5 conversion pattern on the facilitator-surface API cohort:
+ * Locks the conversion pattern on the program/venture/investor-surface API
+ * cohorts:
  *
- *   The role pre-filter is NOT the security decision — the program
- *   assignment gate is. Converted handlers therefore call bare requireAuth()
- *   (any authenticated session) and rely on requireAssignmentAccess /
- *   hasProgramManagementAccess downstream. That is what lets a MEMBER who
- *   holds a facilitator assignment operate the facilitator surface, while
- *   unassigned sessions stay denied at the assignment gate.
+ *   The role pre-filter is NOT the security decision — the membership /
+ *   capability / own-scope gate is. Converted handlers therefore call bare
+ *   requireAuth() (any authenticated session) and rely on the downstream
+ *   decision. That is what lets a MEMBER who holds a legitimate contextual
+ *   relationship operate that surface, while unassigned sessions stay denied
+ *   at the same gates as before.
  *
- * Deferred handlers still carry documented role lists (legacy-trust reads or
- * self-service writes) and are listed here so their migration is a conscious
- * future step — this test fails if a deferred list changes without updating
- * this contract, and if a converted handler regrows a role list.
+ * Deferred handlers still carry documented role lists (legacy-trust reads,
+ * self-service writes, or missing downstream gates) and are listed here so
+ * their migration is a conscious future step — this test fails if a deferred
+ * list disappears without updating this contract, and if a converted handler
+ * regrows a role list.
  */
 const fs = require("node:fs");
 const path = require("node:path");
@@ -46,7 +48,7 @@ const CONTEXTUAL_ROLES = [
 const containsContextual = (list) =>
   CONTEXTUAL_ROLES.some((r) => list.split(",").map((s) => s.trim().replace(/"/g, "")).includes(r));
 
-describe("I5 converted handlers — bare requireAuth + assignment machinery", () => {
+describe("I5/I6B converted handlers — bare requireAuth + assignment machinery", () => {
   const converted = [
     "src/app/api/attendance/route.js",
     "src/app/api/facilitator-reviews/route.js",
@@ -60,12 +62,12 @@ describe("I5 converted handlers — bare requireAuth + assignment machinery", ()
     expect(src).toMatch(/hasProgramManagementAccess/);
   });
 
-  test("attendance: POST is bare (assignment-gated); GET keeps its documented legacy list", () => {
+  test("attendance: POST + GET are bare (assignment + own-scope decide)", () => {
     const src = fs.readFileSync(path.join(ROOT, "src/app/api/attendance/route.js"), "utf8");
-    const blocks = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((m) => m[1]);
-    expect(bareAuthCount("src/app/api/attendance/route.js")).toBe(1); // POST only
-    expect(blocks).toHaveLength(1); // GET deferred
-    expect(blocks[0]).toMatch(/participant/); // participant self-view list preserved
+    expect(bareAuthCount("src/app/api/attendance/route.js")).toBe(2); // POST + GET
+    expect(authBlocks("src/app/api/attendance/route.js")).toHaveLength(0);
+    // Own-scope fallback present for no-programId reads.
+    expect(src).toMatch(/participantId = session\.cid/);
   });
 
   test("facilitator-reviews: GET+POST bare; PUT stays [SA, PM, staff]", () => {
@@ -86,17 +88,29 @@ describe("I5 converted handlers — bare requireAuth + assignment machinery", ()
     expect(containsContextual(lists[0])).toBe(false);
   });
 
-  test("submissions: PATCH bare; POST (self-service) and GET (legacy-trust) stay listed", () => {
-    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(1);
+  test("submissions: PATCH + GET bare (assignment/own-scope decide); POST self-service list stays", () => {
+    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(2);
+    const src = fs.readFileSync(path.join(ROOT, "src/app/api/submissions/route.js"), "utf8");
     const lists = authBlocks("src/app/api/submissions/route.js");
-    expect(lists).toHaveLength(3);
-    // POST — participant/team self-service list preserved.
+    expect(lists).toHaveLength(2); // POST self-service + one pure-global handler
     expect(lists[0]).toMatch(/participant/);
     expect(lists[0]).toMatch(/team/);
-    // GET — deferred legacy-trust read; documented here, not converted.
-    expect(lists[1]).toMatch(/facilitator/);
-    // Third handler — pure global roles, no contextual roles.
-    expect(containsContextual(lists[2])).toBe(false);
+    expect(containsContextual(lists[1])).toBe(false);
+    // Own-scope fallback for no-programId reads.
+    expect(src).toMatch(/participant_id = session\.cid/);
+  });
+
+  test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
+    expect(bareAuthCount("src/app/api/pm/full-state/route.js")).toBe(1);
+    expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
+  });
+
+  test("pm/programs: GET + PUT bare (model scope / programs.edit decide); POST stays global-only", () => {
+    expect(bareAuthCount("src/app/api/pm/programs/route.js")).toBe(2);
+    const lists = authBlocks("src/app/api/pm/programs/route.js");
+    expect(lists).toHaveLength(1); // POST [staff, super_admin]
+    expect(lists[0]).toMatch(/staff/);
+    expect(containsContextual(lists[0])).toBe(false);
   });
 });
 
@@ -126,7 +140,18 @@ describe("I6A converted handlers — bare requireAuth + downstream membership ma
   });
 });
 
-describe("I6A backlog watchlist — deferred contextual-role lists (need downstream gates first)", () => {
+describe("I5 completed pattern (sessions + followups) stays clean", () => {
+  test.each(["src/app/api/sessions/route.js", "src/app/api/followups/route.js"])(
+    "%s uses no role-list requireAuth at all",
+    (file) => {
+      const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+      expect(src).not.toMatch(/requireAuth\(\s*\[/);
+      expect(src).toMatch(/requireAssignmentAccess/);
+    },
+  );
+});
+
+describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need downstream gates first)", () => {
   // Each file's allowlists stay role-listed until a real downstream
   // membership/capability gate exists for the contextual holder. Removing a
   // list here without building the gate = widening access: this test fails.
@@ -140,7 +165,7 @@ describe("I6A backlog watchlist — deferred contextual-role lists (need downstr
     "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
     "src/app/api/platform/ai/evaluation-scores/route.js", // PII read
     "src/app/api/platform/form-runs/route.js", // review + send_result_emails actions
-    "src/app/api/programs/route.js", // GET whole-directory read
+    "src/app/api/programs/route.js", // GET whole-directory read (separate from pm/programs)
     "src/app/api/teacher/reports/route.js", // client-supplied teacher identity
     "src/app/api/v2/teacher/fulfillment/route.js", // program-scoped PII read
     "src/app/api/v2/teacher/full-state/route.js", // client-supplied cid scope key
@@ -150,6 +175,8 @@ describe("I6A backlog watchlist — deferred contextual-role lists (need downstr
     "src/app/api/teams/route.js", // GET: own-team scope exists only in comments
     "src/app/api/upload/route.js", // no context; eligibility question
     "src/app/api/ventures/[id]/history/route.js", // founder unchecked; staff gate broken (db)
+    "src/app/api/pm/teams/route.js", // GET: teams of any program; PM-only consumer; teacher listed
+    "src/app/api/submissions/route.js", // POST: self-service + on-behalf eligibility list
   ];
 
   test.each(deferred)("%s keeps its documented role list (locked deferral)", (file) => {
@@ -159,23 +186,15 @@ describe("I6A backlog watchlist — deferred contextual-role lists (need downstr
   });
 });
 
-describe("I5 completed pattern (sessions + followups) stays clean", () => {
-  test.each(["src/app/api/sessions/route.js", "src/app/api/followups/route.js"])(
-    "%s uses no role-list requireAuth at all",
-    (file) => {
+describe("I6B — pm/* converted, no facilitator/teacher lists may return", () => {
+  test("pm/full-state and pm/programs no longer list facilitator/teacher", () => {
+    for (const file of [
+      "src/app/api/pm/full-state/route.js",
+      "src/app/api/pm/programs/route.js",
+    ]) {
       const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-      expect(src).not.toMatch(/requireAuth\(\s*\[/);
-      expect(src).toMatch(/requireAssignmentAccess/);
-    },
-  );
-});
-
-describe("I5 backlog watchlist — deferred facilitator role lists (conscious migration later)", () => {
-  test.each([
-    "src/app/api/pm/full-state/route.js",
-    "src/app/api/pm/programs/route.js",
-  ])("%s still lists facilitator (PM-console legacy over-grant, needs product decision)", (file) => {
-    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(src).toMatch(/requireAuth\(\s*\[[^\]]*facilitator/);
+      expect(src).not.toMatch(/requireAuth\(\s*\[[^\]]*facilitator/);
+      expect(src).not.toMatch(/requireAuth\(\s*\[[^\]]*teacher/);
+    }
   });
 });
