@@ -38,6 +38,12 @@ function collectRouteUsages() {
     for (const m of src.matchAll(/requireAuthorization\(\s*"([a-z_]+)"\s*,\s*"([a-z_.]+)"/g)) {
       usages.add(`${m[1]}.${m[2]}`);
     }
+    // Phase 2: the investor self-service seam wraps requireAuthorization("investor", …)
+    // behind a context-aware admission check — its call sites still enforce the
+    // catalog capability, so count them as literal usages of investor.<cap>.
+    for (const m of src.matchAll(/requireInvestorSelfServiceAuthorization\(\s*"([a-z_.]+)"/g)) {
+      usages.add(`investor.${m[1]}`);
+    }
   }
   return { usages, fileCount: files.length };
 }

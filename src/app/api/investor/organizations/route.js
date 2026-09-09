@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   addOrganizationAdmin,
   getInvestorProfileIdForOrgCreate,
@@ -12,12 +12,13 @@ import {
   listOrganizationMembers,
   upsertOrganizationMember,
 } from "@/models/investorRelations";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET /api/investor/organizations */
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "view");
+    const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
     const session = await getSession();
@@ -54,7 +55,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "create");
+    const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
     const session = await getSession();
@@ -90,7 +91,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "edit");
+    const capError = await requireInvestorSelfServiceAuthorization("edit");
     if (capError) return capError;
 
     const { organization_id, investor_profile_id, role } = await req.json();

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   completeDiligenceWorkspace,
   getDdRequestFollowUpQuestionsByRequestId,
@@ -30,12 +30,13 @@ import {
   updatePipelineStageToDueDiligence,
   upsertDiligenceWorkspace,
 } from "@/models/investor";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET /api/investor/diligence?pipeline_id=X */
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "view");
+    const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
@@ -79,7 +80,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "create");
+    const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
     const { pipeline_id, action, ...data } = await req.json();

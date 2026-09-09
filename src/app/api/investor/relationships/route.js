@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   getInvestorProfileByUserId,
   getInvestorUserIdByProfileId,
@@ -16,6 +16,7 @@ import {
   updateRelationshipWorkspace,
   upsertRelationshipWorkspace,
 } from "@/models/investorRelations";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /**
  * GET /api/investor/relationships
@@ -24,7 +25,7 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "view");
+    const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
     const session = await getSession();

@@ -1,17 +1,18 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   getInvestorProfileIdForPreferences,
   upsertInvestorPreferencesWithPhilosophy,
 } from "@/models/investorRelations";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** POST /api/investor/preferences — save/update preferences */
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "create");
+    const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
     const session = await getSession();

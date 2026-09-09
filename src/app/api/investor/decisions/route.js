@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   getInvestorDecisionStats,
   getInvestorProfileIdForDecisions,
@@ -10,12 +10,13 @@ import {
   recordInvestmentDecision,
   updatePipelineStageAfterDecision,
 } from "@/models/investorRelations";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET /api/investor/decisions — all decisions for current investor */
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "view");
+    const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
     const session = await getSession();
@@ -48,7 +49,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "create");
+    const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
     const { pipeline_id, decision_type, investment_amount, decision_notes } = await req.json();
