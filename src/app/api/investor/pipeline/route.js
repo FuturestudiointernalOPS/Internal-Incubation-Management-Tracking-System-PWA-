@@ -172,7 +172,8 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor", "program_manager"]);
+    // Phase 1.5: authentication only — scoping is derived below.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -181,11 +182,20 @@ export async function GET(req) {
 
     const session = await getSession();
     const user = session;
+    const management = ["super_admin", "staff", "program_manager"].includes(user?.role);
 
-    // Resolve the investor profile only on the investor-scoped branch, exactly
-    // like the original controller (early-returns an empty pipeline).
+    // Phase 1.5: every non-management session is OWN-SCOPED — the investor
+    // profile is resolved and bound regardless of filters, so a venture_id can
+    // no longer expose other investors' rows and the admin stage filter stays
+    // management-only. Management keeps its historical branches.
     let investorId = null;
-    if (!ventureId && !(stage && (user.role === "super_admin" || user.role === "staff"))) {
+    if (!management) {
+      const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
+      if (profile.rows.length === 0) {
+        return NextResponse.json({ success: true, pipeline: [] });
+      }
+      investorId = profile.rows[0].id;
+    } else if (!ventureId && !(stage && (user.role === "super_admin" || user.role === "staff"))) {
       const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
       if (profile.rows.length === 0) {
         return NextResponse.json({ success: true, pipeline: [] });

@@ -794,7 +794,7 @@ export async function clearSetupTokenAndSetPassword(hashedPassword, contactCid) 
 // ── GET/POST/PUT /api/investor/campaigns ─────────────────────────────────────
 
 /** Fundraising campaigns with venture info + investor counts, filterable. */
-export async function listFundraisingCampaigns({ ventureId, status }) {
+export async function listFundraisingCampaigns({ ventureId, status, investorId = null }) {
   let sql = `SELECT fc.*, p.name as venture_name, p.industry, p.country, p.business_stage,
                       p.funding_requirement, p.completion_index,
                       (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = fc.venture_id AND stage NOT IN ('declined')) as investor_count,
@@ -811,6 +811,13 @@ export async function listFundraisingCampaigns({ ventureId, status }) {
   if (status) {
     sql += " AND fc.status = ?";
     args.push(status);
+  }
+  // Phase 1.5: non-management sessions (investor/member context) only see
+  // campaigns for ventures they are engaged with in the pipeline.
+  if (investorId) {
+    sql +=
+      " AND fc.venture_id IN (SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id = ?)";
+    args.push(investorId);
   }
 
   sql += " ORDER BY fc.created_at DESC";
