@@ -42,6 +42,7 @@ export default function DefaultsMatrixView() {
   const [draft, setDraft] = useState({}); // module -> {cap: bool}
   const [tray, setTray] = useState([]); // pending { profileId, module, cap, level, label }
   const [impactTotal, setImpactTotal] = useState(null); // Phase 3: users affected by the tray
+  const [reason, setReason] = useState(""); // Phase 3d: optional audit reason attached to the apply
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
@@ -230,13 +231,18 @@ export default function DefaultsMatrixView() {
         const res = await fetch("/api/access-profiles", {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: profileId, capabilities: merged }),
+          body: JSON.stringify({
+            id: profileId,
+            capabilities: merged,
+            reason: reason.trim() || undefined,
+          }),
         });
         const d = await res.json();
         if (!d.success) throw new Error(d.error || "save failed");
         setProfileCaps((prev) => ({ ...prev, [profileId]: merged }));
       }
       setTray([]);
+      setReason("");
       setMsg(t("engineering.permissions.permissionsSaved"));
       // Profile writes invalidate authorization contexts server-side; refresh
       // the client projection so menus reflect the change immediately.
@@ -382,7 +388,10 @@ export default function DefaultsMatrixView() {
               {t("engineering.permissions.pendingTray")} ({tray.length})
             </h3>
             <button
-              onClick={() => setTray([])}
+              onClick={() => {
+                setTray([]);
+                setReason("");
+              }}
               className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-red-400"
             >
               {t("engineering.permissions.matrixClear")}
@@ -400,6 +409,16 @@ export default function DefaultsMatrixView() {
               {t("engineering.permissions.impactAffects", { total: impactTotal })}
             </p>
           )}
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={t("engineering.permissions.reasonPlaceholder")}
+            rows={2}
+            className="w-full rounded-lg border border-[var(--border-primary)] bg-surface-1 px-3 py-2 text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] placeholder:opacity-60 focus:outline-none focus:border-[var(--brand-orange)] resize-none"
+          />
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+            {t("engineering.permissions.reasonLabel")}
+          </p>
           <button
             onClick={applyTray}
             disabled={busy}
