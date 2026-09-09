@@ -237,9 +237,15 @@ export async function listProgramsByManagementFilters({
       session.cid,
     );
   }
-  // Facilitators only see programs they are assigned to (matched by cid or
-  // email so legacy rows that stored the email still resolve correctly).
-  if (session?.role === "facilitator") {
+  // Phase I6B (membership-keyed): every non-management, non-staff session is
+  // scoped to the programs it is assigned to (matched by cid or email so
+  // legacy rows that stored the email still resolve correctly). Management
+  // roles and staff stay unscoped. This admits a baseline Member who holds a
+  // facilitator assignment, and returns an empty list for everyone else.
+  if (
+    session?.role &&
+    !["super_admin", "program_manager", "teacher", "staff"].includes(session.role)
+  ) {
     baseQuery +=
       " AND p.id IN (SELECT program_id FROM v2_program_staff WHERE (staff_id = ? OR LOWER(TRIM(staff_id)) = LOWER(?)) AND role = 'facilitator')";
     args.push(session.cid, session.email || "");

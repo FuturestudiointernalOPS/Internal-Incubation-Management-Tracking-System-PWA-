@@ -396,22 +396,19 @@ export async function PATCH(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "participant",
-      "team",
-      "facilitator",
-    ]);
+    // Phase I6B: any authenticated session reaches the scoping below —
+    // program context → assignment (assignments.view) + team scope for
+    // non-management/non-staff/non-team sessions; no program context → own
+    // rows only for those sessions. Staff and management keep their existing
+    // unscoped reads.
+    const authError = await requireAuth();
     if (authError) return authError;
     // Ensure team_id column exists so team-level submissions resolve.
     try {
       await ensureSubmissionsTeamIdColumnForListing();
     } catch (_) {}
     const { searchParams } = new URL(req.url);
-    const participant_id = searchParams.get("participant_id");
+    let participant_id = searchParams.get("participant_id");
     const team_id = searchParams.get("team_id");
     const group_id = searchParams.get("group_id");
     const program_id = searchParams.get("program_id");
@@ -427,7 +424,27 @@ export async function GET(req) {
     const session = await getSession();
     let facScopeFilter = null;
     let facScopeArgs = [];
-    if (session && program_id && session.role === "facilitator") {
+
+    // Own-scope (Phase I6B): without a program context, non-management,
+    // non-staff, non-team sessions (participants, members, …) may only list
+    // their own submissions — participant_id is bound server-side.
+    if (
+      session &&
+      !program_id &&
+      !hasProgramManagementAccess(session.role) &&
+      session.role !== "staff" &&
+      session.role !== "team"
+    ) {
+      participant_id = session.cid;
+    }
+
+    if (
+      session &&
+      program_id &&
+      !hasProgramManagementAccess(session.role) &&
+      session.role !== "staff" &&
+      session.role !== "team"
+    ) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,
