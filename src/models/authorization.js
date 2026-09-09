@@ -693,3 +693,28 @@ export async function listPermissionAudits(whereSql, args) {
     args,
   });
 }
+
+/**
+ * Phase 3 — impact preview: how many contacts resolve to one access profile.
+ * Mirrors the resolver's profile resolution (user override → role default):
+ * direct = contacts.access_profile_id = P; roleDefault = profile-less
+ * contacts whose stored role maps to P via role_access_profile_defaults.
+ */
+export async function getProfileImpactCounts(profileId) {
+  const [directRes, roleRes] = await Promise.all([
+    db.execute({
+      sql: "SELECT COUNT(*) AS n FROM contacts WHERE access_profile_id = ? AND deleted_at IS NULL AND archived_at IS NULL",
+      args: [profileId],
+    }),
+    db.execute({
+      sql: `SELECT COUNT(*) AS n FROM contacts c
+            WHERE c.access_profile_id IS NULL AND c.deleted_at IS NULL AND c.archived_at IS NULL
+              AND EXISTS (SELECT 1 FROM role_access_profile_defaults rpd
+                          WHERE rpd.access_profile_id = ? AND LOWER(rpd.role_name) = LOWER(c.role))`,
+      args: [profileId],
+    }),
+  ]);
+  const direct = Number(directRes.rows[0]?.n || 0);
+  const roleDefault = Number(roleRes.rows[0]?.n || 0);
+  return { profile_id: profileId, direct, roleDefault, total: direct + roleDefault };
+}

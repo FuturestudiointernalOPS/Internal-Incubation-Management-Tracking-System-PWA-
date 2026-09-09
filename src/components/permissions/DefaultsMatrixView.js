@@ -41,9 +41,36 @@ export default function DefaultsMatrixView() {
   const [drawer, setDrawer] = useState(null); // { identity, module }
   const [draft, setDraft] = useState({}); // module -> {cap: bool}
   const [tray, setTray] = useState([]); // pending { profileId, module, cap, level, label }
+  const [impactTotal, setImpactTotal] = useState(null); // Phase 3: users affected by the tray
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
+
+  // Phase 3 — impact preview: whenever the tray changes, ask the server how
+  // many contacts resolve to each affected profile (direct + role default) so
+  // the reviewer sees "this change affects N users" before applying.
+  useEffect(() => {
+    let alive = true;
+    setImpactTotal(null);
+    const profileIds = [...new Set(tray.map((i) => String(i.profileId)))];
+    if (profileIds.length === 0) return undefined;
+    Promise.all(
+      profileIds.map(async (pid) => {
+        try {
+          const res = await fetch(`/api/engineering/permissions/impact?profile_id=${encodeURIComponent(pid)}`);
+          const d = await res.json();
+          return d.success ? Number(d.impact?.total || 0) : 0;
+        } catch {
+          return 0;
+        }
+      }),
+    ).then((counts) => {
+      if (alive) setImpactTotal(counts.reduce((a, b) => a + b, 0));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tray]);
 
   const load = useCallback(async (bypassCache = false) => {
     const urlElig = "/api/engineering/permissions/eligibility";
@@ -368,6 +395,11 @@ export default function DefaultsMatrixView() {
               </li>
             ))}
           </ul>
+          {impactTotal !== null && impactTotal > 0 && (
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
+              {t("engineering.permissions.impactAffects", { total: impactTotal })}
+            </p>
+          )}
           <button
             onClick={applyTray}
             disabled={busy}
