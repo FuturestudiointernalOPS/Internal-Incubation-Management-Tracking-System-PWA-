@@ -414,7 +414,8 @@
     "staffAssign": {
       "searchPlaceholder": "Search Future Studio staff by name or email…",
       "noStaffFound": "No Future Studio staff match this search."
-    },    "coach": {
+    },
+    "coach": {
       "mySessionsBadge": "Coached by you",
       "reportAction": "Session report",
       "reportNotes": "Session notes",
@@ -424,7 +425,8 @@
       "reportLoadError": "Could not load the session report.",
       "reportSaveError": "Could not save your note.",
       "contextTask": "Task"
-    },    "history": {
+    },
+    "history": {
       "title": "Venture History",
       "subtitle": "Institutional memory — everything recorded about this Venture, in one place.",
       "events": "Events",
