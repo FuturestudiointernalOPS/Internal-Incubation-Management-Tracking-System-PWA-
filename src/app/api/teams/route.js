@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, getSession } from "@/lib/auth";
 import { sendEmail } from "@/lib/mailer";
 import {
   getOrgTeams,
@@ -28,7 +28,20 @@ export async function GET(req) {
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
-    const teamId = searchParams.get("team_id");
+    let teamId = searchParams.get("team_id");
+
+    // Defect fix (I6A defect queue): a team-entity session (role "team",
+    // session.cid = its own v2_teams.id) may only ever read ITS OWN team —
+    // the caller-chosen team_id is bound server-side. Staff/PM/SA are
+    // unaffected (they stay unscoped).
+    const session = await getSession();
+    if (session?.role === "team") {
+      const ownTeamId = String(session.cid || "");
+      if (teamId && String(teamId) !== ownTeamId) {
+        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      }
+      if (!teamId) teamId = ownTeamId;
+    }
 
     // For team role: only return the team that matches the session's team_id
     const result = await getOrgTeams(programId, teamId);

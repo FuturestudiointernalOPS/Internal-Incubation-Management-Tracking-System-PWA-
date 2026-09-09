@@ -454,10 +454,19 @@ export async function GET(req) {
     const cidFilter = searchParams.get("cid");
 
     let result;
-    if (cidFilter) {
+    if (session.role === "participant" || session.role === "founder") {
+      // Defect fix (I6A defect queue): external identities may only read their
+      // own contact record — a caller-chosen cid parameter is ignored unless
+      // it IS the session's own cid (self lookup).
+      if (cidFilter && String(cidFilter) !== String(session.cid)) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      result = await getContactByCid(cidFilter || session.cid);
+    } else if (cidFilter) {
       result = await getContactByCid(cidFilter);
-    } else if (session.role === "participant" || session.role === "founder") {
-      result = await getContactByCid(session.cid);
     } else if (statusFilter === "archived" && session.role === "super_admin") {
       // Archived contacts (archived but not soft-deleted)
       result = await getArchivedContacts();
