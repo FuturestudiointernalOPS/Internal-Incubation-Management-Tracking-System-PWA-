@@ -29,6 +29,14 @@ export async function getTeams(programId) {
   return db.execute({ sql, args });
 }
 
+/** Team row (id + program_id) for ownership verification (submissions POST). */
+export async function getTeamForOwnershipCheck(teamId) {
+  return db.execute({
+    sql: "SELECT id, program_id FROM v2_teams WHERE id = ? LIMIT 1",
+    args: [String(teamId)],
+  });
+}
+
 /** Create a team record (name = sub-team, group_name = parent group, approved by default). */
 export async function createTeam(team) {
   const {
