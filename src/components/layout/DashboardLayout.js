@@ -47,6 +47,7 @@ import Link from "next/link";
 import GlobalToast from "@/components/ui/GlobalToast";
 import AppErrorBoundary from "@/components/ui/AppErrorBoundary";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
+import { resolveActiveSurface } from "@/lib/context";
 import { useI18n } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
@@ -719,26 +720,9 @@ const NON_ADMIN_HREF_FALLBACKS = {
 
 // The sidebar follows the page context: a user acting under another role
 // (e.g. a staff member assigned as Program Manager) sees that role's nav
-// while on its pages. Order matters only where prefixes overlap — they do not.
-const PATH_CONTEXT_ROLES = [
-  { prefix: "/admin", role: "super_admin" },
-  { prefix: "/pm", role: "program_manager" },
-  { prefix: "/staff", role: "staff" },
-  { prefix: "/teacher", role: "teacher" },
-  { prefix: "/facilitator", role: "facilitator" },
-  { prefix: "/participant", role: "participant" },
-  { prefix: "/developer", role: "developer" },
-  { prefix: "/finance", role: "finance" },
-  { prefix: "/crm", role: "crm" },
-];
-
-function contextRoleFromPathname(pathname) {
-  if (!pathname) return null;
-  for (const { prefix, role } of PATH_CONTEXT_ROLES) {
-    if (pathname.startsWith(prefix)) return role;
-  }
-  return null;
-}
+// while on its pages. Surface resolution is single-sourced in lib/context
+// (resolveActiveSurface — longest prefix wins; its 12-entry map also covers
+// /investor, /team and the /workspaces member hub).
 
 /**
  * Build nav items from responsibilities across ALL role matrices.
@@ -1281,7 +1265,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   useEffect(() => {
     const sessionRole = user.role || role || "";
     const participantNavActive =
-      contextRoleFromPathname(pathname) === "participant" ||
+      resolveActiveSurface(pathname) === "participant" ||
       sessionRole === "participant";
     if (
       sessionRole === "super_admin" ||
@@ -1410,7 +1394,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
     const activeRole =
       sessionRole === "super_admin" || sessionRole === "developer"
         ? sessionRole
-        : contextRoleFromPathname(pathname) || sessionRole;
+        : resolveActiveSurface(pathname) || sessionRole;
 
     // "My Learning" is hidden until the participant actually has a course
     // (self-subscribed, admin enrollment or program assignment). hasLmsEnrollments
@@ -1688,7 +1672,7 @@ export default function DashboardLayout({ children, role = "admin", modals, full
   const activeRole =
     user.role === "super_admin" || user.role === "developer"
       ? user.role
-      : contextRoleFromPathname(pathname) || user.role || role || "admin";
+      : resolveActiveSurface(pathname) || user.role || role || "admin";
   const commonProps = {
     collapsed,
     role: activeRole,

@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { Layers, ChevronDown, LayoutDashboard, Building2, GraduationCap, BookOpen, Rocket } from "lucide-react";
-import { contextRoleLabelKey } from "@/lib/context";
+import { contextRoleLabelKey, activeContextFromPathname } from "@/lib/context";
 
 /**
  * CONTEXT SWITCHER (Phase 2C)
@@ -41,8 +41,7 @@ export default function ContextSwitcher() {
       .catch(() => {});
   }, []);
 
-  const roleLabel = (role) =>
-    t(`common.workspaces.${contextRoleLabelKey({ kind: "role", row: { role } })}`);
+  const roleLabelKey = (role) => contextRoleLabelKey({ kind: "role", row: { role } });
 
   const go = (href, label, type, contextId) => {
     try {
@@ -60,7 +59,7 @@ export default function ContextSwitcher() {
     ...(ctx?.org_memberships || []).map((g) => ({
       key: `org-${g.group_name}`,
       title: g.group_name,
-      role: roleLabel(/intern/i.test(String(g.group_name || "")) ? "intern" : "staff"),
+      labelKey: roleLabelKey(/intern/i.test(String(g.group_name || "")) ? "intern" : "staff"),
       href: g.href,
       type: "org",
       contextId: g.group_name,
@@ -68,7 +67,7 @@ export default function ContextSwitcher() {
     ...(ctx?.responsibilities || []).map((r) => ({
       key: `resp-${r.key}`,
       title: r.name,
-      role: roleLabel(r.key),
+      labelKey: roleLabelKey(r.key),
       href: r.href,
       type: "responsibility",
       contextId: r.key,
@@ -78,7 +77,7 @@ export default function ContextSwitcher() {
     ...(ctx?.program_assignments || []).map((a) => ({
       key: `assign-${a.program_id}-${a.role}`,
       title: a.program_name || a.program_id,
-      role: roleLabel(a.role || a.title),
+      labelKey: roleLabelKey(a.role || a.title),
       href: a.href,
       type: "program_assignment",
       contextId: a.program_id,
@@ -86,7 +85,7 @@ export default function ContextSwitcher() {
     ...(ctx?.program_participations || []).map((p) => ({
       key: `part-${p.program_id}`,
       title: p.program_name || p.program_id,
-      role: roleLabel("participant"),
+      labelKey: "roleParticipant",
       href: p.href,
       type: "program_participation",
       contextId: p.program_id,
@@ -96,7 +95,7 @@ export default function ContextSwitcher() {
   const ventureItems = (ctx?.venture_memberships || []).map((v) => ({
     key: `venture-${v.venture_id}`,
     title: v.venture_name || v.venture_id,
-    role: t(`common.workspaces.${contextRoleLabelKey({ kind: "venture", row: v })}`),
+    labelKey: contextRoleLabelKey({ kind: "venture", row: v }),
     href: v.href,
     type: "venture",
     contextId: v.venture_id,
@@ -110,13 +109,18 @@ export default function ContextSwitcher() {
           {
             key: "learning",
             title: t("navigation.learning"),
-            role: t("common.workspaces.roleLearner"),
+            labelKey: "roleLearner",
             href: ctx.learning.href || "/participant/learning",
             type: "learning",
             contextId: "lms",
           },
         ]
       : [];
+
+  // The hat currently worn: the context whose workspace contains this page.
+  // Home/dashboard pages match nothing → no hat, baseline identity only.
+  const hatItems = [...programItems, ...ventureItems, ...learningItem];
+  const activeItem = activeContextFromPathname(pathname, hatItems);
 
   // Baseline identity chip: only when the raw stored role is one of the three
   // baseline identities (super_admin / staff / member). Legacy contextual
@@ -129,36 +133,54 @@ export default function ContextSwitcher() {
 
   if (!data || totalItems === 0) return null;
 
-  const Item = ({ item }) => (
-    <button
-      onClick={() => go(item.href, item.title, item.type, item.contextId)}
-      className={`w-full text-left px-3 py-2.5 rounded-lg hover:bg-primary transition-all ${
-        pathname === item.href ? "bg-primary" : ""
-      }`}
-    >
-      <p className="text-[11px] font-black uppercase tracking-tight text-[var(--text-primary)] truncate">
-        {item.title}
-        {item.completed && (
-          <span className="ml-2 text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)]">
-            {t("common.workspaces.completedViewOnly")}
-          </span>
-        )}
-      </p>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5">
-        {item.role}
-      </p>
-    </button>
-  );
+  const Item = ({ item }) => {
+    const isActive = !!activeItem && item.key === activeItem.key;
+    return (
+      <button
+        onClick={() => go(item.href, item.title, item.type, item.contextId)}
+        className={`w-full text-left px-3 py-2.5 rounded-lg hover:bg-primary transition-all ${
+          isActive ? "bg-primary" : ""
+        }`}
+      >
+        <p className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-tight text-[var(--text-primary)] truncate">
+          {isActive && (
+            <span className="w-1.5 h-1.5 shrink-0 rounded-full bg-[var(--brand-orange)]" />
+          )}
+          <span className="truncate">{item.title}</span>
+          {item.completed && (
+            <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-[var(--brand-orange)] shrink-0">
+              {t("common.workspaces.completedViewOnly")}
+            </span>
+          )}
+        </p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-0.5">
+          {t(`common.workspaces.${item.labelKey}`)}
+        </p>
+      </button>
+    );
+  };
 
   return (
     <div className="relative hidden sm:block">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-primary/50 text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all"
-        title={t("common.workspaces.contexts")}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-primary/50 text-[10px] font-bold uppercase tracking-wide transition-all ${
+          activeItem
+            ? "text-[var(--brand-orange)] border-[var(--brand-orange)]/40 hover:text-[var(--brand-orange)]"
+            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        }`}
+        title={
+          activeItem
+            ? `${t(`common.workspaces.${activeItem.labelKey}`)} — ${activeItem.title}`
+            : t("common.workspaces.contexts")
+        }
       >
         <Layers className="w-3.5 h-3.5" />
-        <span className="hidden lg:inline">{t("common.workspaces.contexts")}</span>
+        <span className="hidden lg:inline truncate max-w-[160px]">
+          {activeItem
+            ? t(`common.workspaces.${activeItem.labelKey}`)
+            : t("common.workspaces.contexts")}
+        </span>
         <ChevronDown className="w-3 h-3 opacity-50" />
       </button>
       {open && (

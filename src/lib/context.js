@@ -94,3 +94,33 @@ export function contextRoleLabelKey({ kind, row = {} }) {
   };
   return map[role] || "roleOther";
 }
+
+/**
+ * Active-context matching for the context switcher.
+ *
+ * A "hat item" is a navigable context the user operates IN: program
+ * assignment, program participation, venture membership, learning. Group
+ * memberships and responsibilities are excluded — they are entitlements that
+ * sit under a surface, not hats with their own workspace.
+ *
+ * The longest matching context href wins (deepest context). No match means
+ * the user is on baseline/home territory (their own dashboard), where no
+ * contextual hat is worn.
+ */
+export function activeContextFromPathname(pathname, items = []) {
+  if (!pathname || !Array.isArray(items)) return null;
+  const HAT_TYPES = new Set([
+    "program_assignment",
+    "program_participation",
+    "venture",
+    "learning",
+  ]);
+  let best = null;
+  for (const item of items) {
+    if (!item || !item.href || !HAT_TYPES.has(item.type)) continue;
+    const href = String(item.href);
+    if (pathname !== href && !pathname.startsWith(`${href}/`)) continue;
+    if (!best || href.length > String(best.href).length) best = item;
+  }
+  return best;
+}
