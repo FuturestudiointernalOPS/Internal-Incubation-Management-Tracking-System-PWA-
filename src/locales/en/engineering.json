@@ -264,6 +264,8 @@
       "scopePoliciesRowTeamTitle": "Team scope",
       "scopePoliciesRowTeamBody": "Team-entity access is limited to the team's own records.",
       "impactAffects": "This change affects {total} user(s)",
+      "reasonPlaceholder": "Why is this change being made? (optional — recorded in the audit log)",
+      "reasonLabel": "Reason recorded in the permission audit log",
       "tabDefaultsMatrix": "Defaults Matrix",
       "defaultsMatrixHint": "What each identity receives by default — rows expand Feature → Module. Module access is derived from capabilities; modules with zero capabilities stay visible. Editing opens a drawer; changes go to the pending tray for review before saving.",
       "matrixFeature": "Feature",

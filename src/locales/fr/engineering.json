@@ -264,6 +264,8 @@
       "scopePoliciesRowTeamTitle": "Portée d'équipe",
       "scopePoliciesRowTeamBody": "L'accès d'une entité-équipe est limité aux enregistrements de sa propre équipe.",
       "impactAffects": "Ce changement concerne {total} utilisateur(s)",
+      "reasonPlaceholder": "Pourquoi ce changement est-il effectué ? (facultatif — consigné dans le journal d'audit)",
+      "reasonLabel": "Motif consigné dans le journal d'audit des permissions",
       "tabDefaultsMatrix": "Matrice des défauts",
       "defaultsMatrixHint": "Ce que chaque identité reçoit par défaut — les lignes se déplient de Fonctionnalité vers Module. L'accès aux modules est dérivé des capacités ; les modules sans capacité restent visibles. La modification ouvre un tiroir ; les changements passent par la file d'attente avant enregistrement.",
       "matrixFeature": "Fonctionnalité",

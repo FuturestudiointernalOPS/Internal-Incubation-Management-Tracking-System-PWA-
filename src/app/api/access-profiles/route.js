@@ -234,7 +234,7 @@ export async function POST(req) {
  * PUT /api/access-profiles
  *
  * Update an access profile.
- * Body: { id, name?, description?, is_active?, capabilities?: { module: { capability: level } } }
+ * Body: { id, name?, description?, is_active?, capabilities?: { module: { capability: level } }, reason? }
  */
 export async function PUT(req) {
   try {
@@ -243,7 +243,7 @@ export async function PUT(req) {
 
     const session = await getSession();
     const body = await req.json();
-    const { id, name, description, is_active, capabilities } = body;
+    const { id, name, description, is_active, capabilities, reason } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -326,13 +326,17 @@ export async function PUT(req) {
       }
     }
 
+    const reasonNote =
+      reason && typeof reason === "string" && reason.trim()
+        ? ` Reason: ${reason.trim()}`
+        : "";
     await logPermissionAudit({
       actorCid: session?.cid,
       actorName: session?.name,
       targetCid: "system",
       targetName: profileName,
       action: "profile_updated",
-      details: `Updated access profile: ${profileName}`,
+      details: `Updated access profile: ${profileName}${reasonNote}`,
     });
     invalidateAllAuthorizationContexts();
 
