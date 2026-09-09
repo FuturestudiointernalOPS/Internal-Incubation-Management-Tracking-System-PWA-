@@ -12,7 +12,10 @@ import {
   getInactiveGroupMembershipHistory,
   getActiveResponsibilitiesForUser,
   getActiveVentureMembershipsForContact,
+  getContactStoredRole,
 } from "@/models/workspace";
+import { learnerHasEnrollments } from "@/lib/lms/learning";
+import { isBaselineIdentity } from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -196,6 +199,37 @@ export async function GET(req) {
       }));
     } catch (_) {}
 
+    // 6. LMS learner context — one aggregate "Learning" context while the
+    //    user holds a non-suspended enrollment (same rule as the My Learning
+    //    nav gate). Learner access itself is always enforced server-side by
+    //    the LMS routes from lms_enrollments.
+    try {
+      const enrolled = await learnerHasEnrollments(session.cid);
+      contexts.learning = enrolled
+        ? { enrolled: true, href: "/participant/learning" }
+        : { enrolled: false };
+    } catch (_) {
+      contexts.learning = { enrolled: false };
+    }
+
+    // ── Phase I3: BASELINE ECHO (informational) ────────────────────────────
+    // contacts.role is the raw stored role (baseline identity OR legacy
+    // contextual value). session.role is what today's gates see (identical to
+    // baseline_role unless the I2 legacy-role derivation is enabled, in which
+    // case a stored "member" may be surfaced as participant/founder).
+    let baselineRole = session.role;
+    try {
+      const stored = await getContactStoredRole(session.cid);
+      const raw = stored?.rows?.[0]?.role;
+      if (raw) baselineRole = String(raw).toLowerCase();
+    } catch (_) {}
+    const derivedRole =
+      isBaselineIdentity(baselineRole) &&
+      baselineRole === "member" &&
+      session.role !== "member"
+        ? session.role
+        : null;
+
     return NextResponse.json({
       success: true,
       user: {
@@ -203,6 +237,8 @@ export async function GET(req) {
         name: session.name,
         email: session.email,
         role: session.role,
+        baseline_role: baselineRole,
+        derived_role: derivedRole,
       },
       home: roleHomeHref(session.role),
       workspaces,

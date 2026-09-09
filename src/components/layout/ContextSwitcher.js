@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { Layers, ChevronDown, LayoutDashboard, Building2, GraduationCap, Rocket } from "lucide-react";
+import { Layers, ChevronDown, LayoutDashboard, Building2, GraduationCap, BookOpen, Rocket } from "lucide-react";
+import { contextRoleLabelKey } from "@/lib/context";
 
 /**
  * CONTEXT SWITCHER (Phase 2C)
@@ -18,14 +19,10 @@ import { Layers, ChevronDown, LayoutDashboard, Building2, GraduationCap, Rocket 
  * pure navigation, never a permission grant.
  */
 
-const ROLE_LABEL_KEY = {
-  facilitator: "roleFacilitator",
-  participant: "roleParticipant",
+const BASELINE_LABEL_KEY = {
+  super_admin: "roleSuperAdmin",
   staff: "roleStaff",
-  program_manager: "roleProgramManager",
-  teacher: "roleTeacher",
-  finance: "roleFinance",
-  intern: "roleIntern",
+  member: "roleOther",
 };
 
 export default function ContextSwitcher() {
@@ -44,10 +41,8 @@ export default function ContextSwitcher() {
       .catch(() => {});
   }, []);
 
-  const roleLabel = (role) => {
-    const key = ROLE_LABEL_KEY[String(role || "").toLowerCase()] || "roleOther";
-    return t(`common.workspaces.${key}`);
-  };
+  const roleLabel = (role) =>
+    t(`common.workspaces.${contextRoleLabelKey({ kind: "role", row: { role } })}`);
 
   const go = (href, label, type, contextId) => {
     try {
@@ -101,14 +96,36 @@ export default function ContextSwitcher() {
   const ventureItems = (ctx?.venture_memberships || []).map((v) => ({
     key: `venture-${v.venture_id}`,
     title: v.venture_name || v.venture_id,
-    role: roleLabel("participant"),
+    role: t(`common.workspaces.${contextRoleLabelKey({ kind: "venture", row: v })}`),
     href: v.href,
     type: "venture",
     contextId: v.venture_id,
   }));
 
+  // LMS learner context — one aggregate "My Learning" item (navigation
+  // label), labelled Learner, gated server-side by active enrollment.
+  const learningItem =
+    ctx?.learning?.enrolled && data?.user
+      ? [
+          {
+            key: "learning",
+            title: t("navigation.learning"),
+            role: t("common.workspaces.roleLearner"),
+            href: ctx.learning.href || "/participant/learning",
+            type: "learning",
+            contextId: "lms",
+          },
+        ]
+      : [];
+
+  // Baseline identity chip: only when the raw stored role is one of the three
+  // baseline identities (super_admin / staff / member). Legacy contextual
+  // stored values (e.g. an old mutated "participant") hide the chip.
+  const baselineKey = BASELINE_LABEL_KEY[String(data?.user?.baseline_role || "")];
+  const baselineLabel = baselineKey ? t(`common.workspaces.${baselineKey}`) : null;
+
   const totalItems =
-    orgItems.length + programItems.length + ventureItems.length;
+    orgItems.length + programItems.length + ventureItems.length + learningItem.length;
 
   if (!data || totalItems === 0) return null;
 
@@ -148,6 +165,16 @@ export default function ContextSwitcher() {
         <>
           <div className="fixed inset-0 z-[210]" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-11 w-72 max-h-[70vh] overflow-y-auto bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-xl shadow-2xl z-[220] p-2">
+            {baselineLabel && (
+              <div className="px-3 py-2 mb-1 rounded-lg bg-primary/60 border border-[var(--border-primary)] flex items-center justify-between gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  {t("common.workspaces.baselineIdentity")}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[var(--brand-orange)] truncate">
+                  {baselineLabel}
+                </span>
+              </div>
+            )}
             <button
               onClick={() => go(data.home || "/workspaces", "Dashboard", "home", null)}
               className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-primary transition-all flex items-center gap-2"
@@ -177,6 +204,18 @@ export default function ContextSwitcher() {
                   {t("common.workspaces.groupPrograms")}
                 </p>
                 {programItems.map((item) => (
+                  <Item key={item.key} item={item} />
+                ))}
+              </div>
+            )}
+
+            {learningItem.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-[var(--border-primary)]">
+                <p className="px-3 pb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                  <BookOpen className="w-3 h-3" />
+                  {t("common.workspaces.groupLearning")}
+                </p>
+                {learningItem.map((item) => (
                   <Item key={item.key} item={item} />
                 ))}
               </div>

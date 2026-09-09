@@ -88,7 +88,12 @@
       "roleFinance": "Finance",
       "roleIntern": "Stagiaire",
       "roleOther": "Membre",
-      "roleVenture": "Venture"
+      "roleVenture": "Venture",
+      "roleFounder": "Fondateur",
+      "roleLearner": "Apprenant",
+      "roleSuperAdmin": "Super Admin",
+      "baselineIdentity": "Identité de base",
+      "groupLearning": "Formation"
     }
   },
   "dashboard": {
