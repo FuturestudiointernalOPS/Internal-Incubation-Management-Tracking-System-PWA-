@@ -35,6 +35,9 @@ import {
   ALL_FEATURE_ROLES,
 } from "@/lib/featureAccess";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import DefaultsMatrixView from "@/components/permissions/DefaultsMatrixView";
+import UserMatrixView from "@/components/permissions/UserMatrixView";
+import CatalogView from "@/components/permissions/CatalogView";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -455,6 +458,18 @@ export default function PermissionManager() {
             >
               {t("engineering.permissions.tabGovernance")}
             </button>
+            <button
+              onClick={() => setActiveTab("userMatrix")}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "userMatrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            >
+              {t("engineering.permissions.tabUserMatrix")}
+            </button>
+            <button
+              onClick={() => setActiveTab("catalog")}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "catalog" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            >
+              {t("engineering.permissions.tabCatalog")}
+            </button>
           </div>
           {/* Secondary admin section — responsibilities remain available but
               stay visually out of the primary configuration workflow. */}
@@ -498,11 +513,19 @@ export default function PermissionManager() {
               >
                 {t("engineering.permissions.tabRoleDefaults")}
               </button>
+              <button
+                onClick={() => setSetupSection("defaultsMatrix")}
+                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${setupSection === "defaultsMatrix" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+              >
+                {t("engineering.permissions.tabDefaultsMatrix")}
+              </button>
             </div>
             {setupSection === "profiles" ? (
               <AccessProfilesView />
-            ) : (
+            ) : setupSection === "roles" ? (
               <RoleDefaultsView />
+            ) : (
+              <DefaultsMatrixView />
             )}
           </div>
         )}
@@ -1121,6 +1144,8 @@ export default function PermissionManager() {
         {activeTab === "access" && <ResponsibilityAccessView />}
         {activeTab === "audit" && <AuditView />}
         {activeTab === "governance" && <GovernanceView />}
+        {activeTab === "userMatrix" && <UserMatrixView />}
+        {activeTab === "catalog" && <CatalogView />}
         {whyTarget && (
           <CapabilityWhyModal
             userPerms={userPerms}
