@@ -174,9 +174,10 @@ export async function applyJourneyTemplate(db, { dbId, templateId, actorCid = nu
       stageCount += 1;
       const stageIns = await query(
         `INSERT INTO venture_journey_stages
-           (venture_id, name, description, objective, stage_order, status)
-         VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
-        [dbId, ts.name, ts.description || null, ts.objective || null, stageCount, i === 0 ? "active" : "locked"],
+           (venture_id, name, description, objective, stage_order, status,
+            source_template_type, source_template_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        [dbId, ts.name, ts.description || null, ts.objective || null, stageCount, i === 0 ? "active" : "locked", "journey", String(templateId)],
       );
       const newStageId = rowsOf(stageIns)[0]?.id;
 
