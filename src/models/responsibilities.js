@@ -117,7 +117,7 @@ export async function getAssignedResponsibilitiesForUser(userCid) {
 /** A contact's identity row (cid/name/role) by cid. */
 export async function getContactByCid(cid) {
   return db.execute({
-    sql: "SELECT cid, name, role FROM contacts WHERE cid = ?",
+    sql: "SELECT cid, name, role, group_name FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }
