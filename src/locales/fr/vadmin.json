@@ -1074,7 +1074,10 @@
     "journey": {
       "statusLocked": "Verrouillée",
       "statusActive": "Active",
-      "statusCompleted": "Terminée"
+      "statusCompleted": "Terminée",
+      "backToVenture": "Retour à {name}",
+      "title": "Parcours de l'entreprise",
+      "subtitle": "{company} · {code} — le parcours opérationnel défini par l'équipe et présenté à l'entreprise"
     }
   }
 }
