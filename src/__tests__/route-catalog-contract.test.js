@@ -54,6 +54,13 @@ function collectRouteUsages() {
  * Every entry MUST say why in a comment next to it.
  */
 const ALLOWED_UNROUTED = new Set([
+  // lms.assign/enroll/publish — RETIRED (Decision 5): kept in the catalog as
+  // historical metadata for legacy holders; all six enforcement sites migrated
+  // to lms.edit in Phase 3 (Option A). Permanent removal follows the Phase 6
+  // zero-dependency proof.
+  "lms.assign",
+  "lms.enroll",
+  "lms.publish",
   // contacts.import — superseded by the bulk_upload.execute gate (P1). Kept
   // in the catalog so legacy profile rows remain explainable; no route
   // enforces it directly.

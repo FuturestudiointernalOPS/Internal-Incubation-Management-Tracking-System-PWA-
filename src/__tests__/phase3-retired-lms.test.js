@@ -30,7 +30,7 @@ describe("Phase 3 — retired LMS capabilities stay retired", () => {
     }
   });
 
-  test("enforcement sites are exactly the known inventory (self-revealing on migration)", () => {
+  test("no route enforces a retired capability anymore (migrated to lms.edit, Option A)", () => {
     const sites = [];
     for (const root of SRC_DIRS) {
       for (const f of walk(path.join(ROOT, root))) {
@@ -42,16 +42,10 @@ describe("Phase 3 — retired LMS capabilities stay retired", () => {
         }
       }
     }
-    expect([...sites].sort()).toEqual(
-      [
-        "app/api/lms/courses/[id]/enrollments/route.js:lms.enroll",
-        "app/api/lms/courses/[id]/publish/route.js:lms.publish",
-        "app/api/lms/enrollments/route.js:lms.enroll",
-        "app/api/lms/program-requirements/[id]/route.js:lms.assign",
-        "app/api/lms/program-requirements/[id]/route.js:lms.assign",
-        "app/api/lms/program-requirements/route.js:lms.assign",
-      ].sort(),
-    );
+    // Phase 3 Option A migrated all six sites to lms.edit (rosters,
+    // enrollment, publish, program requirements). If a retired gate appears
+    // again this fails — migrate it, don't re-add.
+    expect(sites).toEqual([]);
   });
 
   test("no grant seed writes a retired capability (no new grants)", () => {

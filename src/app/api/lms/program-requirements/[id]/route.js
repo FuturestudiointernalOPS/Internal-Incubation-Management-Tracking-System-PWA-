@@ -26,7 +26,9 @@ export const dynamic = "force-dynamic";
 export async function PUT(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
+    // gate (PUT).
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { id } = await params;
@@ -48,7 +50,9 @@ export async function PUT(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "assign");
+    // Phase 3 (Option A): retired lms.assign migrated to the canonical lms.edit
+    // gate (DELETE).
+    const capError = await requireAuthorization("lms", "edit");
     if (capError) return capError;
 
     const { id } = await params;
