@@ -10,7 +10,8 @@ import db from "@/lib/db";
  *  - /api/workspaces    → getStaffAssignmentsForUser, getActiveParticipantEnrollments,
  *                         getProgramAssignmentsFromContactRoles, getParticipantProgramMemberships,
  *                         getUserGroupMembershipsByNames, getInactiveGroupMembershipHistory,
- *                         getActiveResponsibilitiesForUser, getActiveVentureMembershipsForContact
+ *                         getActiveResponsibilitiesForUser, getActiveVentureMembershipsForContact,
+ *                         getContactStoredRole
  *  - /api/calendar      → getFacilitatorProgramScopePids, getParticipantProgramScopePids,
  *                         getCalendarTasksWithDates, getCalendarPrograms, getCalendarSessions,
  *                         getCalendarDeliverables, ensureFollowupsCreatedByColumn, getCalendarFollowups
@@ -68,6 +69,14 @@ export async function getActiveParticipantEnrollments(cid) {
             JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(pp.program_id AS TEXT)
             WHERE pp.participant_id = ? AND (pp.status IS NULL OR pp.status = 'active')
             ORDER BY p.name ASC`,
+    args: [cid],
+  });
+}
+
+/** Raw stored baseline role (contacts.role) — identity-chip truth. */
+export async function getContactStoredRole(cid) {
+  return db.execute({
+    sql: `SELECT role FROM contacts WHERE cid = ? LIMIT 1`,
     args: [cid],
   });
 }
