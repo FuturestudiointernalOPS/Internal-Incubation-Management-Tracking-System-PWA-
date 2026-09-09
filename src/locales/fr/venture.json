@@ -414,7 +414,8 @@
     "staffAssign": {
       "searchPlaceholder": "Recherchez un membre de l’équipe Future Studio par nom ou e-mail…",
       "noStaffFound": "Aucun membre de l’équipe Future Studio ne correspond à cette recherche."
-    },    "coach": {
+    },
+    "coach": {
       "mySessionsBadge": "Animé par vous",
       "reportAction": "Compte rendu de séance",
       "reportNotes": "Notes de séance",
@@ -424,7 +425,8 @@
       "reportLoadError": "Impossible de charger le compte rendu de séance.",
       "reportSaveError": "Impossible d'enregistrer votre note.",
       "contextTask": "Tâche"
-    },    "history": {
+    },
+    "history": {
       "title": "Historique de la Venture",
       "subtitle": "Mémoire institutionnelle — tout ce qui a été enregistré sur cette Venture, en un seul endroit.",
       "events": "Événements",
