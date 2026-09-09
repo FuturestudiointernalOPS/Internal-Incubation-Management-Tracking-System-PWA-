@@ -15,6 +15,7 @@
  */
 
 import db, { initDb } from "@/lib/db";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 import {
   ensureVentureSchema,
   generateVentureId,
@@ -266,10 +267,15 @@ export async function createVentureFromSubmission({ submission, run, form, revie
     args: [ventureId, submitterCid, submitterCid, now],
   });
   try {
-    await db.execute({
-      sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
-      args: [submitterCid],
-    });
+    // PHASE I2 (flag-gated): founder is a venture context (venture_members row
+    // above is the source of truth) — the baseline role is no longer rewritten
+    // when the stop flag is on. The NOT IN guard stays for the legacy path.
+    if (!stopRoleMutationEnabled()) {
+      await db.execute({
+        sql: "UPDATE contacts SET role = 'founder' WHERE cid = ? AND role NOT IN ('super_admin', 'staff', 'admin', 'program_manager')",
+        args: [submitterCid],
+      });
+    }
   } catch (_) {}
   await mirrorRoleHistory(ventureId, submitterCid, "founder", true);
 

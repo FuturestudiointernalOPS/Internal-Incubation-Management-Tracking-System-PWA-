@@ -20,7 +20,7 @@ const path = require("node:path");
 
 const SRC_DIRS = ["src/models", "src/lib"];
 
-/** Files containing a direct `UPDATE contacts SET ... role` statement. */
+/** Files that can write contacts.role (direct UPDATE or flag-gated interpolation). */
 function findRoleMutationFiles() {
   const hits = [];
   for (const root of SRC_DIRS) {
@@ -30,9 +30,14 @@ function findRoleMutationFiles() {
         if (entry.isDirectory()) walk(full);
         else if (/\.(js|mjs)$/.test(entry.name)) {
           const src = fs.readFileSync(full, "utf8");
-          if (/UPDATE\s+contacts\s+SET[\s\S]{0,120}role/.test(src)) {
-            hits.push(full.replace(/\\/g, "/"));
-          }
+          if (!/UPDATE\s+contacts\s+SET/.test(src)) continue;
+          // I2: role writes are either direct (the UPDATE statement itself
+          // names the role column) or flag-gated via the stop-role-mutation
+          // helper. Window-free: scope to the statement only.
+          const statements = [...src.matchAll(/UPDATE\s+contacts\s+SET[^`;]*/g)];
+          const direct = statements.some((m) => /\brole\b/.test(m[0]));
+          const gated = src.includes("stopRoleMutationEnabled");
+          if (direct || gated) hits.push(full.replace(/\\/g, "/"));
         }
       }
     })(root);
@@ -77,4 +82,71 @@ test("identity creation defaults: new platform contacts start as member (baselin
   // as a membership row, not as the person's global role).
   const formRuns = fs.readFileSync("src/models/formRuns.js", "utf8");
   expect(formRuns).toMatch(/'member'/);
+});
+
+test("dynamic contact updaters are watched (never fed contextual roles)", () => {
+  // updateContactFields builds SET from caller fields — it is a legitimate
+  // admin edit surface, but contextual flows must never pass `role` through
+  // it. Watch-list only (no failure today):
+  const contacts = fs.readFileSync("src/models/contacts.js", "utf8");
+  expect(contacts).toMatch(/export async function updateContactFields/);
+});
+
+describe("deriveLegacyRole (I2 transitional view)", () => {
+  const { deriveLegacyRole, isBaselineIdentity, BASELINE_IDENTITIES } = require("@/lib/identity");
+
+  test("baseline set is exactly Super Admin / Staff / Member", () => {
+    expect([...BASELINE_IDENTITIES].sort()).toEqual(["member", "staff", "super_admin"]);
+    expect(isBaselineIdentity("member")).toBe(true);
+    expect(isBaselineIdentity("staff")).toBe(true);
+    expect(isBaselineIdentity("super_admin")).toBe(true);
+    expect(isBaselineIdentity("participant")).toBe(false);
+    expect(isBaselineIdentity("founder")).toBe(false);
+    expect(isBaselineIdentity("facilitator")).toBe(false);
+    expect(isBaselineIdentity("investor")).toBe(false);
+  });
+
+  test("member + program membership derives participant", () => {
+    expect(deriveLegacyRole({ storedRole: "member", hasActiveParticipantProgram: true })).toBe("participant");
+  });
+
+  test("member + venture ownership (no program) derives founder", () => {
+    expect(deriveLegacyRole({ storedRole: "member", isActiveVentureOwner: true })).toBe("founder");
+  });
+
+  test("bare member stays member", () => {
+    expect(deriveLegacyRole({ storedRole: "member" })).toBe("member");
+  });
+
+  test("staff and super_admin are never derived", () => {
+    expect(deriveLegacyRole({ storedRole: "staff", hasActiveParticipantProgram: true })).toBe("staff");
+    expect(deriveLegacyRole({ storedRole: "super_admin", isActiveVentureOwner: true })).toBe("super_admin");
+  });
+
+  test("legacy contextual values pass through unchanged (no double-derivation)", () => {
+    expect(deriveLegacyRole({ storedRole: "participant" })).toBe("participant");
+    expect(deriveLegacyRole({ storedRole: "founder" })).toBe("founder");
+    expect(deriveLegacyRole({ storedRole: "investor" })).toBe("investor");
+  });
+});
+
+describe("I2 mutation-stop guard presence", () => {
+  test("every contextual mutation site consults the stop flag", () => {
+    const sites = [
+      "src/models/adminOps.js",
+      "src/models/authFlows.js",
+      "src/models/investorRelations.js",
+      "src/models/venturePipeline.js",
+      "src/models/platform/automation.js",
+    ];
+    for (const f of sites) {
+      const src = fs.readFileSync(f, "utf8");
+      expect(src).toContain("stopRoleMutationEnabled");
+    }
+  });
+
+  test("createSession consults the legacy-role derivation flag", () => {
+    const auth = fs.readFileSync("src/lib/auth.js", "utf8");
+    expect(auth).toContain("deriveLegacyRoleEnabled()");
+  });
 });

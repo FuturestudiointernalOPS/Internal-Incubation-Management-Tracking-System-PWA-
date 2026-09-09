@@ -16,6 +16,7 @@ import {
   notifyUser,
 } from "@/lib/platform/integrations";
 import { resolveDefaultRole } from "@/lib/platform/roles";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 import { resolveSubmissionEmail } from "@/lib/email";
 import { hashToken } from "@/lib/token-hashing";
 
@@ -425,12 +426,24 @@ const RULES = [
           // the activate endpoint), never by password existence alone.
           accountActivated = String(contact.status || "").toLowerCase() === "active";
           if (!accountActivated) {
-            await db.execute({
-              sql: `UPDATE contacts SET role = ?, status = 'approved',
-                    group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END
-                    WHERE cid = ?`,
-              args: [targetRole, groupName || null, contact.cid],
-            });
+            // PHASE I2 (flag-gated): approval must not rewrite the baseline
+            // identity — role column is left untouched when the stop flag is
+            // on; legacy readers receive the derived role at session creation.
+            if (stopRoleMutationEnabled()) {
+              await db.execute({
+                sql: `UPDATE contacts SET status = 'approved',
+                      group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END
+                      WHERE cid = ?`,
+                args: [groupName || null, contact.cid],
+              });
+            } else {
+              await db.execute({
+                sql: `UPDATE contacts SET role = ?, status = 'approved',
+                      group_name = CASE WHEN group_name IS NULL OR TRIM(group_name) = '' OR LOWER(group_name) = 'unassigned' THEN ? ELSE group_name END
+                      WHERE cid = ?`,
+                args: [targetRole, groupName || null, contact.cid],
+              });
+            }
           }
         } else {
           const cid = "USR_" + Math.random().toString(36).substring(2, 14).toUpperCase();

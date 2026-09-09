@@ -209,6 +209,25 @@ export function applyMembershipAction(current, action, opts = {}, now = new Date
 
 // ─── Database helpers ────────────────────────────────────────────────────────
 
+/** True when the user has any participant_programs row (transitional legacy-role derivation, I2). */
+export async function hasActiveParticipantProgram(cid) {
+  const r = await db.execute({
+    sql: "SELECT 1 FROM participant_programs WHERE participant_id = ? LIMIT 1",
+    args: [cid],
+  });
+  return r.rows.length > 0;
+}
+
+/** True when the user is an active venture owner/founder (transitional derivation, I2). */
+export async function isActiveVentureOwner(cid) {
+  const r = await db.execute({
+    sql: `SELECT 1 FROM venture_members
+          WHERE (user_cid = ? OR contact_id = ?) AND is_owner = TRUE AND removed_at IS NULL LIMIT 1`,
+    args: [cid, cid],
+  });
+  return r.rows.length > 0;
+}
+
 /** Is this group protected (only Super Admin / org_membership.manage)? */
 export async function isGroupProtected(groupName) {
   await ensureMembershipSchema();

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { stopRoleMutationEnabled } from "@/lib/identity";
 
 /**
  * Auth flows model — data access for the `/api/auth/*` controllers
@@ -665,11 +666,16 @@ export async function getContactByEmailForV2InviteAccept(email) {
 
 /** Overwrite an existing contact's profile with the v2 invite credentials + group. */
 export async function updateContactByEmailForV2InviteAccept(name, phone, password, role, groupName, teamId, email) {
+  // PHASE I2 (flag-gated): accepting a context invite must not rewrite an
+  // existing person's baseline identity. When the stop flag is on the role
+  // column is left untouched (name/phone/password/group/team still update).
+  const setRole = stopRoleMutationEnabled() ? "" : "role = ?, ";
+  const roleArgs = stopRoleMutationEnabled() ? [] : [role];
   return db.execute({
     sql: `UPDATE contacts
-              SET name = ?, phone = ?, password = ?, role = ?, group_name = ?, v2_team_id = ?
+              SET name = ?, phone = ?, password = ?, ${setRole}group_name = ?, v2_team_id = ?
               WHERE email = ?`,
-    args: [name, phone || null, password, role, groupName, teamId || null, email],
+    args: [name, phone || null, password, ...roleArgs, groupName, teamId || null, email],
   });
 }
 
