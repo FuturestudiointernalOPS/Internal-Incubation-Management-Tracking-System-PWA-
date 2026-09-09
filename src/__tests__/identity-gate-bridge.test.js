@@ -152,6 +152,35 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/requireAssignmentAccess/);
   });
 
+  test("phase 1.3: families GET — bare + management/programs.view gate", () => {
+    const file = "src/app/api/families/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
+    expect(src).toMatch(/hasProgramManagementAccess/);
+  });
+
+  test("phase 1.3: participant-programs GET — bare + management/capability/assignment gate", () => {
+    const file = "src/app/api/participant-programs/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/requireAssignmentAccess/);
+  });
+
+  test("phase 1.3: teams GET — bare + own-team scope + management/capability/assignment gate", () => {
+    const file = "src/app/api/teams/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
+    expect(src).toMatch(/requireAssignmentAccess/);
+    // Team-entity own-scope binding preserved in front of the gates.
+    expect(src).toMatch(/session\?\.role === "team"/);
+    expect(src).toMatch(/teamId = ownTeamId/);
+  });
+
   test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
     expect(bareAuthCount("src/app/api/pm/full-state/route.js")).toBe(1);
     expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
@@ -208,8 +237,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
   // membership/capability gate exists for the contextual holder. Removing a
   // list here without building the gate = widening access: this test fails.
   const deferred = [
-    "src/app/api/families/route.js", // GET unscoped family list
-    "src/app/api/participant-programs/route.js", // GET cross-participant read
     "src/app/api/platform/ai/route.js", // AI spend, no context in request
     "src/app/api/platform/ai/analyze/route.js",
     "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
@@ -221,7 +248,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
     "src/app/api/v2/teacher/reports/route.js",
     "src/app/api/investor/campaigns/route.js", // GET unscoped campaign list
     "src/app/api/investor/pipeline/route.js", // GET: unscoped venture_id branch
-    "src/app/api/teams/route.js", // GET: own-team scope exists only in comments
     "src/app/api/upload/route.js", // no context; eligibility question
   ];
 

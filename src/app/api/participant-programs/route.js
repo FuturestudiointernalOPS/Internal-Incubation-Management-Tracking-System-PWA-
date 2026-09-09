@@ -1,6 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import {
+  requireAuth,
+  getSession,
+  hasProgramManagementAccess,
+  requireAssignmentAccess,
+} from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { ensureProgramEnrollments } from "@/lib/lms/programRequirements";
 import {
   getParticipantProgramAssignments,
@@ -28,17 +34,32 @@ export const dynamic = "force-dynamic";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-    ]);
+    // Phase 1.3: cross-participant enrollment reads are governed — management
+    // roles or programs.view capability; an assignment in the requested
+    // program also suffices when program_id scopes the read.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
     const participantId = searchParams.get("participant_id");
     const programId = searchParams.get("program_id");
+
+    const session = await getSession();
+    const capError = await requireAuthorization("programs", "view");
+    const canRead = !capError || hasProgramManagementAccess(session?.role);
+    if (session && !canRead) {
+      if (!programId) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: programId,
+      });
+      if (guardError) return guardError;
+    }
 
     const result = await getParticipantProgramAssignments(participantId, programId);
     return NextResponse.json({ success: true, assignments: result.rows });

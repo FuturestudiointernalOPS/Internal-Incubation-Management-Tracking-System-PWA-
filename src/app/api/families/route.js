@@ -1,6 +1,11 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth";
+import {
+  requireAuth,
+  getSession,
+  hasProgramManagementAccess,
+} from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 
 import { v4 as uuidv4 } from "uuid";
 
@@ -33,10 +38,24 @@ export async function GET(req) {
     }
 
     // All other queries require auth
-    const authError = await requireAuth([
-      "staff", "super_admin", "program_manager", "teacher", "participant",
-    ]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    // Phase 1.3: the family/group directory is capability-governed. Only
+    // management roles and programs.view-capability holders may list every
+    // family. Participant-role sessions were previously trusted with a
+    // platform-wide group read — no UI consumer exists for that; the
+    // program-scoped group data participants need comes from their own
+    // program endpoints.
+    const session = await getSession();
+    const capError = await requireAuthorization("programs", "view");
+    const canList = !capError || hasProgramManagementAccess(session?.role);
+    if (!canList) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
 
     const result = await getAllFamilies();
     return NextResponse.json({ success: true, families: result.rows });

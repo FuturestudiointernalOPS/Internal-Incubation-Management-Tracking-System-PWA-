@@ -1,6 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth, getSession } from "@/lib/auth";
+import {
+  requireAuth,
+  getSession,
+  hasProgramManagementAccess,
+  requireAssignmentAccess,
+} from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import { sendEmail } from "@/lib/mailer";
 import {
   getOrgTeams,
@@ -19,21 +25,16 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "staff",
-      "program_manager",
-      "team",
-    ]);
+    // Phase 1.3: authentication only here — the decision is below.
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     let teamId = searchParams.get("team_id");
 
-    // Defect fix (I6A defect queue): a team-entity session (role "team",
-    // session.cid = its own v2_teams.id) may only ever read ITS OWN team —
-    // the caller-chosen team_id is bound server-side. Staff/PM/SA are
-    // unaffected (they stay unscoped).
+    // Team-entity sessions (role "team", session.cid = their own v2_teams.id)
+    // may only ever read ITS OWN team — the caller-chosen team_id is bound
+    // server-side. This runs first and is unaffected by the gates below.
     const session = await getSession();
     if (session?.role === "team") {
       const ownTeamId = String(session.cid || "");
@@ -43,7 +44,28 @@ export async function GET(req) {
       if (!teamId) teamId = ownTeamId;
     }
 
-    // For team role: only return the team that matches the session's team_id
+    // Phase 1.3: staff/PM roster reads are governed — management roles and
+    // programs.view holders may read (scoped by their params, as before);
+    // everyone else must hold a program assignment and provide a real program
+    // context ("all" is no longer an implicit platform-wide read).
+    const capError = await requireAuthorization("programs", "view");
+    const canReadTeams = !capError || hasProgramManagementAccess(session?.role);
+    if (session?.role !== "team" && !canReadTeams) {
+      if (!programId || programId === "all") {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: programId,
+      });
+      if (guardError) return guardError;
+    }
+
+    // Team-entity sessions read only their own team; authorized sessions read
+    // with their params (program-scoped or, for capability holders, "all").
     const result = await getOrgTeams(programId, teamId);
 
     // If fetching a specific team, also include member details
