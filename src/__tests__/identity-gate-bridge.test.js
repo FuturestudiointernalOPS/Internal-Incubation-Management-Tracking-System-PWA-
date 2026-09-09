@@ -325,8 +325,8 @@ describe("I6A converted handlers — bare requireAuth + downstream membership ma
     expect(lists[0]).toMatch(/super_admin/);
     expect(lists[0]).toMatch(/staff/);
     expect(containsContextual(lists[0])).toBe(false);
-    // POST stays capability-gated (no requireAuth allowlist)
-    expect(src).toMatch(/requireAuthorization\("investor", "create"\)/);
+    // POST stays capability-gated through the Phase-2 self-service seam
+    expect(src).toMatch(/requireInvestorSelfServiceAuthorization\("create"\)/);
   });
 });
 

@@ -1,11 +1,12 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   countInvestorVentureSearch,
   searchInvestorVentures,
 } from "@/models/investor";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /**
  * GET /api/investor/ventures
@@ -22,7 +23,7 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "view");
+    const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);

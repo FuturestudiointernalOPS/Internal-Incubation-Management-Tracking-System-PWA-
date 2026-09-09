@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth, getSession } from "@/lib/auth";
-import { requireAuthorization } from "@/lib/authorization";
+
 import {
   addInvestmentToActiveCampaign,
   createInvestmentDecision,
@@ -23,12 +23,13 @@ import {
   markRelationshipWorkspaceActiveInvestment,
   upsertInvestmentPipeline,
 } from "@/models/investor";
+import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** POST /api/investor/pipeline — add venture to pipeline or update stage */
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("investor", "create");
+    const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
     const session = await getSession();
