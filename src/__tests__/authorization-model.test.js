@@ -79,7 +79,6 @@ describe("Phase 9 — model consistency", () => {
         "developer",
         "facilitator",
         "founder",
-        "investor",
         "participant",
         "program_manager",
         "security_officer",
@@ -87,6 +86,10 @@ describe("Phase 9 — model consistency", () => {
         "super_admin",
         "teacher",
         "team",
+        // "investor" was removed from every requireAuth list in phases
+        // 6A/1.5 — investor access is now own-scoped (profile/pipeline) or
+        // management-gated. If a new gate lists it again, add it back here
+        // deliberately.
       ].sort(),
     );
   });

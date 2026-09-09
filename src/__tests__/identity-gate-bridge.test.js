@@ -211,6 +211,33 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/cid = session\.cid/);
   });
 
+  test("phase 1.5: investor pipeline GET — bare + own-scope binding for non-management", () => {
+    const file = "src/app/api/investor/pipeline/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/management = \["super_admin", "staff", "program_manager"\]/);
+    expect(src).toMatch(/investorId = profile\.rows\[0\]\.id/);
+    // Model: venture reads are own-scoped when an investorId is bound.
+    const model = fs.readFileSync(path.join(ROOT, "src/models/investor.js"), "utf8");
+    expect(model).toMatch(/ventureId && investorId/);
+    expect(model).toMatch(/AND ip\.investor_id = \?/);
+  });
+
+  test("phase 1.5: investor campaigns GET — bare + engaged-venture scoping for non-management", () => {
+    const file = "src/app/api/investor/campaigns/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+    expect(src).toMatch(/getInvestorProfileIdByUserIdForPipelineList/);
+    const model = fs.readFileSync(
+      path.join(ROOT, "src/models/investorRelations.js"),
+      "utf8",
+    );
+    expect(model).toMatch(/investorId/);
+    expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
+  });
+
   test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
     expect(bareAuthCount("src/app/api/pm/full-state/route.js")).toBe(1);
     expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
@@ -272,8 +299,6 @@ describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need dow
     "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
     "src/app/api/platform/ai/evaluation-scores/route.js", // PII read
     "src/app/api/platform/form-runs/route.js", // review + send_result_emails actions
-    "src/app/api/investor/campaigns/route.js", // GET unscoped campaign list
-    "src/app/api/investor/pipeline/route.js", // GET: unscoped venture_id branch
     "src/app/api/upload/route.js", // no context; eligibility question
   ];
 

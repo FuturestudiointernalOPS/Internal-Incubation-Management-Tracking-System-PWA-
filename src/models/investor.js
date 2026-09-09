@@ -541,12 +541,22 @@ export async function getInvestorProfileIdByUserIdForPipelineList(userCid) {
 export async function listInvestmentPipeline({ ventureId, stage, role, investorId }) {
   let sql, args;
 
-  if (ventureId) {
+  if (ventureId && !investorId) {
+    // Management view: all pipeline rows for the venture.
     sql = `SELECT ip.*, p.name as venture_name
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              WHERE ip.venture_id = ?`;
     args = [ventureId];
+  } else if (ventureId && investorId) {
+    // Phase 1.5: own-scoped venture view — a non-management session may only
+    // read its OWN rows for the venture (the previous branch returned every
+    // investor's rows to anyone with the venture id).
+    sql = `SELECT ip.*, p.name as venture_name
+             FROM investment_pipeline ip
+             LEFT JOIN v2_programs p ON ip.venture_id = p.id
+             WHERE ip.venture_id = ? AND ip.investor_id = ?`;
+    args = [ventureId, investorId];
   } else if (stage && (role === "super_admin" || role === "staff")) {
     // Admin filtering by stage (e.g., meeting_requested)
     sql = `SELECT ip.*, p.name as venture_name, ipr.organization_name, c.name as investor_name, c.email,
@@ -561,6 +571,7 @@ export async function listInvestmentPipeline({ ventureId, stage, role, investorI
              ORDER BY ip.stage_changed_at DESC`;
     args = [stage];
   } else {
+    // Own pipeline.
     sql = `SELECT ip.*, p.name as venture_name
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id

@@ -13,6 +13,7 @@ import {
   notifyInvestorOfNewCampaign,
   updateFundraisingCampaign,
 } from "@/models/investorRelations";
+import { getInvestorProfileIdByUserIdForPipelineList } from "@/models/investor";
 
 /**
  * GET /api/investor/campaigns
@@ -21,14 +22,31 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "investor", "program_manager"]);
+    // Phase 1.5: authentication only — scoping is derived below.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
     const ventureId = searchParams.get("venture_id");
     const status = searchParams.get("status");
 
-    const result = await listFundraisingCampaigns({ ventureId, status });
+    const session = await getSession();
+    const user = session;
+    const management = ["super_admin", "staff", "program_manager"].includes(user?.role);
+
+    // Phase 1.5: management sees all campaigns (as before); every other
+    // session — legacy investor role or a member with an investor context —
+    // is scoped to campaigns for ventures it is engaged with in the pipeline.
+    let investorId = null;
+    if (!management) {
+      const profile = await getInvestorProfileIdByUserIdForPipelineList(user.cid || user.id);
+      if (profile.rows.length === 0) {
+        return NextResponse.json({ success: true, campaigns: [] });
+      }
+      investorId = profile.rows[0].id;
+    }
+
+    const result = await listFundraisingCampaigns({ ventureId, status, investorId });
     return NextResponse.json({ success: true, campaigns: result.rows });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
