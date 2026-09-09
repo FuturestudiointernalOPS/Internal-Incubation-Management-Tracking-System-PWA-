@@ -356,8 +356,19 @@ async function runBatch(formId, onlyFailed, batchSize) {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+    // Phase 1.6 (C5b = A): AI evaluation/auto-approval is management-only
+    // (SA/admin/PM) — it can change applicant status and send decision
+    // emails; no program context exists here to verify program staff.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
 
     const body = await req.json();
     const { initDb } = await import("@/lib/db");
@@ -436,11 +447,17 @@ export async function POST(req) {
 
 export async function GET(req) {
   try {
-    // Defect fix (I6A defect queue): this read was completely unauthenticated
-    // and returned evaluation rows for any submission/form id. Same gate as
-    // the POST handler that produces the data — no wider surface.
-    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+    // Phase 1.6 (C5b = A): evaluation reads (scores/PII) are management-only.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
     const { initDb } = await import("@/lib/db");
     await initDb();
     const { searchParams } = new URL(req.url);

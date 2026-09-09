@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
+import { getActiveParticipantEnrollments } from "@/models/workspace";
 
 // ── Server-side upload validation (mirrors src/lib/storage.js) ──
 const ALLOWED_MIME_TYPES = [
@@ -20,10 +21,27 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export async function POST(request) {
   try {
-    const authError = await requireAuth([
-      "super_admin", "staff", "program_manager", "team", "participant",
-    ]);
+    // Phase 1.6 (C5a = A): authentication only here. Writes to the public
+    // bucket are allowed for internal roles (SA/staff/PM), team-entity
+    // sessions (their own files) and verified participants/members holding an
+    // active program membership (self-service). Plain member accounts with no
+    // context cannot write to the public bucket.
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    const role = String(session?.role || "").toLowerCase();
+    const internal = ["super_admin", "staff", "program_manager", "team"].includes(role);
+    if (session && !internal) {
+      const enr = await getActiveParticipantEnrollments(session.cid);
+      if (enr.rows.length === 0) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+    }
 
     const formData = await request.formData();
     const file = formData.get("file");

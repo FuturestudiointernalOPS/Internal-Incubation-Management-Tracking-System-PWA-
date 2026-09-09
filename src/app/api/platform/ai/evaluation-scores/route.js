@@ -73,8 +73,18 @@ function answerValue(v) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "admin", "program_manager", "teacher"]);
+    // Phase 1.6 (C5b = A): scoreboard reads include respondent PII —
+    // management-only (SA/admin/PM).
+    const authError = await requireAuth();
     if (authError) return authError;
+    const { getSession } = await import("@/lib/auth");
+    const session = await getSession();
+    if (session && !["super_admin", "admin", "program_manager"].includes(session.role)) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
 
     const { searchParams } = new URL(req.url);
     const runIdParam = searchParams.get("run_id");

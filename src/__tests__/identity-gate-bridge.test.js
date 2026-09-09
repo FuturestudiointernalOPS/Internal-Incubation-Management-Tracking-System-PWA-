@@ -238,6 +238,58 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(model).toMatch(/SELECT DISTINCT venture_id FROM investment_pipeline WHERE investor_id/);
   });
 
+  test("phase 1.6: AI + review actions — bare auth + management-only role check (no teacher)", () => {
+    const files = [
+      "src/app/api/platform/ai/route.js",
+      "src/app/api/platform/ai/analyze/route.js",
+      "src/app/api/platform/ai/evaluate-submission/route.js",
+      "src/app/api/platform/ai/evaluation-scores/route.js",
+    ];
+    for (const file of files) {
+      const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+      for (const l of authBlocks(file)) expect(containsContextual(l)).toBe(false);
+      expect(src).toMatch(/\["super_admin", "admin", "program_manager"\]\.includes/);
+    }
+    // form-runs: the two consequential actions are management-checked.
+    const fr = fs.readFileSync(path.join(ROOT, "src/app/api/platform/form-runs/route.js"), "utf8");
+    expect(fr.match(/\["super_admin", "admin", "program_manager"\]\.includes/g) || []).toHaveLength(2);
+    expect(fr).not.toMatch(/requireAuth\(\[\s*"super_admin", "admin", "program_manager", "teacher"/);
+  });
+
+  test("phase 1.6: upload POST — bare auth + session-context verification (no role list)", () => {
+    const file = "src/app/api/upload/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1);
+    expect(authBlocks(file)).toHaveLength(0);
+    expect(src).toMatch(/getActiveParticipantEnrollments/);
+    expect(src).toMatch(/\["super_admin", "staff", "program_manager", "team"\]\.includes\(role\)/);
+  });
+
+  test("phase 1.6: END STATE — no contextual-role requireAuth list remains anywhere in src/app/api", () => {
+    const walk = (dir, out = []) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, e.name);
+        if (e.isDirectory()) walk(p, out);
+        else if (e.name === "route.js") out.push(p);
+      }
+      return out;
+    };
+    const CONTEXTUAL = ["facilitator", "teacher", "participant", "founder", "investor", "team"];
+    const offenders = [];
+    for (const f of walk(path.join(ROOT, "src/app/api"))) {
+      const src = fs.readFileSync(f, "utf8");
+      const lists = [...src.matchAll(/requireAuth\(\s*\[([^\]]*)\]\)/gs)].map((m) => m[1]);
+      for (const l of lists) {
+        const roles = l.split(",").map((s) => s.trim().replace(/"/g, ""));
+        if (roles.some((r) => CONTEXTUAL.includes(r))) {
+          offenders.push(f.replace(/\\/g, "/").split("/src/app/api/")[1] || f);
+          break;
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   test("pm/full-state: bare (assigned-PM / requireProgramFacilitator decide)", () => {
     expect(bareAuthCount("src/app/api/pm/full-state/route.js")).toBe(1);
     expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
@@ -287,26 +339,6 @@ describe("I5 completed pattern (sessions + followups) stays clean", () => {
       expect(src).toMatch(/requireAssignmentAccess/);
     },
   );
-});
-
-describe("I6A/I6B backlog watchlist — deferred contextual-role lists (need downstream gates first)", () => {
-  // Each file's allowlists stay role-listed until a real downstream
-  // membership/capability gate exists for the contextual holder. Removing a
-  // list here without building the gate = widening access: this test fails.
-  const deferred = [
-    "src/app/api/platform/ai/route.js", // AI spend, no context in request
-    "src/app/api/platform/ai/analyze/route.js",
-    "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
-    "src/app/api/platform/ai/evaluation-scores/route.js", // PII read
-    "src/app/api/platform/form-runs/route.js", // review + send_result_emails actions
-    "src/app/api/upload/route.js", // no context; eligibility question
-  ];
-
-  test.each(deferred)("%s keeps its documented role list (locked deferral)", (file) => {
-    const blocks = authBlocks(file);
-    expect(blocks.length).toBeGreaterThan(0);
-    expect(blocks.some((b) => containsContextual(b))).toBe(true);
-  });
 });
 
 describe("I6B — pm/* converted, no facilitator/teacher lists may return", () => {
