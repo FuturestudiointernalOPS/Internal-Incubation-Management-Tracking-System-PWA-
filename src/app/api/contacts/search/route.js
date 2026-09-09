@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/auth";
+import { requireAuthorization } from "@/lib/authorization";
 import {
   isParticipantInProgram,
   isVentureFounderInProgram,
@@ -14,25 +15,17 @@ import {
  * MVP boundary: the general Future Studio CRM directory is NOT available to
  * external users.
  *
- * - Internal CRM roles (staff, program_manager, teacher, super_admin):
- *   general search across the contacts directory (they hold contacts.view).
- * - External users (participant, founder): search is scoped to their own
- *   program context ONLY — participants of the program, its staff and its
- *   assigned program manager. A `program_id` is required and the caller must
- *   belong to that program (participant_programs, or a venture founder whose
- *   venture belongs to the program). Names/emails only — never full records.
+ * - Membership-keyed (Phase 1.2): anyone who holds an active participant or
+ *   venture-founder relationship IN the requested program gets the
+ *   program-scoped search — works for member-baseline users too.
+ * - Global directory search requires the contacts.view capability (internal
+ *   CRM roles hold it via their profile).
+ * - Names/emails only — never full records.
  */
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "participant",
-      "founder",
-      "staff",
-      "program_manager",
-      "super_admin",
-      "teacher",
-    ]);
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { getSession } = await import("@/lib/auth");
@@ -52,47 +45,29 @@ export async function GET(req) {
       return NextResponse.json({ success: true, contacts: [] });
     }
 
-    const isExternal = ["participant", "founder"].includes(session.role);
     const like = `%${q}%`;
 
-    if (isExternal) {
-      // External users: program-scoped search only — never the general CRM
-      // directory. The caller must belong to the requested program.
-      if (!programId) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: "External users can only search within their own program.",
-          },
-          { status: 403 },
-        );
+    // Membership-keyed branch: the caller belongs to the requested program as
+    // a participant or as a venture founder whose venture belongs to it.
+    if (programId) {
+      const [pp, vf] = await Promise.all([
+        isParticipantInProgram(session.cid, programId),
+        isVentureFounderInProgram(session.cid, programId),
+      ]);
+      if (pp.rows.length > 0 || vf.rows.length > 0) {
+        // Scoped pool: program participants, program staff, assigned program
+        // manager. Name/email only — minimal identity, no full contact record.
+        const result = await searchContactsInProgram(like, programId);
+        return NextResponse.json({ success: true, contacts: result.rows || [] });
       }
-
-      const isParticipant = (
-        await isParticipantInProgram(session.cid, programId)
-      ).rows.length > 0;
-
-      const isFounder = (
-        await isVentureFounderInProgram(session.cid, programId)
-      ).rows.length > 0;
-
-      if (!isParticipant && !isFounder) {
-        return NextResponse.json(
-          { success: false, error: "You can only search within your own program." },
-          { status: 403 },
-        );
-      }
-
-      // Scoped pool: program participants, program staff, assigned program
-      // manager. Name/email only — minimal identity, no full contact record.
-      const result = await searchContactsInProgram(like, programId);
-
-      return NextResponse.json({ success: true, contacts: result.rows || [] });
     }
 
-    // Internal CRM roles: general directory search (unchanged). The model
-    // query includes `role` so callers (e.g. the Venture Staff picker) can
-    // distinguish Future Studio staff from founders/participants.
+    // Global directory search: capability-gated (contacts.view). Internal CRM
+    // roles hold it; everyone else is denied here. The model query includes
+    // `role` so callers (e.g. the Venture Staff picker) can distinguish
+    // Future Studio staff from founders/participants.
+    const capError = await requireAuthorization("contacts", "view");
+    if (capError) return capError;
     const result = await searchContactsByNameOrEmail(like);
 
     return NextResponse.json({ success: true, contacts: result.rows || [] });
