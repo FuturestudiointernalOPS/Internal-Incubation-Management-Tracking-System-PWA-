@@ -218,20 +218,6 @@ export default function VentureDetailPage({ params }) {
     verification: `/admin/ventures/${id}/verification`,
   };
 
-  // Module shortcuts — every chip opens the module's real sub-page directly
-  // (uniform behavior; no inline teasers or fabricated preview stats).
-  const HUB_MODULES = [
-    { id: "milestones", label: "vadmin.detail.milestones", route: "/milestones" },
-    { id: "tasks", label: "vadmin.detail.tasks", route: "/tasks" },
-    { id: "sessions", label: "vadmin.detail.sessions", route: "/sessions" },
-    { id: "coaches", label: "vadmin.detail.coaches", route: "/coaches" },
-    { id: "knowledge", label: "vadmin.detail.knowledge", route: "/knowledge" },
-    { id: "feedback", label: "vadmin.detail.feedback", route: "/feedback" },
-    { id: "fundraising", label: "vadmin.detail.fundraising", route: "/fundraising" },
-    { id: "investors", label: "vadmin.detail.investors", route: "/investors" },
-    { id: "analytics", label: "vadmin.detail.analytics", route: "/analytics" },
-  ];
-
   return (
     <>
       <div className="space-y-8 pb-20">
@@ -340,26 +326,9 @@ export default function VentureDetailPage({ params }) {
 
         {/* Tab Content */}
         {activeTab === "dashboard" && (
-          <>
-            {/* Full Dashboard is the first view when opening a Venture (merged
-                with the former standalone dashboard page content). */}
-            <VentureDashboard id={id} embedded />
-            {/* Module shortcuts — every Venture sub-page stays one click away */}
-            <div className="card">
-              <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">{t("vadmin.detail.ventureModules")}</p>
-              <div className="flex flex-wrap gap-2">
-                {HUB_MODULES.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => router.push(`/admin/ventures/${id}${m.route}`)}
-                    className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all text-slate-500 hover:text-[var(--text-primary)]"
-                  >
-                    {t(m.label)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
+          /* Full Dashboard is the first view when opening a Venture (merged
+             with the former standalone dashboard page content). */
+          <VentureDashboard id={id} embedded />
         )}
 
         {(activeTab === "profile" || activeTab === "overview") && (
