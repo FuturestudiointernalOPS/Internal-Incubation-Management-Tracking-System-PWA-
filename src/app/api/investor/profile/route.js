@@ -15,9 +15,11 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin", "staff", "investor", "program_manager",
-    ]);
+    // Phase I6A: own-profile read — the model hard-scopes by session cid
+    // (WHERE ip.user_id = session.cid); there is no cross-user path and no
+    // role branching. The removed role list blocked a baseline Member whose
+    // investor context (investor_profiles row) is the real entitlement.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const session = await getSession();

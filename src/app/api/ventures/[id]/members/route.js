@@ -79,9 +79,11 @@ async function checkMutateAccess(db, ventureId, userRole, userCid) {
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "participant", "founder", "staff", "program_manager", "super_admin", "teacher", "developer",
-    ]);
+    // Phase I6A: venture access is decided per-venture below — checkAccess
+    // (active venture_members row OR venture_staff_assignments) for every
+    // non-global session, archived-state gate after. The role pre-filter
+    // blocked baseline Members who hold exactly that membership.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { id } = await params;
@@ -130,9 +132,11 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "participant", "founder", "staff", "program_manager", "super_admin", "teacher",
-    ]);
+    // Phase I6A: roster mutation is decided per-venture below — checkAccess,
+    // then checkMutateAccess (founder row OR founders:manage capability) for
+    // every non-global session. The role pre-filter blocked baseline Members
+    // who hold a legitimate founder/team relationship.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { id } = await params;
@@ -264,9 +268,9 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "participant", "founder", "staff", "program_manager", "super_admin", "teacher",
-    ]);
+    // Phase I6A: same per-venture decision as POST — checkAccess +
+    // checkMutateAccess gate every session; authentication only here.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const { id } = await params;
