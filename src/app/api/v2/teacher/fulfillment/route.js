@@ -7,7 +7,7 @@
 // =============================================================================
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/lib/auth";
+import { requireAuth, requireAssignmentAccess } from "@/lib/auth";
 import {
   getV2FulfillmentParticipantsByProgram,
   getV2FulfillmentRequirementsByProgramWeek,
@@ -17,7 +17,12 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "teacher"]);
+    // Phase 1.4: fulfillment data (participants + submissions) is program-
+    // scoped — the assignment gate decides for every session (management
+    // roles bypass via the standard bypass list; legacy teacher sessions
+    // pass as before; program-staff members are admitted by their assignment;
+    // unassigned sessions are denied).
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
@@ -29,6 +34,12 @@ export async function GET(req) {
         error: "Program ID and Week Number required",
       });
     }
+
+    const guardError = await requireAssignmentAccess({
+      resource: "program",
+      contextId: program_id,
+    });
+    if (guardError) return guardError;
 
     // Fetch all participants for this program
     const participants = await getV2FulfillmentParticipantsByProgram(program_id);

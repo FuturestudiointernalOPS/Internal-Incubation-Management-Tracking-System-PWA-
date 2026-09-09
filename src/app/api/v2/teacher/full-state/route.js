@@ -18,17 +18,21 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "teacher"]);
+    // Phase 1.4: authentication only — the workspace scope below is derived
+    // from the session for everyone except Super Admin.
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     let cid = searchParams.get("cid");
 
-    // Scope binding (defect batch 2): a teacher session can only ever load
-    // ITS OWN workspace — the caller-chosen cid is ignored (previously any
-    // listed role could read any teacher's programs/teams/submissions by
-    // passing their cid). SA keeps cross-teacher inspection.
+    // Scope binding: only Super Admin may inspect another teacher's workspace
+    // (caller-chosen cid). Every other session — legacy teacher role or a
+    // member holding a program-staff/teaching relationship — is bound to its
+    // own cid, and the scope queries below return only what that cid is
+    // assigned to (assigned_assistant / team handler), so unassigned sessions
+    // simply get an empty workspace.
     const session = await getSession();
-    if (session?.role === "teacher") {
+    if (session?.role !== "super_admin") {
       cid = session.cid;
     }
 
