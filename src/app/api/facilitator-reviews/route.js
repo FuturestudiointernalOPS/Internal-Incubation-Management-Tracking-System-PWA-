@@ -24,22 +24,20 @@ import {
  * decision/action on the same row — the original review text is preserved
  * (audit trail) and never rewritten by the PM.
  *
- * GET  /api/facilitator-reviews?program_id=...      (PM / super_admin / staff)
- * GET  /api/facilitator-reviews?facilitator_id=...  (facilitator sees own)
- * POST /api/facilitator-reviews                     (facilitator / PM / SA)
+ * GET  /api/facilitator-reviews?program_id=...      (management: all; others: own only)
+ * GET  /api/facilitator-reviews?facilitator_id=...  (own reviews — assignment-free)
+ * POST /api/facilitator-reviews                     (program-assigned facilitators / management)
  * PUT  /api/facilitator-reviews                     (PM decision — SA / PM / staff)
  */
 
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "super_admin",
-      "program_manager",
-      "staff",
-      "teacher",
-      "facilitator",
-    ]);
+    // Phase I5: the role pre-filter (facilitator/teacher/…) blocked members
+    // with a legitimate program assignment. Any authenticated session may
+    // reach the assignment gates below; only assigned facilitators (or
+    // management roles) pass them.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const session = await getSession();
@@ -89,12 +87,10 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureReviewStructure();
-    const authError = await requireAuth([
-      "super_admin",
-      "program_manager",
-      "staff",
-      "facilitator",
-    ]);
+    // Phase I5: the program assignment gate below (requireAssignmentAccess)
+    // is the security decision for non-management roles; the removed role
+    // pre-filter used to block members holding a facilitator assignment.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     const session = await getSession();

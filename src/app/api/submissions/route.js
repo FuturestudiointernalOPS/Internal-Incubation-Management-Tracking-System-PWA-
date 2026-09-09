@@ -163,13 +163,11 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "facilitator",
-    ]);
+    // Phase I5: the assignment + assignments.grade check below is the
+    // security decision for every non-management session (facilitator or
+    // staff, role-agnostic). The removed pre-filter blocked members who
+    // hold a legitimate facilitator assignment in the program.
+    const authError = await requireAuth();
     if (authError) return authError;
     const {
       id,

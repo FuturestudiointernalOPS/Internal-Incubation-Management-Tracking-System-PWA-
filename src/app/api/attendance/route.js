@@ -20,13 +20,11 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth([
-      "staff",
-      "super_admin",
-      "program_manager",
-      "teacher",
-      "facilitator",
-    ]);
+    // Phase I5: assignment is the security decision. The old role pre-filter
+    // (staff/PM/teacher/facilitator) blocked members who legitimately hold a
+    // program assignment — the assignment + attendance.record capability
+    // check below authorizes them; everyone unassigned is denied there.
+    const authError = await requireAuth();
     if (authError) return authError;
 
     // Ensure table and columns exist (idempotent). The production table uses

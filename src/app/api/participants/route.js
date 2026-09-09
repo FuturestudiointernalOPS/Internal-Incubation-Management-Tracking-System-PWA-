@@ -91,7 +91,12 @@ export async function POST(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager", "teacher", "facilitator"]);
+    // Phase I5: no-program_id → empty payload, so authentication alone is
+    // safe here; the real decision is below — management roles and
+    // programs.view-capability holders pass, everyone else must hold a
+    // program assignment with participants.view. (The removed role list
+    // blocked members who hold exactly that assignment.)
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
