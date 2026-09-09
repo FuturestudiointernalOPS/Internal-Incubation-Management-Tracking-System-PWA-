@@ -100,6 +100,65 @@ describe("I5 converted handlers — bare requireAuth + assignment machinery", ()
   });
 });
 
+describe("I6A converted handlers — bare requireAuth + downstream membership machinery", () => {
+  test("ventures/[id]/members: GET/POST/PATCH bare; checkAccess/checkMutateAccess present", () => {
+    const file = "src/app/api/ventures/[id]/members/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(3);
+    expect(authBlocks(file)).toHaveLength(0); // no role list remains anywhere
+    expect(src).toMatch(/checkAccess\(/);
+    expect(src).toMatch(/checkMutateAccess\(/);
+    expect(src).toMatch(/requireOperationalVentureAccess/);
+  });
+
+  test("investor/profile: GET bare (own-profile read), POST/PUT gates untouched", () => {
+    const file = "src/app/api/investor/profile/route.js";
+    const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+    expect(bareAuthCount(file)).toBe(1); // GET
+    const lists = authBlocks(file);
+    // PUT keeps its pure-global list [super_admin, staff]
+    expect(lists).toHaveLength(1);
+    expect(lists[0]).toMatch(/super_admin/);
+    expect(lists[0]).toMatch(/staff/);
+    expect(containsContextual(lists[0])).toBe(false);
+    // POST stays capability-gated (no requireAuth allowlist)
+    expect(src).toMatch(/requireAuthorization\("investor", "create"\)/);
+  });
+});
+
+describe("I6A backlog watchlist — deferred contextual-role lists (need downstream gates first)", () => {
+  // Each file's allowlists stay role-listed until a real downstream
+  // membership/capability gate exists for the contextual holder. Removing a
+  // list here without building the gate = widening access: this test fails.
+  const deferred = [
+    "src/app/api/contacts/route.js", // GET directory: role=scope; cidFilter over-read
+    "src/app/api/contacts/search/route.js", // role-keyed branch split (not membership-keyed)
+    "src/app/api/families/route.js", // GET unscoped family list
+    "src/app/api/participant-programs/route.js", // GET cross-participant read
+    "src/app/api/platform/ai/route.js", // AI spend, no context in request
+    "src/app/api/platform/ai/analyze/route.js",
+    "src/app/api/platform/ai/evaluate-submission/route.js", // auto-approve + emails
+    "src/app/api/platform/ai/evaluation-scores/route.js", // PII read
+    "src/app/api/platform/form-runs/route.js", // review + send_result_emails actions
+    "src/app/api/programs/route.js", // GET whole-directory read
+    "src/app/api/teacher/reports/route.js", // client-supplied teacher identity
+    "src/app/api/v2/teacher/fulfillment/route.js", // program-scoped PII read
+    "src/app/api/v2/teacher/full-state/route.js", // client-supplied cid scope key
+    "src/app/api/v2/teacher/reports/route.js",
+    "src/app/api/investor/campaigns/route.js", // GET unscoped campaign list
+    "src/app/api/investor/pipeline/route.js", // GET: unscoped venture_id branch
+    "src/app/api/teams/route.js", // GET: own-team scope exists only in comments
+    "src/app/api/upload/route.js", // no context; eligibility question
+    "src/app/api/ventures/[id]/history/route.js", // founder unchecked; staff gate broken (db)
+  ];
+
+  test.each(deferred)("%s keeps its documented role list (locked deferral)", (file) => {
+    const blocks = authBlocks(file);
+    expect(blocks.length).toBeGreaterThan(0);
+    expect(blocks.some((b) => containsContextual(b))).toBe(true);
+  });
+});
+
 describe("I5 completed pattern (sessions + followups) stays clean", () => {
   test.each(["src/app/api/sessions/route.js", "src/app/api/followups/route.js"])(
     "%s uses no role-list requireAuth at all",
