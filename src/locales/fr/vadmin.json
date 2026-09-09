@@ -256,8 +256,7 @@
       "stepName": "Étape {step} : {name}",
       "supportingDocuments": "Documents justificatifs",
       "team": "Équipe",
-      "teamInformation": "Informations sur l'équipe",
-      "ventureModules": "Modules de l'entreprise"
+      "teamInformation": "Informations sur l'équipe"
     },
     "coaches": {
       "selectCoach": "Sélectionnez un coach",

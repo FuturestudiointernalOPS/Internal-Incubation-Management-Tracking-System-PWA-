@@ -256,8 +256,7 @@
       "stepName": "Step {step}: {name}",
       "supportingDocuments": "Supporting Documents",
       "team": "Team",
-      "teamInformation": "Team Information",
-      "ventureModules": "Venture modules"
+      "teamInformation": "Team Information"
     },
     "coaches": {
       "selectCoach": "Select a coach",
