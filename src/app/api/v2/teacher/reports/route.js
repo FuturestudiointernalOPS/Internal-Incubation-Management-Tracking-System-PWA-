@@ -7,7 +7,7 @@
 // =============================================================================
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth, getSession } from "@/lib/auth";
+import { requireAuth, getSession, requireAssignmentAccess } from "@/lib/auth";
 import {
   findV2WeeklyReportByProgramWeekTeacher,
   insertV2WeeklyReport,
@@ -20,22 +20,39 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "teacher"]);
+    // Phase 1.4: same self-service policy as the V1 reports twin — management
+    // + staff read the full list; legacy teacher and program-staff sessions
+    // must prove a program assignment and see only their own reports.
+    const authError = await requireAuth();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");
     const week_number = searchParams.get("week_number");
 
-    const reports = await listV2WeeklyReports(program_id, week_number);
-    // Own-scope (defect batch 2): a teacher session may only read its own
-    // reports; SA keeps the full view.
     const session = await getSession();
-    const rows =
-      session?.role === "teacher"
-        ? reports.rows.filter(
-            (r) => String(r.teacher_id ?? "") === String(session.cid ?? ""),
-          )
-        : reports.rows;
+    const fullAccess = ["staff", "super_admin", "program_manager"].includes(session?.role);
+    const isLegacyTeacher = String(session?.role) === "teacher";
+    if (session && !fullAccess && !isLegacyTeacher) {
+      if (!program_id) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: program_id,
+      });
+      if (guardError) return guardError;
+    }
+
+    const reports = await listV2WeeklyReports(program_id, week_number);
+    // Own-scope: everyone without full access reads only their own reports.
+    const rows = fullAccess
+      ? reports.rows
+      : reports.rows.filter(
+          (r) => String(r.teacher_id ?? "") === String(session?.cid ?? ""),
+        );
     return NextResponse.json({ success: true, reports: rows });
   } catch (e) {
     return NextResponse.json(
@@ -48,12 +65,30 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "teacher"]);
+    // Phase 1.4: authentication only here — identity binding + assignment
+    // gate below decide.
+    const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
-    // Identity binding (defect batch 2): teacher sessions file as themselves.
+    // Identity binding (Phase 1.4): teacher-role and program-staff sessions
+    // file as themselves; SA keeps on-behalf entry.
     const session = await getSession();
-    if (session?.role === "teacher") {
+    const fullAccess = ["staff", "super_admin", "program_manager"].includes(session?.role);
+    const isLegacyTeacher = String(session?.role) === "teacher";
+    if (session && !fullAccess && !isLegacyTeacher) {
+      if (!body.program_id) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const guardError = await requireAssignmentAccess({
+        resource: "program",
+        contextId: body.program_id,
+      });
+      if (guardError) return guardError;
+    }
+    if (!fullAccess && session) {
       body.teacher_id = session.cid;
       body.teacher_name = session.name || "";
     }
