@@ -38,6 +38,7 @@ import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import DefaultsMatrixView from "@/components/permissions/DefaultsMatrixView";
 import UserMatrixView from "@/components/permissions/UserMatrixView";
 import CatalogView from "@/components/permissions/CatalogView";
+import ScopePoliciesView from "@/components/permissions/ScopePoliciesView";
 
 const ACCESS_LEVELS = {
   NONE: 0,
@@ -469,6 +470,12 @@ export default function PermissionManager() {
               className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "catalog" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
               {t("engineering.permissions.tabCatalog")}
+            </button>
+            <button
+              onClick={() => setActiveTab("scopePolicies")}
+              className={`px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === "scopePolicies" ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+            >
+              {t("engineering.permissions.tabScopePolicies")}
             </button>
           </div>
           {/* Secondary admin section — responsibilities remain available but
@@ -1146,6 +1153,7 @@ export default function PermissionManager() {
         {activeTab === "governance" && <GovernanceView />}
         {activeTab === "userMatrix" && <UserMatrixView />}
         {activeTab === "catalog" && <CatalogView />}
+        {activeTab === "scopePolicies" && <ScopePoliciesView />}
         {whyTarget && (
           <CapabilityWhyModal
             userPerms={userPerms}
