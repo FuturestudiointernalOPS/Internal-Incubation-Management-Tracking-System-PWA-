@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+import VentureDashboard from "@/components/ventures/VentureDashboard";
 
 const STAGE_CONFIG = {
   idea: { label: "Idea", color: "text-blue-400 bg-blue-500/10", order: 1 },
@@ -341,48 +342,12 @@ export default function VentureDetailPage({ params }) {
 
         {/* Tab Content */}
         {activeTab === "dashboard" && (
-          <div className="card">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--brand-orange)]/10 flex items-center justify-center">
-                  <Rocket className="w-6 h-6 text-[var(--brand-orange)]" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-[var(--text-primary)]">Startup Dashboard</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">
-                    Complete operational overview with widgets, progress, and quick actions
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/dashboard`)}
-                className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
-              >
-                <Rocket className="w-3.5 h-3.5" /> Open Full Dashboard
-              </button>
-            </div>
-            <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Founders</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.founders || []).length}</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Members</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.members || []).length}</p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Wizard</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">
-                  {(venture.history || []).filter(h => h.event_type === "PROFILE_WIZARD_INIT" && h.metadata?.completed).length}/6
-                </p>
-              </div>
-              <div className="p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]">
-                <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Activity</p>
-                <p className="text-2xl font-black text-[var(--text-primary)] mt-1">{(venture.activity || []).length}</p>
-              </div>
-            </div>
+          <>
+            {/* Full Dashboard is the first view when opening a Venture (merged
+                with the former standalone dashboard page content). */}
+            <VentureDashboard id={id} embedded />
             {/* Module shortcuts — every sub-page stays one click away */}
-            <div className="mt-6 pt-5 border-t border-[var(--border-primary)]">
+            <div className="card">
               <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">Venture modules</p>
               <div className="flex flex-wrap gap-2">
                 {HUB_MODULES.map((m) => (
@@ -396,7 +361,7 @@ export default function VentureDetailPage({ params }) {
                 ))}
               </div>
             </div>
-          </div>
+          </>
         )}
 
         {activeTab === "investment" && (
